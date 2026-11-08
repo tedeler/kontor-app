@@ -1,4 +1,62 @@
-# Ergebnis: Implementierung Meilenstein 1
+# Ergebnis der Implementierung
+
+## Meilenstein 2
+
+Stand: 2026-11-08, Implementierungs-Thread.
+
+### Testlauf kontor-tests
+
+- Getestet gegen **kontor-tests Commit `bda67eb`**
+  (`bda67ebe9e5f0a234f63e95a46cd0a5608464497`, „TESTS_AUSFUEHREN.md, CLAUDE.md,
+  ERGEBNIS.md für Meilenstein 2“), nach `git pull` im Lese-Klon.
+- Aufruf: `python -m pytest -p no:cacheprovider` im Wurzelverzeichnis des
+  Lese-Klons, gegen die per `pip install --break-system-packages -e`
+  installierte kontor-app, Python 3.13, Hypothesis-Profil `standard`.
+
+| Auswahl | gesamt | bestanden | fehlgeschlagen | übersprungen |
+| --- | ---: | ---: | ---: | ---: |
+| alle Tests | 966 | 966 | 0 | 0 |
+| davon `-m m1` | 674 | 674 | 0 | 0 |
+| davon `-m m2` | 226 | 226 | 0 | 0 |
+
+(Die übrigen 66 Tests sind Generator- und Spezifikationstests.)
+
+Fehlschläge: keine. Widersprüche (`WIDERSPRUECHE.md`): keine.
+
+Zusätzlich `HYPOTHESIS_PROFILE=gruendlich python -m pytest -m m2` (400 zufällige
+Beispiele je Eigenschaftstest): 226 von 226 bestanden.
+
+### Eigene Tests (kontor-app/tests)
+
+`python -m pytest tests`: **36 bestanden**, darunter zwei neue Playwright-Rauchtests
+mit Chrome headless (`tests/test_browser_m2.py`, echte Server im Mock-Modus auf
+freien lokalen Ports, danach beendet): Regel über den Dialog anlegen,
+Synchronisation auslösen, Läufe ansehen, Vorschläge in der Buchungsliste
+erkennen, einzeln (✓) annehmen und mehrfach ablehnen; im Handyformat TAN-Ablauf
+(QR-Bild geladen, „QR-Code speichern“ als PNG-Download, „Teilen …“,
+Benachrichtigungsglocke, Link `/tan/<id>`, falsche und richtige TAN) und
+Benachrichtigung als gelesen markieren. Weitere eigene Tests: gedeckelte
+Vorgabepriorität, eingebauter Datensatz, deterministisches QR-Bild, TAN-Bild nur
+bei offener Anforderung, Oberfläche nutzt nur spezifizierte API-Pfade.
+
+Die Oberfläche wurde zusätzlich per Bildschirmfoto (Desktop 1280 px, Handy
+390 px) geprüft; gefundene Mängel (Ausgabe „null“ in der Werkzeugleiste,
+gequetschte Regeltabelle auf dem Handy) sind behoben.
+
+### Einschränkungen
+
+- Das echte FinTS-Plugin ist weiterhin ein Platzhalter (M6); Läufe im
+  Echtbetrieb enden als `fehlgeschlagen` (`plugin_nicht_verfuegbar`).
+- PIN nur per Eingabe in der Oberfläche (Arbeitsspeicher); systemd-creds/TPM,
+  ntfy-Zustellung und TAN-Erinnerungen folgen in M6.
+- Das Mock-QR-Bild ist ein QR-artiges, aber nicht lesbares Bild (D-020).
+- Umbuchungen zwischen eigenen Konten werden noch nicht erkannt (M3): beide
+  Bankseiten werden als eigene Buchungen gegen „Unkategorisiert“ gebucht.
+- Der Browser-Rauchtest ersetzt keine vollständigen Playwright-Tests (M8).
+
+---
+
+## Meilenstein 1 (frühere Fassung)
 
 Stand: 2026-11-08, Implementierungs-Thread.
 

@@ -192,3 +192,189 @@ DM = `spec/api/datenmodell.md`.
 - Unerwartete Fehler unter `/api/` → 500 `interner_fehler` im Fehlerformat,
   mit Header `X-Kontor-Modus`; Details nur im Server-Log.
 - Pfad-IDs außerhalb des 64-Bit-Bereichs gelten als nicht vorhanden (404).
+
+---
+
+# Meilenstein 2
+
+Weitere Abkürzungen: SY = `spec/api/synchronisation.md`, KA =
+`spec/api/kategorisierung.md`, PL = `spec/api/plugins.md`.
+
+## D-018 Aufbau und Schema für Meilenstein 2
+
+- **Frage:** Wo liegen Synchronisation und Regeln, wie wird das Schema erweitert?
+- **Entscheidung:** `kontor.sync.SyncDienst` (je App-Instanz in
+  `app.state.sync`) bündelt Läufe, Übernahme, Abgleich, TAN, PIN, App-Uhr und
+  Planer; `kontor.regeln` enthält Regeln und Vorschläge. Neue Tabellen
+  (`regel`, `vorschlag`, `sync_lauf`, `sync_lauf_konto`, `sync_konto_zustand`,
+  `sync_kennung`, `tan_anforderung`, `benachrichtigung`) werden mit
+  `CREATE TABLE IF NOT EXISTS` angelegt, `schema_version` = 2; eine
+  M1-Datenbank wird beim Start ohne Datenverlust erweitert. Gemerkte
+  Kennungen (SY 4.3) liegen getrennt von `buchung_extern`, damit sie das
+  Löschen einer Buchung überdauern.
+- **Begründung:** Arbeitsspeicher-Zustand (Plugin, PIN, TAN-Kennung,
+  simulierte Uhr) gehört zur App-Instanz, nicht zum Prozess (mehrere Apps je
+  Prozess in Tests).
+
+## D-019 Mock-Bank: Prüfreihenfolge und Anforderungskennung (ersetzt Teile von D-012)
+
+- **Entscheidung:** Prüfreihenfolge nach PL 7.2: `umsaetze()` PIN →
+  Szenario-Fehler → Argumente (`von > bis`, IBAN) → TAN → Daten; `konten()`
+  PIN → Szenario-Fehler → Daten. `anforderung_id` = `MOCK-TAN-<heute>`
+  (statt `mock-tan-<heute>` aus D-012). PIN und TAN werden mit
+  `hmac.compare_digest` verglichen und nie in Meldungen oder `repr()`
+  ausgegeben; `MockDaten.__repr__` verschweigt `bank.pin`/`bank.tan`. Ein
+  vorhandener, aber nicht textueller `bank.pin`/`bank.tan` macht die
+  Datendatei ungültig (`KonfigurationsFehler`).
+- **Begründung:** PL 7.2 legt Reihenfolge und Kennung verbindlich fest.
+
+## D-020 TAN-Bild des Mocks
+
+- **Entscheidung:** Ein deterministisches 8-Bit-Graustufen-PNG (264 × 264
+  Pixel) im Stil eines QR-Codes: 25 × 25 Module aus SHA-256 der
+  `anforderung_id` mit drei Suchmustern. Es ist kein lesbarer QR-Code und
+  enthält die Kennung nicht im Klartext.
+- **Begründung:** PL 7.2 verlangt nur ein gültiges, von der Kennung
+  abhängiges PNG; ein echter QR-Encoder wäre eine zusätzliche Abhängigkeit ohne
+  fachlichen Nutzen für den Mock.
+
+## D-021 Speicherung von TAN-Anforderungen
+
+- **Entscheidung:** Bild und Bildtyp liegen in der Datenbank, solange die
+  Anforderung offen ist; beim Beantworten, Ablauf, Abbruch und Neustart wird
+  das Bild gelöscht (`hat_bild` bleibt über den Bildtyp erhalten). Die interne
+  `anforderung_id` und die Plugin-Instanz leben nur im Arbeitsspeicher; fehlt
+  dieser Kontext bei einer Antwort (z. B. weil eine andere App-Instanz auf
+  derselben Datenbank läuft), wird die Anforderung abgebrochen und 409
+  `tan_nicht_offen` gemeldet.
+- **Begründung:** SY 7.2 („speichert Bild und Bildtyp“), SY 7.1 (Kennung nie
+  in der Datenbank); keine unnötigen Daten nach Erledigung.
+
+## D-022 Prüfreihenfolgen der M2-Endpunkte
+
+- **Entscheidung:**
+  - `POST /api/sync`: Körper (422) → TAN-Abläufe prüfen → 409 `sync_laeuft`
+    → 409 `tan_ausstehend` → Lauf.
+  - `POST /api/tan-anforderungen/{id}/antwort`: 404 → Körper (422) → Ablauf
+    (409 `tan_abgelaufen`) → 409 `tan_nicht_offen` → Plugin (SY 7.3).
+  - `PUT /api/mock/zeit`: 409 `nur_mock_modus` vor der Körperprüfung;
+    Sekundenbruchteile werden angenommen und verworfen.
+  - Regeln: Körper (422 `validierung`) → 404 (PATCH) → 422
+    `kategorie_ungueltig` → 422 `referenz_unbekannt` (`details.konto_ids`).
+  - Vorschlag einzeln: Körper → 404 → 409 `buchung_gesperrt` → 409
+    `kein_vorschlag`; mehrfach wie openapi.yaml.
+  - `POST /api/regeln/anwenden` und `POST /api/sync` akzeptieren auch einen
+    leeren Körper (wie `{}`).
+- **Begründung:** „Anfrage vor Zustand“ wie D-006; wo openapi.yaml/SY eine
+  Reihenfolge nennen, gilt diese.
+
+## D-023 Sonderfälle von TanErforderlich
+
+- **Entscheidung:** Wirft bereits `konten()` `TanErforderlich`, scheitert der
+  Lauf mit Code `tan_erforderlich` (ohne Konten, ohne TAN-Anforderung).
+  Verlangt das Plugin nach einer TAN-Antwort für dasselbe Konto erneut eine
+  TAN, gilt das als „anderer Fehler“ (SY 7.3): Anforderung abgebrochen, Konto
+  fehlgeschlagen mit `tan_erforderlich`, übrige Konten laufen weiter.
+- **Begründung:** SY beschreibt TAN-Anforderungen nur für den Umsatzabruf
+  eines Kontos; so bleibt jeder Lauf endlich und ohne Schleifen.
+
+## D-024 Randfälle der Kontozuordnung und Übernahme
+
+- **Entscheidung:** Liefert das Plugin dieselbe (normalisierte) IBAN
+  mehrfach, zählt der erste Eintrag. Eine Bankkonto-Art außerhalb
+  girokonto/sparkonto/kreditkonto wird als `girokonto` angelegt. Liefert ein
+  Abruf dieselbe `umsatz_id` zweimal, zählt die Wiederholung als
+  `buchungen_vorhanden`. Die IBAN-Prüfziffer wird beim Anlegen nicht
+  geprüft (die Bank ist maßgeblich).
+- **Begründung:** Robust gegen fehlerhafte Plugin-Daten, ohne Daten zu
+  verlieren; Zählungsinvariante aus SY 2.2 bleibt erhalten.
+
+## D-025 Benachrichtigungen
+
+- **Entscheidung:** `sync_fehler` je unterschiedlichem Fehlercode eines
+  fehlgeschlagenen Laufs (entprellt über ungelesene Benachrichtigungen gleichen
+  Schlüssels). `tan_erforderlich` und `tan_abgelaufen` haben je Anforderung
+  eindeutige Schlüssel und werden immer erzeugt. Ein manueller Abbruch einer
+  TAN-Anforderung erzeugt keine Benachrichtigung. Texte sind feste deutsche
+  Sätze ohne Plugin-Meldungen (keine Geheimnisse möglich).
+- **Begründung:** SY 6, 7.2, 7.4, 11.
+
+## D-026 Zeitstempel und App-Uhr
+
+- **Entscheidung:** Läufe, Kontozustände, TAN-Anforderungen,
+  Benachrichtigungen und bei der Synchronisation entstehende
+  Dublettenverdachte verwenden die App-Uhr (SY 8). Der KMyMoney-Import
+  (`importiert_am`, Verdachte aus dem Import) verwendet weiterhin die
+  Systemzeit wie in M1. `GET /api/mock/zeit` meldet `simuliert = true`,
+  sobald die Zeit gesetzt wurde oder `mock_heute` konfiguriert ist.
+- **Begründung:** SY 8 nennt ausdrücklich Läufe, TAN, Benachrichtigungen und
+  Planer; das Importverhalten aus M1 bleibt unverändert (E-029).
+
+## D-027 Planer-Thread
+
+- **Entscheidung:** Start im ASGI-Lifespan, erster Takt nach 1 s, danach alle
+  30 s; Ende beim Lifespan-Ende (Thread wird beendet und abgewartet). Fehler
+  in einem Takt werden geloggt, der Thread läuft weiter. Läuft gerade ein
+  manueller Lauf derselben App, lässt der Takt aus (kein Warten).
+- **Begründung:** SY 9 (erster Takt ≤ 5 s, danach mindestens alle 60 s).
+
+## D-028 Neustart
+
+- **Entscheidung:** `create_app` setzt laufende/wartende Läufe und deren
+  wartende/ausstehende Konten auf `abgebrochen` (`beendet_am` = App-Uhr der
+  neuen Instanz) und offene TAN-Anforderungen auf `abgebrochen`. Konten, die
+  vor dem Abbruch abgefragt wurden (wartende), behalten `von`/`bis`.
+- **Begründung:** SY 10, SY 2.2 („null bei abgebrochen ohne Abfrage“).
+
+## D-029 Regeln: Speicherung und Auswertung
+
+- **Entscheidung:** Bedingungen als JSON-Liste an der Regel; `wert` unverändert
+  gespeichert. Eine Bedingung `konto_id` muss auf ein Bestandskonto verweisen
+  (sonst 422 `referenz_unbekannt`). Die Sicht einer Buchung für Regeln:
+  Empfängername, Verwendungszweck, Regelbetrag = Summe der Splits auf
+  Bestandskonten, Kontenmenge = Bestandskonten der Splits.
+- **Begründung:** KA 1.1, 4.
+
+## D-030 Vorschläge
+
+- **Entscheidung:** Eigene Tabelle `vorschlag` (eine Zeile je Buchung, wird
+  mit der Buchung gelöscht). Erledigt durch annehmen/ablehnen, Kategorie
+  setzen (einzeln, mehrfach – auch mit gleicher Kategorie), Splits ersetzen
+  und eine tatsächliche Statusänderung auf `bestaetigt`/`abgeglichen`.
+  Ablehnen setzt den Gegensplit auf `vorher_konto_id` bzw. – wenn das Konto
+  nicht mehr existiert – auf „Unkategorisiert“.
+- **Begründung:** KA 5.
+
+## D-031 Vorgabepriorität gedeckelt
+
+- **Frage:** Was, wenn größte Priorität + 10 über 1 000 000 liegt?
+- **Entscheidung:** Vorgabe = min(größte + 10, 1 000 000).
+- **Begründung:** KA 1 begrenzt `prioritaet` auf 1 000 000; ein Anlegen ohne
+  Priorität soll nie an der Vorgabe scheitern.
+
+## D-032 Weboberfläche für Meilenstein 2
+
+- **Entscheidung:** Neue Bereiche Synchronisation (Start mit optionalem
+  Zeitraum, Status, Läufe, Kontozustände, PIN-Eingabe als Passwortfeld ohne
+  Autovervollständigung, Mock-Uhr), Regeln (Dialog mit Bedingungseditor,
+  Probelauf/Anwenden), Benachrichtigungen (Glocke im Kopf, Abfrage bei jedem
+  Seitenwechsel und alle 30 s) und TAN-Seite `#/tan/<id>`. Der Pfad
+  `/tan/<id>` aus den Benachrichtigungen liefert die Oberfläche aus, die
+  daraus `#/tan/<id>` macht. „QR-Code speichern“ lädt das Bild als Datei
+  herunter, „Teilen …“ nutzt die Web-Share-API mit Datei (deaktiviert, wenn der
+  Browser das nicht kann). Vorschläge erscheinen in der Buchungsliste als
+  Marke „Vorschlag“ mit ✓/✗; Mehrfachauswahl und Kontextmenü bieten
+  annehmen/ablehnen; Filter „Kategorie-Vorschlag“. Die Oberfläche nutzt nur
+  Endpunkte aus openapi.yaml.
+- **Begründung:** Auftrag des Koordinators; K 5, K 6 (TAN-Seite mit
+  Speichern/Teilen), K 7. `meilensteine.md` nennt die TAN-Seite zwar unter
+  „Nicht in M2“ (gemeint: nicht getestet); sie schadet nicht und macht den
+  TAN-Ablauf bedienbar.
+
+## D-033 Echtes FinTS-Plugin in M2
+
+- **Entscheidung:** Weiterhin Platzhalter (D-013): erzeugbar mit
+  `pin_quelle` (wird nie aufgerufen), Abrufe werfen `PluginNichtVerfuegbar`;
+  ein Lauf im Echtbetrieb endet als `fehlgeschlagen` mit
+  `plugin_nicht_verfuegbar`.
+- **Begründung:** PL 7.3; echte Anbindung in M6.

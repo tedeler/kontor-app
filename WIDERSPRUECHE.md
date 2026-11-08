@@ -7,4 +7,4 @@ widersprüchlich ist). Gelöst werden Widersprüche nur von einem Test-Thread.
 
 Keine offenen Widersprüche.
 
-Stand: Meilenstein 1, getestet gegen kontor-tests Commit `c708944`.
+Stand: Meilenstein 2, getestet gegen kontor-tests Commit `bda67eb`.

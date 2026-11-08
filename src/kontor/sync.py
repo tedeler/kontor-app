@@ -326,7 +326,7 @@ class SyncDienst:
             plugin = self._plugin_holen()
             self._vor_aufruf(plugin)
             bankkonten = plugin.konten()
-        except TanErforderlich as e:  # D-024: TAN beim Kontenabruf ist ein Fehler des Laufs
+        except TanErforderlich as e:  # D-023: TAN beim Kontenabruf ist ein Fehler des Laufs
             self._lauf_scheitert(con, lid, *_fehler_von(e))
             return
         except Exception as e:  # noqa: BLE001 - Pluginfehler führen nie zu 5xx

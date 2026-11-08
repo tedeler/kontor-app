@@ -40,8 +40,11 @@ Commit-Nachrichten sind auf Deutsch.
   (Test-IBANs mit Bankleitzahl 00000000, Adressen unter `example.invalid`).
 - Keine Secrets anlegen oder erfragen. PIN und Tokens erscheinen nie in Logs,
   Datenbank oder Fehlermeldungen.
-- Echte Plugins (FinTS, IMAP) bauen in Meilenstein 1 keine Verbindungen auf.
+- Echte Plugins (FinTS, IMAP) bauen bis Meilenstein 6 keine Verbindungen auf.
   Mock-Plugins nie mit Netzwerkzugriff.
+- PIN, TAN und die interne TAN-Kennung des Plugins leben nur im Arbeitsspeicher
+  (`SyncDienst`); nie in Datenbank, Logs, Antworten, Fehlermeldungen oder
+  `repr()`. Validierungsfehler geben übergebene Werte nie wieder.
 - Beträge sind immer ganze Cent (`int`), nie Gleitkomma – auch nicht im
   Datenbankschema oder in der Oberfläche (Umrechnung nur mit
   Ganzzahlarithmetik).
@@ -53,7 +56,9 @@ Commit-Nachrichten sind auf Deutsch.
 | `src/kontor/config.py`, `fehler.py` | Konfiguration und Fehlerklassen (python-api.md 2–3) |
 | `src/kontor/app.py` | App-Fabrik, alle REST-Endpunkte, Fehlerformat, Header `X-Kontor-Modus` |
 | `src/kontor/validierung.py` | strenge Prüfung von JSON-Körpern und Query-Parametern |
-| `src/kontor/buch.py` | Fachlogik: Konten, Buchungen, Splits, Tags, Empfänger, Liste, Dubletten |
+| `src/kontor/buch.py` | Fachlogik: Konten, Buchungen, Splits, Tags, Empfänger, Liste, Dubletten, Benachrichtigungen |
+| `src/kontor/sync.py` | M2: `SyncDienst` je App (Läufe, Übernahme, Abgleich, TAN, PIN, App-Uhr, Planer), `planer_takt` |
+| `src/kontor/regeln.py` | M2: Regeln (Validierung, CRUD, Auswertung, Anwenden) und Vorschläge |
 | `src/kontor/db.py` | SQLite-Schema und Verbindungen |
 | `src/kontor/importer/` | KMyMoney-Import und `ImportErgebnis` |
 | `src/kontor/plugins/` | Bank-/Mail-Schnittstellen, Mock-Plugins, FinTS-/IMAP-Platzhalter |
@@ -65,7 +70,9 @@ Commit-Nachrichten sind auf Deutsch.
 1. `pip install --break-system-packages -e /home/claude/impl/kontor-app`
 2. Tests nach `kontor-tests/TESTS_AUSFUEHREN.md` aus dem Lese-Klon heraus:
    `cd /home/claude/impl/kontor-tests-ro && python -m pytest -p no:cacheprovider`
-3. Eigene Tests: `python -m pytest tests` in kontor-app.
+3. Eigene Tests: `python -m pytest tests` in kontor-app (inkl. Playwright-Rauchtests
+   `tests/test_browser*.py`, die eigene Server auf freien lokalen Ports starten und
+   wieder beenden).
 4. Oberfläche prüfen: Server im Mock-Modus starten (siehe README), Seiten und
    Assets abrufen; gestartete Server-Prozesse danach beenden.
 5. Am Ende vollständiger Testlauf nach `git pull` im Lese-Klon, Ergebnis in

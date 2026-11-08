@@ -1,10 +1,16 @@
 # kontor-app
 
 Implementierung von **Kontor**, einer selbst gehosteten Finanz-Web-App
-(Python, FastAPI, SQLite, Single-Page-Weboberfläche). Stand: **Meilenstein 1**
-– KMyMoney-Import, Finanzübersicht, Konten- und Buchungsliste mit Filtern und
-Mehrfachbearbeitung, doppelte Buchführung mit Splits und Tags,
-Dublettenerkennung, Bank-/Mail-Plugins als Schnittstelle mit Mock-Varianten.
+(Python, FastAPI, SQLite, Single-Page-Weboberfläche). Stand: **Meilenstein 2**
+
+- M1: KMyMoney-Import, Finanzübersicht, Konten- und Buchungsliste mit Filtern
+  und Mehrfachbearbeitung, doppelte Buchführung mit Splits und Tags,
+  Dublettenerkennung, Bank-/Mail-Plugins als Schnittstelle mit Mock-Varianten.
+- M2: Bank-Synchronisation (manuell und per Planer) mit Kontozuordnung über
+  die IBAN, Übernahme der Umsätze, Dublettenerkennung beim Abruf,
+  Synchronisationsläufe mit Status je Konto, interne Benachrichtigungen,
+  TAN-Ablauf mit QR-Bild, PIN nur im Arbeitsspeicher, simulierte Uhr im
+  Mock-Modus, Regel-Kategorisierung mit Vorschlägen und Bestätigung.
 
 Die verbindliche Spezifikation liegt im getrennten Repository **kontor-tests**
 (`spec/konzept.md`, `spec/api/*`); dort liegen auch die Tests.
@@ -51,6 +57,51 @@ dann `standard.kmy`) fügt nur das Neue hinzu.
 Mock-Daten neu beginnen: Server beenden und `daten/kontor-mock.sqlite3`
 (samt `-wal`/`-shm`) löschen.
 
+## Synchronisation im Mock-Modus ausprobieren
+
+Die Mock-Bank liefert synthetische Umsätze bis zum simulierten „heute“; es
+wird nie eine echte Bank angesprochen.
+
+```bash
+export KONTOR_DATENBANK="$PWD/daten/kontor.sqlite3"
+export KONTOR_MOCK_MODUS=ja
+export KONTOR_MOCK_HEUTE=2024-06-30                # Startzeitpunkt der simulierten Uhr (12:00 UTC)
+# optional: Datendatei aus kontor-tests (3 Konten, Vormerkungen, Storno …)
+export KONTOR_MOCK_DATEN=../kontor-tests/fixtures/mock/sync_daten.json
+# optional: automatischer Abruf alle 60 Minuten (Planer-Thread im Server)
+export KONTOR_SYNC_INTERVALL_MINUTEN=60
+python -m kontor serve --host 127.0.0.1 --port 8000
+```
+
+1. **Regeln** → „+ Regel anlegen“, z. B. *Empfänger enthält „Frischekorb“ →
+   Lebensmittel* (vorher unter **Kategorien** eine Aufwandskategorie anlegen).
+   Sie greift im eingebauten Datensatz wie in `sync_daten.json`.
+2. **Synchronisation** → „Jetzt synchronisieren“. Fehlende Konten werden über
+   die IBAN angelegt, neue Umsätze gebucht, Gegenkonto ist die Kategorie der
+   ersten passenden Regel oder das technische Konto „Unkategorisiert“. Die
+   Liste der Läufe zeigt je Konto, was neu, vorhanden, zusammengeführt oder zur
+   Prüfung vorgelegt wurde. Ein zweiter Lauf erzeugt keine Dubletten.
+3. **Alle Buchungen** (Filter „Kategorie-Vorschlag: nur mit Vorschlag“):
+   Regel-Kategorien tragen die Marke „Vorschlag“ und lassen sich per ✓/✗ in
+   der Zeile, über die Mehrfachauswahl („✓ Vorschläge annehmen“, „✗ ablehnen“)
+   oder das Kontextmenü bestätigen bzw. ablehnen.
+4. **Mock-Uhr** (auf der Seite Synchronisation): Zeit vorstellen (z. B.
+   „+1 Tag“) und erneut synchronisieren – neue Umsätze erscheinen, der
+   Zeitraum überlappt den letzten Abruf um 14 Tage.
+5. **TAN-Ablauf**: mit `KONTOR_MOCK_SZENARIO=tan_erforderlich` starten. Der
+   Lauf pausiert, die Glocke oben zeigt eine Benachrichtigung, die TAN-Seite
+   (`/tan/<id>`) zeigt Anweisung und QR-Bild mit „QR-Code speichern“ und
+   „Teilen …“. Richtige TAN: `123456` (bzw. `bank.tan` der Datendatei); nach
+   23:59:59 UTC des simulierten Tages läuft die Anforderung ab.
+6. **PIN**: mit `KONTOR_MOCK_DATEN=../kontor-tests/fixtures/mock/sync_daten_pin.json`
+   verlangt die Mock-Bank eine PIN (steht synthetisch in der Datei unter
+   `bank.pin`). Ohne PIN scheitert der Lauf mit `bank_pin_fehlt`; die PIN wird
+   auf der Seite Synchronisation eingegeben, liegt nur im Arbeitsspeicher und
+   ist nach einem Neustart oder einer Ablehnung durch die Bank weg.
+7. Fehlerfälle: `KONTOR_MOCK_SZENARIO=bankfehler` bzw. `zeitueberschreitung` –
+   der Lauf scheitert ohne Datenverlust, es entsteht genau eine
+   Benachrichtigung je Fehlercode, solange sie ungelesen ist.
+
 ## Konfiguration
 
 | Variable | Bedeutung |
@@ -62,14 +113,19 @@ Mock-Daten neu beginnen: Server beenden und `daten/kontor-mock.sqlite3`
 | `KONTOR_MAIL_PLUGIN` | `mock` oder `imap` (Vorgabe entsprechend) |
 | `KONTOR_MOCK_SZENARIO` | `normal`, `bankfehler`, `zeitueberschreitung`, `tan_erforderlich`, `token_ablauf` |
 | `KONTOR_MOCK_DATEN` | JSON-Datei im Format `kontor-mock-daten` (z. B. `kontor-tests/fixtures/mock/mock_daten.json`); leer = eingebauter Datensatz |
-| `KONTOR_MOCK_HEUTE` | simuliertes „heute“ (`YYYY-MM-DD`) für die Mock-Plugins |
+| `KONTOR_MOCK_HEUTE` | simuliertes „heute“ (`YYYY-MM-DD`); im Mock-Modus startet die App-Uhr dann bei diesem Tag 12:00 UTC (stellbar über `PUT /api/mock/zeit` bzw. die Oberfläche) |
+| `KONTOR_SYNC_INTERVALL_MINUTEN` | Abstand automatischer Läufe; `0` (Vorgabe) = kein automatischer Abruf |
+| `KONTOR_SYNC_WIEDERHOLUNG_MINUTEN` | erneuter Versuch nach fehlgeschlagenem Lauf (Vorgabe 30) |
+| `KONTOR_SYNC_ERSTABRUF_TAGE` | Zeitraum des ersten Abrufs eines Kontos (Vorgabe 90) |
+| `KONTOR_SYNC_UEBERLAPPUNG_TAGE` | Überlappung folgender Abrufe (Vorgabe 14) |
+| `KONTOR_PLANER_STARTEN` | Planer-Thread im Server starten (Vorgabe ja; nur wirksam mit Intervall > 0) |
 
 Im Mock-Modus sind nur Mock-Plugins erlaubt, im Echtbetrieb keine; die
 Mock-Datenbank darf nicht die Echt-Datenbank sein. Die echten Plugins (FinTS,
-IMAP) bauen in Meilenstein 1 keine Verbindungen auf und melden bei Abrufen
-`PluginNichtVerfuegbar`. Die Bank-Synchronisation in das Buch folgt in
-Meilenstein 2; bis dahin kommen Buchungen über den KMyMoney-Import oder
-manuelle Erfassung ins Buch.
+IMAP) bauen bis Meilenstein 6 keine Verbindungen auf und melden bei Abrufen
+`PluginNichtVerfuegbar`; eine Synchronisation im Echtbetrieb endet daher
+sauber als fehlgeschlagener Lauf. Die PIN wird nie in einer Umgebungsvariable,
+Datei oder Datenbank abgelegt, sondern nur in der Weboberfläche eingegeben.
 
 ## Python-Schnittstelle (Auszug)
 
@@ -82,6 +138,9 @@ config = KontorConfig(datenbank="daten/kontor.sqlite3", mock_modus=True)
 ergebnis = importiere_kmy(config, "standard.kmy")
 print(ergebnis.als_dict())
 app = create_app(config)   # FastAPI-App, Schema ist danach angelegt
+
+from kontor.sync import planer_takt
+lauf = planer_takt(app)    # ein Planer-Takt, synchron (None, wenn nichts fällig ist)
 ```
 
 ## Weboberfläche
@@ -99,6 +158,17 @@ Single-Page-App ohne Build-Schritt und ohne externe Ressourcen
   Suche. Rechtsklick (bzw. lange Berührung, Umschalt+F10) öffnet das
   Kontextmenü: bearbeiten/splitten, Kategorie setzen, Tags, bestätigen,
   abgleichen, löschen. Doppelklick/Enter bearbeitet eine Buchung.
+- **Vorschläge**: Kategorien aus Regeln sind mit „Vorschlag“ markiert und
+  werden per ✓/✗ (einzeln, mehrfach oder im Kontextmenü) bestätigt bzw.
+  abgelehnt; Filter „Kategorie-Vorschlag“.
+- **Synchronisation**: Lauf starten (optional mit Zeitraum), Status, nächster
+  Lauf, Läufe mit Ergebnis je Konto, Bankkonten, PIN-Eingabe, Mock-Uhr.
+- **TAN-Seite** (`#/tan/<id>`, auch über den Link `/tan/<id>`): Anweisung,
+  QR-Bild, „QR-Code speichern“, „Teilen …“ (Web Share, falls der Browser
+  Dateien teilen kann), TAN-Eingabe, Abbrechen.
+- **Regeln**: anlegen, bearbeiten, (de)aktivieren, löschen, Probelauf und
+  Anwenden auf vorhandene Buchungen.
+- **Benachrichtigungen** (Glocke im Kopf mit Anzahl ungelesener).
 - **Import**: `.kmy` hochladen, Ergebnis und Hinweise, Dublettenverdachte
   zusammenführen oder verwerfen.
 - **Einstellungen**: Betriebsmodus, Plugins, Tags verwalten.
