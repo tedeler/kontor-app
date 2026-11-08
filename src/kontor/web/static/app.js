@@ -617,6 +617,7 @@
         { text: "Bestätigen" + plural, tun: () => aktion("bestaetigen") },
         { text: "Abgleichen" + plural, tun: () => aktion("abgleichen") },
         { text: "Als Umbuchung zusammenführen", aus: n !== 2, tun: () => aktion("umbuchung") },
+        { text: "Als Split-Vorlage speichern …", aus: n !== 1, tun: async () => { if (await vorlageAusBuchung(b)) melden("Split-Vorlage angelegt."); } },
         "-",
         { text: "Löschen" + plural, tun: () => aktion("loeschen") },
       ]);
@@ -664,10 +665,12 @@
     }
 
     function vorschlagMarke(b) {
-      const regel = b.vorschlag.regel_id ? `Regel #${b.vorschlag.regel_id}` : "gelöschte Regel";
+      const herkunft = vorschlagHerkunft(b.vorschlag);
       const knopf = (text, was, titel) => h("button", { type: "button", class: "mini-knopf", title: titel, "aria-label": titel,
         onclick: (e) => { e.stopPropagation(); aktion(was, b); }, ondblclick: (e) => e.stopPropagation() }, text);
-      return h("span", { class: "vorschlag", title: `Vorschlag (${regel}) – noch nicht bestätigt` }, "Vorschlag",
+      const lern = b.vorschlag.quelle === "lernmodell";
+      return h("span", { class: "vorschlag" + (lern ? " vorschlag-lern" : ""), title: `Vorschlag (${herkunft}) – noch nicht bestätigt` },
+        lern ? "Lernmodell " + sicherheitText(b.vorschlag.sicherheit) : "Vorschlag",
         knopf("✓", "annehmen", "Vorschlag annehmen"), knopf("✗", "ablehnen", "Vorschlag ablehnen"));
     }
 
@@ -837,16 +840,25 @@
     if (params.getAll("tag_id").length) filter.tag_id = params.getAll("tag_id").map(Number);
     if (params.get("abgestimmt")) filter.abgestimmt = params.get("abgestimmt");
     const box = h("div");
-    seite("Alle Buchungen", h("p", { class: "leise" }, "Betrag = Umsatz (Summe der positiven Splits). Kategorien mit der Marke „Vorschlag“ stammen aus Regeln oder der Standardkategorie des Empfängers und sind noch nicht bestätigt."), box);
+    seite("Alle Buchungen", h("p", { class: "leise" }, "Betrag = Umsatz (Summe der positiven Splits). Kategorien mit der Marke „Vorschlag“ stammen aus Regeln oder der Standardkategorie des Empfängers, die mit „Lernmodell“ aus dem Lernmodell (mit Sicherheit in Prozent); sie sind noch nicht bestätigt."), box);
     buchungsliste(box, {}, { neu: true, filter, vorschlag: vorschlag === "true" ? "true" : vorschlag === "false" ? "false" : null });
     inhalt._tasten = box._tasten;
   }
 
   async function ansichtImport() {
-    const datei = h("input", { type: "file", accept: ".kmy,.xml,application/gzip,application/xml", required: true });
+    const datei = h("input", { type: "file", accept: ".kmy,.gnucash,.gnc,.xml,.sqlite,.sqlite3,application/gzip,application/xml", required: true, "aria-label": "Datei" });
+    const quelleKmy = h("input", { type: "radio", name: "quelle", value: "kmymoney", checked: true });
+    const quelleGnc = h("input", { type: "radio", name: "quelle", value: "gnucash" });
+    datei.addEventListener("change", () => {
+      const n = datei.files.length ? datei.files[0].name.toLowerCase() : "";
+      if (/\.(gnucash|gnc|sqlite3?)$/.test(n)) quelleGnc.checked = true;
+      else if (n.endsWith(".kmy")) quelleKmy.checked = true;
+    });
     const ausgabe = h("div");
     const form = h("form", { class: "karte" },
-      h("p", null, "KMyMoney-Datei (.kmy, gzip-komprimiert oder unkomprimiert) importieren. Ein erneuter Import derselben Datei ändert nichts; erweiterte Fassungen fügen nur Neues hinzu."),
+      h("p", null, "Altdaten importieren: KMyMoney (.kmy, gzip-komprimiert oder unkomprimiert) oder GnuCash (XML gzip-komprimiert oder unkomprimiert, oder SQLite – die Datei wird nur gelesen). Ein erneuter Import derselben Datei ändert nichts; erweiterte Fassungen fügen nur Neues hinzu. Überschneidende Zeiträume aus beiden Programmen werden zusammengeführt bzw. als Dublettenverdacht vorgelegt."),
+      h("fieldset", { class: "werkzeug quelle-wahl" }, h("legend", null, "Quelle"),
+        h("label", { class: "zeile" }, quelleKmy, "KMyMoney"), h("label", { class: "zeile" }, quelleGnc, "GnuCash (XML oder SQLite)")),
       h("div", { class: "werkzeug" }, datei, h("button", { type: "submit", class: "knopf primaer" }, "Importieren")), ausgabe);
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -855,7 +867,7 @@
       fd.append("datei", datei.files[0], datei.files[0].name);
       ausgabe.replaceChildren(h("p", { class: "leise" }, "Import läuft …"));
       let erg;
-      try { erg = await api("POST", "/api/import/kmymoney", undefined, fd); }
+      try { erg = await api("POST", quelleGnc.checked ? "/api/import/gnucash" : "/api/import/kmymoney", undefined, fd); }
       catch (err) {
         const d = err.details || {};
         ausgabe.replaceChildren(h("p", { class: "negativ" }, "Import fehlgeschlagen – es wurde nichts übernommen."),
@@ -892,11 +904,11 @@
       const liste = await api("GET", "/api/importe");
       importe.replaceChildren(liste.length ? h("table", { class: "tabelle" },
         h("thead", null, h("tr", null, h("th", null, "#"), h("th", null, "Datei"), h("th", { class: "nur-breit" }, "Zeitpunkt (UTC)"), h("th", { class: "zahl" }, "neu"), h("th", { class: "zahl" }, "vorhanden"))),
-        h("tbody", null, liste.slice().reverse().map((i) => h("tr", null, h("td", null, i.id), h("td", null, i.dateiname || "–"), h("td", { class: "nur-breit" }, i.importiert_am.replace("T", " ").replace("Z", "")),
+        h("tbody", null, liste.slice().reverse().map((i) => h("tr", null, h("td", null, i.id), h("td", null, i.dateiname || "–", h("span", { class: "leise" }, i.art === "gnucash" ? " · GnuCash" : " · KMyMoney")), h("td", { class: "nur-breit" }, i.importiert_am.replace("T", " ").replace("Z", "")),
           h("td", { class: "zahl" }, i.ergebnis.buchungen_neu), h("td", { class: "zahl" }, i.ergebnis.buchungen_vorhanden))))) : h("p", { class: "leise" }, "Noch keine Importe."));
     }
     seite("Import", form, h("h2", null, "Dublettenverdachte"), verdachte, h("h2", null, "Bisherige Importe"), importe,
-      h("p", { class: "leise" }, "GnuCash-Import folgt später."));
+      h("p", { class: "leise" }, "Importierte Altdaten sind sofort Trainingsdaten des ", h("a", { href: "#/lernmodell" }, "Lernmodells"), "."));
     verdachteZeichnen();
     importeZeichnen();
   }
@@ -987,7 +999,8 @@
         h("span", { class: "leise" }, k.iban), k.konto_neu ? h("span", { class: "tag" }, "neu angelegt") : null,
         k.von ? h("span", { class: "leise" }, ` · ${datumText(k.von)} – ${datumText(k.bis)}`) : null,
         k.status === "erfolgreich" ? h("div", { class: "zweck" },
-          `${k.umsaetze_gesamt} Umsätze: ${k.buchungen_neu} neu (davon ${k.buchungen_kategorisiert} per Regel kategorisiert, `
+          `${k.umsaetze_gesamt} Umsätze: ${k.buchungen_neu} neu (davon ${k.buchungen_kategorisiert} als Vorschlag kategorisiert, `
+          + `${k.buchungen_gesplittet || 0} nach Vorlage aufgeteilt, ${k.vorlage_abweichungen || 0} mit Vorlagen-Abweichung, `
           + `${k.buchungen_zur_pruefung} zur Prüfung), ${k.buchungen_vorhanden} bereits vorhanden, `
           + `${k.buchungen_zusammengefuehrt} mit Vorhandenem zusammengeführt, ${k.vormerkungen_ignoriert} Vormerkungen`) : null,
         k.fehler ? h("div", { class: "zweck negativ" }, k.fehler.meldung, " (", k.fehler.code, ")") : null);
@@ -996,7 +1009,10 @@
       h("td", null, statusMarke(l.status),
         l.status === "wartet_auf_tan" && l.tan_anforderung_id ? h("div", null, h("a", { href: "#/tan/" + l.tan_anforderung_id }, "TAN eingeben …")) : null,
         l.fehler ? h("div", { class: "zweck negativ" }, l.fehler.meldung) : null),
-      h("td", null, l.konten.length ? konten : h("span", { class: "leise" }, "–")));
+      h("td", null, l.konten.length ? konten : h("span", { class: "leise" }, "–"),
+        (l.uebersprungen || []).length ? h("ul", { class: "lauf-konten" }, l.uebersprungen.map((u) => h("li", null,
+          statusMarke("abgebrochen", u.status === "ignoriert" ? "ignoriert" : "übersprungen"), " ", u.name, " ", h("span", { class: "leise" }, u.iban),
+          u.status === "konto_fehlt" ? h("div", { class: "zweck" }, "Kein Konto mehr vorhanden – ", h("a", { href: "#/sync/konten" }, "wiederherstellen oder ignorieren …")) : null))) : null));
   }
 
   async function ansichtSync() {
@@ -1066,13 +1082,19 @@
         form, h("p", { class: "leise" }, "Die Mock-Bank liefert nur Umsätze bis zu diesem Tag; rückt die Zeit vor, erscheinen neue."));
     }
 
+    const fehlend = zustaende.filter((z) => z.status && z.status !== "aktiv");
     const kontenTab = zustaende.length ? h("table", { class: "tabelle" },
-      h("thead", null, h("tr", null, h("th", null, "Konto"), h("th", { class: "nur-breit" }, "IBAN"), h("th", null, "abgerufen bis"), h("th", { class: "nur-breit" }, "letzter Erfolg"))),
+      h("thead", null, h("tr", null, h("th", null, "Konto"), h("th", { class: "nur-breit" }, "IBAN"), h("th", null, "Status"), h("th", null, "abgerufen bis"), h("th", { class: "nur-breit" }, "letzter Erfolg"), h("th", null, ""))),
       h("tbody", null, zustaende.map((z) => {
         const k = kontoNach(z.konto_id);
-        return h("tr", { class: "klickbar", onclick: () => { location.hash = "#/konto/" + z.konto_id; } },
-          h("td", null, k ? k.name : "#" + z.konto_id), h("td", { class: "nur-breit" }, z.iban),
-          h("td", null, z.letzter_abruf_bis ? datumText(z.letzter_abruf_bis) : "–"), h("td", { class: "nur-breit" }, zeitText(z.letzter_erfolg_am)));
+        const aktiv = !z.status || z.status === "aktiv";
+        return h("tr", { class: aktiv ? "klickbar" : "fehlt", onclick: aktiv ? () => { location.hash = "#/konto/" + z.konto_id; } : null },
+          h("td", null, aktiv && k ? k.name : h("span", { class: "leise" }, k ? k.name : "gelöschtes Konto #" + z.konto_id)), h("td", { class: "nur-breit" }, z.iban),
+          h("td", null, statusMarke(aktiv ? "erfolgreich" : z.status === "konto_fehlt" ? "fehlgeschlagen" : "abgebrochen", BANKKONTO_TEXT[z.status || "aktiv"]
+            + (z.status === "wiederherstellen" ? (z.wiederherstellen_buchungen === "alle" ? " (alle Umsätze)" : " (nur neue Umsätze)") : ""))),
+          h("td", null, z.letzter_abruf_bis ? datumText(z.letzter_abruf_bis) : "–"), h("td", { class: "nur-breit" }, zeitText(z.letzter_erfolg_am)),
+          h("td", { class: "aktionen" }, aktiv ? null : h("button", { type: "button", class: "knopf" + (z.status === "konto_fehlt" ? " primaer" : ""),
+            onclick: async (e) => { e.stopPropagation(); if (await bankkontoEntscheiden(z)) route(); } }, "Entscheiden …")));
       }))) : h("p", { class: "leise" }, "Noch kein Bankkonto zugeordnet. Der erste Lauf ordnet die Bankkonten über die IBAN zu (fehlende werden angelegt).");
 
     seite("Synchronisation",
@@ -1089,7 +1111,10 @@
         h("p", { class: "leise" }, "Die PIN wird nur im Arbeitsspeicher gehalten – nie gespeichert, nie protokolliert – und ist nach einem Neustart weg. Lehnt die Bank sie ab, wird sie sofort verworfen."),
         pinForm),
       uhr,
-      h("h2", null, "Bankkonten"), kontenTab,
+      h("h2", { id: "bankkonten" }, "Bankkonten"),
+      fehlend.some((z) => z.status === "konto_fehlt") ? h("div", { class: "karte hinweis-tan" }, h("strong", null, "Rückfrage: "),
+        "Zu einem Bankkonto gibt es kein Konto mehr. Es wird bei jedem Lauf übersprungen, bis Sie entscheiden, ob es wiederhergestellt oder ignoriert werden soll.") : null,
+      kontenTab,
       h("h2", null, "Läufe"),
       laeufe.length ? h("table", { class: "tabelle" },
         h("thead", null, h("tr", null, h("th", null, "#"), h("th", null, "Start"), h("th", null, "Status"), h("th", null, "Konten"))),
@@ -1185,6 +1210,7 @@
       h("div", null, b.text),
       h("div", { class: "werkzeug" },
         b.link ? h("a", { class: "knopf primaer", href: "#" + b.link }, "Öffnen") : null,
+        b.art === "split_abweichung" ? h("a", { class: "knopf", href: "#/vorlagen" }, "Vorlage anpassen") : null,
         b.gelesen ? h("span", { class: "leise" }, "gelesen") : h("button", { type: "button", class: "knopf", onclick: async () => {
           try { await api("POST", `/api/benachrichtigungen/${b.id}/gelesen`); glockeAktualisieren(); route(); } catch (e) { melden(e.message, true); }
         } }, "Als gelesen markieren")));
@@ -1729,6 +1755,258 @@
     return !!w;
   }
 
+  // ------------------------------------------------- M4: Lernmodell und Split-Vorlagen
+  const BANKKONTO_TEXT = { aktiv: "aktiv", konto_fehlt: "Konto fehlt", ignoriert: "ignoriert", wiederherstellen: "wird wiederhergestellt" };
+
+  function sicherheitText(promille) {
+    if (promille === null || promille === undefined) return "";
+    return `${Math.trunc(promille / 10)},${promille % 10} %`;
+  }
+
+  function vorschlagHerkunft(v) {
+    if (v.quelle === "lernmodell") return `Lernmodell, Sicherheit ${sicherheitText(v.sicherheit)}`;
+    if (v.quelle === "standardkategorie") return "Standardkategorie des Empfängers";
+    return v.regel_id ? `Regel #${v.regel_id}` : "gelöschte Regel";
+  }
+
+  /** Öffnet eine Buchung (Link aus Benachrichtigungen, z. B. Split-Abweichung) über der Buchungsliste. */
+  async function ansichtBuchungOeffnen(id) {
+    await ansichtAlleBuchungen(new URLSearchParams());
+    let b;
+    try { b = await api("GET", `/api/buchungen/${id}`); } catch (e) { melden(e.message, true); return; }
+    if (await buchungDialog(b)) route();
+  }
+
+  async function bankkontoEntscheiden(z) {
+    const name = "entscheidung-" + z.iban;
+    const wieder = h("input", { type: "radio", name, value: "wiederherstellen" });
+    const ignor = h("input", { type: "radio", name, value: "ignorieren" });
+    const alle = h("input", { type: "radio", name: name + "-b", value: "alle" });
+    const neue = h("input", { type: "radio", name: name + "-b", value: "nur_neue" });
+    const umsatzBox = h("fieldset", { class: "feld" }, h("legend", null, "Welche Umsätze sollen beim Wiederherstellen übernommen werden?"),
+      h("label", { class: "zeile" }, alle, "alle Umsätze, die die Bank liefert und deren Buchung nicht mehr existiert"),
+      h("label", { class: "zeile" }, neue, "nur Umsätze, die noch nie übernommen wurden"),
+      h("p", { class: "leise" }, "Ältere Umsätze, als die Bank liefert, lassen sich nur über einen erneuten KMyMoney- oder GnuCash-Import zurückholen. Buchungen, die beim Löschen auf ein anderes Konto umgebucht wurden, werden nicht doppelt gebucht."));
+    const aktualisieren = () => { umsatzBox.hidden = !wieder.checked; };
+    wieder.addEventListener("change", aktualisieren); ignor.addEventListener("change", aktualisieren);
+    aktualisieren();
+    const inhaltBox = h("div", null,
+      h("p", null, `Zum Bankkonto ${z.iban} gibt es in Kontor kein Konto mehr (gelöscht oder IBAN entfernt). Was soll beim nächsten Abruf geschehen?`),
+      h("fieldset", { class: "feld" }, h("legend", null, "Entscheidung"),
+        h("label", { class: "zeile" }, wieder, "Konto wiederherstellen (beim nächsten Lauf neu anlegen)"),
+        h("label", { class: "zeile" }, ignor, "Bankkonto dauerhaft ignorieren (keine Rückfrage mehr)")),
+      umsatzBox);
+    const w = await dialog("Gelöschtes Bankkonto", inhaltBox, [{ text: "Entscheidung speichern", klasse: "primaer", submit: true, tun: async () => {
+      if (!wieder.checked && !ignor.checked) throw new Error("Bitte wiederherstellen oder ignorieren wählen.");
+      if (wieder.checked && !alle.checked && !neue.checked) throw new Error("Bitte wählen, welche Umsätze übernommen werden sollen.");
+      return api("POST", `/api/sync/konten/${encodeURIComponent(z.iban)}/entscheidung`,
+        { aktion: wieder.checked ? "wiederherstellen" : "ignorieren", buchungen: wieder.checked ? (alle.checked ? "alle" : "nur_neue") : "nur_neue" });
+    } }]);
+    if (!w) return false;
+    glockeAktualisieren();
+    if (w.status === "wiederherstellen") {
+      if (await bestaetigen("Gespeichert. Jetzt synchronisieren, um das Konto wiederherzustellen?")) {
+        try {
+          const lauf = await api("POST", "/api/sync", {});
+          if (lauf.status === "wartet_auf_tan") { location.hash = "#/tan/" + lauf.tan_anforderung_id; return false; }
+          melden(`Synchronisation ${LAUF_TEXT[lauf.status]}.`, lauf.status !== "erfolgreich");
+        } catch (e) { melden(e.message, true); }
+      }
+    } else melden("Das Bankkonto wird künftig ignoriert.");
+    return true;
+  }
+
+  async function ansichtLernmodell() {
+    await stammLaden();
+    const z = await api("GET", "/api/lernmodell");
+    const ergebnis = h("div");
+    async function anwenden(trocken) {
+      try {
+        const e = await api("POST", "/api/lernmodell/anwenden", { trocken });
+        ergebnis.replaceChildren(h("div", { class: "karte" },
+          h("p", null, `${e.geprueft} unkategorisierte Buchung(en) geprüft, ${e.anzahl} ${trocken ? "würden" : "wurden"} als Vorschlag kategorisiert.`),
+          e.aenderungen.length ? h("ul", null, e.aenderungen.slice(0, 100).map((a) => h("li", null,
+            h("a", { href: "#/buchungen/" + a.buchung_id }, "Buchung #" + a.buchung_id), " → ",
+            (kontoNach(a.kategorie_id) || { name: "#" + a.kategorie_id }).name, h("span", { class: "leise" }, " (Sicherheit ", sicherheitText(a.sicherheit), ")")))) : null,
+          trocken && e.anzahl ? h("button", { type: "button", class: "knopf primaer", onclick: () => anwenden(false) }, "Jetzt anwenden") : null,
+          !trocken && e.anzahl ? h("a", { class: "knopf", href: "#/buchungen?vorschlag=true" }, "Vorschläge prüfen") : null));
+        if (!trocken) { melden(`${e.anzahl} Vorschlag/Vorschläge gesetzt.`); const n = await api("GET", "/api/lernmodell"); zustandBox.replaceChildren(zustandListe(n)); }
+      } catch (err) { melden(err.message, true); }
+    }
+    const zustandListe = (x) => h("ul", { class: "eckdaten" },
+      h("li", null, "Trainingsbuchungen: ", h("strong", null, x.trainingsbuchungen)),
+      h("li", null, "Kategorien: ", h("strong", null, x.kategorien)),
+      h("li", null, "Merkmale: ", h("strong", null, x.merkmale)),
+      h("li", null, "Schwelle: ", h("strong", null, sicherheitText(x.schwelle_promille))),
+      h("li", null, "Bei neuen Buchungen: ", h("strong", null, x.automatisch ? "eingeschaltet" : "aus"),
+        x.automatisch ? null : h("span", { class: "leise" }, " (einschalten mit KONTOR_LERNMODELL_AUTOMATISCH=1)")));
+    const zustandBox = h("div", null, zustandListe(z));
+    // Probe: Vorhersage für frei eingegebene Merkmale
+    const empf = h("input", { type: "text", maxlength: 200, placeholder: "Empfänger", "aria-label": "Empfänger" });
+    const zweck = h("input", { type: "text", maxlength: 10000, placeholder: "Verwendungszweck", "aria-label": "Verwendungszweck" });
+    const betrag = h("input", { type: "text", inputmode: "decimal", placeholder: "Betrag, z. B. -12,34", "aria-label": "Betrag", required: true });
+    const probeAus = h("div");
+    const probe = h("form", { class: "werkzeug" }, empf, zweck, betrag, h("button", { type: "submit", class: "knopf" }, "Vorhersagen"));
+    probe.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const c = betragLesen(betrag.value);
+      if (c === null) { melden("Ungültiger Betrag.", true); return; }
+      try {
+        const r = await api("POST", "/api/lernmodell/vorhersage", { eintraege: [{ empfaenger: empf.value.trim() || null, verwendungszweck: zweck.value, betrag: c }] });
+        const v = r.ergebnisse[0];
+        probeAus.replaceChildren(h("div", { class: "karte" },
+          v.kategorie_id ? h("p", null, "Vorschlag: ", h("strong", null, (kontoNach(v.kategorie_id) || { name: "#" + v.kategorie_id }).name), " (Sicherheit ", sicherheitText(v.sicherheit), ")")
+            : h("p", null, v.kandidaten.length ? "Kein Vorschlag – die Sicherheit liegt unter der Schwelle." : "Kein Vorschlag – keine bekannten Merkmale (Empfänger oder Wörter des Verwendungszwecks)."),
+          v.kandidaten.length ? h("ol", null, v.kandidaten.map((k) => h("li", null, (kontoNach(k.kategorie_id) || { name: "#" + k.kategorie_id }).name, " – ", sicherheitText(k.sicherheit)))) : null));
+      } catch (err) { melden(err.message, true); }
+    });
+    seite("Lernmodell",
+      h("p", { class: "leise" }, "Das Lernmodell schlägt Kategorien vor, wo keine Split-Vorlage, Regel oder Standardkategorie greift. Es lernt aus allen kategorisierten Buchungen ohne offenen Vorschlag – importierte Altdaten (KMyMoney, GnuCash) sind sofort Trainingsdaten, und jede Korrektur wirkt ab dem nächsten Vorschlag. Es wird bei jeder Anfrage neu trainiert und hat keinen eigenen Zustand. Bei geringer Sicherheit (unter 70 %) gibt es keinen Vorschlag."),
+      h("div", { class: "karte" }, h("h2", { class: "oben" }, "Zustand"), zustandBox,
+        h("div", { class: "werkzeug" }, h("button", { type: "button", class: "knopf", onclick: async () => { zustandBox.replaceChildren(zustandListe(await api("GET", "/api/lernmodell"))); melden("Neu trainiert."); } }, "Neu trainieren"))),
+      h("h2", null, "Auf unkategorisierte Buchungen anwenden"),
+      h("div", { class: "karte" },
+        h("p", { class: "leise" }, "Setzt Vorschläge für Buchungen, deren Gegenkonto noch „Unkategorisiert“ (oder ein anderes Eigenkapitalkonto) ist; gesperrte Buchungen werden übergangen. Vorschläge bleiben markiert, bis sie angenommen oder abgelehnt werden."),
+        h("div", { class: "werkzeug" },
+          h("button", { type: "button", class: "knopf", onclick: () => anwenden(true) }, "Probelauf"),
+          h("button", { type: "button", class: "knopf primaer", onclick: () => anwenden(false) }, "Anwenden"))),
+      ergebnis,
+      h("h2", null, "Vorhersage ausprobieren"), h("div", { class: "karte" }, probe, probeAus));
+  }
+
+  function teilZeile(t, entfernen, aktualisieren) {
+    const kat = h("select", { "aria-label": "Kategorie", required: true }, kategorieOptionen(t ? t.kategorie_id : null, "– Kategorie –"));
+    const betrag = h("input", { type: "text", inputmode: "decimal", "aria-label": "Teilbetrag", placeholder: "z. B. 12,50", value: t ? betragText(t.betrag, false) : "" });
+    const memo = h("input", { type: "text", maxlength: 10000, "aria-label": "Memo", placeholder: "Memo (optional)", value: t ? t.memo : "" });
+    betrag.addEventListener("input", aktualisieren);
+    const zeile = h("div", { class: "bed-zeile teil-zeile" }, kat, betrag, memo,
+      h("button", { type: "button", class: "knopf", "aria-label": "Teil entfernen", onclick: () => { entfernen(zeile); aktualisieren(); } }, "×"));
+    zeile._lesen = () => {
+      const c = betragLesen(betrag.value);
+      if (c === null || c === 0) throw new Error("Jeder Teil braucht einen Betrag ungleich 0.");
+      if (!kat.value) throw new Error("Bitte für jeden Teil eine Kategorie wählen.");
+      return { kategorie_id: Number(kat.value), betrag: c, memo: memo.value };
+    };
+    zeile._betrag = () => betragLesen(betrag.value) || 0;
+    return zeile;
+  }
+
+  async function vorlageDialog(v, vorgabe) {
+    await stammLaden();
+    const quelle = v || vorgabe || null;
+    const name = h("input", { type: "text", maxlength: 200, required: true, value: quelle ? quelle.name : "" });
+    const prio = h("input", { type: "number", min: 0, max: 1000000, step: 1, value: v ? v.prioritaet : "", placeholder: "automatisch" });
+    const aktiv = h("input", { type: "checkbox", checked: v ? v.aktiv : true });
+    const beds = h("div", { class: "bed-liste" });
+    const entfernenB = (z) => { if (beds.children.length > 1) z.remove(); };
+    const neueBedingung = (b) => {
+      const z = bedingungZeile(b, entfernenB);
+      const feld = z.querySelector("select");
+      const betragOpt = feld.querySelector('option[value="betrag"]');
+      if (betragOpt) betragOpt.remove();  // Vorlagen kennen keine Betragsbedingung (vorlagen.md 1)
+      return z;
+    };
+    ((quelle && quelle.bedingungen) || [{ feld: "empfaenger", operator: "gleich", wert: "" }]).forEach((b) => beds.append(neueBedingung(b)));
+    const teile = h("div", { class: "bed-liste" });
+    const summe = h("p", { class: "leise", "aria-live": "polite" });
+    const aktualisieren = () => {
+      let s = 0;
+      for (const z of teile.children) s += z._betrag();
+      summe.textContent = `Gesamtbetrag der Abbuchung: ${betragText(-s)} (muss exakt stimmen – keine Toleranz)`;
+    };
+    const entfernenT = (z) => { if (teile.children.length > 2) z.remove(); };
+    ((quelle && quelle.teile) || [null, null]).forEach((t) => teile.append(teilZeile(t, entfernenT, aktualisieren)));
+    aktualisieren();
+    const inhaltBox = h("div", null,
+      h("label", { class: "feld" }, "Name", name),
+      h("div", { class: "feld" }, "Erkennung (alle müssen zutreffen; mindestens eine Bedingung auf den Empfänger)", beds,
+        h("button", { type: "button", class: "knopf", onclick: () => { if (beds.children.length < 20) beds.append(neueBedingung(null)); } }, "+ Bedingung")),
+      h("div", { class: "feld" }, "Teile (Kategorie, Betrag in Soll-Sicht: Ausgaben positiv, Erstattungen negativ)", teile,
+        h("button", { type: "button", class: "knopf", onclick: () => { if (teile.children.length < 50) { teile.append(teilZeile(null, entfernenT, aktualisieren)); aktualisieren(); } } }, "+ Teil"), summe),
+      h("label", { class: "feld" }, "Priorität (kleiner = wichtiger)", prio),
+      h("label", { class: "feld zeile" }, aktiv, "aktiv"));
+    return dialog(v ? "Split-Vorlage bearbeiten" : "Neue Split-Vorlage", inhaltBox, [{ text: v ? "Speichern" : "Anlegen", klasse: "primaer", submit: true, tun: async () => {
+      const koerper = { name: name.value, aktiv: aktiv.checked, bedingungen: [...beds.children].map((z) => z._lesen()),
+        teile: [...teile.children].map((z) => z._lesen()) };
+      if (!koerper.bedingungen.some((b) => b.feld === "empfaenger")) throw new Error("Mindestens eine Bedingung muss den Empfänger prüfen.");
+      if (prio.value !== "") koerper.prioritaet = Number(prio.value);
+      return v ? api("PATCH", `/api/vorlagen/${v.id}`, koerper) : api("POST", "/api/vorlagen", koerper);
+    } }]);
+  }
+
+  /** Vorbelegung einer neuen Vorlage aus einer (gesplitteten) Buchung: Empfänger und alle Kategorie-Splits. */
+  async function vorlageAusBuchung(b) {
+    await stammLaden();
+    if (!b.empfaenger) { melden("Die Buchung hat keinen Empfänger; eine Vorlage braucht eine Empfänger-Bedingung.", true); return false; }
+    const teile = b.splits.filter((s) => { const k = kontoNach(s.konto_id); return k && k.ist_kategorie; })
+      .map((s) => ({ kategorie_id: s.konto_id, betrag: s.betrag, memo: s.memo }));
+    while (teile.length < 2) teile.push(null);
+    return !!(await vorlageDialog(null, { name: b.empfaenger.name, bedingungen: [{ feld: "empfaenger", operator: "gleich", wert: b.empfaenger.name }], teile }));
+  }
+
+  async function ansichtVorlagen() {
+    await stammLaden();
+    const [liste, hinweise] = await Promise.all([api("GET", "/api/vorlagen"), api("GET", "/api/benachrichtigungen?gelesen=false")]);
+    const abweichung = hinweise.filter((n) => n.art === "split_abweichung");
+    const ergebnis = h("div");
+    const nurUnk = h("input", { type: "checkbox", checked: true });
+    const nachId = new Map(liste.map((v) => [v.id, v]));
+    async function anwenden(trocken, vorlageIds) {
+      try {
+        const koerper = { nur_unkategorisiert: nurUnk.checked, trocken };
+        if (vorlageIds) koerper.vorlage_ids = vorlageIds;
+        const e = await api("POST", "/api/vorlagen/anwenden", koerper);
+        const vn = (id) => (nachId.get(id) || { name: "#" + id }).name;
+        ergebnis.replaceChildren(h("div", { class: "karte" },
+          h("p", null, `${e.geprueft} Buchung(en) geprüft, ${e.anzahl} ${trocken ? "würden" : "wurden"} aufgeteilt.`),
+          e.aenderungen.length ? h("ul", null, e.aenderungen.slice(0, 100).map((a) => h("li", null, h("a", { href: "#/buchungen/" + a.buchung_id }, "Buchung #" + a.buchung_id), " → ", vn(a.vorlage_id)))) : null,
+          e.abweichungen.length ? [h("p", { class: "negativ" }, `${e.abweichungen.length} Buchung(en) passen zu einer Vorlage, aber nicht im Betrag (nicht aufgeteilt):`),
+            h("ul", null, e.abweichungen.slice(0, 100).map((a) => h("li", null, h("a", { href: "#/buchungen/" + a.buchung_id }, "Buchung #" + a.buchung_id),
+              ` ${betragText(a.betrag)} statt ${betragText(a.gesamtbetrag)} (${vn(a.vorlage_id)})`)))] : null,
+          trocken && e.anzahl ? h("button", { type: "button", class: "knopf primaer", onclick: () => anwenden(false, vorlageIds) }, "Jetzt aufteilen") : null));
+        if (!trocken) melden(`${e.anzahl} Buchung(en) aufgeteilt.`);
+      } catch (err) { melden(err.message, true); }
+    }
+    const hinweisBox = abweichung.length ? h("div", { class: "karte hinweis-tan" }, h("strong", null, "Abweichungen bei der Synchronisation"),
+      h("ul", null, abweichung.map((n) => {
+        const vid = Number(n.schluessel.split(":")[1]);
+        const v = nachId.get(vid);
+        return h("li", null, n.text, " ",
+          n.link ? h("a", { href: "#" + n.link }, "Buchung öffnen") : null, " ",
+          v ? h("button", { type: "button", class: "knopf", onclick: async () => { if (await vorlageDialog(v)) { melden("Vorlage angepasst. Abweichende Buchungen jetzt aufteilen?"); route(); } } }, "Vorlage anpassen …") : null, " ",
+          h("button", { type: "button", class: "knopf", onclick: async () => { try { await api("POST", `/api/benachrichtigungen/${n.id}/gelesen`); glockeAktualisieren(); route(); } catch (e) { melden(e.message, true); } } }, "Gelesen"));
+      }))) : null;
+    const tab = liste.length ? h("table", { class: "tabelle regeln" },
+      h("thead", null, h("tr", null, h("th", { class: "zahl" }, "Prio"), h("th", null, "Name"), h("th", null, "Erkennung"), h("th", null, "Teile"), h("th", { class: "zahl" }, "Gesamt"), h("th", null, ""))),
+      h("tbody", null, liste.map((v) => h("tr", { class: v.aktiv ? "" : "geschlossen" },
+        h("td", { class: "zahl" }, v.prioritaet),
+        h("td", null, v.name, v.aktiv ? null : h("span", { class: "leise" }, " (inaktiv)")),
+        h("td", null, h("ul", { class: "liste-ohne" }, v.bedingungen.map((b) => h("li", null, bedingungText(b))))),
+        h("td", null, h("ul", { class: "liste-ohne" }, v.teile.map((t) => h("li", null, (kontoNach(t.kategorie_id) || { name: "#" + t.kategorie_id }).name, " ", betragText(t.betrag), t.memo ? h("span", { class: "leise" }, " · " + t.memo) : null)))),
+        h("td", { class: "zahl gesamt" }, betragText(v.gesamtbetrag)),
+        h("td", { class: "aktionen" },
+          h("button", { type: "button", class: "knopf", onclick: async () => { if (await vorlageDialog(v)) route(); } }, "Bearbeiten"), " ",
+          h("button", { type: "button", class: "knopf", onclick: () => anwenden(true, [v.id]) }, "Anwenden …"), " ",
+          h("button", { type: "button", class: "knopf", onclick: async () => {
+            try { await api("PATCH", `/api/vorlagen/${v.id}`, { aktiv: !v.aktiv }); route(); } catch (e) { melden(e.message, true); }
+          } }, v.aktiv ? "Deaktivieren" : "Aktivieren"), " ",
+          h("button", { type: "button", class: "knopf gefahr", onclick: async () => {
+            if (!(await bestaetigen(`Split-Vorlage „${v.name}“ löschen? Bereits aufgeteilte Buchungen bleiben unverändert.`))) return;
+            try { await api("DELETE", `/api/vorlagen/${v.id}`); melden("Vorlage gelöscht."); route(); } catch (e) { melden(e.message, true); }
+          } }, "Löschen")))))) : h("div", { class: "karte leer" }, "Noch keine Split-Vorlagen. Tipp: eine Sammelabbuchung von Hand splitten und im Kontextmenü „Als Split-Vorlage speichern …“ wählen.");
+    seite("Split-Vorlagen", hinweisBox,
+      h("p", { class: "leise" }, "Sammelabbuchungen (z. B. mehrere Versicherungen in einer Abbuchung) werden bei der Synchronisation nach festen Teilbeträgen auf mehrere Kategorien aufgeteilt. Vorlagen stehen vor Regeln. Es gibt keine Toleranz: Weicht der Betrag auch nur um einen Cent ab, wird nicht aufgeteilt, die Buchung bleibt unkategorisiert und es kommt eine Benachrichtigung. Dann die Vorlage anpassen (z. B. nach einer Beitragsänderung) und die Buchung hier nachträglich aufteilen."),
+      h("div", { class: "werkzeug" }, h("button", { type: "button", class: "knopf primaer", onclick: async () => { if (await vorlageDialog(null)) route(); } }, "+ Split-Vorlage anlegen")),
+      tab,
+      h("h2", null, "Auf vorhandene Buchungen anwenden"),
+      h("div", { class: "karte" },
+        h("label", { class: "feld zeile" }, nurUnk, "nur unkategorisierte Buchungen (gesperrte werden nie geändert)"),
+        h("div", { class: "werkzeug" },
+          h("button", { type: "button", class: "knopf", onclick: () => anwenden(true) }, "Probelauf"),
+          h("button", { type: "button", class: "knopf primaer", onclick: () => anwenden(false) }, "Aufteilen"))),
+      ergebnis);
+  }
+
   // ------------------------------------------------------------ Router
   async function route() {
     menueSchliessen();
@@ -1749,13 +2027,16 @@
       else if (bereich === "kategorien") await ansichtKonten(true);
       else if (bereich === "konto") await ansichtKonto(Number(arg), false);
       else if (bereich === "kategorie") await ansichtKonto(Number(arg), true);
+      else if (bereich === "buchungen" && arg) await ansichtBuchungOeffnen(Number(arg));
       else if (bereich === "buchungen") await ansichtAlleBuchungen(hashParameter);
+      else if (bereich === "vorlagen") await ansichtVorlagen();
+      else if (bereich === "lernmodell") await ansichtLernmodell();
       else if (bereich === "protokoll") await ansichtProtokoll(hashParameter);
       else if (bereich === "empfaenger") await ansichtEmpfaenger();
       else if (bereich === "umbuchungen") await ansichtUmbuchungen();
       else if (bereich === "abstimmung") await ansichtAbstimmung();
       else if (bereich === "suche") await ansichtSuche(hashParameter.get("q") || "");
-      else if (bereich === "sync") await ansichtSync();
+      else if (bereich === "sync") { await ansichtSync(); if (arg === "konten") { const z = $("#bankkonten"); if (z) z.scrollIntoView(); } }
       else if (bereich === "tan") await ansichtTan(Number(arg));
       else if (bereich === "regeln") await ansichtRegeln();
       else if (bereich === "benachrichtigungen") await ansichtBenachrichtigungen();
@@ -1791,8 +2072,9 @@
   $("#menue-knopf").addEventListener("click", () => navUmschalten());
   $("#schleier").addEventListener("click", () => navUmschalten(false));
   window.addEventListener("hashchange", route);
-  const tanPfad = /^\/tan\/(\d+)\/?$/.exec(location.pathname);
-  if (tanPfad) history.replaceState(null, "", "/#/tan/" + tanPfad[1]);
+  // Links aus Benachrichtigungen (/tan/<id>, /buchungen/<id>, /sync/konten) öffnen die passende Ansicht.
+  const direktPfad = /^\/(tan\/\d+|buchungen\/\d+|sync\/konten)\/?$/.exec(location.pathname);
+  if (direktPfad) history.replaceState(null, "", "/#/" + direktPfad[1]);
   $("#glocke").addEventListener("click", () => { location.hash = "#/benachrichtigungen"; });
   glockeAktualisieren();
   setInterval(() => { if (!document.hidden) glockeAktualisieren(); }, 30000);

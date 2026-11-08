@@ -55,7 +55,7 @@ def test_migration_von_schemaversion_2_ohne_datenverlust(tmp_path):
     alle = c.get("/api/aenderungen").json()
     assert [a["aktion"] for a in alle["eintraege"]] == ["abstimmung_anlegen", "empfaenger_aendern"]
     con = sqlite3.connect(pfad)
-    assert con.execute("SELECT wert FROM meta WHERE schluessel = 'schema_version'").fetchone()[0] == "3"
+    assert con.execute("SELECT wert FROM meta WHERE schluessel = 'schema_version'").fetchone()[0] == "4"
     sql = con.execute("SELECT sql FROM sqlite_master WHERE name = 'vorschlag'").fetchone()[0]
     assert "standardkategorie" in sql
     con.close()

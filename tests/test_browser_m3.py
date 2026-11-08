@@ -71,7 +71,11 @@ def test_m3_desktop(tmp_path, browser):  # noqa: F811
         zeile = page.locator("tr.aenderung").first
         assert "Konto abgestimmt" in zeile.inner_text()
         zeile.locator("button", has_text="Rückgängig").click()
-        page.wait_for_selector(".meldung:has-text('Rückgängig gemacht')")
+        # Auf den Zustand warten, nicht auf die Meldung (eine ältere „Rückgängig gemacht“ kann noch sichtbar sein)
+        for _ in range(100):
+            if page.request.get(url + "/api/abstimmungen").json() == []:
+                break
+            page.wait_for_timeout(100)
         assert page.request.get(url + "/api/abstimmungen").json() == []
         assert not fehler, fehler
         page.close()

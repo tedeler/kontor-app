@@ -134,6 +134,11 @@ table.tabelle { width: 100%; border-collapse: collapse; background: var(--flaech
 .vorschlag { display: inline-flex; align-items: center; gap: .2rem; margin-left: .4rem; font-size: .74rem; font-weight: 600;
   color: var(--warn-text); background: var(--warn-hg); border: 1px dashed var(--warn-linie); border-radius: 8px; padding: 0 .1rem 0 .4rem; }
 .mit-vorschlag { font-style: italic; }
+.vorschlag-lern { border-style: dotted; }
+.teil-zeile { grid-template-columns: minmax(8rem, 1.4fr) 7rem 1fr 2.2rem; }
+.quelle-wahl { border: 0; padding: 0; margin: 0 0 .5rem; }
+.quelle-wahl legend { font-weight: 600; margin-right: .5rem; float: left; }
+.tabelle tr.fehlt td { background: var(--warn-hg); }
 .mini-knopf { border: 1px solid var(--warn-linie); background: var(--flaeche); border-radius: 5px; padding: 0 .35rem; cursor: pointer;
   font-size: .8rem; line-height: 1.3rem; min-width: 1.6rem; }
 .mini-knopf:hover { background: var(--auswahl); }
@@ -211,6 +216,9 @@ h2.oben { margin-top: 0; }
   .tabelle.regeln tr { display: block; border-bottom: 1px solid var(--linie); padding: .3rem 0; }
   .tabelle.regeln td { display: block; border: 0; padding: .15rem .6rem; text-align: left; }
   .tabelle.regeln td.zahl::before { content: "Priorität "; color: var(--leise); }
+  .tabelle.regeln td.zahl.gesamt::before { content: "Gesamt "; }
+  .teil-zeile { grid-template-columns: 1fr 6.5rem 2.2rem; }
+  .teil-zeile input[aria-label="Memo"] { grid-column: 1 / span 2; }
   .tabelle td.aktionen .knopf { margin-bottom: .25rem; }
   .kopf { flex-wrap: wrap; gap: .4rem; }
   .kopf-titel { flex: 1 1 40%; }

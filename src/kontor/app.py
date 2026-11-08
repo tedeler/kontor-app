@@ -842,6 +842,16 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
         # Link aus der Benachrichtigung (synchronisation.md 7.2) öffnet die TAN-Seite der Oberfläche.
         return HTMLResponse(index, headers={"Cache-Control": "no-store"})
 
+    @app.get("/buchungen/{buchung_id}", include_in_schema=False)
+    async def buchung_seite(buchung_id: str):
+        # Link aus der Benachrichtigung split_abweichung (vorlagen.md 6) öffnet die Buchung in der Oberfläche.
+        return HTMLResponse(index, headers={"Cache-Control": "no-store"})
+
+    @app.get("/sync/konten", include_in_schema=False)
+    async def sync_konten_seite():
+        # Link aus der Benachrichtigung konto_fehlt (synchronisation.md 16.5).
+        return HTMLResponse(index, headers={"Cache-Control": "no-store"})
+
     @app.get("/manifest.webmanifest", include_in_schema=False)
     async def manifest():
         return Response((WEB / "manifest.webmanifest").read_bytes(), media_type="application/manifest+json")
