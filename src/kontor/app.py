@@ -24,13 +24,13 @@ from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.staticfiles import StaticFiles
 
-from . import __version__, buch, db, pflege, protokoll, regeln
+from . import __version__, buch, db, lernmodell, pflege, protokoll, regeln, vorlagen
 from .sync import SyncDienst
 from .config import KontorConfig
 from .importer.kmymoney import importiere_bytes
 from .importer import gnucash as gnucash_import
 from .validierung import (BETRAG_MAX, STATUS, ApiFehler, Feld, Query, Validierungsfehler, fehler_eintrag,
-                          pruefe_koerper)
+                          json_koerper, pruefe_koerper, pruefe_objekt)
 from .validierung import KONTOARTEN
 
 log = logging.getLogger("kontor")
@@ -160,6 +160,18 @@ REGELN_ANWENDEN = {
     "trocken": S("bool"),
 }
 SYNC_ANFRAGE = {"von": S("datum"), "bis": S("datum")}
+SYNC_ENTSCHEIDUNG = {"aktion": S("enum", pflicht=True, werte=("wiederherstellen", "ignorieren")),
+                     "buchungen": S("enum", pflicht=True, werte=("alle", "nur_neue"))}
+LERN_BUCHUNG = {"buchung_id": S("int", pflicht=True)}
+LERN_MERKMALE = {"empfaenger": S("str", nullbar=True, max_len=200), "verwendungszweck": S("str", max_len=10000),
+                 "betrag": S("betrag", pflicht=True)}
+LERN_ANWENDEN = {"buchung_ids": S("int_liste", min_items=1, eindeutig=True), "trocken": S("bool")}
+VORLAGEN_ANWENDEN = {
+    "buchung_ids": S("int_liste", min_items=1, eindeutig=True),
+    "vorlage_ids": S("int_liste", min_items=1, eindeutig=True),
+    "nur_unkategorisiert": S("bool"),
+    "trocken": S("bool"),
+}
 PIN_EINGABE = {"pin": S("str", pflicht=True, min_len=1, max_len=128)}
 TAN_EINGABE = {"tan": S("str", pflicht=True, min_len=1, max_len=64)}
 MOCK_ZEIT = {"jetzt": S("str", pflicht=True)}
@@ -490,6 +502,12 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     async def sync_konten(request: Request):
         return await mit_ablauf(sync.konten_zustand)
 
+    @endpunkt("POST", "/api/sync/konten/{iban}/entscheidung")
+    async def sync_konto_entscheidung(request: Request):
+        d = await koerper(request, SYNC_ENTSCHEIDUNG)  # 422 vor 404 vor 409 (synchronisation.md 16.3)
+        iban = request.path_params["iban"]
+        return await run_in_threadpool(sync.entscheidung, iban, d)
+
     @endpunkt("PUT", "/api/sync/pin", 204)
     async def pin_setzen(request: Request):
         d = await koerper(request, PIN_EINGABE)  # Fehlermeldungen enthalten den Wert nie
@@ -613,7 +631,9 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     @endpunkt("POST", "/api/buchungen/erfassen", 201)
     async def buchung_erfassen(request: Request):
         d = await koerper(request, BUCHUNG_ERFASSEN)
-        return await aendern("buchung_erfassen", pflege.erfassen, d)
+        def f(con, d):
+            return pflege.erfassen(con, d, config.lernmodell_automatisch)
+        return await aendern("buchung_erfassen", f, d)
 
     @endpunkt("POST", "/api/umbuchungen/erkennen")
     async def umbuchungen_erkennen(request: Request):
@@ -658,6 +678,75 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
             q.fehler_melden("q", "1–200 Zeichen mit mindestens einem Wort.")
         q.pruefen()
         return await lesen(pflege.suche, text, limit or 50)
+
+    # ------------------------------------------------- M4: Lernmodell
+    @endpunkt("GET", "/api/lernmodell")
+    async def lernmodell_zustand(request: Request):
+        return await lesen(lernmodell.zustand, config.lernmodell_automatisch)
+
+    @endpunkt("POST", "/api/lernmodell/vorhersage")
+    async def lernmodell_vorhersage(request: Request):
+        roh = json_koerper(await request.body())
+        fehler: list[dict] = []
+        if not isinstance(roh, dict):
+            raise Validierungsfehler([fehler_eintrag(["body"], "JSON-Objekt erwartet.")])
+        for k in roh:
+            if k != "eintraege":
+                fehler.append(fehler_eintrag(["body", k], "Unbekanntes Feld."))
+        liste = roh.get("eintraege")
+        eintraege = []
+        if not isinstance(liste, list) or not 1 <= len(liste) <= 1000:
+            fehler.append(fehler_eintrag(["body", "eintraege"], "Liste mit 1 bis 1000 Einträgen erwartet."))
+        else:
+            for i, e in enumerate(liste):
+                ort = ["body", "eintraege", i]
+                if not isinstance(e, dict):
+                    fehler.append(fehler_eintrag(ort, "Objekt erwartet."))
+                    continue
+                schema = LERN_BUCHUNG if "buchung_id" in e else LERN_MERKMALE
+                eintraege.append(pruefe_objekt(e, schema, ort, fehler))
+        if fehler:
+            raise Validierungsfehler(fehler)
+        return await lesen(lernmodell.vorhersagen, eintraege)
+
+    @endpunkt("POST", "/api/lernmodell/anwenden")
+    async def lernmodell_anwenden(request: Request):
+        roh = await request.body()
+        d = pruefe_koerper(roh if roh.strip() else b"{}", LERN_ANWENDEN)
+        return await aendern("lernmodell_anwenden", lernmodell.anwenden, d.get("buchung_ids"),
+                             d.get("trocken", False), quelle="lernmodell")
+
+    # --------------------------------------------------- M4: Vorlagen
+    @endpunkt("GET", "/api/vorlagen")
+    async def vorlagen_liste(request: Request):
+        return await lesen(vorlagen.vorlagen_liste)
+
+    @endpunkt("POST", "/api/vorlagen", 201)
+    async def vorlage_anlegen(request: Request):
+        d = vorlagen.vorlage_koerper(await request.body(), neu=True)
+        return await aendern("vorlage_anlegen", vorlagen.vorlage_anlegen, d)
+
+    @endpunkt("POST", "/api/vorlagen/anwenden")
+    async def vorlagen_anwenden(request: Request):
+        roh = await request.body()
+        d = pruefe_koerper(roh if roh.strip() else b"{}", VORLAGEN_ANWENDEN)
+        return await aendern("vorlagen_anwenden", vorlagen.anwenden, d.get("buchung_ids"), d.get("vorlage_ids"),
+                             d.get("nur_unkategorisiert", True), d.get("trocken", False), quelle="vorlage")
+
+    @endpunkt("GET", "/api/vorlagen/{vorlage_id:int}")
+    async def vorlage_lesen(request: Request):
+        return await lesen(vorlagen.vorlage_lesen, pid(request, "vorlage_id"))
+
+    @endpunkt("PATCH", "/api/vorlagen/{vorlage_id:int}")
+    async def vorlage_aendern(request: Request):
+        vid = pid(request, "vorlage_id")
+        await lesen(vorlagen.vorlage_lesen, vid)  # 404 vor 422
+        d = vorlagen.vorlage_koerper(await request.body(), neu=False)
+        return await aendern("vorlage_aendern", vorlagen.vorlage_aendern, vid, d)
+
+    @endpunkt("DELETE", "/api/vorlagen/{vorlage_id:int}", 204)
+    async def vorlage_loeschen(request: Request):
+        return await aendern("vorlage_loeschen", vorlagen.vorlage_loeschen, pid(request, "vorlage_id"))
 
     # ------------------------------------------- M3: Änderungsprotokoll
     @endpunkt("GET", "/api/aenderungen")

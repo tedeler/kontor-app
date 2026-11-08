@@ -134,7 +134,7 @@ def korrektur_id(con) -> int:
     return r["id"]
 
 
-def erfassen(con, d: dict) -> dict:
+def erfassen(con, d: dict, lernmodell_automatisch: bool = False) -> dict:
     art, betrag = d["art"], d["betrag"]
     fehler = []
     if art == "korrektur" and betrag == 0:
@@ -163,6 +163,18 @@ def erfassen(con, d: dict) -> dict:
     if kat is not None:
         buch._kategorie_ziel(con, kat)
     empf_id = d.get("empfaenger_id")
+    lern = None
+    if lernmodell_automatisch and art in ("ausgabe", "einnahme") and kat is None:
+        # M4 (buchhaltungspflege.md 9): Trainingsmenge zu Beginn der Anfrage
+        from . import lernmodell
+        if "empfaenger_name" in d:
+            lern_name = d["empfaenger_name"]
+        elif empf_id is not None:
+            lern_name = con.execute("SELECT name FROM empfaenger WHERE id = ?", (empf_id,)).fetchone()["name"]
+        else:
+            lern_name = None
+        lern = lernmodell.trainieren(con).vorhersage(lernmodell.merkmale(
+            lern_name, d.get("verwendungszweck", ""), -betrag if art == "ausgabe" else betrag))
     if "empfaenger_name" in d:
         empf_id = buch.empfaenger_bestimmen(con, d["empfaenger_name"])
     k = konto["id"]
@@ -183,7 +195,10 @@ def erfassen(con, d: dict) -> dict:
             g = unk
             if std is not None:
                 g = std
-                vorschlag = (std, unk)
+                vorschlag = (std, unk, "standardkategorie", None)
+            elif lern is not None and lern.kategorie_id is not None:
+                g = lern.kategorie_id
+                vorschlag = (g, unk, "lernmodell", lern.sicherheit)
         vorzeichen = {"ausgabe": -1, "einnahme": 1, "korrektur": 1}[art]
         splits = [(k, vorzeichen * betrag), (g, -vorzeichen * betrag)]
     memo = d.get("memo", "")
@@ -191,8 +206,8 @@ def erfassen(con, d: dict) -> dict:
                                  d.get("status", "bestaetigt"),
                                  [{"konto_id": kid, "betrag": b, "memo": memo} for kid, b in splits], tag_ids)
     if vorschlag:
-        con.execute("INSERT INTO vorschlag (buchung_id, kategorie_id, regel_id, quelle, vorher_konto_id)"
-                    " VALUES (?, ?, NULL, 'standardkategorie', ?)", (bid, vorschlag[0], vorschlag[1]))
+        con.execute("INSERT INTO vorschlag (buchung_id, kategorie_id, regel_id, quelle, vorher_konto_id, sicherheit)"
+                    " VALUES (?, ?, NULL, ?, ?, ?)", (bid, vorschlag[0], vorschlag[2], vorschlag[1], vorschlag[3]))
     return buch.buchung_lesen(con, bid)
 
 
@@ -500,6 +515,9 @@ def _loeschen_ausfuehren(con, k: dict, variante: str, konflikte: str, betroffen:
         else:
             regeln.regel_loeschen(con, r["id"])
             r_geloescht.append(r["id"])
+    # M4 (loeschen.md 6): Split-Vorlagen wie Regeln
+    from . import vorlagen
+    vorlagen.konto_loeschen(con, kid, ziel if variante == "elternkonto" else None)
     # 3.5 Standardkategorien
     empf = [r["id"] for r in con.execute("SELECT id FROM empfaenger WHERE standardkategorie_id = ? ORDER BY id",
                                          (kid,))]

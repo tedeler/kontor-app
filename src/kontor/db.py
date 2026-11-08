@@ -15,7 +15,7 @@ from collections.abc import Iterator
 
 from .text import norm
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (
@@ -138,8 +138,9 @@ CREATE TABLE IF NOT EXISTS vorschlag (
     buchung_id INTEGER PRIMARY KEY REFERENCES buchung(id) ON DELETE CASCADE,
     kategorie_id INTEGER NOT NULL,
     regel_id INTEGER,
-    quelle TEXT NOT NULL CHECK (quelle IN ('regel','standardkategorie')),
-    vorher_konto_id INTEGER NOT NULL
+    quelle TEXT NOT NULL CHECK (quelle IN ('regel','standardkategorie','lernmodell')),
+    vorher_konto_id INTEGER NOT NULL,
+    sicherheit INTEGER CHECK (sicherheit IS NULL OR (typeof(sicherheit) = 'integer' AND sicherheit BETWEEN 0 AND 1000))
 );
 CREATE INDEX IF NOT EXISTS vorschlag_regel ON vorschlag(regel_id);
 
@@ -263,6 +264,25 @@ CREATE TABLE IF NOT EXISTS aenderung_eintrag (
     PRIMARY KEY (aenderung_id, position)
 );
 CREATE INDEX IF NOT EXISTS aenderung_eintrag_objekt ON aenderung_eintrag(objekt, objekt_id);
+
+-- M3-Nachtrag (synchronisation.md 16.2, protokoll.md 6.4): Kontozuordnungen, die ein gelöschtes
+-- Bankkonto wiederhergestellt haben (Betriebszustand, kein Buchbestand).
+CREATE TABLE IF NOT EXISTS sync_wiederherstellung (
+    aenderung_id INTEGER NOT NULL,
+    iban TEXT NOT NULL,
+    PRIMARY KEY (aenderung_id, iban)
+);
+
+-- ------------------------------------------------------------ Meilenstein 4
+-- Split-Vorlagen (vorlagen.md 1); Bedingungen und Teile als JSON-Listen.
+CREATE TABLE IF NOT EXISTS vorlage (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    aktiv INTEGER NOT NULL CHECK (aktiv IN (0, 1)),
+    prioritaet INTEGER NOT NULL CHECK (typeof(prioritaet) = 'integer' AND prioritaet BETWEEN 0 AND 1000000),
+    bedingungen TEXT NOT NULL,
+    teile TEXT NOT NULL
+);
 """
 
 # Spalten, die frühere Schemaversionen noch nicht haben (Migration ohne Datenverlust).
@@ -270,6 +290,13 @@ _NEUE_SPALTEN = (
     ("empfaenger", "standardkategorie_id", "INTEGER REFERENCES konto(id)"),
     ("buchung", "gegen_iban", "TEXT"),
     ("split", "abstimmung_id", "INTEGER REFERENCES abstimmung(id)"),
+    # M4: Zählungen der Vorlagen je Konto und Lauf (synchronisation.md 15.2)
+    ("sync_lauf_konto", "buchungen_gesplittet", "INTEGER NOT NULL DEFAULT 0"),
+    ("sync_lauf_konto", "vorlage_abweichungen", "INTEGER NOT NULL DEFAULT 0"),
+    # M3-Nachtrag: übersprungene Bankkonten je Lauf (JSON) und Entscheidung je Bankkonto (synchronisation.md 16)
+    ("sync_lauf", "uebersprungen", "TEXT NOT NULL DEFAULT '[]'"),
+    ("sync_konto_zustand", "entscheidung", "TEXT CHECK (entscheidung IN ('wiederherstellen','ignorieren'))"),
+    ("sync_konto_zustand", "entscheidung_buchungen", "TEXT CHECK (entscheidung_buchungen IN ('alle','nur_neue'))"),
 )
 _NACH_MIGRATION = (
     "CREATE INDEX IF NOT EXISTS split_abstimmung ON split(abstimmung_id)",
@@ -278,20 +305,22 @@ _NACH_MIGRATION = (
 
 
 def _migrieren(con: sqlite3.Connection) -> None:
-    """Bringt eine Datenbank früherer Schemaversion auf den Stand von M3 (Daten bleiben erhalten)."""
+    """Bringt eine Datenbank früherer Schemaversion auf den Stand von M4 (Daten bleiben erhalten)."""
     for tabelle, spalte, typ in _NEUE_SPALTEN:
         vorhanden = {r["name"] for r in con.execute(f"PRAGMA table_info({tabelle})")}
         if spalte not in vorhanden:
             con.execute(f"ALTER TABLE {tabelle} ADD COLUMN {spalte} {typ}")
     sql = con.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'vorschlag'").fetchone()["sql"]
-    if "standardkategorie" not in sql:
-        # CHECK erweitern: Tabelle neu aufbauen und Inhalt übernehmen.
+    if "lernmodell" not in sql:
+        # CHECK erweitern (M3: standardkategorie, M4: lernmodell) und Spalte sicherheit ergänzen:
+        # Tabelle neu aufbauen und Inhalt übernehmen.
         con.execute("CREATE TABLE vorschlag_neu (buchung_id INTEGER PRIMARY KEY REFERENCES buchung(id)"
                     " ON DELETE CASCADE, kategorie_id INTEGER NOT NULL, regel_id INTEGER,"
-                    " quelle TEXT NOT NULL CHECK (quelle IN ('regel','standardkategorie')),"
-                    " vorher_konto_id INTEGER NOT NULL)")
-        con.execute("INSERT INTO vorschlag_neu SELECT buchung_id, kategorie_id, regel_id, quelle, vorher_konto_id"
-                    " FROM vorschlag")
+                    " quelle TEXT NOT NULL CHECK (quelle IN ('regel','standardkategorie','lernmodell')),"
+                    " vorher_konto_id INTEGER NOT NULL, sicherheit INTEGER CHECK (sicherheit IS NULL OR"
+                    " (typeof(sicherheit) = 'integer' AND sicherheit BETWEEN 0 AND 1000)))")
+        con.execute("INSERT INTO vorschlag_neu (buchung_id, kategorie_id, regel_id, quelle, vorher_konto_id)"
+                    " SELECT buchung_id, kategorie_id, regel_id, quelle, vorher_konto_id FROM vorschlag")
         con.execute("DROP TABLE vorschlag")
         con.execute("ALTER TABLE vorschlag_neu RENAME TO vorschlag")
         con.execute("CREATE INDEX IF NOT EXISTS vorschlag_regel ON vorschlag(regel_id)")

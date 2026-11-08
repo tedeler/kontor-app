@@ -14,7 +14,9 @@ import logging
 import threading
 from dataclasses import dataclass
 
-from . import buch, db, pflege, protokoll, regeln
+import json
+
+from . import buch, db, lernmodell, pflege, protokoll, regeln, vorlagen
 from .buch import BESTAND, ApiFehler
 from .config import KontorConfig
 from .fehler import (BankPinFalsch, KontorFehler, TanAbgelaufen, TanErforderlich, TanUngueltig)
@@ -23,6 +25,13 @@ from .text import iban_normalisieren, passend
 log = logging.getLogger("kontor.sync")
 UTC = dt.timezone.utc
 KONTOARTEN_BESTAND = ("girokonto", "sparkonto", "kreditkonto")
+
+
+def euro(cent: int) -> str:
+    """Betrag in Cent als deutscher Eurotext (nur Ganzzahlarithmetik)."""
+    vz = "−" if cent < 0 else ""
+    e, c = divmod(abs(cent), 100)
+    return f"{vz}{e:,}".replace(",", ".") + f",{c:02d} €"
 
 
 def zeit_text(z: dt.datetime) -> str:
@@ -210,6 +219,7 @@ class SyncDienst:
                 "buchungen_zusammengefuehrt": k["buchungen_zusammengefuehrt"], "buchungen_neu": k["buchungen_neu"],
                 "buchungen_zur_pruefung": k["buchungen_zur_pruefung"],
                 "buchungen_kategorisiert": k["buchungen_kategorisiert"],
+                "buchungen_gesplittet": k["buchungen_gesplittet"], "vorlage_abweichungen": k["vorlage_abweichungen"],
                 "fehler": None if k["fehler_code"] is None else {"code": k["fehler_code"],
                                                                  "meldung": k["fehler_meldung"]},
             })
@@ -218,16 +228,47 @@ class SyncDienst:
             "beendet_am": r["beendet_am"], "von": r["von"], "bis": r["bis"],
             "fehler": None if r["fehler_code"] is None else {"code": r["fehler_code"], "meldung": r["fehler_meldung"]},
             "tan_anforderung_id": r["tan_anforderung_id"], "konten": konten,
+            "uebersprungen": json.loads(r["uebersprungen"] or "[]"),
         }
 
     def laeufe(self, con) -> list[dict]:
         return [self._lauf_dict(con, r) for r in con.execute("SELECT * FROM sync_lauf ORDER BY id").fetchall()]
 
     @staticmethod
-    def konten_zustand(con) -> list[dict]:
-        return [{"iban": r["iban"], "konto_id": r["konto_id"], "letzter_abruf_bis": r["letzter_abruf_bis"],
-                 "letzter_erfolg_am": r["letzter_erfolg_am"]}
-                for r in con.execute("SELECT * FROM sync_konto_zustand ORDER BY iban")]
+    def _zustand_dict(con, r) -> dict:
+        """synchronisation.md 2.3 und 16.1: Status abgeleitet aus Kontenbestand und Entscheidung."""
+        if con.execute("SELECT 1 FROM konto WHERE iban = ?", (r["iban"],)).fetchone():
+            status = "aktiv"
+        else:
+            status = {None: "konto_fehlt", "ignorieren": "ignoriert",
+                      "wiederherstellen": "wiederherstellen"}[r["entscheidung"]]
+        return {"iban": r["iban"], "konto_id": r["konto_id"], "letzter_abruf_bis": r["letzter_abruf_bis"],
+                "letzter_erfolg_am": r["letzter_erfolg_am"], "status": status,
+                "wiederherstellen_buchungen": r["entscheidung_buchungen"] if status == "wiederherstellen" else None}
+
+    @classmethod
+    def konten_zustand(cls, con) -> list[dict]:
+        return [cls._zustand_dict(con, r) for r in con.execute("SELECT * FROM sync_konto_zustand ORDER BY iban")]
+
+    def entscheidung(self, iban_roh: str, d: dict) -> dict:
+        """POST /api/sync/konten/{iban}/entscheidung (16.3); Betriebszustand, nicht protokolliert."""
+        iban = iban_normalisieren(iban_roh)
+        con = self._con()
+        try:
+            with db.transaktion(con):
+                r = con.execute("SELECT * FROM sync_konto_zustand WHERE iban = ?", (iban,)).fetchone()
+                if r is None:
+                    raise buch.nicht_gefunden("Das Bankkonto")
+                if self._zustand_dict(con, r)["status"] == "aktiv":
+                    raise ApiFehler(409, "konto_vorhanden", "Es existiert bereits ein Konto mit dieser IBAN.")
+                con.execute("UPDATE sync_konto_zustand SET entscheidung = ?, entscheidung_buchungen = ? WHERE iban = ?",
+                            (d["aktion"], d["buchungen"], iban))
+                con.execute("UPDATE benachrichtigung SET gelesen = 1 WHERE schluessel = ? AND gelesen = 0",
+                            (f"konto_fehlt:{iban}",))
+                return self._zustand_dict(
+                    con, con.execute("SELECT * FROM sync_konto_zustand WHERE iban = ?", (iban,)).fetchone())
+        finally:
+            con.close()
 
     @staticmethod
     def _tan_dict(r) -> dict:
@@ -336,28 +377,63 @@ class SyncDienst:
         self._fortsetzen(con, lid, plugin)
 
     def _zuordnen(self, con, lid: int, bankkonten) -> None:
-        """synchronisation.md 3: Zuordnung (inkl. Anlegen) aller Bankkonten vor dem ersten Abruf."""
+        """synchronisation.md 3 und 16.2: Zuordnung (inkl. Anlegen) aller Bankkonten vor dem ersten Abruf."""
         gesehen: dict[str, object] = {}
         for bk in bankkonten:
             n = iban_normalisieren(str(bk.iban))
             gesehen.setdefault(n, bk)
-        with protokoll.protokolliert(con, "sync", "sync_kontozuordnung", self.jetzt_text(), f"sync:{lid}"):
+        uebersprungen: list[dict] = []
+        wiederhergestellt: list[str] = []
+        with protokoll.protokolliert(con, "sync", "sync_kontozuordnung", self.jetzt_text(), f"sync:{lid}") as kx:
             for iban in sorted(gesehen):
                 bk = gesehen[iban]
+                name = (bk.name or "").strip() or iban
                 r = con.execute("SELECT id FROM konto WHERE iban = ?", (iban,)).fetchone()
+                z = con.execute("SELECT * FROM sync_konto_zustand WHERE iban = ?", (iban,)).fetchone()
                 neu = r is None
-                if neu:
-                    name = (bk.name or "").strip() or iban
+                if not neu:
+                    kid = r["id"]  # Regel 1; eine gespeicherte Entscheidung wird verworfen
+                elif z is None or z["entscheidung"] == "wiederherstellen":
                     art = bk.art if bk.art in KONTOARTEN_BESTAND else "girokonto"
                     kid = con.execute(
                         "INSERT INTO konto (name, art, eltern_id, iban, geschlossen, eroeffnet_am, notiz, extern_id)"
                         " VALUES (?, ?, NULL, ?, 0, NULL, '', NULL)", (name, art, iban)).lastrowid
+                    if z is not None:
+                        wiederhergestellt.append(iban)
+                        if z["entscheidung_buchungen"] == "alle":
+                            self._kennungen_vergessen(con, iban)
+                            con.execute("UPDATE sync_konto_zustand SET letzter_abruf_bis = NULL WHERE iban = ?",
+                                        (iban,))
                 else:
-                    kid = r["id"]
+                    status = "ignoriert" if z["entscheidung"] == "ignorieren" else "konto_fehlt"
+                    uebersprungen.append({"iban": iban, "name": name, "status": status})
+                    if status == "konto_fehlt":
+                        self._benachrichtigen(
+                            con, "konto_fehlt", f"konto_fehlt:{iban}", "Bankkonto ohne Konto",
+                            f"Zum Bankkonto „{name}“ (IBAN {iban}) gibt es kein Konto mehr; es wurde bei der "
+                            "Synchronisation übersprungen. Soll das Konto wiederhergestellt oder das Bankkonto "
+                            "künftig ignoriert werden?", link="/sync/konten")
+                    continue
                 con.execute("INSERT INTO sync_lauf_konto (lauf_id, iban, konto_id, konto_neu, status)"
                             " VALUES (?, ?, ?, ?, 'ausstehend')", (lid, iban, kid, 1 if neu else 0))
                 con.execute("INSERT INTO sync_konto_zustand (iban, konto_id) VALUES (?, ?)"
-                            " ON CONFLICT(iban) DO UPDATE SET konto_id = excluded.konto_id", (iban, kid))
+                            " ON CONFLICT(iban) DO UPDATE SET konto_id = excluded.konto_id, entscheidung = NULL,"
+                            " entscheidung_buchungen = NULL", (iban, kid))
+            con.execute("UPDATE sync_lauf SET uebersprungen = ? WHERE id = ?",
+                        (json.dumps(uebersprungen, ensure_ascii=False), lid))
+
+            def merken(aid: int) -> None:
+                con.executemany("INSERT OR IGNORE INTO sync_wiederherstellung (aenderung_id, iban) VALUES (?, ?)",
+                                [(aid, i) for i in wiederhergestellt])
+            kx.danach.append(merken)
+
+    @staticmethod
+    def _kennungen_vergessen(con, iban: str) -> None:
+        """16.2 Regel 3 „alle“: gemerkte Kennungen ohne existierende Buchung vergessen (E-081, E-082)."""
+        praefix = f"bank:{iban}:"
+        con.execute("DELETE FROM sync_kennung WHERE substr(kennung, 1, ?) = ?"
+                    " AND NOT EXISTS (SELECT 1 FROM buchung_extern x WHERE x.extern_id = sync_kennung.kennung)",
+                    (len(praefix), praefix))
 
     def _zeitraum(self, con, lauf, iban: str) -> tuple[dt.date, dt.date]:
         heute = self.heute()
@@ -521,7 +597,8 @@ class SyncDienst:
     def _konto_uebernehmen(self, con, lid: int, k, von: dt.date, bis: dt.date, umsaetze) -> None:
         iban, kid = k["iban"], k["konto_id"]
         z = dict(umsaetze_gesamt=len(umsaetze), vormerkungen_ignoriert=0, buchungen_vorhanden=0,
-                 buchungen_zusammengefuehrt=0, buchungen_neu=0, buchungen_zur_pruefung=0, buchungen_kategorisiert=0)
+                 buchungen_zusammengefuehrt=0, buchungen_neu=0, buchungen_zur_pruefung=0, buchungen_kategorisiert=0,
+                 buchungen_gesplittet=0, vorlage_abweichungen=0)
         reihe = sorted(umsaetze, key=lambda u: (u.buchungstag, u.umsatz_id))
         neue: set[int] = set()
         with protokoll.protokolliert(con, "sync", "sync_konto", self.jetzt_text(), f"sync:{lid}"):
@@ -542,10 +619,12 @@ class SyncDienst:
             con.execute("UPDATE sync_lauf_konto SET status = 'erfolgreich', von = ?, bis = ?, fehler_code = NULL,"
                         " fehler_meldung = NULL, umsaetze_gesamt = ?, vormerkungen_ignoriert = ?,"
                         " buchungen_vorhanden = ?, buchungen_zusammengefuehrt = ?, buchungen_neu = ?,"
-                        " buchungen_zur_pruefung = ?, buchungen_kategorisiert = ? WHERE lauf_id = ? AND iban = ?",
+                        " buchungen_zur_pruefung = ?, buchungen_kategorisiert = ?, buchungen_gesplittet = ?,"
+                        " vorlage_abweichungen = ? WHERE lauf_id = ? AND iban = ?",
                         (von.isoformat(), bis.isoformat(), z["umsaetze_gesamt"], z["vormerkungen_ignoriert"],
                          z["buchungen_vorhanden"], z["buchungen_zusammengefuehrt"], z["buchungen_neu"],
-                         z["buchungen_zur_pruefung"], z["buchungen_kategorisiert"], lid, iban))
+                         z["buchungen_zur_pruefung"], z["buchungen_kategorisiert"], z["buchungen_gesplittet"],
+                         z["vorlage_abweichungen"], lid, iban))
             alt = con.execute("SELECT letzter_abruf_bis FROM sync_konto_zustand WHERE iban = ?", (iban,)).fetchone()
             neu_bis = bis.isoformat()
             if alt is not None and alt["letzter_abruf_bis"] and alt["letzter_abruf_bis"] > neu_bis:
@@ -592,6 +671,10 @@ class SyncDienst:
             for c in exakt:
                 zaehler[c] = zaehler.get(c, 0) + 1
         regelliste = regeln.aktive_regeln(con)
+        vorlagenliste = vorlagen.aktive(con)
+        # M4 (lernmodell.md 5.1): Trainingsmenge zu Beginn der Verarbeitung des Kontos
+        modell = (lernmodell.trainieren(con) if self.config.lernmodell_automatisch and bewertung else None)
+        eigene_ibans = {r["iban"] for r in con.execute("SELECT iban FROM konto WHERE iban IS NOT NULL")}
         unk_id: int | None = None
         jetzt = self.jetzt_text()
         for u, kennung, name, exakt, aehnlich in bewertung:
@@ -601,28 +684,49 @@ class SyncDienst:
                             (next(iter(exakt)), kennung))
                 z["buchungen_zusammengefuehrt"] += 1
                 continue
-            if unk_id is None:
-                unk_id = buch.unkategorisiert_id(con)
-            regel = regeln.erste_regel(regelliste, regeln.Sicht(name, u.verwendungszweck, u.betrag, {kid}))
+            sicht = regeln.Sicht(name, u.verwendungszweck, u.betrag, {kid})
             empf_id = buch.empfaenger_bestimmen(con, name) if name is not None else None
-            std = None
-            if regel is None and empf_id is not None:
-                std = con.execute("SELECT standardkategorie_id FROM empfaenger WHERE id = ?",
-                                  (empf_id,)).fetchone()["standardkategorie_id"]
-            gegen = regel["kategorie_id"] if regel else std if std is not None else unk_id
-            splits = [{"konto_id": kid, "betrag": u.betrag, "memo": ""},
-                      {"konto_id": gegen, "betrag": -u.betrag, "memo": ""}]
+            gegen_iban = pflege.gegen_iban(u.gegenpartei_iban)
+            # Stufenfolge (synchronisation.md 15.1): Vorlage → Regel → Standardkategorie → Lernmodell → Unkategorisiert
+            erkennung = vorlagen.erkennen(vorlagenliste, sicht)
+            vorschlag = None  # (kategorie_id, regel_id, quelle, sicherheit)
+            if erkennung.art == "treffer":
+                splits = [{"konto_id": kid, "betrag": u.betrag, "memo": ""}] + vorlagen.teile_splits(erkennung.vorlage)
+            else:
+                if unk_id is None:
+                    unk_id = buch.unkategorisiert_id(con)
+                gegen = unk_id
+                if erkennung.art == "keine":
+                    regel = regeln.erste_regel(regelliste, sicht)
+                    std = None
+                    if regel is None and empf_id is not None:
+                        std = con.execute("SELECT standardkategorie_id FROM empfaenger WHERE id = ?",
+                                          (empf_id,)).fetchone()["standardkategorie_id"]
+                    if regel is not None:
+                        vorschlag = (regel["kategorie_id"], regel["id"], "regel", None)
+                    elif std is not None:
+                        vorschlag = (std, None, "standardkategorie", None)
+                    elif modell is not None and gegen_iban not in eigene_ibans:
+                        v = modell.vorhersage(lernmodell.merkmale(name, u.verwendungszweck, u.betrag))
+                        if v.kategorie_id is not None:
+                            vorschlag = (v.kategorie_id, None, "lernmodell", v.sicherheit)
+                    if vorschlag is not None:
+                        gegen = vorschlag[0]
+                splits = [{"konto_id": kid, "betrag": u.betrag, "memo": ""},
+                          {"konto_id": gegen, "betrag": -u.betrag, "memo": ""}]
             bid = buch.buchung_einfuegen(con, u.buchungstag.isoformat(), empf_id, u.verwendungszweck, "importiert",
-                                         splits, (), [kennung], gegen_iban=pflege.gegen_iban(u.gegenpartei_iban))
+                                         splits, (), [kennung], gegen_iban=gegen_iban)
             neue.add(bid)
             z["buchungen_neu"] += 1
-            if regel:
-                con.execute("INSERT INTO vorschlag (buchung_id, kategorie_id, regel_id, quelle, vorher_konto_id)"
-                            " VALUES (?, ?, ?, 'regel', ?)", (bid, regel["kategorie_id"], regel["id"], unk_id))
-                z["buchungen_kategorisiert"] += 1
-            elif std is not None:
-                con.execute("INSERT INTO vorschlag (buchung_id, kategorie_id, regel_id, quelle, vorher_konto_id)"
-                            " VALUES (?, ?, NULL, 'standardkategorie', ?)", (bid, std, unk_id))
+            if erkennung.art == "treffer":
+                z["buchungen_gesplittet"] += 1
+            elif erkennung.art == "abweichung":
+                z["vorlage_abweichungen"] += 1
+                self._split_abweichung_melden(con, erkennung.vorlage, u.betrag, bid)
+            if vorschlag is not None:
+                con.execute("INSERT INTO vorschlag (buchung_id, kategorie_id, regel_id, quelle, vorher_konto_id,"
+                            " sicherheit) VALUES (?, ?, ?, ?, ?, ?)",
+                            (bid, vorschlag[0], vorschlag[1], vorschlag[2], unk_id, vorschlag[3]))
                 z["buchungen_kategorisiert"] += 1
             kandidaten = exakt | aehnlich
             if kandidaten:
@@ -633,6 +737,15 @@ class SyncDienst:
                                 [(vid, c) for c in sorted(kandidaten)])
                 z["buchungen_zur_pruefung"] += 1
         return neue
+
+    def _split_abweichung_melden(self, con, v: dict, betrag: int, bid: int) -> None:
+        """vorlagen.md 6: entprellt über den Schlüssel split_abweichung:<vorlage>:<betrag>."""
+        self._benachrichtigen(
+            con, "split_abweichung", f"split_abweichung:{v['id']}:{betrag}", "Split-Vorlage passt nicht",
+            f"Die Buchung über {euro(betrag)} passt zur Split-Vorlage „{v['name']}“, deren Gesamtbetrag "
+            f"{euro(v['gesamtbetrag'])} ist. Sie wurde nicht aufgeteilt (keine Toleranz). Bitte die Vorlage "
+            "anpassen, z. B. nach einer Beitragsänderung, und die Buchung danach aufteilen.",
+            link=f"/buchungen/{bid}")
 
     # ================================================================ Planer
     def takt(self) -> dict | None:

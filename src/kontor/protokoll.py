@@ -25,11 +25,11 @@ from collections import defaultdict
 from collections.abc import Iterator
 from typing import Any, Callable
 
-from . import buch, db, regeln
+from . import buch, db, regeln, vorlagen
 from .validierung import ApiFehler
 
-OBJEKTE = ("konto", "empfaenger", "tag", "buchung", "regel", "verdacht", "abstimmung")
-QUELLEN = ("manuell", "import", "sync", "regeln", "umbuchung", "rueckgaengig")
+OBJEKTE = ("konto", "empfaenger", "tag", "buchung", "regel", "verdacht", "abstimmung", "vorlage")
+QUELLEN = ("manuell", "import", "sync", "regeln", "umbuchung", "rueckgaengig", "lernmodell", "vorlage")
 
 # Tabelle → (Objektart, Spalte mit der Objekt-ID)
 _TABELLEN = {
@@ -46,6 +46,7 @@ _TABELLEN = {
     "dublettenverdacht": ("verdacht", "id"),
     "verdacht_kandidat": ("verdacht", "verdacht_id"),
     "abstimmung": ("abstimmung", "id"),
+    "vorlage": ("vorlage", "id"),
 }
 
 BESCHREIBUNG = {
@@ -67,6 +68,9 @@ BESCHREIBUNG = {
     "import_kmymoney": "KMyMoney-Import", "import_gnucash": "GnuCash-Import", "sync_kontozuordnung": "Synchronisation: Konten zugeordnet",
     "sync_konto": "Synchronisation: Umsätze eines Kontos übernommen", "regeln_anwenden": "Regeln angewendet",
     "rueckgaengig": "Rückgängig gemacht",
+    "vorlage_anlegen": "Split-Vorlage angelegt", "vorlage_aendern": "Split-Vorlage geändert",
+    "vorlage_loeschen": "Split-Vorlage gelöscht", "vorlagen_anwenden": "Split-Vorlagen angewendet",
+    "lernmodell_anwenden": "Lernmodell angewendet",
 }
 
 
@@ -161,6 +165,9 @@ def formen(con, objekt: str, ids: list[int]) -> dict[int, dict]:
         elif objekt == "abstimmung":
             for r in con.execute(f"SELECT * FROM abstimmung WHERE id IN ({ph})", teil):
                 aus[r["id"]] = abstimmung_dict(r)
+        elif objekt == "vorlage":
+            for r in con.execute(f"SELECT * FROM vorlage WHERE id IN ({ph})", teil):
+                aus[r["id"]] = vorlagen.vorlage_dict(r)
         else:  # pragma: no cover
             raise AssertionError(objekt)
     return aus
@@ -234,6 +241,8 @@ class Kontext:
         self.aenderung_id: int | None = None
         self.eintraege: list[dict] = []
         self.pruefung: Callable[[list[dict]], None] | None = None
+        # Wird nach dem Speichern der Änderung (in derselben Transaktion) mit ihrer ID aufgerufen.
+        self.danach: list[Callable[[int], None]] = []
 
 
 @contextlib.contextmanager
@@ -254,6 +263,8 @@ def protokolliert(con, quelle: str, aktion: str, zeitpunkt: str, gruppe: str | N
                                         k.beschreibung)
             for a in k.rueckgaengig_von:
                 _durch_setzen(con, a, k.aenderung_id)
+            for f in k.danach:
+                f(k.aenderung_id)
         _leeren(con)
 
 
@@ -386,6 +397,8 @@ def _entfernen(con, objekt: str, oid: int, schritt: set[tuple[str, int]]) -> Non
         con.execute("DELETE FROM dublettenverdacht WHERE id = ?", (oid,))
     elif objekt == "abstimmung":
         con.execute("DELETE FROM abstimmung WHERE id = ?", (oid,))
+    elif objekt == "vorlage":
+        con.execute("DELETE FROM vorlage WHERE id = ?", (oid,))
 
 
 def _einfuegen(con, objekt: str, f: dict) -> None:
@@ -416,9 +429,10 @@ def _einfuegen(con, objekt: str, f: dict) -> None:
                         [(f["id"], e) for e in f["extern_ids"]])
         v = f["vorschlag"]
         if v is not None:
-            con.execute("INSERT INTO vorschlag (buchung_id, kategorie_id, regel_id, quelle, vorher_konto_id)"
-                        " VALUES (?, ?, ?, ?, ?)", (f["id"], v["kategorie_id"], v["regel_id"], v["quelle"],
-                                                    v["vorher_konto_id"]))
+            con.execute("INSERT INTO vorschlag (buchung_id, kategorie_id, regel_id, quelle, vorher_konto_id,"
+                        " sicherheit) VALUES (?, ?, ?, ?, ?, ?)",
+                        (f["id"], v["kategorie_id"], v["regel_id"], v["quelle"], v["vorher_konto_id"],
+                         v.get("sicherheit")))
     elif objekt == "regel":
         con.execute("INSERT INTO regel (id, name, aktiv, prioritaet, kategorie_id, bedingungen) VALUES (?, ?, ?, ?, ?, ?)",
                     (f["id"], f["name"], 1 if f["aktiv"] else 0, f["prioritaet"], f["kategorie_id"],
@@ -431,6 +445,8 @@ def _einfuegen(con, objekt: str, f: dict) -> None:
     elif objekt == "abstimmung":
         con.execute("INSERT INTO abstimmung (id, konto_id, stichtag, saldo, erstellt_am) VALUES (?, ?, ?, ?, ?)",
                     (f["id"], f["konto_id"], f["stichtag"], f["saldo"], f["erstellt_am"]))
+    elif objekt == "vorlage":
+        vorlagen.einfuegen(con, f)
 
 
 def _eintraege_von(con, aid: int) -> list[dict]:
@@ -509,6 +525,10 @@ def bezuege_pruefen(con) -> None:
         for b in json.loads(r["bedingungen"]):
             if b.get("feld") == "konto_id" and b.get("wert") not in konten:
                 raise _konflikt("Eine Regel verweist auf ein nicht mehr vorhandenes Konto.")
+    for v in vorlagen.vorlagen_liste(con):  # M4 (protokoll.md 9.1)
+        if any(t["kategorie_id"] not in konten for t in v["teile"]) or any(
+                b["feld"] == "konto_id" and b["wert"] not in konten for b in v["bedingungen"]):
+            raise _konflikt("Eine Split-Vorlage verweist auf ein nicht mehr vorhandenes Konto.")
     eltern = {r["id"]: r["eltern_id"] for r in con.execute("SELECT id, eltern_id FROM konto")}
     for k in eltern:
         gesehen, e = {k}, eltern[k]
@@ -527,7 +547,7 @@ def rueckgaengig(con, ids: list[int], zeitpunkt: str) -> dict:
             erlaubt: set[tuple[str, int]] = set()
             for aid in sorted(ids, reverse=True):
                 erlaubt |= _schritt(con, aid)
-            con.execute("DELETE FROM sync_konto_zustand WHERE konto_id NOT IN (SELECT id FROM konto)")
+            _sync_zustand_nach_rueckgaengig(con, ids)
             bezuege_pruefen(con)
             k.rueckgaengig_von = sorted(ids)
 
@@ -538,6 +558,29 @@ def rueckgaengig(con, ids: list[int], zeitpunkt: str) -> dict:
     except sqlite3.IntegrityError:
         raise _konflikt("Der wiederhergestellte Zustand verletzt eine Eindeutigkeits- oder Bezugsregel.") from None
     return aenderung_lesen(con, k.aenderung_id)
+
+
+def _sync_zustand_nach_rueckgaengig(con, ids: list[int]) -> None:
+    """protokoll.md 6.4: Entfernt eine rückgängig gemachte Kontozuordnung ein Konto, entfällt dessen Eintrag in
+    /api/sync/konten – außer die Zuordnung hat ein gelöschtes Bankkonto wiederhergestellt
+    (synchronisation.md 16.2 Regel 3); dann bleibt er (Status konto_fehlt, ohne Entscheidung)."""
+    for aid in ids:
+        r = con.execute("SELECT aktion FROM aenderung WHERE id = ?", (aid,)).fetchone()
+        if r is None or r["aktion"] != "sync_kontozuordnung":
+            continue
+        wieder = {z["iban"] for z in con.execute("SELECT iban FROM sync_wiederherstellung WHERE aenderung_id = ?",
+                                                 (aid,))}
+        for e in _eintraege_von(con, aid):
+            if e["objekt"] != "konto" or e["art"] != "angelegt" or not e["nachher"].get("iban"):
+                continue
+            kid, iban = e["objekt_id"], e["nachher"]["iban"]
+            if con.execute("SELECT 1 FROM konto WHERE id = ?", (kid,)).fetchone():
+                continue
+            if iban in wieder:
+                con.execute("UPDATE sync_konto_zustand SET entscheidung = NULL, entscheidung_buchungen = NULL"
+                            " WHERE iban = ?", (iban,))
+            else:
+                con.execute("DELETE FROM sync_konto_zustand WHERE iban = ? AND konto_id = ?", (iban, kid))
 
 
 def _wirksam(con, aid: int) -> bool:

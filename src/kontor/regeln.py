@@ -228,7 +228,7 @@ def vorschlag_setzen(con, buchung_id: int, split_id: int, bisheriges_konto: int,
     vorher = alt["vorher_konto_id"] if alt is not None else bisheriges_konto
     con.execute("INSERT INTO vorschlag (buchung_id, kategorie_id, regel_id, quelle, vorher_konto_id)"
                 " VALUES (?, ?, ?, 'regel', ?) ON CONFLICT(buchung_id) DO UPDATE SET"
-                " kategorie_id = excluded.kategorie_id, regel_id = excluded.regel_id, quelle = excluded.quelle,"
+                " kategorie_id = excluded.kategorie_id, regel_id = excluded.regel_id, quelle = excluded.quelle, sicherheit = NULL,"
                 " vorher_konto_id = excluded.vorher_konto_id",
                 (buchung_id, regel["kategorie_id"], regel["id"], vorher))
 

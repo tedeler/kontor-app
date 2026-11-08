@@ -142,6 +142,9 @@ def konto_loeschen(con, konto_id: int) -> None:
         raise ApiFehler(409, "konto_in_verwendung", "Das Konto hat noch Unterkonten.")
     if konto_in_regeln(con, konto_id):
         raise ApiFehler(409, "konto_in_verwendung", "Eine Regel verweist auf das Konto.")
+    from . import vorlagen
+    if vorlagen.konto_in_vorlagen(con, konto_id):
+        raise ApiFehler(409, "konto_in_verwendung", "Eine Split-Vorlage verweist auf das Konto.")
     if con.execute("SELECT 1 FROM empfaenger WHERE standardkategorie_id = ? LIMIT 1", (konto_id,)).fetchone():
         raise ApiFehler(409, "konto_in_verwendung", "Das Konto ist Standardkategorie eines Empfängers.")
     if con.execute("SELECT 1 FROM abstimmung WHERE konto_id = ? LIMIT 1", (konto_id,)).fetchone():
@@ -399,8 +402,11 @@ def buchungen_laden(con, ids: list[int], konto_id: int | None = None,
         for r in con.execute(f"SELECT * FROM buchung_extern WHERE buchung_id IN ({ph})", teil):
             extern[r["buchung_id"]].append(r["extern_id"])
         for r in con.execute(f"SELECT * FROM vorschlag WHERE buchung_id IN ({ph})", teil):
-            vorschlaege[r["buchung_id"]] = {"kategorie_id": r["kategorie_id"], "regel_id": r["regel_id"],
-                                            "quelle": r["quelle"], "vorher_konto_id": r["vorher_konto_id"]}
+            v = {"kategorie_id": r["kategorie_id"], "regel_id": r["regel_id"], "quelle": r["quelle"],
+                 "vorher_konto_id": r["vorher_konto_id"]}
+            if r["quelle"] == "lernmodell":  # M4: Sicherheit nur bei Vorschlägen des Lernmodells
+                v["sicherheit"] = r["sicherheit"]
+            vorschlaege[r["buchung_id"]] = v
     aus = []
     for bid in ids:
         r = kopf.get(bid)
