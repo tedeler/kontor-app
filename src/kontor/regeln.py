@@ -221,7 +221,7 @@ def erste_regel(regeln: list[dict], s: Sicht) -> dict | None:
     return None
 
 
-def vorschlag_setzen(con, buchung_id: int, split_id: int, bisheriges_konto: int, regel: dict) -> None:
+def vorschlag_setzen(con, buchung_id: int, split_id: int, bisheriges_konto: int, regel: dict) -> None:  # noqa: D401
     """Setzt die Kategorie der Regel als Vorschlag (kategorisierung.md 5)."""
     con.execute("UPDATE split SET konto_id = ? WHERE id = ?", (regel["kategorie_id"], split_id))
     alt = con.execute("SELECT vorher_konto_id FROM vorschlag WHERE buchung_id = ?", (buchung_id,)).fetchone()
@@ -255,7 +255,7 @@ def anwenden(con, buchung_ids: list[int] | None, regel_ids: list[int] | None, nu
     aenderungen = []
     for teil in buch._stueckweise(ids):
         for b in buch.buchungen_laden(con, teil, art_von=art_von):
-            if b["status"] == "abgeglichen":
+            if buch.ist_gesperrt(b):
                 continue
             gegen = buch._gegensplit(b, art_von)
             if gegen is None:
@@ -292,7 +292,8 @@ def _entscheiden(con, b: dict, aktion: str, art_von: dict[int, str]) -> None:
 
 def vorschlag_entscheiden(con, bid: int, aktion: str) -> dict:
     b = buch.buchung_lesen(con, bid)
-    if b["status"] == "abgeglichen":
+    # M2: abgeglichene Buchungen sind immer gesperrt; ab M3 ist bei abgestimmten nur das Ablehnen gesperrt (5.4).
+    if b["status"] == "abgeglichen" or (aktion == "ablehnen" and buch.ist_gesperrt(b)):
         raise buch._gesperrt()
     if b["vorschlag"] is None:
         raise ApiFehler(409, "kein_vorschlag", "Die Buchung hat keinen offenen Vorschlag.")
@@ -311,6 +312,11 @@ def mehrfach_vorschlag(con, ids: list[int], aktion: str) -> dict:
     if ohne:
         raise ApiFehler(409, "kein_vorschlag", "Einige Buchungen haben keinen offenen Vorschlag.",
                         {"buchung_ids": ohne})
+    if aktion == "ablehnen":
+        gesperrt = [b["id"] for b in buchungen if buch.ist_gesperrt(b)]
+        if gesperrt:
+            raise ApiFehler(409, "buchung_gesperrt", "Gesperrte Buchungen: Ablehnen ist nicht möglich.",
+                            {"buchung_ids": gesperrt})
     for b in buchungen:
         _entscheiden(con, b, aktion, art_von)
     return {"geaendert": sorted(ids), "anzahl": len(ids)}

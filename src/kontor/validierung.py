@@ -56,6 +56,7 @@ class Feld:
     werte: tuple[str, ...] = ()
     eindeutig: bool = False
     min_items: int | None = None
+    max_items: int | None = None
     strip: bool = False  # Namen: Ränder entfernen, danach nicht leer
     unter: dict[str, "Feld"] = field(default_factory=dict)
 
@@ -123,9 +124,29 @@ def _pruefe_wert(f: Feld, wert: Any, ort: list, fehler: list[dict]) -> Any:
                 fehler.append(fehler_eintrag(ort + [i], "Ganzzahl erwartet."))
         if f.min_items is not None and len(wert) < f.min_items:
             fehler.append(fehler_eintrag(ort, f"Mindestens {f.min_items} Einträge erforderlich."))
+        if f.max_items is not None and len(wert) > f.max_items:
+            fehler.append(fehler_eintrag(ort, f"Höchstens {f.max_items} Einträge erlaubt."))
         if f.eindeutig and all(ist_int(x) for x in wert) and len(set(wert)) != len(wert):
             fehler.append(fehler_eintrag(ort, "Einträge müssen eindeutig sein."))
         return wert
+    if t == "str_liste":
+        if not isinstance(wert, list):
+            fehler.append(fehler_eintrag(ort, "Liste von Zeichenketten erwartet."))
+            return None
+        aus = []
+        for i, x in enumerate(wert):
+            if not isinstance(x, str):
+                fehler.append(fehler_eintrag(ort + [i], "Zeichenkette erwartet."))
+                continue
+            x = x.strip() if f.strip else x
+            if f.min_len is not None and len(x) < f.min_len:
+                fehler.append(fehler_eintrag(ort + [i], f"Mindestens {f.min_len} Zeichen erforderlich."))
+            if f.max_len is not None and len(x) > f.max_len:
+                fehler.append(fehler_eintrag(ort + [i], f"Höchstens {f.max_len} Zeichen erlaubt."))
+            aus.append(x)
+        if f.max_items is not None and len(wert) > f.max_items:
+            fehler.append(fehler_eintrag(ort, f"Höchstens {f.max_items} Einträge erlaubt."))
+        return aus
     if t == "objekte":
         if not isinstance(wert, list):
             fehler.append(fehler_eintrag(ort, "Liste erwartet."))

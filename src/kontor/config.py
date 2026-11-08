@@ -42,9 +42,19 @@ class KontorConfig:
     sync_erstabruf_tage: int = 90
     sync_ueberlappung_tage: int = 14
     planer_starten: bool = True
+    # Meilenstein 3: Umbuchungserkennung (python-api.md 9.1)
+    umbuchung_automatisch: bool = False
+    umbuchung_fenster_tage: int = 3
 
     def __post_init__(self) -> None:
         setze = object.__setattr__
+        if not isinstance(self.umbuchung_automatisch, bool):
+            raise KonfigurationsFehler("umbuchung_automatisch muss wahr oder falsch sein.",
+                                       feld="umbuchung_automatisch")
+        f = self.umbuchung_fenster_tage
+        if type(f) is not int or not 0 <= f <= 366:
+            raise KonfigurationsFehler("umbuchung_fenster_tage muss eine Ganzzahl von 0 bis 366 sein.",
+                                       feld="umbuchung_fenster_tage")
         for feld, minimum in (("sync_intervall_minuten", 0), ("sync_wiederholung_minuten", 1),
                               ("sync_erstabruf_tage", 0), ("sync_ueberlappung_tage", 0)):
             wert = getattr(self, feld)
@@ -121,6 +131,14 @@ class KontorConfig:
                     raise KonfigurationsFehler(f"{variable} muss eine nicht negative Ganzzahl sein.",
                                                variable=variable)
                 ganz[feld] = int(text)
+        umbuchung_automatisch = _wahrheitswert(wert("KONTOR_UMBUCHUNG_AUTOMATISCH"),
+                                               "KONTOR_UMBUCHUNG_AUTOMATISCH", False)
+        text = wert("KONTOR_UMBUCHUNG_FENSTER_TAGE")
+        if text:
+            if not text.isascii() or not text.isdigit() or int(text) > 366:
+                raise KonfigurationsFehler("KONTOR_UMBUCHUNG_FENSTER_TAGE muss eine Ganzzahl von 0 bis 366 sein.",
+                                           variable="KONTOR_UMBUCHUNG_FENSTER_TAGE")
+            ganz["umbuchung_fenster_tage"] = int(text)
         heute_text = wert("KONTOR_MOCK_HEUTE")
         mock_heute = None
         if heute_text:
@@ -141,6 +159,7 @@ class KontorConfig:
             mock_daten=pathlib.Path(wert("KONTOR_MOCK_DATEN")) if wert("KONTOR_MOCK_DATEN") else None,
             mock_heute=mock_heute,
             planer_starten=planer_starten,
+            umbuchung_automatisch=umbuchung_automatisch,
             **ganz,
         )
 

@@ -24,7 +24,7 @@ from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.staticfiles import StaticFiles
 
-from . import __version__, buch, db, regeln
+from . import __version__, buch, db, pflege, protokoll, regeln
 from .sync import SyncDienst
 from .config import KontorConfig
 from .importer.kmymoney import importiere_bytes
@@ -115,7 +115,38 @@ MEHRFACH_TAGS = {
     "entfernen": S("int_liste"),
 }
 TAG_EINGABE = {"name": S("str", pflicht=True, strip=True, min_len=1, max_len=100)}
-EMPFAENGER_NEU = {"name": S("str", pflicht=True, strip=True, min_len=1, max_len=200)}
+ALIASE = S("str_liste", strip=True, min_len=1, max_len=200, max_items=100)
+EMPFAENGER_NEU = {"name": S("str", pflicht=True, strip=True, min_len=1, max_len=200), "aliase": ALIASE,
+                  "standardkategorie_id": S("int", nullbar=True)}
+EMPFAENGER_AENDERUNG = {"name": S("str", strip=True, min_len=1, max_len=200), "aliase": ALIASE,
+                        "standardkategorie_id": S("int", nullbar=True)}
+EMPFAENGER_ZUSAMMEN = {"quelle_ids": S("int_liste", pflicht=True, min_items=1, max_items=100, eindeutig=True)}
+BUCHUNG_ERFASSEN = {
+    "art": S("enum", pflicht=True, werte=("ausgabe", "einnahme", "umbuchung", "korrektur")),
+    "datum": S("datum", pflicht=True),
+    "konto_id": S("int", pflicht=True),
+    "betrag": S("betrag", pflicht=True),
+    "kategorie_id": S("int", nullbar=True),
+    "gegenkonto_id": S("int"),
+    "empfaenger_id": S("int", nullbar=True),
+    "empfaenger_name": S("str", strip=True, min_len=1, max_len=200),
+    "verwendungszweck": S("str", max_len=10000),
+    "memo": S("str", max_len=10000),
+    "tag_ids": S("int_liste"),
+    "status": S("enum", werte=("importiert", "vorlaeufig", "bestaetigt")),
+}
+UMBUCHUNGEN_ERKENNEN = {"trocken": S("bool")}
+UMBUCHUNG_ZUSAMMEN = {"buchung_ids": S("int_liste", pflicht=True, min_items=2, max_items=2, eindeutig=True)}
+ABSTIMMUNG_EINGABE = {"konto_id": S("int", pflicht=True), "stichtag": S("datum", pflicht=True),
+                      "saldo": S("betrag", pflicht=True), "trocken": S("bool")}
+KONTO_LOESCHEN = {
+    "buchungen": S("enum", pflicht=True, werte=("loeschen", "elternkonto", "unkategorisiert")),
+    "konflikte": S("enum", pflicht=True, werte=("loeschen", "behalten")),
+    "gesperrte_einbeziehen": S("bool"),
+    "trocken": S("bool"),
+}
+RUECKGAENGIG = {"aenderung_ids": S("int_liste", min_items=1, max_items=1000, eindeutig=True),
+                "gruppe": S("str", min_len=1)}
 VORSCHLAG_AKTION = {"aktion": S("enum", pflicht=True, werte=("annehmen", "ablehnen"))}
 MEHRFACH_VORSCHLAG = {
     "buchung_ids": S("int_liste", pflicht=True, min_items=1, eindeutig=True),
@@ -230,6 +261,24 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     async def schreiben(f: Callable, *args):
         return await run_in_threadpool(mit_db(f, schreibend=True), *args)
 
+    def _protokolliert(aktion: str, f: Callable, quelle: str):
+        def ausfuehren(*args):
+            con = db.verbinde(pfad)
+            try:
+                return protokoll.ausfuehren(con, quelle, aktion, sync.jetzt_text(), f, *args)
+            finally:
+                con.close()
+        return ausfuehren
+
+    async def aendern(aktion: str, f: Callable, *args, quelle: str = "manuell"):
+        """Schreibende Operation auf dem Buchbestand: eine Transaktion, eine Änderung im Protokoll."""
+        return await run_in_threadpool(_protokolliert(aktion, f, quelle), *args)
+
+    def mit_uhr(f: Callable):
+        def g(con, *args):
+            return f(con, *args, sync.jetzt_text())
+        return g
+
     async def koerper(request: Request, schema: dict) -> dict:
         return pruefe_koerper(await request.body(), schema)
 
@@ -261,7 +310,7 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     @endpunkt("POST", "/api/konten", 201)
     async def konto_anlegen(request: Request):
         d = await koerper(request, KONTO_NEU)
-        return await schreiben(buch.konto_anlegen, d)
+        return await aendern("konto_anlegen", buch.konto_anlegen, d)
 
     @endpunkt("GET", "/api/konten/{konto_id:int}")
     async def konto_lesen(request: Request):
@@ -270,11 +319,11 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     @endpunkt("PATCH", "/api/konten/{konto_id:int}")
     async def konto_aendern(request: Request):
         d = await koerper(request, KONTO_AENDERUNG)
-        return await schreiben(buch.konto_aendern, pid(request, "konto_id"), d)
+        return await aendern("konto_aendern", buch.konto_aendern, pid(request, "konto_id"), d)
 
     @endpunkt("DELETE", "/api/konten/{konto_id:int}", 204)
     async def konto_loeschen(request: Request):
-        return await schreiben(buch.konto_loeschen, pid(request, "konto_id"))
+        return await aendern("konto_loeschen", buch.konto_loeschen, pid(request, "konto_id"))
 
     @endpunkt("GET", "/api/kategorien")
     async def kategorien(request: Request):
@@ -306,6 +355,7 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
             "suche": q.text("suche", 1),
             "status": q.auswahlen("status", STATUS),
             "vorschlag": q.wahrheitswert("vorschlag"),
+            "abgestimmt": q.wahrheitswert("abgestimmt"),
             "sortierung": q.auswahl("sortierung", buch.SORTIERUNGEN) or "datum",
             "seite": q.ganzzahl("seite", minimum=1),
             "pro_seite": q.ganzzahl("pro_seite", minimum=1, maximum=500),
@@ -322,17 +372,17 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     @endpunkt("POST", "/api/buchungen", 201)
     async def buchung_anlegen(request: Request):
         d = await koerper(request, BUCHUNG_NEU)
-        return await schreiben(buch.buchung_anlegen, d)
+        return await aendern("buchung_anlegen", buch.buchung_anlegen, d)
 
     @endpunkt("POST", "/api/buchungen/mehrfach/kategorie")
     async def mehrfach_kategorie(request: Request):
         d = await koerper(request, MEHRFACH_KATEGORIE)
-        return await schreiben(buch.mehrfach_kategorie, d["buchung_ids"], d["kategorie_id"])
+        return await aendern("mehrfach_kategorie", buch.mehrfach_kategorie, d["buchung_ids"], d["kategorie_id"])
 
     @endpunkt("POST", "/api/buchungen/mehrfach/tags")
     async def mehrfach_tags(request: Request):
         d = await koerper(request, MEHRFACH_TAGS)
-        return await schreiben(buch.mehrfach_tags, d["buchung_ids"], d.get("hinzufuegen") or [],
+        return await aendern("mehrfach_tags", buch.mehrfach_tags, d["buchung_ids"], d.get("hinzufuegen") or [],
                                d.get("entfernen") or [])
 
     @endpunkt("GET", "/api/buchungen/{buchung_id:int}")
@@ -342,32 +392,32 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     @endpunkt("PATCH", "/api/buchungen/{buchung_id:int}")
     async def buchung_aendern(request: Request):
         d = await koerper(request, BUCHUNG_AENDERUNG)
-        return await schreiben(buch.buchung_aendern, pid(request, "buchung_id"), d)
+        return await aendern("buchung_aendern", buch.buchung_aendern, pid(request, "buchung_id"), d)
 
     @endpunkt("DELETE", "/api/buchungen/{buchung_id:int}", 204)
     async def buchung_loeschen(request: Request):
-        return await schreiben(buch.buchung_loeschen, pid(request, "buchung_id"))
+        return await aendern("buchung_loeschen", buch.buchung_loeschen, pid(request, "buchung_id"))
 
     @endpunkt("PUT", "/api/buchungen/{buchung_id:int}/splits")
     async def splits_ersetzen(request: Request):
         d = await koerper(request, SPLITS_ERSETZEN)
-        return await schreiben(buch.splits_ersetzen, pid(request, "buchung_id"), d["splits"])
+        return await aendern("splits_ersetzen", buch.splits_ersetzen, pid(request, "buchung_id"), d["splits"])
 
     @endpunkt("PUT", "/api/buchungen/{buchung_id:int}/kategorie")
     async def kategorie_setzen(request: Request):
         d = await koerper(request, KATEGORIE)
-        return await schreiben(buch.kategorie_setzen, pid(request, "buchung_id"), d["kategorie_id"])
+        return await aendern("kategorie_setzen", buch.kategorie_setzen, pid(request, "buchung_id"), d["kategorie_id"])
 
     # ------------------------------------------------- Vorschläge (M2)
     @endpunkt("POST", "/api/buchungen/{buchung_id:int}/vorschlag")
     async def vorschlag_entscheiden(request: Request):
         d = await koerper(request, VORSCHLAG_AKTION)
-        return await schreiben(regeln.vorschlag_entscheiden, pid(request, "buchung_id"), d["aktion"])
+        return await aendern("vorschlag_entscheiden", regeln.vorschlag_entscheiden, pid(request, "buchung_id"), d["aktion"])
 
     @endpunkt("POST", "/api/buchungen/mehrfach/vorschlag")
     async def mehrfach_vorschlag(request: Request):
         d = await koerper(request, MEHRFACH_VORSCHLAG)
-        return await schreiben(regeln.mehrfach_vorschlag, d["buchung_ids"], d["aktion"])
+        return await aendern("mehrfach_vorschlag", regeln.mehrfach_vorschlag, d["buchung_ids"], d["aktion"])
 
     # ------------------------------------------------------ Regeln (M2)
     @endpunkt("GET", "/api/regeln")
@@ -377,14 +427,14 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     @endpunkt("POST", "/api/regeln", 201)
     async def regel_anlegen(request: Request):
         d = regeln.regel_koerper(await request.body(), neu=True)
-        return await schreiben(regeln.regel_anlegen, d)
+        return await aendern("regel_anlegen", regeln.regel_anlegen, d)
 
     @endpunkt("POST", "/api/regeln/anwenden")
     async def regeln_anwenden(request: Request):
         roh = await request.body()
         d = pruefe_koerper(roh if roh.strip() else b"{}", REGELN_ANWENDEN)
-        return await schreiben(regeln.anwenden, d.get("buchung_ids"), d.get("regel_ids"),
-                               d.get("nur_unkategorisiert", True), d.get("trocken", False))
+        return await aendern("regeln_anwenden", regeln.anwenden, d.get("buchung_ids"), d.get("regel_ids"),
+                             d.get("nur_unkategorisiert", True), d.get("trocken", False), quelle="regeln")
 
     @endpunkt("GET", "/api/regeln/{regel_id:int}")
     async def regel_lesen(request: Request):
@@ -393,11 +443,11 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     @endpunkt("PATCH", "/api/regeln/{regel_id:int}")
     async def regel_aendern(request: Request):
         d = regeln.regel_koerper(await request.body(), neu=False)
-        return await schreiben(regeln.regel_aendern, pid(request, "regel_id"), d)
+        return await aendern("regel_aendern", regeln.regel_aendern, pid(request, "regel_id"), d)
 
     @endpunkt("DELETE", "/api/regeln/{regel_id:int}", 204)
     async def regel_loeschen(request: Request):
-        return await schreiben(regeln.regel_loeschen, pid(request, "regel_id"))
+        return await aendern("regel_loeschen", regeln.regel_loeschen, pid(request, "regel_id"))
 
     # ------------------------------------------------- Synchronisation (M2)
     async def mit_ablauf(f: Callable, *args):
@@ -510,16 +560,16 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     @endpunkt("POST", "/api/tags", 201)
     async def tag_anlegen(request: Request):
         d = await koerper(request, TAG_EINGABE)
-        return await schreiben(buch.tag_anlegen, d["name"])
+        return await aendern("tag_anlegen", buch.tag_anlegen, d["name"])
 
     @endpunkt("PATCH", "/api/tags/{tag_id:int}")
     async def tag_umbenennen(request: Request):
         d = await koerper(request, TAG_EINGABE)
-        return await schreiben(buch.tag_umbenennen, pid(request, "tag_id"), d["name"])
+        return await aendern("tag_umbenennen", buch.tag_umbenennen, pid(request, "tag_id"), d["name"])
 
     @endpunkt("DELETE", "/api/tags/{tag_id:int}", 204)
     async def tag_loeschen(request: Request):
-        return await schreiben(buch.tag_loeschen, pid(request, "tag_id"))
+        return await aendern("tag_loeschen", buch.tag_loeschen, pid(request, "tag_id"))
 
     # --------------------------------------------------------- Empfänger
     @endpunkt("GET", "/api/empfaenger")
@@ -529,11 +579,118 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     @endpunkt("POST", "/api/empfaenger", 201)
     async def empfaenger_anlegen(request: Request):
         d = await koerper(request, EMPFAENGER_NEU)
-        return await schreiben(buch.empfaenger_anlegen, d["name"])
+        return await aendern("empfaenger_anlegen", pflege.empfaenger_anlegen, d)
 
     @endpunkt("GET", "/api/empfaenger/{empfaenger_id:int}")
     async def empfaenger_lesen(request: Request):
         return await lesen(buch.empfaenger_lesen, pid(request, "empfaenger_id"))
+
+    @endpunkt("PATCH", "/api/empfaenger/{empfaenger_id:int}")
+    async def empfaenger_aendern(request: Request):
+        d = await koerper(request, EMPFAENGER_AENDERUNG)
+        return await aendern("empfaenger_aendern", pflege.empfaenger_aendern, pid(request, "empfaenger_id"), d)
+
+    @endpunkt("DELETE", "/api/empfaenger/{empfaenger_id:int}", 204)
+    async def empfaenger_loeschen(request: Request):
+        return await aendern("empfaenger_loeschen", pflege.empfaenger_loeschen, pid(request, "empfaenger_id"))
+
+    @endpunkt("POST", "/api/empfaenger/{empfaenger_id:int}/zusammenfuehren")
+    async def empfaenger_zusammenfuehren(request: Request):
+        d = await koerper(request, EMPFAENGER_ZUSAMMEN)
+        return await aendern("empfaenger_zusammenfuehren", pflege.empfaenger_zusammenfuehren,
+                             pid(request, "empfaenger_id"), d["quelle_ids"])
+
+    # ----------------------------------------------------- M3: Pflege
+    @endpunkt("POST", "/api/konten/{konto_id:int}/loeschen")
+    async def konto_loeschen_mit_buchungen(request: Request):
+        d = await koerper(request, KONTO_LOESCHEN)
+
+        def f(con, kid, d):
+            return protokoll.mit_aenderung_id(pflege.konto_loeschen_mit_buchungen(con, kid, d))
+        return await aendern("konto_loeschen_mit_buchungen", f, pid(request, "konto_id"), d)
+
+    @endpunkt("POST", "/api/buchungen/erfassen", 201)
+    async def buchung_erfassen(request: Request):
+        d = await koerper(request, BUCHUNG_ERFASSEN)
+        return await aendern("buchung_erfassen", pflege.erfassen, d)
+
+    @endpunkt("POST", "/api/umbuchungen/erkennen")
+    async def umbuchungen_erkennen(request: Request):
+        roh = await request.body()
+        d = pruefe_koerper(roh if roh.strip() else b"{}", UMBUCHUNGEN_ERKENNEN)
+        return await aendern("umbuchung_erkennen", pflege.umbuchungen_erkennen, d.get("trocken", False),
+                             config.umbuchung_fenster_tage, quelle="umbuchung")
+
+    @endpunkt("POST", "/api/umbuchungen/zusammenfuehren")
+    async def umbuchung_zusammenfuehren(request: Request):
+        d = await koerper(request, UMBUCHUNG_ZUSAMMEN)
+        return await aendern("umbuchung_zusammenfuehren", pflege.umbuchung_von_hand, d["buchung_ids"])
+
+    @endpunkt("GET", "/api/abstimmungen")
+    async def abstimmungen_liste(request: Request):
+        q = Query(request.query_params)
+        kid = q.ganzzahl("konto_id")
+        q.pruefen()
+        return await lesen(pflege.abstimmungen_liste, kid)
+
+    @endpunkt("POST", "/api/abstimmungen")
+    async def abstimmen(request: Request):
+        d = await koerper(request, ABSTIMMUNG_EINGABE)
+        return await aendern("abstimmung_anlegen", mit_uhr(pflege.abstimmen), d)
+
+    @endpunkt("GET", "/api/abstimmungen/{abstimmung_id:int}")
+    async def abstimmung_lesen(request: Request):
+        return await lesen(pflege.abstimmung_lesen, pid(request, "abstimmung_id"))
+
+    @endpunkt("DELETE", "/api/abstimmungen/{abstimmung_id:int}", 204)
+    async def abstimmung_aufheben(request: Request):
+        return await aendern("abstimmung_aufheben", pflege.abstimmung_aufheben, pid(request, "abstimmung_id"))
+
+    @endpunkt("GET", "/api/suche")
+    async def volltextsuche(request: Request):
+        q = Query(request.query_params)
+        text = q.text("q", 1)
+        limit = q.ganzzahl("limit", minimum=1, maximum=500)
+        if "q" not in request.query_params:
+            q.fehler_melden("q", "Pflichtparameter fehlt.")
+        elif text is not None and (len(text) > 200 or not text.split()):
+            q.fehler_melden("q", "1–200 Zeichen mit mindestens einem Wort.")
+        q.pruefen()
+        return await lesen(pflege.suche, text, limit or 50)
+
+    # ------------------------------------------- M3: Änderungsprotokoll
+    @endpunkt("GET", "/api/aenderungen")
+    async def aenderungen_liste(request: Request):
+        q = Query(request.query_params)
+        f = {
+            "quelle": q.auswahlen("quelle", protokoll.QUELLEN),
+            "aktion": q.text("aktion", 1),
+            "gruppe": q.text("gruppe", 1),
+            "objekt": q.auswahl("objekt", protokoll.OBJEKTE),
+            "objekt_id": q.ganzzahl("objekt_id"),
+            "wirksam": q.wahrheitswert("wirksam"),
+            "seite": q.ganzzahl("seite", minimum=1),
+            "pro_seite": q.ganzzahl("pro_seite", minimum=1, maximum=500),
+        }
+        if "objekt_id" in request.query_params and "objekt" not in request.query_params:
+            q.fehler_melden("objekt_id", "objekt_id nur zusammen mit objekt.")
+        q.pruefen()
+        return await lesen(protokoll.aenderungen_liste, f)
+
+    @endpunkt("POST", "/api/aenderungen/rueckgaengig")
+    async def aenderungen_rueckgaengig(request: Request):
+        d = await koerper(request, RUECKGAENGIG)
+        if ("aenderung_ids" in d) == ("gruppe" in d):
+            raise Validierungsfehler([fehler_eintrag(["body"], "Genau eines der Felder aenderung_ids oder gruppe.")])
+        return await lesen(mit_uhr(protokoll.mehrere_rueckgaengig), d)
+
+    @endpunkt("GET", "/api/aenderungen/{aenderung_id:int}")
+    async def aenderung_lesen(request: Request):
+        return await lesen(protokoll.aenderung_lesen, pid(request, "aenderung_id"))
+
+    @endpunkt("POST", "/api/aenderungen/{aenderung_id:int}/rueckgaengig")
+    async def aenderung_rueckgaengig(request: Request):
+        return await lesen(mit_uhr(protokoll.einzeln_rueckgaengig), pid(request, "aenderung_id"))
 
     # ------------------------------------------------------------ Import
     @endpunkt("POST", "/api/import/kmymoney")
@@ -549,7 +706,7 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
         dateiname = datei.filename or None
 
         def ausfuehren(con):
-            return importiere_bytes(con, roh, dateiname)
+            return importiere_bytes(con, roh, dateiname, zeitpunkt=sync.jetzt_text())
 
         ergebnis = await lesen(ausfuehren)
         d = ergebnis.als_dict()
@@ -573,7 +730,7 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     @endpunkt("POST", "/api/dubletten/{verdacht_id:int}/aufloesen")
     async def dublette_aufloesen(request: Request):
         d = await koerper(request, DUBLETTE_AUFLOESEN)
-        return await schreiben(buch.verdacht_aufloesen, pid(request, "verdacht_id"), d["entscheidung"],
+        return await aendern("dublette_aufloesen", buch.verdacht_aufloesen, pid(request, "verdacht_id"), d["entscheidung"],
                                d.get("behalten_id"))
 
     # ---------------------------------------------------- Weboberfläche

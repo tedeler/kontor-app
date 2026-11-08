@@ -15,7 +15,7 @@ from collections.abc import Iterator
 
 from .text import norm
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (
@@ -39,7 +39,8 @@ CREATE INDEX IF NOT EXISTS konto_eltern ON konto(eltern_id);
 CREATE TABLE IF NOT EXISTS empfaenger (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL UNIQUE,
-    extern_id TEXT
+    extern_id TEXT,
+    standardkategorie_id INTEGER REFERENCES konto(id)
 );
 CREATE INDEX IF NOT EXISTS empfaenger_extern ON empfaenger(extern_id);
 
@@ -56,7 +57,8 @@ CREATE TABLE IF NOT EXISTS buchung (
     datum TEXT NOT NULL,
     empfaenger_id INTEGER REFERENCES empfaenger(id),
     verwendungszweck TEXT NOT NULL DEFAULT '',
-    status TEXT NOT NULL CHECK (status IN ('importiert','vorlaeufig','bestaetigt','abgeglichen'))
+    status TEXT NOT NULL CHECK (status IN ('importiert','vorlaeufig','bestaetigt','abgeglichen')),
+    gegen_iban TEXT
 );
 CREATE INDEX IF NOT EXISTS buchung_datum ON buchung(datum);
 CREATE INDEX IF NOT EXISTS buchung_empfaenger ON buchung(empfaenger_id);
@@ -68,7 +70,8 @@ CREATE TABLE IF NOT EXISTS split (
     konto_id INTEGER NOT NULL REFERENCES konto(id),
     betrag INTEGER NOT NULL CHECK (typeof(betrag) = 'integer'
                                   AND betrag BETWEEN -999999999999 AND 999999999999),
-    memo TEXT NOT NULL DEFAULT ''
+    memo TEXT NOT NULL DEFAULT '',
+    abstimmung_id INTEGER REFERENCES abstimmung(id)
 );
 CREATE INDEX IF NOT EXISTS split_buchung ON split(buchung_id, position);
 CREATE INDEX IF NOT EXISTS split_konto ON split(konto_id, betrag);
@@ -135,7 +138,7 @@ CREATE TABLE IF NOT EXISTS vorschlag (
     buchung_id INTEGER PRIMARY KEY REFERENCES buchung(id) ON DELETE CASCADE,
     kategorie_id INTEGER NOT NULL,
     regel_id INTEGER,
-    quelle TEXT NOT NULL CHECK (quelle IN ('regel')),
+    quelle TEXT NOT NULL CHECK (quelle IN ('regel','standardkategorie')),
     vorher_konto_id INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS vorschlag_regel ON vorschlag(regel_id);
@@ -214,7 +217,87 @@ CREATE TABLE IF NOT EXISTS benachrichtigung (
     gelesen INTEGER NOT NULL DEFAULT 0 CHECK (gelesen IN (0, 1))
 );
 CREATE INDEX IF NOT EXISTS benachrichtigung_schluessel ON benachrichtigung(schluessel, gelesen);
+
+-- ------------------------------------------------------------ Meilenstein 3
+-- Aliase der Empfänger (buchhaltungspflege.md 2.1); ekey über alle Empfänger eindeutig.
+CREATE TABLE IF NOT EXISTS empfaenger_alias (
+    empfaenger_id INTEGER NOT NULL REFERENCES empfaenger(id) ON DELETE CASCADE,
+    alias TEXT NOT NULL,
+    ekey TEXT NOT NULL UNIQUE
+);
+CREATE INDEX IF NOT EXISTS empfaenger_alias_empfaenger ON empfaenger_alias(empfaenger_id);
+
+-- Kontenabstimmungen (buchhaltungspflege.md 5).
+CREATE TABLE IF NOT EXISTS abstimmung (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    konto_id INTEGER NOT NULL REFERENCES konto(id),
+    stichtag TEXT NOT NULL,
+    saldo INTEGER NOT NULL CHECK (typeof(saldo) = 'integer'),
+    erstellt_am TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS abstimmung_konto ON abstimmung(konto_id);
+
+-- Änderungsprotokoll (protokoll.md 3). Einträge als JSON der Protokollform.
+CREATE TABLE IF NOT EXISTS aenderung (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    zeitpunkt TEXT NOT NULL,
+    quelle TEXT NOT NULL,
+    aktion TEXT NOT NULL,
+    beschreibung TEXT NOT NULL,
+    gruppe TEXT,
+    rueckgaengig_von TEXT NOT NULL DEFAULT '[]',
+    rueckgaengig_durch INTEGER,
+    kennungen_neu TEXT NOT NULL DEFAULT '[]',
+    kennungen_weg TEXT NOT NULL DEFAULT '[]'
+);
+CREATE INDEX IF NOT EXISTS aenderung_gruppe ON aenderung(gruppe);
+
+CREATE TABLE IF NOT EXISTS aenderung_eintrag (
+    aenderung_id INTEGER NOT NULL REFERENCES aenderung(id) ON DELETE CASCADE,
+    position INTEGER NOT NULL,
+    objekt TEXT NOT NULL,
+    objekt_id INTEGER NOT NULL,
+    art TEXT NOT NULL,
+    vorher TEXT,
+    nachher TEXT,
+    PRIMARY KEY (aenderung_id, position)
+);
+CREATE INDEX IF NOT EXISTS aenderung_eintrag_objekt ON aenderung_eintrag(objekt, objekt_id);
 """
+
+# Spalten, die frühere Schemaversionen noch nicht haben (Migration ohne Datenverlust).
+_NEUE_SPALTEN = (
+    ("empfaenger", "standardkategorie_id", "INTEGER REFERENCES konto(id)"),
+    ("buchung", "gegen_iban", "TEXT"),
+    ("split", "abstimmung_id", "INTEGER REFERENCES abstimmung(id)"),
+)
+_NACH_MIGRATION = (
+    "CREATE INDEX IF NOT EXISTS split_abstimmung ON split(abstimmung_id)",
+    "CREATE INDEX IF NOT EXISTS empfaenger_standard ON empfaenger(standardkategorie_id)",
+)
+
+
+def _migrieren(con: sqlite3.Connection) -> None:
+    """Bringt eine Datenbank früherer Schemaversion auf den Stand von M3 (Daten bleiben erhalten)."""
+    for tabelle, spalte, typ in _NEUE_SPALTEN:
+        vorhanden = {r["name"] for r in con.execute(f"PRAGMA table_info({tabelle})")}
+        if spalte not in vorhanden:
+            con.execute(f"ALTER TABLE {tabelle} ADD COLUMN {spalte} {typ}")
+    sql = con.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'vorschlag'").fetchone()["sql"]
+    if "standardkategorie" not in sql:
+        # CHECK erweitern: Tabelle neu aufbauen und Inhalt übernehmen.
+        con.execute("CREATE TABLE vorschlag_neu (buchung_id INTEGER PRIMARY KEY REFERENCES buchung(id)"
+                    " ON DELETE CASCADE, kategorie_id INTEGER NOT NULL, regel_id INTEGER,"
+                    " quelle TEXT NOT NULL CHECK (quelle IN ('regel','standardkategorie')),"
+                    " vorher_konto_id INTEGER NOT NULL)")
+        con.execute("INSERT INTO vorschlag_neu SELECT buchung_id, kategorie_id, regel_id, quelle, vorher_konto_id"
+                    " FROM vorschlag")
+        con.execute("DROP TABLE vorschlag")
+        con.execute("ALTER TABLE vorschlag_neu RENAME TO vorschlag")
+        con.execute("CREATE INDEX IF NOT EXISTS vorschlag_regel ON vorschlag(regel_id)")
+    for sql in _NACH_MIGRATION:
+        con.execute(sql)
+
 
 
 def jetzt_utc() -> str:
@@ -242,6 +325,13 @@ def schema_anlegen(pfad: pathlib.Path) -> None:
     try:
         con.execute("PRAGMA journal_mode = WAL")
         con.executescript(SCHEMA)
+        con.execute("BEGIN IMMEDIATE")
+        try:
+            _migrieren(con)
+        except BaseException:
+            con.execute("ROLLBACK")
+            raise
+        con.execute("COMMIT")
         con.execute("INSERT INTO meta (schluessel, wert) VALUES ('schema_version', ?)"
                     " ON CONFLICT(schluessel) DO UPDATE SET wert = excluded.wert",
                     (str(SCHEMA_VERSION),))
@@ -259,4 +349,9 @@ def transaktion(con: sqlite3.Connection, schreibend: bool = True) -> Iterator[sq
         con.execute("ROLLBACK")
         raise
     else:
-        con.execute("COMMIT")
+        try:
+            con.execute("COMMIT")
+        except BaseException:
+            if con.in_transaction:
+                con.execute("ROLLBACK")
+            raise

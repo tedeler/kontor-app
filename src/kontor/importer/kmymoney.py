@@ -26,9 +26,9 @@ import xml.parsers.expat
 import zlib
 from dataclasses import dataclass, field
 
-from .. import db
+from .. import db, protokoll
 from ..buch import BESTAND, KLASSE, buchung_einfuegen
-from ..text import iban_gueltig, iban_normalisieren, passend
+from ..text import ekey, iban_gueltig, iban_normalisieren, passend
 from ..validierung import BETRAG_MAX
 from .ergebnis import ImportErgebnis, ImportMeldung
 
@@ -467,6 +467,9 @@ def _empfaenger_anwenden(con, datei: _Datei, lauf: _Lauf, max_id: int) -> dict[s
             r = con.execute("SELECT id FROM empfaenger WHERE name = ?", (name,)).fetchone()
             if r is not None and r["id"] > max_id:
                 lauf.warn("empfaenger_zusammengefasst", pid)
+        if r is None and ekey(name):
+            # M3 (buchhaltungspflege.md 2.3): Regel 3 – Empfänger, zu dessen Alias der Name passt.
+            r = con.execute("SELECT empfaenger_id AS id FROM empfaenger_alias WHERE ekey = ?", (ekey(name),)).fetchone()
         if r is not None:
             abbildung[pid] = r["id"]
             lauf.z["empfaenger_vorhanden"] += 1
@@ -613,7 +616,8 @@ def _fehlschlag(format_: str | None, fehler: list[ImportMeldung]) -> ImportErgeb
     return ImportErgebnis(erfolgreich=False, format=format_, fehler=tuple(fehler), import_id=None)
 
 
-def importiere_bytes(con: sqlite3.Connection, roh: bytes, dateiname: str | None) -> ImportErgebnis:
+def importiere_bytes(con: sqlite3.Connection, roh: bytes, dateiname: str | None,
+                     zeitpunkt: str | None = None) -> ImportErgebnis:
     """Kern des Imports auf einer offenen Verbindung (eigene Transaktion)."""
     try:
         format_, wurzel = lesen(roh)
@@ -623,8 +627,9 @@ def importiere_bytes(con: sqlite3.Connection, roh: bytes, dateiname: str | None)
     if fehler:
         return _fehlschlag(format_, fehler)
     lauf = _Lauf()
-    with db.transaktion(con):
+    with protokoll.protokolliert(con, "import", "import_kmymoney", zeitpunkt or db.jetzt_utc()) as k:
         import_id = _anwenden(con, datei, lauf, roh, dateiname, format_)
+        k.gruppe = f"import:{import_id}"
         ergebnis = ImportErgebnis(erfolgreich=True, format=format_, warnungen=tuple(lauf.warnungen),
                                   fehler=(), import_id=import_id, **lauf.z)
         con.execute("UPDATE importvorgang SET ergebnis = ? WHERE id = ?",
@@ -646,7 +651,10 @@ def importiere_kmy(config, quelle: str | os.PathLike[str] | bytes, *,
         raise TypeError("quelle muss ein Pfad oder bytes sein, nicht " + type(quelle).__name__)
     db.schema_anlegen(config.aktive_datenbank)
     con = db.verbinde(config.aktive_datenbank)
+    zeitpunkt = None
+    if config.mock_modus and config.mock_heute is not None:
+        zeitpunkt = config.mock_heute.isoformat() + "T12:00:00Z"
     try:
-        return importiere_bytes(con, roh, dateiname)
+        return importiere_bytes(con, roh, dateiname, zeitpunkt)
     finally:
         con.close()

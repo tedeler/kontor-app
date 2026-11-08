@@ -14,7 +14,7 @@ import logging
 import threading
 from dataclasses import dataclass
 
-from . import buch, db, regeln
+from . import buch, db, pflege, protokoll, regeln
 from .buch import BESTAND, ApiFehler
 from .config import KontorConfig
 from .fehler import (BankPinFalsch, KontorFehler, TanAbgelaufen, TanErforderlich, TanUngueltig)
@@ -341,7 +341,7 @@ class SyncDienst:
         for bk in bankkonten:
             n = iban_normalisieren(str(bk.iban))
             gesehen.setdefault(n, bk)
-        with db.transaktion(con):
+        with protokoll.protokolliert(con, "sync", "sync_kontozuordnung", self.jetzt_text(), f"sync:{lid}"):
             for iban in sorted(gesehen):
                 bk = gesehen[iban]
                 r = con.execute("SELECT id FROM konto WHERE iban = ?", (iban,)).fetchone()
@@ -523,7 +523,8 @@ class SyncDienst:
         z = dict(umsaetze_gesamt=len(umsaetze), vormerkungen_ignoriert=0, buchungen_vorhanden=0,
                  buchungen_zusammengefuehrt=0, buchungen_neu=0, buchungen_zur_pruefung=0, buchungen_kategorisiert=0)
         reihe = sorted(umsaetze, key=lambda u: (u.buchungstag, u.umsatz_id))
-        with db.transaktion(con):
+        neue: set[int] = set()
+        with protokoll.protokolliert(con, "sync", "sync_konto", self.jetzt_text(), f"sync:{lid}"):
             offen = []
             gesehen: set[str] = set()
             for u in reihe:
@@ -537,7 +538,7 @@ class SyncDienst:
                     continue
                 gesehen.add(kennung)
                 offen.append((u, kennung))
-            self._abgleichen_und_buchen(con, kid, iban, offen, z)
+            neue = self._abgleichen_und_buchen(con, kid, iban, offen, z)
             con.execute("UPDATE sync_lauf_konto SET status = 'erfolgreich', von = ?, bis = ?, fehler_code = NULL,"
                         " fehler_meldung = NULL, umsaetze_gesamt = ?, vormerkungen_ignoriert = ?,"
                         " buchungen_vorhanden = ?, buchungen_zusammengefuehrt = ?, buchungen_neu = ?,"
@@ -553,13 +554,23 @@ class SyncDienst:
                         " VALUES (?, ?, ?, ?) ON CONFLICT(iban) DO UPDATE SET konto_id = excluded.konto_id,"
                         " letzter_abruf_bis = excluded.letzter_abruf_bis, letzter_erfolg_am = excluded.letzter_erfolg_am",
                         (iban, kid, neu_bis, self.jetzt_text()))
+        if neue and self.config.umbuchung_automatisch:
+            # buchhaltungspflege.md 4.4: eigene Änderung derselben Gruppe
+            with protokoll.protokolliert(con, "umbuchung", "umbuchung_erkennen", self.jetzt_text(), f"sync:{lid}"):
+                pflege.umbuchungen_erkennen(con, False, self.config.umbuchung_fenster_tage, neue)
 
-    def _abgleichen_und_buchen(self, con, kid: int, iban: str, offen: list, z: dict) -> None:
-        """4.4: erst alle Umsätze bewerten, dann anwenden; danach 4.2 (Anlegen)."""
+    def _abgleichen_und_buchen(self, con, kid: int, iban: str, offen: list, z: dict) -> set[int]:
+        """4.4: erst alle Umsätze bewerten, dann anwenden; danach 4.2 (Anlegen). Ergebnis: neue Buchungen."""
         praefix = f"bank:{iban}:"
         bewertung = []
+        neue: set[int] = set()
         for u, kennung in offen:
             name = (u.gegenpartei_name or "").strip() or None
+            if name is not None:
+                # M3 (14.1): Empfängername = Name des zugeordneten Empfängers (Alias aufgelöst)
+                eid = buch.empfaenger_zu_name(con, name)
+                if eid is not None:
+                    name = con.execute("SELECT name FROM empfaenger WHERE id = ?", (eid,)).fetchone()["name"]
             tag = u.buchungstag
             exakt, aehnlich = set(), set()
             for c in con.execute(
@@ -593,20 +604,25 @@ class SyncDienst:
             if unk_id is None:
                 unk_id = buch.unkategorisiert_id(con)
             regel = regeln.erste_regel(regelliste, regeln.Sicht(name, u.verwendungszweck, u.betrag, {kid}))
-            gegen = regel["kategorie_id"] if regel else unk_id
-            empf_id = None
-            if name is not None:
-                r = con.execute("SELECT id FROM empfaenger WHERE name = ?", (name,)).fetchone()
-                empf_id = r["id"] if r else con.execute(
-                    "INSERT INTO empfaenger (name, extern_id) VALUES (?, NULL)", (name,)).lastrowid
+            empf_id = buch.empfaenger_bestimmen(con, name) if name is not None else None
+            std = None
+            if regel is None and empf_id is not None:
+                std = con.execute("SELECT standardkategorie_id FROM empfaenger WHERE id = ?",
+                                  (empf_id,)).fetchone()["standardkategorie_id"]
+            gegen = regel["kategorie_id"] if regel else std if std is not None else unk_id
             splits = [{"konto_id": kid, "betrag": u.betrag, "memo": ""},
                       {"konto_id": gegen, "betrag": -u.betrag, "memo": ""}]
             bid = buch.buchung_einfuegen(con, u.buchungstag.isoformat(), empf_id, u.verwendungszweck, "importiert",
-                                         splits, (), [kennung])
+                                         splits, (), [kennung], gegen_iban=pflege.gegen_iban(u.gegenpartei_iban))
+            neue.add(bid)
             z["buchungen_neu"] += 1
             if regel:
                 con.execute("INSERT INTO vorschlag (buchung_id, kategorie_id, regel_id, quelle, vorher_konto_id)"
                             " VALUES (?, ?, ?, 'regel', ?)", (bid, regel["kategorie_id"], regel["id"], unk_id))
+                z["buchungen_kategorisiert"] += 1
+            elif std is not None:
+                con.execute("INSERT INTO vorschlag (buchung_id, kategorie_id, regel_id, quelle, vorher_konto_id)"
+                            " VALUES (?, ?, NULL, 'standardkategorie', ?)", (bid, std, unk_id))
                 z["buchungen_kategorisiert"] += 1
             kandidaten = exakt | aehnlich
             if kandidaten:
@@ -616,6 +632,7 @@ class SyncDienst:
                 con.executemany("INSERT INTO verdacht_kandidat (verdacht_id, buchung_id) VALUES (?, ?)",
                                 [(vid, c) for c in sorted(kandidaten)])
                 z["buchungen_zur_pruefung"] += 1
+        return neue
 
     # ================================================================ Planer
     def takt(self) -> dict | None:

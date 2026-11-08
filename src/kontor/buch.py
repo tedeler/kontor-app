@@ -12,7 +12,7 @@ import sqlite3
 from collections import defaultdict
 from typing import Any, Iterable
 
-from .text import iban_gueltig, iban_normalisieren, norm
+from .text import ekey, iban_gueltig, iban_normalisieren, norm
 from .validierung import INT64_MAX, ApiFehler
 
 BESTAND = ("girokonto", "sparkonto", "kreditkonto")
@@ -142,6 +142,10 @@ def konto_loeschen(con, konto_id: int) -> None:
         raise ApiFehler(409, "konto_in_verwendung", "Das Konto hat noch Unterkonten.")
     if konto_in_regeln(con, konto_id):
         raise ApiFehler(409, "konto_in_verwendung", "Eine Regel verweist auf das Konto.")
+    if con.execute("SELECT 1 FROM empfaenger WHERE standardkategorie_id = ? LIMIT 1", (konto_id,)).fetchone():
+        raise ApiFehler(409, "konto_in_verwendung", "Das Konto ist Standardkategorie eines Empfängers.")
+    if con.execute("SELECT 1 FROM abstimmung WHERE konto_id = ? LIMIT 1", (konto_id,)).fetchone():
+        raise ApiFehler(409, "konto_in_verwendung", "Eine Abstimmung verweist auf das Konto.")
     con.execute("DELETE FROM konto WHERE id = ?", (konto_id,))
 
 
@@ -236,19 +240,40 @@ def kontenuebersicht(con, stichtag: str | None) -> dict:
 # ================================================================ Empfänger
 
 
-def empfaenger_dict(r) -> dict:
-    return {"id": r["id"], "name": r["name"], "extern_id": r["extern_id"]}
+def empfaenger_dict(r, aliase: list[str] | None = None) -> dict:
+    return {"id": r["id"], "name": r["name"], "extern_id": r["extern_id"], "aliase": sorted(aliase or []),
+            "standardkategorie_id": r["standardkategorie_id"]}
+
+
+def empfaenger_laden(con, ids: list[int] | None = None) -> list[dict]:
+    """Empfänger mit Aliasen (M3), nach ``id`` aufsteigend; ``ids = None``: alle."""
+    if ids is None:
+        zeilen = con.execute("SELECT * FROM empfaenger ORDER BY id").fetchall()
+        aliase: dict[int, list[str]] = defaultdict(list)
+        for r in con.execute("SELECT empfaenger_id, alias FROM empfaenger_alias"):
+            aliase[r["empfaenger_id"]].append(r["alias"])
+        return [empfaenger_dict(r, aliase.get(r["id"])) for r in zeilen]
+    aus = []
+    for teil in _stueckweise(sorted(set(ids))):
+        ph = _platzhalter(len(teil))
+        zeilen = con.execute(f"SELECT * FROM empfaenger WHERE id IN ({ph}) ORDER BY id", teil).fetchall()
+        aliase = defaultdict(list)
+        for r in con.execute(f"SELECT empfaenger_id, alias FROM empfaenger_alias WHERE empfaenger_id IN ({ph})",
+                             teil):
+            aliase[r["empfaenger_id"]].append(r["alias"])
+        aus.extend(empfaenger_dict(r, aliase.get(r["id"])) for r in zeilen)
+    return aus
 
 
 def empfaenger_liste(con) -> list[dict]:
-    return [empfaenger_dict(r) for r in con.execute("SELECT * FROM empfaenger ORDER BY id")]
+    return empfaenger_laden(con)
 
 
 def empfaenger_lesen(con, eid: int) -> dict:
-    r = con.execute("SELECT * FROM empfaenger WHERE id = ?", (sichere_id(eid),)).fetchone()
-    if r is None:
+    aus = empfaenger_laden(con, [sichere_id(eid)])
+    if not aus:
         raise nicht_gefunden("Der Empfänger")
-    return empfaenger_dict(r)
+    return aus[0]
 
 
 def empfaenger_anlegen(con, name: str, extern_id: str | None = None) -> dict:
@@ -256,6 +281,26 @@ def empfaenger_anlegen(con, name: str, extern_id: str | None = None) -> dict:
         raise ApiFehler(409, "empfaenger_existiert", "Ein Empfänger mit diesem Namen existiert bereits.")
     cur = con.execute("INSERT INTO empfaenger (name, extern_id) VALUES (?, ?)", (name, extern_id))
     return empfaenger_lesen(con, cur.lastrowid)
+
+
+def empfaenger_zu_name(con, name: str) -> int | None:
+    """buchhaltungspflege.md 2.3 Schritte 1–2: exakter Name, sonst passender Alias; sonst None."""
+    r = con.execute("SELECT id FROM empfaenger WHERE name = ?", (name,)).fetchone()
+    if r is not None:
+        return r["id"]
+    k = ekey(name)
+    if not k:
+        return None
+    r = con.execute("SELECT empfaenger_id FROM empfaenger_alias WHERE ekey = ?", (k,)).fetchone()
+    return r["empfaenger_id"] if r is not None else None
+
+
+def empfaenger_bestimmen(con, name: str) -> int:
+    """2.3 vollständig: wie ``empfaenger_zu_name``, sonst neu anlegen."""
+    eid = empfaenger_zu_name(con, name)
+    if eid is None:
+        eid = con.execute("INSERT INTO empfaenger (name, extern_id) VALUES (?, NULL)", (name,)).lastrowid
+    return eid
 
 
 # ===================================================================== Tags
@@ -346,7 +391,7 @@ def buchungen_laden(con, ids: list[int], konto_id: int | None = None,
         for r in con.execute(f"SELECT * FROM split WHERE buchung_id IN ({ph}) ORDER BY buchung_id, position",
                              teil):
             splits[r["buchung_id"]].append({"id": r["id"], "konto_id": r["konto_id"], "betrag": r["betrag"],
-                                            "memo": r["memo"]})
+                                            "memo": r["memo"], "abstimmung_id": r["abstimmung_id"]})
         for r in con.execute(
                 "SELECT bt.buchung_id, t.id, t.name FROM buchung_tag bt JOIN tag t ON t.id = bt.tag_id"
                 f" WHERE bt.buchung_id IN ({ph}) ORDER BY bt.buchung_id, t.id", teil):
@@ -379,6 +424,9 @@ def buchungen_laden(con, ids: list[int], konto_id: int | None = None,
             "extern_ids": sorted(extern[bid]),
             "belege": [],
             "vorschlag": vorschlaege.get(bid),
+            "gegen_iban": r["gegen_iban"],
+            "ist_umbuchung": all(art_von[s["konto_id"]] in BESTAND for s in sp) and len({s["konto_id"] for s in sp}) >= 2,
+            "abgestimmt": any(s["abstimmung_id"] is not None for s in sp),
         })
     return aus
 
@@ -428,9 +476,10 @@ def splits_schreiben(con, bid: int, splits: list[dict]) -> None:
 
 
 def buchung_einfuegen(con, datum: str, empfaenger_id: int | None, verwendungszweck: str, status: str,
-                      splits: list[dict], tag_ids: Iterable[int] = (), extern_ids: Iterable[str] = ()) -> int:
-    cur = con.execute("INSERT INTO buchung (datum, empfaenger_id, verwendungszweck, status) VALUES (?, ?, ?, ?)",
-                      (datum, empfaenger_id, verwendungszweck, status))
+                      splits: list[dict], tag_ids: Iterable[int] = (), extern_ids: Iterable[str] = (),
+                      gegen_iban: str | None = None) -> int:
+    cur = con.execute("INSERT INTO buchung (datum, empfaenger_id, verwendungszweck, status, gegen_iban)"
+                      " VALUES (?, ?, ?, ?, ?)", (datum, empfaenger_id, verwendungszweck, status, gegen_iban))
     bid = cur.lastrowid
     splits_schreiben(con, bid, splits)
     con.executemany("INSERT OR IGNORE INTO buchung_tag (buchung_id, tag_id) VALUES (?, ?)",
@@ -450,7 +499,13 @@ def buchung_anlegen(con, d: dict) -> dict:
 
 
 def _gesperrt() -> ApiFehler:
-    return ApiFehler(409, "buchung_gesperrt", "Die Buchung ist abgeglichen und gegen Änderungen gesperrt.")
+    return ApiFehler(409, "buchung_gesperrt",
+                     "Die Buchung ist abgeglichen oder abgestimmt und gegen Änderungen gesperrt.")
+
+
+def ist_gesperrt(b: dict) -> bool:
+    """buchhaltungspflege.md 1.3: abgeglichen oder abgestimmt."""
+    return b["status"] == "abgeglichen" or b["abgestimmt"]
 
 
 def buchung_aendern(con, bid: int, d: dict) -> dict:
@@ -458,7 +513,7 @@ def buchung_aendern(con, bid: int, d: dict) -> dict:
     if "empfaenger_id" in d:
         _empfaenger_pruefen(con, d["empfaenger_id"])
     tag_ids = _tags_pruefen(con, d["tag_ids"]) if "tag_ids" in d else None
-    if alt["status"] == "abgeglichen":
+    if ist_gesperrt(alt):
         alt_empf = alt["empfaenger"]["id"] if alt["empfaenger"] else None
         if (("datum" in d and d["datum"] != alt["datum"])
                 or ("empfaenger_id" in d and d["empfaenger_id"] != alt_empf)
@@ -484,7 +539,7 @@ def buchung_aendern(con, bid: int, d: dict) -> dict:
 
 def splits_ersetzen(con, bid: int, splits: list[dict]) -> dict:
     alt = buchung_lesen(con, bid)
-    if alt["status"] == "abgeglichen":
+    if ist_gesperrt(alt):
         raise _gesperrt()
     _splits_regeln(con, splits)
     splits_schreiben(con, bid, splits)
@@ -505,7 +560,7 @@ def _gegensplit(b: dict, art_von: dict[int, str]) -> dict | None:
 
 def kategorie_setzen(con, bid: int, kategorie_id: int) -> dict:
     b = buchung_lesen(con, bid)
-    if b["status"] == "abgeglichen":
+    if ist_gesperrt(b):
         raise _gesperrt()
     _kategorie_ziel(con, kategorie_id)
     s = _gegensplit(b, kontoarten(con))
@@ -530,7 +585,7 @@ def buchung_entfernen(con, bid: int) -> None:
 
 def buchung_loeschen(con, bid: int) -> None:
     b = buchung_lesen(con, bid)
-    if b["status"] == "abgeglichen":
+    if ist_gesperrt(b):
         raise _gesperrt()
     buchung_entfernen(con, bid)
 
@@ -551,9 +606,9 @@ def mehrfach_kategorie(con, ids: list[int], kategorie_id: int) -> dict:
     _kategorie_ziel(con, kategorie_id)
     art_von = kontoarten(con)
     buchungen = buchungen_laden(con, sorted(ids), art_von=art_von)
-    gesperrt = [b["id"] for b in buchungen if b["status"] == "abgeglichen"]
+    gesperrt = [b["id"] for b in buchungen if ist_gesperrt(b)]
     if gesperrt:
-        raise ApiFehler(409, "buchung_gesperrt", "Abgeglichene Buchungen sind gegen Änderungen gesperrt.",
+        raise ApiFehler(409, "buchung_gesperrt", "Gesperrte Buchungen können nicht geändert werden.",
                         {"buchung_ids": gesperrt})
     gegen = {b["id"]: _gegensplit(b, art_von) for b in buchungen}
     nicht = [bid for bid, s in gegen.items() if s is None]
@@ -635,6 +690,9 @@ def buchungsliste(con, f: dict) -> dict:
         par.extend([n, n, n, n])
     if f.get("vorschlag") is not None:
         bed.append(("" if f["vorschlag"] else "NOT ") + "EXISTS (SELECT 1 FROM vorschlag v WHERE v.buchung_id = b.id)")
+    if f.get("abgestimmt") is not None:
+        bed.append(("" if f["abgestimmt"] else "NOT ")
+                   + "EXISTS (SELECT 1 FROM split s WHERE s.buchung_id = b.id AND s.abstimmung_id IS NOT NULL)")
     if f.get("status"):
         st = sorted(set(f["status"]))
         bed.append(f"b.status IN ({_platzhalter(len(st))})")
@@ -723,8 +781,9 @@ def verdacht_aufloesen(con, vid: int, entscheidung: str, behalten_id: int | None
         raise ApiFehler(422, "validierung", "behalten_id muss einer der Kandidaten sein.",
                         [{"ort": ["body", "behalten_id"], "meldung": "Kein Kandidat dieses Verdachts."}])
     neu = buchung_lesen(con, v["buchung_id"])
-    if neu["status"] == "abgeglichen":
-        raise ApiFehler(409, "konflikt", "Die verdächtige Buchung ist abgeglichen und kann nicht entfernt werden.")
+    if ist_gesperrt(neu):
+        raise ApiFehler(409, "buchung_gesperrt",
+                        "Die verdächtige Buchung ist gesperrt (abgeglichen oder abgestimmt) und kann nicht entfernt werden.")
     con.execute("UPDATE dublettenverdacht SET status = 'zusammengefuehrt' WHERE id = ?", (vid,))
     con.execute("DELETE FROM buchung_extern WHERE buchung_id = ?", (neu["id"],))
     buchung_entfernen(con, neu["id"])
