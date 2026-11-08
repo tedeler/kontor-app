@@ -9,6 +9,7 @@ Kennungen, TAN-Anforderungen (ohne Kennung/TAN/PIN) und Benachrichtigungen.
 
 from __future__ import annotations
 
+import contextlib
 import datetime as dt
 import logging
 import threading
@@ -347,6 +348,28 @@ class SyncDienst:
                 return self.lauf_lesen(con, lid)
             finally:
                 con.close()
+        finally:
+            self._sperre.release()
+
+    @contextlib.contextmanager
+    def ohne_lauf(self):
+        """M9 (sicherung.md 5.1 Schritt 5, 7): hält die Laufsperre, solange eingespielt wird – kein Lauf startet
+        (409 ``sync_laeuft``); ein laufender bzw. auf TAN wartender Lauf verhindert das Einspielen."""
+        if not self._sperre.acquire(blocking=False):
+            raise ApiFehler(409, "sync_laeuft", "Es läuft gerade eine Synchronisation.")
+        try:
+            con = self._con()
+            try:
+                zeile = con.execute("SELECT status FROM sync_lauf WHERE status IN ('laeuft','wartet_auf_tan')"
+                                    " ORDER BY id DESC LIMIT 1").fetchone()
+            finally:
+                con.close()
+            if zeile is not None and zeile["status"] == "laeuft":
+                raise ApiFehler(409, "sync_laeuft", "Es läuft gerade eine Synchronisation.")
+            if zeile is not None:
+                raise ApiFehler(409, "tan_ausstehend",
+                                "Eine Synchronisation wartet auf eine TAN; erst beantworten oder abbrechen.")
+            yield
         finally:
             self._sperre.release()
 

@@ -15,7 +15,7 @@ from collections.abc import Iterator
 
 from .text import norm
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (
@@ -283,6 +283,15 @@ CREATE TABLE IF NOT EXISTS vorlage (
     bedingungen TEXT NOT NULL,
     teile TEXT NOT NULL
 );
+
+-- ------------------------------------------------------------ Meilenstein 9
+-- Zustand je Bankkonto vor und nach einer Änderung sicherung_einspielen (und deren Rückgängig), damit
+-- Rückgängig/Wiederholen ihn exakt wiederherstellt (protokoll.md 10.2). Betriebszustand, nie in einer Sicherung.
+CREATE TABLE IF NOT EXISTS sicherung_zustand (
+    aenderung_id INTEGER PRIMARY KEY,
+    vorher TEXT NOT NULL,
+    nachher TEXT NOT NULL
+);
 """
 
 # Spalten, die frühere Schemaversionen noch nicht haben (Migration ohne Datenverlust).
@@ -305,7 +314,7 @@ _NACH_MIGRATION = (
 
 
 def _migrieren(con: sqlite3.Connection) -> None:
-    """Bringt eine Datenbank früherer Schemaversion auf den Stand von M4 (Daten bleiben erhalten)."""
+    """Bringt eine Datenbank früherer Schemaversion auf den aktuellen Stand (Daten bleiben erhalten)."""
     for tabelle, spalte, typ in _NEUE_SPALTEN:
         vorhanden = {r["name"] for r in con.execute(f"PRAGMA table_info({tabelle})")}
         if spalte not in vorhanden:

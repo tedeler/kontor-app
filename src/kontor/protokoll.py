@@ -29,7 +29,7 @@ from . import buch, db, regeln, vorlagen
 from .validierung import ApiFehler
 
 OBJEKTE = ("konto", "empfaenger", "tag", "buchung", "regel", "verdacht", "abstimmung", "vorlage")
-QUELLEN = ("manuell", "import", "sync", "regeln", "umbuchung", "rueckgaengig", "lernmodell", "vorlage")
+QUELLEN = ("manuell", "import", "sync", "regeln", "umbuchung", "rueckgaengig", "lernmodell", "vorlage", "sicherung")
 
 # Tabelle → (Objektart, Spalte mit der Objekt-ID)
 _TABELLEN = {
@@ -71,6 +71,7 @@ BESCHREIBUNG = {
     "vorlage_anlegen": "Split-Vorlage angelegt", "vorlage_aendern": "Split-Vorlage geändert",
     "vorlage_loeschen": "Split-Vorlage gelöscht", "vorlagen_anwenden": "Split-Vorlagen angewendet",
     "lernmodell_anwenden": "Lernmodell angewendet",
+    "sicherung_einspielen": "Sicherung eingespielt",
 }
 
 
@@ -547,6 +548,7 @@ def rueckgaengig(con, ids: list[int], zeitpunkt: str) -> dict:
             erlaubt: set[tuple[str, int]] = set()
             for aid in sorted(ids, reverse=True):
                 erlaubt |= _schritt(con, aid)
+            _sicherung_nach_rueckgaengig(con, ids, k)
             _sync_zustand_nach_rueckgaengig(con, ids)
             bezuege_pruefen(con)
             k.rueckgaengig_von = sorted(ids)
@@ -581,6 +583,47 @@ def _sync_zustand_nach_rueckgaengig(con, ids: list[int]) -> None:
                             " WHERE iban = ?", (iban,))
             else:
                 con.execute("DELETE FROM sync_konto_zustand WHERE iban = ? AND konto_id = ?", (iban, kid))
+
+
+# ------------------------------------------------ M9: Zustand je Bankkonto beim Einspielen (protokoll.md 10.2)
+_SYNC_SPALTEN = ("iban", "konto_id", "letzter_abruf_bis", "letzter_erfolg_am", "entscheidung",
+                 "entscheidung_buchungen")
+
+
+def sync_zustand_lesen(con) -> list[dict]:
+    """Gespeicherter Zustand je Bankkonto (Rohform, ohne abgeleiteten Status), nach IBAN."""
+    return [{c: r[c] for c in _SYNC_SPALTEN}
+            for r in con.execute(f"SELECT {', '.join(_SYNC_SPALTEN)} FROM sync_konto_zustand ORDER BY iban")]
+
+
+def sync_zustand_setzen(con, zeilen: list[dict]) -> None:
+    con.execute("DELETE FROM sync_konto_zustand")
+    con.executemany(f"INSERT INTO sync_konto_zustand ({', '.join(_SYNC_SPALTEN)})"
+                    f" VALUES ({', '.join('?' * len(_SYNC_SPALTEN))})",
+                    [tuple(z[c] for c in _SYNC_SPALTEN) for z in zeilen])
+
+
+def sync_zustand_vermerken(con, aid: int, vorher: list[dict], nachher: list[dict]) -> None:
+    con.execute("INSERT INTO sicherung_zustand (aenderung_id, vorher, nachher) VALUES (?, ?, ?)",
+                (aid, json.dumps(vorher, ensure_ascii=False), json.dumps(nachher, ensure_ascii=False)))
+
+
+def _sicherung_nach_rueckgaengig(con, ids: list[int], k: Kontext) -> None:
+    """protokoll.md 10.2: Rückgängig (und Wiederholen) einer Änderung mit vermerktem Bankkonto-Zustand
+    (``sicherung_einspielen`` bzw. deren Rückgängig) setzt den Zustand je Bankkonto auf den Stand davor; die neue
+    Änderung vermerkt ihrerseits vorher/nachher, damit ihr Rückgängig (Wiederholen) ihn wieder herstellt."""
+    vermerkt = {}
+    for aid in ids:
+        r = con.execute("SELECT vorher FROM sicherung_zustand WHERE aenderung_id = ?", (aid,)).fetchone()
+        if r is not None:
+            vermerkt[aid] = json.loads(r["vorher"])
+    if not vermerkt:
+        return
+    vorher = sync_zustand_lesen(con)
+    for aid in sorted(vermerkt, reverse=True):
+        sync_zustand_setzen(con, vermerkt[aid])
+    nachher = sync_zustand_lesen(con)
+    k.danach.append(lambda neu: sync_zustand_vermerken(con, neu, vorher, nachher))
 
 
 def _wirksam(con, aid: int) -> bool:

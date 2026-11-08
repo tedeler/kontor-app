@@ -24,7 +24,7 @@ from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.staticfiles import StaticFiles
 
-from . import __version__, buch, db, lernmodell, pflege, protokoll, regeln, vorlagen
+from . import __version__, buch, db, lernmodell, pflege, protokoll, regeln, sicherung, vorlagen
 from .sync import SyncDienst
 from .config import KontorConfig
 from .importer.kmymoney import importiere_bytes
@@ -815,6 +815,50 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     @endpunkt("GET", "/api/importe")
     async def importe(request: Request):
         return await lesen(buch.importe_liste)
+
+    # ------------------------------------------------- M9: Datensicherung
+    @endpunkt("GET", "/api/sicherung")
+    async def sicherung_erstellen(request: Request):
+        daten, name = await run_in_threadpool(sicherung.erstellen, pfad, modus, sync.jetzt())
+        return Response(daten, media_type="application/zip",
+                        headers={"Content-Disposition": f'attachment; filename="{name}"',
+                                 "Cache-Control": "no-store"})
+
+    @endpunkt("POST", "/api/sicherung/einspielen")
+    async def sicherung_einspielen(request: Request):
+        q = Query(request.query_params)
+        trocken = bool(q.wahrheitswert("trocken"))
+        bestaetigt = bool(q.wahrheitswert("bestaetigt"))
+        q.pruefen()
+        try:
+            form = await request.form()
+        except Exception:
+            raise Validierungsfehler([fehler_eintrag(["body"], "multipart/form-data mit Feld 'datei' erwartet.")])
+        datei = form.get("datei")
+        if datei is None or isinstance(datei, str) or not hasattr(datei, "read"):
+            raise Validierungsfehler([fehler_eintrag(["body", "datei"], "Die Datei fehlt (Feld 'datei').")])
+        roh = await datei.read()
+
+        def ausfuehren():
+            s = sicherung.pruefen(roh)
+            if s.manifest["modus"] != modus:
+                raise ApiFehler(409, "sicherung_modus",
+                                "Die Sicherung stammt aus dem " + ("Mock-Modus" if s.manifest["modus"] == "mock"
+                                                                   else "Echtbetrieb")
+                                + " und passt nicht zu dieser Instanz.")
+            con = db.verbinde(pfad)
+            try:
+                if trocken:
+                    return sicherung.probelauf(con, s)
+                if not bestaetigt:
+                    raise ApiFehler(409, "bestaetigung_erforderlich",
+                                    "Das Einspielen ersetzt den gesamten Bestand; bitte ausdrücklich bestätigen.")
+                with sync.ohne_lauf():
+                    return sicherung.einspielen(con, s, sync.jetzt_text())
+            finally:
+                con.close()
+
+        return await run_in_threadpool(ausfuehren)
 
     # --------------------------------------------------------- Dubletten
     @endpunkt("GET", "/api/dubletten")
