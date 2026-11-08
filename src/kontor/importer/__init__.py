@@ -1,0 +1,1 @@
+"""Importfunktionen (KMyMoney; GnuCash später)."""
