@@ -1,7 +1,7 @@
 # kontor-app
 
 Implementierung von **Kontor**, einer selbst gehosteten Finanz-Web-App
-(Python, FastAPI, SQLite, Single-Page-Weboberfläche). Stand: **Meilenstein 2**
+(Python, FastAPI, SQLite, Single-Page-Weboberfläche). Stand: **Meilenstein 3**
 
 - M1: KMyMoney-Import, Finanzübersicht, Konten- und Buchungsliste mit Filtern
   und Mehrfachbearbeitung, doppelte Buchführung mit Splits und Tags,
@@ -11,6 +11,12 @@ Implementierung von **Kontor**, einer selbst gehosteten Finanz-Web-App
   Synchronisationsläufe mit Status je Konto, interne Benachrichtigungen,
   TAN-Ablauf mit QR-Bild, PIN nur im Arbeitsspeicher, simulierte Uhr im
   Mock-Modus, Regel-Kategorisierung mit Vorschlägen und Bestätigung.
+- M3: Änderungsprotokoll für jede manuelle und automatische Änderung mit
+  Rückgängig (einzeln, mehrere, ganze Gruppe wie ein Synchronisationslauf)
+  und Wiederholen, Empfängerverwaltung (Aliase, Standardkategorie,
+  Zusammenführen), Erfassungshilfe für manuelle Buchungen, Korrekturen und
+  Umbuchungen, Umbuchungserkennung, Kontenabstimmung mit Sperre,
+  Volltextsuche, Konten und Kategorien mit Buchungen löschen.
 
 Die verbindliche Spezifikation liegt im getrennten Repository **kontor-tests**
 (`spec/konzept.md`, `spec/api/*`); dort liegen auch die Tests.
@@ -119,6 +125,8 @@ python -m kontor serve --host 127.0.0.1 --port 8000
 | `KONTOR_SYNC_ERSTABRUF_TAGE` | Zeitraum des ersten Abrufs eines Kontos (Vorgabe 90) |
 | `KONTOR_SYNC_UEBERLAPPUNG_TAGE` | Überlappung folgender Abrufe (Vorgabe 14) |
 | `KONTOR_PLANER_STARTEN` | Planer-Thread im Server starten (Vorgabe ja; nur wirksam mit Intervall > 0) |
+| `KONTOR_UMBUCHUNG_AUTOMATISCH` | Umbuchungen bei jeder Synchronisation automatisch erkennen und zusammenführen (Vorgabe nein; für den Betrieb empfohlen: `1`) |
+| `KONTOR_UMBUCHUNG_FENSTER_TAGE` | größter Datumsabstand der beiden Seiten einer Umbuchung (0–366, Vorgabe 3) |
 
 Im Mock-Modus sind nur Mock-Plugins erlaubt, im Echtbetrieb keine; die
 Mock-Datenbank darf nicht die Echt-Datenbank sein. Die echten Plugins (FinTS,
@@ -172,6 +180,28 @@ Single-Page-App ohne Build-Schritt und ohne externe Ressourcen
 - **Import**: `.kmy` hochladen, Ergebnis und Hinweise, Dublettenverdachte
   zusammenführen oder verwerfen.
 - **Einstellungen**: Betriebsmodus, Plugins, Tags verwalten.
+- **Änderungsprotokoll** (M3): alle Änderungen, neueste zuerst, filterbar nach
+  Quelle und Wirksamkeit, mit Einträgen je Objekt; Knöpfe „Rückgängig“,
+  „Wiederholen“ und „Ganze Gruppe“. **Strg+Z** (bzw. ↶ im Kopf) nimmt die
+  letzte Änderung zurück, **Strg+Y**/Strg+Umschalt+Z stellt sie wieder her.
+- **Globale Suche** im Kopf (Volltext über Konten, Empfänger inkl. Aliase,
+  Tags und Buchungen; Umlaut- und Akzent-unabhängig).
+- **Empfänger**: anlegen, bearbeiten (Aliase je Zeile, Standardkategorie),
+  löschen, mehrere markieren und zusammenführen.
+- **Buchung erfassen** (Buchungsliste/Konto): Ausgabe, Einnahme, Umbuchung
+  zwischen eigenen Konten, Korrektur – immer mit positivem Betrag (Korrektur
+  vorzeichenbehaftet).
+- **Umbuchungen**: Vorschläge eindeutiger Paare, einzeln oder alle
+  zusammenführen; in der Buchungsliste zwei markierte Buchungen über das
+  Kontextmenü zusammenführen. Getrennt wird über Rückgängig.
+- **Kontenabstimmung**: Auszugssaldo prüfen (Differenz wird angezeigt) und
+  abstimmen; abgestimmte Buchungen tragen „🔒 abgestimmt“ und sind gesperrt;
+  die letzte Abstimmung lässt sich auf der Kontoseite aufheben.
+- **Konto/Kategorie löschen** (Kontextmenü „Löschen …“ bzw. Kontoseite):
+  unbenutzte nach einfacher Rückfrage; sonst Dialog mit Zahlen aus dem
+  Probelauf und Wahl ohne Vorauswahl (Buchungen löschen / dem übergeordneten
+  Konto zuschlagen / als unkategorisiert einstufen), ggf. Umgang mit
+  Konfliktbuchungen und Bestätigung für gesperrte Buchungen.
 - Helles/dunkles Design folgt der Systemeinstellung.
 
 ## Tests

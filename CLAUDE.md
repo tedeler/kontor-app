@@ -45,6 +45,11 @@ Commit-Nachrichten sind auf Deutsch.
 - PIN, TAN und die interne TAN-Kennung des Plugins leben nur im Arbeitsspeicher
   (`SyncDienst`); nie in Datenbank, Logs, Antworten, Fehlermeldungen oder
   `repr()`. Validierungsfehler geben übergebene Werte nie wieder.
+- Jede schreibende Operation auf dem Buchbestand (Konten, Empfänger, Tags,
+  Buchungen, Regeln, Verdachte, Abstimmungen, gemerkte Kennungen) läuft in
+  `protokoll.protokolliert(...)` bzw. über `aendern(...)` in `app.py` – genau
+  eine Transaktion je Änderung. Neue Tabellen des Buchbestands in
+  `protokoll._TABELLEN` und in Protokollform/Wiederherstellung eintragen.
 - Beträge sind immer ganze Cent (`int`), nie Gleitkomma – auch nicht im
   Datenbankschema oder in der Oberfläche (Umrechnung nur mit
   Ganzzahlarithmetik).
@@ -59,7 +64,9 @@ Commit-Nachrichten sind auf Deutsch.
 | `src/kontor/buch.py` | Fachlogik: Konten, Buchungen, Splits, Tags, Empfänger, Liste, Dubletten, Benachrichtigungen |
 | `src/kontor/sync.py` | M2: `SyncDienst` je App (Läufe, Übernahme, Abgleich, TAN, PIN, App-Uhr, Planer), `planer_takt` |
 | `src/kontor/regeln.py` | M2: Regeln (Validierung, CRUD, Auswertung, Anwenden) und Vorschläge |
-| `src/kontor/db.py` | SQLite-Schema und Verbindungen |
+| `src/kontor/protokoll.py` | M3: Änderungsprotokoll (temporäre Trigger, Protokollform, Nettowirkung über eine lesende Zweitverbindung), Rückgängig mit Zustands- und Bezugsprüfung, Wirksamkeit |
+| `src/kontor/pflege.py` | M3: Empfängerverwaltung, Erfassungshilfe, Umbuchungen, Kontenabstimmung, Volltextsuche, Konto mit Buchungen löschen |
+| `src/kontor/db.py` | SQLite-Schema (Version 3), Migration früherer Versionen, Verbindungen |
 | `src/kontor/importer/` | KMyMoney-Import und `ImportErgebnis` |
 | `src/kontor/plugins/` | Bank-/Mail-Schnittstellen, Mock-Plugins, FinTS-/IMAP-Platzhalter |
 | `src/kontor/web/` | Weboberfläche (HTML, CSS, Vanilla-JS, ohne externe Ressourcen) |

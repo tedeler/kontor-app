@@ -378,3 +378,136 @@ Weitere Abkürzungen: SY = `spec/api/synchronisation.md`, KA =
   ein Lauf im Echtbetrieb endet als `fehlgeschlagen` mit
   `plugin_nicht_verfuegbar`.
 - **Begründung:** PL 7.3; echte Anbindung in M6.
+
+## D-034 Aufbau und Schema für Meilenstein 3
+
+- **Entscheidung:** Neue Module `protokoll.py` (Änderungsprotokoll, Rückgängig)
+  und `pflege.py` (Empfängerverwaltung, Erfassungshilfe, Umbuchungen,
+  Abstimmung, Suche, Konto mit Buchungen löschen). Schemaversion 3: neue
+  Tabellen `empfaenger_alias` (Alias, `ekey` eindeutig über alle Empfänger),
+  `abstimmung`, `aenderung`, `aenderung_eintrag` (Protokollform als JSON);
+  neue Spalten `empfaenger.standardkategorie_id`, `buchung.gegen_iban`,
+  `split.abstimmung_id`; `vorschlag.quelle` erlaubt zusätzlich
+  `standardkategorie`.
+- **Migration:** `schema_anlegen` legt fehlende Tabellen an, ergänzt fehlende
+  Spalten per `ALTER TABLE … ADD COLUMN` und baut `vorschlag` mit erweitertem
+  CHECK neu auf (Inhalt wird übernommen) – in einer Transaktion, ohne
+  Datenverlust. Getestet mit dem Schema von M2 (`tests/test_m3_eigen.py`,
+  `tests/daten/schema_m2.sql`).
+- **Begründung:** Auftrag (Migration ohne Datenverlust); SQLite kann CHECK
+  nicht nachträglich ändern.
+
+## D-035 Erfassung der Nettowirkung
+
+- **Frage:** Wie entstehen die Einträge einer Änderung, ohne jede Operation
+  einzeln zu instrumentieren?
+- **Entscheidung:** Jede Operation läuft in genau einer Transaktion
+  (`protokoll.protokolliert`). Temporäre Trigger der Verbindung merken jedes
+  berührte Objekt (Kindtabellen wie `split`, `buchung_tag`, `vorschlag`,
+  `empfaenger_alias`, `verdacht_kandidat` zählen für ihr Elternobjekt) sowie
+  hinzugekommene/weggefallene Umsatzkennungen. Am Ende wird die Protokollform
+  *nachher* auf der schreibenden Verbindung bestimmt und *vorher* auf einer
+  zweiten, lesenden Verbindung: Im WAL-Modus sieht diese den letzten
+  bestätigten Stand, also genau den Zustand vor der Operation. Nur Objekte mit
+  verschiedener Form werden eingetragen; ohne Eintrag entsteht keine Änderung.
+  Die Trigger verwenden kein `INSERT OR IGNORE`, weil die Konfliktbehandlung
+  einer äußeren Anweisung (UPSERT) sie überschreiben würde.
+- **Folge:** Eine Operation, die mehrere Änderungen erzeugt (Synchronisation:
+  Kontozuordnung, je Konto, Umbuchungserkennung), schreibt jede in einer
+  eigenen Transaktion. Die Protokollform wird mit denselben Funktionen
+  berechnet wie die REST-Antworten.
+- **Begründung:** protokoll.md 3.2 (Nettowirkung), T 3.5; die Erfassung ist
+  für alle bestehenden und künftigen Operationen gleich und kann keine
+  Nebenwirkung übersehen.
+
+## D-036 Rückgängig: Umsetzung der Zustands- und Bezugsprüfung
+
+- **Entscheidung:** Rückgängig ist selbst eine protokollierte Operation. Je
+  Schritt (absteigende IDs) wird zuerst die aktuelle Form jedes Objekts mit
+  `nachher` verglichen, dann werden die Objekte gelöscht und aus `vorher` mit
+  ihren IDs neu eingefügt (Splits mit ihren IDs und ihrer Reihenfolge); ein
+  umbenannter Tag wird in der Zeile zurückbenannt, damit Zuordnungen anderer
+  Buchungen bleiben. Fremdschlüssel werden für die Transaktion aufgeschoben;
+  danach prüft `bezuege_pruefen` alle Verweise und Zyklen auf dem gesamten
+  Bestand. Eindeutigkeit sichern die UNIQUE-Bedingungen (IBAN, Name, Alias-
+  `ekey`, Tag-Name). Zusätzlich darf die Nettowirkung nur Objekte der
+  rückgängig gemachten Änderungen betreffen (sonst z. B. ein kaskadierend
+  entfernter Tag an einer anderen Buchung). Jede Verletzung → 409
+  `rueckgaengig_konflikt`, die Transaktion wird verworfen.
+- **Wirksamkeit:** `rueckgaengig_durch` wird gespeichert und bei jedem
+  (Un-)Wirksamwerden rekursiv an die durch die Änderung rückgängig gemachten
+  Änderungen weitergegeben (protokoll.md 6.5).
+- **Synchronisationszustand:** Nach jedem Rückgängig entfallen Einträge in
+  `/api/sync/konten`, deren Konto nicht mehr existiert (protokoll.md 6.4).
+- **Begründung:** protokoll.md 6, E-047, E-048, E-057.
+
+## D-037 Sperre bei Vorschlägen und Dubletten
+
+- **Entscheidung:** Einzelnes `POST /api/buchungen/{id}/vorschlag`: eine
+  abgeglichene Buchung antwortet wie in M2 immer 409 `buchung_gesperrt`
+  (vor `kein_vorschlag`); eine nur abgestimmte Buchung nur bei `ablehnen`.
+  Mehrfach: erst `kein_vorschlag`, dann bei `ablehnen` `buchung_gesperrt`
+  mit allen gesperrten IDs. Dublette zusammenführen mit gesperrter zu
+  entfernender Buchung antwortet ab M3 `buchung_gesperrt` (statt bisher
+  `konflikt` bei abgeglichenen; openapi.yaml 2.1.0).
+- **Begründung:** buchhaltungspflege.md 5.4, kategorisierung.md 6; M2-
+  Verhalten bleibt, wo die Spezifikation nichts Neues sagt.
+
+## D-038 Erfassungshilfe: Prüfung unpassender Felder
+
+- **Entscheidung:** „Feld bei unpassender `art`“ (422 `validierung`) gilt für
+  `gegenkonto_id` bei jeder Angabe außerhalb von `umbuchung`; für
+  `kategorie_id` bei `umbuchung` nur, wenn der Wert nicht `null` ist.
+  „Beide Empfängerfelder“ gilt, wenn `empfaenger_id` nicht `null` ist und
+  `empfaenger_name` angegeben ist. Ein angegebener Empfänger (ID oder Name)
+  liefert die Standardkategorie für `ausgabe`/`einnahme` ohne Kategorie;
+  „Unkategorisiert“ wird dafür als `vorher_konto_id` angelegt. Für
+  `korrektur` gilt die Standardkategorie nicht (Tabelle in 3).
+- **Begründung:** `null` bedeutet in allen Schemas „nicht gesetzt“; so kann
+  die Oberfläche ein leeres Feld ohne Sonderfall senden.
+
+## D-039 Umbuchungen: Kandidaten und Zusammenführen
+
+- **Entscheidung:** Kandidaten zusätzlich ohne offenen Vorschlag (folgt aus
+  dem Gegensplit auf „Unkategorisiert“). Zusammenführen verschiebt den
+  Bankseiten-Split von Y mit unveränderter ID nach X (Position 1), löscht die
+  beiden Splits auf „Unkategorisiert“, übernimmt Kennungen und Tags und löscht
+  Y wie beim Löschen einer Buchung (offene Verdachte). Bei der automatischen
+  Erkennung werden nur Paare mit einer in dieser Kontoverarbeitung neu
+  angelegten Buchung zusammengeführt (eigene Transaktion und Änderung).
+- **Begründung:** buchhaltungspflege.md 4.
+
+## D-040 Konto mit Buchungen löschen: Probelauf
+
+- **Entscheidung:** Der Probelauf führt die echte Operation in einem
+  SQLite-Sicherungspunkt aus und verwirft sie (`ROLLBACK TO`). Dadurch liefert
+  er garantiert dasselbe Ergebnis wie der echte Lauf; ein dabei angelegtes
+  „Unkategorisiert“ verschwindet wieder (`ziel_konto_id = null`), IDs werden
+  nicht verbraucht. Der Eintrag in `/api/sync/konten` eines gelöschten
+  Bankkontos bleibt (Betriebszustand, kein Buchbestand); ein späterer Lauf
+  legt das Konto neu an und überschreibt die Zuordnung.
+- **Begründung:** loeschen.md 4 („Ein Probelauf liefert dasselbe Ergebnis“).
+
+## D-041 Volltextsuche
+
+- **Entscheidung:** Die Suche rechnet in Python über alle Objekte (`snorm`
+  je Feld, Felder getrennt, UND über die Wörter). Ein SQL-Index (FTS5) wäre
+  mit der Normalisierung aus E-056 (Teilzeichenketten nach NFKD-Faltung)
+  nicht genau nachzubilden.
+- **Begründung:** buchhaltungspflege.md 6; Buchbestände eines Haushalts
+  bleiben klein genug (Leistung wird in M7 bewertet).
+
+## D-042 Weboberfläche für Meilenstein 3
+
+- **Entscheidung:** Neue Bereiche Empfänger, Umbuchungen, Kontenabstimmung,
+  Änderungsprotokoll und Suche (Feld im Kopf). Strg+Z nimmt die neueste
+  wirksame Änderung zurück, die selbst kein Rückgängig ist; mehrfaches Strg+Z
+  geht so schrittweise zurück. Strg+Y bzw. Strg+Umschalt+Z nimmt das neueste
+  wirksame Rückgängig zurück (Wiederholen). Beides wirkt nicht in
+  Eingabefeldern und nicht bei offenem Dialog; für Touch gibt es den Knopf ↶
+  im Kopf. Die Erfassungshilfe ersetzt den bisherigen Dialog „Neue Buchung“
+  (Splitbuchungen weiterhin über „Bearbeiten / splitten“). Konto löschen:
+  Ein Probelauf mit `loeschen` entscheidet, ob das Konto unbenutzt ist (dann
+  einfache Rückfrage und `DELETE`); sonst Dialog nach loeschen.md 5 ohne
+  Vorauswahl. Die stabilen `data-testid` folgen in M8.
+- **Begründung:** Auftrag des Koordinators; loeschen.md 5; K 14.
