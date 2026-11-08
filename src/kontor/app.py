@@ -28,6 +28,7 @@ from . import __version__, buch, db, pflege, protokoll, regeln
 from .sync import SyncDienst
 from .config import KontorConfig
 from .importer.kmymoney import importiere_bytes
+from .importer import gnucash as gnucash_import
 from .validierung import (BETRAG_MAX, STATUS, ApiFehler, Feld, Query, Validierungsfehler, fehler_eintrag,
                           pruefe_koerper)
 from .validierung import KONTOARTEN
@@ -693,8 +694,7 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
         return await lesen(mit_uhr(protokoll.einzeln_rueckgaengig), pid(request, "aenderung_id"))
 
     # ------------------------------------------------------------ Import
-    @endpunkt("POST", "/api/import/kmymoney")
-    async def import_kmymoney(request: Request):
+    async def datei_importieren(request: Request, importieren: Callable):
         try:
             form = await request.form()
         except Exception:
@@ -706,7 +706,7 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
         dateiname = datei.filename or None
 
         def ausfuehren(con):
-            return importiere_bytes(con, roh, dateiname, zeitpunkt=sync.jetzt_text())
+            return importieren(con, roh, dateiname, zeitpunkt=sync.jetzt_text())
 
         ergebnis = await lesen(ausfuehren)
         d = ergebnis.als_dict()
@@ -714,6 +714,14 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
             erster = ergebnis.fehler[0]
             return fehler_antwort(422, erster.code, erster.meldung, d)
         return d
+
+    @endpunkt("POST", "/api/import/kmymoney")
+    async def import_kmymoney(request: Request):
+        return await datei_importieren(request, importiere_bytes)
+
+    @endpunkt("POST", "/api/import/gnucash")
+    async def import_gnucash(request: Request):
+        return await datei_importieren(request, gnucash_import.importiere_bytes)
 
     @endpunkt("GET", "/api/importe")
     async def importe(request: Request):

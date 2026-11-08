@@ -415,20 +415,31 @@ def _konten_anwenden(con: sqlite3.Connection, datei: _Datei, lauf: _Lauf, max_ko
             else:
                 lauf.warn("iban_ungueltig", kid)
         treffer = None
+        # Regel 2 gilt ab M4 auch für Konten mit gnc:-Kennung; sie behalten ihre Kennung (gnucash.md 7, E-068).
         if klasse == "bestand":
             if iban is not None:
                 treffer = con.execute(
-                    "SELECT id FROM konto WHERE extern_id IS NULL AND iban = ? AND id <= ?",
-                    (iban, max_konto)).fetchone()
+                    "SELECT id FROM konto WHERE (extern_id IS NULL OR substr(extern_id, 1, 4) = 'gnc:')"
+                    " AND iban = ? AND id <= ?", (iban, max_konto)).fetchone()
+            else:
+                # Regel 3 (M4): Bestandskonto ohne gültige IBAN ↔ gnc:-Konto gleicher Art, Name, Elternkonto
+                for kandidat in con.execute(
+                        "SELECT id FROM konto WHERE substr(extern_id, 1, 4) = 'gnc:' AND art = ? AND name = ?"
+                        " AND id <= ? AND eltern_id IS ? AND iban IS NULL ORDER BY id",
+                        (art, a.get("name"), max_konto, eltern_kontor)):
+                    if kandidat["id"] not in vergeben:
+                        treffer = kandidat
+                        break
         else:
             for kandidat in con.execute(
-                    "SELECT id FROM konto WHERE extern_id IS NULL AND art = ? AND name = ? AND id <= ?"
+                    "SELECT id FROM konto WHERE (extern_id IS NULL OR substr(extern_id, 1, 4) = 'gnc:')"
+                    " AND art = ? AND name = ? AND id <= ?"
                     " AND eltern_id IS ? ORDER BY id", (art, a.get("name"), max_konto, eltern_kontor)):
                 if kandidat["id"] not in vergeben:
                     treffer = kandidat
                     break
         if treffer is not None and treffer["id"] not in vergeben:
-            con.execute("UPDATE konto SET extern_id = ? WHERE id = ?", (ext, treffer["id"]))
+            con.execute("UPDATE konto SET extern_id = ? WHERE id = ? AND extern_id IS NULL", (ext, treffer["id"]))
             vergeben.add(treffer["id"])
             abbildung[kid] = treffer["id"]
             lauf.z[zaehler + "_vorhanden"] += 1

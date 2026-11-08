@@ -12,7 +12,7 @@ from .fehler import KonfigurationsFehler
 
 BANK_PLUGINS = ("mock", "fints")
 MAIL_PLUGINS = ("mock", "imap")
-SZENARIEN = ("normal", "bankfehler", "zeitueberschreitung", "tan_erforderlich", "token_ablauf")
+SZENARIEN = ("normal", "bankfehler", "zeitueberschreitung", "tan_erforderlich", "token_ablauf", "beitragsaenderung")
 
 _WAHR = {"1", "true", "ja", "yes", "on"}
 _FALSCH = {"0", "false", "nein", "no", "off", ""}
@@ -45,9 +45,14 @@ class KontorConfig:
     # Meilenstein 3: Umbuchungserkennung (python-api.md 9.1)
     umbuchung_automatisch: bool = False
     umbuchung_fenster_tage: int = 3
+    # Meilenstein 4: Lernmodell bei neuen Buchungen (python-api.md 10.1)
+    lernmodell_automatisch: bool = False
 
     def __post_init__(self) -> None:
         setze = object.__setattr__
+        if not isinstance(self.lernmodell_automatisch, bool):
+            raise KonfigurationsFehler("lernmodell_automatisch muss wahr oder falsch sein.",
+                                       feld="lernmodell_automatisch")
         if not isinstance(self.umbuchung_automatisch, bool):
             raise KonfigurationsFehler("umbuchung_automatisch muss wahr oder falsch sein.",
                                        feld="umbuchung_automatisch")
@@ -133,6 +138,8 @@ class KontorConfig:
                 ganz[feld] = int(text)
         umbuchung_automatisch = _wahrheitswert(wert("KONTOR_UMBUCHUNG_AUTOMATISCH"),
                                                "KONTOR_UMBUCHUNG_AUTOMATISCH", False)
+        lernmodell_automatisch = _wahrheitswert(wert("KONTOR_LERNMODELL_AUTOMATISCH"),
+                                                "KONTOR_LERNMODELL_AUTOMATISCH", False)
         text = wert("KONTOR_UMBUCHUNG_FENSTER_TAGE")
         if text:
             if not text.isascii() or not text.isdigit() or int(text) > 366:
@@ -160,6 +167,7 @@ class KontorConfig:
             mock_heute=mock_heute,
             planer_starten=planer_starten,
             umbuchung_automatisch=umbuchung_automatisch,
+            lernmodell_automatisch=lernmodell_automatisch,
             **ganz,
         )
 

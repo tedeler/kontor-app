@@ -20,6 +20,8 @@ from ..text import iban_normalisieren
 from .bank import BankKonto, BankUmsatz
 from .mail import MailNachricht
 
+BETRAG_MAX = 999_999_999_999
+
 UTC = dt.timezone.utc
 
 
@@ -96,6 +98,8 @@ class MockDaten:
     nachrichten: tuple[MailNachricht, ...]
     pin: str | None = None   # optional bank.pin (plugins.md 7.2)
     tan: str | None = None   # optional bank.tan
+    # M4 (plugins.md 8): optionaler Betrag je Umsatz im Szenario „beitragsaenderung“ (gleiche Reihenfolge)
+    beitraege: tuple[int | None, ...] = ()
 
     def __repr__(self) -> str:  # nie PIN oder TAN ausgeben
         return f"MockDaten(konten={len(self.konten)}, umsaetze={len(self.umsaetze)})"
@@ -126,12 +130,20 @@ def lade_datei(pfad: pathlib.Path) -> MockDaten:
                                 inhaber=_text(k["inhaber"], f + ".inhaber"),
                                 waehrung=_text(k["waehrung"], f + ".waehrung")))
     umsaetze = []
+    beitraege: list[int | None] = []
     for i, u in enumerate(_liste(bank["umsaetze"], "bank.umsaetze")):
         f = f"bank.umsaetze[{i}]"
         u = _objekt(u, f, ("umsatz_id", "iban", "buchungstag", "valuta", "betrag", "waehrung", "gegenpartei_name",
                            "gegenpartei_iban", "verwendungszweck", "vormerkung", "storno"))
         if type(u["betrag"]) is not int:
             raise _fehler(f"{f}.betrag muss eine Ganzzahl in Cent sein.")
+        if "betrag_beitragsaenderung" in u:
+            bb = u["betrag_beitragsaenderung"]
+            if type(bb) is not int or not -BETRAG_MAX <= bb <= BETRAG_MAX:
+                raise _fehler(f"{f}.betrag_beitragsaenderung muss eine Ganzzahl in Cent sein.")
+            beitraege.append(bb)
+        else:
+            beitraege.append(None)
         umsaetze.append(BankUmsatz(
             umsatz_id=_text(u["umsatz_id"], f + ".umsatz_id"), iban=_text(u["iban"], f + ".iban"),
             buchungstag=_datum(u["buchungstag"], f + ".buchungstag"),
@@ -153,7 +165,8 @@ def lade_datei(pfad: pathlib.Path) -> MockDaten:
             betreff=_text(m["betreff"], f + ".betreff"), text=_text(m["text"], f + ".text")))
     pin = _text(bank["pin"], "bank.pin") if "pin" in bank else None
     tan = _text(bank["tan"], "bank.tan") if "tan" in bank else None
-    return MockDaten(tuple(konten), tuple(umsaetze), tuple(postfaecher), tuple(nachrichten), pin, tan)
+    return MockDaten(tuple(konten), tuple(umsaetze), tuple(postfaecher), tuple(nachrichten), pin, tan,
+                     tuple(beitraege))
 
 
 # ----------------------------------------------------- eingebauter Datensatz

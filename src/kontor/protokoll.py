@@ -64,7 +64,7 @@ BESCHREIBUNG = {
     "regel_anlegen": "Regel angelegt", "regel_aendern": "Regel geändert", "regel_loeschen": "Regel gelöscht",
     "abstimmung_anlegen": "Konto abgestimmt", "abstimmung_aufheben": "Abstimmung aufgehoben",
     "umbuchung_zusammenfuehren": "Umbuchung zusammengeführt", "umbuchung_erkennen": "Umbuchungen erkannt",
-    "import_kmymoney": "KMyMoney-Import", "sync_kontozuordnung": "Synchronisation: Konten zugeordnet",
+    "import_kmymoney": "KMyMoney-Import", "import_gnucash": "GnuCash-Import", "sync_kontozuordnung": "Synchronisation: Konten zugeordnet",
     "sync_konto": "Synchronisation: Umsätze eines Kontos übernommen", "regeln_anwenden": "Regeln angewendet",
     "rueckgaengig": "Rückgängig gemacht",
 }

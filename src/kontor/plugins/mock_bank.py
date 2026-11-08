@@ -9,6 +9,7 @@ Meldungen, Details oder ``repr()``.
 
 from __future__ import annotations
 
+import dataclasses
 import datetime as dt
 import hashlib
 import hmac
@@ -106,7 +107,13 @@ class MockBankPlugin(BankPlugin):
         self._tan_pruefen(heute, tan)
         obergrenze = min(bis, heute)
         if self._daten is not None:
-            aus = [u for u in self._daten.umsaetze if u.iban == n and von <= u.buchungstag <= obergrenze]
+            aus = []
+            for i, u in enumerate(self._daten.umsaetze):
+                if u.iban == n and von <= u.buchungstag <= obergrenze:
+                    neu = self._daten.beitraege[i] if i < len(self._daten.beitraege) else None
+                    if self._szenario == "beitragsaenderung" and neu is not None:
+                        u = dataclasses.replace(u, betrag=neu)  # plugins.md 8
+                    aus.append(u)
         elif von <= obergrenze:
             aus = md.eingebaute_umsaetze(n, von, obergrenze)
         else:
