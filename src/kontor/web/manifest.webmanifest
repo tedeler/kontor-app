@@ -1,1 +1,13 @@
-{}
+{
+  "name": "Kontor",
+  "short_name": "Kontor",
+  "description": "Selbst gehostete Finanzverwaltung",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1f5f8b",
+  "lang": "de",
+  "icons": [
+    {"src": "/static/icon.svg", "sizes": "any", "type": "image/svg+xml"}
+  ]
+}

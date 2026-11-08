@@ -1,3 +1,49 @@
 <!DOCTYPE html>
-<html lang="de"><head><meta charset="utf-8"><title>Kontor</title></head>
-<body class="{{MODUS}}"><!--MODUS-HINWEIS--><div id="app"></div></body></html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#1f5f8b">
+<title>Kontor</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body class="modus-{{MODUS}}">
+<!--MODUS-HINWEIS-->
+<div class="rahmen">
+  <header class="kopf">
+    <button type="button" class="menue-knopf" id="menue-knopf" aria-label="Navigation ein-/ausblenden"
+            aria-controls="navigation" aria-expanded="false">&#9776;</button>
+    <a class="marke" href="#/uebersicht">Kontor</a>
+    <span class="kopf-titel" id="kopf-titel"></span>
+    <span class="kopf-version">v{{VERSION}}</span>
+  </header>
+  <nav class="navigation" id="navigation" aria-label="Hauptnavigation">
+    <ul>
+      <li><a href="#/uebersicht" data-bereich="uebersicht">Finanzübersicht</a></li>
+      <li><a href="#/konten" data-bereich="konten">Konten</a></li>
+      <li><a href="#/kategorien" data-bereich="kategorien">Kategorien</a></li>
+      <li><a href="#/spaeter/wiederkehrend" data-bereich="wiederkehrend">Wiederkehrende Buchungen <span class="spaeter">später</span></a></li>
+      <li><a href="#/spaeter/kredite" data-bereich="kredite">Kredite <span class="spaeter">später</span></a></li>
+      <li><a href="#/spaeter/berichte" data-bereich="berichte">Berichte <span class="spaeter">später</span></a></li>
+      <li><a href="#/import" data-bereich="import">Import</a></li>
+      <li><a href="#/einstellungen" data-bereich="einstellungen">Einstellungen</a></li>
+    </ul>
+    <div class="nav-unten">
+      <a href="#/buchungen" data-bereich="buchungen">Alle Buchungen</a>
+    </div>
+  </nav>
+  <div class="trenner" id="trenner" role="separator" aria-orientation="vertical" title="Breite ziehen, Doppelklick klappt ein"></div>
+  <main class="inhalt" id="inhalt" tabindex="-1">
+    <noscript><p>Kontor benötigt JavaScript.</p></noscript>
+  </main>
+</div>
+<div class="schleier" id="schleier"></div>
+<div class="kontextmenue" id="kontextmenue" role="menu" hidden></div>
+<div class="dialog-huelle" id="dialog-huelle" hidden></div>
+<div class="meldungen" id="meldungen" aria-live="polite"></div>
+<script src="/static/app.js"></script>
+</body>
+</html>
