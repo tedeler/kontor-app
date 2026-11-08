@@ -94,6 +94,11 @@ class MockDaten:
     umsaetze: tuple[BankUmsatz, ...]
     postfaecher: tuple[str, ...]
     nachrichten: tuple[MailNachricht, ...]
+    pin: str | None = None   # optional bank.pin (plugins.md 7.2)
+    tan: str | None = None   # optional bank.tan
+
+    def __repr__(self) -> str:  # nie PIN oder TAN ausgeben
+        return f"MockDaten(konten={len(self.konten)}, umsaetze={len(self.umsaetze)})"
 
 
 def lade_datei(pfad: pathlib.Path) -> MockDaten:
@@ -146,7 +151,9 @@ def lade_datei(pfad: pathlib.Path) -> MockDaten:
             nachricht_id=_text(m["nachricht_id"], f + ".nachricht_id"), postfach=_text(m["postfach"], f + ".postfach"),
             empfangen=_zeit(m["empfangen"], f + ".empfangen"), absender=_text(m["absender"], f + ".absender"),
             betreff=_text(m["betreff"], f + ".betreff"), text=_text(m["text"], f + ".text")))
-    return MockDaten(tuple(konten), tuple(umsaetze), tuple(postfaecher), tuple(nachrichten))
+    pin = _text(bank["pin"], "bank.pin") if "pin" in bank else None
+    tan = _text(bank["tan"], "bank.tan") if "tan" in bank else None
+    return MockDaten(tuple(konten), tuple(umsaetze), tuple(postfaecher), tuple(nachrichten), pin, tan)
 
 
 # ----------------------------------------------------- eingebauter Datensatz

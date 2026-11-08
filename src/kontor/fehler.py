@@ -61,6 +61,9 @@ class TanErforderlich(BankFehler):
         *,
         anforderung_id: str = "",
         gueltig_bis: _dt.datetime | None = None,
+        challenge: str = "",
+        bild: bytes | None = None,
+        bild_mime_typ: str | None = None,
         **details: object,
     ) -> None:
         super().__init__(meldung, **details)
@@ -68,6 +71,29 @@ class TanErforderlich(BankFehler):
         if gueltig_bis is None:
             gueltig_bis = _dt.datetime.now(_dt.timezone.utc)
         self.gueltig_bis: _dt.datetime = gueltig_bis
+        self.challenge: str = challenge or meldung or "Bitte die TAN-Anforderung in der Banking-App freigeben."
+        self.bild: bytes | None = bild
+        self.bild_mime_typ: str | None = bild_mime_typ if bild is not None else None
+
+    def __repr__(self) -> str:
+        # Die interne Kennung und das Bild gehören nicht in Darstellungen.
+        return f"{type(self).__name__}({self.meldung!r})"
+
+
+class BankPinFehlt(BankFehler):
+    code = "bank_pin_fehlt"
+
+
+class BankPinFalsch(BankFehler):
+    code = "bank_pin_falsch"
+
+
+class TanUngueltig(BankFehler):
+    code = "tan_ungueltig"
+
+
+class TanAbgelaufen(BankFehler):
+    code = "tan_abgelaufen"
 
 
 class MailFehler(PluginFehler):
@@ -96,6 +122,10 @@ __all__ = [
     "BankZeitueberschreitung",
     "BankKontoUnbekannt",
     "TanErforderlich",
+    "BankPinFehlt",
+    "BankPinFalsch",
+    "TanUngueltig",
+    "TanAbgelaufen",
     "MailFehler",
     "MailVerbindungsFehler",
     "MailTokenAbgelaufen",

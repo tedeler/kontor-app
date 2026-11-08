@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import abc
 import datetime as dt
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import ClassVar
 
 
@@ -33,6 +33,14 @@ class BankUmsatz:
     storno: bool
 
 
+@dataclass(frozen=True)
+class TanAntwort:
+    """Vom Benutzer eingegebene TAN zu einer TAN-Anforderung (plugins.md 7.1). repr() enthält die TAN nie."""
+
+    anforderung_id: str
+    tan: str = field(repr=False)
+
+
 class BankPlugin(abc.ABC):
     """Lesender Zugriff auf Bankkonten. Es gibt bewusst keine schreibenden Methoden."""
 
@@ -43,10 +51,11 @@ class BankPlugin(abc.ABC):
     def konten(self) -> list[BankKonto]: ...
 
     @abc.abstractmethod
-    def umsaetze(self, iban: str, von: dt.date, bis: dt.date) -> list[BankUmsatz]: ...
+    def umsaetze(self, iban: str, von: dt.date, bis: dt.date, *,
+                 tan: TanAntwort | None = None) -> list[BankUmsatz]: ...
 
     def schliessen(self) -> None:
         return None
 
 
-__all__ = ["BankPlugin", "BankKonto", "BankUmsatz"]
+__all__ = ["BankPlugin", "BankKonto", "BankUmsatz", "TanAntwort"]

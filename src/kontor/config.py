@@ -36,9 +36,22 @@ class KontorConfig:
     mock_szenario: str = "normal"
     mock_daten: pathlib.Path | None = None
     mock_heute: dt.date | None = None
+    # Meilenstein 2: Synchronisation und Planer (python-api.md 8.2)
+    sync_intervall_minuten: int = 0
+    sync_wiederholung_minuten: int = 30
+    sync_erstabruf_tage: int = 90
+    sync_ueberlappung_tage: int = 14
+    planer_starten: bool = True
 
     def __post_init__(self) -> None:
         setze = object.__setattr__
+        for feld, minimum in (("sync_intervall_minuten", 0), ("sync_wiederholung_minuten", 1),
+                              ("sync_erstabruf_tage", 0), ("sync_ueberlappung_tage", 0)):
+            wert = getattr(self, feld)
+            if type(wert) is not int or wert < minimum:
+                raise KonfigurationsFehler(f"{feld} muss eine Ganzzahl ≥ {minimum} sein.", feld=feld)
+        if not isinstance(self.planer_starten, bool):
+            raise KonfigurationsFehler("planer_starten muss wahr oder falsch sein.", feld="planer_starten")
         setze(self, "datenbank", _als_pfad(self.datenbank, "datenbank"))
         if self.mock_datenbank is not None:
             setze(self, "mock_datenbank", _als_pfad(self.mock_datenbank, "mock_datenbank"))
@@ -96,14 +109,18 @@ class KontorConfig:
         datenbank = wert("KONTOR_DATENBANK")
         if not datenbank:
             raise KonfigurationsFehler("KONTOR_DATENBANK ist nicht gesetzt.", variable="KONTOR_DATENBANK")
-        modus_text = wert("KONTOR_MOCK_MODUS").lower()
-        if modus_text in _WAHR:
-            mock_modus = True
-        elif modus_text in _FALSCH:
-            mock_modus = False
-        else:
-            raise KonfigurationsFehler(f"KONTOR_MOCK_MODUS hat einen ungültigen Wert: {modus_text!r}.",
-                                       variable="KONTOR_MOCK_MODUS")
+        mock_modus = _wahrheitswert(wert("KONTOR_MOCK_MODUS"), "KONTOR_MOCK_MODUS", False)
+        planer_starten = _wahrheitswert(wert("KONTOR_PLANER_STARTEN"), "KONTOR_PLANER_STARTEN", True)
+        ganz = {}
+        for feld in ("sync_intervall_minuten", "sync_wiederholung_minuten", "sync_erstabruf_tage",
+                     "sync_ueberlappung_tage"):
+            variable = "KONTOR_" + feld.upper()
+            text = wert(variable)
+            if text:
+                if not text.isascii() or not text.isdigit():
+                    raise KonfigurationsFehler(f"{variable} muss eine nicht negative Ganzzahl sein.",
+                                               variable=variable)
+                ganz[feld] = int(text)
         heute_text = wert("KONTOR_MOCK_HEUTE")
         mock_heute = None
         if heute_text:
@@ -123,7 +140,20 @@ class KontorConfig:
             mock_szenario=wert("KONTOR_MOCK_SZENARIO") or "normal",
             mock_daten=pathlib.Path(wert("KONTOR_MOCK_DATEN")) if wert("KONTOR_MOCK_DATEN") else None,
             mock_heute=mock_heute,
+            planer_starten=planer_starten,
+            **ganz,
         )
+
+
+def _wahrheitswert(text: str, variable: str, leer: bool) -> bool:
+    t = text.lower()
+    if not t:
+        return leer
+    if t in _WAHR:
+        return True
+    if t in _FALSCH:
+        return False
+    raise KonfigurationsFehler(f"{variable} hat einen ungültigen Wert.", variable=variable)
 
 
 __all__ = ["KontorConfig"]

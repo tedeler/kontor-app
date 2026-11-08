@@ -1,0 +1,669 @@
+"""Bank-Synchronisation, TAN-Ablauf, PIN, App-Uhr, Planer und Benachrichtigungen (synchronisation.md).
+
+Ein ``SyncDienst`` gehört zu genau einer App-Instanz (``app.state.sync``).
+Er hält alles, was nur im Arbeitsspeicher leben darf: die Plugin-Instanz,
+die PIN, die interne Kennung offener TAN-Anforderungen und die simulierte
+Uhr im Mock-Modus. In der Datenbank landen nur Läufe, Zustände, gemerkte
+Kennungen, TAN-Anforderungen (ohne Kennung/TAN/PIN) und Benachrichtigungen.
+"""
+
+from __future__ import annotations
+
+import datetime as dt
+import logging
+import threading
+from dataclasses import dataclass
+
+from . import buch, db, regeln
+from .buch import BESTAND, ApiFehler
+from .config import KontorConfig
+from .fehler import (BankPinFalsch, KontorFehler, TanAbgelaufen, TanErforderlich, TanUngueltig)
+from .text import iban_normalisieren, passend
+
+log = logging.getLogger("kontor.sync")
+UTC = dt.timezone.utc
+KONTOARTEN_BESTAND = ("girokonto", "sparkonto", "kreditkonto")
+
+
+def zeit_text(z: dt.datetime) -> str:
+    return z.astimezone(UTC).replace(microsecond=0).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def zeit_lesen(s: str) -> dt.datetime:
+    return dt.datetime.strptime(s, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC)
+
+
+def _fehler_von(e: BaseException) -> tuple[str, str]:
+    """``{code, meldung}`` eines Pluginfehlers; Meldungen enthalten nie PIN oder TAN (plugins.md 7.1)."""
+    if isinstance(e, KontorFehler):
+        meldung = (e.meldung or "").strip() or "Fehler des Bank-Plugins."
+        return e.code, meldung
+    return "plugin_fehler", "Unerwarteter Fehler im Bank-Plugin."
+
+
+@dataclass
+class _TanKontext:
+    """Nur im Arbeitsspeicher: was für die Freigabe einer offenen TAN-Anforderung nötig ist."""
+    anforderung_id: str
+    plugin: object
+    lauf_id: int
+
+    def __repr__(self) -> str:
+        return f"_TanKontext(lauf_id={self.lauf_id})"
+
+
+class SyncDienst:
+    def __init__(self, config: KontorConfig) -> None:
+        self.config = config
+        self.pfad = config.aktive_datenbank
+        self._sperre = threading.Lock()       # höchstens ein Lauf gleichzeitig (je App)
+        self._zustand = threading.Lock()      # schützt Uhr, PIN, Plugin, Kontexte
+        self._plugin = None
+        self._pin: str | None = None
+        self._simuliert: dt.datetime | None = None
+        self._tan: dict[int, _TanKontext] = {}
+        self._thread: threading.Thread | None = None
+        self._stopp = threading.Event()
+
+    def __repr__(self) -> str:
+        return "SyncDienst()"
+
+    # ------------------------------------------------------------ App-Uhr
+    def jetzt(self) -> dt.datetime:
+        if self.config.mock_modus:
+            if self._simuliert is not None:
+                return self._simuliert
+            if self.config.mock_heute is not None:
+                h = self.config.mock_heute
+                return dt.datetime(h.year, h.month, h.day, 12, 0, 0, tzinfo=UTC)
+        return dt.datetime.now(UTC).replace(microsecond=0)
+
+    def heute(self) -> dt.date:
+        return self.jetzt().date()
+
+    def jetzt_text(self) -> str:
+        return zeit_text(self.jetzt())
+
+    def mock_zeit(self) -> dict:
+        self._nur_mock()
+        simuliert = self._simuliert is not None or self.config.mock_heute is not None
+        return {"jetzt": self.jetzt_text(), "heute": self.heute().isoformat(), "simuliert": simuliert}
+
+    def mock_zeit_setzen(self, jetzt: dt.datetime) -> dict:
+        self._nur_mock()
+        self._simuliert = jetzt.astimezone(UTC).replace(microsecond=0)
+        return self.mock_zeit()
+
+    def _nur_mock(self) -> None:
+        if not self.config.mock_modus:
+            raise ApiFehler(409, "nur_mock_modus", "Die simulierte Uhr gibt es nur im Mock-Modus.")
+
+    # ----------------------------------------------------------------- PIN
+    def pin_setzen(self, pin: str) -> None:
+        with self._zustand:
+            self._pin = pin
+
+    def pin_verwerfen(self) -> None:
+        with self._zustand:
+            self._pin = None
+
+    def _pin_quelle(self) -> str | None:
+        return self._pin
+
+    # -------------------------------------------------------------- Plugin
+    def _plugin_holen(self):
+        """Erzeugt das Bank-Plugin beim ersten Lauf und verwendet es danach weiter (python-api.md 8.4)."""
+        if self._plugin is None:
+            from .plugins import erzeuge_bank_plugin
+            self._plugin = erzeuge_bank_plugin(self.config, pin_quelle=self._pin_quelle)
+        return self._plugin
+
+    def _vor_aufruf(self, plugin) -> None:
+        if self.config.mock_modus and getattr(plugin, "ist_mock", False) and hasattr(plugin, "setze_heute"):
+            plugin.setze_heute(self.heute())
+
+    def _pluginfehler(self, e: BaseException) -> tuple[str, str]:
+        if isinstance(e, BankPinFalsch):
+            self.pin_verwerfen()  # nie erneut mit derselben PIN (Schutz vor Kontosperre)
+        if not isinstance(e, KontorFehler):
+            log.warning("Unerwarteter Fehler im Bank-Plugin: %s", type(e).__name__)
+        return _fehler_von(e)
+
+    # ------------------------------------------------------- Verbindungen
+    def _con(self):
+        return db.verbinde(self.pfad)
+
+    # ================================================================ Neustart
+    def neustart_aufraeumen(self) -> None:
+        """synchronisation.md 10: wartende/laufende Läufe und offene TAN-Anforderungen abbrechen."""
+        con = self._con()
+        try:
+            with db.transaktion(con):
+                jetzt = self.jetzt_text()
+                laeufe = [r["id"] for r in con.execute(
+                    "SELECT id FROM sync_lauf WHERE status IN ('laeuft','wartet_auf_tan')")]
+                for lid in laeufe:
+                    self._lauf_abbrechen(con, lid, jetzt)
+                con.execute("UPDATE tan_anforderung SET status = 'abgebrochen', beendet_am = ?, bild = NULL"
+                            " WHERE status = 'offen'", (jetzt,))
+        finally:
+            con.close()
+
+    @staticmethod
+    def _lauf_abbrechen(con, lid: int, jetzt: str) -> None:
+        con.execute("UPDATE sync_lauf SET status = 'abgebrochen', beendet_am = ? WHERE id = ?", (jetzt, lid))
+        con.execute("UPDATE sync_lauf_konto SET status = 'abgebrochen' WHERE lauf_id = ?"
+                    " AND status IN ('wartet_auf_tan','ausstehend')", (lid,))
+
+    # ======================================================== Benachrichtigung
+    def _benachrichtigen(self, con, art: str, schluessel: str, titel: str, text: str, link: str | None = None,
+                         entprellen: bool = True) -> None:
+        if entprellen and con.execute("SELECT 1 FROM benachrichtigung WHERE schluessel = ? AND gelesen = 0",
+                                      (schluessel,)).fetchone():
+            return
+        con.execute("INSERT INTO benachrichtigung (art, schluessel, titel, text, link, erstellt_am, gelesen)"
+                    " VALUES (?, ?, ?, ?, ?, ?, 0)", (art, schluessel, titel, text, link, self.jetzt_text()))
+
+    # ============================================================ TAN-Ablauf
+    def ablauf_pruefen(self) -> None:
+        """synchronisation.md 7.4: offene, abgelaufene TAN-Anforderungen beenden."""
+        jetzt = self.jetzt()
+        con = self._con()
+        try:
+            offen = con.execute("SELECT id, lauf_id, gueltig_bis FROM tan_anforderung WHERE status = 'offen'").fetchall()
+            faellig = [r for r in offen if jetzt > zeit_lesen(r["gueltig_bis"])]
+            if not faellig:
+                return
+            with db.transaktion(con):
+                for r in faellig:
+                    self._tan_ablaufen(con, r["id"], r["lauf_id"])
+        finally:
+            con.close()
+
+    def _tan_ablaufen(self, con, tid: int, lid: int) -> None:
+        jetzt = self.jetzt_text()
+        con.execute("UPDATE tan_anforderung SET status = 'abgelaufen', beendet_am = ?, bild = NULL WHERE id = ?",
+                    (jetzt, tid))
+        self._lauf_abbrechen(con, lid, jetzt)
+        self._benachrichtigen(con, "tan_abgelaufen", f"tan_abgelaufen:{tid}", "TAN-Anforderung abgelaufen",
+                              "Die TAN-Anforderung wurde nicht rechtzeitig beantwortet. Die Synchronisation wurde "
+                              "abgebrochen und kann neu gestartet werden.", entprellen=False)
+        with self._zustand:
+            self._tan.pop(tid, None)
+
+    # ================================================================ Lesen
+    def lauf_lesen(self, con, lid: int) -> dict:
+        r = con.execute("SELECT * FROM sync_lauf WHERE id = ?", (buch.sichere_id(lid),)).fetchone()
+        if r is None:
+            raise buch.nicht_gefunden("Der Synchronisationslauf")
+        return self._lauf_dict(con, r)
+
+    @staticmethod
+    def _lauf_dict(con, r) -> dict:
+        konten = []
+        for k in con.execute("SELECT * FROM sync_lauf_konto WHERE lauf_id = ? ORDER BY iban", (r["id"],)):
+            konten.append({
+                "iban": k["iban"], "konto_id": k["konto_id"], "konto_neu": bool(k["konto_neu"]),
+                "status": k["status"], "von": k["von"], "bis": k["bis"],
+                "umsaetze_gesamt": k["umsaetze_gesamt"], "vormerkungen_ignoriert": k["vormerkungen_ignoriert"],
+                "buchungen_vorhanden": k["buchungen_vorhanden"],
+                "buchungen_zusammengefuehrt": k["buchungen_zusammengefuehrt"], "buchungen_neu": k["buchungen_neu"],
+                "buchungen_zur_pruefung": k["buchungen_zur_pruefung"],
+                "buchungen_kategorisiert": k["buchungen_kategorisiert"],
+                "fehler": None if k["fehler_code"] is None else {"code": k["fehler_code"],
+                                                                 "meldung": k["fehler_meldung"]},
+            })
+        return {
+            "id": r["id"], "ausloeser": r["ausloeser"], "status": r["status"], "gestartet_am": r["gestartet_am"],
+            "beendet_am": r["beendet_am"], "von": r["von"], "bis": r["bis"],
+            "fehler": None if r["fehler_code"] is None else {"code": r["fehler_code"], "meldung": r["fehler_meldung"]},
+            "tan_anforderung_id": r["tan_anforderung_id"], "konten": konten,
+        }
+
+    def laeufe(self, con) -> list[dict]:
+        return [self._lauf_dict(con, r) for r in con.execute("SELECT * FROM sync_lauf ORDER BY id").fetchall()]
+
+    @staticmethod
+    def konten_zustand(con) -> list[dict]:
+        return [{"iban": r["iban"], "konto_id": r["konto_id"], "letzter_abruf_bis": r["letzter_abruf_bis"],
+                 "letzter_erfolg_am": r["letzter_erfolg_am"]}
+                for r in con.execute("SELECT * FROM sync_konto_zustand ORDER BY iban")]
+
+    @staticmethod
+    def _tan_dict(r) -> dict:
+        return {"id": r["id"], "lauf_id": r["lauf_id"], "iban": r["iban"], "konto_id": r["konto_id"],
+                "status": r["status"], "erstellt_am": r["erstellt_am"], "gueltig_bis": r["gueltig_bis"],
+                "beendet_am": r["beendet_am"], "challenge": r["challenge"], "hat_bild": bool(r["hat_bild"])}
+
+    _TAN_SQL = ("SELECT id, lauf_id, iban, konto_id, status, erstellt_am, gueltig_bis, beendet_am, challenge,"
+                " bild IS NOT NULL OR hatte_bild AS hat_bild FROM ("
+                " SELECT *, bild_mime_typ IS NOT NULL AS hatte_bild FROM tan_anforderung)")
+
+    def tans(self, con) -> list[dict]:
+        return [self._tan_dict(r) for r in con.execute(self._TAN_SQL + " ORDER BY id")]
+
+    def tan_lesen(self, con, tid: int) -> dict:
+        r = con.execute(self._TAN_SQL + " WHERE id = ?", (buch.sichere_id(tid),)).fetchone()
+        if r is None:
+            raise buch.nicht_gefunden("Die TAN-Anforderung")
+        return self._tan_dict(r)
+
+    def tan_bild(self, con, tid: int) -> tuple[bytes, str]:
+        r = con.execute("SELECT status, bild, bild_mime_typ FROM tan_anforderung WHERE id = ?",
+                        (buch.sichere_id(tid),)).fetchone()
+        if r is None or r["status"] != "offen" or r["bild"] is None or not r["bild_mime_typ"]:
+            raise buch.nicht_gefunden("Das Bild der TAN-Anforderung")
+        return bytes(r["bild"]), r["bild_mime_typ"]
+
+    def _naechster_lauf(self, con) -> str | None:
+        c = self.config
+        if c.sync_intervall_minuten <= 0:
+            return None
+        if con.execute("SELECT 1 FROM sync_lauf WHERE status IN ('laeuft','wartet_auf_tan')").fetchone():
+            return None
+        r = con.execute("SELECT * FROM sync_lauf WHERE beendet_am IS NOT NULL ORDER BY id DESC LIMIT 1").fetchone()
+        if r is None:
+            return self.jetzt_text()
+        minuten = c.sync_wiederholung_minuten if r["status"] == "fehlgeschlagen" else c.sync_intervall_minuten
+        return zeit_text(zeit_lesen(r["beendet_am"]) + dt.timedelta(minutes=minuten))
+
+    def status(self, con) -> dict:
+        letzter = con.execute("SELECT * FROM sync_lauf ORDER BY id DESC LIMIT 1").fetchone()
+        offen = con.execute(self._TAN_SQL + " WHERE status = 'offen' ORDER BY id DESC LIMIT 1").fetchone()
+        laeuft = con.execute("SELECT 1 FROM sync_lauf WHERE status = 'laeuft'").fetchone() is not None
+        return {
+            "automatisch": self.config.sync_intervall_minuten > 0,
+            "intervall_minuten": self.config.sync_intervall_minuten,
+            "laeuft": laeuft,
+            "jetzt": self.jetzt_text(),
+            "naechster_lauf": self._naechster_lauf(con),
+            "letzter_lauf": None if letzter is None else self._lauf_dict(con, letzter),
+            "offene_tan_anforderung": None if offen is None else self._tan_dict(offen),
+            "pin_vorhanden": self._pin is not None,
+        }
+
+    # =============================================================== Lauf
+    def starten(self, ausloeser: str, von: str | None, bis: str | None) -> dict:
+        """Startet einen Lauf synchron (409 ``sync_laeuft``/``tan_ausstehend``)."""
+        if not self._sperre.acquire(blocking=False):
+            raise ApiFehler(409, "sync_laeuft", "Es läuft bereits eine Synchronisation.")
+        try:
+            con = self._con()
+            try:
+                with db.transaktion(con):
+                    zeile = con.execute("SELECT status FROM sync_lauf WHERE status IN ('laeuft','wartet_auf_tan')"
+                                        " ORDER BY id DESC LIMIT 1").fetchone()
+                    if zeile is not None and zeile["status"] == "laeuft":
+                        raise ApiFehler(409, "sync_laeuft", "Es läuft bereits eine Synchronisation.")
+                    if zeile is not None or con.execute(
+                            "SELECT 1 FROM tan_anforderung WHERE status = 'offen'").fetchone():
+                        raise ApiFehler(409, "tan_ausstehend",
+                                        "Eine TAN-Anforderung wartet auf Antwort; erst beantworten oder abbrechen.")
+                    lid = con.execute(
+                        "INSERT INTO sync_lauf (ausloeser, status, gestartet_am, von, bis) VALUES (?, 'laeuft', ?, ?, ?)",
+                        (ausloeser, self.jetzt_text(), von, bis)).lastrowid
+                self._ausfuehren(con, lid)
+                return self.lauf_lesen(con, lid)
+            finally:
+                con.close()
+        finally:
+            self._sperre.release()
+
+    def _lauf_scheitert(self, con, lid: int, code: str, meldung: str) -> None:
+        with db.transaktion(con):
+            con.execute("UPDATE sync_lauf SET status = 'fehlgeschlagen', beendet_am = ?, fehler_code = ?,"
+                        " fehler_meldung = ? WHERE id = ?", (self.jetzt_text(), code, meldung, lid))
+            self._fehler_melden(con, [code])
+
+    def _fehler_melden(self, con, codes: list[str]) -> None:
+        for code in dict.fromkeys(codes):
+            self._benachrichtigen(con, "sync_fehler", f"sync_fehler:{code}", "Synchronisation fehlgeschlagen",
+                                  f"Der Abruf bei der Bank ist fehlgeschlagen (Fehler „{code}“). "
+                                  "Kontor versucht es später erneut; vorhandene Daten bleiben erhalten.")
+
+    def _ausfuehren(self, con, lid: int) -> None:
+        try:
+            plugin = self._plugin_holen()
+            self._vor_aufruf(plugin)
+            bankkonten = plugin.konten()
+        except TanErforderlich as e:  # D-024: TAN beim Kontenabruf ist ein Fehler des Laufs
+            self._lauf_scheitert(con, lid, *_fehler_von(e))
+            return
+        except Exception as e:  # noqa: BLE001 - Pluginfehler führen nie zu 5xx
+            self._lauf_scheitert(con, lid, *self._pluginfehler(e))
+            return
+        self._zuordnen(con, lid, bankkonten)
+        self._fortsetzen(con, lid, plugin)
+
+    def _zuordnen(self, con, lid: int, bankkonten) -> None:
+        """synchronisation.md 3: Zuordnung (inkl. Anlegen) aller Bankkonten vor dem ersten Abruf."""
+        gesehen: dict[str, object] = {}
+        for bk in bankkonten:
+            n = iban_normalisieren(str(bk.iban))
+            gesehen.setdefault(n, bk)
+        with db.transaktion(con):
+            for iban in sorted(gesehen):
+                bk = gesehen[iban]
+                r = con.execute("SELECT id FROM konto WHERE iban = ?", (iban,)).fetchone()
+                neu = r is None
+                if neu:
+                    name = (bk.name or "").strip() or iban
+                    art = bk.art if bk.art in KONTOARTEN_BESTAND else "girokonto"
+                    kid = con.execute(
+                        "INSERT INTO konto (name, art, eltern_id, iban, geschlossen, eroeffnet_am, notiz, extern_id)"
+                        " VALUES (?, ?, NULL, ?, 0, NULL, '', NULL)", (name, art, iban)).lastrowid
+                else:
+                    kid = r["id"]
+                con.execute("INSERT INTO sync_lauf_konto (lauf_id, iban, konto_id, konto_neu, status)"
+                            " VALUES (?, ?, ?, ?, 'ausstehend')", (lid, iban, kid, 1 if neu else 0))
+                con.execute("INSERT INTO sync_konto_zustand (iban, konto_id) VALUES (?, ?)"
+                            " ON CONFLICT(iban) DO UPDATE SET konto_id = excluded.konto_id", (iban, kid))
+
+    def _zeitraum(self, con, lauf, iban: str) -> tuple[dt.date, dt.date]:
+        heute = self.heute()
+        bis = dt.date.fromisoformat(lauf["bis"]) if lauf["bis"] else heute
+        if lauf["von"]:
+            von = dt.date.fromisoformat(lauf["von"])
+        else:
+            z = con.execute("SELECT letzter_abruf_bis FROM sync_konto_zustand WHERE iban = ?", (iban,)).fetchone()
+            if z is not None and z["letzter_abruf_bis"]:
+                von = dt.date.fromisoformat(z["letzter_abruf_bis"]) - dt.timedelta(
+                    days=self.config.sync_ueberlappung_tage)
+            else:
+                von = heute - dt.timedelta(days=self.config.sync_erstabruf_tage)
+        if von > bis:
+            von = bis
+        return von, bis
+
+    def _fortsetzen(self, con, lid: int, plugin) -> None:
+        """Verarbeitet alle noch ausstehenden Konten in IBAN-Reihenfolge, dann Abschluss (5)."""
+        while True:
+            lauf = con.execute("SELECT * FROM sync_lauf WHERE id = ?", (lid,)).fetchone()
+            k = con.execute("SELECT * FROM sync_lauf_konto WHERE lauf_id = ? AND status = 'ausstehend'"
+                            " ORDER BY iban LIMIT 1", (lid,)).fetchone()
+            if k is None:
+                break
+            von, bis = self._zeitraum(con, lauf, k["iban"])
+            try:
+                self._vor_aufruf(plugin)
+                umsaetze = plugin.umsaetze(k["iban"], von, bis)
+            except TanErforderlich as e:
+                self._tan_anlegen(con, lid, k, von, bis, e, plugin)
+                return
+            except Exception as e:  # noqa: BLE001
+                self._konto_scheitert(con, lid, k["iban"], von, bis, *self._pluginfehler(e))
+                continue
+            self._konto_uebernehmen(con, lid, k, von, bis, umsaetze)
+        self._abschliessen(con, lid)
+
+    def _konto_scheitert(self, con, lid: int, iban: str, von: dt.date, bis: dt.date, code: str,
+                         meldung: str) -> None:
+        with db.transaktion(con):
+            con.execute("UPDATE sync_lauf_konto SET status = 'fehlgeschlagen', von = ?, bis = ?, fehler_code = ?,"
+                        " fehler_meldung = ? WHERE lauf_id = ? AND iban = ?",
+                        (von.isoformat(), bis.isoformat(), code, meldung, lid, iban))
+
+    def _abschliessen(self, con, lid: int) -> None:
+        with db.transaktion(con):
+            fehler = con.execute("SELECT fehler_code, fehler_meldung FROM sync_lauf_konto WHERE lauf_id = ?"
+                                 " AND status = 'fehlgeschlagen' ORDER BY iban", (lid,)).fetchall()
+            if fehler:
+                con.execute("UPDATE sync_lauf SET status = 'fehlgeschlagen', beendet_am = ?, fehler_code = ?,"
+                            " fehler_meldung = ? WHERE id = ?",
+                            (self.jetzt_text(), fehler[0]["fehler_code"], fehler[0]["fehler_meldung"], lid))
+                self._fehler_melden(con, [f["fehler_code"] for f in fehler])
+            else:
+                con.execute("UPDATE sync_lauf SET status = 'erfolgreich', beendet_am = ? WHERE id = ?",
+                            (self.jetzt_text(), lid))
+
+    # ------------------------------------------------------------- TAN
+    def _tan_anlegen(self, con, lid: int, k, von: dt.date, bis: dt.date, e: TanErforderlich, plugin) -> None:
+        gueltig = e.gueltig_bis if isinstance(e.gueltig_bis, dt.datetime) else self.jetzt()
+        if gueltig.tzinfo is None:
+            gueltig = gueltig.replace(tzinfo=UTC)
+        bild = e.bild if isinstance(e.bild, (bytes, bytearray)) and e.bild_mime_typ else None
+        challenge = (e.challenge or "").strip() or "Bitte die TAN-Anforderung freigeben."
+        with db.transaktion(con):
+            tid = con.execute(
+                "INSERT INTO tan_anforderung (lauf_id, iban, konto_id, status, erstellt_am, gueltig_bis, challenge,"
+                " bild, bild_mime_typ) VALUES (?, ?, ?, 'offen', ?, ?, ?, ?, ?)",
+                (lid, k["iban"], k["konto_id"], self.jetzt_text(), zeit_text(gueltig), challenge,
+                 bytes(bild) if bild is not None else None, e.bild_mime_typ if bild is not None else None)).lastrowid
+            con.execute("UPDATE sync_lauf_konto SET status = 'wartet_auf_tan', von = ?, bis = ?"
+                        " WHERE lauf_id = ? AND iban = ?", (von.isoformat(), bis.isoformat(), lid, k["iban"]))
+            con.execute("UPDATE sync_lauf SET status = 'wartet_auf_tan', tan_anforderung_id = ? WHERE id = ?",
+                        (tid, lid))
+            self._benachrichtigen(con, "tan_erforderlich", f"tan:{tid}", "TAN erforderlich",
+                                  "Die Bank verlangt für den Kontoabruf eine TAN. Bitte die TAN-Seite öffnen, "
+                                  "den QR-Code mit der Banking-App scannen und die TAN eingeben.",
+                                  link=f"/tan/{tid}", entprellen=False)
+        with self._zustand:
+            self._tan[tid] = _TanKontext(str(e.anforderung_id), plugin, lid)
+
+    def tan_antworten(self, tid: int, tan: str) -> dict:
+        from .plugins.bank import TanAntwort
+        con = self._con()
+        try:
+            self.tan_lesen(con, tid)  # 404
+            self.ablauf_pruefen()
+            t = self.tan_lesen(con, tid)
+            if t["status"] == "abgelaufen":
+                raise ApiFehler(409, "tan_abgelaufen", "Die TAN-Anforderung ist abgelaufen.")
+            if t["status"] != "offen":
+                raise ApiFehler(409, "tan_nicht_offen", "Die TAN-Anforderung ist nicht mehr offen.")
+            if not self._sperre.acquire(timeout=60):
+                raise ApiFehler(409, "sync_laeuft", "Es läuft bereits eine Synchronisation.")
+            try:
+                with self._zustand:
+                    kontext = self._tan.get(tid)
+                if kontext is None:
+                    # Kontext verloren (z. B. andere App-Instanz): sauber abbrechen.
+                    with db.transaktion(con):
+                        self._tan_beenden(con, tid, "abgebrochen")
+                        self._lauf_abbrechen(con, t["lauf_id"], self.jetzt_text())
+                    raise ApiFehler(409, "tan_nicht_offen", "Die TAN-Anforderung ist nicht mehr offen.")
+                lid = t["lauf_id"]
+                k = con.execute("SELECT * FROM sync_lauf_konto WHERE lauf_id = ? AND iban = ?",
+                                (lid, t["iban"])).fetchone()
+                von, bis = dt.date.fromisoformat(k["von"]), dt.date.fromisoformat(k["bis"])
+                plugin = kontext.plugin
+                try:
+                    self._vor_aufruf(plugin)
+                    umsaetze = plugin.umsaetze(t["iban"], von, bis, tan=TanAntwort(kontext.anforderung_id, tan))
+                except TanUngueltig:
+                    raise ApiFehler(422, "tan_ungueltig", "Die TAN wurde von der Bank nicht akzeptiert.") from None
+                except TanAbgelaufen:
+                    with db.transaktion(con):
+                        self._tan_ablaufen(con, tid, lid)
+                    raise ApiFehler(409, "tan_abgelaufen", "Die TAN-Anforderung ist abgelaufen.") from None
+                except Exception as e:  # noqa: BLE001
+                    code, meldung = self._pluginfehler(e)
+                    with db.transaktion(con):
+                        self._tan_beenden(con, tid, "abgebrochen")
+                        con.execute("UPDATE sync_lauf SET status = 'laeuft' WHERE id = ?", (lid,))
+                    self._konto_scheitert(con, lid, t["iban"], von, bis, code, meldung)
+                else:
+                    with db.transaktion(con):
+                        self._tan_beenden(con, tid, "beantwortet")
+                        con.execute("UPDATE sync_lauf SET status = 'laeuft' WHERE id = ?", (lid,))
+                    self._konto_uebernehmen(con, lid, k, von, bis, umsaetze)
+                self._fortsetzen(con, lid, plugin)
+                return self.lauf_lesen(con, lid)
+            finally:
+                self._sperre.release()
+        finally:
+            con.close()
+
+    def _tan_beenden(self, con, tid: int, status: str) -> None:
+        con.execute("UPDATE tan_anforderung SET status = ?, beendet_am = ?, bild = NULL WHERE id = ?",
+                    (status, self.jetzt_text(), tid))
+        with self._zustand:
+            self._tan.pop(tid, None)
+
+    def tan_abbrechen(self, tid: int) -> dict:
+        con = self._con()
+        try:
+            self.tan_lesen(con, tid)
+            self.ablauf_pruefen()
+            with db.transaktion(con):
+                t = self.tan_lesen(con, tid)
+                if t["status"] == "abgelaufen":
+                    raise ApiFehler(409, "tan_abgelaufen", "Die TAN-Anforderung ist abgelaufen.")
+                if t["status"] != "offen":
+                    raise ApiFehler(409, "tan_nicht_offen", "Die TAN-Anforderung ist nicht mehr offen.")
+                self._tan_beenden(con, tid, "abgebrochen")
+                self._lauf_abbrechen(con, t["lauf_id"], self.jetzt_text())
+            return self.tan_lesen(con, tid)
+        finally:
+            con.close()
+
+    # ======================================================== Übernahme (4)
+    def _konto_uebernehmen(self, con, lid: int, k, von: dt.date, bis: dt.date, umsaetze) -> None:
+        iban, kid = k["iban"], k["konto_id"]
+        z = dict(umsaetze_gesamt=len(umsaetze), vormerkungen_ignoriert=0, buchungen_vorhanden=0,
+                 buchungen_zusammengefuehrt=0, buchungen_neu=0, buchungen_zur_pruefung=0, buchungen_kategorisiert=0)
+        reihe = sorted(umsaetze, key=lambda u: (u.buchungstag, u.umsatz_id))
+        with db.transaktion(con):
+            offen = []
+            gesehen: set[str] = set()
+            for u in reihe:
+                if u.vormerkung:
+                    z["vormerkungen_ignoriert"] += 1
+                    continue
+                kennung = f"bank:{iban}:{u.umsatz_id}"
+                if kennung in gesehen or con.execute("SELECT 1 FROM sync_kennung WHERE kennung = ?",
+                                                     (kennung,)).fetchone():
+                    z["buchungen_vorhanden"] += 1
+                    continue
+                gesehen.add(kennung)
+                offen.append((u, kennung))
+            self._abgleichen_und_buchen(con, kid, iban, offen, z)
+            con.execute("UPDATE sync_lauf_konto SET status = 'erfolgreich', von = ?, bis = ?, fehler_code = NULL,"
+                        " fehler_meldung = NULL, umsaetze_gesamt = ?, vormerkungen_ignoriert = ?,"
+                        " buchungen_vorhanden = ?, buchungen_zusammengefuehrt = ?, buchungen_neu = ?,"
+                        " buchungen_zur_pruefung = ?, buchungen_kategorisiert = ? WHERE lauf_id = ? AND iban = ?",
+                        (von.isoformat(), bis.isoformat(), z["umsaetze_gesamt"], z["vormerkungen_ignoriert"],
+                         z["buchungen_vorhanden"], z["buchungen_zusammengefuehrt"], z["buchungen_neu"],
+                         z["buchungen_zur_pruefung"], z["buchungen_kategorisiert"], lid, iban))
+            alt = con.execute("SELECT letzter_abruf_bis FROM sync_konto_zustand WHERE iban = ?", (iban,)).fetchone()
+            neu_bis = bis.isoformat()
+            if alt is not None and alt["letzter_abruf_bis"] and alt["letzter_abruf_bis"] > neu_bis:
+                neu_bis = alt["letzter_abruf_bis"]
+            con.execute("INSERT INTO sync_konto_zustand (iban, konto_id, letzter_abruf_bis, letzter_erfolg_am)"
+                        " VALUES (?, ?, ?, ?) ON CONFLICT(iban) DO UPDATE SET konto_id = excluded.konto_id,"
+                        " letzter_abruf_bis = excluded.letzter_abruf_bis, letzter_erfolg_am = excluded.letzter_erfolg_am",
+                        (iban, kid, neu_bis, self.jetzt_text()))
+
+    def _abgleichen_und_buchen(self, con, kid: int, iban: str, offen: list, z: dict) -> None:
+        """4.4: erst alle Umsätze bewerten, dann anwenden; danach 4.2 (Anlegen)."""
+        praefix = f"bank:{iban}:"
+        bewertung = []
+        for u, kennung in offen:
+            name = (u.gegenpartei_name or "").strip() or None
+            tag = u.buchungstag
+            exakt, aehnlich = set(), set()
+            for c in con.execute(
+                    "SELECT DISTINCT b.id AS id, b.datum AS datum, e.name AS name FROM split s"
+                    " JOIN buchung b ON b.id = s.buchung_id LEFT JOIN empfaenger e ON e.id = b.empfaenger_id"
+                    " WHERE s.konto_id = ? AND s.betrag = ?"
+                    " AND NOT EXISTS (SELECT 1 FROM buchung_extern x WHERE x.buchung_id = b.id"
+                    "                 AND substr(x.extern_id, 1, ?) = ?)",
+                    (kid, u.betrag, len(praefix), praefix)):
+                c_datum = dt.date.fromisoformat(c["datum"])
+                if c_datum == tag and passend(name, c["name"]):
+                    exakt.add(c["id"])
+                elif abs((c_datum - tag).days) <= 3:
+                    aehnlich.add(c["id"])
+            bewertung.append((u, kennung, name, exakt, aehnlich - exakt))
+        # Kandidaten = Buchungen zu Beginn der Verarbeitung des Kontos: Bewertung ist vor dem Anlegen abgeschlossen.
+        zaehler: dict[int, int] = {}
+        for _u, _k, _n, exakt, _a in bewertung:
+            for c in exakt:
+                zaehler[c] = zaehler.get(c, 0) + 1
+        regelliste = regeln.aktive_regeln(con)
+        unk_id: int | None = None
+        jetzt = self.jetzt_text()
+        for u, kennung, name, exakt, aehnlich in bewertung:
+            con.execute("INSERT OR IGNORE INTO sync_kennung (kennung) VALUES (?)", (kennung,))
+            if len(exakt) == 1 and zaehler[next(iter(exakt))] == 1:
+                con.execute("INSERT OR IGNORE INTO buchung_extern (buchung_id, extern_id) VALUES (?, ?)",
+                            (next(iter(exakt)), kennung))
+                z["buchungen_zusammengefuehrt"] += 1
+                continue
+            if unk_id is None:
+                unk_id = buch.unkategorisiert_id(con)
+            regel = regeln.erste_regel(regelliste, regeln.Sicht(name, u.verwendungszweck, u.betrag, {kid}))
+            gegen = regel["kategorie_id"] if regel else unk_id
+            empf_id = None
+            if name is not None:
+                r = con.execute("SELECT id FROM empfaenger WHERE name = ?", (name,)).fetchone()
+                empf_id = r["id"] if r else con.execute(
+                    "INSERT INTO empfaenger (name, extern_id) VALUES (?, NULL)", (name,)).lastrowid
+            splits = [{"konto_id": kid, "betrag": u.betrag, "memo": ""},
+                      {"konto_id": gegen, "betrag": -u.betrag, "memo": ""}]
+            bid = buch.buchung_einfuegen(con, u.buchungstag.isoformat(), empf_id, u.verwendungszweck, "importiert",
+                                         splits, (), [kennung])
+            z["buchungen_neu"] += 1
+            if regel:
+                con.execute("INSERT INTO vorschlag (buchung_id, kategorie_id, regel_id, quelle, vorher_konto_id)"
+                            " VALUES (?, ?, ?, 'regel', ?)", (bid, regel["kategorie_id"], regel["id"], unk_id))
+                z["buchungen_kategorisiert"] += 1
+            kandidaten = exakt | aehnlich
+            if kandidaten:
+                vid = con.execute("INSERT INTO dublettenverdacht (buchung_id, grund, status, erstellt_am)"
+                                  " VALUES (?, ?, 'offen', ?)",
+                                  (bid, "mehrdeutig" if exakt else "aehnlich", jetzt)).lastrowid
+                con.executemany("INSERT INTO verdacht_kandidat (verdacht_id, buchung_id) VALUES (?, ?)",
+                                [(vid, c) for c in sorted(kandidaten)])
+                z["buchungen_zur_pruefung"] += 1
+
+    # ================================================================ Planer
+    def takt(self) -> dict | None:
+        """Ein Planer-Takt (synchronisation.md 9)."""
+        self.ablauf_pruefen()
+        if self.config.sync_intervall_minuten <= 0:
+            return None
+        con = self._con()
+        try:
+            naechster = self._naechster_lauf(con)
+        finally:
+            con.close()
+        if naechster is None or zeit_lesen(naechster) > self.jetzt():
+            return None
+        try:
+            return self.starten("planer", None, None)
+        except ApiFehler:
+            return None
+
+    def planer_starten(self) -> None:
+        if self.config.sync_intervall_minuten <= 0 or not self.config.planer_starten or self._thread is not None:
+            return
+        self._stopp.clear()
+
+        def schleife() -> None:
+            if self._stopp.wait(1.0):
+                return
+            while True:
+                try:
+                    self.takt()
+                except Exception:  # noqa: BLE001
+                    log.exception("Fehler im Planer-Takt")
+                if self._stopp.wait(30.0):
+                    return
+
+        self._thread = threading.Thread(target=schleife, name="kontor-planer", daemon=True)
+        self._thread.start()
+
+    def planer_stoppen(self) -> None:
+        self._stopp.set()
+        if self._thread is not None:
+            self._thread.join(timeout=70)
+            self._thread = None
+
+
+def planer_takt(app) -> dict | None:
+    """Führt genau einen Planer-Takt synchron aus (python-api.md 8.3)."""
+    return app.state.sync.takt()
+
+
+__all__ = ["planer_takt", "SyncDienst"]

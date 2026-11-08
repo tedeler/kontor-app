@@ -140,7 +140,37 @@ def konto_loeschen(con, konto_id: int) -> None:
         raise ApiFehler(409, "konto_in_verwendung", "Auf das Konto wird noch gebucht.")
     if con.execute("SELECT 1 FROM konto WHERE eltern_id = ? LIMIT 1", (konto_id,)).fetchone():
         raise ApiFehler(409, "konto_in_verwendung", "Das Konto hat noch Unterkonten.")
+    if konto_in_regeln(con, konto_id):
+        raise ApiFehler(409, "konto_in_verwendung", "Eine Regel verweist auf das Konto.")
     con.execute("DELETE FROM konto WHERE id = ?", (konto_id,))
+
+
+def konto_in_regeln(con, konto_id: int) -> bool:
+    """Verweist eine Regel (Kategorie oder Bedingung ``konto_id``) auf das Konto? (kategorisierung.md 1.2)"""
+    for r in con.execute("SELECT kategorie_id, bedingungen FROM regel"):
+        if r["kategorie_id"] == konto_id:
+            return True
+        if any(b.get("feld") == "konto_id" and b.get("wert") == konto_id for b in json.loads(r["bedingungen"])):
+            return True
+    return False
+
+
+UNKATEGORISIERT = "kontor:unkategorisiert"
+
+
+def unkategorisiert_id(con) -> int:
+    """Technisches Konto „Unkategorisiert“ (synchronisation.md 4.2); bei Bedarf angelegt."""
+    r = con.execute("SELECT id FROM konto WHERE extern_id = ?", (UNKATEGORISIERT,)).fetchone()
+    if r is None:
+        r = con.execute(
+            "INSERT INTO konto (name, art, eltern_id, iban, geschlossen, eroeffnet_am, notiz, extern_id)"
+            " VALUES ('Unkategorisiert', 'eigenkapital', NULL, NULL, 0, NULL, '', ?) RETURNING id",
+            (UNKATEGORISIERT,)).fetchone()
+    return r["id"]
+
+
+def vorschlag_entfernen(con, ids: Iterable[int]) -> None:
+    con.executemany("DELETE FROM vorschlag WHERE buchung_id = ?", [(i,) for i in ids])
 
 
 def kinder_karte(con) -> dict[int, list[int]]:
@@ -306,6 +336,7 @@ def buchungen_laden(con, ids: list[int], konto_id: int | None = None,
     splits: dict[int, list[dict]] = defaultdict(list)
     tags: dict[int, list[dict]] = defaultdict(list)
     extern: dict[int, list[str]] = defaultdict(list)
+    vorschlaege: dict[int, dict] = {}
     for teil in _stueckweise(ids):
         ph = _platzhalter(len(teil))
         for r in con.execute(
@@ -322,6 +353,9 @@ def buchungen_laden(con, ids: list[int], konto_id: int | None = None,
             tags[r["buchung_id"]].append({"id": r["id"], "name": r["name"]})
         for r in con.execute(f"SELECT * FROM buchung_extern WHERE buchung_id IN ({ph})", teil):
             extern[r["buchung_id"]].append(r["extern_id"])
+        for r in con.execute(f"SELECT * FROM vorschlag WHERE buchung_id IN ({ph})", teil):
+            vorschlaege[r["buchung_id"]] = {"kategorie_id": r["kategorie_id"], "regel_id": r["regel_id"],
+                                            "quelle": r["quelle"], "vorher_konto_id": r["vorher_konto_id"]}
     aus = []
     for bid in ids:
         r = kopf.get(bid)
@@ -344,6 +378,7 @@ def buchungen_laden(con, ids: list[int], konto_id: int | None = None,
             "betrag": betrag,
             "extern_ids": sorted(extern[bid]),
             "belege": [],
+            "vorschlag": vorschlaege.get(bid),
         })
     return aus
 
@@ -439,6 +474,8 @@ def buchung_aendern(con, bid: int, d: dict) -> dict:
             werte.append(d[f])
     if felder:
         con.execute(f"UPDATE buchung SET {', '.join(felder)} WHERE id = ?", (*werte, bid))
+    if "status" in d and d["status"] != alt["status"] and d["status"] in ("bestaetigt", "abgeglichen"):
+        vorschlag_entfernen(con, [bid])  # Bestätigung erledigt den Vorschlag (kategorisierung.md 5)
     if tag_ids is not None:
         con.execute("DELETE FROM buchung_tag WHERE buchung_id = ?", (bid,))
         con.executemany("INSERT INTO buchung_tag (buchung_id, tag_id) VALUES (?, ?)", [(bid, t) for t in tag_ids])
@@ -451,6 +488,7 @@ def splits_ersetzen(con, bid: int, splits: list[dict]) -> dict:
         raise _gesperrt()
     _splits_regeln(con, splits)
     splits_schreiben(con, bid, splits)
+    vorschlag_entfernen(con, [bid])
     return buchung_lesen(con, bid)
 
 
@@ -475,6 +513,7 @@ def kategorie_setzen(con, bid: int, kategorie_id: int) -> dict:
         raise ApiFehler(422, "nicht_kategorisierbar",
                         "Die Buchung hat nicht genau einen Gegensplit und lässt sich nicht kategorisieren.")
     con.execute("UPDATE split SET konto_id = ? WHERE id = ?", (kategorie_id, s["id"]))
+    vorschlag_entfernen(con, [bid])
     return buchung_lesen(con, bid)
 
 
@@ -523,6 +562,7 @@ def mehrfach_kategorie(con, ids: list[int], kategorie_id: int) -> dict:
                         {"buchung_ids": sorted(nicht)})
     con.executemany("UPDATE split SET konto_id = ? WHERE id = ?",
                     [(kategorie_id, s["id"]) for s in gegen.values()])
+    vorschlag_entfernen(con, ids)
     return {"geaendert": sorted(ids), "anzahl": len(ids)}
 
 
@@ -593,6 +633,8 @@ def buchungsliste(con, f: dict) -> dict:
                    " OR EXISTS (SELECT 1 FROM buchung_tag bt JOIN tag t ON t.id = bt.tag_id"
                    " WHERE bt.buchung_id = b.id AND instr(norm(t.name), ?) > 0))")
         par.extend([n, n, n, n])
+    if f.get("vorschlag") is not None:
+        bed.append(("" if f["vorschlag"] else "NOT ") + "EXISTS (SELECT 1 FROM vorschlag v WHERE v.buchung_id = b.id)")
     if f.get("status"):
         st = sorted(set(f["status"]))
         bed.append(f"b.status IN ({_platzhalter(len(st))})")
@@ -689,3 +731,27 @@ def verdacht_aufloesen(con, vid: int, entscheidung: str, behalten_id: int | None
     con.executemany("INSERT INTO buchung_extern (buchung_id, extern_id) VALUES (?, ?)",
                     [(behalten_id, e) for e in neu["extern_ids"]])
     return verdacht_lesen(con, vid)
+
+
+# ========================================================= Benachrichtigungen
+
+
+def _benachrichtigung_dict(r) -> dict:
+    return {"id": r["id"], "art": r["art"], "schluessel": r["schluessel"], "titel": r["titel"], "text": r["text"],
+            "link": r["link"], "erstellt_am": r["erstellt_am"], "gelesen": bool(r["gelesen"])}
+
+
+def benachrichtigungen_liste(con, gelesen: bool | None) -> list[dict]:
+    if gelesen is None:
+        zeilen = con.execute("SELECT * FROM benachrichtigung ORDER BY id")
+    else:
+        zeilen = con.execute("SELECT * FROM benachrichtigung WHERE gelesen = ? ORDER BY id", (1 if gelesen else 0,))
+    return [_benachrichtigung_dict(r) for r in zeilen]
+
+
+def benachrichtigung_gelesen(con, nid: int) -> dict:
+    r = con.execute("SELECT * FROM benachrichtigung WHERE id = ?", (sichere_id(nid),)).fetchone()
+    if r is None:
+        raise nicht_gefunden("Die Benachrichtigung")
+    con.execute("UPDATE benachrichtigung SET gelesen = 1 WHERE id = ?", (nid,))
+    return _benachrichtigung_dict(con.execute("SELECT * FROM benachrichtigung WHERE id = ?", (nid,)).fetchone())

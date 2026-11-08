@@ -7,9 +7,12 @@ Transaktion. Mehrere Apps im selben Prozess teilen keinen Zustand.
 
 from __future__ import annotations
 
+import contextlib
+import datetime as dt
 import functools
 import logging
 import pathlib
+import re
 from collections.abc import Callable
 from typing import Any
 
@@ -21,7 +24,8 @@ from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.staticfiles import StaticFiles
 
-from . import __version__, buch, db
+from . import __version__, buch, db, regeln
+from .sync import SyncDienst
 from .config import KontorConfig
 from .importer.kmymoney import importiere_bytes
 from .validierung import (BETRAG_MAX, STATUS, ApiFehler, Feld, Query, Validierungsfehler, fehler_eintrag,
@@ -112,6 +116,22 @@ MEHRFACH_TAGS = {
 }
 TAG_EINGABE = {"name": S("str", pflicht=True, strip=True, min_len=1, max_len=100)}
 EMPFAENGER_NEU = {"name": S("str", pflicht=True, strip=True, min_len=1, max_len=200)}
+VORSCHLAG_AKTION = {"aktion": S("enum", pflicht=True, werte=("annehmen", "ablehnen"))}
+MEHRFACH_VORSCHLAG = {
+    "buchung_ids": S("int_liste", pflicht=True, min_items=1, eindeutig=True),
+    "aktion": S("enum", pflicht=True, werte=("annehmen", "ablehnen")),
+}
+REGELN_ANWENDEN = {
+    "buchung_ids": S("int_liste", min_items=1, eindeutig=True),
+    "regel_ids": S("int_liste", min_items=1, eindeutig=True),
+    "nur_unkategorisiert": S("bool"),
+    "trocken": S("bool"),
+}
+SYNC_ANFRAGE = {"von": S("datum"), "bis": S("datum")}
+PIN_EINGABE = {"pin": S("str", pflicht=True, min_len=1, max_len=128)}
+TAN_EINGABE = {"tan": S("str", pflicht=True, min_len=1, max_len=64)}
+MOCK_ZEIT = {"jetzt": S("str", pflicht=True)}
+_ZEITSTEMPEL = re.compile(r"^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):(\d{2})(\.\d+)?Z$")
 DUBLETTE_AUFLOESEN = {
     "entscheidung": S("enum", pflicht=True, werte=("zusammenfuehren", "keine_dublette")),
     "behalten_id": S("int"),
@@ -140,9 +160,22 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     pfad = config.aktive_datenbank
     db.schema_anlegen(pfad)  # vor der Rückkehr: Datei und Schema existieren
     modus = "mock" if config.mock_modus else "echt"
+    sync = SyncDienst(config)
+    sync.neustart_aufraeumen()  # synchronisation.md 10
 
-    app = fastapi.FastAPI(title="Kontor", version=__version__, docs_url=None, redoc_url=None, openapi_url=None)
+    @contextlib.asynccontextmanager
+    async def lebensdauer(_app):
+        # Der Planer-Thread startet nur im ASGI-Lifespan, nie in create_app (synchronisation.md 9).
+        sync.planer_starten()
+        try:
+            yield
+        finally:
+            await run_in_threadpool(sync.planer_stoppen)
+
+    app = fastapi.FastAPI(title="Kontor", version=__version__, docs_url=None, redoc_url=None, openapi_url=None,
+                          lifespan=lebensdauer)
     app.state.config = config
+    app.state.sync = sync
     app.add_middleware(ModusHeader, modus=modus)
 
     @app.exception_handler(StarletteHTTPException)
@@ -272,6 +305,7 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
             "verwendungszweck": q.text("verwendungszweck", 1),
             "suche": q.text("suche", 1),
             "status": q.auswahlen("status", STATUS),
+            "vorschlag": q.wahrheitswert("vorschlag"),
             "sortierung": q.auswahl("sortierung", buch.SORTIERUNGEN) or "datum",
             "seite": q.ganzzahl("seite", minimum=1),
             "pro_seite": q.ganzzahl("pro_seite", minimum=1, maximum=500),
@@ -323,6 +357,150 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     async def kategorie_setzen(request: Request):
         d = await koerper(request, KATEGORIE)
         return await schreiben(buch.kategorie_setzen, pid(request, "buchung_id"), d["kategorie_id"])
+
+    # ------------------------------------------------- Vorschläge (M2)
+    @endpunkt("POST", "/api/buchungen/{buchung_id:int}/vorschlag")
+    async def vorschlag_entscheiden(request: Request):
+        d = await koerper(request, VORSCHLAG_AKTION)
+        return await schreiben(regeln.vorschlag_entscheiden, pid(request, "buchung_id"), d["aktion"])
+
+    @endpunkt("POST", "/api/buchungen/mehrfach/vorschlag")
+    async def mehrfach_vorschlag(request: Request):
+        d = await koerper(request, MEHRFACH_VORSCHLAG)
+        return await schreiben(regeln.mehrfach_vorschlag, d["buchung_ids"], d["aktion"])
+
+    # ------------------------------------------------------ Regeln (M2)
+    @endpunkt("GET", "/api/regeln")
+    async def regeln_liste(request: Request):
+        return await lesen(regeln.regeln_liste)
+
+    @endpunkt("POST", "/api/regeln", 201)
+    async def regel_anlegen(request: Request):
+        d = regeln.regel_koerper(await request.body(), neu=True)
+        return await schreiben(regeln.regel_anlegen, d)
+
+    @endpunkt("POST", "/api/regeln/anwenden")
+    async def regeln_anwenden(request: Request):
+        roh = await request.body()
+        d = pruefe_koerper(roh if roh.strip() else b"{}", REGELN_ANWENDEN)
+        return await schreiben(regeln.anwenden, d.get("buchung_ids"), d.get("regel_ids"),
+                               d.get("nur_unkategorisiert", True), d.get("trocken", False))
+
+    @endpunkt("GET", "/api/regeln/{regel_id:int}")
+    async def regel_lesen(request: Request):
+        return await lesen(regeln.regel_lesen, pid(request, "regel_id"))
+
+    @endpunkt("PATCH", "/api/regeln/{regel_id:int}")
+    async def regel_aendern(request: Request):
+        d = regeln.regel_koerper(await request.body(), neu=False)
+        return await schreiben(regeln.regel_aendern, pid(request, "regel_id"), d)
+
+    @endpunkt("DELETE", "/api/regeln/{regel_id:int}", 204)
+    async def regel_loeschen(request: Request):
+        return await schreiben(regeln.regel_loeschen, pid(request, "regel_id"))
+
+    # ------------------------------------------------- Synchronisation (M2)
+    async def mit_ablauf(f: Callable, *args):
+        """Prüft vor jedem Zugriff auf /api/sync… und /api/tan-anforderungen… die TAN-Abläufe (7.4)."""
+        def ausfuehren():
+            sync.ablauf_pruefen()
+            con = db.verbinde(pfad)
+            try:
+                return f(con, *args)
+            finally:
+                con.close()
+        return await run_in_threadpool(ausfuehren)
+
+    @endpunkt("POST", "/api/sync")
+    async def sync_starten(request: Request):
+        roh = await request.body()
+        d = pruefe_koerper(roh if roh.strip() else b"{}", SYNC_ANFRAGE)
+        if d.get("von") and d.get("bis") and d["von"] > d["bis"]:
+            raise Validierungsfehler([fehler_eintrag(["body", "von"], "von darf nicht nach bis liegen.")])
+
+        def ausfuehren():
+            sync.ablauf_pruefen()
+            return sync.starten("manuell", d.get("von"), d.get("bis"))
+        return await run_in_threadpool(ausfuehren)
+
+    @endpunkt("GET", "/api/sync/status")
+    async def sync_status(request: Request):
+        return await mit_ablauf(sync.status)
+
+    @endpunkt("GET", "/api/sync/laeufe")
+    async def sync_laeufe(request: Request):
+        return await mit_ablauf(sync.laeufe)
+
+    @endpunkt("GET", "/api/sync/laeufe/{lauf_id:int}")
+    async def sync_lauf(request: Request):
+        return await mit_ablauf(sync.lauf_lesen, pid(request, "lauf_id"))
+
+    @endpunkt("GET", "/api/sync/konten")
+    async def sync_konten(request: Request):
+        return await mit_ablauf(sync.konten_zustand)
+
+    @endpunkt("PUT", "/api/sync/pin", 204)
+    async def pin_setzen(request: Request):
+        d = await koerper(request, PIN_EINGABE)  # Fehlermeldungen enthalten den Wert nie
+        sync.pin_setzen(d["pin"])
+
+    @endpunkt("DELETE", "/api/sync/pin", 204)
+    async def pin_verwerfen(request: Request):
+        sync.pin_verwerfen()
+
+    @endpunkt("GET", "/api/tan-anforderungen")
+    async def tan_liste(request: Request):
+        return await mit_ablauf(sync.tans)
+
+    @endpunkt("GET", "/api/tan-anforderungen/{tan_id:int}")
+    async def tan_lesen(request: Request):
+        return await mit_ablauf(sync.tan_lesen, pid(request, "tan_id"))
+
+    @endpunkt("GET", "/api/tan-anforderungen/{tan_id:int}/bild")
+    async def tan_bild(request: Request):
+        bild, typ = await mit_ablauf(sync.tan_bild, pid(request, "tan_id"))
+        return Response(bild, media_type=typ, headers={"Cache-Control": "no-store"})
+
+    @endpunkt("POST", "/api/tan-anforderungen/{tan_id:int}/antwort")
+    async def tan_antworten(request: Request):
+        tid = pid(request, "tan_id")
+        await mit_ablauf(sync.tan_lesen, tid)  # 404 vor 422
+        d = await koerper(request, TAN_EINGABE)
+        return await run_in_threadpool(sync.tan_antworten, tid, d["tan"])
+
+    @endpunkt("POST", "/api/tan-anforderungen/{tan_id:int}/abbrechen")
+    async def tan_abbrechen(request: Request):
+        return await run_in_threadpool(sync.tan_abbrechen, pid(request, "tan_id"))
+
+    @endpunkt("GET", "/api/benachrichtigungen")
+    async def benachrichtigungen(request: Request):
+        q = Query(request.query_params)
+        gelesen = q.wahrheitswert("gelesen")
+        q.pruefen()
+        return await lesen(buch.benachrichtigungen_liste, gelesen)
+
+    @endpunkt("POST", "/api/benachrichtigungen/{benachrichtigung_id:int}/gelesen")
+    async def benachrichtigung_gelesen(request: Request):
+        return await schreiben(buch.benachrichtigung_gelesen, pid(request, "benachrichtigung_id"))
+
+    @endpunkt("GET", "/api/mock/zeit")
+    async def mock_zeit(request: Request):
+        return sync.mock_zeit()
+
+    @endpunkt("PUT", "/api/mock/zeit")
+    async def mock_zeit_setzen(request: Request):
+        sync.mock_zeit()  # 409 nur_mock_modus vor der Körperprüfung
+        d = await koerper(request, MOCK_ZEIT)
+        m = _ZEITSTEMPEL.match(d["jetzt"])
+        zeitpunkt = None
+        if m:
+            try:
+                zeitpunkt = dt.datetime.fromisoformat(f"{m[1]}T{m[2]}:{m[3]}:{m[4]}").replace(tzinfo=dt.timezone.utc)
+            except ValueError:
+                zeitpunkt = None
+        if zeitpunkt is None:
+            raise Validierungsfehler([fehler_eintrag(["body", "jetzt"], "Zeitstempel in UTC mit Z erwartet.")])
+        return sync.mock_zeit_setzen(zeitpunkt)
 
     # -------------------------------------------------------------- Tags
     @endpunkt("GET", "/api/tags")
@@ -403,6 +581,11 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
 
     @app.get("/", include_in_schema=False)
     async def startseite():
+        return HTMLResponse(index, headers={"Cache-Control": "no-store"})
+
+    @app.get("/tan/{tan_id}", include_in_schema=False)
+    async def tan_seite(tan_id: str):
+        # Link aus der Benachrichtigung (synchronisation.md 7.2) öffnet die TAN-Seite der Oberfläche.
         return HTMLResponse(index, headers={"Cache-Control": "no-store"})
 
     @app.get("/manifest.webmanifest", include_in_schema=False)
