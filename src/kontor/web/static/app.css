@@ -126,6 +126,41 @@ table.tabelle { width: 100%; border-collapse: collapse; background: var(--flaech
 .leer { padding: 2rem; text-align: center; color: var(--leise); }
 .schleier { display: none; }
 
+/* ------------------------------------------------- Meilenstein 2 */
+.glocke { position: relative; background: none; border: 0; color: inherit; font-size: 1.15rem; cursor: pointer; padding: .1rem .3rem; opacity: .8; }
+.glocke.aktiv { opacity: 1; }
+.glocke .zahl-marke:not(:empty) { position: absolute; top: -.2rem; right: -.35rem; background: var(--negativ); color: #fff;
+  font-size: .68rem; font-weight: 700; border-radius: 9px; padding: 0 .35rem; line-height: 1.2rem; min-width: 1.2rem; text-align: center; }
+.vorschlag { display: inline-flex; align-items: center; gap: .2rem; margin-left: .4rem; font-size: .74rem; font-weight: 600;
+  color: var(--warn-text); background: var(--warn-hg); border: 1px dashed var(--warn-linie); border-radius: 8px; padding: 0 .1rem 0 .4rem; }
+.mit-vorschlag { font-style: italic; }
+.mini-knopf { border: 1px solid var(--warn-linie); background: var(--flaeche); border-radius: 5px; padding: 0 .35rem; cursor: pointer;
+  font-size: .8rem; line-height: 1.3rem; min-width: 1.6rem; }
+.mini-knopf:hover { background: var(--auswahl); }
+.lauf-erfolgreich, .lauf-beantwortet { color: var(--positiv); border-color: var(--positiv); }
+.lauf-fehlgeschlagen { color: var(--negativ); border-color: var(--negativ); }
+.lauf-wartet_auf_tan, .lauf-offen, .lauf-laeuft { color: var(--warn-text); background: var(--warn-hg); border-color: var(--warn-linie); }
+.lauf-abgebrochen, .lauf-abgelaufen, .lauf-ausstehend { color: var(--leise); }
+.lauf-konten { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .35rem; }
+.hinweis-tan { background: var(--warn-hg); color: var(--warn-text); border-color: var(--warn-linie); display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+.eckdaten { list-style: none; padding: 0; margin: 0 0 .5rem; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: .3rem 1rem; }
+h2.oben { margin-top: 0; }
+.zeitraum > summary { cursor: pointer; color: var(--leise); }
+.feld.zeile { flex-direction: row; align-items: center; gap: .4rem; }
+.tan-karte { max-width: 560px; }
+.tan-karte .challenge { font-weight: 600; }
+.tan-bild img { display: block; width: min(264px, 80vw); height: auto; image-rendering: pixelated; background: #fff; border: 1px solid var(--linie); border-radius: 6px; }
+.tan-feld { font-size: 1.3rem; letter-spacing: .15em; max-width: 12rem; padding: .35rem .5rem; border: 1px solid var(--linie); border-radius: 5px; background: var(--flaeche); }
+.liste-ohne { list-style: none; padding: 0; margin: 0; }
+.benachrichtigung.gelesen { opacity: .65; }
+.bed-liste { display: flex; flex-direction: column; gap: .35rem; margin: .3rem 0; }
+.bed-zeile { display: grid; grid-template-columns: 9.5rem 8rem 1fr 2.2rem; gap: .35rem; }
+.bed-zeile select, .bed-zeile input, .feld input[type=number] { padding: .3rem; border: 1px solid var(--linie); border-radius: 5px; background: var(--flaeche); min-width: 0; width: 100%; }
+.bed-wert { display: flex; }
+.tabelle td.aktionen { white-space: nowrap; }
+.knopf { text-decoration: none; display: inline-block; }
+.eingabe { padding: .4rem .5rem; border: 1px solid var(--linie); border-radius: 5px; background: var(--flaeche); min-width: 0; }
+
 /* ---------------------------------------------------------- Smartphone */
 @media (max-width: 800px) {
   .rahmen, .rahmen.nav-zu { grid-template-columns: 1fr; grid-template-areas: "kopf" "inhalt"; }
@@ -144,4 +179,12 @@ table.tabelle { width: 100%; border-collapse: collapse; background: var(--flaech
   .ergebnis-liste { columns: 1; }
   .split-zeile { grid-template-columns: 1fr 6.5rem 2rem; }
   .split-zeile .split-memo { grid-column: 1 / span 2; }
+  .bed-zeile { grid-template-columns: 1fr 1fr 2.2rem; }
+  .bed-zeile .bed-wert { grid-column: 1 / span 2; }
+  .tabelle td.aktionen { white-space: normal; }
+  .tabelle.regeln thead { display: none; }
+  .tabelle.regeln tr { display: block; border-bottom: 1px solid var(--linie); padding: .3rem 0; }
+  .tabelle.regeln td { display: block; border: 0; padding: .15rem .6rem; text-align: left; }
+  .tabelle.regeln td.zahl::before { content: "Priorität "; color: var(--leise); }
+  .tabelle td.aktionen .knopf { margin-bottom: .25rem; }
 }

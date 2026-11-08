@@ -9,7 +9,7 @@ import kontor
 
 WEB = Path(kontor.__file__).parent / "web"
 NAVIGATION = ["Finanzübersicht", "Konten", "Kategorien", "Wiederkehrende Buchungen", "Kredite", "Berichte",
-              "Import", "Einstellungen"]
+              "Synchronisation", "Regeln", "Benachrichtigungen", "Import", "Einstellungen"]
 
 
 def test_startseite_echt(client):
@@ -45,9 +45,19 @@ def test_keine_externen_ressourcen():
 
 def test_oberflaeche_nutzt_nur_spezifizierte_api():
     js = (WEB / "static" / "app.js").read_text(encoding="utf-8")
-    pfade = set(re.findall(r"[\"`](/api/[a-z/]+)", js))
+    pfade = set(re.findall(r"[\"`](/api/[a-z/-]+)", js))
     erlaubt = {"/api/konten", "/api/tags", "/api/empfaenger", "/api/kontenuebersicht", "/api/status",
                "/api/dubletten", "/api/buchungen", "/api/buchungen/mehrfach/kategorie",
                "/api/buchungen/mehrfach/tags", "/api/import/kmymoney", "/api/importe", "/api/konten/",
-               "/api/buchungen/", "/api/tags/", "/api/dubletten/"}
+               "/api/buchungen/", "/api/tags/", "/api/dubletten/",
+               # Meilenstein 2
+               "/api/buchungen/mehrfach/vorschlag", "/api/regeln", "/api/regeln/", "/api/regeln/anwenden",
+               "/api/sync", "/api/sync/status", "/api/sync/laeufe", "/api/sync/konten", "/api/sync/pin",
+               "/api/tan-anforderungen/", "/api/benachrichtigungen", "/api/benachrichtigungen/", "/api/mock/zeit"}
     assert pfade <= erlaubt, pfade - erlaubt
+
+
+def test_tan_link_liefert_oberflaeche(mock_client):
+    """Der Link einer TAN-Benachrichtigung (/tan/<id>) öffnet die Oberfläche."""
+    r = mock_client.get("/tan/1")
+    assert r.status_code == 200 and r.headers["content-type"].startswith("text/html") and "app.js" in r.text

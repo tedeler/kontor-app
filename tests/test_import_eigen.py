@@ -36,7 +36,7 @@ def test_import_idempotent_und_ausgleich(config, client):
     e2 = importiere_kmy(config, roh)
     assert e2.buchungen_vorhanden == 2 and e2.buchungen_neu == 0 and e2.konten_vorhanden == 1 and e2.kategorien_vorhanden == 1
     giro = next(k for k in client.get("/api/konten").json() if k["extern_id"] == "kmy:A1")
-    assert giro["iban"] == "DE89370400440532013000"
+    assert giro["iban"] == "DE57000000000532013000"
     u = client.get("/api/kontenuebersicht").json()
     assert u["summe_gesamt"] == 0 and u["summe_bestand"] == -577
 
@@ -57,7 +57,7 @@ def test_rest_import_fehlercode(client):
 
 def test_dublette_wird_zusammengefuehrt(client):
     giro = client.post("/api/konten", json={"name": "Hand", "art": "girokonto",
-                                           "iban": "DE89370400440532013000"}).json()
+                                           "iban": "DE57000000000532013000"}).json()
     kat = client.post("/api/konten", json={"name": "Diverses", "art": "aufwand"}).json()
     hand = client.post("/api/buchungen", json={"datum": "2024-01-02", "splits": [
         {"konto_id": giro["id"], "betrag": -500}, {"konto_id": kat["id"], "betrag": 500}]}).json()

@@ -25,7 +25,7 @@ def kmy(konten: str = "", payees: str = "", tags: str = "", transaktionen: str =
 
 
 GIRO = ('<ACCOUNT id="A1" name="Giro" type="1" parentaccount="AStd::Asset" currency="EUR">'
-        '<KEYVALUEPAIRS><PAIR key="iban" value="DE89 3704 0044 0532 0130 00"/></KEYVALUEPAIRS></ACCOUNT>'
+        '<KEYVALUEPAIRS><PAIR key="iban" value="DE57 0000 0000 0532 0130 00"/></KEYVALUEPAIRS></ACCOUNT>'
         '<ACCOUNT id="A2" name="Lebensmittel" type="13" parentaccount="AStd::Expense" currency="EUR"/>')
 
 

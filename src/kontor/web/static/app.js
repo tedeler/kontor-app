@@ -486,7 +486,7 @@
    * basis: feste Filter, z. B. {konto_id} oder {kategorie_id, unterkategorien}.
    */
   function buchungsliste(ziel, basis, optionen) {
-    const zustand = { filter: {}, sortierung: "-datum", seite: 1, pro_seite: 100, auswahl: new Set(), anker: null, daten: null };
+    const zustand = { filter: optionen && optionen.vorschlag ? { vorschlag: optionen.vorschlag } : {}, sortierung: "-datum", seite: 1, pro_seite: 100, auswahl: new Set(), anker: null, daten: null };
     const kontoSicht = basis.konto_id !== undefined;
 
     const f = {
@@ -501,6 +501,8 @@
       tag: h("select", { multiple: true, size: Math.min(4, Math.max(2, stamm.tags.length)) }, stamm.tags.map((t) => h("option", { value: t.id }, t.name))),
       suche: h("input", { type: "search", placeholder: "Empfänger, Zweck, Memo, Tags", id: "freitext" }),
       status: Object.keys(STATUS_TEXT).map((s) => h("input", { type: "checkbox", value: s })),
+      vorschlag: h("select", { name: "vorschlag" }, h("option", { value: "" }, "alle"),
+        h("option", { value: "true" }, "nur mit Vorschlag"), h("option", { value: "false" }, "ohne Vorschlag")),
     };
     const filterForm = h("form", { class: "filter-form" },
       h("div", { class: "filter" },
@@ -512,11 +514,13 @@
         basis.kategorie_id === undefined ? h("label", null, "Kategorie", f.kategorie) : null,
         basis.kategorie_id === undefined ? h("label", { style: "flex-direction:row;align-items:center;gap:.3rem" }, f.unter, "mit Unterkategorien") : null,
         stamm.tags.length ? h("label", null, "Tags (alle)", f.tag) : null,
+        h("label", null, "Kategorie-Vorschlag", f.vorschlag),
         h("div", null, h("div", { class: "leise", style: "font-size:.82rem" }, "Status"),
           h("div", { class: "status-wahl" }, f.status.map((c) => h("label", null, c, STATUS_TEXT[c.value]))))),
       h("div", { class: "filter-zeile" },
         h("button", { type: "submit", class: "knopf primaer" }, "Filtern"),
         h("button", { type: "button", class: "knopf", onclick: () => { filterForm.reset(); f.unter.checked = true; zustand.filter = {}; zustand.seite = 1; laden(); } }, "Zurücksetzen")));
+    if (zustand.filter.vorschlag) f.vorschlag.value = zustand.filter.vorschlag;
     filterForm.addEventListener("submit", (e) => {
       e.preventDefault();
       const fl = {};
@@ -538,6 +542,7 @@
       if (tags.length) fl.tag_id = tags;
       const st = f.status.filter((c) => c.checked).map((c) => c.value);
       if (st.length) fl.status = st;
+      if (f.vorschlag.value) fl.vorschlag = f.vorschlag.value;
       zustand.filter = fl; zustand.seite = 1;
       laden();
     });
@@ -551,17 +556,25 @@
 
     function werkzeugZeichnen() {
       const n = zustand.auswahl.size;
-      werkzeug.replaceChildren(
+      werkzeug.replaceChildren(...[
         optionen && optionen.neu ? h("button", { type: "button", class: "knopf", onclick: async () => { if (await neueBuchungDialog(basis.konto_id)) laden(); } }, "+ Neue Buchung") : null,
         h("span", { class: "auswahl-info" }, n ? `${n} markiert` : ""),
         h("button", { type: "button", class: "knopf", disabled: !n, onclick: () => aktion("kategorie") }, "Kategorie setzen"),
         h("button", { type: "button", class: "knopf", disabled: !n, onclick: () => aktion("tags") }, "Tags …"),
+        h("button", { type: "button", class: "knopf", disabled: !mitVorschlag().length, title: "Vorschläge der markierten Buchungen annehmen",
+          onclick: () => aktion("annehmen") }, "✓ Vorschläge annehmen"),
+        h("button", { type: "button", class: "knopf", disabled: !mitVorschlag().length, title: "Vorschläge der markierten Buchungen ablehnen",
+          onclick: () => aktion("ablehnen") }, "✗ ablehnen"),
         h("button", { type: "button", class: "knopf", disabled: !n, onclick: () => { zustand.auswahl.clear(); auswahlZeigen(); } }, "Auswahl aufheben"),
-        h("span", { class: "leise nur-breit" }, "Strg/Umschalt + Klick: Mehrfachauswahl · Rechtsklick: Menü · Doppelklick: bearbeiten"));
+        h("span", { class: "leise nur-breit" }, "Strg/Umschalt + Klick: Mehrfachauswahl · Rechtsklick: Menü · Doppelklick: bearbeiten")].filter((x) => x !== null && x !== undefined));
     }
 
     function eintraegeMarkiert() {
       return (zustand.daten ? zustand.daten.eintraege : []).filter((b) => zustand.auswahl.has(b.id));
+    }
+
+    function mitVorschlag() {
+      return eintraegeMarkiert().filter((b) => b.vorschlag);
     }
 
     async function aktion(was, einzel) {
@@ -569,7 +582,16 @@
       const liste = einzel ? [einzel] : eintraegeMarkiert();
       if (!ids.length) return;
       let geaendert = false;
-      if (was === "kategorie") geaendert = await kategorieDialog(ids);
+      if (was === "annehmen" || was === "ablehnen") {
+        const ziel = (einzel ? [einzel] : mitVorschlag()).filter((b) => b.vorschlag).map((b) => b.id);
+        if (!ziel.length) { melden("Keine markierte Buchung hat einen offenen Vorschlag.", true); return; }
+        try {
+          if (ziel.length === 1) await api("POST", `/api/buchungen/${ziel[0]}/vorschlag`, { aktion: was });
+          else await api("POST", "/api/buchungen/mehrfach/vorschlag", { buchung_ids: ziel, aktion: was });
+          melden(`${ziel.length} Vorschl${ziel.length === 1 ? "ag" : "äge"} ${was === "annehmen" ? "angenommen" : "abgelehnt"}.`);
+          geaendert = true;
+        } catch (e) { melden(e.message + " – es wurde nichts geändert.", true); }
+      } else if (was === "kategorie") geaendert = await kategorieDialog(ids);
       else if (was === "tags") geaendert = await tagsDialog(ids, liste);
       else if (was === "bearbeiten") geaendert = await buchungDialog(await api("GET", `/api/buchungen/${ids[0]}`));
       else if (was === "bestaetigen" || was === "abgleichen") {
@@ -600,6 +622,8 @@
         { text: "Bearbeiten / splitten …", aus: n !== 1, tun: () => aktion("bearbeiten", n === 1 ? b : null) },
         { text: "Kategorie setzen …" + plural, tun: () => aktion("kategorie") },
         { text: "Tags …" + plural, tun: () => aktion("tags") },
+        { text: "Vorschlag annehmen" + plural, aus: !mitVorschlag().length, tun: () => aktion("annehmen") },
+        { text: "Vorschlag ablehnen" + plural, aus: !mitVorschlag().length, tun: () => aktion("ablehnen") },
         "-",
         { text: "Bestätigen" + plural, tun: () => aktion("bestaetigen") },
         { text: "Abgleichen" + plural, tun: () => aktion("abgleichen") },
@@ -649,6 +673,14 @@
       return "–";
     }
 
+    function vorschlagMarke(b) {
+      const regel = b.vorschlag.regel_id ? `Regel #${b.vorschlag.regel_id}` : "gelöschte Regel";
+      const knopf = (text, was, titel) => h("button", { type: "button", class: "mini-knopf", title: titel, "aria-label": titel,
+        onclick: (e) => { e.stopPropagation(); aktion(was, b); }, ondblclick: (e) => e.stopPropagation() }, text);
+      return h("span", { class: "vorschlag", title: `Vorschlag (${regel}) – noch nicht bestätigt` }, "Vorschlag",
+        knopf("✓", "annehmen", "Vorschlag annehmen"), knopf("✗", "ablehnen", "Vorschlag ablehnen"));
+    }
+
     function zeichnen() {
       const d = zustand.daten;
       const kopf = h("tr", null, kopfZelle("Datum", "datum"), kopfZelle("Empfänger", "empfaenger", "nur-breit"),
@@ -659,7 +691,8 @@
         const tr = h("tr", { "data-id": b.id, tabindex: 0, "aria-selected": "false" },
           h("td", { class: "datum" }, datumText(b.datum)),
           h("td", { class: "nur-breit" }, b.empfaenger ? b.empfaenger.name : h("span", { class: "leise" }, "–")),
-          h("td", null, b.empfaenger ? h("div", { class: "nur-schmal" }, h("strong", null, b.empfaenger.name)) : null, h("div", null, kategorieText(b)), b.verwendungszweck ? h("div", { class: "zweck" }, b.verwendungszweck.length > 160 ? b.verwendungszweck.slice(0, 160) + " …" : b.verwendungszweck) : null,
+          h("td", null, b.empfaenger ? h("div", { class: "nur-schmal" }, h("strong", null, b.empfaenger.name)) : null,
+            h("div", { class: b.vorschlag ? "mit-vorschlag" : null }, kategorieText(b), b.vorschlag ? vorschlagMarke(b) : null), b.verwendungszweck ? h("div", { class: "zweck" }, b.verwendungszweck.length > 160 ? b.verwendungszweck.slice(0, 160) + " …" : b.verwendungszweck) : null,
             b.tags.length ? h("div", null, b.tags.map((t) => h("span", { class: "tag" }, t.name))) : null),
           h("td", { class: "nur-breit" }, h("span", { class: "marke-status" }, STATUS_TEXT[b.status])),
           kontoSicht ? betragZelle(b.betrag) : h("td", { class: "zahl" }, betragText(b.betrag)));
@@ -736,8 +769,19 @@
       h("thead", null, h("tr", null, h("th", null, "Konto"), h("th", { class: "nur-breit" }, "Art"), h("th", { class: "zahl" }, "Saldo"), h("th", { class: "zahl nur-breit" }, "Buchungen"))),
       tbody, h("tfoot", null, h("tr", null, h("td", null, "Summe Bestandskonten"), h("td", { class: "nur-breit" }), betragZelle(u.summe_bestand), h("td", { class: "nur-breit" }))))
       : h("div", { class: "karte leer" }, "Noch keine Konten. ", h("a", { href: "#/import" }, "KMyMoney-Datei importieren"), " oder ", h("a", { href: "#/konten" }, "Konto anlegen"), ".");
-    const offen = await api("GET", "/api/dubletten?status=offen");
-    seite("Finanzübersicht", tab,
+    const [offen, syncStatus, vorschlaege] = await Promise.all([api("GET", "/api/dubletten?status=offen"),
+      api("GET", "/api/sync/status"), api("GET", "/api/buchungen?vorschlag=true&pro_seite=1")]);
+    const tanOffen = syncStatus.offene_tan_anforderung;
+    const letzter = syncStatus.letzter_lauf;
+    seite("Finanzübersicht",
+      tanOffen ? h("div", { class: "karte hinweis-tan" }, h("strong", null, "TAN erforderlich – "), "die Synchronisation wartet. ",
+        h("a", { class: "knopf primaer", href: "#/tan/" + tanOffen.id }, "TAN eingeben")) : null,
+      h("div", { class: "werkzeug" },
+        h("a", { class: "knopf", href: "#/sync" }, "Synchronisation"),
+        h("span", { class: "leise" }, letzter ? ["Letzter Lauf ", zeitText(letzter.gestartet_am), ": ", statusMarke(letzter.status)] : "Noch nicht synchronisiert.")),
+      tab,
+      vorschlaege.gesamt ? h("p", { class: "karte" }, `${vorschlaege.gesamt} Kategorie-Vorschl${vorschlaege.gesamt === 1 ? "ag" : "äge"} zur Bestätigung – `,
+        h("a", { href: "#/buchungen?vorschlag=true" }, "jetzt prüfen")) : null,
       offen.length ? h("p", { class: "karte" }, `${offen.length} Dublettenverdacht${offen.length === 1 ? "" : "e"} zur Bestätigung – `, h("a", { href: "#/import" }, "jetzt prüfen")) : null,
       h("p", { class: "leise" }, "Saldo = Summe aller Splits je Konto. Schulden sind negativ."));
   }
@@ -794,11 +838,11 @@
     inhalt._tasten = box._tasten;
   }
 
-  async function ansichtAlleBuchungen() {
+  async function ansichtAlleBuchungen(vorschlag) {
     await stammLaden();
     const box = h("div");
-    seite("Alle Buchungen", h("p", { class: "leise" }, "Betrag = Umsatz (Summe der positiven Splits)."), box);
-    buchungsliste(box, {}, null);
+    seite("Alle Buchungen", h("p", { class: "leise" }, "Betrag = Umsatz (Summe der positiven Splits). Kategorien mit der Marke „Vorschlag“ stammen aus Regeln und sind noch nicht bestätigt."), box);
+    buchungsliste(box, {}, { vorschlag: vorschlag === "true" ? "true" : vorschlag === "false" ? "false" : null });
     inhalt._tasten = box._tasten;
   }
 
@@ -903,7 +947,7 @@
           h("li", null, `Bank-Plugin: ${status.plugins.bank.name}${status.plugins.bank.mock ? " (Mock)" : ""}`),
           h("li", null, `Mail-Plugin: ${status.plugins.mail.name}${status.plugins.mail.mock ? " (Mock)" : ""}`),
           h("li", null, "Version: ", status.version)),
-        h("p", { class: "leise" }, "Bank-Synchronisation, Benachrichtigungen und Login folgen in späteren Meilensteinen.")),
+        h("p", { class: "leise" }, "Bank-Synchronisation, PIN und Mock-Uhr: ", h("a", { href: "#/sync" }, "Synchronisation"), ". Zustellung per ntfy und Login folgen in späteren Meilensteinen.")),
       h("h2", null, "Tags"), tagsBox,
       h("h2", null, "Empfänger"),
       stamm.empfaenger.length ? h("ul", null, stamm.empfaenger.map((e) => h("li", null, e.name))) : h("p", { class: "leise" }, "Keine Empfänger."),
@@ -911,6 +955,361 @@
       h("p", null, "Helles oder dunkles Design folgt der Systemeinstellung. ",
         h("button", { type: "button", class: "knopf", onclick: () => { localStorage.removeItem(LAYOUT); document.documentElement.style.removeProperty("--nav-breite"); rahmen.classList.remove("nav-zu"); melden("Layout zurückgesetzt."); } }, "Layout zurücksetzen")));
     zeichneTags();
+  }
+
+  // ------------------------------------------------- Synchronisation (M2)
+  const LAUF_TEXT = { laeuft: "läuft", erfolgreich: "erfolgreich", fehlgeschlagen: "fehlgeschlagen",
+    wartet_auf_tan: "wartet auf TAN", abgebrochen: "abgebrochen", ausstehend: "ausstehend" };
+  const TAN_TEXT = { offen: "offen", beantwortet: "beantwortet", abgelaufen: "abgelaufen", abgebrochen: "abgebrochen" };
+
+  function zeitText(iso) {
+    if (!iso) return "–";
+    const d = new Date(iso);
+    if (isNaN(d)) return iso;
+    return d.toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" });
+  }
+
+  function statusMarke(status, text) {
+    return h("span", { class: "marke-status lauf-" + status }, text || LAUF_TEXT[status] || status);
+  }
+
+  /** Zählt ungelesene Benachrichtigungen und zeigt sie im Kopf (Glocke). */
+  async function glockeAktualisieren() {
+    try {
+      const offen = await api("GET", "/api/benachrichtigungen?gelesen=false");
+      const g = $("#glocke");
+      g.querySelector(".zahl-marke").textContent = offen.length ? String(offen.length) : "";
+      g.classList.toggle("aktiv", offen.length > 0);
+      g.title = offen.length ? `${offen.length} ungelesene Benachrichtigung(en)` : "Benachrichtigungen";
+    } catch (e) { /* Kopf bleibt unverändert */ }
+  }
+
+  function laufZeile(l) {
+    const konten = h("ul", { class: "lauf-konten" }, l.konten.map((k) => {
+      const konto = kontoNach(k.konto_id);
+      return h("li", null, statusMarke(k.status), " ", konto ? konto.name : "Konto #" + k.konto_id, " ",
+        h("span", { class: "leise" }, k.iban), k.konto_neu ? h("span", { class: "tag" }, "neu angelegt") : null,
+        k.von ? h("span", { class: "leise" }, ` · ${datumText(k.von)} – ${datumText(k.bis)}`) : null,
+        k.status === "erfolgreich" ? h("div", { class: "zweck" },
+          `${k.umsaetze_gesamt} Umsätze: ${k.buchungen_neu} neu (davon ${k.buchungen_kategorisiert} per Regel kategorisiert, `
+          + `${k.buchungen_zur_pruefung} zur Prüfung), ${k.buchungen_vorhanden} bereits vorhanden, `
+          + `${k.buchungen_zusammengefuehrt} mit Vorhandenem zusammengeführt, ${k.vormerkungen_ignoriert} Vormerkungen`) : null,
+        k.fehler ? h("div", { class: "zweck negativ" }, k.fehler.meldung, " (", k.fehler.code, ")") : null);
+    }));
+    return h("tr", null, h("td", null, "#" + l.id), h("td", null, zeitText(l.gestartet_am), h("div", { class: "zweck" }, l.ausloeser === "planer" ? "automatisch" : "manuell")),
+      h("td", null, statusMarke(l.status),
+        l.status === "wartet_auf_tan" && l.tan_anforderung_id ? h("div", null, h("a", { href: "#/tan/" + l.tan_anforderung_id }, "TAN eingeben …")) : null,
+        l.fehler ? h("div", { class: "zweck negativ" }, l.fehler.meldung) : null),
+      h("td", null, l.konten.length ? konten : h("span", { class: "leise" }, "–")));
+  }
+
+  async function ansichtSync() {
+    await stammLaden();
+    const [st, laeufe, zustaende, status] = await Promise.all([api("GET", "/api/sync/status"), api("GET", "/api/sync/laeufe"),
+      api("GET", "/api/sync/konten"), api("GET", "/api/status")]);
+    const offen = st.offene_tan_anforderung;
+    const von = h("input", { type: "date", "aria-label": "Zeitraum von" });
+    const bis = h("input", { type: "date", "aria-label": "Zeitraum bis" });
+    const startKnopf = h("button", { type: "submit", class: "knopf primaer", disabled: !!offen || st.laeuft }, "Jetzt synchronisieren");
+    const startForm = h("form", { class: "werkzeug" }, startKnopf,
+      h("details", { class: "zeitraum" }, h("summary", null, "Zeitraum wählen"),
+        h("div", { class: "werkzeug" }, h("label", { class: "feld" }, "von", von), h("label", { class: "feld" }, "bis", bis),
+          h("span", { class: "leise" }, "leer = automatisch (seit letztem Abruf mit Überlappung)"))));
+    startForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const koerper = {};
+      if (von.value) koerper.von = von.value;
+      if (bis.value) koerper.bis = bis.value;
+      startKnopf.disabled = true;
+      startKnopf.textContent = "Synchronisiere …";
+      try {
+        const lauf = await api("POST", "/api/sync", koerper);
+        if (lauf.status === "wartet_auf_tan") { melden("Die Bank verlangt eine TAN."); location.hash = "#/tan/" + lauf.tan_anforderung_id; return; }
+        const neu = lauf.konten.reduce((s, k) => s + k.buchungen_neu, 0);
+        melden(lauf.status === "erfolgreich" ? `Synchronisation erfolgreich: ${neu} neue Buchung(en).` : `Synchronisation ${LAUF_TEXT[lauf.status]}: ${lauf.fehler ? lauf.fehler.meldung : ""}`,
+          lauf.status !== "erfolgreich");
+      } catch (err) { melden(err.message, true); }
+      glockeAktualisieren();
+      route();
+    });
+
+    const pin = h("input", { class: "eingabe", type: "password", autocomplete: "off", maxlength: 128, placeholder: "Banking-PIN", "aria-label": "Banking-PIN", name: "pin-eingabe" });
+    const pinForm = h("form", { class: "werkzeug" }, pin, h("button", { type: "submit", class: "knopf" }, "PIN übernehmen"),
+      h("button", { type: "button", class: "knopf", disabled: !st.pin_vorhanden, onclick: async () => {
+        try { await api("DELETE", "/api/sync/pin"); melden("PIN verworfen."); route(); } catch (err) { melden(err.message, true); }
+      } }, "PIN verwerfen"));
+    pinForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const wert = pin.value;
+      pin.value = "";
+      if (!wert) return;
+      try { await api("PUT", "/api/sync/pin", { pin: wert }); melden("PIN im Arbeitsspeicher abgelegt."); route(); }
+      catch (err) { melden(err.message, true); }
+    });
+
+    let uhr = null;
+    if (status.mock) {
+      const z = await api("GET", "/api/mock/zeit");
+      const feld = h("input", { type: "datetime-local", step: 1, value: z.jetzt.replace("Z", ""), "aria-label": "Simulierte Zeit (UTC)" });
+      const form = h("form", { class: "werkzeug" }, h("label", { class: "feld" }, "Simulierte Zeit (UTC)", feld),
+        h("button", { type: "submit", class: "knopf" }, "Zeit setzen"),
+        h("button", { type: "button", class: "knopf", onclick: async () => {
+          const d = new Date(z.jetzt);
+          d.setUTCDate(d.getUTCDate() + 1);
+          await api("PUT", "/api/mock/zeit", { jetzt: d.toISOString().replace(/\.\d{3}Z$/, "Z") }); route();
+        } }, "+1 Tag"));
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        let w = feld.value;
+        if (w.length === 16) w += ":00";
+        try { await api("PUT", "/api/mock/zeit", { jetzt: w + "Z" }); melden("Simulierte Zeit gesetzt."); route(); }
+        catch (err) { melden(err.message, true); }
+      });
+      uhr = h("div", { class: "karte" }, h("h2", { class: "oben" }, "Mock-Uhr"),
+        h("p", null, "Heute (simuliert): ", h("strong", null, datumText(z.heute)), z.simuliert ? "" : " (Systemzeit)"),
+        form, h("p", { class: "leise" }, "Die Mock-Bank liefert nur Umsätze bis zu diesem Tag; rückt die Zeit vor, erscheinen neue."));
+    }
+
+    const kontenTab = zustaende.length ? h("table", { class: "tabelle" },
+      h("thead", null, h("tr", null, h("th", null, "Konto"), h("th", { class: "nur-breit" }, "IBAN"), h("th", null, "abgerufen bis"), h("th", { class: "nur-breit" }, "letzter Erfolg"))),
+      h("tbody", null, zustaende.map((z) => {
+        const k = kontoNach(z.konto_id);
+        return h("tr", { class: "klickbar", onclick: () => { location.hash = "#/konto/" + z.konto_id; } },
+          h("td", null, k ? k.name : "#" + z.konto_id), h("td", { class: "nur-breit" }, z.iban),
+          h("td", null, z.letzter_abruf_bis ? datumText(z.letzter_abruf_bis) : "–"), h("td", { class: "nur-breit" }, zeitText(z.letzter_erfolg_am)));
+      }))) : h("p", { class: "leise" }, "Noch kein Bankkonto zugeordnet. Der erste Lauf ordnet die Bankkonten über die IBAN zu (fehlende werden angelegt).");
+
+    seite("Synchronisation",
+      offen ? h("div", { class: "karte hinweis-tan" }, h("strong", null, "TAN erforderlich: "), offen.challenge, " ",
+        h("a", { class: "knopf primaer", href: "#/tan/" + offen.id }, "Zur TAN-Seite")) : null,
+      h("div", { class: "karte" },
+        h("ul", { class: "eckdaten" },
+          h("li", null, "Automatischer Abruf: ", h("strong", null, st.automatisch ? `alle ${st.intervall_minuten} Minuten` : "aus")),
+          h("li", null, "Nächster Lauf: ", h("strong", null, st.naechster_lauf ? zeitText(st.naechster_lauf) : "–")),
+          h("li", null, "Letzter Lauf: ", st.letzter_lauf ? [statusMarke(st.letzter_lauf.status), " ", zeitText(st.letzter_lauf.gestartet_am)] : h("strong", null, "noch keiner")),
+          h("li", null, "PIN: ", h("strong", null, st.pin_vorhanden ? "im Arbeitsspeicher" : "nicht hinterlegt"))),
+        startForm),
+      h("div", { class: "karte" }, h("h2", { class: "oben" }, "Banking-PIN"),
+        h("p", { class: "leise" }, "Die PIN wird nur im Arbeitsspeicher gehalten – nie gespeichert, nie protokolliert – und ist nach einem Neustart weg. Lehnt die Bank sie ab, wird sie sofort verworfen."),
+        pinForm),
+      uhr,
+      h("h2", null, "Bankkonten"), kontenTab,
+      h("h2", null, "Läufe"),
+      laeufe.length ? h("table", { class: "tabelle" },
+        h("thead", null, h("tr", null, h("th", null, "#"), h("th", null, "Start"), h("th", null, "Status"), h("th", null, "Konten"))),
+        h("tbody", null, laeufe.slice().reverse().slice(0, 50).map(laufZeile))) : h("p", { class: "leise" }, "Noch keine Läufe."));
+  }
+
+  // ---------------------------------------------------------- TAN-Seite (K 6)
+  async function ansichtTan(id) {
+    let t;
+    try { t = await api("GET", `/api/tan-anforderungen/${id}`); }
+    catch (e) { seite("TAN-Anforderung", h("p", { class: "negativ" }, e.message)); return; }
+    await stammLaden();
+    const konto = kontoNach(t.konto_id);
+    const kopf = h("p", null, "Konto: ", h("strong", null, konto ? konto.name : t.iban), " · ", t.iban, " · ", statusMarke(t.status, TAN_TEXT[t.status]));
+    if (t.status !== "offen") {
+      seite("TAN-Anforderung", kopf,
+        h("div", { class: "karte" }, t.status === "beantwortet" ? "Die TAN wurde angenommen, die Synchronisation ist weitergelaufen."
+          : t.status === "abgelaufen" ? "Die TAN-Anforderung ist abgelaufen. Starte die Synchronisation neu, um eine neue Anforderung zu erhalten."
+            : "Die TAN-Anforderung wurde abgebrochen."),
+        h("a", { class: "knopf", href: "#/sync" }, "Zur Synchronisation"));
+      return;
+    }
+    const bildUrl = `/api/tan-anforderungen/${t.id}/bild`;
+    let blob = null;
+    const bildBox = h("div", { class: "tan-bild" });
+    if (t.hat_bild) {
+      try {
+        const r = await fetch(bildUrl, { cache: "no-store" });
+        if (r.ok) blob = await r.blob();
+      } catch (e) { blob = null; }
+    }
+    const dateiname = `tan-qr-${t.id}.png`;
+    if (blob) {
+      const url = URL.createObjectURL(blob);
+      bildBox.append(h("img", { src: url, alt: "QR-Code der TAN-Anforderung", width: 264, height: 264 }));
+      const speichern = h("a", { class: "knopf", href: url, download: dateiname }, "QR-Code speichern");
+      let datei = null;
+      try { datei = new File([blob], dateiname, { type: blob.type || "image/png" }); } catch (e) { datei = null; }
+      const teilenMoeglich = datei && navigator.canShare && navigator.canShare({ files: [datei] });
+      const teilen = h("button", { type: "button", class: "knopf", disabled: !teilenMoeglich,
+        title: teilenMoeglich ? "Bild an die Banking-App übergeben" : "Teilen wird von diesem Browser nicht unterstützt – bitte speichern",
+        onclick: async () => {
+          try { await navigator.share({ files: [datei], title: "TAN-QR-Code" }); } catch (e) { if (e.name !== "AbortError") melden(e.message, true); }
+        } }, "Teilen …");
+      bildBox.append(h("div", { class: "werkzeug" }, speichern, teilen));
+    } else {
+      bildBox.append(h("p", { class: "leise" }, "Kein Bild vorhanden – bitte der Anweisung folgen."));
+    }
+    const tan = h("input", { type: "text", inputmode: "numeric", autocomplete: "one-time-code", maxlength: 64, required: true, "aria-label": "TAN", class: "tan-feld" });
+    const senden = h("button", { type: "submit", class: "knopf primaer" }, "TAN senden");
+    const form = h("form", { class: "werkzeug" }, h("label", { class: "feld" }, "TAN", tan), senden,
+      h("button", { type: "button", class: "knopf gefahr", onclick: async () => {
+        if (!(await bestaetigen("TAN-Anforderung abbrechen? Die Synchronisation wird abgebrochen."))) return;
+        try { await api("POST", `/api/tan-anforderungen/${t.id}/abbrechen`); melden("TAN-Anforderung abgebrochen."); } catch (e) { melden(e.message, true); }
+        glockeAktualisieren(); route();
+      } }, "Abbrechen"));
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const wert = tan.value.trim();
+      tan.value = "";
+      if (!wert) return;
+      senden.disabled = true;
+      try {
+        const lauf = await api("POST", `/api/tan-anforderungen/${t.id}/antwort`, { tan: wert });
+        if (lauf.status === "wartet_auf_tan" && lauf.tan_anforderung_id !== t.id) {
+          melden("TAN angenommen. Ein weiteres Konto verlangt eine TAN.");
+          location.hash = "#/tan/" + lauf.tan_anforderung_id;
+          return;
+        }
+        melden(`TAN angenommen. Synchronisation ${LAUF_TEXT[lauf.status]}.`, lauf.status === "fehlgeschlagen");
+        glockeAktualisieren();
+        location.hash = "#/sync";
+      } catch (err) {
+        senden.disabled = false;
+        melden(err.code === "tan_ungueltig" ? "Die TAN wurde nicht akzeptiert. Bitte erneut versuchen." : err.message, true);
+        if (err.code !== "tan_ungueltig") route();
+      }
+    });
+    seite("TAN-Freigabe", kopf,
+      h("div", { class: "karte tan-karte" },
+        h("p", { class: "challenge" }, t.challenge), bildBox,
+        h("p", { class: "leise" }, "Den QR-Code mit der Banking-App scannen (z. B. am zweiten Bildschirm). Nur am Handy: Bild speichern oder teilen und in der Banking-App öffnen."),
+        form,
+        h("p", { class: "leise" }, "Gültig bis ", zeitText(t.gueltig_bis), ".")));
+    tan.focus();
+  }
+
+  // ------------------------------------------------------ Benachrichtigungen
+  async function ansichtBenachrichtigungen() {
+    const liste = await api("GET", "/api/benachrichtigungen");
+    const zeile = (b) => h("li", { class: "karte benachrichtigung" + (b.gelesen ? " gelesen" : "") },
+      h("div", null, h("strong", null, b.titel), " ", h("span", { class: "leise" }, zeitText(b.erstellt_am))),
+      h("div", null, b.text),
+      h("div", { class: "werkzeug" },
+        b.link ? h("a", { class: "knopf primaer", href: "#" + b.link }, "Öffnen") : null,
+        b.gelesen ? h("span", { class: "leise" }, "gelesen") : h("button", { type: "button", class: "knopf", onclick: async () => {
+          try { await api("POST", `/api/benachrichtigungen/${b.id}/gelesen`); glockeAktualisieren(); route(); } catch (e) { melden(e.message, true); }
+        } }, "Als gelesen markieren")));
+    const ungelesen = liste.filter((b) => !b.gelesen);
+    seite("Benachrichtigungen",
+      ungelesen.length > 1 ? h("div", { class: "werkzeug" }, h("button", { type: "button", class: "knopf", onclick: async () => {
+        for (const b of ungelesen) { try { await api("POST", `/api/benachrichtigungen/${b.id}/gelesen`); } catch (e) { /* weiter */ } }
+        glockeAktualisieren(); route();
+      } }, "Alle als gelesen markieren")) : null,
+      liste.length ? h("ul", { class: "liste-ohne" }, liste.slice().reverse().map(zeile)) : h("div", { class: "karte leer" }, "Keine Benachrichtigungen."));
+    glockeAktualisieren();
+  }
+
+  // ------------------------------------------------------------ Regeln (K 7)
+  const FELD_TEXT = { empfaenger: "Empfänger", verwendungszweck: "Verwendungszweck", betrag: "Betrag", konto_id: "Konto" };
+  const OP_TEXT = { enthaelt: "enthält", gleich: "ist gleich", beginnt_mit: "beginnt mit", mindestens: "mindestens", hoechstens: "höchstens" };
+  const OPS = { empfaenger: ["enthaelt", "gleich", "beginnt_mit"], verwendungszweck: ["enthaelt", "gleich", "beginnt_mit"],
+    betrag: ["gleich", "mindestens", "hoechstens"], konto_id: ["gleich"] };
+
+  function bedingungText(b) {
+    const wert = b.feld === "betrag" ? betragText(b.wert) : b.feld === "konto_id" ? (kontoNach(b.wert) || { name: "#" + b.wert }).name : `„${b.wert}“`;
+    return `${FELD_TEXT[b.feld]} ${OP_TEXT[b.operator]} ${wert}`;
+  }
+
+  function bedingungZeile(b, entfernen) {
+    const feld = h("select", { "aria-label": "Feld" }, Object.keys(FELD_TEXT).map((f) => h("option", { value: f, selected: b && b.feld === f }, FELD_TEXT[f])));
+    const op = h("select", { "aria-label": "Operator" });
+    const wertBox = h("span", { class: "bed-wert" });
+    let wert = null;
+    const zeichne = (vorgabe) => {
+      const f = feld.value;
+      op.replaceChildren(...OPS[f].map((o) => h("option", { value: o, selected: vorgabe && vorgabe.operator === o }, OP_TEXT[o])));
+      if (f === "konto_id") wert = h("select", { "aria-label": "Wert" }, kontoOptionen(vorgabe ? vorgabe.wert : null, (k) => BESTAND.has(k.art)));
+      else if (f === "betrag") wert = h("input", { type: "text", inputmode: "decimal", placeholder: "z. B. -50,01", "aria-label": "Wert", value: vorgabe ? betragText(vorgabe.wert, false) : "" });
+      else wert = h("input", { type: "text", maxlength: 200, placeholder: "Text", "aria-label": "Wert", value: vorgabe ? vorgabe.wert : "" });
+      wertBox.replaceChildren(wert);
+    };
+    feld.addEventListener("change", () => zeichne(null));
+    zeichne(b);
+    const zeile = h("div", { class: "bed-zeile" }, feld, op, wertBox,
+      h("button", { type: "button", class: "knopf", "aria-label": "Bedingung entfernen", onclick: () => entfernen(zeile) }, "×"));
+    zeile._lesen = () => {
+      const f = feld.value;
+      if (f === "betrag") { const c = betragLesen(wert.value); if (c === null) throw new Error("Ungültiger Betrag in einer Bedingung."); return { feld: f, operator: op.value, wert: c }; }
+      if (f === "konto_id") return { feld: f, operator: "gleich", wert: Number(wert.value) };
+      return { feld: f, operator: op.value, wert: wert.value };
+    };
+    return zeile;
+  }
+
+  async function regelDialog(r) {
+    await stammLaden();
+    const name = h("input", { type: "text", maxlength: 200, required: true, value: r ? r.name : "" });
+    const kat = h("select", { required: true }, kategorieOptionen(r ? r.kategorie_id : null, "– Kategorie wählen –"));
+    const prio = h("input", { type: "number", min: 0, max: 1000000, step: 1, value: r ? r.prioritaet : "", placeholder: "automatisch" });
+    const aktiv = h("input", { type: "checkbox", checked: r ? r.aktiv : true });
+    const beds = h("div", { class: "bed-liste" });
+    const entfernen = (z) => { if (beds.children.length > 1) z.remove(); };
+    (r ? r.bedingungen : [{ feld: "empfaenger", operator: "enthaelt", wert: "" }]).forEach((b) => beds.append(bedingungZeile(b, entfernen)));
+    const inhaltBox = h("div", null,
+      h("label", { class: "feld" }, "Name", name),
+      h("label", { class: "feld" }, "Kategorie", kat),
+      h("div", { class: "feld" }, "Bedingungen (alle müssen zutreffen)", beds,
+        h("button", { type: "button", class: "knopf", onclick: () => { if (beds.children.length < 20) beds.append(bedingungZeile(null, entfernen)); } }, "+ Bedingung")),
+      h("label", { class: "feld" }, "Priorität (kleiner = wichtiger)", prio),
+      h("label", { class: "feld zeile" }, aktiv, "aktiv"));
+    return dialog(r ? "Regel bearbeiten" : "Neue Regel", inhaltBox, [{ text: r ? "Speichern" : "Anlegen", klasse: "primaer", submit: true, tun: async () => {
+      const koerper = { name: name.value, kategorie_id: Number(kat.value), aktiv: aktiv.checked,
+        bedingungen: [...beds.children].map((z) => z._lesen()) };
+      if (prio.value !== "") koerper.prioritaet = Number(prio.value);
+      if (!kat.value) throw new Error("Bitte eine Kategorie wählen.");
+      return r ? api("PATCH", `/api/regeln/${r.id}`, koerper) : api("POST", "/api/regeln", koerper);
+    } }]);
+  }
+
+  async function ansichtRegeln() {
+    await stammLaden();
+    const liste = await api("GET", "/api/regeln");
+    const ergebnis = h("div");
+    const nurUnk = h("input", { type: "checkbox", checked: true });
+    async function anwenden(trocken) {
+      try {
+        const e = await api("POST", "/api/regeln/anwenden", { nur_unkategorisiert: nurUnk.checked, trocken });
+        const regelName = new Map(liste.map((r) => [r.id, r.name]));
+        ergebnis.replaceChildren(h("div", { class: "karte" },
+          h("p", null, `${e.geprueft} Buchung(en) geprüft, ${e.anzahl} ${trocken ? "würden" : "wurden"} als Vorschlag kategorisiert.`),
+          e.aenderungen.length ? h("ul", null, e.aenderungen.slice(0, 100).map((a) => h("li", null,
+            h("a", { href: "javascript:void 0", onclick: async () => { const b = await api("GET", `/api/buchungen/${a.buchung_id}`); if (await buchungDialog(b)) route(); } }, "Buchung #" + a.buchung_id),
+            " → ", (kontoNach(a.kategorie_id) || { name: "#" + a.kategorie_id }).name, h("span", { class: "leise" }, " (", regelName.get(a.regel_id) || "#" + a.regel_id, ")")))) : null,
+          trocken && e.anzahl ? h("button", { type: "button", class: "knopf primaer", onclick: () => anwenden(false) }, "Jetzt anwenden") : null,
+          !trocken && e.anzahl ? h("a", { class: "knopf", href: "#/buchungen?vorschlag=true" }, "Vorschläge prüfen") : null));
+        if (!trocken) melden(`${e.anzahl} Vorschlag/Vorschläge gesetzt.`);
+      } catch (err) { melden(err.message, true); }
+    }
+    const tab = liste.length ? h("table", { class: "tabelle regeln" },
+      h("thead", null, h("tr", null, h("th", { class: "zahl" }, "Prio"), h("th", null, "Name"), h("th", null, "Bedingungen"), h("th", null, "Kategorie"), h("th", null, ""))),
+      h("tbody", null, liste.map((r) => h("tr", { class: r.aktiv ? "" : "geschlossen" },
+        h("td", { class: "zahl" }, r.prioritaet),
+        h("td", null, r.name, r.aktiv ? null : h("span", { class: "leise" }, " (inaktiv)")),
+        h("td", null, h("ul", { class: "liste-ohne" }, r.bedingungen.map((b) => h("li", null, bedingungText(b))))),
+        h("td", null, (kontoNach(r.kategorie_id) || { name: "#" + r.kategorie_id }).name),
+        h("td", { class: "aktionen" },
+          h("button", { type: "button", class: "knopf", onclick: async () => { if (await regelDialog(r)) route(); } }, "Bearbeiten"), " ",
+          h("button", { type: "button", class: "knopf", onclick: async () => {
+            try { await api("PATCH", `/api/regeln/${r.id}`, { aktiv: !r.aktiv }); route(); } catch (e) { melden(e.message, true); }
+          } }, r.aktiv ? "Deaktivieren" : "Aktivieren"), " ",
+          h("button", { type: "button", class: "knopf gefahr", onclick: async () => {
+            if (!(await bestaetigen(`Regel „${r.name}“ löschen? Bereits gesetzte Vorschläge bleiben erhalten.`))) return;
+            try { await api("DELETE", `/api/regeln/${r.id}`); melden("Regel gelöscht."); route(); } catch (e) { melden(e.message, true); }
+          } }, "Löschen")))))) : h("div", { class: "karte leer" }, "Noch keine Regeln.");
+    seite("Regeln",
+      h("p", { class: "leise" }, "Feste Zuordnungen, z. B. „Empfänger enthält REWE → Lebensmittel“. Neue Buchungen aus der Synchronisation werden automatisch kategorisiert; die erste passende aktive Regel (Priorität, dann Reihenfolge) gewinnt. Gesetzte Kategorien bleiben als Vorschlag markiert, bis sie bestätigt sind."),
+      h("div", { class: "werkzeug" }, h("button", { type: "button", class: "knopf primaer", onclick: async () => { if (await regelDialog(null)) route(); } }, "+ Regel anlegen")),
+      tab,
+      h("h2", null, "Auf vorhandene Buchungen anwenden"),
+      h("div", { class: "karte" },
+        h("label", { class: "feld zeile" }, nurUnk, "nur unkategorisierte Buchungen (abgeglichene werden nie geändert)"),
+        h("div", { class: "werkzeug" },
+          h("button", { type: "button", class: "knopf", onclick: () => anwenden(true) }, "Probelauf"),
+          h("button", { type: "button", class: "knopf primaer", onclick: () => anwenden(false) }, "Anwenden"))),
+      ergebnis);
   }
 
   const SPAETER = { wiederkehrend: "Wiederkehrende Buchungen", kredite: "Kredite", berichte: "Berichte" };
@@ -923,7 +1322,10 @@
   async function route() {
     menueSchliessen();
     navUmschalten(false);
-    const teile = (location.hash.replace(/^#\/?/, "") || "uebersicht").split("/");
+    glockeAktualisieren();
+    const [pfadTeil, suchTeil] = (location.hash.replace(/^#\/?/, "") || "uebersicht").split("?");
+    const teile = pfadTeil.split("/");
+    const hashParameter = new URLSearchParams(suchTeil || "");
     const [bereich, arg] = teile;
     for (const a of document.querySelectorAll(".navigation a")) {
       const b = a.dataset.bereich;
@@ -935,7 +1337,11 @@
       else if (bereich === "kategorien") await ansichtKonten(true);
       else if (bereich === "konto") await ansichtKonto(Number(arg), false);
       else if (bereich === "kategorie") await ansichtKonto(Number(arg), true);
-      else if (bereich === "buchungen") await ansichtAlleBuchungen();
+      else if (bereich === "buchungen") await ansichtAlleBuchungen(hashParameter.get("vorschlag"));
+      else if (bereich === "sync") await ansichtSync();
+      else if (bereich === "tan") await ansichtTan(Number(arg));
+      else if (bereich === "regeln") await ansichtRegeln();
+      else if (bereich === "benachrichtigungen") await ansichtBenachrichtigungen();
       else if (bereich === "import") await ansichtImport();
       else if (bereich === "einstellungen") await ansichtEinstellungen();
       else if (bereich === "spaeter") ansichtSpaeter(arg);
@@ -956,6 +1362,11 @@
   $("#menue-knopf").addEventListener("click", () => navUmschalten());
   $("#schleier").addEventListener("click", () => navUmschalten(false));
   window.addEventListener("hashchange", route);
+  const tanPfad = /^\/tan\/(\d+)\/?$/.exec(location.pathname);
+  if (tanPfad) history.replaceState(null, "", "/#/tan/" + tanPfad[1]);
+  $("#glocke").addEventListener("click", () => { location.hash = "#/benachrichtigungen"; });
+  glockeAktualisieren();
+  setInterval(() => { if (!document.hidden) glockeAktualisieren(); }, 30000);
   layoutLaden();
   trennerEinrichten();
   route();
