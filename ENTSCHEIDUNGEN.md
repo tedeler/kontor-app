@@ -628,3 +628,100 @@ Weitere Abkürzungen: SY = `spec/api/synchronisation.md`, KA =
   „wiederherstellen“ einen sofortigen Lauf an. Alles nur über REST.
 - **Begründung:** Auftrag des Koordinators; vorlagen.md, lernmodell.md,
   synchronisation.md 16.3.
+
+## D-053 Schema der Sicherungsdatei (M9)
+
+- **Entscheidung:** `kontor.sqlite` hat ein eigenes, schmales Schema
+  (`sicherung.SPALTEN`), versioniert über `schemaversion` = `sicherung.SCHEMAVERSION`
+  (beginnt bei 1, unabhängig von der Schemaversion der App-Datenbank). Tabellen mit
+  denselben Namen wie in der App: `konto`, `empfaenger`, `empfaenger_alias`, `tag`,
+  `buchung`, `split`, `buchung_tag`, `buchung_extern`, `vorschlag`, `regel`,
+  `dublettenverdacht`, `verdacht_kandidat`, `abstimmung`, `vorlage` (nur fachliche
+  Spalten, ohne abgeleitete wie `name_cf`/`ekey`), dazu `sync_kennung` (alle gemerkten
+  Kennungen), `sync_konto_zustand` (inkl. Entscheidung, ohne Status) und `id_zaehler`
+  (`objekt`, `hoechste_id` für `konto` … `vorlage` und `split`, aus `sqlite_sequence`).
+  Keine AUTOINCREMENT-Spalten, keine Trigger, Views oder Fremdschlüssel. Die Datei
+  entsteht vollständig im Arbeitsspeicher (`serialize`) nach `VACUUM` und wird nie auf
+  dem Server abgelegt; das Manifest ist eingerücktes UTF-8-JSON.
+- **Begründung:** sicherung.md 3.1 lässt das Schema frei; ein eigenes Schema ohne
+  Protokoll- und Betriebstabellen enthält konstruktiv keine Reste (2.2) und bleibt mit
+  Standardwerkzeugen lesbar. Eine eigene Versionsnummer trennt Änderungen der
+  Sicherungsdatei von internen Schemaänderungen.
+
+## D-054 Prüfung hochgeladener Sicherungen
+
+- **Entscheidung:** Reihenfolge exakt nach sicherung.md 5.1. Ergänzend: ZIP-Einträge
+  mit anderer Kompression als Stored/Deflate → `zip_inhalt`; entpackte Größe höchstens
+  4 GiB insgesamt (Manifest höchstens 1 MiB), beim Entpacken laufend gezählt →
+  `zip_inhalt`; beschädigte Einträge (CRC, Deflate) → `kein_zip`. Manifest:
+  `formatversion`/`schemaversion` ganze Zahlen ≥ 1 (keine Wahrheitswerte), `erstellt`
+  im Format `JJJJ-MM-TTTHH:MM:SSZ`; die Schlüssel von `anzahl` werden nur bei
+  unterstützter Version geprüft (unbekannte Objektart einer neueren Version ergibt
+  `version_nicht_unterstuetzt`, nicht `manifest_ungueltig`). Die Datenbank wird nur im
+  Arbeitsspeicher geöffnet (`deserialize`, `trusted_schema = OFF`, `query_only`);
+  falscher Dateikopf oder eine Dateilänge, die nicht zur Seitenzahl im Kopf passt, ist
+  `datenbank_ungueltig`. `datenbank_fremd`: andere Objekttypen als `table`/`index`,
+  virtuelle Tabellen, Systemtabellen außer `sqlite_sequence`, versteckte/generierte
+  Spalten, fehlende oder zusätzliche Tabellen bzw. Spalten; zusätzliche Indizes sind
+  erlaubt.
+- **Begründung:** sicherung.md 5.1, 8; E-093 (Schutz gegen untergeschobene Dateien).
+
+## D-055 Inhaltsprüfung in einer App-Datenbank im Arbeitsspeicher
+
+- **Entscheidung:** Die Zeilen der Sicherung werden typgeprüft (Ganzzahl, Text,
+  0/1, `NULL` nur wo erlaubt) und in eine leere Datenbank mit dem vollständigen
+  App-Schema im Arbeitsspeicher geladen. `inhalt_ungueltig` bei: verletzten
+  CHECK-/UNIQUE-Regeln, `foreign_key_check`, Buchungen mit weniger als zwei Splits
+  oder Summe ≠ 0, ungültigen Datumswerten/Zeitstempeln, Regeln bzw. Vorlagen, die die
+  Validierung von `POST /api/regeln` bzw. `/api/vorlagen` nicht bestehen, der
+  Bezugsprüfung aus protokoll.md 6.1 Schritt 5 (inkl. Zyklen), unbekannten Zählern
+  oder Entscheidungen. Kein Fehler: Kennungen ohne Buchung, Einträge je Bankkonto mit
+  `konto_id` ohne Konto (sicherung.md 5.1, E-096). Die Protokollformen für `anzahl`,
+  `inhalt_sha256` und den Vergleich entstehen mit denselben Funktionen wie die
+  REST-Antworten.
+- **Begründung:** Damit ist „die Datei wurde vollständig und richtig gelesen“ genau
+  dann erfüllt, wenn die Inhaltsprüfsumme stimmt (E-091).
+
+## D-056 Einspielen, Rückgängig und Laufsperre
+
+- **Entscheidung:** Die Prüfschritte 4 (Bestätigung) und 5 (Laufsperre) gelten
+  auch, wenn der Inhalt identisch ist (sie stehen in 5.1 vor dem Vergleich).
+  Während des Einspielens hält `SyncDienst.ohne_lauf()` die Laufsperre; ein Lauf
+  `laeuft` → 409 `sync_laeuft`, `wartet_auf_tan` → 409 `tan_ausstehend`; neue Läufe
+  (auch des Planers) bekommen in der Zeit 409 `sync_laeuft`. In
+  `protokoll.protokolliert(quelle="sicherung")` wird der Vergleich in derselben
+  Schreibtransaktion wiederholt; bei Unterschied werden alle Tabellen des
+  Buchbestands geleert und aus der Sicherung neu befüllt – die Nettowirkung ergibt
+  genau die Einträge nach 5.2. Gemerkte Kennungen werden als Differenz geändert (über
+  die Protokoll-Trigger, damit Rückgängig sie herstellt). Der Zustand je Bankkonto wird
+  ersetzt und vorher/nachher in der neuen Betriebstabelle `sicherung_zustand` zur
+  Änderung vermerkt (App-Schemaversion 5); Rückgängig einer so vermerkten Änderung setzt
+  den Stand davor und vermerkt seinerseits vorher/nachher, sodass Wiederholen und
+  weitere Rückgängig-Schritte beliebig verkettet funktionieren. ID-Zähler:
+  `sqlite_sequence` = Maximum aus hier, Quelle und eingespielten IDs; Rückgängig setzt
+  sie nie zurück.
+- **Begründung:** sicherung.md 5.3, 6, 7; protokoll.md 10.
+
+## D-057 Python-Sicherung und Zeitpunkt
+
+- **Entscheidung:** `erstelle_sicherung(config)` legt die Datenbank samt Schema nur an
+  bzw. migriert sie nur, wenn sie fehlt oder eine ältere Schemaversion hat; sonst
+  öffnet sie sie ausschließlich lesend (eine Lesetransaktion). `erstellt` kommt aus
+  derselben App-Uhr wie bei REST (`SyncDienst.jetzt`, also `mock_heute` 12:00:00Z im
+  Mock-Modus ohne simulierte Uhr). `GET /api/sicherung` verwendet die simulierte Uhr der
+  App; die Antwort trägt `Cache-Control: no-store`.
+- **Begründung:** python-api.md 11.1, sicherung.md 3.1, 4.
+
+## D-058 Weboberfläche für Meilenstein 9
+
+- **Entscheidung:** Neuer Bereich „Datensicherung“ (`#/sicherung`) in der Navigation:
+  „Sicherung herunterladen“ (Link auf `GET /api/sicherung`, Dateiname vom Server);
+  „Sicherung einspielen“ führt immer zuerst den Probelauf aus und zeigt Manifest,
+  Unterschied je Objektart und betroffene abgestimmte/abgeglichene Buchungen; bei
+  identischem Inhalt nur einen Hinweis. Einspielen erst nach Häkchen „Ich habe
+  verstanden …“ und einem zweiten Dialog „Gesamten Bestand ersetzen?“; danach
+  Ergebnis mit Link ins Änderungsprotokoll und „Einspielen rückgängig machen“.
+  Fehler werden je `details.grund` verständlich erklärt („Es wurde nichts geändert.“).
+  Alles nur über REST, responsiv (Tabelle scrollt auf schmalen Bildschirmen).
+- **Begründung:** Auftrag des Koordinators; sicherung.md 5.3 („die Oberfläche zeigt
+  vorher das Ergebnis eines Probelaufs“), E-092.

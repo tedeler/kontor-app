@@ -68,7 +68,8 @@ Commit-Nachrichten sind auf Deutsch.
 | `src/kontor/lernmodell.py` | M4: Lernmodell (Merkmale, Naive Bayes mit `Fraction`, Trainingsmenge aus dem Buchbestand, Vorhersage, Anwenden) – keine Gleitkommazahlen, kein gespeicherter Zustand |
 | `src/kontor/vorlagen.py` | M4: Split-Vorlagen (Validierung, CRUD, Erkennung, Aufteilen, Anwenden, Konto löschen) |
 | `src/kontor/pflege.py` | M3: Empfängerverwaltung, Erfassungshilfe, Umbuchungen, Kontenabstimmung, Volltextsuche, Konto mit Buchungen löschen |
-| `src/kontor/db.py` | SQLite-Schema (Version 4), Migration früherer Versionen ohne Datenverlust, Verbindungen |
+| `src/kontor/sicherung.py` | M9: Datensicherung (eigenes Schema der Sicherungsdatei `SPALTEN`, Version `SCHEMAVERSION`), Prüfung nach sicherung.md 5.1, Inhaltsprüfung in einer App-Datenbank im Arbeitsspeicher, Probelauf, Einspielen |
+| `src/kontor/db.py` | SQLite-Schema (Version 5), Migration früherer Versionen ohne Datenverlust, Verbindungen |
 | `src/kontor/importer/` | KMyMoney- und GnuCash-Import (`gnucash.py`: XML und SQLite, SQLite nur als Kopie im Arbeitsspeicher geöffnet) und `ImportErgebnis` |
 | `src/kontor/plugins/` | Bank-/Mail-Schnittstellen, Mock-Plugins, FinTS-/IMAP-Platzhalter |
 | `src/kontor/web/` | Weboberfläche (HTML, CSS, Vanilla-JS, ohne externe Ressourcen) |
@@ -86,8 +87,22 @@ Commit-Nachrichten sind auf Deutsch.
   `sync_wiederherstellung` vermerkt, damit Rückgängig den Eintrag behält
   (protokoll.md 6.4). Nach M4-Datenmodelländerungen auch an Meilenstein 9
   (Datensicherung) denken.
-- Meilenstein 9 (Marker `m9`) ist noch nicht umgesetzt; Maßstab für „grün“
-  bis dahin ist `python -m pytest -m "not m9"`.
+## Hinweise ab Meilenstein 9 (Datensicherung)
+
+- **Jeder neue fachliche Zustand gehört in die Sicherung** (sicherung.md 2.3):
+  neue Tabelle des Buchbestands in `sicherung.SPALTEN`, `BUCH_TABELLEN`,
+  `_LOESCHEN` und ggf. `ZAEHLER` eintragen, neue Objektart in
+  `protokoll.OBJEKTE` (damit `anzahl` und Inhaltsprüfsumme sie erfassen) und
+  `OBJEKTE_JE_VERSION`; `SCHEMAVERSION` der Sicherungsdatei erhöhen und für die
+  alte Version eine Migration beim Einspielen vorsehen (3.4). Geheimnisse
+  (PIN, Tokens) nie, auch nicht verschlüsselt.
+- Das Einspielen ersetzt den Buchbestand in `protokoll.protokolliert` (eine
+  Änderung `sicherung_einspielen`); der Zustand je Bankkonto wird vorher/nachher
+  in `sicherung_zustand` vermerkt, damit Rückgängig/Wiederholen ihn herstellen
+  (protokoll.md 10.2). Während des Einspielens hält `SyncDienst.ohne_lauf()`
+  die Laufsperre.
+- Maßstab für „grün“: `python -m pytest` im Lese-Klon; Tests späterer
+  Meilensteine (Marker `m5`…`m8`) erst, wenn beauftragt.
 
 ## Arbeitsablauf
 

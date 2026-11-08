@@ -26,7 +26,7 @@ widersprüchlich ist). Gelöst werden Widersprüche nur von einem Test-Thread.
 
 - **Status:** vom Test-Thread behoben (laut Koordination); erledigt.
 
-## W-002 M1-Tests verlangen, dass das Szenario `beitragsaenderung` unbekannt ist
+## W-002 M1-Tests verlangen, dass das Szenario `beitragsaenderung` unbekannt ist (erledigt)
 
 - **Betroffene Tests:** `tests/app/test_paket.py::test_ungueltige_konfiguration[mock_modus=True,mock_szenario=beitragsaenderung]`,
   `tests/app/test_plugins.py::test_unbekanntes_szenario[MockBank]` und `::test_unbekanntes_szenario[MockMail]`
@@ -44,6 +44,8 @@ widersprüchlich ist). Gelöst werden Widersprüche nur von einem Test-Thread.
   und die M4-Tests erfüllen. Die M1-Tests wurden mit M4 nicht angepasst (E-029 setzt voraus, dass M4 das
   Verhalten früherer Tests nicht ändert; hier wurde ein früher „unbekannter“ Wert zu einem bekannten).
   Vorschlag: in den drei M1-Tests einen weiterhin unbekannten Namen verwenden (z. B. `gibtsnicht`).
-- **Umgang:** Umgesetzt ist die M4-Spezifikation; die drei M1-Tests schlagen fehl.
+- **Umgang:** Umgesetzt ist die M4-Spezifikation; die drei M1-Tests schlugen fehl.
+- **Status:** vom Test-Thread behoben (E-095, kontor-tests Commit `cc45364`: die M1-Fälle verwenden
+  `gibtsnicht_m1`); geprüft beim M9-Lauf, die drei Tests sind grün. Erledigt.
 
-Stand: Meilenstein 4, getestet gegen kontor-tests Commit `ffe104c`.
+Stand: Meilenstein 9, keine offenen Widersprüche.

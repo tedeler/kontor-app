@@ -1,7 +1,7 @@
 # kontor-app
 
 Implementierung von **Kontor**, einer selbst gehosteten Finanz-Web-App
-(Python, FastAPI, SQLite, Single-Page-Weboberfläche). Stand: **Meilenstein 4**
+(Python, FastAPI, SQLite, Single-Page-Weboberfläche). Stand: **Meilenstein 9** (nach M4, vor M5)
 
 - M1: KMyMoney-Import, Finanzübersicht, Konten- und Buchungsliste mit Filtern
   und Mehrfachbearbeitung, doppelte Buchführung mit Splits und Tags,
@@ -25,6 +25,10 @@ Implementierung von **Kontor**, einer selbst gehosteten Finanz-Web-App
   abschaltbar) als vierte Stufe der Kategorisierung, Split-Vorlagen für
   Sammelabbuchungen (Erkennung über Empfänger und Muster, feste Teilbeträge,
   keine Toleranz, Benachrichtigung bei Abweichung, nachträgliches Aufteilen).
+- M9: Datensicherung und Wiederherstellung: vollständiger fachlicher Bestand
+  als ZIP (SQLite-Datenbank und Manifest mit Prüfsummen), Einspielen mit
+  Probelauf und ausdrücklicher Bestätigung als eine rückgängig machbare
+  Änderung im Protokoll; Geheimnisse und Protokoll sind nie enthalten.
 
 Die verbindliche Spezifikation liegt im getrennten Repository **kontor-tests**
 (`spec/konzept.md`, `spec/api/*`); dort liegen auch die Tests.
@@ -160,6 +164,50 @@ IMAP) bauen bis Meilenstein 6 keine Verbindungen auf und melden bei Abrufen
 sauber als fehlgeschlagener Lauf. Die PIN wird nie in einer Umgebungsvariable,
 Datei oder Datenbank abgelegt, sondern nur in der Weboberfläche eingegeben.
 
+### Datensicherung im Betrieb
+
+Kontor sichert den **fachlichen Bestand** in der App (`GET /api/sicherung`,
+Seite „Datensicherung“, Python `kontor.sicherung.erstelle_sicherung`):
+Konten, Buchungen mit Splits, Empfänger, Tags, Regeln, Dublettenverdachte,
+Abstimmungen, Split-Vorlagen, gemerkte Umsatzkennungen, Stand je Bankkonto
+und ID-Zähler – als ZIP mit `kontor.sqlite` und `manifest.json`. Nicht
+enthalten: Änderungsprotokoll, PIN/Geheimnisse, Importvorgänge, Läufe,
+Benachrichtigungen und die Konfiguration (Umgebungsvariablen).
+
+Empfehlung: **zusätzlich** zu Proxmox-Snapshots bzw. -Backups des Containers.
+Ein Snapshot sichert die ganze Instanz einschließlich Protokoll und
+Konfiguration (schnelles Zurücksetzen nach einem missglückten Update); die
+Kontor-Sicherung ist klein, geprüft (Prüfsummen), unabhängig vom Container und
+lässt sich auf neuer Hardware oder in eine frische Instanz einspielen. Eine
+Sicherung im laufenden Betrieb ist ein konsistenter Schnappschuss; der Server
+muss dafür nicht angehalten werden. Beispiel für eine nächtliche Sicherung per
+cron (Ziel außerhalb des Containers, z. B. NAS):
+
+```bash
+#!/bin/sh
+# /usr/local/bin/kontor-sicherung – mit denselben KONTOR_*-Umgebungsvariablen wie der Server
+set -e
+ziel=/mnt/nas/kontor
+python3 -c 'import sys; from kontor.config import KontorConfig; from kontor.sicherung import erstelle_sicherung
+open(sys.argv[1], "wb").write(erstelle_sicherung(KontorConfig.from_env()))' "$ziel/kontor-$(date +%F).zip"
+find "$ziel" -name 'kontor-*.zip' -mtime +30 -delete      # 30 Tage aufbewahren
+```
+
+```bash
+# /etc/cron.d/kontor-sicherung – täglich 02:17
+17 2 * * * kontor . /etc/kontor.env && /usr/local/bin/kontor-sicherung
+```
+
+Die Dateien enthalten sensible Finanzdaten: nur auf verschlüsselten
+bzw. zugriffsgeschützten Speichern ablegen. Wiederherstellen über die Seite
+„Datensicherung“: Datei wählen, „Prüfen“ zeigt den Unterschied je Objektart
+(und betroffene abgestimmte Buchungen), danach Bestätigung; das Einspielen
+ist eine Änderung im Änderungsprotokoll und lässt sich rückgängig machen.
+Eine Mock-Sicherung lässt sich nie in den Echtbetrieb einspielen und
+umgekehrt. Nach dem Einspielen holt die nächste Synchronisation Umsätze nach,
+die seit der Sicherung gebucht wurden – jeden genau einmal. Die PIN wird bei
+Bedarf neu eingegeben.
+
 ## Python-Schnittstelle (Auszug)
 
 ```python
@@ -176,6 +224,9 @@ app = create_app(config)   # FastAPI-App, Schema ist danach angelegt
 
 from kontor.sync import planer_takt
 lauf = planer_takt(app)    # ein Planer-Takt, synchron (None, wenn nichts fällig ist)
+
+from kontor.sicherung import erstelle_sicherung
+zip_bytes = erstelle_sicherung(config)   # nur lesend; Einspielen nur über REST
 ```
 
 ## Weboberfläche
@@ -224,6 +275,12 @@ Single-Page-App ohne Build-Schritt und ohne externe Ressourcen
   wiederhergestellt); „Entscheiden …“ fragt ohne Vorauswahl nach
   Wiederherstellen (mit allen oder nur neuen Umsätzen) oder Ignorieren und
   bietet danach einen sofortigen Lauf an (Link `/sync/konten`).
+- **Datensicherung** (M9): „Sicherung herunterladen“ (ZIP); „Sicherung
+  einspielen“ prüft die Datei zuerst (Probelauf: Unterschied je Objektart,
+  betroffene abgestimmte/abgeglichene Buchungen, verständliche Meldung bei
+  beschädigten oder fremden Dateien), verlangt dann ein Häkchen und eine
+  zweite Bestätigung und zeigt das Ergebnis mit Link ins
+  Änderungsprotokoll und „Einspielen rückgängig machen“.
 - **Einstellungen**: Betriebsmodus, Plugins, Tags verwalten.
 - **Änderungsprotokoll** (M3): alle Änderungen, neueste zuerst, filterbar nach
   Quelle und Wirksamkeit, mit Einträgen je Objekt; Knöpfe „Rückgängig“,
