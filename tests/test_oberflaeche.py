@@ -8,7 +8,8 @@ from pathlib import Path
 import kontor
 
 WEB = Path(kontor.__file__).parent / "web"
-NAVIGATION = ["Finanzübersicht", "Konten", "Kategorien", "Wiederkehrende Buchungen", "Kredite", "Berichte",
+NAVIGATION = ["Finanzübersicht", "Konten", "Kategorien", "Empfänger", "Umbuchungen", "Kontenabstimmung",
+              "Änderungsprotokoll", "Wiederkehrende Buchungen", "Kredite", "Berichte",
               "Synchronisation", "Regeln", "Benachrichtigungen", "Import", "Einstellungen"]
 
 
@@ -53,7 +54,11 @@ def test_oberflaeche_nutzt_nur_spezifizierte_api():
                # Meilenstein 2
                "/api/buchungen/mehrfach/vorschlag", "/api/regeln", "/api/regeln/", "/api/regeln/anwenden",
                "/api/sync", "/api/sync/status", "/api/sync/laeufe", "/api/sync/konten", "/api/sync/pin",
-               "/api/tan-anforderungen/", "/api/benachrichtigungen", "/api/benachrichtigungen/", "/api/mock/zeit"}
+               "/api/tan-anforderungen/", "/api/benachrichtigungen", "/api/benachrichtigungen/", "/api/mock/zeit",
+               # Meilenstein 3
+               "/api/aenderungen", "/api/aenderungen/", "/api/aenderungen/rueckgaengig", "/api/empfaenger/",
+               "/api/buchungen/erfassen", "/api/umbuchungen/erkennen", "/api/umbuchungen/zusammenfuehren",
+               "/api/abstimmungen", "/api/abstimmungen/", "/api/suche"}
     assert pfade <= erlaubt, pfade - erlaubt
 
 

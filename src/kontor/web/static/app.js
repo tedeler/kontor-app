@@ -358,7 +358,7 @@
 
   async function buchungDialog(b) {
     await stammLaden();
-    const gesperrt = b.status === "abgeglichen";
+    const gesperrt = b.status === "abgeglichen" || !!b.abgestimmt;
     const datum = h("input", { type: "date", value: b.datum, required: true, disabled: gesperrt });
     const [empf, liste] = empfaengerFeld(b.empfaenger ? b.empfaenger.name : "");
     empf.disabled = gesperrt;
@@ -387,7 +387,7 @@
     b.splits.forEach((s) => splitBox.append(splitZeile(s)));
     neuRechnen();
     const inhalt = h("div", null,
-      gesperrt ? h("p", { class: "marke-status" }, "Abgeglichen – nur Tags sind änderbar.") : null,
+      gesperrt ? h("p", { class: "marke-status" }, (b.abgestimmt ? "Abgestimmt" : "Abgeglichen") + " – nur Tags und Status sind änderbar.") : null,
       h("label", { class: "feld" }, "Datum", datum),
       h("label", { class: "feld" }, "Empfänger", empf, liste),
       h("label", { class: "feld" }, "Verwendungszweck", zweck),
@@ -415,34 +415,6 @@
       return true;
     } }]);
     if (w) melden("Buchung gespeichert.");
-    return !!w;
-  }
-
-  async function neueBuchungDialog(kontoId) {
-    await stammLaden();
-    const heute = new Date();
-    const iso = `${heute.getFullYear()}-${String(heute.getMonth() + 1).padStart(2, "0")}-${String(heute.getDate()).padStart(2, "0")}`;
-    const konto = h("select", null, kontoOptionen(kontoId, (k) => BESTAND.has(k.art)));
-    const datum = h("input", { type: "date", value: iso, required: true });
-    const [empf, liste] = empfaengerFeld("");
-    const zweck = h("input", { type: "text", maxlength: 10000 });
-    const betrag = h("input", { type: "text", inputmode: "decimal", placeholder: "z. B. -12,34 (Ausgabe) oder 100 (Eingang)", required: true });
-    const gegen = h("select", { required: true }, h("option", { value: "" }, "– Kategorie oder Gegenkonto –"), kontoOptionen(null));
-    const w = await dialog("Neue Buchung", h("div", null,
-      h("label", { class: "feld" }, "Konto", konto), h("label", { class: "feld" }, "Datum", datum),
-      h("label", { class: "feld" }, "Betrag (Sicht des Kontos)", betrag), h("label", { class: "feld" }, "Kategorie / Gegenkonto", gegen),
-      h("label", { class: "feld" }, "Empfänger", empf, liste), h("label", { class: "feld" }, "Verwendungszweck", zweck)),
-    [{ text: "Anlegen", klasse: "primaer", submit: true, tun: async () => {
-      const c = betragLesen(betrag.value);
-      if (c === null) throw new Error("Ungültiger Betrag.");
-      if (!gegen.value) throw new Error("Bitte Kategorie oder Gegenkonto wählen.");
-      const body = { datum: datum.value, verwendungszweck: zweck.value,
-        splits: [{ konto_id: Number(konto.value), betrag: c }, { konto_id: Number(gegen.value), betrag: -c }] };
-      const eid = await empfaengerId(empf.value);
-      if (eid) body.empfaenger_id = eid;
-      return await api("POST", "/api/buchungen", body);
-    } }]);
-    if (w) melden("Buchung angelegt.");
     return !!w;
   }
 
@@ -486,7 +458,8 @@
    * basis: feste Filter, z. B. {konto_id} oder {kategorie_id, unterkategorien}.
    */
   function buchungsliste(ziel, basis, optionen) {
-    const zustand = { filter: optionen && optionen.vorschlag ? { vorschlag: optionen.vorschlag } : {}, sortierung: "-datum", seite: 1, pro_seite: 100, auswahl: new Set(), anker: null, daten: null };
+    const anfang = Object.assign({}, optionen && optionen.vorschlag ? { vorschlag: optionen.vorschlag } : {}, (optionen && optionen.filter) || {});
+    const zustand = { filter: anfang, sortierung: "-datum", seite: 1, pro_seite: 100, auswahl: new Set(), anker: null, daten: null };
     const kontoSicht = basis.konto_id !== undefined;
 
     const f = {
@@ -503,6 +476,8 @@
       status: Object.keys(STATUS_TEXT).map((s) => h("input", { type: "checkbox", value: s })),
       vorschlag: h("select", { name: "vorschlag" }, h("option", { value: "" }, "alle"),
         h("option", { value: "true" }, "nur mit Vorschlag"), h("option", { value: "false" }, "ohne Vorschlag")),
+      abgestimmt: h("select", { name: "abgestimmt" }, h("option", { value: "" }, "alle"),
+        h("option", { value: "true" }, "nur abgestimmte"), h("option", { value: "false" }, "nicht abgestimmte")),
     };
     const filterForm = h("form", { class: "filter-form" },
       h("div", { class: "filter" },
@@ -515,12 +490,16 @@
         basis.kategorie_id === undefined ? h("label", { style: "flex-direction:row;align-items:center;gap:.3rem" }, f.unter, "mit Unterkategorien") : null,
         stamm.tags.length ? h("label", null, "Tags (alle)", f.tag) : null,
         h("label", null, "Kategorie-Vorschlag", f.vorschlag),
+        h("label", null, "Abstimmung", f.abgestimmt),
         h("div", null, h("div", { class: "leise", style: "font-size:.82rem" }, "Status"),
           h("div", { class: "status-wahl" }, f.status.map((c) => h("label", null, c, STATUS_TEXT[c.value]))))),
       h("div", { class: "filter-zeile" },
         h("button", { type: "submit", class: "knopf primaer" }, "Filtern"),
         h("button", { type: "button", class: "knopf", onclick: () => { filterForm.reset(); f.unter.checked = true; zustand.filter = {}; zustand.seite = 1; laden(); } }, "Zurücksetzen")));
     if (zustand.filter.vorschlag) f.vorschlag.value = zustand.filter.vorschlag;
+    if (zustand.filter.empfaenger_id) f.empfaenger.value = String(zustand.filter.empfaenger_id);
+    if (zustand.filter.tag_id) for (const o of f.tag.options) o.selected = zustand.filter.tag_id.includes(Number(o.value));
+    if (zustand.filter.abgestimmt) f.abgestimmt.value = zustand.filter.abgestimmt;
     filterForm.addEventListener("submit", (e) => {
       e.preventDefault();
       const fl = {};
@@ -543,6 +522,7 @@
       const st = f.status.filter((c) => c.checked).map((c) => c.value);
       if (st.length) fl.status = st;
       if (f.vorschlag.value) fl.vorschlag = f.vorschlag.value;
+      if (f.abgestimmt.value) fl.abgestimmt = f.abgestimmt.value;
       zustand.filter = fl; zustand.seite = 1;
       laden();
     });
@@ -557,7 +537,7 @@
     function werkzeugZeichnen() {
       const n = zustand.auswahl.size;
       werkzeug.replaceChildren(...[
-        optionen && optionen.neu ? h("button", { type: "button", class: "knopf", onclick: async () => { if (await neueBuchungDialog(basis.konto_id)) laden(); } }, "+ Neue Buchung") : null,
+        optionen && optionen.neu ? h("button", { type: "button", class: "knopf", onclick: async () => { if (await erfassenDialog(basis.konto_id)) { await stammLaden(); laden(); } } }, "+ Buchung erfassen") : null,
         h("span", { class: "auswahl-info" }, n ? `${n} markiert` : ""),
         h("button", { type: "button", class: "knopf", disabled: !n, onclick: () => aktion("kategorie") }, "Kategorie setzen"),
         h("button", { type: "button", class: "knopf", disabled: !n, onclick: () => aktion("tags") }, "Tags …"),
@@ -602,11 +582,20 @@
         }
         melden(`${ok} Buchung(en) ${STATUS_TEXT[ziel]}` + (fehler ? `, ${fehler} nicht zulässig` : "") + ".", fehler > 0 && ok === 0);
         geaendert = ok > 0;
+      } else if (was === "umbuchung") {
+        try {
+          await api("POST", "/api/umbuchungen/zusammenfuehren", { buchung_ids: ids });
+          melden("Als Umbuchung zusammengeführt (Rückgängig trennt sie wieder).");
+          zustand.auswahl.clear();
+          geaendert = true;
+        } catch (e) {
+          melden(e.code === "keine_umbuchung" ? "Keine Umbuchung: Es braucht zwei unkategorisierte Bankumsätze auf verschiedenen Konten mit Gegenbetrag." : e.message, true);
+        }
       } else if (was === "loeschen") {
         if (await bestaetigen(`${ids.length} Buchung(en) wirklich löschen?`)) {
           let fehler = 0;
           for (const id of ids) { try { await api("DELETE", `/api/buchungen/${id}`); } catch (e) { fehler++; } }
-          if (fehler) melden(`${fehler} Buchung(en) konnten nicht gelöscht werden (abgeglichen?).`, true);
+          if (fehler) melden(`${fehler} Buchung(en) konnten nicht gelöscht werden (abgeglichen oder abgestimmt?).`, true);
           zustand.auswahl.clear();
           geaendert = true;
         }
@@ -627,7 +616,7 @@
         "-",
         { text: "Bestätigen" + plural, tun: () => aktion("bestaetigen") },
         { text: "Abgleichen" + plural, tun: () => aktion("abgleichen") },
-        { text: "Als Dublette markieren (später)", aus: true, tun: () => {} },
+        { text: "Als Umbuchung zusammenführen", aus: n !== 2, tun: () => aktion("umbuchung") },
         "-",
         { text: "Löschen" + plural, tun: () => aktion("loeschen") },
       ]);
@@ -670,6 +659,7 @@
       const andere = b.splits.filter((s) => s.konto_id !== basis.konto_id).map((s) => kontoNach(s.konto_id)).filter(Boolean);
       if (b.splits.length > 2) return "Splitbuchung (" + b.splits.length + " Teile)";
       if (andere.length === 1) return (BESTAND.has(andere[0].art) ? "Umbuchung: " : "") + kontoPfad(andere[0]);
+      if (b.ist_umbuchung) return "Umbuchung: " + b.splits.map((s) => (kontoNach(s.konto_id) || {}).name).join(" → ");
       return "–";
     }
 
@@ -694,7 +684,8 @@
           h("td", null, b.empfaenger ? h("div", { class: "nur-schmal" }, h("strong", null, b.empfaenger.name)) : null,
             h("div", { class: b.vorschlag ? "mit-vorschlag" : null }, kategorieText(b), b.vorschlag ? vorschlagMarke(b) : null), b.verwendungszweck ? h("div", { class: "zweck" }, b.verwendungszweck.length > 160 ? b.verwendungszweck.slice(0, 160) + " …" : b.verwendungszweck) : null,
             b.tags.length ? h("div", null, b.tags.map((t) => h("span", { class: "tag" }, t.name))) : null),
-          h("td", { class: "nur-breit" }, h("span", { class: "marke-status" }, STATUS_TEXT[b.status])),
+          h("td", { class: "nur-breit" }, h("span", { class: "marke-status" }, STATUS_TEXT[b.status]),
+            b.abgestimmt ? h("span", { class: "marke-gesperrt", title: "abgestimmt – gegen Änderungen gesperrt" }, "🔒 abgestimmt") : null),
           kontoSicht ? betragZelle(b.betrag) : h("td", { class: "zahl" }, betragText(b.betrag)));
         tr.addEventListener("click", (e) => { if (!tr.dataset.langGedrueckt) klick(e, b); });
         tr.addEventListener("dblclick", () => aktion("bearbeiten", b));
@@ -747,7 +738,7 @@
   function seite(titel, ...kinder) {
     $("#kopf-titel").textContent = titel;
     document.title = titel + " – Kontor";
-    inhalt.replaceChildren(h("h1", null, titel), ...kinder.filter((k) => k !== null && k !== undefined && k !== false));
+    inhalt.replaceChildren(h("h1", null, titel), ...kinder.flat(Infinity).filter((k) => k !== null && k !== undefined && k !== false));
     inhalt._tasten = null;
   }
 
@@ -801,10 +792,8 @@
         { text: "Bearbeiten …", tun: async () => { if (await kontoDialog(konto)) route(); } },
         { text: "Unterkonto anlegen …", tun: async () => { if (await kontoDialog(null, konto.art)) route(); } },
         "-",
-        { text: "Löschen", tun: async () => {
-          if (!(await bestaetigen(`Konto „${konto.name}“ löschen?`))) return;
-          try { await api("DELETE", `/api/konten/${konto.id}`); melden("Konto gelöscht."); route(); } catch (e) { melden(e.message, true); }
-        } },
+        ...(BESTAND.has(konto.art) ? [{ text: "Abstimmen …", tun: async () => { if (await abstimmenDialog(konto)) route(); } }] : []),
+        { text: "Löschen …", tun: async () => { if (await kontoLoeschen(konto)) { await stammLaden(); route(); } } },
       ]));
       tbody.append(tr);
     }
@@ -828,21 +817,28 @@
     const k = stamm.konten.find((x) => x.id === id);
     if (!k) { seite("Nicht gefunden", h("p", null, "Das Konto existiert nicht.")); return; }
     const sal = (await api("GET", "/api/kontenuebersicht")).konten.find((x) => x.konto_id === id);
+    const abst = BESTAND.has(k.art) ? abstimmungenKarte(k, await api("GET", "/api/abstimmungen" + query({ konto_id: id }))) : null;
     const box = h("div");
     seite((kategorie ? "Kategorie " : "") + kontoPfad(k),
       h("p", { class: "leise" }, ART_TEXT[k.art], k.iban ? " · " + k.iban : "", " · Saldo ", h("strong", null, betragText(sal ? sal.saldo : 0)),
         sal && sal.saldo_gesamt !== sal.saldo ? " · inkl. Unterkonten " + betragText(sal.saldo_gesamt) : "",
-        k.geschlossen ? " · geschlossen" : "", " · ", h("a", { href: "javascript:void 0", onclick: async () => { if (await kontoDialog(k)) route(); } }, "bearbeiten")),
-      box);
+        k.geschlossen ? " · geschlossen" : "", " · ", h("a", { href: "javascript:void 0", onclick: async () => { if (await kontoDialog(k)) route(); } }, "bearbeiten"),
+        " · ", h("a", { href: "javascript:void 0", onclick: async () => { if (await kontoLoeschen(k)) { location.hash = kategorie ? "#/kategorien" : "#/konten"; } } }, "löschen …")),
+      abst, box);
     buchungsliste(box, kategorie ? { kategorie_id: id, unterkategorien: true } : { konto_id: id }, { neu: !kategorie && BESTAND.has(k.art) });
     inhalt._tasten = box._tasten;
   }
 
-  async function ansichtAlleBuchungen(vorschlag) {
+  async function ansichtAlleBuchungen(params) {
     await stammLaden();
+    const vorschlag = params.get("vorschlag");
+    const filter = {};
+    if (params.get("empfaenger_id")) filter.empfaenger_id = Number(params.get("empfaenger_id"));
+    if (params.getAll("tag_id").length) filter.tag_id = params.getAll("tag_id").map(Number);
+    if (params.get("abgestimmt")) filter.abgestimmt = params.get("abgestimmt");
     const box = h("div");
-    seite("Alle Buchungen", h("p", { class: "leise" }, "Betrag = Umsatz (Summe der positiven Splits). Kategorien mit der Marke „Vorschlag“ stammen aus Regeln und sind noch nicht bestätigt."), box);
-    buchungsliste(box, {}, { vorschlag: vorschlag === "true" ? "true" : vorschlag === "false" ? "false" : null });
+    seite("Alle Buchungen", h("p", { class: "leise" }, "Betrag = Umsatz (Summe der positiven Splits). Kategorien mit der Marke „Vorschlag“ stammen aus Regeln oder der Standardkategorie des Empfängers und sind noch nicht bestätigt."), box);
+    buchungsliste(box, {}, { neu: true, filter, vorschlag: vorschlag === "true" ? "true" : vorschlag === "false" ? "false" : null });
     inhalt._tasten = box._tasten;
   }
 
@@ -1318,6 +1314,421 @@
     seite(SPAETER[name] || "Später", h("div", { class: "karte leer" }, "Dieser Bereich wird in einem späteren Meilenstein umgesetzt."));
   }
 
+  // ============================================================ Meilenstein 3
+  const QUELLE_TEXT = { manuell: "manuell", import: "Import", sync: "Synchronisation", regeln: "Regeln",
+    umbuchung: "Umbuchungserkennung", rueckgaengig: "Rückgängig" };
+  const OBJEKT_TEXT = { konto: "Konto", empfaenger: "Empfänger", tag: "Tag", buchung: "Buchung", regel: "Regel",
+    verdacht: "Dublettenverdacht", abstimmung: "Abstimmung" };
+  const ART_EINTRAG = { angelegt: "angelegt", geaendert: "geändert", geloescht: "gelöscht" };
+
+  function heuteIso() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+
+  function objektName(e) {
+    const z = e.nachher || e.vorher || {};
+    if (e.objekt === "buchung") return `#${e.objekt_id} ${datumText(z.datum)} ${z.verwendungszweck ? "„" + z.verwendungszweck.slice(0, 40) + "“" : ""}`;
+    if (z.name) return `„${z.name}“`;
+    return "#" + e.objekt_id;
+  }
+
+  // ------------------------------------------------ Rückgängig / Wiederholen
+  async function rueckgaengigMachen(a) {
+    try {
+      const u = await api("POST", `/api/aenderungen/${a.id}/rueckgaengig`);
+      melden(`Rückgängig gemacht: ${a.beschreibung} (Strg+Y stellt es wieder her).`);
+      return u;
+    } catch (e) {
+      melden(e.code === "rueckgaengig_konflikt" ? "Nicht möglich: Eine spätere Änderung betrifft dieselben Daten. Bitte zuerst die spätere Änderung rückgängig machen."
+        : e.message, true);
+      return null;
+    }
+  }
+
+  /** Strg+Z: neueste wirksame Änderung, die selbst kein Rückgängig ist; Strg+Y: neuestes wirksames Rückgängig. */
+  async function letzteRueckgaengig(wiederholen) {
+    const quellen = Object.keys(QUELLE_TEXT).filter((q) => (wiederholen ? q === "rueckgaengig" : q !== "rueckgaengig"));
+    try {
+      const s = await api("GET", "/api/aenderungen" + query({ wirksam: true, quelle: quellen, pro_seite: 1 }));
+      if (!s.eintraege.length) { melden(wiederholen ? "Nichts zum Wiederherstellen." : "Keine Änderung zum Rückgängigmachen."); return; }
+      if (await rueckgaengigMachen(s.eintraege[0])) { await stammLaden(); route(); }
+    } catch (e) { melden(e.message, true); }
+  }
+
+  // ------------------------------------------------------ Änderungsprotokoll
+  async function ansichtProtokoll(params) {
+    const filter = { quelle: params.get("quelle") || "", wirksam: params.get("wirksam") || "", seite: Number(params.get("seite") || 1) };
+    const s = await api("GET", "/api/aenderungen" + query({ quelle: filter.quelle || null, wirksam: filter.wirksam || null,
+      seite: filter.seite, pro_seite: 50 }));
+    const quelle = h("select", { "aria-label": "Quelle" }, h("option", { value: "" }, "alle Quellen"),
+      Object.entries(QUELLE_TEXT).map(([q, t]) => h("option", { value: q, selected: filter.quelle === q }, t)));
+    const wirksam = h("select", { "aria-label": "Wirksamkeit" }, h("option", { value: "" }, "alle"),
+      h("option", { value: "true", selected: filter.wirksam === "true" }, "nur wirksame"),
+      h("option", { value: "false", selected: filter.wirksam === "false" }, "nur rückgängig gemachte"));
+    const neuLaden = (seite) => {
+      const p = new URLSearchParams();
+      if (quelle.value) p.set("quelle", quelle.value);
+      if (wirksam.value) p.set("wirksam", wirksam.value);
+      if (seite > 1) p.set("seite", seite);
+      location.hash = "#/protokoll" + (p.toString() ? "?" + p : "");
+    };
+    quelle.addEventListener("change", () => neuLaden(1));
+    wirksam.addEventListener("change", () => neuLaden(1));
+    const liste = h("tbody");
+    for (const a of s.eintraege) {
+      const wirkt = a.rueckgaengig_durch === null;
+      const knoepfe = [];
+      if (wirkt) {
+        knoepfe.push(h("button", { type: "button", class: "knopf", onclick: async () => { if (await rueckgaengigMachen(a)) route(); } },
+          a.quelle === "rueckgaengig" ? "Wiederholen" : "Rückgängig"));
+        if (a.gruppe) {
+          knoepfe.push(" ", h("button", { type: "button", class: "knopf", title: "Alle Änderungen dieser Gruppe zurücknehmen", onclick: async () => {
+            if (!(await bestaetigen(`Alle Änderungen der Gruppe „${a.gruppe}“ rückgängig machen?`))) return;
+            try { await api("POST", "/api/aenderungen/rueckgaengig", { gruppe: a.gruppe }); melden("Gruppe rückgängig gemacht."); route(); }
+            catch (e) { melden(e.code === "rueckgaengig_konflikt" ? "Nicht möglich: Spätere Änderungen betreffen dieselben Daten." : e.message, true); }
+          } }, "Ganze Gruppe"));
+        }
+      }
+      const eintraege = h("details", null, h("summary", null, `${a.eintraege.length} Objekt${a.eintraege.length === 1 ? "" : "e"}`),
+        h("ul", { class: "eintraege" }, a.eintraege.slice(0, 200).map((e) => h("li", null, `${OBJEKT_TEXT[e.objekt]} ${objektName(e)} ${ART_EINTRAG[e.art]}`)),
+          a.eintraege.length > 200 ? h("li", null, `… und ${a.eintraege.length - 200} weitere`) : null));
+      liste.append(h("tr", { class: "aenderung" + (wirkt ? "" : " unwirksam"), "data-aenderung": a.id },
+        h("td", null, "#" + a.id, h("div", { class: "zweck" }, zeitText(a.zeitpunkt))),
+        h("td", null, h("strong", null, a.beschreibung), h("div", { class: "zweck" }, QUELLE_TEXT[a.quelle] + (a.gruppe ? " · Gruppe " + a.gruppe : "")),
+          a.rueckgaengig_von.length ? h("div", { class: "zweck" }, "nimmt zurück: " + a.rueckgaengig_von.map((x) => "#" + x).join(", ")) : null,
+          wirkt ? null : h("div", { class: "zweck" }, `rückgängig gemacht durch #${a.rueckgaengig_durch}`), eintraege),
+        h("td", { class: "aktionen" }, knoepfe)));
+    }
+    const maxSeite = Math.max(1, Math.ceil(s.gesamt / s.pro_seite));
+    seite("Änderungsprotokoll",
+      h("p", { class: "leise" }, "Jede manuelle und automatische Änderung am Buchbestand, neueste zuerst. Rückgängig stellt den vorherigen Zustand exakt wieder her; das geht, solange keine spätere Änderung dieselben Daten verändert hat. Tastatur: Strg+Z nimmt die letzte Änderung zurück, Strg+Y stellt sie wieder her."),
+      h("div", { class: "werkzeug" }, quelle, wirksam,
+        h("button", { type: "button", class: "knopf", onclick: () => letzteRueckgaengig(false) }, "↶ Letzte rückgängig"),
+        h("button", { type: "button", class: "knopf", onclick: () => letzteRueckgaengig(true) }, "↷ Wiederholen")),
+      s.eintraege.length ? h("table", { class: "tabelle protokoll" }, h("thead", null, h("tr", null, h("th", null, "Nr."), h("th", null, "Änderung"), h("th", null, ""))), liste)
+        : h("div", { class: "karte leer" }, "Noch keine Änderungen."),
+      h("div", { class: "seiten" },
+        h("button", { type: "button", class: "knopf", disabled: filter.seite <= 1, onclick: () => neuLaden(filter.seite - 1) }, "‹ neuer"),
+        h("span", null, `Seite ${filter.seite} von ${maxSeite} · ${s.gesamt} Änderungen`),
+        h("button", { type: "button", class: "knopf", disabled: filter.seite >= maxSeite, onclick: () => neuLaden(filter.seite + 1) }, "älter ›")));
+  }
+
+  // ------------------------------------------------------ Empfänger
+  async function empfaengerDialog(e) {
+    await stammLaden();
+    const name = h("input", { type: "text", value: e ? e.name : "", required: true, maxlength: 200 });
+    const aliase = h("textarea", { rows: 4, placeholder: "eine Schreibweise je Zeile, z. B. REWE MARKT GMBH" }, e ? e.aliase.join("\n") : "");
+    const std = h("select", null, kategorieOptionen(e ? e.standardkategorie_id : null, "– keine –"));
+    const w = await dialog(e ? "Empfänger bearbeiten" : "Empfänger anlegen", h("div", null,
+      h("label", { class: "feld" }, "Name", name),
+      h("label", { class: "feld" }, "Aliase (weitere Schreibweisen bei Import und Synchronisation)", aliase),
+      h("label", { class: "feld" }, "Standardkategorie (Vorschlag für neue Buchungen ohne passende Regel)", std)),
+    [{ text: "Speichern", klasse: "primaer", submit: true, tun: async () => {
+      const body = { name: name.value, aliase: aliase.value.split("\n").map((x) => x.trim()).filter(Boolean),
+        standardkategorie_id: std.value ? Number(std.value) : null };
+      try {
+        return e ? await api("PATCH", `/api/empfaenger/${e.id}`, body) : await api("POST", "/api/empfaenger", body);
+      } catch (err) {
+        if (err.code === "alias_existiert") {
+          const anderer = stamm.empfaenger.find((x) => x.id === err.details.empfaenger_id);
+          throw new Error(`Der Alias „${err.details.alias}“ gehört schon zu ${anderer ? "„" + anderer.name + "“" : "einem anderen Empfänger"}.`);
+        }
+        throw err;
+      }
+    } }]);
+    if (w) melden("Empfänger gespeichert.");
+    return !!w;
+  }
+
+  async function ansichtEmpfaenger() {
+    await stammLaden();
+    const auswahl = new Set();
+    const info = h("span", { class: "auswahl-info" });
+    const zus = h("button", { type: "button", class: "knopf", disabled: true }, "Zusammenführen …");
+    const aktualisieren = () => { info.textContent = auswahl.size ? `${auswahl.size} markiert` : ""; zus.disabled = auswahl.size < 2; };
+    zus.addEventListener("click", async () => {
+      const ids = [...auswahl];
+      const kandidaten = stamm.empfaenger.filter((e) => ids.includes(e.id));
+      const ziel = h("select", null, kandidaten.map((e) => h("option", { value: e.id }, e.name)));
+      const w = await dialog("Empfänger zusammenführen", h("div", null,
+        h("p", null, `${ids.length} Empfänger werden zu einem zusammengeführt. Alle Buchungen der übrigen werden dem Ziel zugeordnet; ihre Namen werden Aliase des Ziels und greifen bei künftigen Importen und Abrufen.`),
+        h("label", { class: "feld" }, "Ziel (bleibt bestehen)", ziel)),
+      [{ text: "Zusammenführen", klasse: "primaer", submit: true, tun: async () => {
+        const zid = Number(ziel.value);
+        return await api("POST", `/api/empfaenger/${zid}/zusammenfuehren`, { quelle_ids: ids.filter((x) => x !== zid) });
+      } }]);
+      if (w) { melden(`Zusammengeführt in „${w.name}“. Rückgängig über das Änderungsprotokoll.`); route(); }
+    });
+    const tbody = h("tbody");
+    for (const e of stamm.empfaenger) {
+      const box = h("input", { type: "checkbox", "aria-label": "markieren: " + e.name, onchange: (ev) => { if (ev.target.checked) auswahl.add(e.id); else auswahl.delete(e.id); aktualisieren(); } });
+      const std = e.standardkategorie_id ? kontoNach(e.standardkategorie_id) : null;
+      tbody.append(h("tr", null, h("td", null, box),
+        h("td", null, h("strong", null, e.name), e.extern_id ? h("div", { class: "zweck" }, e.extern_id) : null),
+        h("td", null, e.aliase.length ? e.aliase.map((a) => h("span", { class: "tag" }, a)) : h("span", { class: "leise" }, "–")),
+        h("td", null, std ? kontoPfad(std) : h("span", { class: "leise" }, "–")),
+        h("td", { class: "aktionen" },
+          h("a", { class: "knopf", href: "#/buchungen?empfaenger_id=" + e.id }, "Buchungen"), " ",
+          h("button", { type: "button", class: "knopf", onclick: async () => { if (await empfaengerDialog(e)) route(); } }, "Bearbeiten"), " ",
+          h("button", { type: "button", class: "knopf gefahr", onclick: async () => {
+            if (!(await bestaetigen(`Empfänger „${e.name}“ löschen?`))) return;
+            try { await api("DELETE", `/api/empfaenger/${e.id}`); melden("Empfänger gelöscht."); route(); }
+            catch (err) { melden(err.code === "empfaenger_in_verwendung" ? "Noch Buchungen verweisen auf diesen Empfänger – zum Bereinigen mit einem anderen zusammenführen." : err.message, true); }
+          } }, "Löschen"))));
+    }
+    seite("Empfänger",
+      h("p", { class: "leise" }, "Aliase ordnen andere Schreibweisen beim Import und bei der Synchronisation diesem Empfänger zu. Die Standardkategorie wird neuen Buchungen ohne passende Regel als Vorschlag gesetzt."),
+      h("div", { class: "werkzeug" }, h("button", { type: "button", class: "knopf primaer", onclick: async () => { if (await empfaengerDialog(null)) route(); } }, "+ Empfänger anlegen"), zus, info),
+      stamm.empfaenger.length ? h("table", { class: "tabelle empfaenger" }, h("thead", null, h("tr", null, h("th", null, ""), h("th", null, "Name"),
+        h("th", null, "Aliase"), h("th", null, "Standardkategorie"), h("th", null, ""))), tbody) : h("div", { class: "karte leer" }, "Noch keine Empfänger."));
+  }
+
+  // ------------------------------------------------------ Erfassungshilfe
+  async function erfassenDialog(kontoId, vorgabeArt) {
+    await stammLaden();
+    const ARTEN = { ausgabe: "Ausgabe", einnahme: "Einnahme", umbuchung: "Umbuchung zwischen eigenen Konten", korrektur: "Korrektur (Saldo angleichen)" };
+    const art = h("select", null, Object.entries(ARTEN).map(([a, t]) => h("option", { value: a, selected: a === (vorgabeArt || "ausgabe") }, t)));
+    const konto = h("select", null, kontoOptionen(kontoId, (k) => BESTAND.has(k.art) && !k.geschlossen));
+    const gegen = h("select", null, kontoOptionen(null, (k) => BESTAND.has(k.art) && !k.geschlossen));
+    const datum = h("input", { type: "date", value: heuteIso(), required: true });
+    const betrag = h("input", { type: "text", inputmode: "decimal", required: true });
+    const kat = h("select", null, kategorieOptionen(null, "– automatisch (Standardkategorie / Unkategorisiert) –"));
+    const [empf, liste] = empfaengerFeld("");
+    const zweck = h("input", { type: "text", maxlength: 10000 });
+    const memo = h("input", { type: "text", maxlength: 10000 });
+    const status = h("select", null, ["bestaetigt", "vorlaeufig", "importiert"].map((s) => h("option", { value: s }, STATUS_TEXT[s])));
+    const hilfe = h("p", { class: "leise" });
+    const zeilen = { gegen: h("label", { class: "feld" }, "Zielkonto", gegen), kat: h("label", { class: "feld" }, "Kategorie", kat),
+      empf: h("label", { class: "feld" }, "Empfänger", empf, liste) };
+    const umschalten = () => {
+      const a = art.value;
+      zeilen.gegen.hidden = a !== "umbuchung";
+      zeilen.kat.hidden = a === "umbuchung";
+      betrag.placeholder = a === "korrektur" ? "z. B. -0,37 (Saldo sinkt) oder 1,20" : "Betrag in €, z. B. 12,34";
+      hilfe.textContent = { ausgabe: "Der Betrag wird vom Konto abgebucht.", einnahme: "Der Betrag wird dem Konto gutgeschrieben.",
+        umbuchung: "Der Betrag geht vom Konto auf das Zielkonto; das zählt weder als Einnahme noch als Ausgabe.",
+        korrektur: "Vorzeichenbehaftete Änderung des Kontosaldos; ohne Kategorie gegen das Konto „Korrekturen“." }[a];
+    };
+    art.addEventListener("change", umschalten);
+    umschalten();
+    const w = await dialog("Buchung erfassen", h("div", null,
+      h("div", { class: "feld-zeile" }, h("label", { class: "feld" }, "Art", art), h("label", { class: "feld" }, "Datum", datum)),
+      hilfe,
+      h("div", { class: "feld-zeile" }, h("label", { class: "feld" }, "Konto", konto), h("label", { class: "feld" }, "Betrag", betrag)),
+      zeilen.gegen, zeilen.kat, zeilen.empf,
+      h("label", { class: "feld" }, "Verwendungszweck", zweck),
+      h("div", { class: "feld-zeile" }, h("label", { class: "feld" }, "Memo", memo), h("label", { class: "feld" }, "Status", status))),
+    [{ text: "Erfassen", klasse: "primaer", submit: true, tun: async () => {
+      const a = art.value;
+      const c = betragLesen(betrag.value);
+      if (c === null || c === 0 || (a !== "korrektur" && c < 0)) throw new Error(a === "korrektur" ? "Bitte einen Betrag ungleich 0 eingeben." : "Bitte einen positiven Betrag eingeben.");
+      const body = { art: a, datum: datum.value, konto_id: Number(konto.value), betrag: c, verwendungszweck: zweck.value, memo: memo.value, status: status.value };
+      if (a === "umbuchung") body.gegenkonto_id = Number(gegen.value);
+      else if (kat.value) body.kategorie_id = Number(kat.value);
+      if (a !== "umbuchung" && empf.value.trim()) body.empfaenger_name = empf.value.trim();
+      return await api("POST", "/api/buchungen/erfassen", body);
+    } }]);
+    if (w) melden(w.vorschlag ? "Buchung erfasst – Kategorie aus der Standardkategorie des Empfängers (Vorschlag)." : "Buchung erfasst.");
+    return !!w;
+  }
+
+  // ------------------------------------------------------ Umbuchungen
+  function buchungKurz(b) {
+    const bank = b.splits.find((s) => { const k = kontoNach(s.konto_id); return k && BESTAND.has(k.art); });
+    const k = bank ? kontoNach(bank.konto_id) : null;
+    return h("div", { class: "seite" }, h("strong", null, k ? k.name : "?"), " · ", datumText(b.datum), " · ",
+      h("span", { class: bank && bank.betrag < 0 ? "negativ" : "positiv" }, betragText(bank ? bank.betrag : b.betrag)),
+      h("div", { class: "zweck" }, [b.empfaenger ? b.empfaenger.name : null, b.verwendungszweck, b.gegen_iban ? "Gegen-IBAN " + b.gegen_iban : null].filter(Boolean).join(" · ")));
+  }
+
+  async function ansichtUmbuchungen() {
+    await stammLaden();
+    const t = await api("POST", "/api/umbuchungen/erkennen", { trocken: true });
+    const ids = t.paare.flatMap((p) => [p.behalten_id, p.entfernt_id]);
+    const buchungen = new Map();
+    await Promise.all(ids.map(async (id) => buchungen.set(id, await api("GET", `/api/buchungen/${id}`))));
+    const liste = h("div");
+    for (const p of t.paare) {
+      liste.append(h("div", { class: "karte paar" }, buchungKurz(buchungen.get(p.behalten_id)), buchungKurz(buchungen.get(p.entfernt_id)),
+        h("button", { type: "button", class: "knopf", onclick: async () => {
+          try { await api("POST", "/api/umbuchungen/zusammenfuehren", { buchung_ids: [p.behalten_id, p.entfernt_id] }); melden("Umbuchung zusammengeführt."); route(); }
+          catch (e) { melden(e.message, true); }
+        } }, "Zusammenführen")));
+    }
+    seite("Umbuchungen",
+      h("p", { class: "leise" }, "Vorschläge: zwei unkategorisierte Bankumsätze auf verschiedenen eigenen Konten mit gleichem Betrag und umgekehrtem Vorzeichen, kurzem Datumsabstand und passender eigener IBAN. Zusammengeführte Umbuchungen zählen weder als Einnahme noch als Ausgabe; getrennt wird über das Änderungsprotokoll (Rückgängig). Andere Paare lassen sich in der Buchungsliste markieren und über das Kontextmenü zusammenführen."),
+      h("div", { class: "werkzeug" },
+        h("button", { type: "button", class: "knopf primaer", disabled: !t.anzahl, onclick: async () => {
+          try { const r = await api("POST", "/api/umbuchungen/erkennen", {}); melden(`${r.anzahl} Umbuchung(en) zusammengeführt.`); route(); }
+          catch (e) { melden(e.message, true); }
+        } }, `Alle ${t.anzahl} zusammenführen`)),
+      t.anzahl ? liste : h("div", { class: "karte leer" }, "Keine eindeutigen Umbuchungspaare gefunden."));
+  }
+
+  // ------------------------------------------------------ Kontenabstimmung
+  async function abstimmenDialog(konto) {
+    const stichtag = h("input", { type: "date", value: heuteIso(), required: true });
+    const saldo = h("input", { type: "text", inputmode: "decimal", required: true, placeholder: "Saldo laut Kontoauszug, z. B. 1.234,56" });
+    const ergebnis = h("div", { "aria-live": "polite" });
+    let geprueft = null;
+    const pruefen = async (trocken) => {
+      const c = betragLesen(saldo.value);
+      if (c === null) throw new Error("Ungültiger Saldo.");
+      const r = await api("POST", "/api/abstimmungen", { konto_id: konto.id, stichtag: stichtag.value, saldo: c, trocken });
+      geprueft = r;
+      ergebnis.replaceChildren(h("div", { class: r.stimmt ? "karte" : "warnung" },
+        h("div", { class: "zahlen" }, h("span", null, "Auszug ", h("strong", null, betragText(r.saldo))),
+          h("span", null, "berechnet ", h("strong", null, betragText(r.berechneter_saldo))),
+          h("span", null, "Differenz ", h("strong", { class: r.differenz ? "negativ" : "positiv" }, betragText(r.differenz))),
+          h("span", null, "Splits ", h("strong", null, r.anzahl_splits))),
+        r.stimmt ? (r.abgestimmt ? "Abgestimmt – die Buchungen bis zum Stichtag sind jetzt gegen Änderungen geschützt." : "Der Saldo stimmt. „Abstimmen“ markiert die Buchungen bis zum Stichtag.")
+          : "Der Saldo stimmt nicht – es wird nichts markiert. Bitte fehlende oder falsche Buchungen prüfen."));
+      return r;
+    };
+    stichtag.addEventListener("change", () => { geprueft = null; ergebnis.replaceChildren(); });
+    saldo.addEventListener("input", () => { geprueft = null; ergebnis.replaceChildren(); });
+    const w = await dialog(`Konto „${konto.name}“ abstimmen`, h("div", null,
+      h("div", { class: "feld-zeile" }, h("label", { class: "feld" }, "Stichtag", stichtag), h("label", { class: "feld" }, "Auszugssaldo", saldo)),
+      ergebnis),
+    [{ text: "Prüfen", tun: async () => { try { await pruefen(true); } catch (e) { melden(e.message, true); } return undefined; } },
+      { text: "Abstimmen", klasse: "primaer", submit: true, tun: async () => {
+        const r = await pruefen(false);
+        return r.abgestimmt ? r : undefined;
+      } }]);
+    if (w) melden(`Abgestimmt: ${w.anzahl_splits} Split(s) markiert.`);
+    return !!w;
+  }
+
+  function abstimmungenKarte(konto, abstimmungen) {
+    const eigene = abstimmungen.filter((a) => a.konto_id === konto.id);
+    const letzte = eigene.slice().sort((a, b) => (a.stichtag < b.stichtag ? 1 : a.stichtag > b.stichtag ? -1 : b.id - a.id))[0];
+    return h("details", { class: "karte" }, h("summary", null, `Kontenabstimmung (${eigene.length})`),
+      h("div", { class: "werkzeug" }, h("button", { type: "button", class: "knopf primaer", onclick: async () => { if (await abstimmenDialog(konto)) route(); } }, "Abstimmen …")),
+      eigene.length ? h("ul", { class: "liste-ohne" }, eigene.map((a) => h("li", null, `Stichtag ${datumText(a.stichtag)}: `, h("strong", null, betragText(a.saldo)),
+        h("span", { class: "leise" }, ` (abgestimmt ${zeitText(a.erstellt_am)})`), " ",
+        a === letzte ? h("button", { type: "button", class: "knopf", onclick: async () => {
+          if (!(await bestaetigen(`Abstimmung zum ${datumText(a.stichtag)} aufheben? Die Buchungen sind danach wieder änderbar.`))) return;
+          try { await api("DELETE", `/api/abstimmungen/${a.id}`); melden("Abstimmung aufgehoben."); route(); } catch (e) { melden(e.message, true); }
+        } }, "Aufheben") : null))) : h("p", { class: "leise" }, "Noch nicht abgestimmt."));
+  }
+
+  async function ansichtAbstimmung() {
+    await stammLaden();
+    const [alle, u] = await Promise.all([api("GET", "/api/abstimmungen"), api("GET", "/api/kontenuebersicht")]);
+    const sal = new Map(u.konten.map((k) => [k.konto_id, k]));
+    const tbody = h("tbody");
+    for (const { konto } of baum(stamm.konten.filter((k) => BESTAND.has(k.art)))) {
+      const eigene = alle.filter((a) => a.konto_id === konto.id).sort((a, b) => (a.stichtag < b.stichtag ? 1 : -1));
+      tbody.append(h("tr", null, h("td", null, h("a", { href: "#/konto/" + konto.id }, konto.name)),
+        betragZelle((sal.get(konto.id) || {}).saldo || 0),
+        h("td", null, eigene.length ? `${datumText(eigene[0].stichtag)} (${betragText(eigene[0].saldo)})` : h("span", { class: "leise" }, "nie")),
+        h("td", { class: "aktionen" }, h("button", { type: "button", class: "knopf", onclick: async () => { if (await abstimmenDialog(konto)) route(); } }, "Abstimmen …"))));
+    }
+    seite("Kontenabstimmung",
+      h("p", { class: "leise" }, "Den Saldo laut Kontoauszug mit dem berechneten Saldo vergleichen. Stimmt er, werden alle Buchungen bis zum Stichtag als abgestimmt markiert und sind gegen versehentliche Änderungen gesperrt (Tags und Status bleiben änderbar). Die jeweils letzte Abstimmung eines Kontos lässt sich auf der Kontoseite aufheben."),
+      h("table", { class: "tabelle" }, h("thead", null, h("tr", null, h("th", null, "Konto"), h("th", { class: "zahl" }, "Saldo"),
+        h("th", null, "Zuletzt abgestimmt"), h("th", null, ""))), tbody));
+  }
+
+  // ------------------------------------------------------ Volltextsuche
+  async function ansichtSuche(q) {
+    const feld = $("#suche-global");
+    if (feld && feld.value !== q) feld.value = q;
+    if (!q || !q.trim()) { seite("Suche", h("p", { class: "leise" }, "Suchbegriff oben eingeben.")); return; }
+    await stammLaden();
+    const r = await api("GET", "/api/suche" + query({ q, limit: 200 }));
+    const abschnitt = (titel, n, inhalt) => n ? [h("h2", null, `${titel} (${n})`), inhalt] : null;
+    const tbody = h("tbody");
+    for (const b of r.buchungen) {
+      const tr = h("tr", { class: "klickbar", tabindex: 0 }, h("td", { class: "datum" }, datumText(b.datum)),
+        h("td", null, b.empfaenger ? h("strong", null, b.empfaenger.name) : null, h("div", { class: "zweck" }, b.verwendungszweck),
+          b.tags.length ? h("div", null, b.tags.map((t) => h("span", { class: "tag" }, t.name))) : null),
+        h("td", { class: "zahl" }, betragText(b.betrag)));
+      const oeffnen = async () => { if (await buchungDialog(b)) route(); };
+      tr.addEventListener("dblclick", oeffnen);
+      tr.addEventListener("click", oeffnen);
+      tr.addEventListener("keydown", (e) => { if (e.key === "Enter") oeffnen(); });
+      tbody.append(tr);
+    }
+    const leer = !r.konten.length && !r.empfaenger.length && !r.tags.length && !r.buchungen_gesamt;
+    seite(`Suche: ${q}`,
+      leer ? h("div", { class: "karte leer" }, "Keine Treffer.") : null,
+      abschnitt("Konten und Kategorien", r.konten.length, h("ul", { class: "treffer-liste" }, r.konten.map((k) =>
+        h("li", null, h("a", { href: (k.ist_kategorie ? "#/kategorie/" : "#/konto/") + k.id }, kontoPfad(k)), h("span", { class: "leise" }, " · " + ART_TEXT[k.art] + (k.iban ? " · " + k.iban : "")))))),
+      abschnitt("Empfänger", r.empfaenger.length, h("ul", { class: "treffer-liste" }, r.empfaenger.map((e) =>
+        h("li", null, h("a", { href: "#/buchungen?empfaenger_id=" + e.id }, e.name), e.aliase.length ? h("span", { class: "leise" }, " · auch: " + e.aliase.join(", ")) : null)))),
+      abschnitt("Tags", r.tags.length, h("ul", { class: "treffer-liste" }, r.tags.map((t) =>
+        h("li", null, h("a", { href: "#/buchungen?tag_id=" + t.id }, t.name), h("span", { class: "leise" }, ` · ${t.anzahl_buchungen} Buchungen`))))),
+      abschnitt("Buchungen", r.buchungen_gesamt, [h("table", { class: "tabelle buchungen" }, tbody),
+        r.buchungen_gesamt > r.buchungen.length ? h("p", { class: "leise" }, `Die ersten ${r.buchungen.length} von ${r.buchungen_gesamt} Treffern.`) : null]));
+  }
+
+  // ------------------------------------------------------ Konto löschen
+  async function kontoLoeschen(konto) {
+    const pfad = `/api/konten/${konto.id}/loeschen`;
+    let probe;
+    try { probe = await api("POST", pfad, { buchungen: "loeschen", konflikte: "loeschen", trocken: true }); }
+    catch (e) { melden(e.message, true); return false; }
+    const unbenutzt = !probe.buchungen_betroffen.length && !probe.unterkonten.length && !probe.regeln_geloescht.length
+      && !probe.empfaenger_geaendert.length && !probe.abstimmungen_geloescht.length;
+    const was = konto.ist_kategorie ? "Kategorie" : "Konto";
+    if (unbenutzt) {
+      if (!(await bestaetigen(`${was} „${konto.name}“ löschen?`))) return false;
+      try { await api("DELETE", `/api/konten/${konto.id}`); melden(`${was} gelöscht.`); return true; } catch (e) { melden(e.message, true); return false; }
+    }
+    const istUnk = konto.extern_id === "kontor:unkategorisiert";
+    const varianten = [
+      ["loeschen", "Buchungen löschen", "Alle betroffenen Buchungen werden vollständig gelöscht.", false],
+      ["elternkonto", "dem übergeordneten Konto zuschlagen", konto.eltern_id ? `Die Buchungen werden „${(kontoNach(konto.eltern_id) || {}).name}“ zugeordnet.` : "nicht möglich: kein übergeordnetes Konto", !konto.eltern_id],
+      ["unkategorisiert", "als unkategorisiert einstufen", istUnk ? "nicht möglich" : "Die Buchungen werden dem Konto „Unkategorisiert“ zugeordnet und können später neu kategorisiert werden.", istUnk],
+    ];
+    const radios = varianten.map(([v, text, hinweis, aus]) => h("label", { class: aus ? "aus" : null },
+      h("input", { type: "radio", name: "variante", value: v, disabled: aus }), h("span", null, h("strong", null, text), h("div", { class: "zweck" }, hinweis))));
+    const konfliktBox = h("div");
+    const gesperrtBox = h("div");
+    const zahlen = (r) => h("div", { class: "zahlen" },
+      h("span", null, "Buchungen ", h("strong", null, r.buchungen_betroffen.length)), h("span", null, "Unterkonten ", h("strong", null, r.unterkonten.length)),
+      h("span", null, "Regeln ", h("strong", null, r.regeln_geloescht.length + r.regeln_geaendert.length)),
+      h("span", null, "Standardkategorien ", h("strong", null, r.empfaenger_geaendert.length)),
+      h("span", null, "Abstimmungen ", h("strong", null, r.abstimmungen_geloescht.length)));
+    const zahlenBox = h("div", null, zahlen(probe));
+    let aktuell = null;
+    const gesperrtOk = h("input", { type: "checkbox" });
+    const konfliktWahl = [h("input", { type: "radio", name: "konflikte", value: "loeschen" }), h("input", { type: "radio", name: "konflikte", value: "behalten" })];
+    const variante = () => (radios.map((l) => l.querySelector("input")).find((i) => i.checked) || {}).value;
+    const neuBerechnen = async () => {
+      const v = variante();
+      if (!v) return;
+      try { aktuell = await api("POST", pfad, { buchungen: v, konflikte: "behalten", trocken: true }); }
+      catch (e) { melden(e.message, true); return; }
+      zahlenBox.replaceChildren(zahlen(aktuell));
+      konfliktBox.replaceChildren(...(aktuell.konfliktbuchungen.length ? [h("div", { class: "warnung" },
+        h("p", null, `${aktuell.konfliktbuchungen.length} Buchung(en) würden danach nur noch auf einem Konto buchen (Konfliktbuchungen): `,
+          aktuell.konfliktbuchungen.map((id) => "#" + id).join(", ")),
+        h("div", { class: "wahl" }, h("label", null, konfliktWahl[0], "Konfliktbuchungen löschen"),
+          h("label", null, konfliktWahl[1], "behalten (alle Splits auf dem Zielkonto, später neu zuordnen)")))] : []));
+      gesperrtBox.replaceChildren(...(aktuell.gesperrt.length ? [h("div", { class: "warnung" },
+        h("p", null, `${aktuell.gesperrt.length} betroffene Buchung(en) sind abgeglichen oder abgestimmt und daher gesperrt.`),
+        h("label", { class: "feld zeile" }, gesperrtOk, "Ich bestätige, dass auch gesperrte Buchungen gelöscht bzw. umgebucht werden."))] : []));
+    };
+    radios.forEach((l) => l.querySelector("input").addEventListener("change", neuBerechnen));
+    const w = await dialog(`${was} „${konto.name}“ löschen`, h("div", null,
+      h("p", null, `Auf das ${was} verweisen noch Daten. Wie soll mit den Buchungen umgegangen werden?`), zahlenBox,
+      h("div", { class: "wahl", role: "radiogroup", "aria-label": "Umgang mit den Buchungen" }, radios), konfliktBox, gesperrtBox,
+      h("p", { class: "leise" }, "Unterkonten rücken eine Ebene nach oben. Der Vorgang lässt sich über das Änderungsprotokoll rückgängig machen.")),
+    [{ text: "Endgültig löschen", klasse: "primaer", submit: true, tun: async () => {
+      const v = variante();
+      if (!v || !aktuell) throw new Error("Bitte wählen, wie mit den Buchungen umgegangen wird.");
+      const k = konfliktWahl.find((i) => i.checked);
+      if (aktuell.konfliktbuchungen.length && v !== "loeschen" && !k) throw new Error("Bitte für die Konfliktbuchungen „löschen“ oder „behalten“ wählen.");
+      if (aktuell.gesperrt.length && !gesperrtOk.checked) throw new Error("Bitte das Einbeziehen gesperrter Buchungen ausdrücklich bestätigen.");
+      return await api("POST", pfad, { buchungen: v, konflikte: k ? k.value : "behalten", gesperrte_einbeziehen: gesperrtOk.checked });
+    } }]);
+    if (w) melden(`${was} gelöscht (${w.buchungen_geloescht.length} Buchung(en) gelöscht, ${w.buchungen_umgebucht.length} umgebucht). Strg+Z macht es rückgängig.`);
+    return !!w;
+  }
+
   // ------------------------------------------------------------ Router
   async function route() {
     menueSchliessen();
@@ -1327,6 +1738,7 @@
     const teile = pfadTeil.split("/");
     const hashParameter = new URLSearchParams(suchTeil || "");
     const [bereich, arg] = teile;
+    if (bereich !== "suche" && document.activeElement !== $("#suche-global")) $("#suche-global").value = "";
     for (const a of document.querySelectorAll(".navigation a")) {
       const b = a.dataset.bereich;
       a.classList.toggle("aktiv", b === bereich || (bereich === "konto" && b === "konten") || (bereich === "kategorie" && b === "kategorien") || (bereich === "spaeter" && b === arg));
@@ -1337,7 +1749,12 @@
       else if (bereich === "kategorien") await ansichtKonten(true);
       else if (bereich === "konto") await ansichtKonto(Number(arg), false);
       else if (bereich === "kategorie") await ansichtKonto(Number(arg), true);
-      else if (bereich === "buchungen") await ansichtAlleBuchungen(hashParameter.get("vorschlag"));
+      else if (bereich === "buchungen") await ansichtAlleBuchungen(hashParameter);
+      else if (bereich === "protokoll") await ansichtProtokoll(hashParameter);
+      else if (bereich === "empfaenger") await ansichtEmpfaenger();
+      else if (bereich === "umbuchungen") await ansichtUmbuchungen();
+      else if (bereich === "abstimmung") await ansichtAbstimmung();
+      else if (bereich === "suche") await ansichtSuche(hashParameter.get("q") || "");
       else if (bereich === "sync") await ansichtSync();
       else if (bereich === "tan") await ansichtTan(Number(arg));
       else if (bereich === "regeln") await ansichtRegeln();
@@ -1357,7 +1774,19 @@
       const f = $("#freitext");
       if (f) { e.preventDefault(); f.focus(); }
     }
+    const imFeld = /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) || document.activeElement.isContentEditable;
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && huelle.hidden && !imFeld) {
+      const taste = e.key.toLowerCase();
+      if (taste === "z" && !e.shiftKey) { e.preventDefault(); letzteRueckgaengig(false); return; }
+      if (taste === "y" || (taste === "z" && e.shiftKey)) { e.preventDefault(); letzteRueckgaengig(true); return; }
+    }
     if (inhalt._tasten && huelle.hidden) inhalt._tasten(e);
+  });
+  $("#rueckgaengig-knopf").addEventListener("click", () => letzteRueckgaengig(false));
+  $("#suche-kopf").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const q = $("#suche-global").value.trim();
+    if (q) location.hash = "#/suche?q=" + encodeURIComponent(q);
   });
   $("#menue-knopf").addEventListener("click", () => navUmschalten());
   $("#schleier").addEventListener("click", () => navUmschalten(false));

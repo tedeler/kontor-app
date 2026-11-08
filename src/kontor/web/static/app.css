@@ -161,6 +161,31 @@ h2.oben { margin-top: 0; }
 .knopf { text-decoration: none; display: inline-block; }
 .eingabe { padding: .4rem .5rem; border: 1px solid var(--linie); border-radius: 5px; background: var(--flaeche); min-width: 0; }
 
+
+/* ------------------------------------------------- Meilenstein 3 */
+.suche-kopf { flex: 0 1 18rem; min-width: 0; }
+.suche-kopf input { width: 100%; padding: .3rem .55rem; border-radius: 14px; border: 1px solid transparent; background: rgba(255,255,255,.18);
+  color: inherit; }
+.suche-kopf input::placeholder { color: inherit; opacity: .75; }
+.suche-kopf input:focus { background: var(--flaeche); color: var(--text); outline: none; border-color: var(--auswahl-linie); }
+.kopf-knopf { background: none; border: 0; color: inherit; font-size: 1.25rem; cursor: pointer; padding: .1rem .35rem; opacity: .85; }
+.kopf-knopf:hover { opacity: 1; }
+.marke-gesperrt { font-size: .74rem; border: 1px solid var(--linie); border-radius: 8px; padding: 0 .35rem; margin-left: .3rem; white-space: nowrap; }
+.marke-umbuchung { font-size: .74rem; border: 1px solid var(--auswahl-linie); background: var(--auswahl); border-radius: 8px; padding: 0 .35rem; margin-left: .3rem; }
+.aenderung.unwirksam { opacity: .6; }
+.aenderung .eintraege { margin: .3rem 0 0; padding-left: 1.1rem; font-size: .85rem; color: var(--leise); }
+.aenderung details > summary { cursor: pointer; color: var(--leise); font-size: .85rem; }
+.wahl { display: flex; flex-direction: column; gap: .35rem; margin: .4rem 0 .8rem; }
+.wahl label { display: flex; gap: .45rem; align-items: flex-start; }
+.wahl label.aus { opacity: .5; }
+.zahlen { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: .3rem .8rem; margin: .3rem 0 .8rem; font-size: .9rem; }
+.zahlen strong { font-variant-numeric: tabular-nums; }
+.warnung { background: var(--warn-hg); color: var(--warn-text); border: 1px solid var(--warn-linie); border-radius: 6px; padding: .5rem .7rem; margin: .5rem 0; }
+.paar { display: grid; grid-template-columns: 1fr 1fr auto; gap: .6rem; align-items: center; }
+.paar .seite { background: var(--flaeche2); border-radius: 6px; padding: .4rem .6rem; font-size: .9rem; }
+.treffer-liste { list-style: none; padding: 0; margin: 0 0 1rem; display: flex; flex-direction: column; gap: .25rem; }
+.feld-zeile { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0 .8rem; }
+
 /* ---------------------------------------------------------- Smartphone */
 @media (max-width: 800px) {
   .rahmen, .rahmen.nav-zu { grid-template-columns: 1fr; grid-template-areas: "kopf" "inhalt"; }
@@ -187,4 +212,15 @@ h2.oben { margin-top: 0; }
   .tabelle.regeln td { display: block; border: 0; padding: .15rem .6rem; text-align: left; }
   .tabelle.regeln td.zahl::before { content: "Priorität "; color: var(--leise); }
   .tabelle td.aktionen .knopf { margin-bottom: .25rem; }
+  .kopf { flex-wrap: wrap; gap: .4rem; }
+  .kopf-titel { flex: 1 1 40%; }
+  .suche-kopf { order: 10; flex: 1 1 100%; }
+  .paar { grid-template-columns: 1fr; }
+  .tabelle.protokoll thead { display: none; }
+  .tabelle.protokoll tr { display: block; border-bottom: 1px solid var(--linie); padding: .3rem 0; }
+  .tabelle.protokoll td { display: block; border: 0; padding: .15rem .6rem; }
+  .tabelle.protokoll td .knopf { word-break: normal; }
+  .tabelle.empfaenger thead { display: none; }
+  .tabelle.empfaenger tr { display: block; border-bottom: 1px solid var(--linie); padding: .3rem 0; }
+  .tabelle.empfaenger td { display: block; border: 0; padding: .15rem .6rem; }
 }
