@@ -1,5 +1,67 @@
 # Ergebnis der Implementierung
 
+## Meilenstein 9 (Datensicherung und Wiederherstellung)
+
+Stand: 2026-11-09, Implementierungs-Thread.
+
+### Testlauf kontor-tests
+
+- Getestet gegen **kontor-tests Commit `12438f8`** („M9 mit M4 und dem M3-Nachtrag abgeglichen
+  (E-096)“), nach `git pull` im Lese-Klon unmittelbar vor dem Abschlusslauf.
+- Aufruf im Wurzelverzeichnis des Lese-Klons gegen die per `pip install --break-system-packages -e`
+  installierte kontor-app, Python 3.13, SQLite 3.53, Hypothesis-Profil `standard`:
+  `python -m pytest -p no:cacheprovider -m "not m5 and not m6 and not m7 and not m8"` (Maßstab) und
+  `python -m pytest -p no:cacheprovider` (vollständig).
+
+| Auswahl | gesamt | bestanden | fehlgeschlagen | Fehler |
+| --- | ---: | ---: | ---: | ---: |
+| Maßstab (ohne m5–m8) | 1505 | 1505 | 0 | 0 |
+| vollständig | 1505 | 1505 | 0 | 0 |
+| davon `-m m1` | 674 | 674 | 0 | 0 |
+| davon `-m m2` | 226 | 226 | 0 | 0 |
+| davon `-m m3` | 245 | 245 | 0 | 0 |
+| davon `-m m4` (inkl. `langsam`) | 227 | 227 | 0 | 0 |
+| davon `-m m9` | 56 | 56 | 0 | 0 |
+| davon `m5`–`m8` (nicht beauftragt) | 0 | – | – | – |
+
+(Die übrigen 77 Tests sind Generator- und Spezifikationstests; alle grün.) Tests späterer Meilensteine
+gab es im getesteten Stand noch nicht. **Keine Fehlschläge, keine offenen Widersprüche;** W-002 wurde vom
+Test-Thread behoben (E-095) und ist als erledigt markiert.
+
+### Eigene Tests (kontor-app)
+
+`python -m pytest tests`: 51 bestanden, darunter `tests/test_m9_eigen.py` (Rückgängig-Ketten mit
+Bankkonto-Zustand, Python-Sicherung lässt die Datenbankdatei unverändert, Migration auf Schemaversion 5,
+Laufsperre, Typfehler → `inhalt_ungueltig`) und der neue Playwright-Rauchtest `tests/test_browser_m9.py`
+(Chrome headless, Desktop und Handy): Sicherung herunterladen (Dateiname vom Server), identische Datei im
+Probelauf, Unterschied nach einer Änderung, gesperrter Knopf bis zum Häkchen, Bestätigungsdialog,
+Einspielen mit Ergebnis und Änderung `sicherung_einspielen`, Rückgängig aus der Ergebnisanzeige,
+verständliche Meldung bei kaputter Datei, keine horizontale Überbreite. Gestartete Server und Browser
+wurden beendet.
+
+### Umgesetzt
+
+- `GET /api/sicherung` und `kontor.sicherung.erstelle_sicherung(config)`: ZIP mit `manifest.json` und
+  `kontor.sqlite` (eigenes Schema, D-053), konsistenter Schnappschuss in einer Lesetransaktion, ohne
+  Protokoll, Geheimnisse und Reste; Dateiname nach App-Uhr.
+- `POST /api/sicherung/einspielen`: Prüfreihenfolge 5.1 mit allen elf Gründen, Modus, Bestätigung,
+  Laufsperre; Probelauf; Einspielen als eine Änderung `sicherung_einspielen` (Quelle `sicherung`) mit der
+  Nettowirkung; identischer Inhalt ohne Änderung; gleiche IDs (auch Splits); ID-Zähler nie
+  zurückgesetzt; gemerkte Kennungen und Zustand je Bankkonto (inkl. Entscheidungen) ersetzt.
+- Rückgängig/Wiederholen stellt zusätzlich Kennungen und Bankkonto-Zustand her (protokoll.md 10.2).
+- Datenbank Schemaversion 5 (Betriebstabelle `sicherung_zustand`), Migration ohne Datenverlust.
+- Weboberfläche „Datensicherung“ (D-058), README-Abschnitt „Datensicherung im Betrieb“ (zusätzlich zu
+  Proxmox-Snapshots, Beispiel für eine nächtliche Sicherung).
+
+### Einschränkungen
+
+- Hypothesis lief nur im Profil `standard` (nicht `gruendlich`).
+- Ältere Schemaversionen der Sicherungsdatei gibt es noch nicht (Version 1); der Migrationspfad beim
+  Einspielen ist vorbereitet (`OBJEKTE_JE_VERSION`), aber noch leer.
+- Die Sicherung wird im Arbeitsspeicher aufgebaut; für sehr große Bestände (mehrere hundert MiB) wäre
+  ein dateibasiertes Verfahren sparsamer.
+- Die Oberfläche hat noch keine stabilen `data-testid` (M8).
+
 ## Meilenstein 4 (mit Nachtrag synchronisation.md 16)
 
 Stand: 2026-11-08, Implementierungs-Thread.
