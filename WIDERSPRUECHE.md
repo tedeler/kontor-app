@@ -5,7 +5,7 @@ Spezifikation widersprechen (je Eintrag `W-xxx`: Testdatei/Testname, was der
 Test erwartet, was die Spezifikation sagt mit Fundstelle, warum das
 widersprüchlich ist). Gelöst werden Widersprüche nur von einem Test-Thread.
 
-## W-001 Zufallsfolgen im Rückgängig-Test wählen aus einer leeren Kontenliste
+## W-001 Zufallsfolgen im Rückgängig-Test wählen aus einer leeren Kontenliste (erledigt)
 
 - **Betroffene Tests:** `tests/app/m3/test_m3_rueckgaengig.py::test_zufaellige_folgen_rueckwaerts`
   und `::test_zufaelliges_rueckgaengig_gegen_orakel` (kontor-tests Commit `ae6eacf`).
@@ -24,4 +24,26 @@ widersprüchlich ist). Gelöst werden Widersprüche nur von einem Test-Thread.
   Standardprofil (Testlauf laut TESTS_AUSFUEHREN.md) nicht auf, wohl aber mit
   `HYPOTHESIS_PROFILE=gruendlich`. Vorschlag: `elif op == "konto_weg" and konten:`.
 
-Stand: Meilenstein 3, getestet gegen kontor-tests Commit `ae6eacf`.
+- **Status:** vom Test-Thread behoben (laut Koordination); erledigt.
+
+## W-002 M1-Tests verlangen, dass das Szenario `beitragsaenderung` unbekannt ist
+
+- **Betroffene Tests:** `tests/app/test_paket.py::test_ungueltige_konfiguration[mock_modus=True,mock_szenario=beitragsaenderung]`,
+  `tests/app/test_plugins.py::test_unbekanntes_szenario[MockBank]` und `::test_unbekanntes_szenario[MockMail]`
+  (kontor-tests Commit `ffe104c`).
+- **Was die Tests erwarten:** `KontorConfig(mock_modus=True, mock_szenario="beitragsaenderung")` sowie
+  `MockBankPlugin(…, "beitragsaenderung")` und `MockMailPlugin(…, "beitragsaenderung")` werfen
+  `KonfigurationsFehler` (der Name diente in M1 als Beispiel für ein unbekanntes Szenario).
+- **Was die Spezifikation sagt:** Ab M4 ist `beitragsaenderung` ein gültiges Szenario:
+  `plugins.md` 8 („`KontorConfig.mock_szenario`, `KONTOR_MOCK_SZENARIO` und `MockBankPlugin` akzeptieren den Wert
+  `"beitragsaenderung"`“, Mail-Mock „normal“), `python-api.md` 10.1 und 10.3, `vorlagen.md` 7, E-076. Die
+  M4-Tests `tests/app/m4/test_m4_paket.py::test_szenario_beitragsaenderung_erlaubt`,
+  `::test_mock_beitragsaenderung_liefert_anderen_betrag` und `::test_eingebauter_datensatz_mit_beitragsaenderung`
+  verlangen genau das.
+- **Warum widersprüchlich:** Beide Erwartungen schließen sich aus; keine Implementierung kann zugleich die M1-
+  und die M4-Tests erfüllen. Die M1-Tests wurden mit M4 nicht angepasst (E-029 setzt voraus, dass M4 das
+  Verhalten früherer Tests nicht ändert; hier wurde ein früher „unbekannter“ Wert zu einem bekannten).
+  Vorschlag: in den drei M1-Tests einen weiterhin unbekannten Namen verwenden (z. B. `gibtsnicht`).
+- **Umgang:** Umgesetzt ist die M4-Spezifikation; die drei M1-Tests schlagen fehl.
+
+Stand: Meilenstein 4, getestet gegen kontor-tests Commit `ffe104c`.

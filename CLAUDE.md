@@ -48,7 +48,7 @@ Commit-Nachrichten sind auf Deutsch.
 - Jede schreibende Operation auf dem Buchbestand (Konten, Empfänger, Tags,
   Buchungen, Regeln, Verdachte, Abstimmungen, gemerkte Kennungen) läuft in
   `protokoll.protokolliert(...)` bzw. über `aendern(...)` in `app.py` – genau
-  eine Transaktion je Änderung. Neue Tabellen des Buchbestands in
+  eine Transaktion je Änderung (ab M4 auch Split-Vorlagen). Neue Tabellen des Buchbestands in
   `protokoll._TABELLEN` und in Protokollform/Wiederherstellung eintragen.
 - Beträge sind immer ganze Cent (`int`), nie Gleitkomma – auch nicht im
   Datenbankschema oder in der Oberfläche (Umrechnung nur mit
@@ -65,12 +65,29 @@ Commit-Nachrichten sind auf Deutsch.
 | `src/kontor/sync.py` | M2: `SyncDienst` je App (Läufe, Übernahme, Abgleich, TAN, PIN, App-Uhr, Planer), `planer_takt` |
 | `src/kontor/regeln.py` | M2: Regeln (Validierung, CRUD, Auswertung, Anwenden) und Vorschläge |
 | `src/kontor/protokoll.py` | M3: Änderungsprotokoll (temporäre Trigger, Protokollform, Nettowirkung über eine lesende Zweitverbindung), Rückgängig mit Zustands- und Bezugsprüfung, Wirksamkeit |
+| `src/kontor/lernmodell.py` | M4: Lernmodell (Merkmale, Naive Bayes mit `Fraction`, Trainingsmenge aus dem Buchbestand, Vorhersage, Anwenden) – keine Gleitkommazahlen, kein gespeicherter Zustand |
+| `src/kontor/vorlagen.py` | M4: Split-Vorlagen (Validierung, CRUD, Erkennung, Aufteilen, Anwenden, Konto löschen) |
 | `src/kontor/pflege.py` | M3: Empfängerverwaltung, Erfassungshilfe, Umbuchungen, Kontenabstimmung, Volltextsuche, Konto mit Buchungen löschen |
-| `src/kontor/db.py` | SQLite-Schema (Version 3), Migration früherer Versionen, Verbindungen |
-| `src/kontor/importer/` | KMyMoney-Import und `ImportErgebnis` |
+| `src/kontor/db.py` | SQLite-Schema (Version 4), Migration früherer Versionen ohne Datenverlust, Verbindungen |
+| `src/kontor/importer/` | KMyMoney- und GnuCash-Import (`gnucash.py`: XML und SQLite, SQLite nur als Kopie im Arbeitsspeicher geöffnet) und `ImportErgebnis` |
 | `src/kontor/plugins/` | Bank-/Mail-Schnittstellen, Mock-Plugins, FinTS-/IMAP-Platzhalter |
 | `src/kontor/web/` | Weboberfläche (HTML, CSS, Vanilla-JS, ohne externe Ressourcen) |
 | `tests/` | eigene Tests (ergänzend; ersetzen nicht die Tests aus kontor-tests) |
+
+## Hinweise ab Meilenstein 4
+
+- Stufenfolge neuer Bankumsätze in `sync._abgleichen_und_buchen`: Vorlage →
+  Regel → Standardkategorie → Lernmodell (nur `lernmodell_automatisch`) →
+  „Unkategorisiert“. Das Lernmodell wird je Bankkonto einmal zu Beginn
+  trainiert; für Umsätze mit eigener Gegen-IBAN nie befragt.
+- Gelöschte Bankkonten (synchronisation.md 16): `sync_konto_zustand` trägt
+  die Entscheidung (Betriebszustand, nicht protokolliert); der Status wird
+  immer abgeleitet. Wiederherstellende Kontozuordnungen werden in
+  `sync_wiederherstellung` vermerkt, damit Rückgängig den Eintrag behält
+  (protokoll.md 6.4). Nach M4-Datenmodelländerungen auch an Meilenstein 9
+  (Datensicherung) denken.
+- Meilenstein 9 (Marker `m9`) ist noch nicht umgesetzt; Maßstab für „grün“
+  bis dahin ist `python -m pytest -m "not m9"`.
 
 ## Arbeitsablauf
 

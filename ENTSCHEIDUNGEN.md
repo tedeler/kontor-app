@@ -511,3 +511,120 @@ Weitere Abkürzungen: SY = `spec/api/synchronisation.md`, KA =
   einfache Rückfrage und `DELETE`); sonst Dialog nach loeschen.md 5 ohne
   Vorauswahl. Die stabilen `data-testid` folgen in M8.
 - **Begründung:** Auftrag des Koordinators; loeschen.md 5; K 14.
+
+## D-043 GnuCash-SQLite nur als Kopie im Arbeitsspeicher
+
+- **Entscheidung:** Eine SQLite-Datei wird nicht auf der Platte geöffnet,
+  sondern ihre Bytes werden mit `sqlite3.Connection.deserialize` in eine
+  Datenbank im Arbeitsspeicher geladen (zusätzlich `PRAGMA query_only`).
+  Pfad- und Bytes-Eingabe sowie REST verhalten sich damit gleich.
+- **Begründung:** gnucash.md 4.1 verlangt „keine Änderung an der Datei, keine
+  Nebendateien“; selbst ein schreibgeschütztes Öffnen kann bei WAL-Dateien
+  `-shm`-Dateien anlegen. Beschädigte Dateien fallen beim Lesen als
+  `sqlite3.DatabaseError` auf (`import_datei_beschaedigt`).
+
+## D-044 GnuCash: gemeinsames Modell, Zuordnungsreihenfolge, Empfänger der Dublettenprüfung
+
+- **Entscheidung:** XML und SQLite werden in dasselbe neutrale Modell
+  übersetzt; Prüfung, Zuordnung und Anlegen sind danach identisch.
+  Konten werden wie beim KMyMoney-Import in Dokumentreihenfolge mit
+  Elternkonten vor ihren Kindern verarbeitet (Regel 2 braucht das bereits
+  zugeordnete Elternkonto). Eine nach Regel 1 oder 2 zugeordnete vorhandene
+  Kontozeile zählt für den Rest des Laufs als vergeben. Für die
+  Dublettenprüfung (gnucash.md 8) wird als Empfänger der Buchung der
+  Empfängername nach 6.2 (Beschreibung nach `strip()`) verglichen, nicht der
+  Name eines per Alias zugeordneten Empfängers.
+- **Begründung:** wörtliche Lesart von gnucash.md 7/8; die Vergleichsfunktion
+  „passend“ (ekey) macht Groß-/Kleinschreibung und Satzzeichen ohnehin
+  unerheblich.
+
+## D-045 KMyMoney-Import nach GnuCash-Import
+
+- **Entscheidung:** Regel 2 des KMyMoney-Imports berücksichtigt zusätzlich
+  Konten mit `gnc:`-Kennung; neue Regel 3 für Bestandskonten ohne gültige
+  IBAN (Art, Name, Elternkonto eines `gnc:`-Kontos ohne IBAN, kleinste ID).
+  Eine vorhandene Kennung wird nie überschrieben (`UPDATE … WHERE extern_id
+  IS NULL`). Ohne GnuCash-Konten im Buch ändert sich nichts.
+- **Begründung:** gnucash.md 7 letzter Absatz, E-068.
+
+## D-046 Lernmodell: Training bei jeder Anfrage, Brüche über ganze Zahlen
+
+- **Entscheidung:** Kein Zwischenspeicher – die Trainingsmenge wird bei
+  jeder Abfrage (Zustand, Vorhersage, Anwenden, Erfassen) und in der
+  Synchronisation je Bankkonto einmal aus dem Buchbestand gelesen (eine
+  SQL-Abfrage über Buchungen, Splits und Vorschläge). `S(c)` wird als
+  Zähler/Nenner aus ganzen Zahlen gebildet und erst dann zu `Fraction`;
+  Sicherheit `⌊1000·P⌋` per Ganzzahldivision. Der Knopf „Neu trainieren“ der
+  Oberfläche liest nur den Zustand neu (es gibt keinen Trainingsbefehl, E-071).
+- **Begründung:** lernmodell.md 1 und 4; ein Haushaltsbuch hat wenige tausend
+  Buchungen, das Training dauert Millisekunden. Ein Cache müsste bei jeder
+  Änderung (auch Rückgängig, Umbenennen von Empfängern) verworfen werden.
+
+## D-047 Vorschlag.sicherheit nur bei quelle = lernmodell
+
+- **Entscheidung:** Tabelle `vorschlag` erhält die Spalte `sicherheit`
+  (NULL bei Regel und Standardkategorie); die Antwort enthält das Feld nur
+  bei `quelle = "lernmodell"`. Ersetzt eine Regel einen Lernmodell-Vorschlag,
+  wird `sicherheit` geleert. Die Protokollform übernimmt das Feld, sodass
+  Rückgängig es exakt wiederherstellt.
+- **Begründung:** openapi.yaml `Vorschlag` (additionalProperties false,
+  `sicherheit` nur beim Lernmodell); M2/M3-Antworten bleiben unverändert.
+
+## D-048 Split-Vorlagen: Speicherung, Prüfreihenfolge, PATCH
+
+- **Entscheidung:** Tabelle `vorlage` mit Bedingungen und Teilen als JSON
+  (wie Regeln); `gesamtbetrag` wird nie gespeichert, sondern abgeleitet.
+  `PATCH` prüft zuerst die Existenz (404), dann den Körper (422
+  `validierung`), dann Bezüge (`kategorie_ungueltig`, `referenz_unbekannt`).
+  Eine Bedingung auf `betrag` ist ein Validierungsfehler; die Pflicht zu einer
+  Empfänger-Bedingung gilt für jede übergebene Bedingungsliste.
+- **Begründung:** vorlagen.md 1 und 2; gleiche Reihenfolge wie bei Regeln.
+
+## D-049 Synchronisation: Vorlagen-Treffer ohne „Unkategorisiert“
+
+- **Entscheidung:** Das technische Konto „Unkategorisiert“ wird in einem
+  Abruf erst angelegt, wenn ein neuer Umsatz es braucht (also nicht für
+  reine Vorlagen-Treffer). Treffer werden mit dem Bestandskonto-Split an
+  erster Stelle und den Teilen in Vorlagenreihenfolge angelegt; offene
+  Dublettenverdachte entstehen wie bei jedem neuen Umsatz.
+- **Begründung:** vorlagen.md 3/4; ohne Vorlagen unverändert (E-029).
+
+## D-050 Text der Benachrichtigungen split_abweichung und konto_fehlt
+
+- **Entscheidung:** `split_abweichung`: Titel „Split-Vorlage passt nicht“,
+  Text nennt Betrag der Buchung, Vorlagenname und erwarteten Gesamtbetrag
+  (deutsches Format, Ganzzahlarithmetik) und rät zum Anpassen.
+  `konto_fehlt`: Titel „Bankkonto ohne Konto“, Text nennt Name und IBAN und
+  fragt nach Wiederherstellen oder Ignorieren. Server und Oberfläche
+  verstehen die Links `/buchungen/<id>` und `/sync/konten` (wie `/tan/<id>`).
+- **Begründung:** vorlagen.md 6, synchronisation.md 16.5.
+
+## D-051 Gelöschte Bankkonten: Entscheidung und Rückgängig
+
+- **Entscheidung:** Die Entscheidung steht in `sync_konto_zustand`
+  (`entscheidung`, `entscheidung_buchungen`); der Status wird bei jedem Lesen
+  aus „gibt es ein Konto mit der IBAN?“ und der Entscheidung abgeleitet. Bei
+  `ignorieren` wird der Pflichtwert `buchungen` gespeichert, aber nie
+  ausgegeben. Eine Kontozuordnung, die ein gelöschtes Bankkonto
+  wiederherstellt, vermerkt (Aenderungs-ID, IBAN) in `sync_wiederherstellung`
+  über einen Haken nach dem Speichern der Änderung in derselben
+  Transaktion. Rückgängig einer `sync_kontozuordnung` entfernt den Eintrag in
+  `/api/sync/konten` nur für erstmals angelegte Konten; vermerkte
+  Wiederherstellungen behalten ihn (Status `konto_fehlt`). Das frühere
+  pauschale Entfernen von Einträgen ohne Konto entfällt (protokoll.md 6.4).
+  Das Vergessen der Kennungen bei „alle“ läuft durch die Protokoll-Trigger
+  (`kennungen_weg`), sodass Rückgängig sie wieder merkt.
+- **Begründung:** synchronisation.md 16, E-083, E-084.
+
+## D-052 Weboberfläche für Meilenstein 4
+
+- **Entscheidung:** Neue Bereiche „Split-Vorlagen“ und „Lernmodell“ in der
+  Navigation; Import-Seite mit Wahl der Quelle (an der Dateiendung
+  vorgewählt); Lernmodell-Vorschläge tragen die Marke „Lernmodell xx,x %“;
+  Split-Vorlagen werden im Dialog mit Live-Summe angelegt/bearbeitet, auch
+  aus einer Buchung über das Kontextmenü; Abweichungen erscheinen oben auf
+  der Vorlagenseite mit „Vorlage anpassen …“. Der Dialog für gelöschte
+  Bankkonten hat keine Vorauswahl (E-061/16.3) und bietet nach
+  „wiederherstellen“ einen sofortigen Lauf an. Alles nur über REST.
+- **Begründung:** Auftrag des Koordinators; vorlagen.md, lernmodell.md,
+  synchronisation.md 16.3.
