@@ -1,5 +1,83 @@
 # Ergebnis der Implementierung
 
+## Meilenstein 4 (mit Nachtrag synchronisation.md 16)
+
+Stand: 2026-11-08, Implementierungs-Thread.
+
+### Testlauf kontor-tests
+
+- Getestet gegen **kontor-tests Commit `ffe104c`**
+  (`ffe104c0a84ae1647f349713ab2761196936c4ab`, „Selbstprüfung für M4: 684/684
+  Kern-Tests, 105/105 Mutanten erkannt; ERGEBNIS.md M4“), nach `git pull` im Lese-Klon.
+- Aufruf im Wurzelverzeichnis des Lese-Klons gegen die per
+  `pip install --break-system-packages -e` installierte kontor-app, Python 3.13,
+  Hypothesis-Profil `standard`: `python -m pytest -p no:cacheprovider -m "not m9"`
+  (Maßstab) und `python -m pytest -p no:cacheprovider` (vollständig).
+
+| Auswahl | gesamt | bestanden | fehlgeschlagen | Fehler |
+| --- | ---: | ---: | ---: | ---: |
+| ohne m9 (`-m "not m9"`, Maßstab) | 1448 | 1445 | 3 | 0 |
+| vollständig (inkl. m9) | 1497 | 1445 | 28 | 24 |
+| davon `-m m1` | 674 | 671 | 3 (W-002) | 0 |
+| davon `-m m2` | 226 | 226 | 0 | 0 |
+| davon `-m m3` (inkl. Nachtrag gelöschte Bankkonten) | 245 | 245 | 0 | 0 |
+| davon `-m m4` (inkl. `langsam`) | 226 | 226 | 0 | 0 |
+| davon `-m m9` (nicht beauftragt) | 49 | 0 | 25 | 24 |
+
+(Die übrigen 77 Tests sind Generator- und Spezifikationstests; alle grün.)
+
+Fehlschläge ohne m9 – alle drei durch **W-002** (M1-Tests verlangen, dass das
+ab M4 spezifizierte Szenario `beitragsaenderung` unbekannt ist):
+
+- `tests/app/test_paket.py::test_ungueltige_konfiguration[mock_modus=True,mock_szenario=beitragsaenderung]`
+- `tests/app/test_plugins.py::test_unbekanntes_szenario[MockBank]`
+- `tests/app/test_plugins.py::test_unbekanntes_szenario[MockMail]`
+
+m9 (Datensicherung) ist ausdrücklich nicht Teil dieses Auftrags: 25 Fehlschläge
+und 24 Fehler, alle, weil `/api/sicherung…` bzw. `kontor.sicherung` noch fehlen
+(404). Keiner davon verlangt eine Änderung an M1–M4-Verhalten, die der
+Spezifikation widerspräche; daher kein W-Eintrag.
+
+### Eigene Tests (kontor-app)
+
+`python -m pytest tests`: 44 bestanden, darunter der neue Playwright-Rauchtest
+`tests/test_browser_m4.py` (Chrome headless, Desktop und Handy): GnuCash-Import
+über die Import-Seite, Split-Vorlage im Dialog anlegen, Abweichung bei der
+Synchronisation mit genau einer Benachrichtigung, Link `/buchungen/<id>`,
+Vorlage anpassen und nachträglich aufteilen, Lernmodell anwenden mit
+Sicherheitsanzeige, Dialog für gelöschte Bankkonten (ohne Vorauswahl,
+Wiederherstellen mit allen Umsätzen und sofortigem Lauf). Gestartete Server und
+Browser wurden beendet.
+
+### Umgesetzt
+
+- GnuCash-Import (`kontor.importer.gnucash`, `POST /api/import/gnucash`): XML
+  gzip/unkomprimiert und SQLite (nur als Kopie im Arbeitsspeicher, D-043),
+  Prüfreihenfolge und Fehlerfälle ohne Teilimport, Abbildung, Zuordnung über
+  Quellen (auch KMyMoney nach GnuCash, D-045), Dublettenerkennung, Idempotenz,
+  Protokoll `import_gnucash`.
+- Lernmodell (`kontor.lernmodell`, `/api/lernmodell…`): exakt mit Brüchen,
+  ohne gespeicherten Zustand, Schwelle 7/10, abschaltbar
+  (`lernmodell_automatisch`, Vorgabe aus), Stufe 4 in Synchronisation und
+  Erfassen, Ausnahme eigene Gegen-IBAN.
+- Split-Vorlagen (`kontor.vorlagen`, `/api/vorlagen…`): Validierung,
+  Reihenfolge, Bezüge (auch Konto löschen), Erkennung ohne Toleranz, Vorrang vor
+  Regeln, Benachrichtigung `split_abweichung` mit Entprellung, Anwenden auf
+  vorhandene Buchungen, Protokoll und Rückgängig (Objekt `vorlage`).
+- Mock-Szenario `beitragsaenderung`, Zählungen `buchungen_gesplittet`,
+  `vorlage_abweichungen`.
+- Nachtrag synchronisation.md 16: Status je Bankkonto, Überspringen mit
+  Benachrichtigung `konto_fehlt`, Entscheidung (`POST /api/sync/konten/{iban}/entscheidung`),
+  Wiederherstellen mit allen/nur neuen Umsätzen, Rückgängig nach protokoll.md 6.4.
+- Datenbank Schemaversion 4, Migration früherer Versionen ohne Datenverlust.
+- Weboberfläche (nur REST, responsiv): siehe README und D-052.
+
+### Einschränkungen
+
+- Meilenstein 9 (Datensicherung) ist nicht umgesetzt.
+- Hypothesis lief nur im Profil `standard` (nicht `gruendlich`).
+- Die Oberfläche hat noch keine stabilen `data-testid` (M8).
+
 ## Meilenstein 3
 
 Stand: 2026-11-08, Implementierungs-Thread.
