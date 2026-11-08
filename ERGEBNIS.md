@@ -1,6 +1,70 @@
 # Ergebnis der Implementierung
 
-## Meilenstein 2
+## Meilenstein 3
+
+Stand: 2026-11-08, Implementierungs-Thread.
+
+### Testlauf kontor-tests
+
+- Getestet gegen **kontor-tests Commit `ae6eacf`**
+  (`ae6eacf5c3df597db159e57c78129bb370b2c68e`, „ERGEBNIS.md: M3-Abschnitt auf den
+  Gesamtlauf der Selbstprüfung (529/529, 65/65) abgestimmt“), nach `git pull` im
+  Lese-Klon.
+- Aufruf: `python -m pytest -p no:cacheprovider` im Wurzelverzeichnis des Lese-Klons,
+  gegen die per `pip install --break-system-packages -e` installierte kontor-app,
+  Python 3.13, Hypothesis-Profil `standard`.
+
+| Auswahl | gesamt | bestanden | fehlgeschlagen | übersprungen |
+| --- | ---: | ---: | ---: | ---: |
+| alle Tests | 1200 | 1200 | 0 | 0 |
+| davon `-m m1` | 674 | 674 | 0 | 0 |
+| davon `-m m2` | 226 | 226 | 0 | 0 |
+| davon `-m m3` | 227 | 227 | 0 | 0 |
+
+(Die übrigen 73 Tests sind Generator- und Spezifikationstests.)
+
+Fehlschläge im Standardlauf: keine.
+
+Zusätzlich `HYPOTHESIS_PROFILE=gruendlich python -m pytest -m m3`: 225 von 227
+bestanden; die zwei Fehlschläge (`test_m3_rueckgaengig.py::test_zufaellige_folgen_rueckwaerts`,
+`::test_zufaelliges_rueckgaengig_gegen_orakel`) sind ein Fehler im Testablauf
+(Zufallsauswahl aus leerer Kontenliste, bevor die Anwendung angefragt wird), siehe
+**W-001**. Dieselben beiden Tests liefen zusätzlich mit sechs weiteren Hypothesis-Startwerten
+(`--hypothesis-seed=1…6`) im Standardprofil grün.
+
+### Eigene Tests (kontor-app/tests)
+
+`python -m pytest tests`: **42 bestanden**, neu:
+
+- `tests/test_m3_eigen.py`: Migration einer Datenbank mit dem Schema von M2
+  (`tests/daten/schema_m2.sql`, mit Vorschlag) auf Schemaversion 3 ohne Datenverlust,
+  danach Aliase, Abstimmung und Protokoll auf der migrierten Datenbank; Rückgängig einer
+  Tag-Umbenennung behält Zuordnungen; Probelauf „Konto löschen“ verbraucht keine IDs;
+  PIN erscheint nie im Protokoll.
+- `tests/test_browser_m3.py` (Playwright, Chrome headless, echte Server im Mock-Modus auf
+  freien lokalen Ports, danach beendet): Umbuchungsvorschläge zusammenführen, Strg+Z,
+  Buchung erfassen, globale Suche (umlautunabhängig), Kontenabstimmung mit Differenz und
+  mit passendem Saldo, Rückgängig im Änderungsprotokoll; im Handyformat Empfänger mit
+  Alias und Standardkategorie bearbeiten, Kategorie mit Buchungen löschen (keine
+  Vorauswahl, Elternkonto bei Wurzel deaktiviert), Rückgängig über den Knopf im Kopf,
+  Suche.
+
+Die neuen Seiten wurden zusätzlich per Bildschirmfoto (Desktop 1280 px, Handy 390 px)
+geprüft; gefundene Mängel (Ausgabe „null“ im Löschdialog, umbrechende Knöpfe im
+Protokoll auf dem Handy) sind behoben.
+
+### Einschränkungen
+
+- Die automatische Umbuchungserkennung ist wie spezifiziert standardmäßig aus
+  (`KONTOR_UMBUCHUNG_AUTOMATISCH=1` für den Betrieb empfohlen).
+- Die Volltextsuche rechnet ohne Index in Python (D-041); Leistung wird in M7 bewertet.
+- Das Änderungsprotokoll wächst unbegrenzt (kein Aufräumen; nicht spezifiziert).
+- Stabile `data-testid` der Oberfläche und vollständige Playwright-Tests folgen in M8.
+- Echtes FinTS-Plugin weiterhin Platzhalter (M6), wie in M2.
+
+---
+
+## Meilenstein 2 (frühere Fassung)
 
 Stand: 2026-11-08, Implementierungs-Thread.
 
