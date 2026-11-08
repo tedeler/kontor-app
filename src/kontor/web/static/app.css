@@ -232,3 +232,10 @@ h2.oben { margin-top: 0; }
   .tabelle.empfaenger tr { display: block; border-bottom: 1px solid var(--linie); padding: .3rem 0; }
   .tabelle.empfaenger td { display: block; border: 0; padding: .15rem .6rem; }
 }
+/* M9: Datensicherung */
+.tabelle-huelle { overflow-x: auto; max-width: 100%; }
+#sicherung-ausgabe label.zeile { display: flex; align-items: flex-start; gap: .5rem; margin: .6rem 0; }
+#sicherung-ausgabe label.zeile input { margin-top: .2rem; flex: none; }
+#sicherung-datei { max-width: 100%; }
+#sicherung-unterschied { font-size: .92rem; }
+#sicherung-unterschied td, #sicherung-unterschied th { padding-left: .35rem; padding-right: .35rem; word-break: normal; overflow-wrap: normal; hyphens: auto; }

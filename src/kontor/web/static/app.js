@@ -924,6 +924,129 @@
         h("ul", null, e.warnungen.map((w) => h("li", null, w.meldung, w.referenz ? ` (${w.referenz})` : "")))) : null);
   }
 
+  // ------------------------------------------------------------ M9: Datensicherung
+  const SICHERUNG_OBJEKTE = { konto: "Konten und Kategorien", empfaenger: "Empfänger", tag: "Tags", buchung: "Buchungen",
+    regel: "Regeln", verdacht: "Dublettenverdachte", abstimmung: "Abstimmungen", vorlage: "Split-Vorlagen" };
+  const SICHERUNG_GRUND = {
+    datei_leer: "Die Datei ist leer.",
+    kein_zip: "Die Datei ist keine lesbare ZIP-Datei.",
+    zip_inhalt: "Die ZIP-Datei enthält nicht genau manifest.json und kontor.sqlite (oder ist entpackt zu groß).",
+    manifest_ungueltig: "Das Manifest (manifest.json) ist ungültig.",
+    format_unbekannt: "Die Datei ist keine Kontor-Sicherung.",
+    version_nicht_unterstuetzt: "Die Sicherung stammt von einer neueren Kontor-Version.",
+    datenbank_pruefsumme: "Die Prüfsumme der Datenbank stimmt nicht – die Datei ist beschädigt.",
+    datenbank_ungueltig: "Die Datenbank in der Sicherung ist beschädigt.",
+    datenbank_fremd: "Die Datenbank in der Sicherung hat ein fremdes oder verändertes Schema.",
+    inhalt_ungueltig: "Der Inhalt der Sicherung verletzt die Regeln des Buchbestands.",
+    inhalt_pruefsumme: "Anzahl oder Inhaltsprüfsumme passen nicht zum Inhalt – die Datei wurde verändert.",
+  };
+
+  function sicherungTabelle(e) {
+    const arten = Object.keys(e.unterschied);
+    return h("div", { class: "tabelle-huelle" }, h("table", { class: "tabelle", id: "sicherung-unterschied" },
+      h("thead", null, h("tr", null, h("th", null, "Objektart"), h("th", { class: "zahl" }, "Anzahl"),
+        h("th", { class: "zahl" }, "neu"), h("th", { class: "zahl" }, "geändert"), h("th", { class: "zahl" }, "entfällt"))),
+      h("tbody", null, arten.map((o) => {
+        const u = e.unterschied[o];
+        return h("tr", null, h("td", null, SICHERUNG_OBJEKTE[o] || o), h("td", { class: "zahl" }, e.manifest.anzahl[o] ?? 0),
+          h("td", { class: "zahl" }, u.angelegt), h("td", { class: "zahl" }, u.geaendert),
+          h("td", { class: "zahl" + (u.geloescht ? " negativ" : "") }, u.geloescht));
+      }))));
+  }
+
+  function sicherungKopf(m) {
+    return h("ul", { class: "ergebnis-liste" },
+      h("li", null, "Erstellt: ", h("strong", null, zeitText(m.erstellt))),
+      h("li", null, "Modus: ", h("strong", null, m.modus === "mock" ? "Mock-Modus" : "Echtbetrieb")),
+      h("li", null, "Kontor-Version: ", m.app_version, " · Formatversion ", m.formatversion, " · Schemaversion ", m.schemaversion));
+  }
+
+  async function ansichtSicherung() {
+    const status = await api("GET", "/api/status");
+    const herunter = h("a", { class: "knopf primaer", href: "/api/sicherung", download: "", id: "sicherung-herunterladen" }, "Sicherung herunterladen");
+    const datei = h("input", { type: "file", accept: ".zip,application/zip", required: true, "aria-label": "Sicherungsdatei", id: "sicherung-datei" });
+    const ausgabe = h("div", { id: "sicherung-ausgabe", "aria-live": "polite" });
+
+    async function senden(params) {
+      const fd = new FormData();
+      fd.append("datei", datei.files[0], datei.files[0].name);
+      return api("POST", "/api/sicherung/einspielen" + query(params), undefined, fd);
+    }
+
+    function fehlerZeigen(err) {
+      let text = err.message;
+      if (err.code === "sicherung_ungueltig" && err.details && SICHERUNG_GRUND[err.details.grund]) text = SICHERUNG_GRUND[err.details.grund];
+      ausgabe.replaceChildren(h("div", { class: "karte warnung", role: "alert" },
+        h("p", { class: "negativ" }, h("strong", null, "Die Sicherung kann nicht eingespielt werden. "), text),
+        h("p", { class: "leise" }, "Es wurde nichts geändert.")));
+    }
+
+    async function pruefen() {
+      if (!datei.files.length) { melden("Bitte zuerst eine Sicherungsdatei wählen.", true); return; }
+      ausgabe.replaceChildren(h("p", { class: "leise" }, "Sicherung wird geprüft …"));
+      let e;
+      try { e = await senden({ trocken: true }); } catch (err) { fehlerZeigen(err); return; }
+      if (!e.geaendert) {
+        ausgabe.replaceChildren(h("div", { class: "karte" }, sicherungKopf(e.manifest),
+          h("p", { class: "positiv", id: "sicherung-identisch" }, "Der Inhalt der Sicherung ist identisch mit dem aktuellen Bestand. Einspielen würde nichts ändern.")));
+        return;
+      }
+      const haken = h("input", { type: "checkbox", id: "sicherung-verstanden" });
+      const los = h("button", { type: "button", class: "knopf gefahr", id: "sicherung-einspielen", disabled: true }, "Bestand ersetzen …");
+      haken.addEventListener("change", () => { los.disabled = !haken.checked; });
+      los.addEventListener("click", async () => {
+        const ok = await dialog("Gesamten Bestand ersetzen?", h("div", null,
+          h("p", null, h("strong", null, "Alle Konten, Buchungen, Empfänger, Tags, Regeln, Abstimmungen und Split-Vorlagen werden durch die der Sicherung ersetzt."),
+            " Was seit dem Erstellen der Sicherung angelegt oder geändert wurde, entfällt."),
+          e.abgestimmte_buchungen_betroffen ? h("p", { class: "negativ" }, `${e.abgestimmte_buchungen_betroffen} abgestimmte oder abgeglichene Buchung(en) werden geändert oder entfernt.`) : null,
+          h("p", { class: "leise" }, "Das Einspielen wird als eine Änderung im Änderungsprotokoll festgehalten und lässt sich rückgängig machen.")),
+          [{ text: "Ja, Bestand ersetzen", klasse: "gefahr", submit: true, tun: () => true }]);
+        if (ok !== true) return;
+        ausgabe.replaceChildren(h("p", { class: "leise" }, "Sicherung wird eingespielt …"));
+        let r;
+        try { r = await senden({ bestaetigt: true }); } catch (err) { fehlerZeigen(err); return; }
+        const zurueck = h("button", { type: "button", class: "knopf", id: "sicherung-rueckgaengig" }, "Einspielen rückgängig machen");
+        zurueck.addEventListener("click", async () => {
+          if (!(await bestaetigen("Den Stand von vor dem Einspielen wiederherstellen?"))) return;
+          try { await api("POST", `/api/aenderungen/${r.aenderung_id}/rueckgaengig`); melden("Einspielen rückgängig gemacht."); zurueck.disabled = true; stammLaden(); }
+          catch (err) { melden(err.message, true); }
+        });
+        ausgabe.replaceChildren(h("div", { class: "karte", id: "sicherung-ergebnis" },
+          h("p", { class: "positiv" }, h("strong", null, r.geaendert ? "Sicherung eingespielt." : "Nichts geändert – der Inhalt war bereits identisch.")),
+          sicherungKopf(r.manifest), sicherungTabelle(r),
+          r.aenderung_id ? h("p", null, "Neue Version im ", h("a", { href: "#/protokoll" }, "Änderungsprotokoll"), ` (Änderung #${r.aenderung_id}). `, zurueck) : null,
+          h("p", { class: "leise" }, "PIN und Zugangsdaten sind nie Teil einer Sicherung und müssen bei Bedarf neu eingegeben werden. Die nächste Synchronisation holt Umsätze nach, die nach dem Erstellen der Sicherung gebucht wurden.")));
+        melden(r.geaendert ? "Sicherung eingespielt." : "Nichts geändert.");
+        stammLaden();
+      });
+      ausgabe.replaceChildren(h("div", { class: "karte warnung", id: "sicherung-probelauf" },
+        h("h3", { style: "margin-top:0" }, "Ergebnis der Prüfung (Probelauf, noch nichts geändert)"),
+        sicherungKopf(e.manifest), sicherungTabelle(e),
+        e.abgestimmte_buchungen_betroffen ? h("p", { class: "negativ", id: "sicherung-gesperrt" },
+          `Achtung: ${e.abgestimmte_buchungen_betroffen} abgestimmte oder abgeglichene Buchung(en) würden geändert oder entfernt.`) : null,
+        h("label", { class: "zeile" }, haken, " Ich habe verstanden: Der gesamte aktuelle Bestand wird durch die Sicherung ersetzt."),
+        h("div", { class: "werkzeug" }, los)));
+    }
+
+    const form = h("form", { class: "karte" },
+      h("h2", { style: "margin-top:0" }, "Sicherung einspielen"),
+      h("p", null, "Ersetzt den gesamten Bestand durch den einer Sicherung (kein Zusammenführen). Zuerst wird die Datei geprüft und angezeigt, was sich ändern würde; erst nach ausdrücklicher Bestätigung wird eingespielt."),
+      h("div", { class: "werkzeug" }, datei, h("button", { type: "submit", class: "knopf primaer", id: "sicherung-pruefen" }, "Prüfen")),
+      ausgabe);
+    form.addEventListener("submit", (ev) => { ev.preventDefault(); pruefen(); });
+    datei.addEventListener("change", () => ausgabe.replaceChildren());
+
+    seite("Datensicherung",
+      h("div", { class: "karte" },
+        h("h2", { style: "margin-top:0" }, "Sicherung erstellen"),
+        h("p", null, "Lädt den vollständigen Bestand als ZIP-Datei herunter (SQLite-Datenbank und Manifest mit Prüfsummen): Konten, Buchungen mit Splits, Empfänger, Tags, Regeln, Dublettenverdachte, Abstimmungen, Split-Vorlagen, gemerkte Umsatzkennungen und der Stand je Bankkonto."),
+        h("p", { class: "leise" }, "Nicht enthalten: Änderungsprotokoll, PIN und andere Geheimnisse, Importvorgänge, Synchronisationsläufe, Benachrichtigungen und die Konfiguration der Instanz. ",
+          status.modus === "mock" ? "Dies ist eine Mock-Instanz: Die Sicherung lässt sich nur in eine Mock-Instanz einspielen." : "Eine Sicherung des Echtbetriebs lässt sich nicht in eine Mock-Instanz einspielen (und umgekehrt)."),
+        h("p", { class: "leise" }, "Die Datei enthält sensible Finanzdaten – sicher aufbewahren."),
+        h("div", { class: "werkzeug" }, herunter)),
+      form);
+  }
+
   async function ansichtEinstellungen() {
     await stammLaden();
     const status = await api("GET", "/api/status");
@@ -2042,6 +2165,7 @@
       else if (bereich === "benachrichtigungen") await ansichtBenachrichtigungen();
       else if (bereich === "import") await ansichtImport();
       else if (bereich === "einstellungen") await ansichtEinstellungen();
+      else if (bereich === "sicherung") await ansichtSicherung();
       else if (bereich === "spaeter") ansichtSpaeter(arg);
       else seite("Nicht gefunden", h("p", null, "Diese Seite gibt es nicht."));
     } catch (e) {

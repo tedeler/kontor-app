@@ -61,7 +61,9 @@ def test_oberflaeche_nutzt_nur_spezifizierte_api():
                "/api/abstimmungen", "/api/abstimmungen/", "/api/suche",
                # M4 und M3-Nachtrag
                "/api/import/gnucash", "/api/lernmodell", "/api/lernmodell/anwenden", "/api/lernmodell/vorhersage",
-               "/api/vorlagen", "/api/vorlagen/", "/api/vorlagen/anwenden", "/api/sync/konten/"}
+               "/api/vorlagen", "/api/vorlagen/", "/api/vorlagen/anwenden", "/api/sync/konten/",
+                   # M9
+                   "/api/sicherung", "/api/sicherung/einspielen"}
     assert pfade <= erlaubt, pfade - erlaubt
 
 
