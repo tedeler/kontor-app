@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "kontor"
 version = "0.1.0"
-description = "Kontor – selbst gehostete Finanz-Web-App (Meilensteine 1–7 und 9)"
+description = "Kontor – selbst gehostete Finanz-Web-App (Meilensteine 1–10)"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "Proprietär" }

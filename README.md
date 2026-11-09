@@ -1,7 +1,7 @@
 # kontor-app
 
 Implementierung von **Kontor**, einer selbst gehosteten Finanz-Web-App
-(Python, FastAPI, SQLite, Single-Page-Weboberfläche). Stand: **Meilenstein 8** (M1–M9, Plan abgeschlossen)
+(Python, FastAPI, SQLite, Single-Page-Weboberfläche). Stand: **Meilenstein 10** (M1–M10)
 
 - M1: KMyMoney-Import, Finanzübersicht, Konten- und Buchungsliste mit Filtern
   und Mehrfachbearbeitung, doppelte Buchführung mit Splits und Tags,
@@ -65,6 +65,10 @@ Implementierung von **Kontor**, einer selbst gehosteten Finanz-Web-App
   Rückgängig per Strg+Z über das Änderungsprotokoll, helles/dunkles Design,
   installierbare PWA mit Offline-Hinweis, mobile Bedienung mit Gesten,
   TAN-Seite mit „QR-Code speichern“/„Teilen“, Barrierefreiheit.
+- M10: zweites echtes Bank-Plugin `aqbanking` über eine vorhandene
+  AqBanking-Konfiguration (`aqbanking-cli`, PIN über eine Pipe, nur lesende
+  Befehle, Zeitgrenze je Programmaufruf); verlangt die Bank eine TAN, scheitert
+  der Lauf mit `bank_tan_nicht_unterstuetzt` (Freigabe einmal in AqBanking).
 
 **Alles lässt sich im Mock-Modus ohne echte Daten ausprobieren:** Mock-Bank,
 Mock-Postfächer und Mock-Benachrichtigungen (Liste unter
@@ -197,7 +201,7 @@ bzw. `EnvironmentFile`) ausführen.
 | `KONTOR_DATENBANK` | **Pflicht.** Pfad der SQLite-Datei für Echtdaten |
 | `KONTOR_MOCK_MODUS` | `ja`/`1`/`true`/`on` = Mock-Modus; leer/`nein` = Echtbetrieb |
 | `KONTOR_MOCK_DATENBANK` | Pfad der Mock-Datenbank; Vorgabe `<name>-mock<endung>` neben der Echt-Datenbank |
-| `KONTOR_BANK_PLUGIN` | `mock` oder `fints` (Vorgabe: `mock` im Mock-Modus, sonst `fints`) |
+| `KONTOR_BANK_PLUGIN` | `mock`, `fints` oder `aqbanking` (Vorgabe: `mock` im Mock-Modus, sonst `fints`; `aqbanking` nur im Echtbetrieb, siehe „Bankabruf über AqBanking (M10)“) |
 | `KONTOR_MAIL_PLUGIN` | `mock` oder `imap` (Vorgabe entsprechend) |
 | `KONTOR_MOCK_SZENARIO` | `normal`, `bankfehler`, `zeitueberschreitung`, `tan_erforderlich`, `token_ablauf`, `beitragsaenderung` (M4: Umsätze mit `betrag_beitragsaenderung` in der Datendatei kommen mit diesem Betrag) |
 | `KONTOR_MOCK_DATEN` | JSON-Datei im Format `kontor-mock-daten` (z. B. `kontor-tests/fixtures/mock/mock_daten.json`); leer = eingebauter Datensatz |
@@ -285,6 +289,53 @@ von systemd verschlüsselt bereitgestellt (siehe unten).
 Unverschlüsseltes `http://` (und `KONTOR_IMAP_TLS=nein`) ist nur für
 `127.0.0.1`, `::1` und `localhost` erlaubt. Kontor folgt keinen Umleitungen
 und verwendet keine Proxy-Variablen der Umgebung.
+
+### Bankabruf über AqBanking (M10)
+
+Statt des FinTS-Plugins kann Kontor eine **vorhandene AqBanking-Konfiguration**
+verwenden (z. B. dieselbe wie KMyMoney oder GnuCash). Kontor ruft dafür nur
+`aqbanking-cli` (`listaccs`, `request --transactions`) und
+`aqhbci-tool4 listusers` auf, immer mit `-D <Verzeichnis>`; es richtet nichts
+ein und ändert keine Einstellungen. Voraussetzung: AqBanking 6
+(`apt install aqbanking-tools`, geprüft mit 6.5.4).
+
+| Variable | Bedeutung |
+| --- | --- |
+| `KONTOR_BANK_PLUGIN=aqbanking` | AqBanking-Plugin wählen (nur im Echtbetrieb) |
+| `KONTOR_AQBANKING_VERZEICHNIS` | AqBanking-Konfigurationsverzeichnis (`-D`); leer = Plugin nicht verfügbar (`plugin_nicht_verfuegbar`) |
+| `KONTOR_AQBANKING_PROGRAMME` | Verzeichnis mit `aqbanking-cli` und `aqhbci-tool4`; leer = Suche über `PATH` |
+| `KONTOR_AQBANKING_TIMEOUT_SEKUNDEN` | Höchstdauer je Programmaufruf (1–3600, Vorgabe 120); danach wird AqBanking samt Kindprozessen beendet |
+
+- **Verzeichnis für den systemd-Dienst:** außerhalb von `/home` (die Unit hat
+  `ProtectHome=yes`), z. B. `/var/lib/kontor/aqbanking` im `StateDirectory`;
+  es gehört dem Benutzer `kontor` und muss schreibbar sein (AqBanking
+  speichert dort Kundensystem-ID, Bankparameter und Protokolle). Eine
+  vorhandene Konfiguration einmal kopieren:
+  ```bash
+  cp -a ~/.aqbanking /var/lib/kontor/aqbanking
+  chown -R kontor:kontor /var/lib/kontor/aqbanking
+  ```
+  Oder neu einrichten (fragt PIN/TAN interaktiv; Zertifikat bestätigen):
+  ```bash
+  sudo -u kontor aqhbci-tool4 -D /var/lib/kontor/aqbanking adduser -t pintan -b <BLZ> \
+      -u <Benutzerkennung> -s <FinTS-URL> -N <Name> --hbciversion=300
+  sudo -u kontor aqhbci-tool4 -D /var/lib/kontor/aqbanking getsysid
+  ```
+  KMyMoney und Kontor nicht gleichzeitig mit demselben Verzeichnis arbeiten
+  lassen. Das Verzeichnis gehört nicht zur Datensicherung von Kontor.
+- **PIN:** wie beim FinTS-Plugin (Oberfläche oder `systemd-creds`); Kontor
+  reicht sie AqBanking nur über eine Pipe (`-P /dev/fd/N`) weiter, nie über
+  Argumente, Umgebung oder Dateien.
+- **TAN:** Kontor kann bei AqBanking keine TAN abfragen. Verlangt die Bank eine
+  (für reine Kontoabrufe meist nur alle 90–180 Tage), scheitert der Lauf mit
+  `bank_tan_nicht_unterstuetzt`. Dann die Freigabe **einmal direkt in
+  AqBanking** erteilen – mit KMyMoney, GnuCash oder im Terminal, z. B.
+  `sudo -u kontor aqbanking-cli -D /var/lib/kontor/aqbanking request --transactions --iban=<IBAN>`;
+  danach ruft Kontor wieder ohne TAN ab.
+- Konten liest Kontor offline aus der AqBanking-Konfiguration; Vormerkungen und
+  Storno-Kennzeichen liefert AqBanking nicht. Die Umsatzkennungen entsprechen
+  denen des FinTS-Plugins im Format MT940 (späterer Wechsel ohne Dubletten,
+  außer bei Stornos).
 
 ### Installation als systemd-Dienst im Proxmox-LXC-Container
 
