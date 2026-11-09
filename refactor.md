@@ -35,8 +35,10 @@ SQL-Text eingesetzt werden.
 | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | 2026-11-09 | `b04091f` | M7 (in Arbeit) | 13 811 | 2 846 | 305 | 43 | 36 | 121 | 361 | 0 |
 | 2026-11-09 | `12cadb0` | M7 (abgeschlossen), vor M8 | 13 823 | 2 922 | 334 | 43 | 37 | 119 | 361 | 0 |
+| 2026-11-09 | `a15f0f0` | M8 (abgeschlossen), vor M10 | 13 818 | 3 584² | 334 | 43 | 37 | 119 | 361 | 0 |
 
 ¹ `--select E,F,W,B,C90,SIM,UP,PL --line-length 120`.
+² Ab M8 Summe der ES-Module `src/kontor/web/oeffentlich/app/*.js` (R-07, `app.js` gibt es nicht mehr).
 
 ## Bewertung (2026-11-09)
 
@@ -104,6 +106,17 @@ strukturell an einigen Stellen über die Wartbarkeitsgrenze gewachsen.
 - **M8 betrifft vor allem die Oberfläche:** `app.js` wächst durch M8 stark. R-07 (Aufteilung in
   ES-Module) wird mit M8 umgesetzt, damit die Oberfläche nicht als eine Datei mit mehreren
   tausend Zeilen weiterwächst.
+
+## Fortschreibung vor M10 (2026-11-09, Stand `a15f0f0`)
+
+- **Python-Kennzahlen unverändert** gegenüber der Messung vor M8 (ruff 334, C901 43, radon D/E/F 37,
+  mypy 119, 361 Parameter ohne Annotation, keine echten SQL-Funde, 2 begründete `BLE001`). M8 hat fast
+  nur die Oberfläche geändert; die Python-Zeilen sind leicht gesunken (13 823 → 13 818).
+- **Oberfläche:** 3 584 Zeilen in sechs ES-Modulen statt einer Datei (R-07 erledigt); größtes Modul ist
+  `seiten.js`.
+- **M10 (AqBanking-Plugin)** kommt als eigenes Modul `plugins/aqbanking.py` dazu; es soll die Grenze
+  C901 ≤ 15 einhalten (Auswertung der AqBanking-Ausgabe in kleine Funktionen zerlegt) und vollständig
+  annotiert sein. Keine neue Maßnahme nötig.
 
 ## Maßnahmen
 
