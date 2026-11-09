@@ -118,6 +118,12 @@ class BankZugangGesperrt(BankFehler):
     code = "bank_zugang_gesperrt"
 
 
+class BankTanNichtUnterstuetzt(BankFehler):
+    """M10 (aqbanking.md 5.4): Die Bank verlangt eine TAN, das Plugin kann keine abfragen (nie ``TanErforderlich``)."""
+
+    code = "bank_tan_nicht_unterstuetzt"
+
+
 class MailTokenWiderrufen(MailFehler):
     code = "mail_token_widerrufen"
 
@@ -153,6 +159,7 @@ class KreditRateZuKlein(KontorFehler):
 __all__ = [
     "KreditRateZuKlein",
     "BankZugangGesperrt",
+    "BankTanNichtUnterstuetzt",
     "MailTokenWiderrufen",
     "MailAnmeldungFehlt",
     "MailAnmeldungAbgelehnt",

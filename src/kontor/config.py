@@ -8,12 +8,12 @@ import os
 import pathlib
 import re
 import urllib.parse
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 
 from .fehler import KonfigurationsFehler
 
-BANK_PLUGINS = ("mock", "fints")
+BANK_PLUGINS = ("mock", "fints", "aqbanking")
 MAIL_PLUGINS = ("mock", "imap")
 SZENARIEN = ("normal", "bankfehler", "zeitueberschreitung", "tan_erforderlich", "token_ablauf", "beitragsaenderung")
 
@@ -28,6 +28,8 @@ M7_GANZ = {
     "anfrage_max_kib": (16, 1_048_576), "port": (1, 65535), "beenden_frist_sekunden": (1, 600),
     "mock_verzoegerung_ms": (0, 60_000),
 }
+# M10 (python-api.md 16.1): Bereich der Zeitgrenze je AqBanking-Programmaufruf
+AQBANKING_TIMEOUT = (1, 3600)
 _THEMA = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 
 # M6 (python-api.md 13.1): Ganzzahlfelder mit Bereich (None = ohne Obergrenze)
@@ -155,11 +157,16 @@ class KontorConfig:
     log_stufe: str = "INFO"
     beenden_frist_sekunden: int = 20
     mock_verzoegerung_ms: int = 0
+    # Meilenstein 10: AqBanking-Plugin (python-api.md 16.1). Nur Pfade und Zeitgrenze, keine Geheimnisse.
+    aqbanking_verzeichnis: pathlib.Path | None = None
+    aqbanking_programme: pathlib.Path | None = None
+    aqbanking_timeout_sekunden: int = 120
 
     def __post_init__(self) -> None:
         setze = object.__setattr__
         self._m6_pruefen()
         self._m7_pruefen()
+        self._m10_pruefen()
         if not isinstance(self.wiederkehrend_automatisch, bool):
             raise KonfigurationsFehler("wiederkehrend_automatisch muss wahr oder falsch sein.",
                                        feld="wiederkehrend_automatisch")
@@ -196,7 +203,7 @@ class KontorConfig:
         bank = self.bank_plugin if self.bank_plugin is not None else (standard or "fints")
         mail = self.mail_plugin if self.mail_plugin is not None else (standard or "imap")
         if bank not in BANK_PLUGINS:
-            raise KonfigurationsFehler(f"Unbekanntes Bank-Plugin {bank!r} (erlaubt: mock, fints).",
+            raise KonfigurationsFehler(f"Unbekanntes Bank-Plugin {bank!r} (erlaubt: mock, fints, aqbanking).",
                                        feld="bank_plugin")
         if mail not in MAIL_PLUGINS:
             raise KonfigurationsFehler(f"Unbekanntes Mail-Plugin {mail!r} (erlaubt: mock, imap).",
@@ -310,6 +317,19 @@ class KontorConfig:
                                                feld="erlaubte_netze") from None
             setze(self, "erlaubte_netze", tuple(kanonisch))
 
+    def _m10_pruefen(self) -> None:
+        """python-api.md 16.1: Felder von Meilenstein 10 prüfen (ohne Verzeichnisse oder Programme anzusehen)."""
+        setze = object.__setattr__
+        for feld in ("aqbanking_verzeichnis", "aqbanking_programme"):
+            wert = getattr(self, feld)
+            if isinstance(wert, str) and not wert.strip():
+                wert = None  # leer → None (wie in der Umgebung)
+            setze(self, feld, None if wert is None else _als_pfad(wert, feld))
+        t = self.aqbanking_timeout_sekunden
+        if type(t) is not int or not AQBANKING_TIMEOUT[0] <= t <= AQBANKING_TIMEOUT[1]:
+            raise KonfigurationsFehler("aqbanking_timeout_sekunden muss eine Ganzzahl von 1 bis 3600 sein.",
+                                       feld="aqbanking_timeout_sekunden")
+
     @property
     def standard_mock_datenbank(self) -> pathlib.Path:
         d = self.datenbank
@@ -357,6 +377,7 @@ class KontorConfig:
             ganz["umbuchung_fenster_tage"] = int(text)
         m6 = _m6_aus_umgebung(wert)
         m7 = _m7_aus_umgebung(wert)
+        m10 = _m10_aus_umgebung(wert)
         heute_text = wert("KONTOR_MOCK_HEUTE")
         mock_heute = None
         if heute_text:
@@ -383,6 +404,7 @@ class KontorConfig:
             **ganz,
             **m6,
             **m7,
+            **m10,
         )
 
 
@@ -410,6 +432,22 @@ def _m6_aus_umgebung(wert) -> dict:
         if text:
             aus[feld] = pathlib.Path(text)
     aus["imap_tls"] = _wahrheitswert(wert("KONTOR_IMAP_TLS"), "KONTOR_IMAP_TLS", True)
+    return aus
+
+
+def _m10_aus_umgebung(wert: Callable[[str], str]) -> dict:
+    """python-api.md 16.1: Umgebungsvariablen von Meilenstein 10 (leer/fehlend → Vorgabe bzw. None)."""
+    aus: dict = {}
+    for feld in ("aqbanking_verzeichnis", "aqbanking_programme"):
+        text = wert("KONTOR_" + feld.upper())
+        if text:
+            aus[feld] = pathlib.Path(text)
+    variable = "KONTOR_AQBANKING_TIMEOUT_SEKUNDEN"
+    text = wert(variable)
+    if text:
+        if not text.isascii() or not text.isdigit():
+            raise KonfigurationsFehler(f"{variable} muss eine Ganzzahl von 1 bis 3600 sein.", variable=variable)
+        aus["aqbanking_timeout_sekunden"] = int(text)
     return aus
 
 
