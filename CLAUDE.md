@@ -40,8 +40,10 @@ Commit-Nachrichten sind auf Deutsch.
   (Test-IBANs mit Bankleitzahl 00000000, Adressen unter `example.invalid`).
 - Keine Secrets anlegen oder erfragen. PIN und Tokens erscheinen nie in Logs,
   Datenbank oder Fehlermeldungen.
-- Echte Plugins (FinTS, IMAP) bauen bis Meilenstein 6 keine Verbindungen auf.
-  Mock-Plugins nie mit Netzwerkzugriff.
+- Echte Plugins (FinTS, IMAP, ntfy) verbinden sich nur mit den konfigurierten
+  Endpunkten; unkonfiguriert bauen sie keine Verbindung auf. Mock-Plugins nie
+  mit Netzwerkzugriff. Eigene Prüfungen nur gegen Loopback-Attrappen, nie gegen
+  echte Banken, Gmail/Google oder ntfy.sh.
 - PIN, TAN und die interne TAN-Kennung des Plugins leben nur im Arbeitsspeicher
   (`SyncDienst`); nie in Datenbank, Logs, Antworten, Fehlermeldungen oder
   `repr()`. Validierungsfehler geben übergebene Werte nie wieder.
@@ -72,9 +74,13 @@ Commit-Nachrichten sind auf Deutsch.
 | `src/kontor/wiederkehrend.py` | M5: Erkennung wiederkehrender Buchungen (ohne Zustand), Ereignisse und Benachrichtigungen |
 | `src/kontor/berichte.py`, `export.py` | M5: Kontostandsverlauf, Einnahmen/Ausgaben; CSV- und PDF-Export (reportlab) der Buchungsliste |
 | `src/kontor/sicherung.py` | M9: Datensicherung (eigenes Schema der Sicherungsdatei `SPALTEN`, Version `SCHEMAVERSION`), Prüfung nach sicherung.md 5.1, Inhaltsprüfung in einer App-Datenbank im Arbeitsspeicher, Probelauf, Einspielen |
-| `src/kontor/db.py` | SQLite-Schema (Version 6), Migration früherer Versionen ohne Datenverlust, Verbindungen |
+| `src/kontor/db.py` | SQLite-Schema (Version 7), Migration früherer Versionen ohne Datenverlust, Verbindungen |
+| `src/kontor/geheimnisse.py` | M6: verschlüsselter Geheimnisspeicher (AES-256-GCM, Schlüssel aus systemd-creds oder Schlüsseldatei), `verwaiste_entfernen` |
+| `src/kontor/mail.py` | M6: Postfächer (Buchbestand), Betriebszustand, OAuth2 mit PKCE, `zugang` (Token-Erneuerung, Ablauf, Widerruf), paralleler Abruf, Spiegel |
+| `src/kontor/zustellung.py` | M6: Zustellung der Benachrichtigungen über das Benachrichtigungs-Plugin (erster Versuch, Wiederholung, Status) |
+| `src/kontor/netz.py` | M6: ausgehende HTTP-Anfragen ohne Umleitungen/Proxy, TLS-Kontext mit `tls_ca_datei` |
 | `src/kontor/importer/` | KMyMoney- und GnuCash-Import (`gnucash.py`: XML und SQLite, SQLite nur als Kopie im Arbeitsspeicher geöffnet) und `ImportErgebnis` |
-| `src/kontor/plugins/` | Bank-/Mail-Schnittstellen, Mock-Plugins, FinTS-/IMAP-Platzhalter |
+| `src/kontor/plugins/` | Bank-/Mail-/Benachrichtigungs-Schnittstellen, Mock-Plugins, FinTS (python-fints), IMAP (imaplib, XOAUTH2), ntfy |
 | `src/kontor/web/` | Weboberfläche (HTML, CSS, Vanilla-JS, ohne externe Ressourcen) |
 | `tests/` | eigene Tests (ergänzend; ersetzen nicht die Tests aus kontor-tests) |
 
@@ -105,8 +111,8 @@ Commit-Nachrichten sind auf Deutsch.
   (protokoll.md 10.2). Während des Einspielens hält `SyncDienst.ohne_lauf()`
   die Laufsperre.
 - Maßstab für „grün“: `python -m pytest` im Lese-Klon; Tests späterer
-  Meilensteine (Marker `m6`…`m8`) erst, wenn beauftragt
-  (`-m "not m6 and not m7 and not m8"`).
+  Meilensteine (Marker `m7`, `m8`) erst, wenn beauftragt
+  (`-m "not m7 and not m8"`).
 
 ## Hinweise ab Meilenstein 5
 
@@ -125,6 +131,22 @@ Commit-Nachrichten sind auf Deutsch.
 - Wiederkehrende Buchungen, Berichte und Export haben keinen Zustand; nur
   Benachrichtigungen werden gespeichert (je Schlüssel höchstens eine).
 - Beträge im PDF/CSV nur über Ganzzahlarithmetik formatieren (`export.betrag_text`).
+
+## Hinweise ab Meilenstein 6
+
+- **Geheimnisse** (PIN, TAN, Tokens, Client-Secret, ntfy-Token, Schlüssel, `state`/`code_verifier`) nie in
+  Datenbank (nur Chiffretext in `geheimnis`), Logs, Antworten, Fehlermeldungen, `details`, `repr()`, Sicherung
+  oder Kommandozeile. Bibliotheks-Logger: `fints` ist stillgelegt (`plugins/fints.bibliothek_stilllegen`), das
+  Zugriffsprotokoll von uvicorn ohne Abfrageteil (`app.protokolle_absichern`). Fremde Ausnahmetexte nie
+  weitergeben (`raise … from None`).
+- **Neue Benachrichtigungen** wie bisher in die Tabelle schreiben; die Zustellung erledigt `zustellung.py`
+  (Trigger setzt `ausstehend`, erster Versuch am Ende jeder REST-Anfrage und jedes Planer-Takts). Antworten, die
+  Benachrichtigungen enthalten, erst nach der Zustellung lesen.
+- **Postfach-Betriebszustand** hängt an `adresse_cf`; alles ohne Postfach entfernt `geheimnisse.verwaiste_entfernen`
+  am Ende von `protokoll.protokolliert`. Sicherungsdatei Schemaversion 3 (`postfach`, nur bei Vorhandensein in
+  `anzahl`).
+- Planer-Takt in der Reihenfolge von `synchronisation.md` 18.2 (`SyncDienst.takt`).
+- Maßstab: Tests mit Marker `m6` gehören jetzt dazu; `m7`/`m8` erst, wenn beauftragt.
 
 ## Arbeitsablauf
 

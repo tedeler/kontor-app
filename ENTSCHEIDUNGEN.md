@@ -837,3 +837,154 @@ Weitere Abkürzungen: SY = `spec/api/synchronisation.md`, KA =
   „Korrekturen“, hat der betreffende Korrektursplit `konto_id = null`; die Oberfläche zeigt dafür
   „Korrekturen (wird beim Bestätigen angelegt)“.
 - **Begründung:** kredite.md 3.5, 4.1, 5 in der Fassung von E-111.
+
+## D-069 FinTS-Plugin: python-fints auf mittlerer Ebene, ein Dialog je Aufruf
+
+- **Frage:** Wie wird python-fints eingesetzt, damit Prüfreihenfolge, Fehlerabbildung (fints.md 3.6) und „nur
+  lesend“ (3.7) exakt gelten?
+- **Entscheidung:** `FinTS3PinTanClient` liefert Synchronisierung, Dialoginitialisierung, Signatur (PIN/TAN im
+  HNSHA) und Verschlüsselungsumschlag; Aufträge baut das Plugin selbst aus den Segmentklassen (`HKSPA1`,
+  `HKCAZ1` mit camt.052.001.08 bzw. die höchste angebotene `HKKAZ`-Version, `HKTAN` über
+  `_get_tan_segment`) und sendet sie mit `dialog.send`. Die hohen Methoden (`get_transactions…`) werden nicht
+  verwendet. Je `konten`/`umsaetze` genau ein Dialog (plus beim ersten Mal der Synchronisierungsdialog); die PIN
+  wird unmittelbar davor einmal über `pin_quelle` geholt. BPD, UPD und System-ID bleiben als
+  `deconstruct`-Daten nur im Arbeitsspeicher der Plugin-Instanz. Rückmeldungen werden je Auftrag und je
+  Nachricht ausgewertet (PIN-Codes → `BankPinFalsch`, 3938 → `BankZugangGesperrt`, 9210 →
+  `BankKontoUnbekannt`, sonst 9xxx → `BankFehler` mit `details.rueckmeldung`; 9050 „teilweise fehlerhaft“ nur,
+  wenn es keinen genaueren Code gibt). Antwortsegmente ohne Bezugssegment (z. B. HISPA mancher Banken) werden
+  angenommen, wenn kein Segment mit Bezug vorliegt. Die Abbildung von camt und MT940 sowie die Hash-Kennung
+  sind eigener Code nach fints.md 3.4 (nicht `mt-940`/`camt_parser` der Bibliothek, deren Vorzeichen und
+  Verkettung abweichen). Der Logger `fints` gibt nichts weiter (`propagate = False`, `NullHandler`).
+- **Begründung:** fints.md 1 erlaubt die freie Verwendung der Bibliothek; nur so ist jede Rückmeldung und jedes
+  gesendete Segment unter eigener Kontrolle (E-114, E-123).
+
+## D-070 FinTS-TAN: Auftragsreferenz als Kennung, offener Dialog im Arbeitsspeicher
+
+- **Entscheidung:** `anforderung_id` ist die Auftragsreferenz aus HITAN. Der Dialog, der Auftrag, das
+  HITAN-Segment und die schon gelieferten Seiten bleiben in der Plugin-Instanz; eine neue Anforderung für
+  dasselbe Konto beendet eine ältere. 9941 lässt die Anforderung offen, 9955 oder ein geschlossener Dialog
+  beenden sie (`TanAbgelaufen`). Aufsetzpunkte werden nach der TAN im selben Dialog weiter abgerufen (mit HKTAN
+  Prozess 4, wenn die BPD es verlangen). Eine Rückmeldung 3955 (entkoppelte Freigabe) ergibt `BankFehler`.
+- **Begründung:** fints.md 3.5; K 6 (nur QR-TAN).
+
+## D-071 Starke Kundenauthentifizierung schon beim Dialogbeginn
+
+- **Frage:** Manche Banken verlangen eine TAN bereits für die Dialoginitialisierung (HKTAN Prozess 4 zu HKIDN →
+  0030). fints.md 3.5 regelt nur die TAN zum Umsatzabruf.
+- **Entscheidung:** Nicht unterstützt: Der Dialog wird beendet, `konten`/`umsaetze` werfen `BankFehler` mit
+  einer deutschen Meldung. Die FinTS-Attrappe antwortet hier mit 3076.
+- **Begründung:** Außerhalb der Spezifikation; eine halbe Umsetzung ohne Test wäre riskanter als ein klarer
+  Fehler (Lauf scheitert ohne Datenverlust, Benachrichtigung `sync_fehler`).
+
+## D-072 Ausgehende Verbindungen ohne Proxy und Umleitungen
+
+- **Entscheidung:** FinTS, OAuth und ntfy laufen über `kontor.netz.http_anfrage` (`http.client`): genau eine
+  Anfrage, keine Umleitungen, keine Proxy-Variablen der Umgebung, kein `.netrc`, nichts wird protokolliert.
+  IMAP über `imaplib` (`IMAP4_SSL` mit eigenem `SSLContext`). Zertifikat und Hostname werden immer geprüft; mit
+  `tls_ca_datei` gelten nur deren Zertifikate, und die strenge X.509-Prüfung von Python ≥ 3.13
+  (`VERIFY_X509_STRICT`) wird dann abgeschaltet, weil selbst signierte Anker oft keine Schlüsselkennungen haben.
+  Die Zeitgrenzen gelten je Anfrage bzw. je Socket-Operation.
+- **Begründung:** geheimnisse.md 7 („nur zu den konfigurierten Hosts“, „folgt keinen Umleitungen“); ein
+  Proxy aus der Umgebung wäre ein weiterer Host, der Tokens sehen könnte.
+
+## D-073 Geheimnisspeicher
+
+- **Entscheidung:** Tabelle `geheimnis (name, nonce, chiffre, gesetzt_am)` in der aktiven Datenbank; AES-256-GCM
+  mit dem Namen als zusätzlichen Daten. Die Schlüsseldatei wird beim ersten Schreiben mit `O_EXCL` und Rechten
+  0600 angelegt (Base64 + `\n`); ein vorhandener, ungültiger Schlüssel wird nie überschrieben (409). Löschen mit
+  `PRAGMA secure_delete = ON`. Mail-Tokens stehen als JSON (Refresh-/Access-Token, Ablauf des Access-Tokens,
+  Ausstellung) unter `mail_token:<adresse casefold>`; der Ablauf des Refresh-Tokens ist kein Geheimnis und steht
+  im Betriebszustand des Postfachs (für Anzeige und proaktive Prüfung ohne Entschlüsseln).
+- **Begründung:** geheimnisse.md 2–4, E-116.
+
+## D-074 Zustellung der Benachrichtigungen
+
+- **Entscheidung:** Neue Benachrichtigungen entstehen weiter an ihren bisherigen Stellen; ein Trigger setzt sie
+  auf `ausstehend`, wenn `meta.zustellung_neu` (von `create_app` je nach Plugin geschrieben) das verlangt, sonst
+  bleiben sie `keine`. Der erste Versuch läuft am Ende jeder REST-Anfrage (auch bei Fehlerantworten, z. B.
+  `tan_abgelaufen`) und am Ende jedes Planer-Takts für alle noch nie versuchten; die Prüfung wiederkehrender
+  Buchungen stellt vor ihrer Antwort zu und liest die Benachrichtigungen danach neu. Wiederholungen nur im
+  Planer-Takt bzw. über `POST /api/benachrichtigungen/zustellen`. Eine Sperre je App verhindert gleichzeitige
+  Zustellvorgänge. Der letzte Fehlschlag steht in `meta.zustellung_fehler` (Code, Meldung, Zeitpunkt; nie
+  Token oder Antwortkörper). Der Planer-Thread läuft, wenn `sync_intervall_minuten` oder
+  `mail_intervall_minuten` > 0 ist.
+- **Begründung:** benachrichtigungen.md 4, synchronisation.md 18.2; eine Stelle für „neu“ statt Änderungen an
+  allen Auslösern.
+
+## D-075 Postfächer, Betriebszustand und Sicherung
+
+- **Entscheidung:** Tabelle `postfach` (mit `adresse_cf UNIQUE`) ist Buchbestand (Objekt `postfach` in
+  `protokoll.OBJEKTE`); `postfach_zustand` und `mail_nachricht` hängen an `adresse_cf`.
+  `protokoll.protokolliert` ruft am Ende jeder Operation `geheimnisse.verwaiste_entfernen` auf: Tokens, Spiegel
+  und Zustand von Adressen ohne Postfach entfallen in derselben Transaktion (Löschen, Rückgängig des Anlegens,
+  Einspielen einer Sicherung). Sicherungsdatei Schemaversion 3 mit Tabelle `postfach`; Version 2 wird ohne
+  Postfächer gelesen. Eine doppelte Adresse beim Rückgängig ergibt über die Eindeutigkeit 409
+  `rueckgaengig_konflikt`.
+- **Begründung:** mail.md 2, 6.5; protokoll.md 12; sicherung.md 2.6; E-118.
+
+## D-076 Test-Benachrichtigung (App-Erweiterung)
+
+- **Frage:** Der Auftrag verlangt in den Einstellungen eine Test-Benachrichtigung; `openapi.yaml` hat dafür keinen
+  Endpunkt, die Oberfläche spricht aber nur REST.
+- **Entscheidung:** Zusätzlicher Endpunkt `POST /api/benachrichtigungen/test` (nicht Teil des Vertrags): sendet
+  genau eine Push-Nachricht „Kontor: Test-Benachrichtigung“ (Tag `test`, im Mock-Modus mit `[Mock] `) direkt über
+  das Plugin, ohne Eintrag in der internen Liste; 200 `{"gesendet": true, "plugin": …}`, 409
+  `kein_benachrichtigungs_plugin` bei `keins`, 409 `benachrichtigung_fehler` mit `details.status` bei einem
+  Fehlschlag. Beim Mock-Plugin wird nichts in `gesendet` eingetragen (dort stehen nur Benachrichtigungen der
+  Liste, `GET /api/mock/zustellungen`).
+- **Begründung:** Prüfen der ntfy-Anbindung ohne künstlichen Auslöser; kein Einfluss auf die Liste und damit auf
+  „jeder Auslöser genau eine Nachricht“.
+
+## D-077 OAuth2-Anmeldung
+
+- **Entscheidung:** `state` = 32 Zufallsbytes URL-sicher (43 Zeichen), `code_verifier` = 64 Zeichen aus dem
+  Alphabet von RFC 7636; beide nur im Arbeitsspeicher des `MailDienst`, 10 Minuten gültig, je Postfach höchstens
+  eine offene Anmeldung. Fehlen Client-ID oder lesbares Secret erst beim Abschluss, antwortet die App 409
+  `oauth_client_fehlt`. Ohne `expires_in` gilt für das Access-Token eine Stunde. `GET /oauth2/rueckruf` liefert
+  eine kurze deutsche HTML-Seite ohne Parameter. Abmelden widerruft beim Anbieter (Fehler ignoriert) und setzt
+  `fehlt`.
+- **Begründung:** mail.md 4.
+
+## D-078 Mail-Abruf
+
+- **Entscheidung:** Je aktivem Postfach ein Thread (`ThreadPoolExecutor`), im Echtmodus je Abruf eine neue
+  `ImapMailPlugin`-Instanz mit den aktuellen Postfächern und `MailDienst.zugang`; im Mock-Modus eine
+  `MockMailPlugin`-Instanz je App (vor jedem Abruf `setze_heute`). Bei `anmeldung_erforderlich` steht in `seit` der
+  Beginn, der bei einem Abruf gegolten hätte; `letzter_abruf_am` bleibt dann unverändert. Gespiegelte Nachrichten
+  sind je Postfach und `nachricht_id` eindeutig. Der Planer startet einen Abruf nur, wenn es ein aktives Postfach
+  gibt.
+- **Begründung:** mail.md 6 (Schema verlangt `seit` immer).
+
+## D-079 PIN über systemd-creds
+
+- **Entscheidung:** `kontor-bank-pin` wird bei jedem Bedarf als Bytes gelesen (UTF-8), genau ein abschließendes
+  `\r\n` oder `\n` entfällt. `BankPinFalsch` und `BankZugangGesperrt` sperren die Quelle in der `SyncDienst`-Instanz
+  (bis zum Neustart); bei `eingabe` wird die PIN in beiden Fällen verworfen. `PUT`/`DELETE /api/sync/pin` prüfen
+  die Quelle vor dem Körper.
+- **Begründung:** fints.md 5, synchronisation.md 18.1, E-115.
+
+## D-080 Geheimnisse im Zugriffsprotokoll des Servers
+
+- **Entscheidung:** `create_app` hängt an den Logger `uvicorn.access` einen Filter, der den Abfrageteil jeder
+  protokollierten URL durch `?…` ersetzt (`/oauth2/rueckruf?state=…&code=…` trägt Autorisierungscode und
+  `state`).
+- **Begründung:** geheimnisse.md 6 Punkt 2 (kein Geheimnis in irgendeiner Logausgabe).
+
+## D-081 Weboberfläche für Meilenstein 6
+
+- **Entscheidung:** Neuer Bereich „Anbindungen“ (`#/anbindungen`; Links `/mail/postfaecher/<id>` markieren das
+  Postfach, `/einstellungen` öffnet die Einstellungen): Bankzugang (Plugin, PIN-Quelle, PIN vorhanden),
+  Geheimnisspeicher (Schlüsselquelle, Stand je Geheimnis, Setzen über Passwortfelder, die danach geleert werden,
+  Löschen – Werte werden nie angezeigt), ntfy (Plugin, Zählungen, letzter Fehler, Test-Benachrichtigung,
+  Ausstehende zustellen), Postfächer (Anlegen, Bearbeiten, Löschen, Status mit Ablaufwarnung unter 24 Stunden,
+  Anmelden in zwei Schritten: Link öffnen, Umleitungs-URL einfügen; Abmelden). Neuer Bereich „Mails“
+  (`#/mail`): Abruf starten mit Ergebnis je Postfach, Liste der gespiegelten Nachrichten mit Filter und Blättern.
+  Die Synchronisationsseite blendet die PIN-Eingabe bei `systemd-creds` aus. Alles nur über REST, responsiv mit
+  den vorhandenen Bausteinen.
+- **Begründung:** Auftrag des Koordinators; K 3, K 6, K 13.
+
+## D-082 TAN-Erinnerungen
+
+- **Entscheidung:** Die Nummer der letzten Erinnerung steht in `tan_anforderung.erinnerung_nr` (Betriebszustand,
+  nicht gesichert); Erinnerungen entstehen im Planer-Takt nach den TAN-Abläufen, je Schlüssel höchstens einmal.
+- **Begründung:** benachrichtigungen.md 5, E-121.

@@ -1,7 +1,7 @@
 # kontor-app
 
 Implementierung von **Kontor**, einer selbst gehosteten Finanz-Web-App
-(Python, FastAPI, SQLite, Single-Page-Weboberfläche). Stand: **Meilenstein 5** (M1–M5 und M9)
+(Python, FastAPI, SQLite, Single-Page-Weboberfläche). Stand: **Meilenstein 6** (M1–M6 und M9)
 
 - M1: KMyMoney-Import, Finanzübersicht, Konten- und Buchungsliste mit Filtern
   und Mehrfachbearbeitung, doppelte Buchführung mit Splits und Tags,
@@ -40,6 +40,22 @@ Implementierung von **Kontor**, einer selbst gehosteten Finanz-Web-App
   Umbuchungen), Export der gefilterten Buchungsliste als CSV (verlustfrei) und
   PDF (reportlab, ohne Netzwerk). Kredite sind protokolliert, rückgängig
   machbar und Teil der Sicherung.
+- M6: Echte Anbindungen: FinTS-Bank über python-fints (nur lesend, camt.052
+  bevorzugt, MT940 als Rückfall, QR-TAN mit Bild, PIN aus der Eingabe oder
+  über systemd-creds), zwei Gmail-Postfächer über IMAP mit OAuth2/XOAUTH2
+  (nur lesend, ohne Passwörter, parallel abgerufen, Token-Erneuerung,
+  Vorwarnung, Ablauf im Testmodus nach sieben Tagen und Widerruf mit
+  Benachrichtigung), Zustellung jeder Benachrichtigung per ntfy (genau eine
+  Push-Nachricht, Wiederholung nur nach Fehlschlag, TAN-Push mit Link und
+  Erinnerungen), verschlüsselter Geheimnisspeicher (AES-256-GCM) für Tokens
+  und Client-Secret. Postfächer sind protokolliert und Teil der Sicherung;
+  Geheimnisse nie.
+
+**Alles lässt sich im Mock-Modus ohne echte Daten ausprobieren:** Mock-Bank,
+Mock-Postfächer und Mock-Benachrichtigungen (Liste unter
+`GET /api/mock/zustellungen`) arbeiten mit synthetischen Daten und bauen nie
+eine Verbindung auf; auf Wunsch stellt der Mock-Modus auch per ntfy zu (Titel
+beginnt mit `[Mock]`).
 
 Die verbindliche Spezifikation liegt im getrennten Repository **kontor-tests**
 (`spec/konzept.md`, `spec/api/*`); dort liegen auch die Tests.
@@ -172,11 +188,132 @@ Standardkategorie des Empfängers → Lernmodell → „Unkategorisiert“. Alle
 außer Vorlagen-Treffern bleibt als Vorschlag markiert, bis es bestätigt ist.
 
 Im Mock-Modus sind nur Mock-Plugins erlaubt, im Echtbetrieb keine; die
-Mock-Datenbank darf nicht die Echt-Datenbank sein. Die echten Plugins (FinTS,
-IMAP) bauen bis Meilenstein 6 keine Verbindungen auf und melden bei Abrufen
-`PluginNichtVerfuegbar`; eine Synchronisation im Echtbetrieb endet daher
-sauber als fehlgeschlagener Lauf. Die PIN wird nie in einer Umgebungsvariable,
-Datei oder Datenbank abgelegt, sondern nur in der Weboberfläche eingegeben.
+Mock-Datenbank darf nicht die Echt-Datenbank sein. Unkonfigurierte echte
+Plugins (FinTS, IMAP) bauen keine Verbindung auf und melden bei Abrufen
+`PluginNichtVerfuegbar`; eine Synchronisation endet dann sauber als
+fehlgeschlagener Lauf. Die PIN steht nie in einer Umgebungsvariable oder der
+Datenbank: Sie wird in der Weboberfläche eingegeben (nur Arbeitsspeicher) oder
+von systemd verschlüsselt bereitgestellt (siehe unten).
+
+### Konfiguration der echten Anbindungen (M6)
+
+| Variable | Bedeutung |
+| --- | --- |
+| `KONTOR_FINTS_URL`, `KONTOR_FINTS_BLZ`, `KONTOR_FINTS_BENUTZER` | FinTS-Endpunkt (https), Bankleitzahl (8 Ziffern), Anmeldename |
+| `KONTOR_FINTS_KUNDEN_ID` | Kunden-ID, falls abweichend vom Anmeldenamen |
+| `KONTOR_FINTS_PRODUKT_ID` | eigene Produktregistrierung bei der Deutschen Kreditwirtschaft (Pflicht für echte Banken) |
+| `KONTOR_FINTS_TAN_VERFAHREN` | Sicherheitsfunktion (3 Ziffern); leer = erstes angebotenes Zwei-Schritt-Verfahren |
+| `KONTOR_FINTS_TIMEOUT_SEKUNDEN` | Zeitgrenze je Anfrage (Vorgabe 30) |
+| `KONTOR_BANK_PIN_QUELLE` | `eingabe` (Vorgabe, Oberfläche) oder `systemd-creds` |
+| `CREDENTIALS_DIRECTORY` | setzt systemd; Datei `kontor-bank-pin` (PIN) und optional `kontor-geheimnisschluessel` |
+| `KONTOR_IMAP_HOST`, `KONTOR_IMAP_PORT`, `KONTOR_IMAP_TLS` | Vorgabe `imap.gmail.com`, 993, TLS |
+| `KONTOR_OAUTH_CLIENT_ID` | Client-ID des eigenen Google-Cloud-Projekts (das Secret kommt in den Geheimnisspeicher) |
+| `KONTOR_OAUTH_REDIRECT_URI` | Umleitungsadresse (Vorgabe `http://127.0.0.1/oauth2/rueckruf`) |
+| `KONTOR_OAUTH_REFRESH_GUELTIG_STUNDEN` | Gültigkeit des Refresh-Tokens ohne Angabe des Anbieters (Vorgabe 168 = Testmodus; `0` nach Veröffentlichung des Projekts) |
+| `KONTOR_OAUTH_VORWARNUNG_STUNDEN` | Vorwarnung vor dem Ablauf (Vorgabe 24) |
+| `KONTOR_MAIL_INTERVALL_MINUTEN` | automatischer Mail-Abruf (Vorgabe 0 = aus) |
+| `KONTOR_MAIL_ERSTABRUF_TAGE`, `KONTOR_MAIL_UEBERLAPPUNG_STUNDEN` | Zeitraum des ersten Abrufs (30 Tage) und Überlappung (24 h) |
+| `KONTOR_BENACHRICHTIGUNG_PLUGIN` | `keins` (Vorgabe im Echtbetrieb), `mock` (Vorgabe im Mock-Modus), `ntfy` |
+| `KONTOR_NTFY_URL`, `KONTOR_NTFY_TOPIC` | ntfy-Server (Vorgabe `https://ntfy.sh`) und Thema (Pflicht bei `ntfy`) |
+| `KONTOR_ZUSTELLUNG_MAX_VERSUCHE`, `KONTOR_ZUSTELLUNG_WIEDERHOLUNG_MINUTEN` | Wiederholung nach Fehlschlag (10 Versuche, alle 5 Minuten) |
+| `KONTOR_TAN_ERINNERUNG_MINUTEN`, `KONTOR_TAN_ERINNERUNG_ANZAHL` | Erinnerungen an offene TANs (alle 5 Minuten, höchstens 3; `0` = keine) |
+| `KONTOR_OEFFENTLICHE_URL` | Adresse von Kontor im Heimnetz für Links in Push-Nachrichten (z. B. `http://kontor.lan:8000`) |
+| `KONTOR_GEHEIMNIS_SCHLUESSEL_DATEI` | Schlüsseldatei des Geheimnisspeichers (Vorgabe neben der Datenbank, `*.schluessel`) |
+| `KONTOR_TLS_CA_DATEI` | eigene Vertrauensanker (PEM) für alle ausgehenden TLS-Verbindungen |
+
+Unverschlüsseltes `http://` (und `KONTOR_IMAP_TLS=nein`) ist nur für
+`127.0.0.1`, `::1` und `localhost` erlaubt. Kontor folgt keinen Umleitungen
+und verwendet keine Proxy-Variablen der Umgebung.
+
+### Betrieb als systemd-Dienst mit systemd-creds
+
+PIN und Geheimnisschlüssel werden einmalig verschlüsselt (möglichst an das TPM
+gebunden) und nur dem Dienst übergeben; Kontor ruft `systemd-creds` nie selbst
+auf und schreibt die PIN nirgends hin.
+
+```bash
+# als root, einmalig (die PIN wird interaktiv abgefragt, steht nie in der Shell-Historie)
+install -d -m 0700 /etc/credstore.encrypted
+systemd-ask-password -n "Banking-PIN:" | systemd-creds encrypt --with-key=tpm2 --name=kontor-bank-pin -     /etc/credstore.encrypted/kontor-bank-pin
+python3 -c 'import base64, secrets; print(base64.b64encode(secrets.token_bytes(32)).decode())'     | systemd-creds encrypt --with-key=tpm2 --name=kontor-geheimnisschluessel -     /etc/credstore.encrypted/kontor-geheimnisschluessel
+```
+
+```ini
+# /etc/systemd/system/kontor.service
+[Unit]
+Description=Kontor – selbst gehostete Finanz-Web-App
+After=network-online.target
+
+[Service]
+User=kontor
+EnvironmentFile=/etc/kontor.env
+LoadCredentialEncrypted=kontor-bank-pin:/etc/credstore.encrypted/kontor-bank-pin
+LoadCredentialEncrypted=kontor-geheimnisschluessel:/etc/credstore.encrypted/kontor-geheimnisschluessel
+ExecStart=/opt/kontor/.venv/bin/python -m kontor serve --host 0.0.0.0 --port 8000
+Restart=on-failure
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/var/lib/kontor
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+# /etc/kontor.env (keine Geheimnisse!)
+KONTOR_DATENBANK=/var/lib/kontor/kontor.sqlite3
+KONTOR_BANK_PIN_QUELLE=systemd-creds
+KONTOR_FINTS_URL=https://banking.example.invalid/fints    # Endpunkt Ihrer Bank
+KONTOR_FINTS_BLZ=00000000
+KONTOR_FINTS_BENUTZER=…
+KONTOR_FINTS_PRODUKT_ID=…
+KONTOR_SYNC_INTERVALL_MINUTEN=240
+KONTOR_MAIL_INTERVALL_MINUTEN=60
+KONTOR_OAUTH_CLIENT_ID=…apps.googleusercontent.com
+KONTOR_BENACHRICHTIGUNG_PLUGIN=ntfy
+KONTOR_NTFY_TOPIC=…                                      # schwer erratbares Thema
+KONTOR_OEFFENTLICHE_URL=http://kontor.lan:8000
+```
+
+Lehnt die Bank die PIN ab (oder sperrt den Zugang), verwendet Kontor die PIN
+bis zum nächsten Neustart des Dienstes nicht mehr (Schutz vor Kontosperre).
+Ohne TPM: `--with-key=host` statt `tpm2`. Ohne systemd bleibt
+`KONTOR_BANK_PIN_QUELLE=eingabe`; der Geheimnisschlüssel liegt dann als Datei
+mit Rechten 0600 neben der Datenbank (wird beim ersten Speichern angelegt) –
+er gehört nicht in dieselbe Datensicherung wie die Datenbank.
+
+### Gmail über ein eigenes Google-Cloud-Projekt
+
+1. In der Google Cloud Console ein eigenes Projekt anlegen, die **Gmail API**
+   aktivieren und den OAuth-Zustimmungsbildschirm („Extern“, eigene Adressen
+   als Testnutzer) einrichten. Scope: `https://mail.google.com/` (nur damit
+   erlaubt Gmail IMAP; Kontor liest trotzdem nur – Ordner per `EXAMINE`,
+   Inhalte per `BODY.PEEK[]`, nie `LOGIN`).
+2. OAuth-Client vom Typ **Desktop-App** anlegen; Client-ID nach
+   `KONTOR_OAUTH_CLIENT_ID`, das Client-Secret in der Oberfläche unter
+   **Anbindungen → Geheimnisspeicher** eintragen (wird verschlüsselt
+   gespeichert, nie angezeigt).
+3. Unter **Anbindungen → Postfächer** beide Postfächer anlegen (z. B. Ordner
+   `[Gmail]/Alle Nachrichten`, optional Absenderfilter) und je „Anmelden …“:
+   Link öffnen, zustimmen; lädt die Umleitungsseite nicht (Browser nicht auf
+   dem Server), die Adresse aus der Adresszeile kopieren und einfügen.
+4. **Testmodus:** Refresh-Tokens laufen nach sieben Tagen ab. Kontor zeigt den
+   Ablauf, warnt 24 Stunden vorher per ntfy und meldet Ablauf oder Widerruf
+   einmal; das andere Postfach läuft weiter. Dauerhaft: das Projekt
+   veröffentlichen („In production“, für den Eigengebrauch ohne
+   Verifizierung möglich) und `KONTOR_OAUTH_REFRESH_GUELTIG_STUNDEN=0` setzen.
+
+### ntfy
+
+Eigener oder öffentlicher ntfy-Server; das Thema wirkt wie ein Passwort
+(schwer erratbar wählen) oder der Server verlangt ein Zugriffstoken, das unter
+**Anbindungen → Geheimnisspeicher** als „ntfy-Zugriffstoken“ eingetragen wird.
+Jede Benachrichtigung erzeugt genau eine Push-Nachricht (TAN-Anforderungen und
+abgelaufene Mail-Anmeldungen mit hoher Priorität, Links über
+`KONTOR_OEFFENTLICHE_URL`). „Test-Benachrichtigung senden“ prüft die
+Verbindung. Im Mock-Modus kann ebenfalls per ntfy zugestellt werden
+(`KONTOR_BENACHRICHTIGUNG_PLUGIN=ntfy`), die Titel beginnen dann mit `[Mock]`.
 
 ### Datensicherung im Betrieb
 
@@ -186,7 +323,9 @@ Konten, Buchungen mit Splits, Empfänger, Tags, Regeln, Dublettenverdachte,
 Abstimmungen, Split-Vorlagen, gemerkte Umsatzkennungen, Stand je Bankkonto
 und ID-Zähler – als ZIP mit `kontor.sqlite` und `manifest.json`. Nicht
 enthalten: Änderungsprotokoll, PIN/Geheimnisse, Importvorgänge, Läufe,
-Benachrichtigungen und die Konfiguration (Umgebungsvariablen).
+Benachrichtigungen und die Konfiguration (Umgebungsvariablen). Ab M6 sind die
+Postfächer (Adresse, Bezeichnung, Ordner, Filter) enthalten, nie aber Tokens,
+Client-Secret, ntfy-Token, Schlüssel oder abgerufene Mails.
 
 Empfehlung: **zusätzlich** zu Proxmox-Snapshots bzw. -Backups des Containers.
 Ein Snapshot sichert die ganze Instanz einschließlich Protokoll und
@@ -339,6 +478,17 @@ Single-Page-App ohne Build-Schritt und ohne externe Ressourcen
   Probelauf und Wahl ohne Vorauswahl (Buchungen löschen / dem übergeordneten
   Konto zuschlagen / als unkategorisiert einstufen), ggf. Umgang mit
   Konfliktbuchungen und Bestätigung für gesperrte Buchungen.
+- **Anbindungen** (M6): Bankzugang (Plugin, PIN-Quelle, PIN vorhanden),
+  Geheimnisspeicher (ntfy-Token und OAuth-Client-Secret setzen oder löschen –
+  Werte werden nie angezeigt), Zustellung per ntfy (Zählungen, letzter Fehler,
+  Test-Benachrichtigung, Ausstehende zustellen) und Postfächer (anlegen,
+  bearbeiten, löschen; OAuth2-Anmeldung starten und abschließen, Status mit
+  Ablaufwarnung, Abmelden). Links aus Mail-Benachrichtigungen
+  (`/mail/postfaecher/<id>`) öffnen das Postfach.
+- **Mails** (M6): Abruf aller aktiven Postfächer mit Ergebnis je Postfach,
+  Liste der abgerufenen Nachrichten mit Postfachfilter und Blättern. Im
+  Mock-Modus z. B. die eingebauten Postfächer `haushalt.eins@example.invalid`
+  und `haushalt.zwei@example.invalid` anlegen.
 - Helles/dunkles Design folgt der Systemeinstellung.
 
 ## Tests
