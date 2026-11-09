@@ -1,5 +1,83 @@
 # Ergebnis der Implementierung
 
+## Meilenstein 8 (vollständige Oberfläche) und W-005
+
+Stand: 2026-11-09, Implementierungs-Thread.
+
+### Testlauf kontor-tests
+
+- Getestet gegen **kontor-tests Commit `48e3671`** („M8: ERGEBNIS präzisiert …“, nach Abschluss der
+  M8-Selbstprüfung des Test-Threads), nach `git pull` im Lese-Klon unmittelbar vor dem Abschlusslauf.
+- Aufruf im Wurzelverzeichnis des Lese-Klons gegen die per `pip install --break-system-packages -e`
+  installierte kontor-app (Stand `main` nach diesem Commit), Python 3.13, Hypothesis-Profil `standard`,
+  Playwright 1.x mit dem installierten Google Chrome (Kanal `chrome`, headless). Wegen der 10-Minuten-Grenze je
+  Aufruf in vier Teilen, die ersten drei mit `pytest-xdist -n 2`:
+  `-m "not leistung and not m8 and (m7 or not (m1 … m9)) or (m6 and not m7) or (m1 and not m6)"`,
+  `-m "((m2 or m3) and not m6) or ((m4 or m5 or m9) and not (m1 or m2 or m3 or m6 or m7))"`, `-m m8`,
+  `-m leistung`; zusammen alle **2446** gesammelten Tests (`--collect-only`: 2446).
+
+| Auswahl | gesamt | bestanden | fehlgeschlagen |
+| --- | ---: | ---: | ---: |
+| **vollständig** | **2446** | **2443** | **3** (W-007, W-008) |
+| `m1` | 674 | 674 | 0 |
+| `m2` | 226 | 226 | 0 |
+| `m3` | 245 | 245 | 0 |
+| `m4` | 227 | 227 | 0 |
+| `m5` | 212 | 212 | 0 |
+| `m6` | 273 | 273 | 0 |
+| `m7` (davon 22 `leistung`) | 192 | 192 | 0 |
+| `m8` (davon 212 Browsertests) | 256 | 253 | 3 |
+| `m9` | 56 | 56 | 0 |
+| ohne Meilenstein-Marker (Generator, Spezifikation, Attrappen) | 85 | 85 | 0 |
+
+Fehlschläge (alle als Widerspruch dokumentiert, Test erwartet etwas, das der Spezifikation widerspricht):
+
+| Test | Ursache |
+| --- | --- |
+| `test_m8_split_dnd.py::test_buchung_auf_kategorie_ziehen` | W-007: `r[2]` ist eine Umbuchung, Kategorie setzen → 422 `nicht_kategorisierbar` (datenmodell.md 3.2) |
+| `test_m8_panels_mobil.py::test_wischen_links_setzt_kategorie_und_rueckgaengig` | W-007 (dieselbe Buchung) |
+| `test_m8_bearbeiten.py::test_protokollseite` | W-008: `slice(9)` liest aus `aenderung-<id>` die Zahl `-<id>` |
+
+W-006 (Reihenfolge im rechten Panelbereich) und W-009 (Kodierung von `weiter`) hat der Test-Thread während des
+Meilensteins behoben (Commit `174b292`); die Tests sind grün. W-005 ist mit E-138 spezifiziert und umgesetzt (die
+zehn Tests in `test_m8_testbenachrichtigung.py` sind grün).
+
+Der erste von zwei vollständigen `m8`-Läufen hatte zusätzlich einen einmaligen Fehlschlag in
+`test_m8_kontextmenue.py::test_menue_tastatur_und_klick_ausserhalb` (unter paralleler Last); er ließ sich danach
+weder einzeln (3×) noch parallel (4× mit `test_m8_tastatur.py`) noch im zweiten vollständigen Lauf wiederholen.
+
+### Eigene Tests (kontor-app)
+
+`python -m pytest tests`: **64 bestanden** – darunter `test_oberflaeche.py` (Hülle für alle Routen, 404 sonst,
+Manifest, Service Worker kennt alle Module, kein `innerHTML`/`eval`, nur Pfade der REST-Schnittstelle) und die
+Playwright-Rauchtests `test_browser.py` (Desktop-Ablauf mit Auswahl, Kontextmenü, Kategorie-Auswahl,
+Inline-Bearbeitung, Strg+Z und Befehlspalette; Panels mit gespeichertem Layout; Handy mit langer Berührung,
+Wischen und Menü; Service Worker und Offline-Hinweis) und `test_browser_anmeldung.py` (Ersteinrichtung,
+Fehlermeldung, CSRF beim Schreiben, Abmelden; Desktop und Handy). Die Rauchtests der Hash-Oberfläche aus M2–M7/M9
+sind entfallen (D-091).
+
+### Umgesetzt
+
+- Neue Single-Page-Oberfläche nach `oberflaeche.md` (D-091 bis D-096): Pfad-Routen, Grundgerüst mit Kopf,
+  Navigation und Meldungen, Finanzübersicht, Kontoansicht mit Filtern in der URL, Liste = REST-Antwort,
+  Mehrfachauswahl/-bearbeitung, Inline-Bearbeitung, Kontextmenüs, alle Dialoge aus 9, Drag and Drop (Buchungen auf
+  Kategorien, Kategorien umsortieren, Panels), Rückgängig/Wiederholen über das Protokoll, Tastaturkürzel und
+  Befehlspalette, alle Seiten aus 13, TAN-Seite mit Speichern/Teilen, Panels mit Layout im `localStorage`, mobile
+  Ansicht mit Gesten, helles/dunkles Design, PWA (Manifest mit PNG-Symbolen, `/sw.js`, Offline-Hülle),
+  Anmeldung, Barrierefreiheit; CSP-konform, ohne CDN.
+- `POST /api/benachrichtigungen/test` nach E-138 (W-005 erledigt, D-097).
+- Codequalität: Analyse vor M8 in `refactor.md`; R-07 (Oberfläche in ES-Module) erledigt.
+
+### Einschränkungen
+
+- Einige Formulare der alten Oberfläche gibt es nur noch über REST (D-096): Split-Vorlagen und Kredite bearbeiten,
+  Raten zuordnen, Lernmodell-Vorhersage, Liste der abgerufenen Mails, Abstimmung aufheben, Synchronisation mit
+  eigenem Zeitraum, Ordner/Absenderfilter von Postfächern.
+- Die Browsertests liefen mit dem installierten Google Chrome; ein gebündeltes Playwright-Chromium ist nicht
+  installiert (die Fixture fällt auf den Kanal `chrome` zurück).
+- Installierbarkeit und Teilen wurden nur in Chrome headless geprüft (Teilen mit der Attrappe der Tests), nicht auf
+  echten Android-/iOS-Geräten.
+
 ## Meilenstein 7 (Sicherheit, Betrieb, Leistung)
 
 Stand: 2026-11-09, Implementierungs-Thread.
