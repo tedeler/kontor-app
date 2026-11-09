@@ -70,7 +70,7 @@ def test_oberflaeche_nutzt_nur_spezifizierte_api():
                "/api/wiederkehrend", "/api/wiederkehrend/pruefen", "/api/kredite", "/api/kredite/",
                "/api/kredite/tilgungsplan", "/api/berichte/kontostand", "/api/berichte/einnahmen-ausgaben",
                "/api/export/buchungen",
-               # M6 (/api/benachrichtigungen/test: App-Erweiterung D-076)
+               # M6; /api/benachrichtigungen/test ab M8 (E-138)
                "/api/benachrichtigungen/zustellung", "/api/benachrichtigungen/zustellen", "/api/benachrichtigungen/test",
                "/api/geheimnisse", "/api/geheimnisse/", "/api/mail/postfaecher", "/api/mail/postfaecher/",
                "/api/mail/anmeldung/abschluss", "/api/mail/abruf", "/api/mail/nachrichten",

@@ -669,7 +669,7 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
 
     @endpunkt("POST", "/api/benachrichtigungen/test")
     async def test_benachrichtigung(request: Request):
-        # App-Erweiterung (D-076): eine Push-Nachricht direkt über das Plugin, ohne Eintrag in der internen Liste.
+        # benachrichtigungen.md 8 (E-138, vormals D-076/W-005): ohne Körper, keine Spuren in Liste und Protokoll.
         return await run_in_threadpool(zustellung.testnachricht)
 
     @endpunkt("GET", "/api/mock/zustellungen")

@@ -124,26 +124,31 @@ class Zustelldienst:
         return True
 
     def testnachricht(self) -> dict:
-        """Test-Benachrichtigung aus der Oberfläche (D-076): direkt über das Plugin, nicht in der internen Liste.
-        Im Mock-Plugin landet sie nicht in ``gesendet`` (dort stehen nur Benachrichtigungen der Liste)."""
+        """Test-Benachrichtigung (benachrichtigungen.md 8, E-138): keine Benachrichtigung der Liste, kein Eintrag im
+        Zustellstatus, kein Protokoll. Mock: nur bestätigen, ``senden`` wird nicht aufgerufen. Echtes Plugin: genau ein
+        Sendeversuch ohne Wiederholung; ein Fehlschlag ist eine Antwort mit ``zugestellt = false``."""
         from .validierung import ApiFehler
         if self.plugin is None:
             raise ApiFehler(409, "kein_benachrichtigungs_plugin",
-                            "Es ist kein Benachrichtigungs-Plugin eingerichtet (benachrichtigung_plugin = keins).")
+                            "Es ist kein Benachrichtigungs-Plugin eingerichtet (benachrichtigung_plugin = keins).", {})
         if self.plugin.ist_mock:
-            return {"gesendet": True, "plugin": self.plugin_name}
-        n = PushNachricht(benachrichtigung_id=0, titel=("[Mock] " if self._config.mock_modus else "")
+            return {"plugin": self.plugin_name, "zugestellt": True, "gesendet": False, "fehler": None}
+        c = self._config
+        n = PushNachricht(benachrichtigung_id=0, titel=("[Mock] " if c.mock_modus else "")
                           + "Kontor: Test-Benachrichtigung",
                           text="Diese Nachricht bestätigt, dass Kontor Benachrichtigungen zustellen kann.",
-                          link=(self._config.oeffentliche_url.rstrip("/") + "/") if self._config.oeffentliche_url else None,
-                          prioritaet=3, tags=("test",), schluessel="test")
+                          link=(c.oeffentliche_url.rstrip("/") + "/einstellungen") if c.oeffentliche_url else None,
+                          prioritaet=3, tags=("test",), schluessel="test:" + _zeit(self._jetzt()))
         with self._sperre:
             try:
                 self.plugin.senden(n)
             except KontorFehler as e:
-                raise ApiFehler(409, e.code, e.meldung or "Die Zustellung ist fehlgeschlagen.",
-                                {"status": e.details.get("status")}) from None
-        return {"gesendet": True, "plugin": self.plugin_name}
+                status = e.details.get("status") if isinstance(e.details, dict) else None
+                return {"plugin": self.plugin_name, "zugestellt": False, "gesendet": True,
+                        "fehler": {"code": "benachrichtigung_fehler",
+                                   "meldung": e.meldung or "Die Zustellung ist fehlgeschlagen.",
+                                   "status": status if isinstance(status, int) else None}}
+        return {"plugin": self.plugin_name, "zugestellt": True, "gesendet": True, "fehler": None}
 
     # ------------------------------------------------------------ Lesen
     def status(self, con) -> dict:

@@ -95,7 +95,7 @@ widersprüchlich ist). Gelöst werden Widersprüche nur von einem Test-Thread.
   erlauben zusätzliche, im Schema optionale Felder); der M2-Test ist gegen den M6-Stand wieder grün
   (`-m m2`: 226/226). Erledigt.
 
-## W-005 Nicht spezifizierter Endpunkt `POST /api/benachrichtigungen/test` (Spezifikationslücke)
+## W-005 Nicht spezifizierter Endpunkt `POST /api/benachrichtigungen/test` (Spezifikationslücke, erledigt)
 
 - **Art:** offene Spezifikationslücke, kein Widerspruch eines Tests.
 - **Sachverhalt:** In M6 hat der Implementierungs-Thread (D-076) für die Weboberfläche „Anbindungen“ eine
@@ -108,6 +108,11 @@ widersprüchlich ist). Gelöst werden Widersprüche nur von einem Test-Thread.
   oder ausdrücklich verwerfen; dann wird die Implementierung angepasst.
 - **Umgang:** Der Endpunkt bleibt vorerst bestehen (bei eingeschalteter Anmeldung geschützt wie jeder andere
   Pfad, CSRF-Token nötig).
-- **Status:** offen.
+- **Status:** vom Test-Thread spezifiziert (E-138, `benachrichtigungen.md` 8, `openapi.yaml` 2.8.0, Schema
+  `TestBenachrichtigung`). In M8 angepasst: Antwort `{plugin, zugestellt, gesendet, fehler}`; Mock ohne Aufruf von
+  `senden` (`gesendet = false`); ntfy genau ein Versuch, Fehlschlag als 200 mit `zugestellt = false` und
+  `fehler {code: benachrichtigung_fehler, meldung, status}` (vorher 409); Link auf `/einstellungen`, Schlüssel
+  `test:<App-Uhr>`; 409 `kein_benachrichtigungs_plugin` mit `details = {}`. Die zehn Tests in
+  `tests/app/m8/test_m8_testbenachrichtigung.py` sind grün. Erledigt.
 
-Stand: Meilenstein 7, ein offener Punkt (W-005, Spezifikationslücke).
+Stand: Meilenstein 8, kein offener Punkt.

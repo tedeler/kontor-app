@@ -137,7 +137,8 @@ def test_camt_vormerkung_und_referenz():
 
 def test_test_benachrichtigung(tmp_path):
     m = _mock(tmp_path, "m")
-    assert m.post("/api/benachrichtigungen/test").json() == {"gesendet": True, "plugin": "mock"}
+    assert m.post("/api/benachrichtigungen/test").json() == {"plugin": "mock", "zugestellt": True, "gesendet": False,
+                                                          "fehler": None}
     assert m.get("/api/mock/zustellungen").json() == [], "nicht in der Liste der Benachrichtigungen"
     e = TestClient(create_app(KontorConfig(datenbank=tmp_path / "e.sqlite3")))
     assert e.post("/api/benachrichtigungen/test").status_code == 409
