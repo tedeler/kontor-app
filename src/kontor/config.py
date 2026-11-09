@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import ipaddress
 import os
 import pathlib
 import re
@@ -19,6 +20,14 @@ SZENARIEN = ("normal", "bankfehler", "zeitueberschreitung", "tan_erforderlich", 
 BENACHRICHTIGUNG_PLUGINS = ("keins", "mock", "ntfy")
 PIN_QUELLEN = ("eingabe", "systemd-creds")
 LOOPBACK = ("127.0.0.1", "::1", "localhost")
+LOG_STUFEN = ("DEBUG", "INFO", "WARNING", "ERROR")
+# M7 (python-api.md 14.1): Ganzzahlfelder mit Bereich
+M7_GANZ = {
+    "sitzung_leerlauf_sekunden": (1, 31_536_000), "sitzung_hoechstdauer_sekunden": (1, 31_536_000),
+    "anmeldung_fehlversuche": (1, 100), "anmeldung_sperre_sekunden": (1, 86_400), "upload_max_mib": (1, 4096),
+    "anfrage_max_kib": (16, 1_048_576), "port": (1, 65535), "beenden_frist_sekunden": (1, 600),
+    "mock_verzoegerung_ms": (0, 60_000),
+}
 _THEMA = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 
 # M6 (python-api.md 13.1): Ganzzahlfelder mit Bereich (None = ohne Obergrenze)
@@ -131,10 +140,26 @@ class KontorConfig:
     oeffentliche_url: str | None = None
     geheimnis_schluessel_datei: pathlib.Path | None = None
     tls_ca_datei: pathlib.Path | None = None
+    # Meilenstein 7: Anmeldung, Härtung, Betrieb (python-api.md 14.1)
+    anmeldung: bool = False
+    sitzung_leerlauf_sekunden: int = 86400
+    sitzung_hoechstdauer_sekunden: int = 2592000
+    sitzung_cookie_secure: bool | None = None
+    anmeldung_fehlversuche: int = 5
+    anmeldung_sperre_sekunden: int = 60
+    erlaubte_netze: tuple[str, ...] | None = None
+    upload_max_mib: int = 200
+    anfrage_max_kib: int = 4096
+    host: str = "127.0.0.1"
+    port: int = 8000
+    log_stufe: str = "INFO"
+    beenden_frist_sekunden: int = 20
+    mock_verzoegerung_ms: int = 0
 
     def __post_init__(self) -> None:
         setze = object.__setattr__
         self._m6_pruefen()
+        self._m7_pruefen()
         if not isinstance(self.wiederkehrend_automatisch, bool):
             raise KonfigurationsFehler("wiederkehrend_automatisch muss wahr oder falsch sein.",
                                        feld="wiederkehrend_automatisch")
@@ -252,6 +277,39 @@ class KontorConfig:
                                        feld="ntfy_topic")
         setze(self, "benachrichtigung_plugin", plugin)
 
+    def _m7_pruefen(self) -> None:
+        """python-api.md 14.1: Felder von Meilenstein 7 prüfen."""
+        setze = object.__setattr__
+        if not isinstance(self.anmeldung, bool):
+            raise KonfigurationsFehler("anmeldung muss wahr oder falsch sein.", feld="anmeldung")
+        if self.sitzung_cookie_secure is not None and not isinstance(self.sitzung_cookie_secure, bool):
+            raise KonfigurationsFehler("sitzung_cookie_secure muss wahr, falsch oder None sein.",
+                                       feld="sitzung_cookie_secure")
+        for feld, (minimum, maximum) in M7_GANZ.items():
+            wert = getattr(self, feld)
+            if type(wert) is not int or not minimum <= wert <= maximum:
+                raise KonfigurationsFehler(f"{feld} muss eine Ganzzahl von {minimum} bis {maximum} sein.", feld=feld)
+        if not isinstance(self.host, str) or not self.host.strip() or any(c.isspace() for c in self.host):
+            raise KonfigurationsFehler("host darf nicht leer sein.", feld="host")
+        if not isinstance(self.log_stufe, str) or self.log_stufe not in LOG_STUFEN:
+            raise KonfigurationsFehler("log_stufe muss DEBUG, INFO, WARNING oder ERROR sein.", feld="log_stufe")
+        netze = self.erlaubte_netze
+        if netze is not None:
+            if not isinstance(netze, (list, tuple)) or not netze:
+                raise KonfigurationsFehler("erlaubte_netze muss eine nicht leere Liste von CIDR-Netzen sein.",
+                                           feld="erlaubte_netze")
+            kanonisch = []
+            for eintrag in netze:
+                if not isinstance(eintrag, str):
+                    raise KonfigurationsFehler("erlaubte_netze darf nur Zeichenketten enthalten.",
+                                               feld="erlaubte_netze")
+                try:
+                    kanonisch.append(str(ipaddress.ip_network(eintrag, strict=False)))
+                except ValueError:
+                    raise KonfigurationsFehler("erlaubte_netze enthält ein ungültiges Netz.",
+                                               feld="erlaubte_netze") from None
+            setze(self, "erlaubte_netze", tuple(kanonisch))
+
     @property
     def standard_mock_datenbank(self) -> pathlib.Path:
         d = self.datenbank
@@ -298,6 +356,7 @@ class KontorConfig:
                                            variable="KONTOR_UMBUCHUNG_FENSTER_TAGE")
             ganz["umbuchung_fenster_tage"] = int(text)
         m6 = _m6_aus_umgebung(wert)
+        m7 = _m7_aus_umgebung(wert)
         heute_text = wert("KONTOR_MOCK_HEUTE")
         mock_heute = None
         if heute_text:
@@ -323,6 +382,7 @@ class KontorConfig:
             wiederkehrend_automatisch=wiederkehrend_automatisch,
             **ganz,
             **m6,
+            **m7,
         )
 
 
@@ -350,6 +410,31 @@ def _m6_aus_umgebung(wert) -> dict:
         if text:
             aus[feld] = pathlib.Path(text)
     aus["imap_tls"] = _wahrheitswert(wert("KONTOR_IMAP_TLS"), "KONTOR_IMAP_TLS", True)
+    return aus
+
+
+def _m7_aus_umgebung(wert) -> dict:
+    """python-api.md 14.1: Umgebungsvariablen von Meilenstein 7 (leer/fehlend → Vorgabe)."""
+    aus: dict = {"anmeldung": _wahrheitswert(wert("KONTOR_ANMELDUNG"), "KONTOR_ANMELDUNG", False)}
+    text = wert("KONTOR_SITZUNG_COOKIE_SECURE")
+    if text:
+        aus["sitzung_cookie_secure"] = _wahrheitswert(text, "KONTOR_SITZUNG_COOKIE_SECURE", False)
+    for feld in M7_GANZ:
+        variable = "KONTOR_" + feld.upper()
+        text = wert(variable)
+        if text:
+            if not text.isascii() or not text.isdigit():
+                raise KonfigurationsFehler(f"{variable} muss eine nicht negative Ganzzahl sein.", variable=variable)
+            aus[feld] = int(text)
+    text = wert("KONTOR_ERLAUBTE_NETZE")
+    if text:
+        aus["erlaubte_netze"] = tuple(t.strip() for t in text.split(","))
+    text = wert("KONTOR_HOST")
+    if text:
+        aus["host"] = text
+    text = wert("KONTOR_LOG_STUFE")
+    if text:
+        aus["log_stufe"] = text.upper()
     return aus
 
 

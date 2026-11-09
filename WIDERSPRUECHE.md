@@ -74,7 +74,7 @@ widersprüchlich ist). Gelöst werden Widersprüche nur von einem Test-Thread.
 - **Status:** vom Test-Thread behoben (E-111, kontor-tests Commit `3649524`/`8cece3c`: die Zeile mit
   `rate = 0` bleibt im Plan und wird nie einer Zahlung zugeordnet); umgesetzt, der Test ist grün. Erledigt.
 
-## W-004 M2-Test verlangt `SyncStatus` ohne das M6-Feld `pin_quelle`
+## W-004 M2-Test verlangt `SyncStatus` ohne das M6-Feld `pin_quelle` (erledigt)
 
 - **Betroffener Test:** `tests/app/m2/test_m2_sync.py::test_laeufe_und_status` (kontor-tests Commit `10855a3`).
 - **Was der Test erwartet:** `GET /api/sync/status` ist exakt gleich einem Objekt mit genau den acht Schlüsseln
@@ -91,6 +91,23 @@ widersprüchlich ist). Gelöst werden Widersprüche nur von einem Test-Thread.
   rückwärtskompatible Erweiterung nach E-029. Vorschlag: im M2-Test nur die acht Schlüssel vergleichen
   (z. B. `{k: st[k] for k in (...)}`) oder `pin_quelle` dort zulassen.
 - **Umgang:** Umgesetzt ist die Spezifikation (`pin_quelle` immer vorhanden); der M2-Test schlägt fehl.
+- **Status:** vom Test-Thread behoben (E-124, kontor-tests Commit `954bd3f`: Antwortobjekte der Testhilfe
+  erlauben zusätzliche, im Schema optionale Felder); der M2-Test ist gegen den M6-Stand wieder grün
+  (`-m m2`: 226/226). Erledigt.
+
+## W-005 Nicht spezifizierter Endpunkt `POST /api/benachrichtigungen/test` (Spezifikationslücke)
+
+- **Art:** offene Spezifikationslücke, kein Widerspruch eines Tests.
+- **Sachverhalt:** In M6 hat der Implementierungs-Thread (D-076) für die Weboberfläche „Anbindungen“ eine
+  Test-Benachrichtigung über `POST /api/benachrichtigungen/test` ergänzt. `openapi.yaml` (2.7.0) führt diesen
+  Pfad nicht; nach den Projektregeln darf die Anwendung keine REST-Endpunkte anbieten, die nicht im Vertrag stehen.
+- **Betroffene Stellen:** `openapi.yaml` (fehlender Pfad), `benachrichtigungen.md` (keine Regel für eine
+  Test-Zustellung), K 13 (Benachrichtigungen per Push, Einrichtung prüfbar).
+- **Bitte an den Test-Thread:** Endpunkt spezifizieren (Pfad, Körper, Antwort, Fehlercodes, Verhalten je Plugin
+  `keins`/`mock`/`ntfy`, ob die Test-Nachricht in der Benachrichtigungsliste erscheint, kein Protokolleintrag)
+  oder ausdrücklich verwerfen; dann wird die Implementierung angepasst.
+- **Umgang:** Der Endpunkt bleibt vorerst bestehen (bei eingeschalteter Anmeldung geschützt wie jeder andere
+  Pfad, CSRF-Token nötig).
 - **Status:** offen.
 
-Stand: Meilenstein 6, ein offener Widerspruch (W-004).
+Stand: Meilenstein 7, ein offener Punkt (W-005, Spezifikationslücke).
