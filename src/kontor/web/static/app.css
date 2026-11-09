@@ -239,3 +239,34 @@ h2.oben { margin-top: 0; }
 #sicherung-datei { max-width: 100%; }
 #sicherung-unterschied { font-size: .92rem; }
 #sicherung-unterschied td, #sicherung-unterschied th { padding-left: .35rem; padding-right: .35rem; word-break: normal; overflow-wrap: normal; hyphens: auto; }
+
+/* ------------------------------------------------------------ Meilenstein 5 */
+.tabelle-huelle { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.felder-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 .8rem; }
+@media (max-width: 560px) { .felder-2 { grid-template-columns: 1fr; } }
+.marke-status.status-ausbleibend { background: var(--warn-hg); color: var(--warn-text); border-color: var(--warn-linie); }
+.marke-status.status-beendet { opacity: .7; }
+tr.serie-beendet { opacity: .65; }
+/* Liniendiagramm (selbst gezeichnetes SVG). Reihenfarben: kategoriale Palette in fester Reihenfolge,
+   hell und dunkel getrennt gestuft; Identität zusätzlich über Legende und Tooltip-Text. */
+.diagramm-huelle { position: relative; background: var(--flaeche); border: 1px solid var(--linie); border-radius: 8px; padding: .5rem; margin-bottom: 1rem; }
+.diagramm { width: 100%; height: auto; display: block; touch-action: pan-y; }
+.diagramm .gitter { stroke: var(--linie); stroke-width: 1; }
+.diagramm .achse-null { stroke: var(--leise); stroke-width: 1; }
+.diagramm .achse-text { fill: var(--leise); font-size: 11px; font-variant-numeric: tabular-nums; }
+.diagramm .reihe { stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.diagramm .punkt { stroke: var(--flaeche); stroke-width: 2; }
+.diagramm .fadenkreuz { stroke: var(--leise); stroke-width: 1; stroke-dasharray: 3 3; }
+.diagramm-tip { position: absolute; top: .5rem; background: var(--flaeche); border: 1px solid var(--linie); box-shadow: var(--schatten);
+  border-radius: 6px; padding: .4rem .6rem; font-size: .82rem; pointer-events: none; white-space: nowrap; z-index: 5; }
+.legende { display: flex; flex-wrap: wrap; gap: .3rem 1rem; margin: .4rem 0; font-size: .88rem; }
+.legende-marke { display: inline-block; width: .9rem; height: .25rem; border-radius: 2px; margin-right: .35rem; vertical-align: middle; }
+.reihe-1 { --farbe: #2a78d6; } .reihe-2 { --farbe: #eb6834; } .reihe-3 { --farbe: #1baf7a; } .reihe-4 { --farbe: #eda100; }
+.reihe-5 { --farbe: #e87ba4; } .reihe-6 { --farbe: #008300; } .reihe-7 { --farbe: #6250d6; } .reihe-8 { --farbe: #e34948; }
+@media (prefers-color-scheme: dark) {
+  .reihe-1 { --farbe: #3987e5; } .reihe-2 { --farbe: #d95926; } .reihe-3 { --farbe: #199e70; } .reihe-4 { --farbe: #c98500; }
+  .reihe-5 { --farbe: #d55181; } .reihe-6 { --farbe: #008300; } .reihe-7 { --farbe: #9085e9; } .reihe-8 { --farbe: #e66767; }
+}
+.diagramm .reihe { stroke: var(--farbe); }
+.diagramm .punkt { fill: var(--farbe); }
+.legende-marke { background: var(--farbe); }

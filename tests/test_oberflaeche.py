@@ -19,7 +19,9 @@ def test_startseite_echt(client):
     assert "mock-hinweis" not in r.text
     for eintrag in NAVIGATION:
         assert eintrag in r.text
-    assert r.text.count("später") == 3, "nicht umgesetzte Bereiche sind als später gekennzeichnet"
+    assert r.text.count("später") == 0, "ab M5 sind alle Navigationsbereiche umgesetzt"
+    for ziel in ("#/wiederkehrend", "#/kredite", "#/berichte"):
+        assert f'href="{ziel}"' in r.text
 
 
 def test_startseite_mock(mock_client):
@@ -63,7 +65,11 @@ def test_oberflaeche_nutzt_nur_spezifizierte_api():
                "/api/import/gnucash", "/api/lernmodell", "/api/lernmodell/anwenden", "/api/lernmodell/vorhersage",
                "/api/vorlagen", "/api/vorlagen/", "/api/vorlagen/anwenden", "/api/sync/konten/",
                    # M9
-                   "/api/sicherung", "/api/sicherung/einspielen"}
+                   "/api/sicherung", "/api/sicherung/einspielen",
+               # M5 (/api/export/buchungen.csv und .pdf: der Regex endet vor dem Punkt)
+               "/api/wiederkehrend", "/api/wiederkehrend/pruefen", "/api/kredite", "/api/kredite/",
+               "/api/kredite/tilgungsplan", "/api/berichte/kontostand", "/api/berichte/einnahmen-ausgaben",
+               "/api/export/buchungen"}
     assert pfade <= erlaubt, pfade - erlaubt
 
 

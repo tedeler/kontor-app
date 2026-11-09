@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "kontor"
 version = "0.1.0"
-description = "Kontor – selbst gehostete Finanz-Web-App (Meilenstein 1)"
+description = "Kontor – selbst gehostete Finanz-Web-App (Meilensteine 1–5 und 9)"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "Proprietär" }
@@ -14,6 +14,7 @@ dependencies = [
     "starlette>=0.36",
     "python-multipart>=0.0.9",
     "uvicorn>=0.27",
+    "reportlab>=4.0",
 ]
 
 [project.optional-dependencies]

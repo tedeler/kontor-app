@@ -546,6 +546,7 @@
         h("button", { type: "button", class: "knopf", disabled: !mitVorschlag().length, title: "Vorschläge der markierten Buchungen ablehnen",
           onclick: () => aktion("ablehnen") }, "✗ ablehnen"),
         h("button", { type: "button", class: "knopf", disabled: !n, onclick: () => { zustand.auswahl.clear(); auswahlZeigen(); } }, "Auswahl aufheben"),
+        ...exportLinks(Object.assign({}, basis, zustand.filter, { sortierung: zustand.sortierung })),
         h("span", { class: "leise nur-breit" }, "Strg/Umschalt + Klick: Mehrfachauswahl · Rechtsklick: Menü · Doppelklick: bearbeiten")].filter((x) => x !== null && x !== undefined));
     }
 
@@ -1465,9 +1466,10 @@
 
   // ============================================================ Meilenstein 3
   const QUELLE_TEXT = { manuell: "manuell", import: "Import", sync: "Synchronisation", regeln: "Regeln",
-    umbuchung: "Umbuchungserkennung", rueckgaengig: "Rückgängig" };
+    umbuchung: "Umbuchungserkennung", rueckgaengig: "Rückgängig", lernmodell: "Lernmodell", vorlage: "Split-Vorlage",
+    sicherung: "Datensicherung", kredit: "Kredit" };
   const OBJEKT_TEXT = { konto: "Konto", empfaenger: "Empfänger", tag: "Tag", buchung: "Buchung", regel: "Regel",
-    verdacht: "Dublettenverdacht", abstimmung: "Abstimmung" };
+    verdacht: "Dublettenverdacht", abstimmung: "Abstimmung", vorlage: "Split-Vorlage", kredit: "Kredit" };
   const ART_EINTRAG = { angelegt: "angelegt", geaendert: "geändert", geloescht: "gelöscht" };
 
   function heuteIso() {
@@ -2130,6 +2132,412 @@
       ergebnis);
   }
 
+  // ============================================================ Meilenstein 5
+  const RHYTHMUS_TEXT = { monatlich: "monatlich", vierteljaehrlich: "vierteljährlich", jaehrlich: "jährlich" };
+  const SERIEN_STATUS = { aktiv: "aktiv", ausbleibend: "ausbleibend", beendet: "beendet" };
+  const METHODEN = ["30/360", "act/360", "act/365"];
+
+  /** Sollzins in Millionstel → "3,4500 %" (nur Ganzzahlarithmetik). */
+  function zinsText(m) {
+    const ganz = Math.trunc(m / 10000), rest = String(m % 10000).padStart(4, "0").replace(/0{1,2}$/, "");
+    return `${ganz},${rest.length < 2 ? rest.padEnd(2, "0") : rest} %`;
+  }
+
+  /** "3,45" / "3.45" / "3" (Prozent, höchstens 4 Nachkommastellen) → Millionstel oder null. */
+  function zinsLesen(text) {
+    const m = /^\s*(\d{1,3})(?:[.,](\d{0,4}))?\s*%?\s*$/.exec(String(text || ""));
+    if (!m) return null;
+    const wert = Number(m[1]) * 10000 + Number((m[2] || "").padEnd(4, "0"));
+    return wert <= 1000000 ? wert : null;
+  }
+
+  function exportLinks(params) {
+    const q = query(params);
+    return [h("a", { class: "knopf", href: "/api/export/buchungen.csv" + q, download: "", title: "Gefilterte Buchungen als CSV (eine Zeile je Split)" }, "⤓ CSV"),
+      h("a", { class: "knopf", href: "/api/export/buchungen.pdf" + q, download: "", title: "Gefilterte Buchungen als PDF" }, "⤓ PDF")];
+  }
+
+  // ------------------------------------------------ Wiederkehrende Buchungen (K 9)
+  async function ansichtWiederkehrend(params) {
+    await stammLaden();
+    const stichtag = params.get("stichtag");
+    const u = await api("GET", "/api/wiederkehrend" + query({ stichtag }));
+    const feld = h("input", { type: "date", value: u.stichtag, id: "wiederkehrend-stichtag", "aria-label": "Stichtag" });
+    const beendete = h("input", { type: "checkbox", id: "wiederkehrend-beendete", checked: params.get("beendete") === "1" });
+    const ergebnis = h("div", { id: "wiederkehrend-ergebnis" });
+    const neu = () => { location.hash = "#/wiederkehrend" + query({ stichtag: feld.value || null, beendete: beendete.checked ? "1" : null }); };
+    feld.addEventListener("change", neu);
+    beendete.addEventListener("change", neu);
+    const serien = u.serien.filter((s) => beendete.checked || s.status !== "beendet");
+    const tbody = h("tbody", null, serien.map((s) => h("tr", { class: "klickbar serie-" + s.status, "data-schluessel": s.schluessel,
+      onclick: () => { location.hash = "#/buchungen?empfaenger_id=" + s.empfaenger.id; } },
+      h("td", null, s.empfaenger.name, h("div", { class: "zweck" }, (kontoNach(s.konto_id) || { name: "#" + s.konto_id }).name + (s.richtung === "einnahme" ? " · Einnahme" : ""))),
+      h("td", null, RHYTHMUS_TEXT[s.rhythmus], h("div", { class: "zweck" }, `${s.anzahl}× seit ${datumText(s.erste)}`)),
+      betragZelle(s.betrag),
+      h("td", { class: "zahl" }, betragText(s.jahreskosten)),
+      h("td", { class: "datum" }, datumText(s.naechste_faelligkeit), h("div", { class: "zweck" }, "zuletzt " + datumText(s.letzte))),
+      h("td", null, h("span", { class: "marke-status status-" + s.status }, SERIEN_STATUS[s.status])))));
+    const tabelle = serien.length ? h("div", { class: "tabelle-huelle" }, h("table", { class: "tabelle", id: "wiederkehrend-tabelle" },
+      h("thead", null, h("tr", null, h("th", null, "Empfänger"), h("th", null, "Rhythmus"), h("th", { class: "zahl" }, "Betrag"),
+        h("th", { class: "zahl" }, "Jahreskosten"), h("th", null, "Nächste Fälligkeit"), h("th", null, "Status"))),
+      tbody, h("tfoot", null, h("tr", null, h("td", { colspan: 3 }, "Summe Jahreskosten (Ausgaben, nicht beendet)"),
+        h("td", { class: "zahl", id: "wiederkehrend-summe" }, betragText(u.summe_jahreskosten)), h("td", { colspan: 2 }))))) :
+      h("div", { class: "karte leer" }, "Keine wiederkehrenden Buchungen erkannt.");
+    seite("Wiederkehrende Buchungen",
+      h("p", { class: "leise" }, "Abos, Daueraufträge und Lastschriften werden aus den Buchungen erkannt (gleicher Empfänger und Konto, monatlich ab 3, vierteljährlich ab 3, jährlich ab 2 Zahlungen, ±5 Tage). Die Übersicht wird bei jedem Aufruf neu berechnet."),
+      h("div", { class: "werkzeug" }, h("label", { class: "feld zeile" }, "Stichtag ", feld),
+        h("label", { class: "feld zeile" }, beendete, "beendete anzeigen"),
+        h("button", { type: "button", class: "knopf", id: "wiederkehrend-pruefen", onclick: async () => {
+          try {
+            const r = await api("POST", "/api/wiederkehrend/pruefen", {});
+            ergebnis.replaceChildren(h("div", { class: "karte" }, r.benachrichtigungen.length
+              ? [h("strong", null, `${r.benachrichtigungen.length} neue Benachrichtigung(en)`), h("ul", null, r.benachrichtigungen.map((b) => h("li", null, b.titel)))]
+              : "Keine neuen Auffälligkeiten (jede wird nur einmal gemeldet)."));
+            glockeAktualisieren();
+          } catch (e) { melden(e.message, true); }
+        } }, "Ausbleibende Zahlungen prüfen")),
+      ergebnis, tabelle);
+  }
+
+  // ------------------------------------------------------------ Kredite (K 10)
+  function kontoAuswahl(art, ausgewaehlt, filter) {
+    return h("select", { required: true }, h("option", { value: "" }, "– wählen –"),
+      stamm.konten.filter(filter || ((k) => k.art === art)).map((k) => h("option", { value: k.id, selected: k.id === ausgewaehlt }, kontoPfad(k))));
+  }
+
+  function planTabelle(plan, kredit) {
+    const gebucht = new Map(((kredit && kredit.zuordnungen) || []).map((z) => [z.faelligkeit, z.buchung_id]));
+    return h("div", { class: "tabelle-huelle" }, h("table", { class: "tabelle", id: "tilgungsplan" },
+      h("thead", null, h("tr", null, h("th", { class: "zahl" }, "Nr."), h("th", null, "Fälligkeit"), h("th", { class: "zahl nur-breit" }, "Tage"),
+        h("th", { class: "zahl nur-breit" }, "Restschuld vorher"), h("th", { class: "zahl" }, "Zins"), h("th", { class: "zahl" }, "Tilgung"),
+        h("th", { class: "zahl nur-breit" }, "Sondertilg."), h("th", { class: "zahl" }, "Rate"), h("th", { class: "zahl" }, "Restschuld"),
+        kredit ? h("th", null, "Buchung") : null)),
+      h("tbody", null, plan.zeilen.map((z) => h("tr", null, h("td", { class: "zahl" }, z.nr), h("td", { class: "datum" }, datumText(z.faelligkeit)),
+        h("td", { class: "zahl nur-breit" }, z.zinstage), h("td", { class: "zahl nur-breit" }, betragText(z.restschuld_vorher)),
+        h("td", { class: "zahl" }, betragText(z.zins)), h("td", { class: "zahl" }, betragText(z.tilgung)),
+        h("td", { class: "zahl nur-breit" }, z.sondertilgung ? betragText(z.sondertilgung) : ""), h("td", { class: "zahl" }, betragText(z.rate)),
+        h("td", { class: "zahl" }, betragText(z.restschuld_nachher)),
+        kredit ? h("td", null, gebucht.has(z.faelligkeit) ? h("a", { href: "#/buchungen/" + gebucht.get(z.faelligkeit) }, "#" + gebucht.get(z.faelligkeit)) : "") : null))),
+      h("tfoot", null, h("tr", null, h("td", { colspan: 2 }, `${plan.anzahl_raten} Raten`), h("td", { class: "nur-breit", colspan: 2 }),
+        h("td", { class: "zahl" }, betragText(plan.summe_zins)), h("td", { class: "zahl" }, betragText(plan.summe_tilgung)),
+        h("td", { class: "zahl nur-breit" }, betragText(plan.summe_sondertilgung)), h("td", { colspan: kredit ? 3 : 2 })))));
+  }
+
+  async function kreditDialog(k) {
+    await stammLaden();
+    const w = k || { name: "", zinsmethode: "30/360", sondertilgungen: [], aktiv: true,
+      bedingungen: [{ feld: "empfaenger", operator: "enthaelt", wert: "" }] };
+    const f = {
+      name: h("input", { type: "text", required: true, maxlength: 200, value: w.name, id: "kredit-name" }),
+      konto: k ? null : kontoAuswahl("kreditkonto", null),
+      zahlung: kontoAuswahl(null, w.zahlungskonto_id, (x) => BESTAND.has(x.art)),
+      zins: kontoAuswahl("aufwand", w.zins_konto_id),
+      restschuld: h("input", { type: "text", inputmode: "decimal", required: true, value: k ? betragText(k.restschuld, false) : "", id: "kredit-restschuld" }),
+      stand: h("input", { type: "date", required: true, value: w.stand_datum || "", id: "kredit-stand" }),
+      sollzins: h("input", { type: "text", inputmode: "decimal", required: true, value: k ? zinsText(k.sollzins).replace(" %", "") : "", id: "kredit-sollzins", placeholder: "z. B. 3,45" }),
+      methode: h("select", { id: "kredit-methode" }, METHODEN.map((m) => h("option", { value: m, selected: m === w.zinsmethode }, m))),
+      rate: h("input", { type: "text", inputmode: "decimal", required: true, value: k ? betragText(k.rate, false) : "", id: "kredit-rate" }),
+      erste: h("input", { type: "date", required: true, value: w.erste_faelligkeit || "", id: "kredit-erste" }),
+      aktiv: h("input", { type: "checkbox", checked: w.aktiv }),
+      angleichen: k ? null : h("input", { type: "checkbox", checked: true }),
+    };
+    if (!k) f.konto.id = "kredit-konto";
+    f.zahlung.id = "kredit-zahlungskonto"; f.zins.id = "kredit-zinskonto";
+    const sonderBox = h("div");
+    const bedBox = h("div");
+    const sonder = w.sondertilgungen.map((s) => ({ datum: s.datum, betrag: betragText(s.betrag, false) }));
+    const bed = w.bedingungen.map((b) => Object.assign({}, b));
+    function sonderZeichnen() {
+      sonderBox.replaceChildren(...sonder.map((s, i) => h("div", { class: "split-zeile" },
+        h("input", { type: "date", value: s.datum, "aria-label": "Datum", onchange: (e) => { s.datum = e.target.value; } }),
+        h("input", { type: "text", inputmode: "decimal", value: s.betrag, "aria-label": "Betrag", onchange: (e) => { s.betrag = e.target.value; } }),
+        h("span"), h("button", { type: "button", class: "knopf", "aria-label": "entfernen", onclick: () => { sonder.splice(i, 1); sonderZeichnen(); } }, "×"))),
+      h("button", { type: "button", class: "knopf", onclick: () => { sonder.push({ datum: "", betrag: "" }); sonderZeichnen(); } }, "+ Sondertilgung"));
+    }
+    function bedZeichnen() {
+      bedBox.replaceChildren(...bed.map((b, i) => h("div", { class: "split-zeile" },
+        h("select", { onchange: (e) => { b.feld = e.target.value; } }, ["empfaenger", "verwendungszweck"].map((x) => h("option", { value: x, selected: b.feld === x }, FELD_TEXT[x]))),
+        h("select", { onchange: (e) => { b.operator = e.target.value; } }, OPS.empfaenger.map((x) => h("option", { value: x, selected: b.operator === x }, OP_TEXT[x]))),
+        h("input", { type: "text", value: b.wert, maxlength: 200, "aria-label": "Wert", class: "kredit-bedingung", onchange: (e) => { b.wert = e.target.value; } }),
+        h("button", { type: "button", class: "knopf", "aria-label": "entfernen", disabled: bed.length < 2, onclick: () => { bed.splice(i, 1); bedZeichnen(); } }, "×"))),
+      h("button", { type: "button", class: "knopf", onclick: () => { bed.push({ feld: "verwendungszweck", operator: "enthaelt", wert: "" }); bedZeichnen(); } }, "+ Bedingung"));
+    }
+    sonderZeichnen(); bedZeichnen();
+    const vorschau = h("div", { id: "kredit-vorschau" });
+    function parameter() {
+      const p = { restschuld: betragLesen(f.restschuld.value), stand_datum: f.stand.value, sollzins: zinsLesen(f.sollzins.value),
+        zinsmethode: f.methode.value, rate: betragLesen(f.rate.value), erste_faelligkeit: f.erste.value, sondertilgungen: [] };
+      if (p.restschuld === null || p.restschuld <= 0) throw new Error("Restschuld: positiver Betrag in Euro erwartet.");
+      if (p.rate === null || p.rate <= 0) throw new Error("Rate: positiver Betrag in Euro erwartet.");
+      if (p.sollzins === null) throw new Error("Sollzins: Prozent mit höchstens vier Nachkommastellen, z. B. 3,45.");
+      for (const s of sonder) {
+        const b = betragLesen(s.betrag);
+        if (!s.datum || b === null || b <= 0) throw new Error("Sondertilgung: Datum und positiver Betrag erwartet.");
+        p.sondertilgungen.push({ datum: s.datum, betrag: b });
+      }
+      return p;
+    }
+    async function planZeigen() {
+      try {
+        const plan = await api("POST", "/api/kredite/tilgungsplan", parameter());
+        vorschau.replaceChildren(h("p", null, `${plan.anzahl_raten} Raten bis ${datumText(plan.letzte_faelligkeit)}, Zinsen gesamt ${betragText(plan.summe_zins)}.`));
+      } catch (e) { vorschau.replaceChildren(h("p", { class: "negativ" }, e.message)); }
+    }
+    const inhaltDialog = h("div", null,
+      h("label", { class: "feld" }, "Name", f.name),
+      k ? h("p", { class: "leise" }, "Darlehenskonto: " + kontoPfad(kontoNach(k.konto_id) || { name: "#" + k.konto_id })) : h("label", { class: "feld" }, "Darlehenskonto (Kreditkonto)", f.konto),
+      h("label", { class: "feld" }, "Zahlungskonto (Raten gehen ab von)", f.zahlung),
+      h("label", { class: "feld" }, "Zinskonto (Kategorie Zinsen)", f.zins),
+      h("div", { class: "felder-2" },
+        h("label", { class: "feld" }, "Restschuld (€)", f.restschuld), h("label", { class: "feld" }, "am (Stichtag)", f.stand),
+        h("label", { class: "feld" }, "Sollzins p. a. (%)", f.sollzins), h("label", { class: "feld" }, "Zinsmethode", f.methode),
+        h("label", { class: "feld" }, "Monatliche Rate (€)", f.rate), h("label", { class: "feld" }, "Erste Fälligkeit", f.erste)),
+      h("div", { class: "feld" }, "Sondertilgungen (geplant)", sonderBox),
+      h("div", { class: "feld" }, "Erkennung der Ratenzahlung (alle Bedingungen)", bedBox),
+      h("label", { class: "feld zeile" }, f.aktiv, "aktiv (Raten bei der Synchronisation erkennen)"),
+      k ? null : h("label", { class: "feld zeile" }, f.angleichen, "Saldo des Darlehenskontos an die Restschuld angleichen (Anfangsbuchung)"),
+      h("button", { type: "button", class: "knopf", onclick: planZeigen }, "Plan berechnen"), vorschau);
+    return dialog(k ? "Kredit bearbeiten" : "Kredit anlegen", inhaltDialog, [{ text: "Speichern", klasse: "primaer", submit: true, tun: async () => {
+      const p = parameter();
+      const d = Object.assign({ name: f.name.value, zahlungskonto_id: Number(f.zahlung.value), zins_konto_id: Number(f.zins.value),
+        bedingungen: bed.map((b) => ({ feld: b.feld, operator: b.operator, wert: b.wert })), aktiv: f.aktiv.checked }, p);
+      if (!k) { d.konto_id = Number(f.konto.value); d.saldo_angleichen = f.angleichen.checked; }
+      try {
+        const r = k ? await api("PATCH", "/api/kredite/" + k.id, d) : await api("POST", "/api/kredite", d);
+        melden(k ? "Kredit gespeichert." : "Kredit angelegt.");
+        return r;
+      } catch (e) {
+        if (e.code === "kredit_rate_zu_klein") melden("Mit dieser Rate wird der Kredit nicht innerhalb von 100 Jahren getilgt.", true);
+        else if (e.code === "kredit_konto_belegt") melden("Für dieses Darlehenskonto gibt es schon einen Kredit.", true);
+        else melden(e.message, true);
+        return undefined;
+      }
+    } }]);
+  }
+
+  async function ansichtKredite() {
+    const [liste, u] = await Promise.all([api("GET", "/api/kredite"), api("GET", "/api/kontenuebersicht"), stammLaden()]);
+    const saldo = new Map(u.konten.map((x) => [x.konto_id, x.saldo]));
+    seite("Kredite",
+      h("p", { class: "leise" }, "Annuitätendarlehen ohne Kontozugriff: Raten vom Zahlungskonto werden nach dem Tilgungsplan vorläufig in Zins und Tilgung aufgeteilt; der Jahresabgleich mit dem Jahresauszug korrigiert und markiert die Buchungen des Jahres als abgeglichen."),
+      h("div", { class: "werkzeug" }, h("button", { type: "button", class: "knopf primaer", id: "kredit-neu", onclick: async () => {
+        const r = await kreditDialog(null); if (r) location.hash = "#/kredit/" + r.id; } }, "+ Kredit anlegen")),
+      liste.length ? h("div", { class: "tabelle-huelle" }, h("table", { class: "tabelle", id: "kredite-tabelle" },
+        h("thead", null, h("tr", null, h("th", null, "Kredit"), h("th", { class: "zahl" }, "Restschuld (gebucht)"), h("th", { class: "zahl" }, "Rate"),
+          h("th", { class: "zahl nur-breit" }, "Sollzins"), h("th", { class: "nur-breit" }, "Methode"), h("th", null, "Status"))),
+        h("tbody", null, liste.map((k) => h("tr", { class: "klickbar", onclick: () => { location.hash = "#/kredit/" + k.id; } },
+          h("td", null, k.name, h("div", { class: "zweck" }, (kontoNach(k.konto_id) || {}).name || "")),
+          h("td", { class: "zahl" }, betragText(-(saldo.get(k.konto_id) || 0))), h("td", { class: "zahl" }, betragText(k.rate)),
+          h("td", { class: "zahl nur-breit" }, zinsText(k.sollzins)), h("td", { class: "nur-breit" }, k.zinsmethode),
+          h("td", null, k.aktiv ? "aktiv" : "inaktiv", k.abgleiche.length ? h("div", { class: "zweck" }, "abgeglichen bis " + Math.max(...k.abgleiche.map((a) => a.jahr))) : null)))))) :
+        h("div", { class: "karte leer" }, "Noch keine Kredite."));
+  }
+
+  async function jahresabgleichDialog(k) {
+    const jahr = h("input", { type: "number", min: 1900, max: 9999, required: true, id: "abgleich-jahr",
+      value: String(new Date().getFullYear() - 1) });
+    const rest = h("input", { type: "text", inputmode: "decimal", required: true, id: "abgleich-restschuld", placeholder: "laut Jahresauszug" });
+    const zinsen = h("input", { type: "text", inputmode: "decimal", required: true, id: "abgleich-zinsen", placeholder: "laut Jahresauszug" });
+    const ergebnis = h("div", { id: "abgleich-ergebnis" });
+    let geprueft = null;
+    const bestaetigenKnopf = { text: "Korrektur bestätigen", klasse: "primaer", tun: async () => {
+      if (!geprueft) { melden("Bitte zuerst den Vorschlag berechnen.", true); return undefined; }
+      try {
+        const r = await api("POST", `/api/kredite/${k.id}/jahresabgleich`, geprueft);
+        melden(`Jahresabgleich ${r.jahr} durchgeführt.`);
+        return r;
+      } catch (e) { melden(e.message, true); return undefined; }
+    } };
+    function koerper() {
+      const r = betragLesen(rest.value), z = betragLesen(zinsen.value);
+      if (r === null || r < 0 || z === null || z < 0) throw new Error("Restschuld und Zinsen als Beträge in Euro (≥ 0) eingeben.");
+      return { jahr: Number(jahr.value), restschuld: r, zinsen: z };
+    }
+    const vorschlag = async () => {
+      try {
+        const d = koerper();
+        const t = await api("POST", `/api/kredite/${k.id}/jahresabgleich`, Object.assign({ trocken: true }, d));
+        geprueft = d;
+        const name = (id) => (kontoNach(id) || { name: "#" + id }).name;
+        ergebnis.replaceChildren(h("div", { class: "karte", id: "abgleich-probelauf" },
+          h("table", { class: "tabelle" }, h("thead", null, h("tr", null, h("th"), h("th", { class: "zahl" }, "Auszug"), h("th", { class: "zahl" }, "Gebucht"), h("th", { class: "zahl" }, "Differenz"))),
+            h("tbody", null,
+              h("tr", null, h("td", null, "Restschuld 31.12."), h("td", { class: "zahl" }, betragText(t.restschuld)), h("td", { class: "zahl" }, betragText(t.restschuld_berechnet)), betragZelle(t.differenz_restschuld)),
+              h("tr", null, h("td", null, "Zinsen " + t.jahr), h("td", { class: "zahl" }, betragText(t.zinsen)), h("td", { class: "zahl" }, betragText(t.zinsen_berechnet)), betragZelle(t.differenz_zinsen)))),
+          t.korrektur_splits.length ? [h("p", null, h("strong", null, "Korrekturbuchung zum 31.12.:")),
+            h("ul", null, t.korrektur_splits.map((s) => h("li", null, `${name(s.konto_id)}: ${betragText(s.betrag)}${s.memo ? " (" + s.memo + ")" : ""}`)))]
+            : h("p", null, "Keine Abweichung – es wird keine Korrekturbuchung angelegt."),
+          h("p", null, `${t.abgeglichen_buchung_ids.length} Ratenbuchung(en) werden als „abgeglichen“ markiert und damit gesperrt.`)));
+      } catch (e) { geprueft = null; ergebnis.replaceChildren(h("p", { class: "negativ" }, e.code === "kredit_jahr_abgeglichen" ? "Für dieses Jahr gibt es schon einen Jahresabgleich." : e.message)); }
+    };
+    for (const x of [jahr, rest, zinsen]) x.addEventListener("input", () => { geprueft = null; });
+    return dialog("Jahresabgleich " + k.name, h("div", null,
+      h("p", { class: "leise" }, "Restschuld und gezahlte Zinsen laut Jahresauszug der Bank eingeben. Kontor vergleicht mit den gebuchten Werten und schlägt genau eine Korrekturbuchung vor."),
+      h("div", { class: "felder-2" }, h("label", { class: "feld" }, "Jahr", jahr), h("span"),
+        h("label", { class: "feld" }, "Restschuld am 31.12. (€)", rest), h("label", { class: "feld" }, "Gezahlte Zinsen (€)", zinsen)),
+      h("button", { type: "button", class: "knopf", id: "abgleich-vorschlag", onclick: vorschlag }, "Vorschlag berechnen"), ergebnis),
+    [bestaetigenKnopf]);
+  }
+
+  async function ansichtKredit(id) {
+    await stammLaden();
+    let k;
+    try { k = await api("GET", "/api/kredite/" + id); } catch (e) { seite("Nicht gefunden", h("p", null, "Den Kredit gibt es nicht.")); return; }
+    const [plan, u] = await Promise.all([api("GET", `/api/kredite/${id}/plan`), api("GET", "/api/kontenuebersicht")]);
+    const s = u.konten.find((x) => x.konto_id === k.konto_id);
+    const ergebnis = h("div", { id: "zuordnen-ergebnis" });
+    async function zuordnen(trocken) {
+      try {
+        const r = await api("POST", `/api/kredite/${id}/zuordnen`, { trocken });
+        ergebnis.replaceChildren(h("div", { class: "karte" }, `${r.geprueft} Buchung(en) geprüft, ${r.anzahl} ${trocken ? "würden" : "wurden"} als Rate aufgeteilt.`,
+          r.zuordnungen.length ? h("ul", null, r.zuordnungen.slice(0, 100).map((z) => h("li", null, h("a", { href: "#/buchungen/" + z.buchung_id }, "#" + z.buchung_id),
+            ` → Rate ${datumText(z.faelligkeit)}: Zins ${betragText(z.zins)}, Tilgung ${betragText(z.tilgung)}`))) : null,
+          trocken && r.anzahl ? h("button", { type: "button", class: "knopf primaer", onclick: () => zuordnen(false) }, "Jetzt aufteilen") : null));
+        if (!trocken && r.anzahl) setTimeout(route, 1200);
+      } catch (e) { melden(e.message, true); }
+    }
+    seite("Kredit " + k.name,
+      h("p", { class: "leise" }, `Restschuld ${betragText(k.restschuld)} am ${datumText(k.stand_datum)} · Sollzins ${zinsText(k.sollzins)} (${k.zinsmethode}) · Rate ${betragText(k.rate)} ab ${datumText(k.erste_faelligkeit)}`,
+        " · gebuchte Restschuld heute ", h("strong", { id: "kredit-gebucht" }, betragText(-(s ? s.saldo : 0))), k.aktiv ? "" : " · inaktiv"),
+      h("div", { class: "werkzeug" },
+        h("button", { type: "button", class: "knopf", onclick: async () => { if (await kreditDialog(k)) route(); } }, "Bearbeiten"),
+        h("button", { type: "button", class: "knopf", onclick: () => zuordnen(true) }, "Raten in vorhandenen Buchungen suchen"),
+        h("button", { type: "button", class: "knopf primaer", id: "jahresabgleich-knopf", onclick: async () => { if (await jahresabgleichDialog(k)) route(); } }, "Jahresabgleich …"),
+        h("a", { class: "knopf", href: "#/konto/" + k.konto_id }, "Darlehenskonto"),
+        h("button", { type: "button", class: "knopf gefahr", onclick: async () => {
+          if (!(await bestaetigen(`Kredit „${k.name}“ löschen? Die Buchungen bleiben erhalten.`))) return;
+          try { await api("DELETE", "/api/kredite/" + id); melden("Kredit gelöscht."); location.hash = "#/kredite"; } catch (e) { melden(e.message, true); }
+        } }, "Löschen")),
+      ergebnis,
+      k.abgleiche.length ? h("div", { class: "karte" }, h("strong", null, "Jahresabgleiche"), h("ul", null, k.abgleiche.map((a) => h("li", null,
+        `${a.jahr}: Restschuld ${betragText(a.restschuld)}, Zinsen ${betragText(a.zinsen)} – `, a.buchung_id ? h("a", { href: "#/buchungen/" + a.buchung_id }, "Korrekturbuchung #" + a.buchung_id) : "ohne Korrektur")))) : null,
+      h("h2", null, "Tilgungsplan"),
+      h("p", { class: "leise" }, `${k.zuordnungen.length} von ${plan.anzahl_raten} Raten gebucht · Zinsen gesamt ${betragText(plan.summe_zins)} · letzte Rate ${datumText(plan.letzte_faelligkeit)}`),
+      planTabelle(plan, k));
+  }
+
+  // ------------------------------------------------------------ Berichte (K 11)
+  // Kategoriale Reihenfarben (feste Reihenfolge, je Konto stabil über die Konto-ID), hell/dunkel geprüft.
+  function linienDiagramm(bericht) {
+    const B = 760, H = 320, L = 92, R = 16, O = 14, U = 40;
+    const n = bericht.stichtage.length;
+    const alle = bericht.reihen.flatMap((r) => r.werte);
+    let min = Math.min(0, ...alle), max = Math.max(0, ...alle);
+    if (min === max) { max = min + 100; }
+    // „schöne“ Teilung in ganzen Euro
+    const spanne = max - min, roh = spanne / 5;
+    const zehn = Math.pow(10, Math.floor(Math.log10(roh)));
+    const schritt = [1, 2, 2.5, 5, 10].map((f) => f * zehn).find((x) => x >= roh) || roh;
+    min = Math.floor(min / schritt) * schritt; max = Math.ceil(max / schritt) * schritt;
+    // Zeitachse: Abstand nach Kalendertagen (nicht nach Index), damit kurze Randintervalle nicht gedehnt werden
+    const tag = (iso) => Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10)) / 86400000;
+    const t0 = tag(bericht.stichtage[0]), t1 = tag(bericht.stichtage[n - 1]);
+    const tx = bericht.stichtage.map((d) => (t1 === t0 ? 0.5 : (tag(d) - t0) / (t1 - t0)));
+    const x = (i) => L + tx[i] * (B - L - R);
+    const y = (v) => O + ((max - v) * (H - O - U)) / (max - min);
+    const ns = "http://www.w3.org/2000/svg";
+    const s = (tag, attrs, ...kinder) => { const el = document.createElementNS(ns, tag); for (const [k, v] of Object.entries(attrs || {})) el.setAttribute(k, v); el.append(...kinder); return el; };
+    const svg = s("svg", { viewBox: `0 0 ${B} ${H}`, class: "diagramm", role: "img", id: "kontostand-diagramm",
+      "aria-label": "Kontostandsverlauf " + bericht.reihen.map((r) => r.name).join(", ") });
+    for (let v = min; v <= max + schritt / 2; v += schritt) {
+      svg.append(s("line", { x1: L, x2: B - R, y1: y(v), y2: y(v), class: v === 0 ? "achse-null" : "gitter" }),
+        s("text", { x: L - 6, y: y(v) + 4, "text-anchor": "end", class: "achse-text" }, betragText(Math.round(v), false)));
+    }
+    // Datumsmarken: Anfang und Ende immer, dazwischen nur, wo Platz ist (keine überlappenden Beschriftungen)
+    const platz = 120, gesetzt = [];
+    const kandidaten = n === 1 ? [0] : [0, n - 1, ...Array.from({ length: 5 }, (_, j) => Math.round(((j + 1) * (n - 1)) / 6))];
+    for (const i of kandidaten) {
+      if (gesetzt.some((g) => Math.abs(x(g) - x(i)) < platz)) continue;
+      gesetzt.push(i);
+      const anker = n > 1 && i === 0 ? "start" : n > 1 && i === n - 1 ? "end" : "middle";
+      svg.append(s("text", { x: x(i), y: H - U + 18, "text-anchor": anker, class: "achse-text" }, datumText(bericht.stichtage[i])));
+    }
+    bericht.reihen.forEach((r, ri) => {
+      const punkte = r.werte.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
+      svg.append(s("polyline", { points: punkte, class: "reihe reihe-" + r._farbe, fill: "none" }));
+      if (n === 1) svg.append(s("circle", { cx: x(0), cy: y(r.werte[0]), r: 4, class: "punkt reihe-" + r._farbe }));
+    });
+    // Fadenkreuz mit Tooltip
+    const linie = s("line", { y1: O, y2: H - U, class: "fadenkreuz", visibility: "hidden" });
+    const punkte = bericht.reihen.map((r, ri) => s("circle", { r: 4, class: "punkt reihe-" + r._farbe, visibility: "hidden" }));
+    svg.append(linie, ...punkte);
+    const tip = h("div", { class: "diagramm-tip", hidden: true });
+    const huelle = h("div", { class: "diagramm-huelle" }, svg, tip);
+    svg.addEventListener("pointermove", (e) => {
+      const rect = svg.getBoundingClientRect();
+      const px = ((e.clientX - rect.left) * B) / rect.width;
+      let i = 0;
+      for (let j = 1; j < n; j++) if (Math.abs(x(j) - px) < Math.abs(x(i) - px)) i = j;
+      linie.setAttribute("x1", x(i)); linie.setAttribute("x2", x(i)); linie.setAttribute("visibility", "visible");
+      bericht.reihen.forEach((r, ri) => { punkte[ri].setAttribute("cx", x(i)); punkte[ri].setAttribute("cy", y(r.werte[i])); punkte[ri].setAttribute("visibility", "visible"); });
+      tip.replaceChildren(h("strong", null, datumText(bericht.stichtage[i])), ...bericht.reihen.map((r, ri) => h("div", null, h("span", { class: "legende-marke reihe-" + r._farbe }), r.name + ": " + betragText(r.werte[i]))));
+      tip.hidden = false;
+      const links = (x(i) / B) * rect.width;
+      tip.style.left = (links > rect.width / 2 ? links - tip.offsetWidth - 12 : links + 12) + "px";
+    });
+    svg.addEventListener("pointerleave", () => { tip.hidden = true; linie.setAttribute("visibility", "hidden"); punkte.forEach((p) => p.setAttribute("visibility", "hidden")); });
+    // ab zwei Reihen eine Legende (Farbe nie allein); eine einzelne Reihe nennt nur ihren Namen
+    const legende = h("div", { class: "legende", id: "kontostand-legende" }, bericht.reihen.length > 1
+      ? bericht.reihen.map((r) => h("span", null, h("span", { class: "legende-marke reihe-" + r._farbe }), r.name))
+      : h("strong", null, bericht.reihen[0].name));
+    return h("div", null, legende, huelle);
+  }
+
+  async function ansichtBerichte(params) {
+    await stammLaden();
+    const bestand = stamm.konten.filter((k) => BESTAND.has(k.art));
+    const gewaehlt = params.getAll("konto_id").map(Number);
+    const p = { konto_id: gewaehlt, von: params.get("von"), bis: params.get("bis"), intervall: params.get("intervall") || "monat" };
+    const f = {
+      konten: h("select", { multiple: true, size: Math.min(6, Math.max(3, bestand.length)), id: "bericht-konten", "aria-label": "Konten" },
+        bestand.map((k) => h("option", { value: k.id, selected: gewaehlt.includes(k.id) }, kontoPfad(k)))),
+      von: h("input", { type: "date", value: p.von || "", id: "bericht-von" }), bis: h("input", { type: "date", value: p.bis || "", id: "bericht-bis" }),
+      intervall: h("select", { id: "bericht-intervall" }, [["tag", "Tag"], ["woche", "Woche"], ["monat", "Monat"], ["jahr", "Jahr"]].map(([w, t]) => h("option", { value: w, selected: w === p.intervall }, t))),
+    };
+    const form = h("form", { class: "karte filter" },
+      h("label", null, "Konten (ohne Auswahl: alle Bestandskonten)", f.konten), h("label", null, "Von", f.von), h("label", null, "Bis", f.bis),
+      h("label", null, "Intervall", f.intervall), h("div", null, h("button", { type: "submit", class: "knopf primaer" }, "Anzeigen")));
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      location.hash = "#/berichte" + query({ konto_id: [...f.konten.selectedOptions].map((o) => o.value), von: f.von.value || null, bis: f.bis.value || null, intervall: f.intervall.value });
+    });
+    let bericht, ea;
+    try {
+      [bericht, ea] = await Promise.all([api("GET", "/api/berichte/kontostand" + query(p)),
+        api("GET", "/api/berichte/einnahmen-ausgaben" + query(p))]);
+    } catch (e) {
+      seite("Berichte", form, h("p", { class: "negativ" }, e.code === "bericht_zu_gross" ? "Zu viele Punkte – bitte größeres Intervall oder kürzeren Zeitraum wählen." : e.message));
+      return;
+    }
+    // Farbe folgt dem Konto (Position unter allen Bestandskonten), nicht dem Rang in der Auswahl
+    for (const r of bericht.reihen) { const i = bestand.findIndex((k) => k.id === r.konto_id); r._farbe = ((i < 0 ? 0 : i) % 8) + 1; }
+    const exportParams = { von: bericht.von, bis: bericht.bis };
+    if (gewaehlt.length === 1) exportParams.konto_id = gewaehlt[0];
+    const tabelleWerte = h("details", { class: "karte" }, h("summary", null, "Werte als Tabelle"),
+      h("div", { class: "tabelle-huelle" }, h("table", { class: "tabelle", id: "kontostand-tabelle" },
+        h("thead", null, h("tr", null, h("th", null, "Stichtag"), bericht.reihen.map((r) => h("th", { class: "zahl" }, r.name)))),
+        h("tbody", null, bericht.stichtage.map((s, i) => h("tr", null, h("td", { class: "datum" }, datumText(s)), bericht.reihen.map((r) => betragZelle(r.werte[i]))))))));
+    const eaTabelle = h("div", { class: "tabelle-huelle" }, h("table", { class: "tabelle", id: "einnahmen-ausgaben" },
+      h("thead", null, h("tr", null, h("th", null, "Zeitraum"), h("th", { class: "zahl" }, "Einnahmen"), h("th", { class: "zahl" }, "Ausgaben"),
+        h("th", { class: "zahl" }, "Saldo"), h("th", { class: "zahl nur-breit" }, "Unkategorisiert"))),
+      h("tbody", null, ea.perioden.map((x) => h("tr", null, h("td", { class: "datum" }, datumText(x.von) + " – " + datumText(x.bis)),
+        h("td", { class: "zahl" }, betragText(x.einnahmen)), h("td", { class: "zahl" }, betragText(x.ausgaben)), betragZelle(x.saldo),
+        h("td", { class: "zahl nur-breit" }, betragText(x.nicht_kategorisiert))))),
+      h("tfoot", null, h("tr", null, h("td", null, "Gesamt"), h("td", { class: "zahl" }, betragText(ea.gesamt.einnahmen)),
+        h("td", { class: "zahl" }, betragText(ea.gesamt.ausgaben)), h("td", { class: "zahl" }, betragText(ea.gesamt.saldo)),
+        h("td", { class: "zahl nur-breit" }, betragText(ea.gesamt.nicht_kategorisiert))))));
+    seite("Berichte", form,
+      h("h2", null, "Kontostandsverlauf"),
+      h("p", { class: "leise" }, `${datumText(bericht.von)} bis ${datumText(bericht.bis)} · Stand jeweils am Ende des Intervalls (Summe aller Splits bis zum Stichtag)`),
+      bericht.reihen.length ? linienDiagramm(bericht) : h("div", { class: "karte leer" }, "Keine Konten."),
+      tabelleWerte,
+      h("h2", null, "Einnahmen und Ausgaben"),
+      h("p", { class: "leise" }, "Umbuchungen zwischen eigenen Konten und Tilgungen zählen nicht; Zinsen sind Ausgaben."),
+      eaTabelle,
+      h("h2", null, "Export"),
+      h("div", { class: "werkzeug", id: "bericht-export" }, h("span", null, "Buchungen des Zeitraums" + (exportParams.konto_id ? " dieses Kontos" : "") + ":"), exportLinks(exportParams)));
+  }
+
   // ------------------------------------------------------------ Router
   async function route() {
     menueSchliessen();
@@ -2142,7 +2550,7 @@
     if (bereich !== "suche" && document.activeElement !== $("#suche-global")) $("#suche-global").value = "";
     for (const a of document.querySelectorAll(".navigation a")) {
       const b = a.dataset.bereich;
-      a.classList.toggle("aktiv", b === bereich || (bereich === "konto" && b === "konten") || (bereich === "kategorie" && b === "kategorien") || (bereich === "spaeter" && b === arg));
+      a.classList.toggle("aktiv", b === bereich || (bereich === "konto" && b === "konten") || (bereich === "kategorie" && b === "kategorien") || (bereich === "kredit" && b === "kredite") || (bereich === "spaeter" && b === arg));
     }
     try {
       if (bereich === "uebersicht") { await stammLaden(); await ansichtUebersicht(); }
@@ -2166,6 +2574,10 @@
       else if (bereich === "import") await ansichtImport();
       else if (bereich === "einstellungen") await ansichtEinstellungen();
       else if (bereich === "sicherung") await ansichtSicherung();
+      else if (bereich === "wiederkehrend") await ansichtWiederkehrend(hashParameter);
+      else if (bereich === "kredite") await ansichtKredite();
+      else if (bereich === "kredit") await ansichtKredit(Number(arg));
+      else if (bereich === "berichte") await ansichtBerichte(hashParameter);
       else if (bereich === "spaeter") ansichtSpaeter(arg);
       else seite("Nicht gefunden", h("p", null, "Diese Seite gibt es nicht."));
     } catch (e) {
@@ -2197,7 +2609,7 @@
   $("#schleier").addEventListener("click", () => navUmschalten(false));
   window.addEventListener("hashchange", route);
   // Links aus Benachrichtigungen (/tan/<id>, /buchungen/<id>, /sync/konten) öffnen die passende Ansicht.
-  const direktPfad = /^\/(tan\/\d+|buchungen\/\d+|sync\/konten)\/?$/.exec(location.pathname);
+  const direktPfad = /^\/(tan\/\d+|buchungen\/\d+|sync\/konten|wiederkehrend)\/?$/.exec(location.pathname);
   if (direktPfad) history.replaceState(null, "", "/#/" + direktPfad[1]);
   $("#glocke").addEventListener("click", () => { location.hash = "#/benachrichtigungen"; });
   glockeAktualisieren();
