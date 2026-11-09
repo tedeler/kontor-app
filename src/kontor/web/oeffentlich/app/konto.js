@@ -1,7 +1,7 @@
 /* Kontor – Kontoansicht (oberflaeche.md 7): Filter, Buchungsliste, Auswahl und Fokus, Mehrfachbearbeitung,
  * Inline-Bearbeitung, Kontextmenü, Drag and Drop auf Kategorien, Panels (15) und Gesten (16.4). */
 import {
-  STATUS_TEXT, abfrage, aktion, api, betragEl, betragLesen, datumEl, datumText, h, kategorien, kontoPfad,
+  BESTAND, STATUS_TEXT, abfrage, aktion, api, betragEl, betragLesen, datumEl, datumText, h, kategorien, kontoNach, kontoPfad,
   melde, neueId, oberflaeche, pfadVon, stamm, tid,
 } from "./kern.js";
 import {
@@ -122,6 +122,7 @@ class Kontoansicht {
   }
 
   async laden() {
+    const nr = (this.ladeNr = (this.ladeNr || 0) + 1);   // nur die jüngste Antwort zählt
     this.seite.dataset.geladen = "nein";
     const basis = { konto_id: this.konto.id, ...this.filter, sortierung: this.sortierung, pro_seite: PRO_SEITE };
     const eintraege = [];
@@ -134,7 +135,10 @@ class Kontoansicht {
       summe = s.summe;
       if (eintraege.length >= gesamt) break;
     }
-    try { this.verdachte = await api("GET", "/api/dubletten?status=offen"); } catch (e) { this.verdachte = []; }
+    let verdachte = [];
+    try { verdachte = await api("GET", "/api/dubletten?status=offen"); } catch (e) { verdachte = []; }
+    if (nr !== this.ladeNr) return;
+    this.verdachte = verdachte;
     this.eintraege = eintraege;
     this.gesamt = gesamt;
     this.summe = summe;
@@ -148,6 +152,7 @@ class Kontoansicht {
 
   async aktualisieren() {
     await this.laden();
+    this.baumNeu();       // Kategorien können sich geändert haben (Umbenennen, Verschieben, Anlegen, Löschen)
   }
 
   // ---------------------------------------------------------------- Aufbau
@@ -505,7 +510,7 @@ class Kontoansicht {
   }
 
   zeile(b, kompakt) {
-    const gegen = b.splits.filter((s) => s.konto_id !== this.konto.id);
+    const gegen = gegensplits(b);
     const katText = b.kategorie_id ? pfadVon(b.kategorie_id) : (gegen.length > 1 ? "Gesplittet" : "");
     const kat = h("div", { role: "gridcell", class: "zelle zelle-kategorie", "data-feld": "kategorie",
       "data-kategorie-id": b.kategorie_id ? String(b.kategorie_id) : "" }, h("span", { class: "kat-text" }, katText));
@@ -703,8 +708,13 @@ class Kontoansicht {
       w = z ? { z, x: e.touches[0].clientX, y: e.touches[0].clientY, t: performance.now() } : null;
     }, { passive: true });
     this.liste.addEventListener("touchmove", (e) => {
-      if (w) { w.ex = e.touches[0].clientX; w.ey = e.touches[0].clientY; }
-    }, { passive: true });
+      if (!w) return;
+      w.ex = e.touches[0].clientX;
+      w.ey = e.touches[0].clientY;
+      // waagerechtes Wischen ist eine Geste, kein Scrollen (sonst verschluckt ein Nachlauf das nächste Tippen)
+      const dx = Math.abs(w.ex - w.x);
+      if (dx > 10 && dx > Math.abs(w.ey - w.y) && e.cancelable) e.preventDefault();
+    }, { passive: false });
     this.liste.addEventListener("touchend", (e) => {
       if (!w || w.ex === undefined) { w = null; return; }
       const dx = w.ex - w.x;
@@ -713,7 +723,6 @@ class Kontoansicht {
       const z = w.z;
       w = null;
       if (Math.abs(dx) < 80 || dy > 40 || dt > 1000) return;
-      if (e.cancelable) e.preventDefault();
       const id = Number(z.dataset.id);
       if (dx > 0) {
         if (this.auswahl.has(id)) this.auswahl.delete(id); else this.auswahl.add(id);
@@ -811,7 +820,7 @@ class Kontoansicht {
       melde("hinweis", "Diese Buchung ist abgestimmt bzw. abgeglichen und kann nicht bearbeitet werden.");
       return;
     }
-    const gegen = b.splits.filter((s) => s.konto_id !== this.konto.id);
+    const gegen = gegensplits(b);
     if (feld === "kategorie" && gegen.length !== 1) {
       melde("hinweis", "Gesplittete Buchungen über „Splitten…“ bearbeiten.");
       return;
@@ -863,6 +872,11 @@ class Kontoansicht {
     editor.focus();
     if (feld === "verwendungszweck") editor.select();
   }
+}
+
+/** Gegensplits (datenmodell.md 3.2): Splits auf Konten, die keine Bestandskonten sind. */
+function gegensplits(b) {
+  return b.splits.filter((s) => { const k = kontoNach(s.konto_id); return k && !BESTAND.has(k.art); });
 }
 
 function betragEingabeText(cent) {

@@ -281,3 +281,6 @@ html.zieht, html.zieht * { cursor: grabbing !important; }
 @media (prefers-reduced-motion: no-preference) {
   .knopf, .zeile, .option, .menue-eintrag { transition: background-color .12s; }
 }
+.zelle-kategorie { display: flex; align-items: center; gap: .1rem; }
+.zelle-kategorie .kat-text { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.zelle-kategorie .mini-knopf, .zelle-kategorie .vorschlag-marke { flex: none; }
