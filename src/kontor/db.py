@@ -15,7 +15,7 @@ from collections.abc import Iterator
 
 from .text import norm
 
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (
@@ -203,7 +203,8 @@ CREATE TABLE IF NOT EXISTS tan_anforderung (
     beendet_am TEXT,
     challenge TEXT NOT NULL,
     bild BLOB,
-    bild_mime_typ TEXT
+    bild_mime_typ TEXT,
+    erinnerung_nr INTEGER NOT NULL DEFAULT 0
 );
 
 -- Interne Benachrichtigungen (synchronisation.md 11).
@@ -215,7 +216,11 @@ CREATE TABLE IF NOT EXISTS benachrichtigung (
     text TEXT NOT NULL,
     link TEXT,
     erstellt_am TEXT NOT NULL,
-    gelesen INTEGER NOT NULL DEFAULT 0 CHECK (gelesen IN (0, 1))
+    gelesen INTEGER NOT NULL DEFAULT 0 CHECK (gelesen IN (0, 1)),
+    zustellung TEXT NOT NULL DEFAULT 'keine' CHECK (zustellung IN ('keine','ausstehend','zugestellt','aufgegeben')),
+    zustellversuche INTEGER NOT NULL DEFAULT 0,
+    zugestellt_am TEXT,
+    naechster_versuch TEXT
 );
 CREATE INDEX IF NOT EXISTS benachrichtigung_schluessel ON benachrichtigung(schluessel, gelesen);
 
@@ -331,6 +336,52 @@ CREATE TABLE IF NOT EXISTS kredit_abgleich (
     PRIMARY KEY (kredit_id, jahr)
 );
 CREATE INDEX IF NOT EXISTS kredit_abgleich_buchung ON kredit_abgleich(buchung_id);
+
+-- ------------------------------------------------------------ Meilenstein 6
+-- Geheimnisspeicher (geheimnisse.md 3): nur Nonce und AES-256-GCM-Chiffretext, nie Klartext.
+CREATE TABLE IF NOT EXISTS geheimnis (
+    name TEXT PRIMARY KEY,
+    nonce BLOB NOT NULL,
+    chiffre BLOB NOT NULL,
+    gesetzt_am TEXT NOT NULL
+);
+
+-- Postfächer (mail.md 2.1): Buchbestand, protokolliert und gesichert.
+CREATE TABLE IF NOT EXISTS postfach (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    adresse TEXT NOT NULL,
+    adresse_cf TEXT NOT NULL UNIQUE,
+    bezeichnung TEXT NOT NULL DEFAULT '',
+    ordner TEXT NOT NULL,
+    absender_filter TEXT NOT NULL DEFAULT '[]',
+    aktiv INTEGER NOT NULL CHECK (aktiv IN (0, 1))
+);
+
+-- Betriebszustand je Postfachadresse (mail.md 2.3, casefold); nie protokolliert oder gesichert.
+CREATE TABLE IF NOT EXISTS postfach_zustand (
+    adresse_cf TEXT PRIMARY KEY,
+    anmeldung TEXT NOT NULL DEFAULT 'fehlt' CHECK (anmeldung IN ('fehlt','angemeldet','abgelaufen','widerrufen')),
+    anmeldung_nr INTEGER NOT NULL DEFAULT 0,
+    angemeldet_am TEXT,
+    laeuft_ab_am TEXT,
+    letzter_abruf_am TEXT,
+    letzter_erfolg_am TEXT,
+    fehler_code TEXT,
+    fehler_meldung TEXT
+);
+
+-- Gespiegelte Nachrichten (mail.md 6.5): Betriebszustand, entfällt mit dem Postfach.
+CREATE TABLE IF NOT EXISTS mail_nachricht (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    adresse_cf TEXT NOT NULL,
+    nachricht_id TEXT NOT NULL,
+    empfangen TEXT NOT NULL,
+    absender TEXT NOT NULL,
+    betreff TEXT NOT NULL,
+    text TEXT NOT NULL,
+    UNIQUE (adresse_cf, nachricht_id)
+);
+CREATE INDEX IF NOT EXISTS mail_nachricht_sortierung ON mail_nachricht(empfangen, nachricht_id);
 """
 
 # Spalten, die frühere Schemaversionen noch nicht haben (Migration ohne Datenverlust).
@@ -349,10 +400,24 @@ _NEUE_SPALTEN = (
     # erfolgreich abgerufen wurde (wiederkehrend.md 5)
     ("sync_lauf_konto", "buchungen_kredit", "INTEGER NOT NULL DEFAULT 0"),
     ("sync_lauf_konto", "vorher_abgerufen", "INTEGER NOT NULL DEFAULT 0"),
+    # M6: Zustellung je Benachrichtigung (benachrichtigungen.md 4.1; frühere gelten als „keine“) und Nummer der
+    # letzten TAN-Erinnerung (benachrichtigungen.md 5)
+    ("benachrichtigung", "zustellung", "TEXT NOT NULL DEFAULT 'keine'"
+                                       " CHECK (zustellung IN ('keine','ausstehend','zugestellt','aufgegeben'))"),
+    ("benachrichtigung", "zustellversuche", "INTEGER NOT NULL DEFAULT 0"),
+    ("benachrichtigung", "zugestellt_am", "TEXT"),
+    ("benachrichtigung", "naechster_versuch", "TEXT"),
+    ("tan_anforderung", "erinnerung_nr", "INTEGER NOT NULL DEFAULT 0"),
 )
 _NACH_MIGRATION = (
     "CREATE INDEX IF NOT EXISTS split_abstimmung ON split(abstimmung_id)",
     "CREATE INDEX IF NOT EXISTS empfaenger_standard ON empfaenger(standardkategorie_id)",
+    "CREATE INDEX IF NOT EXISTS benachrichtigung_zustellung ON benachrichtigung(zustellung, naechster_versuch)",
+    # M6: Eine neue Benachrichtigung ist „ausstehend“, wenn die App ein Benachrichtigungs-Plugin hat
+    # (meta.zustellung_neu, gesetzt von create_app), sonst bleibt sie „keine“ (benachrichtigungen.md 4.1).
+    "CREATE TRIGGER IF NOT EXISTS benachrichtigung_zustellung_neu AFTER INSERT ON benachrichtigung"
+    " WHEN NEW.zustellung = 'keine' AND (SELECT wert FROM meta WHERE schluessel = 'zustellung_neu') = 'ausstehend'"
+    " BEGIN UPDATE benachrichtigung SET zustellung = 'ausstehend' WHERE id = NEW.id; END",
 )
 
 

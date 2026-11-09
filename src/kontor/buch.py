@@ -805,7 +805,22 @@ def verdacht_aufloesen(con, vid: int, entscheidung: str, behalten_id: int | None
 
 def _benachrichtigung_dict(r) -> dict:
     return {"id": r["id"], "art": r["art"], "schluessel": r["schluessel"], "titel": r["titel"], "text": r["text"],
-            "link": r["link"], "erstellt_am": r["erstellt_am"], "gelesen": bool(r["gelesen"])}
+            "link": r["link"], "erstellt_am": r["erstellt_am"], "gelesen": bool(r["gelesen"]),
+            "zustellung": r["zustellung"], "zustellversuche": r["zustellversuche"], "zugestellt_am": r["zugestellt_am"]}
+
+
+def benachrichtigung_anlegen(con, art: str, schluessel: str, titel: str, text: str, link: str | None,
+                             jetzt: str, entprellung: str = "ungelesen") -> int | None:
+    """Legt eine Benachrichtigung an; ``entprellung`` = ``ungelesen`` (keine ungelesene mit diesem Schlüssel),
+    ``einmal`` (überhaupt keine mit diesem Schlüssel) oder ``keine``. Liefert die ID oder None."""
+    if entprellung == "ungelesen" and con.execute(
+            "SELECT 1 FROM benachrichtigung WHERE schluessel = ? AND gelesen = 0", (schluessel,)).fetchone():
+        return None
+    if entprellung == "einmal" and con.execute(
+            "SELECT 1 FROM benachrichtigung WHERE schluessel = ? LIMIT 1", (schluessel,)).fetchone():
+        return None
+    return con.execute("INSERT INTO benachrichtigung (art, schluessel, titel, text, link, erstellt_am, gelesen)"
+                       " VALUES (?, ?, ?, ?, ?, ?, 0)", (art, schluessel, titel, text, link, jetzt)).lastrowid
 
 
 def benachrichtigungen_liste(con, gelesen: bool | None) -> list[dict]:

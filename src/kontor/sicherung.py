@@ -30,26 +30,26 @@ import zipfile
 import zlib
 from typing import Any
 
-from . import __version__, buch, db, kredite, protokoll, regeln, vorlagen
+from . import __version__, buch, db, kredite, mail, protokoll, regeln, vorlagen
 from .config import KontorConfig
 from .text import ekey
 from .validierung import ApiFehler, datum_gueltig
 
 FORMAT = "kontor-sicherung"
 FORMATVERSION = 1
-SCHEMAVERSION = 2
+SCHEMAVERSION = 3
 OBJEKTE = protokoll.OBJEKTE
 # Objektarten aus M9 (immer in ``anzahl``) und ab M5 nur bei Vorhandensein (sicherung.md 2.5, E-109)
 OBJEKTE_IMMER = ("konto", "empfaenger", "tag", "buchung", "regel", "verdacht", "abstimmung", "vorlage")
-OBJEKTE_OPTIONAL = ("kredit",)
+OBJEKTE_OPTIONAL = ("kredit", "postfach")
 NAMEN = ("manifest.json", "kontor.sqlite")
 MAX_ENTPACKT = 4 * 1024 ** 3  # Schutz gegen ZIP-Bomben (sicherung.md 8: mindestens 1 GiB)
 MAX_MANIFEST = 1024 ** 2
 
 # Objektarten je Schemaversion der Sicherungsdatei (für spätere Meilensteine, sicherung.md 2.3, 3.4).
-OBJEKTE_JE_VERSION = {1: OBJEKTE_IMMER, 2: OBJEKTE}
+OBJEKTE_JE_VERSION = {1: OBJEKTE_IMMER, 2: OBJEKTE_IMMER + ("kredit",), 3: OBJEKTE}
 # Tabellen, die erst ab einer Schemaversion der Sicherungsdatei existieren (ältere Sicherungen: leer, 3.4)
-TABELLEN_AB = {"kredit": 2, "kredit_zuordnung": 2, "kredit_abgleich": 2}
+TABELLEN_AB = {"kredit": 2, "kredit_zuordnung": 2, "kredit_abgleich": 2, "postfach": 3}
 
 # Tabellen der Sicherungsdatei (Schemaversion 1): Name → [(Spalte, Typ, nullbar)]. Die Namen entsprechen den
 # Tabellen der App-Datenbank; ``id_zaehler`` hält die höchste je vergebene ID je Objektart (auch Splits).
@@ -93,6 +93,9 @@ SPALTEN: dict[str, list[tuple[str, str, bool]]] = {
     "kredit_zuordnung": [("kredit_id", "int", False), ("faelligkeit", "str", False), ("buchung_id", "int", False)],
     "kredit_abgleich": [("kredit_id", "int", False), ("jahr", "int", False), ("restschuld", "int", False),
                         ("zinsen", "int", False), ("buchung_id", "int", True)],
+    # Schemaversion 3 (M6): Postfächer ohne Anmeldung, Tokens, Spiegel und Betriebszustand (sicherung.md 2.6)
+    "postfach": [("id", "int", False), ("adresse", "str", False), ("bezeichnung", "str", False),
+                 ("ordner", "str", False), ("absender_filter", "str", False), ("aktiv", "bool", False)],
 }
 _ORDNUNG = {
     "split": "buchung_id, position, id", "empfaenger_alias": "empfaenger_id, alias",
@@ -110,11 +113,11 @@ _SCHLUESSEL = {"empfaenger_alias": "PRIMARY KEY (empfaenger_id, alias)", "buchun
 # Buchbestand (ohne Kennungen, Bankkonto-Zustand, Zähler) in Einfügereihenfolge.
 BUCH_TABELLEN = ("konto", "empfaenger", "empfaenger_alias", "tag", "regel", "abstimmung", "buchung", "split",
                  "buchung_tag", "buchung_extern", "vorschlag", "dublettenverdacht", "verdacht_kandidat", "vorlage",
-                 "kredit", "kredit_zuordnung", "kredit_abgleich")
+                 "kredit", "kredit_zuordnung", "kredit_abgleich", "postfach")
 # Objektart (bzw. "split") → Tabelle der App-Datenbank mit AUTOINCREMENT-Zähler.
 ZAEHLER = {"konto": "konto", "empfaenger": "empfaenger", "tag": "tag", "buchung": "buchung", "split": "split",
            "regel": "regel", "verdacht": "dublettenverdacht", "abstimmung": "abstimmung", "vorlage": "vorlage",
-           "kredit": "kredit"}
+           "kredit": "kredit", "postfach": "postfach"}
 
 _SHA = re.compile(r"^[0-9a-f]{64}$")
 _ZEIT = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
@@ -157,7 +160,8 @@ def vorhandene_arten(formen: dict[str, dict[int, dict]]) -> tuple[str, ...]:
 def alle_formen(con) -> dict[str, dict[int, dict]]:
     """Protokollformen des gesamten Buchbestands (je Objektart: ID → Form)."""
     tabellen = {"konto": "konto", "empfaenger": "empfaenger", "tag": "tag", "buchung": "buchung", "regel": "regel",
-                "verdacht": "dublettenverdacht", "abstimmung": "abstimmung", "vorlage": "vorlage", "kredit": "kredit"}
+                "verdacht": "dublettenverdacht", "abstimmung": "abstimmung", "vorlage": "vorlage", "kredit": "kredit",
+                "postfach": "postfach"}
     aus = {}
     for o in OBJEKTE:
         ids = [r[0] for r in con.execute(f"SELECT id FROM {tabellen[o]} ORDER BY id")]
@@ -455,6 +459,9 @@ def laden(con, zeilen: dict[str, list[tuple]]) -> None:
         elif tabelle == "empfaenger_alias":
             namen = namen + ["ekey"]
             werte = [r + (ekey(r[1]),) for r in werte]
+        elif tabelle == "postfach":
+            namen = namen + ["adresse_cf"]
+            werte = [r + (r[1].casefold(),) for r in werte]
         con.executemany(f"INSERT INTO {tabelle} ({', '.join(namen)}) VALUES ({', '.join('?' * len(namen))})",
                         werte)
 
@@ -495,6 +502,8 @@ def _inhalt_pruefen(zeilen: dict[str, list[tuple]]) -> dict[str, dict[int, dict]
         schlecht("ID-Zähler")
     if any(not k for (k,) in zeilen["sync_kennung"]):
         schlecht("Umsatzkennung")
+    if not mail.pruefe_inhalt(zeilen["postfach"]):
+        schlecht("Postfach")
 
     mem = db.verbinde(":memory:")  # type: ignore[arg-type]
     try:
@@ -652,7 +661,7 @@ def probelauf(con, s: Sicherung) -> dict:
     return _ergebnis(s, True, not _identisch(aktuell, s), None, unterschied, betroffen)
 
 
-_LOESCHEN = ("kredit_abgleich", "kredit_zuordnung", "kredit", "vorschlag", "buchung_tag", "buchung_extern", "verdacht_kandidat", "dublettenverdacht", "split",
+_LOESCHEN = ("postfach", "kredit_abgleich", "kredit_zuordnung", "kredit", "vorschlag", "buchung_tag", "buchung_extern", "verdacht_kandidat", "dublettenverdacht", "split",
              "buchung", "abstimmung", "regel", "vorlage", "empfaenger_alias", "empfaenger", "tag", "konto")
 
 

@@ -10,9 +10,11 @@ from __future__ import annotations
 import contextlib
 import datetime as dt
 import functools
+import html
 import logging
 import pathlib
 import re
+import urllib.parse
 from collections.abc import Callable
 from typing import Any
 
@@ -24,8 +26,9 @@ from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.staticfiles import StaticFiles
 
-from . import (__version__, berichte, buch, db, export, kredite, lernmodell, pflege, protokoll, regeln, sicherung,
-               vorlagen, wiederkehrend)
+from . import (__version__, berichte, buch, db, export, kredite, lernmodell, mail, pflege, protokoll, regeln,
+               sicherung, vorlagen, wiederkehrend)
+from .geheimnisse import REST_NAMEN
 from .sync import SyncDienst
 from .config import KontorConfig
 from .importer.kmymoney import importiere_bytes
@@ -176,6 +179,7 @@ VORLAGEN_ANWENDEN = {
 PIN_EINGABE = {"pin": S("str", pflicht=True, min_len=1, max_len=128)}
 TAN_EINGABE = {"tan": S("str", pflicht=True, min_len=1, max_len=64)}
 MOCK_ZEIT = {"jetzt": S("str", pflicht=True)}
+GEHEIMNIS_EINGABE = {"wert": S("str", pflicht=True, min_len=1, max_len=4096)}
 _ZEITSTEMPEL = re.compile(r"^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):(\d{2})(\.\d+)?Z$")
 KREDIT_ZUORDNEN = {"buchung_ids": S("int_liste", max_items=10000, eindeutig=True), "trocken": S("bool")}
 KREDIT_ABGLEICH = {"jahr": S("int", pflicht=True), "restschuld": S("int", pflicht=True),
@@ -203,6 +207,14 @@ def _index_html(config: KontorConfig) -> str:
             .replace("{{VERSION}}", __version__))
 
 
+def _rueckruf_html(ok: bool, meldung: str) -> str:
+    """Antwortseite für GET /oauth2/rueckruf (mail.md 4.3) – ohne Codes, Tokens oder state."""
+    titel = "Anmeldung erfolgreich" if ok else "Anmeldung fehlgeschlagen"
+    return ("<!DOCTYPE html><html lang=\"de\"><head><meta charset=\"utf-8\"><title>Kontor – " + titel
+            + "</title></head><body><h1>" + titel + "</h1><p>" + html.escape(meldung)
+            + "</p><p><a href=\"/#einstellungen\">Zurück zu Kontor</a></p></body></html>")
+
+
 def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     if config is None:
         config = KontorConfig.from_env()
@@ -211,6 +223,9 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     modus = "mock" if config.mock_modus else "echt"
     sync = SyncDienst(config)
     sync.neustart_aufraeumen()  # synchronisation.md 10
+    sync.zustellung.vorbereiten()  # M6: neue Benachrichtigungen ausstehend oder „keine“ (benachrichtigungen.md 4.1)
+    zustellung = sync.zustellung
+    maildienst = sync.mail
 
     @contextlib.asynccontextmanager
     async def lebensdauer(_app):
@@ -264,6 +279,8 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
                 except Exception:
                     log.exception("Interner Fehler bei %s %s", request.method, request.url.path)
                     return fehler_antwort(500, "interner_fehler", "Interner Fehler.")
+                finally:
+                    await neue_zustellen()
                 if isinstance(ergebnis, Response):
                     return ergebnis
                 if status == 204:
@@ -272,6 +289,14 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
             app.add_api_route(pfad_vorlage, wrapper, methods=[methode], include_in_schema=False)
             return wrapper
         return deko
+
+    async def neue_zustellen():
+        """benachrichtigungen.md 4.3 Schritt 1: erster Versuch noch in derselben Anfrage, vor der Antwort."""
+        if zustellung.plugin is not None:
+            try:
+                await run_in_threadpool(zustellung.neue)
+            except Exception:  # noqa: BLE001 - die Zustellung ändert nie die auslösende Operation
+                log.exception("Fehler bei der Zustellung")
 
     async def lesen(f: Callable, *args):
         return await run_in_threadpool(mit_db(f), *args)
@@ -521,6 +546,7 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
 
     @endpunkt("PUT", "/api/sync/pin", 204)
     async def pin_setzen(request: Request):
+        sync.pin_eingabe_pruefen()  # M6: 409 pin_quelle_systemd, ohne den Körper auszuwerten
         d = await koerper(request, PIN_EINGABE)  # Fehlermeldungen enthalten den Wert nie
         sync.pin_setzen(d["pin"])
 
@@ -562,6 +588,119 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     @endpunkt("POST", "/api/benachrichtigungen/{benachrichtigung_id:int}/gelesen")
     async def benachrichtigung_gelesen(request: Request):
         return await schreiben(buch.benachrichtigung_gelesen, pid(request, "benachrichtigung_id"))
+
+    # ------------------------------------- M6: Zustellung der Benachrichtigungen
+    @endpunkt("GET", "/api/benachrichtigungen/zustellung")
+    async def zustellung_status(request: Request):
+        return await lesen(zustellung.status)
+
+    @endpunkt("POST", "/api/benachrichtigungen/zustellen")
+    async def zustellen(request: Request):
+        return await run_in_threadpool(zustellung.alle)
+
+    @endpunkt("GET", "/api/mock/zustellungen")
+    async def mock_zustellungen(request: Request):
+        if not config.mock_modus:
+            raise ApiFehler(409, "nur_mock_modus", "Die Liste der Mock-Zustellungen gibt es nur im Mock-Modus.")
+        return zustellung.mock_gesendet()
+
+    # ------------------------------------------------ M6: Geheimnisspeicher
+    def geheimnis_name(request: Request) -> str:
+        name = request.path_params["name"]
+        if name not in REST_NAMEN:
+            raise buch.nicht_gefunden("Das Geheimnis")
+        return name
+
+    @endpunkt("GET", "/api/geheimnisse")
+    async def geheimnisse_liste(request: Request):
+        return await lesen(sync.geheimnisse.uebersicht)
+
+    @endpunkt("PUT", "/api/geheimnisse/{name}", 204)
+    async def geheimnis_setzen(request: Request):
+        name = geheimnis_name(request)
+        d = await koerper(request, GEHEIMNIS_EINGABE)  # Fehlermeldungen enthalten den Wert nie
+        await schreiben(lambda con: sync.geheimnisse.setzen(con, name, d["wert"]))
+
+    @endpunkt("DELETE", "/api/geheimnisse/{name}", 204)
+    async def geheimnis_loeschen(request: Request):
+        name = geheimnis_name(request)
+        await schreiben(lambda con: sync.geheimnisse.loeschen(con, name))
+
+    # ------------------------------------------------------- M6: Postfächer
+    @endpunkt("GET", "/api/mail/postfaecher")
+    async def postfaecher(request: Request):
+        return await lesen(mail.postfaecher_liste)
+
+    @endpunkt("POST", "/api/mail/postfaecher", 201)
+    async def postfach_anlegen(request: Request):
+        d = mail.postfach_koerper(await request.body(), True)
+        return await aendern("postfach_anlegen", mail.postfach_anlegen, d)
+
+    @endpunkt("GET", "/api/mail/postfaecher/{postfach_id:int}")
+    async def postfach_lesen(request: Request):
+        return await lesen(mail.postfach_lesen, pid(request, "postfach_id"))
+
+    @endpunkt("PATCH", "/api/mail/postfaecher/{postfach_id:int}")
+    async def postfach_aendern(request: Request):
+        await lesen(mail.postfach_lesen, pid(request, "postfach_id"))  # 404 vor 422
+        d = mail.postfach_koerper(await request.body(), False)
+        return await aendern("postfach_aendern", mail.postfach_aendern, pid(request, "postfach_id"), d)
+
+    @endpunkt("DELETE", "/api/mail/postfaecher/{postfach_id:int}", 204)
+    async def postfach_loeschen(request: Request):
+        await aendern("postfach_loeschen", mail.postfach_loeschen, pid(request, "postfach_id"))
+
+    @endpunkt("GET", "/api/mail/postfaecher/{postfach_id:int}/status")
+    async def postfach_status(request: Request):
+        return await lesen(maildienst.status, pid(request, "postfach_id"))
+
+    @endpunkt("POST", "/api/mail/postfaecher/{postfach_id:int}/anmeldung")
+    async def anmeldung_starten(request: Request):
+        return await run_in_threadpool(maildienst.anmeldung_starten, pid(request, "postfach_id"))
+
+    @endpunkt("DELETE", "/api/mail/postfaecher/{postfach_id:int}/anmeldung", 204)
+    async def abmelden(request: Request):
+        await run_in_threadpool(maildienst.abmelden, pid(request, "postfach_id"))
+
+    @endpunkt("POST", "/api/mail/anmeldung/abschluss")
+    async def anmeldung_abschluss(request: Request):
+        d = await koerper(request, mail.ABSCHLUSS)
+        try:
+            abfrage = urllib.parse.urlsplit(d["antwort_url"]).query
+        except ValueError:
+            abfrage = ""
+        parameter = dict(urllib.parse.parse_qsl(abfrage, keep_blank_values=True))
+        return await run_in_threadpool(maildienst.anmeldung_abschliessen, parameter)
+
+    @endpunkt("POST", "/api/mail/abruf")
+    async def mail_abruf(request: Request):
+        return await run_in_threadpool(maildienst.abruf)
+
+    @endpunkt("GET", "/api/mail/nachrichten")
+    async def mail_nachrichten(request: Request):
+        q = Query(request.query_params)
+        postfach_id = q.ganzzahl("postfach_id")
+        seite = q.ganzzahl("seite", minimum=1)
+        pro_seite = q.ganzzahl("pro_seite", minimum=1, maximum=500)
+        q.pruefen()
+        return await lesen(maildienst.nachrichten_liste, postfach_id, seite or 1, pro_seite or 50)
+
+    @app.get("/oauth2/rueckruf", include_in_schema=False)
+    async def oauth_rueckruf(request: Request):
+        parameter = {k: v for k, v in request.query_params.items()}
+        try:
+            await run_in_threadpool(maildienst.anmeldung_abschliessen, parameter)
+        except ApiFehler as e:
+            return HTMLResponse(_rueckruf_html(False, e.meldung), status_code=400,
+                                headers={"Cache-Control": "no-store"})
+        except Exception:  # noqa: BLE001
+            log.exception("Fehler beim OAuth-Rückruf")
+            return HTMLResponse(_rueckruf_html(False, "Interner Fehler."), status_code=400,
+                                headers={"Cache-Control": "no-store"})
+        finally:
+            await neue_zustellen()
+        return HTMLResponse(_rueckruf_html(True, "Das Postfach ist angemeldet. Dieses Fenster kann geschlossen "
+                                                 "werden."), headers={"Cache-Control": "no-store"})
 
     @endpunkt("GET", "/api/mock/zeit")
     async def mock_zeit(request: Request):
@@ -1020,6 +1159,15 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     @app.get("/wiederkehrend", include_in_schema=False)
     async def wiederkehrend_seite():
         # Link aus den Benachrichtigungen wiederkehrend_ausbleibend (wiederkehrend.md 6).
+        return HTMLResponse(index, headers={"Cache-Control": "no-store"})
+
+    @app.get("/mail/postfaecher/{postfach_id}", include_in_schema=False)
+    async def postfach_seite(postfach_id: str):
+        # Link aus den Mail-Benachrichtigungen (benachrichtigungen.md 6) öffnet die Postfach-Einstellungen.
+        return HTMLResponse(index, headers={"Cache-Control": "no-store"})
+
+    @app.get("/einstellungen", include_in_schema=False)
+    async def einstellungen_seite():
         return HTMLResponse(index, headers={"Cache-Control": "no-store"})
 
     @app.get("/manifest.webmanifest", include_in_schema=False)

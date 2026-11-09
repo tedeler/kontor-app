@@ -20,7 +20,10 @@ import json
 from . import buch, db, kredite, lernmodell, pflege, protokoll, regeln, vorlagen, wiederkehrend
 from .buch import BESTAND, ApiFehler
 from .config import KontorConfig
-from .fehler import (BankPinFalsch, KontorFehler, TanAbgelaufen, TanErforderlich, TanUngueltig)
+from .fehler import (BankPinFalsch, BankZugangGesperrt, KontorFehler, TanAbgelaufen, TanErforderlich, TanUngueltig)
+from .geheimnisse import Geheimnisspeicher
+from .mail import MailDienst
+from .zustellung import Zustelldienst
 from .text import iban_normalisieren, passend
 
 log = logging.getLogger("kontor.sync")
@@ -74,9 +77,21 @@ class SyncDienst:
         self._tan: dict[int, _TanKontext] = {}
         self._thread: threading.Thread | None = None
         self._stopp = threading.Event()
+        # M6: PIN aus systemd-creds (fints.md 5), Geheimnisse, Mail, Zustellung
+        self._pin_gesperrt = False
+        self.geheimnisse = Geheimnisspeicher(config, self.jetzt_text)
+        self.mail = MailDienst(config, self.jetzt, self.geheimnisse)
+        self.zustellung = Zustelldienst(config, self.jetzt, self._ntfy_token)
 
     def __repr__(self) -> str:
         return "SyncDienst()"
+
+    def _ntfy_token(self) -> str | None:
+        con = self._con()
+        try:
+            return self.geheimnisse.lesen(con, "ntfy_token")
+        finally:
+            con.close()
 
     # ------------------------------------------------------------ App-Uhr
     def jetzt(self) -> dt.datetime:
@@ -109,16 +124,46 @@ class SyncDienst:
             raise ApiFehler(409, "nur_mock_modus", "Die simulierte Uhr gibt es nur im Mock-Modus.")
 
     # ----------------------------------------------------------------- PIN
+    @property
+    def pin_aus_systemd(self) -> bool:
+        return self.config.bank_pin_quelle == "systemd-creds"
+
+    def pin_eingabe_pruefen(self) -> None:
+        if self.pin_aus_systemd:
+            raise ApiFehler(409, "pin_quelle_systemd", "Die PIN wird beim Dienststart über systemd-creds "
+                            "bereitgestellt und kann hier nicht gesetzt oder verworfen werden.")
+
     def pin_setzen(self, pin: str) -> None:
+        self.pin_eingabe_pruefen()
         with self._zustand:
             self._pin = pin
 
     def pin_verwerfen(self) -> None:
+        self.pin_eingabe_pruefen()
         with self._zustand:
             self._pin = None
 
+    def _pin_systemd(self) -> str | None:
+        """fints.md 5: Datei ``kontor-bank-pin`` bei jedem Aufruf neu lesen; genau ein Zeilenumbruch fällt weg."""
+        if self._pin_gesperrt or self.config.credentials_verzeichnis is None:
+            return None
+        try:
+            inhalt = (self.config.credentials_verzeichnis / "kontor-bank-pin").read_bytes().decode("utf-8")
+        except (OSError, UnicodeDecodeError):
+            return None
+        if inhalt.endswith("\r\n"):
+            inhalt = inhalt[:-2]
+        elif inhalt.endswith("\n"):
+            inhalt = inhalt[:-1]
+        return inhalt or None
+
     def _pin_quelle(self) -> str | None:
+        if self.pin_aus_systemd:
+            return self._pin_systemd()
         return self._pin
+
+    def _pin_vorhanden(self) -> bool:
+        return self._pin_quelle() is not None
 
     # -------------------------------------------------------------- Plugin
     def _plugin_holen(self):
@@ -133,8 +178,13 @@ class SyncDienst:
             plugin.setze_heute(self.heute())
 
     def _pluginfehler(self, e: BaseException) -> tuple[str, str]:
-        if isinstance(e, BankPinFalsch):
-            self.pin_verwerfen()  # nie erneut mit derselben PIN (Schutz vor Kontosperre)
+        if isinstance(e, (BankPinFalsch, BankZugangGesperrt)):
+            # nie erneut mit derselben PIN (Schutz vor Kontosperre, synchronisation.md 12 und 18.1)
+            if self.pin_aus_systemd:
+                self._pin_gesperrt = True
+            else:
+                with self._zustand:
+                    self._pin = None
         if not isinstance(e, KontorFehler):
             log.warning("Unerwarteter Fehler im Bank-Plugin: %s", type(e).__name__)
         return _fehler_von(e)
@@ -324,7 +374,8 @@ class SyncDienst:
             "naechster_lauf": self._naechster_lauf(con),
             "letzter_lauf": None if letzter is None else self._lauf_dict(con, letzter),
             "offene_tan_anforderung": None if offen is None else self._tan_dict(offen),
-            "pin_vorhanden": self._pin is not None,
+            "pin_vorhanden": self._pin_vorhanden(),
+            "pin_quelle": self.config.bank_pin_quelle,
         }
 
     # =============================================================== Lauf
@@ -815,8 +866,23 @@ class SyncDienst:
 
     # ================================================================ Planer
     def takt(self) -> dict | None:
-        """Ein Planer-Takt (synchronisation.md 9)."""
-        self.ablauf_pruefen()
+        """Ein Planer-Takt (synchronisation.md 9 und 18.2)."""
+        self.ablauf_pruefen()                     # 1. TAN-Abläufe
+        try:
+            self.tan_erinnerungen()               # 2. TAN-Erinnerungen
+            self.mail.anmeldungen_pruefen()       # 3. Vorwarnung und Ablauf der Mail-Anmeldungen
+            lauf = self._lauf_falls_faellig()     # 4. Synchronisationslauf
+            if self.mail.faellig():               # 5. Mail-Abruf
+                try:
+                    self.mail.abruf()
+                except ApiFehler:
+                    pass
+            return lauf
+        finally:
+            self.zustellung.neue()                # neue Benachrichtigungen dieses Takts sofort
+            self.zustellung.faellige()            # 6. Wiederholung fälliger Zustellungen
+
+    def _lauf_falls_faellig(self) -> dict | None:
         if self.config.sync_intervall_minuten <= 0:
             return None
         con = self._con()
@@ -831,8 +897,36 @@ class SyncDienst:
         except ApiFehler:
             return None
 
+    def tan_erinnerungen(self) -> None:
+        """benachrichtigungen.md 5: höchstens eine Erinnerung je Takt und Anforderung, keine nachgeholt."""
+        intervall = self.config.tan_erinnerung_minuten
+        hoechst = self.config.tan_erinnerung_anzahl
+        if intervall <= 0 or hoechst <= 0:
+            return
+        jetzt = self.jetzt()
+        con = self._con()
+        try:
+            for r in con.execute("SELECT id, erstellt_am, gueltig_bis, erinnerung_nr FROM tan_anforderung"
+                                 " WHERE status = 'offen'").fetchall():
+                vergangen = int((jetzt - zeit_lesen(r["erstellt_am"])).total_seconds())
+                if vergangen < 0 or jetzt > zeit_lesen(r["gueltig_bis"]):
+                    continue
+                n = min(vergangen // (intervall * 60), hoechst)
+                if n < 1 or n <= r["erinnerung_nr"]:
+                    continue
+                with db.transaktion(con):
+                    con.execute("UPDATE tan_anforderung SET erinnerung_nr = ? WHERE id = ?", (n, r["id"]))
+                    buch.benachrichtigung_anlegen(
+                        con, "tan_erinnerung", f"tan_erinnerung:{r['id']}:{n}", "Erinnerung: TAN erforderlich",
+                        "Die Bank wartet noch auf eine TAN für den Kontoabruf. Bitte die TAN-Seite öffnen und den "
+                        "QR-Code scannen, solange die Anforderung gültig ist.", f"/tan/{r['id']}", self.jetzt_text(),
+                        "einmal")
+        finally:
+            con.close()
+
     def planer_starten(self) -> None:
-        if self.config.sync_intervall_minuten <= 0 or not self.config.planer_starten or self._thread is not None:
+        automatisch = self.config.sync_intervall_minuten > 0 or self.config.mail_intervall_minuten > 0
+        if not automatisch or not self.config.planer_starten or self._thread is not None:
             return
         self._stopp.clear()
 

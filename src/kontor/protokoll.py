@@ -25,10 +25,10 @@ from collections import defaultdict
 from collections.abc import Iterator
 from typing import Any, Callable
 
-from . import buch, db, kredite, regeln, vorlagen
+from . import buch, db, geheimnisse, kredite, mail, regeln, vorlagen
 from .validierung import ApiFehler
 
-OBJEKTE = ("konto", "empfaenger", "tag", "buchung", "regel", "verdacht", "abstimmung", "vorlage", "kredit")
+OBJEKTE = ("konto", "empfaenger", "tag", "buchung", "regel", "verdacht", "abstimmung", "vorlage", "kredit", "postfach")
 QUELLEN = ("manuell", "import", "sync", "regeln", "umbuchung", "rueckgaengig", "lernmodell", "vorlage", "sicherung", "kredit")
 
 # Tabelle → (Objektart, Spalte mit der Objekt-ID)
@@ -50,6 +50,7 @@ _TABELLEN = {
     "kredit": ("kredit", "id"),
     "kredit_zuordnung": ("kredit", "kredit_id"),
     "kredit_abgleich": ("kredit", "kredit_id"),
+    "postfach": ("postfach", "id"),
 }
 
 BESCHREIBUNG = {
@@ -77,6 +78,8 @@ BESCHREIBUNG = {
     "sicherung_einspielen": "Sicherung eingespielt",
     "kredit_anlegen": "Kredit angelegt", "kredit_aendern": "Kredit geändert", "kredit_loeschen": "Kredit gelöscht",
     "kredit_zuordnen": "Kreditraten aufgeteilt", "kredit_jahresabgleich": "Jahresabgleich eines Kredits",
+    "postfach_anlegen": "Postfach angelegt", "postfach_aendern": "Postfach geändert",
+    "postfach_loeschen": "Postfach gelöscht",
 }
 
 
@@ -156,6 +159,8 @@ def formen(con, objekt: str, ids: list[int]) -> dict[int, dict]:
         return {e["id"]: e for e in buch.empfaenger_laden(con, ids)}
     if objekt == "kredit":
         return kredite.formen(con, ids)
+    if objekt == "postfach":
+        return mail.formen(con, ids)
     for teil in buch._stueckweise(ids):
         ph = buch._platzhalter(len(teil))
         if objekt == "konto":
@@ -263,6 +268,7 @@ def protokolliert(con, quelle: str, aktion: str, zeitpunkt: str, gruppe: str | N
         _leeren(con)
         yield k
         kredite.verwaiste_entfernen(con)  # M5: Zuordnungen gelöschter Buchungen entfallen (kredite.md 2.3)
+        geheimnisse.verwaiste_entfernen(con)  # M6: Tokens/Spiegel/Zustand entfallen mit dem Postfach (mail.md 6.5)
         eintraege = _nettowirkung(con)
         if k.pruefung is not None:
             k.pruefung(eintraege)
@@ -410,6 +416,8 @@ def _entfernen(con, objekt: str, oid: int, schritt: set[tuple[str, int]]) -> Non
         con.execute("DELETE FROM vorlage WHERE id = ?", (oid,))
     elif objekt == "kredit":
         con.execute("DELETE FROM kredit WHERE id = ?", (oid,))
+    elif objekt == "postfach":
+        con.execute("DELETE FROM postfach WHERE id = ?", (oid,))
 
 
 def _einfuegen(con, objekt: str, f: dict) -> None:
@@ -460,6 +468,8 @@ def _einfuegen(con, objekt: str, f: dict) -> None:
         vorlagen.einfuegen(con, f)
     elif objekt == "kredit":
         kredite.einfuegen(con, f)
+    elif objekt == "postfach":
+        mail.einfuegen(con, f)
 
 
 def _eintraege_von(con, aid: int) -> list[dict]:
