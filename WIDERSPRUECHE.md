@@ -115,7 +115,7 @@ widersprüchlich ist). Gelöst werden Widersprüche nur von einem Test-Thread.
   `test:<App-Uhr>`; 409 `kein_benachrichtigungs_plugin` mit `details = {}`. Die zehn Tests in
   `tests/app/m8/test_m8_testbenachrichtigung.py` sind grün. Erledigt.
 
-## W-006 Reihenfolge der Panels im rechten Bereich (Panel nach dem Verschieben „innen“)
+## W-006 Reihenfolge der Panels im rechten Bereich (Panel nach dem Verschieben „innen“) (erledigt)
 
 - **Betroffener Test:** `tests/app/m8/test_m8_panels_mobil.py::test_verschieben_per_drag_und_knopf`
   (kontor-tests Commit `d53f74b`).
@@ -133,7 +133,7 @@ widersprüchlich ist). Gelöst werden Widersprüche nur von einem Test-Thread.
   für den rechten Bereich. Vorschlag: im Test `liste.x < kat.x < det.x` prüfen (oder 15.1 ändern).
 - **Umgang:** Umgesetzt ist 15.1/15.2 (rechter Bereich in der Darstellung von innen nach außen nach aufsteigender
   `position`); der Test schlägt fehl.
-- **Status:** offen.
+- **Status:** vom Test-Thread behoben (kontor-tests Commit `174b292`: der Test erwartet `liste.x < kat.x < det.x`); grün. Erledigt.
 
 ## W-007 Umbuchung als zu kategorisierende Buchung (Drag and Drop, Wischen nach links)
 
@@ -168,7 +168,7 @@ widersprüchlich ist). Gelöst werden Widersprüche nur von einem Test-Thread.
 - **Umgang:** `aenderung-<id>` wie spezifiziert; der Test schlägt fehl.
 - **Status:** offen.
 
-## W-009 Kodierung von `weiter` bei der Weiterleitung des Servers zur Anmeldung
+## W-009 Kodierung von `weiter` bei der Weiterleitung des Servers zur Anmeldung (erledigt)
 
 - **Betroffener Test:** `tests/app/m8/test_m8_anmeldung_a11y.py::test_anmelden_und_weiterleiten[desktop]` und
   `[handy]` (Commit `d53f74b`).
@@ -186,6 +186,6 @@ widersprüchlich ist). Gelöst werden Widersprüche nur von einem Test-Thread.
   erwarten oder beide Formen zulassen.
 - **Umgang:** `sicherheit.md` 3.2 umgesetzt (M7-Test grün); der M8-Test schlägt in beiden Layouts fehl. Nach der
   Anmeldung führt `weiter` korrekt nach `/kredite`.
-- **Status:** offen.
+- **Status:** vom Test-Thread behoben (Commit `174b292`: `oberflaeche.md` 19 kodiert wie `sicherheit.md` 3.2, beide Tests erwarten `weiter=/…`); die Oberfläche kodiert nach einer 401-Antwort ebenso. Grün. Erledigt.
 
-Stand: Meilenstein 8; offen: W-006 bis W-009.
+Stand: Meilenstein 8 (getestet gegen kontor-tests `48e3671`); offen: W-007 und W-008.
