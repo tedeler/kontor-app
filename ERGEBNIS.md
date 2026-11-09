@@ -29,7 +29,7 @@ Stand: 2026-11-09, Implementierungs-Thread.
 
 Kein Fehlschlag, kein übersprungener Test, kein neuer W-Eintrag. „Vorher“ ist der Lauf vor der ersten Änderung
 (`-m "not leistung" -n 2`: 2429 bestanden, 44 Fehlschläge/Fehler ausschließlich in `tests/app/m10/`; `leistung`
-war schon vorher grün).
+wurde vorher nicht erneut gemessen, laut Ergebnis von M8 22/22; die Spalte „vorher“ zählt sie als bestanden).
 
 ### Umsetzung
 
