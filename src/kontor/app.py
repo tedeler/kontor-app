@@ -24,7 +24,8 @@ from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.staticfiles import StaticFiles
 
-from . import __version__, buch, db, lernmodell, pflege, protokoll, regeln, sicherung, vorlagen
+from . import (__version__, berichte, buch, db, export, kredite, lernmodell, pflege, protokoll, regeln, sicherung,
+               vorlagen, wiederkehrend)
 from .sync import SyncDienst
 from .config import KontorConfig
 from .importer.kmymoney import importiere_bytes
@@ -176,6 +177,10 @@ PIN_EINGABE = {"pin": S("str", pflicht=True, min_len=1, max_len=128)}
 TAN_EINGABE = {"tan": S("str", pflicht=True, min_len=1, max_len=64)}
 MOCK_ZEIT = {"jetzt": S("str", pflicht=True)}
 _ZEITSTEMPEL = re.compile(r"^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):(\d{2})(\.\d+)?Z$")
+KREDIT_ZUORDNEN = {"buchung_ids": S("int_liste", max_items=10000, eindeutig=True), "trocken": S("bool")}
+KREDIT_ABGLEICH = {"jahr": S("int", pflicht=True), "restschuld": S("int", pflicht=True),
+                   "zinsen": S("int", pflicht=True), "trocken": S("bool")}
+WIEDERKEHREND_PRUEFEN = {"buchung_ids": S("int_liste", max_items=10000, eindeutig=True)}
 DUBLETTE_AUFLOESEN = {
     "entscheidung": S("enum", pflicht=True, werte=("zusammenfuehren", "keine_dublette")),
     "behalten_id": S("int"),
@@ -350,8 +355,8 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
         return await lesen(buch.kontenuebersicht, stichtag)
 
     # --------------------------------------------------------- Buchungen
-    @endpunkt("GET", "/api/buchungen")
-    async def buchungen_liste(request: Request):
+    def buchungsfilter(request: Request, seiten: bool = True) -> dict:
+        """Filter- und Sortierparameter von GET /api/buchungen (auch für den Export, berichte.md 4)."""
         q = Query(request.query_params)
         f: dict[str, Any] = {
             "konto_id": q.ganzzahl("konto_id"),
@@ -370,17 +375,23 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
             "vorschlag": q.wahrheitswert("vorschlag"),
             "abgestimmt": q.wahrheitswert("abgestimmt"),
             "sortierung": q.auswahl("sortierung", buch.SORTIERUNGEN) or "datum",
-            "seite": q.ganzzahl("seite", minimum=1),
-            "pro_seite": q.ganzzahl("pro_seite", minimum=1, maximum=500),
         }
+        if seiten:
+            f["seite"] = q.ganzzahl("seite", minimum=1)
+            f["pro_seite"] = q.ganzzahl("pro_seite", minimum=1, maximum=500)
         if f["von"] and f["bis"] and f["von"] > f["bis"]:
             q.fehler_melden("von", "von darf nicht nach bis liegen.")
         if f["betrag_min"] is not None and f["betrag_max"] is not None and f["betrag_min"] > f["betrag_max"]:
             q.fehler_melden("betrag_min", "betrag_min darf nicht größer als betrag_max sein.")
         q.pruefen()
-        f["seite"] = f["seite"] or 1
-        f["pro_seite"] = f["pro_seite"] or 50
-        return await lesen(buch.buchungsliste, f)
+        if seiten:
+            f["seite"] = f["seite"] or 1
+            f["pro_seite"] = f["pro_seite"] or 50
+        return f
+
+    @endpunkt("GET", "/api/buchungen")
+    async def buchungen_liste(request: Request):
+        return await lesen(buch.buchungsliste, buchungsfilter(request))
 
     @endpunkt("POST", "/api/buchungen", 201)
     async def buchung_anlegen(request: Request):
@@ -748,6 +759,116 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     async def vorlage_loeschen(request: Request):
         return await aendern("vorlage_loeschen", vorlagen.vorlage_loeschen, pid(request, "vorlage_id"))
 
+    # --------------------------------------------------- M5: Kredite
+    @endpunkt("GET", "/api/kredite")
+    async def kredite_liste(request: Request):
+        return await lesen(kredite.kredite_liste)
+
+    @endpunkt("POST", "/api/kredite", 201)
+    async def kredit_anlegen(request: Request):
+        d = kredite.kredit_koerper(await request.body(), neu=True)
+        return await aendern("kredit_anlegen", kredite.kredit_anlegen, d)
+
+    @endpunkt("POST", "/api/kredite/tilgungsplan")
+    async def tilgungsplan(request: Request):
+        return kredite.plan_rest(kredite.plan_koerper(await request.body()))
+
+    @endpunkt("GET", "/api/kredite/{kredit_id:int}")
+    async def kredit_lesen(request: Request):
+        return await lesen(kredite.kredit_lesen, pid(request, "kredit_id"))
+
+    @endpunkt("PATCH", "/api/kredite/{kredit_id:int}")
+    async def kredit_aendern(request: Request):
+        kid = pid(request, "kredit_id")
+        await lesen(kredite.kredit_lesen, kid)  # 404 vor allem anderen
+        d = kredite.kredit_koerper(await request.body(), neu=False)
+        return await aendern("kredit_aendern", kredite.kredit_aendern, kid, d)
+
+    @endpunkt("DELETE", "/api/kredite/{kredit_id:int}", 204)
+    async def kredit_loeschen(request: Request):
+        return await aendern("kredit_loeschen", kredite.kredit_loeschen, pid(request, "kredit_id"))
+
+    @endpunkt("GET", "/api/kredite/{kredit_id:int}/plan")
+    async def kredit_plan(request: Request):
+        return await lesen(kredite.plan_des_kredits, pid(request, "kredit_id"))
+
+    @endpunkt("POST", "/api/kredite/{kredit_id:int}/zuordnen")
+    async def kredit_zuordnen(request: Request):
+        kid = pid(request, "kredit_id")
+        await lesen(kredite.kredit_lesen, kid)  # 404 vor 422
+        roh = await request.body()
+        d = pruefe_koerper(roh if roh.strip() else b"{}", KREDIT_ZUORDNEN)
+        return await aendern("kredit_zuordnen", kredite.zuordnen, kid, d.get("buchung_ids"), d.get("trocken", False),
+                             quelle="kredit")
+
+    @endpunkt("POST", "/api/kredite/{kredit_id:int}/jahresabgleich")
+    async def kredit_jahresabgleich(request: Request):
+        kid = pid(request, "kredit_id")
+        await lesen(kredite.kredit_lesen, kid)  # 404 vor 422
+        d = await koerper(request, KREDIT_ABGLEICH)
+        fehler = [fehler_eintrag(["body", k], f"Ganzzahl von {a} bis {b} erwartet.")
+                  for k, a, b in (("jahr", 1900, 9999), ("restschuld", 0, BETRAG_MAX), ("zinsen", 0, BETRAG_MAX))
+                  if not a <= d[k] <= b]
+        if fehler:
+            raise Validierungsfehler(fehler)
+        return await aendern("kredit_jahresabgleich", kredite.jahresabgleich, kid, d)
+
+    # ---------------------------------------- M5: Wiederkehrende Buchungen
+    @endpunkt("GET", "/api/wiederkehrend")
+    async def wiederkehrend_uebersicht(request: Request):
+        q = Query(request.query_params)
+        stichtag = q.datum("stichtag")
+        q.pruefen()
+        return await lesen(wiederkehrend.uebersicht, stichtag or sync.heute().isoformat())
+
+    @endpunkt("POST", "/api/wiederkehrend/pruefen")
+    async def wiederkehrend_pruefen(request: Request):
+        roh = await request.body()
+        d = pruefe_koerper(roh if roh.strip() else b"{}", WIEDERKEHREND_PRUEFEN)
+        return await schreiben(wiederkehrend.pruefen_rest, d.get("buchung_ids") or [], sync.heute().isoformat(),
+                               sync.jetzt_text())
+
+    # -------------------------------------------- M5: Berichte und Export
+    def berichtsfilter(request: Request) -> dict:
+        q = Query(request.query_params)
+        f = {"konto_id": q.ganzzahlen("konto_id"), "von": q.datum("von"), "bis": q.datum("bis"),
+             "intervall": q.auswahl("intervall", berichte.INTERVALLE) or "monat",
+             "unterkonten": q.wahrheitswert("unterkonten") or False}
+        if f["von"] and f["bis"] and f["von"] > f["bis"]:
+            q.fehler_melden("von", "von darf nicht nach bis liegen.")
+        q.pruefen()
+        return f
+
+    @endpunkt("GET", "/api/berichte/kontostand")
+    async def bericht_kontostand(request: Request):
+        return await lesen(berichte.kontostand, berichtsfilter(request), sync.heute().isoformat())
+
+    @endpunkt("GET", "/api/berichte/einnahmen-ausgaben")
+    async def bericht_einnahmen_ausgaben(request: Request):
+        f = berichtsfilter(request)
+        return await lesen(berichte.einnahmen_ausgaben, f, sync.heute().isoformat())
+
+    def _exportname(endung: str) -> str:
+        return f"kontor-buchungen-{sync.heute().strftime('%Y%m%d')}.{endung}"
+
+    @endpunkt("GET", "/api/export/buchungen.csv")
+    async def export_csv(request: Request):
+        f = buchungsfilter(request, seiten=False)
+        daten = await lesen(export.csv_bytes, f)
+        return Response(daten, media_type="text/csv; charset=utf-8",
+                        headers={"Content-Disposition": f'attachment; filename="{_exportname("csv")}"',
+                                 "Cache-Control": "no-store"})
+
+    @endpunkt("GET", "/api/export/buchungen.pdf")
+    async def export_pdf(request: Request):
+        f = buchungsfilter(request, seiten=False)
+        teile = [f"{k}={v}" for k, v in request.query_params.multi_items()]
+        beschreibung = ("Filter: " + ", ".join(teile)) if teile else "Alle Buchungen"
+        daten = await lesen(export.pdf_bytes, f, sync.heute().isoformat(), beschreibung)
+        return Response(daten, media_type="application/pdf",
+                        headers={"Content-Disposition": f'attachment; filename="{_exportname("pdf")}"',
+                                 "Cache-Control": "no-store"})
+
     # ------------------------------------------- M3: Änderungsprotokoll
     @endpunkt("GET", "/api/aenderungen")
     async def aenderungen_liste(request: Request):
@@ -894,6 +1015,11 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     @app.get("/sync/konten", include_in_schema=False)
     async def sync_konten_seite():
         # Link aus der Benachrichtigung konto_fehlt (synchronisation.md 16.5).
+        return HTMLResponse(index, headers={"Cache-Control": "no-store"})
+
+    @app.get("/wiederkehrend", include_in_schema=False)
+    async def wiederkehrend_seite():
+        # Link aus den Benachrichtigungen wiederkehrend_ausbleibend (wiederkehrend.md 6).
         return HTMLResponse(index, headers={"Cache-Control": "no-store"})
 
     @app.get("/manifest.webmanifest", include_in_schema=False)

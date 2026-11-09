@@ -112,7 +112,14 @@ class PostfachUnbekannt(MailFehler):
     code = "mail_postfach_unbekannt"
 
 
+class KreditRateZuKlein(KontorFehler):
+    """M5 (python-api.md 12.2): Der Tilgungsplan endet nicht innerhalb von 1 200 Raten."""
+
+    code = "kredit_rate_zu_klein"
+
+
 __all__ = [
+    "KreditRateZuKlein",
     "KontorFehler",
     "KonfigurationsFehler",
     "PluginFehler",

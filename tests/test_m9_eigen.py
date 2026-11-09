@@ -83,7 +83,7 @@ def test_migration_auf_schemaversion_5(tmp_path):
     c = TestClient(create_app(KontorConfig(datenbank=pfad)))
     assert c.get("/api/status").status_code == 200
     con = sqlite3.connect(pfad)
-    assert con.execute("SELECT wert FROM meta WHERE schluessel = 'schema_version'").fetchone()[0] == "5"
+    assert con.execute("SELECT wert FROM meta WHERE schluessel = 'schema_version'").fetchone()[0] == str(db.SCHEMA_VERSION)
     assert con.execute("SELECT 1 FROM sqlite_master WHERE name = 'sicherung_zustand'").fetchone()
     con.close()
 

@@ -48,4 +48,27 @@ widersprüchlich ist). Gelöst werden Widersprüche nur von einem Test-Thread.
 - **Status:** vom Test-Thread behoben (E-095, kontor-tests Commit `cc45364`: die M1-Fälle verwenden
   `gibtsnicht_m1`); geprüft beim M9-Lauf, die drei Tests sind grün. Erledigt.
 
-Stand: Meilenstein 9, keine offenen Widersprüche.
+## W-003 Tilgungsplan: entfallende Nullrate verletzt die Summeninvariante
+
+- **Betroffener Test:** `tests/app/m5/test_m5_tilgungsplan.py::test_zufaellige_plaene_gleich_orakel`
+  (kontor-tests Commit `dbe9a7c`), Hilfsfunktion `tests/hilfen/kredit_orakel.py::pruefe_plan_eigenschaften`.
+- **Was der Test erwartet:** Für jeden Plan gilt `summe_tilgung + summe_sondertilgung = restschuld`. Hypothesis
+  findet (deterministisch, Profil `standard` mit `derandomize`) die Parameter `restschuld = 1`,
+  `stand_datum = 2020-01-01`, `sollzins = 0`, `zinsmethode = 30/360`, `rate = 1`,
+  `erste_faelligkeit = 2020-01-02`, `sondertilgungen = [{datum: 2020-01-02, betrag: 1}]`.
+  Anwendung und Orakel `kredit_orakel.plan` liefern übereinstimmend einen leeren Plan (`zeilen = []`,
+  `summe_sondertilgung = 0`); der erste Vergleich `ist == soll` ist grün, erst die Eigenschaftsprüfung scheitert
+  (`0 + 0 ≠ 1`).
+- **Was die Spezifikation sagt:** `kredite.md` 3.5 Schritt 3: „Ist dabei `rate_i = 0` (nur möglich, wenn eine
+  Sondertilgung genau bei Beginn alles getilgt hat), entfällt die Zeile.“ Zugleich 3.5 „Plan“: „es gilt
+  `summe_tilgung + summe_sondertilgung = restschuld`“.
+- **Warum widersprüchlich:** Die Klammer trifft nicht zu: `rate_i = 0` entsteht auch, wenn eine Sondertilgung die
+  Restschuld *irgendwo* in der Periode vollständig tilgt und der Zins auf 0 Cent rundet (Sollzins 0 oder sehr kleine
+  Restschuld). Entfällt die Zeile, entfällt mit ihr die Sondertilgung aus `summe_sondertilgung`, und die
+  Summeninvariante ist verletzt. Beide Sätze der Spezifikation lassen sich in diesem Fall nicht zugleich erfüllen;
+  das Orakel des Tests folgt Schritt 3 genauso wie die Anwendung. Vorschlag: Die Zeile nur entfallen lassen, wenn
+  zusätzlich `sondertilgung = 0` ist (sonst eine Zeile mit `rate = 0`, `tilgung = 0` und der Sondertilgung
+  behalten), oder die Invariante auf nicht leere Pläne bzw. „ohne entfallene Zeile“ einschränken.
+- **Umgang:** Umgesetzt ist `kredite.md` 3.5 Schritt 3 wörtlich (gleiches Ergebnis wie das Orakel des Tests).
+
+Stand: Meilenstein 5, ein offener Widerspruch (W-003).

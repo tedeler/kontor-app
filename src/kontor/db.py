@@ -15,7 +15,7 @@ from collections.abc import Iterator
 
 from .text import norm
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (
@@ -292,6 +292,45 @@ CREATE TABLE IF NOT EXISTS sicherung_zustand (
     vorher TEXT NOT NULL,
     nachher TEXT NOT NULL
 );
+
+-- ------------------------------------------------------------ Meilenstein 5
+-- Kredite (kredite.md 2); Sondertilgungen und Bedingungen als JSON-Listen. Zuordnungen der Raten und
+-- Jahresabgleiche in eigenen Tabellen, bewusst ohne Fremdschlüssel auf Buchungen (kredite.md 2.3: eine gelöschte
+-- Buchung entfernt ihre Zuordnung in derselben Änderung, siehe kredite.verwaiste_entfernen).
+CREATE TABLE IF NOT EXISTS kredit (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    konto_id INTEGER NOT NULL UNIQUE REFERENCES konto(id),
+    zahlungskonto_id INTEGER NOT NULL REFERENCES konto(id),
+    zins_konto_id INTEGER NOT NULL REFERENCES konto(id),
+    restschuld INTEGER NOT NULL CHECK (typeof(restschuld) = 'integer' AND restschuld BETWEEN 1 AND 999999999999),
+    stand_datum TEXT NOT NULL,
+    sollzins INTEGER NOT NULL CHECK (typeof(sollzins) = 'integer' AND sollzins BETWEEN 0 AND 1000000),
+    zinsmethode TEXT NOT NULL CHECK (zinsmethode IN ('30/360','act/360','act/365')),
+    rate INTEGER NOT NULL CHECK (typeof(rate) = 'integer' AND rate BETWEEN 1 AND 999999999999),
+    erste_faelligkeit TEXT NOT NULL,
+    sondertilgungen TEXT NOT NULL,
+    bedingungen TEXT NOT NULL,
+    aktiv INTEGER NOT NULL CHECK (aktiv IN (0, 1))
+);
+CREATE INDEX IF NOT EXISTS kredit_zahlungskonto ON kredit(zahlungskonto_id);
+
+CREATE TABLE IF NOT EXISTS kredit_zuordnung (
+    kredit_id INTEGER NOT NULL REFERENCES kredit(id) ON DELETE CASCADE,
+    faelligkeit TEXT NOT NULL,
+    buchung_id INTEGER NOT NULL UNIQUE,
+    PRIMARY KEY (kredit_id, faelligkeit)
+);
+
+CREATE TABLE IF NOT EXISTS kredit_abgleich (
+    kredit_id INTEGER NOT NULL REFERENCES kredit(id) ON DELETE CASCADE,
+    jahr INTEGER NOT NULL CHECK (typeof(jahr) = 'integer' AND jahr BETWEEN 1900 AND 9999),
+    restschuld INTEGER NOT NULL CHECK (typeof(restschuld) = 'integer' AND restschuld BETWEEN 0 AND 999999999999),
+    zinsen INTEGER NOT NULL CHECK (typeof(zinsen) = 'integer' AND zinsen BETWEEN 0 AND 999999999999),
+    buchung_id INTEGER,
+    PRIMARY KEY (kredit_id, jahr)
+);
+CREATE INDEX IF NOT EXISTS kredit_abgleich_buchung ON kredit_abgleich(buchung_id);
 """
 
 # Spalten, die frühere Schemaversionen noch nicht haben (Migration ohne Datenverlust).
@@ -306,6 +345,10 @@ _NEUE_SPALTEN = (
     ("sync_lauf", "uebersprungen", "TEXT NOT NULL DEFAULT '[]'"),
     ("sync_konto_zustand", "entscheidung", "TEXT CHECK (entscheidung IN ('wiederherstellen','ignorieren'))"),
     ("sync_konto_zustand", "entscheidung_buchungen", "TEXT CHECK (entscheidung_buchungen IN ('alle','nur_neue'))"),
+    # M5: Kreditraten je Konto und Lauf (synchronisation.md 17.2); ob das Bankkonto vor dem Lauf schon einmal
+    # erfolgreich abgerufen wurde (wiederkehrend.md 5)
+    ("sync_lauf_konto", "buchungen_kredit", "INTEGER NOT NULL DEFAULT 0"),
+    ("sync_lauf_konto", "vorher_abgerufen", "INTEGER NOT NULL DEFAULT 0"),
 )
 _NACH_MIGRATION = (
     "CREATE INDEX IF NOT EXISTS split_abstimmung ON split(abstimmung_id)",

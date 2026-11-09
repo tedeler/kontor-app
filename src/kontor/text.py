@@ -42,3 +42,10 @@ def iban_gueltig(n: str) -> bool:
     umgestellt = n[4:] + n[:4]
     ziffern = "".join(str(int(c, 36)) for c in umgestellt)
     return int(ziffern) % 97 == 1
+
+
+def euro(cent: int) -> str:
+    """Betrag in Cent als deutscher Eurotext (nur Ganzzahlarithmetik)."""
+    vz = "−" if cent < 0 else ""
+    e, c = divmod(abs(cent), 100)
+    return f"{vz}{e:,}".replace(",", ".") + f",{c:02d} €"

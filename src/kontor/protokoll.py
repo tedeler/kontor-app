@@ -25,11 +25,11 @@ from collections import defaultdict
 from collections.abc import Iterator
 from typing import Any, Callable
 
-from . import buch, db, regeln, vorlagen
+from . import buch, db, kredite, regeln, vorlagen
 from .validierung import ApiFehler
 
-OBJEKTE = ("konto", "empfaenger", "tag", "buchung", "regel", "verdacht", "abstimmung", "vorlage")
-QUELLEN = ("manuell", "import", "sync", "regeln", "umbuchung", "rueckgaengig", "lernmodell", "vorlage", "sicherung")
+OBJEKTE = ("konto", "empfaenger", "tag", "buchung", "regel", "verdacht", "abstimmung", "vorlage", "kredit")
+QUELLEN = ("manuell", "import", "sync", "regeln", "umbuchung", "rueckgaengig", "lernmodell", "vorlage", "sicherung", "kredit")
 
 # Tabelle → (Objektart, Spalte mit der Objekt-ID)
 _TABELLEN = {
@@ -47,6 +47,9 @@ _TABELLEN = {
     "verdacht_kandidat": ("verdacht", "verdacht_id"),
     "abstimmung": ("abstimmung", "id"),
     "vorlage": ("vorlage", "id"),
+    "kredit": ("kredit", "id"),
+    "kredit_zuordnung": ("kredit", "kredit_id"),
+    "kredit_abgleich": ("kredit", "kredit_id"),
 }
 
 BESCHREIBUNG = {
@@ -72,6 +75,8 @@ BESCHREIBUNG = {
     "vorlage_loeschen": "Split-Vorlage gelöscht", "vorlagen_anwenden": "Split-Vorlagen angewendet",
     "lernmodell_anwenden": "Lernmodell angewendet",
     "sicherung_einspielen": "Sicherung eingespielt",
+    "kredit_anlegen": "Kredit angelegt", "kredit_aendern": "Kredit geändert", "kredit_loeschen": "Kredit gelöscht",
+    "kredit_zuordnen": "Kreditraten aufgeteilt", "kredit_jahresabgleich": "Jahresabgleich eines Kredits",
 }
 
 
@@ -149,6 +154,8 @@ def formen(con, objekt: str, ids: list[int]) -> dict[int, dict]:
         return aus
     if objekt == "empfaenger":
         return {e["id"]: e for e in buch.empfaenger_laden(con, ids)}
+    if objekt == "kredit":
+        return kredite.formen(con, ids)
     for teil in buch._stueckweise(ids):
         ph = buch._platzhalter(len(teil))
         if objekt == "konto":
@@ -255,6 +262,7 @@ def protokolliert(con, quelle: str, aktion: str, zeitpunkt: str, gruppe: str | N
         _vorbereiten(con)
         _leeren(con)
         yield k
+        kredite.verwaiste_entfernen(con)  # M5: Zuordnungen gelöschter Buchungen entfallen (kredite.md 2.3)
         eintraege = _nettowirkung(con)
         if k.pruefung is not None:
             k.pruefung(eintraege)
@@ -400,6 +408,8 @@ def _entfernen(con, objekt: str, oid: int, schritt: set[tuple[str, int]]) -> Non
         con.execute("DELETE FROM abstimmung WHERE id = ?", (oid,))
     elif objekt == "vorlage":
         con.execute("DELETE FROM vorlage WHERE id = ?", (oid,))
+    elif objekt == "kredit":
+        con.execute("DELETE FROM kredit WHERE id = ?", (oid,))
 
 
 def _einfuegen(con, objekt: str, f: dict) -> None:
@@ -448,6 +458,8 @@ def _einfuegen(con, objekt: str, f: dict) -> None:
                     (f["id"], f["konto_id"], f["stichtag"], f["saldo"], f["erstellt_am"]))
     elif objekt == "vorlage":
         vorlagen.einfuegen(con, f)
+    elif objekt == "kredit":
+        kredite.einfuegen(con, f)
 
 
 def _eintraege_von(con, aid: int) -> list[dict]:
@@ -518,6 +530,7 @@ def bezuege_pruefen(con) -> None:
         "SELECT 1 FROM dublettenverdacht d JOIN verdacht_kandidat vk ON vk.verdacht_id = d.id"
         " WHERE d.status = 'offen' AND NOT EXISTS (SELECT 1 FROM buchung b WHERE b.id = vk.buchung_id)",
     )
+    pruefungen += kredite.BEZUG_SQL  # M5 (protokoll.md 11.1)
     for sql in pruefungen:
         if _fehlt(con, sql):
             raise _konflikt("Der wiederhergestellte Zustand verweist auf nicht mehr vorhandene Objekte.")

@@ -30,21 +30,26 @@ import zipfile
 import zlib
 from typing import Any
 
-from . import __version__, buch, db, protokoll, regeln, vorlagen
+from . import __version__, buch, db, kredite, protokoll, regeln, vorlagen
 from .config import KontorConfig
 from .text import ekey
 from .validierung import ApiFehler, datum_gueltig
 
 FORMAT = "kontor-sicherung"
 FORMATVERSION = 1
-SCHEMAVERSION = 1
+SCHEMAVERSION = 2
 OBJEKTE = protokoll.OBJEKTE
+# Objektarten aus M9 (immer in ``anzahl``) und ab M5 nur bei Vorhandensein (sicherung.md 2.5, E-109)
+OBJEKTE_IMMER = ("konto", "empfaenger", "tag", "buchung", "regel", "verdacht", "abstimmung", "vorlage")
+OBJEKTE_OPTIONAL = ("kredit",)
 NAMEN = ("manifest.json", "kontor.sqlite")
 MAX_ENTPACKT = 4 * 1024 ** 3  # Schutz gegen ZIP-Bomben (sicherung.md 8: mindestens 1 GiB)
 MAX_MANIFEST = 1024 ** 2
 
 # Objektarten je Schemaversion der Sicherungsdatei (für spätere Meilensteine, sicherung.md 2.3, 3.4).
-OBJEKTE_JE_VERSION = {1: OBJEKTE}
+OBJEKTE_JE_VERSION = {1: OBJEKTE_IMMER, 2: OBJEKTE}
+# Tabellen, die erst ab einer Schemaversion der Sicherungsdatei existieren (ältere Sicherungen: leer, 3.4)
+TABELLEN_AB = {"kredit": 2, "kredit_zuordnung": 2, "kredit_abgleich": 2}
 
 # Tabellen der Sicherungsdatei (Schemaversion 1): Name → [(Spalte, Typ, nullbar)]. Die Namen entsprechen den
 # Tabellen der App-Datenbank; ``id_zaehler`` hält die höchste je vergebene ID je Objektart (auch Splits).
@@ -79,23 +84,37 @@ SPALTEN: dict[str, list[tuple[str, str, bool]]] = {
                            ("letzter_erfolg_am", "str", True), ("entscheidung", "str", True),
                            ("entscheidung_buchungen", "str", True)],
     "id_zaehler": [("objekt", "str", False), ("hoechste_id", "int", False)],
+    # Schemaversion 2 (M5): Kredite mit Zuordnungen und Jahresabgleichen
+    "kredit": [("id", "int", False), ("name", "str", False), ("konto_id", "int", False),
+               ("zahlungskonto_id", "int", False), ("zins_konto_id", "int", False), ("restschuld", "int", False),
+               ("stand_datum", "str", False), ("sollzins", "int", False), ("zinsmethode", "str", False),
+               ("rate", "int", False), ("erste_faelligkeit", "str", False), ("sondertilgungen", "str", False),
+               ("bedingungen", "str", False), ("aktiv", "bool", False)],
+    "kredit_zuordnung": [("kredit_id", "int", False), ("faelligkeit", "str", False), ("buchung_id", "int", False)],
+    "kredit_abgleich": [("kredit_id", "int", False), ("jahr", "int", False), ("restschuld", "int", False),
+                        ("zinsen", "int", False), ("buchung_id", "int", True)],
 }
 _ORDNUNG = {
     "split": "buchung_id, position, id", "empfaenger_alias": "empfaenger_id, alias",
     "buchung_tag": "buchung_id, tag_id", "buchung_extern": "buchung_id, extern_id",
     "vorschlag": "buchung_id", "verdacht_kandidat": "verdacht_id, buchung_id", "sync_kennung": "kennung",
     "sync_konto_zustand": "iban", "id_zaehler": "objekt",
+    "kredit_zuordnung": "kredit_id, faelligkeit", "kredit_abgleich": "kredit_id, jahr",
 }
 _SCHLUESSEL = {"empfaenger_alias": "PRIMARY KEY (empfaenger_id, alias)", "buchung_tag": "PRIMARY KEY (buchung_id, tag_id)",
                "buchung_extern": "PRIMARY KEY (extern_id)", "verdacht_kandidat": "PRIMARY KEY (verdacht_id, buchung_id)",
                "vorschlag": "PRIMARY KEY (buchung_id)", "sync_kennung": "PRIMARY KEY (kennung)",
-               "sync_konto_zustand": "PRIMARY KEY (iban)", "id_zaehler": "PRIMARY KEY (objekt)"}
+               "sync_konto_zustand": "PRIMARY KEY (iban)", "id_zaehler": "PRIMARY KEY (objekt)",
+               "kredit_zuordnung": "PRIMARY KEY (kredit_id, faelligkeit)",
+               "kredit_abgleich": "PRIMARY KEY (kredit_id, jahr)"}
 # Buchbestand (ohne Kennungen, Bankkonto-Zustand, Zähler) in Einfügereihenfolge.
 BUCH_TABELLEN = ("konto", "empfaenger", "empfaenger_alias", "tag", "regel", "abstimmung", "buchung", "split",
-                 "buchung_tag", "buchung_extern", "vorschlag", "dublettenverdacht", "verdacht_kandidat", "vorlage")
+                 "buchung_tag", "buchung_extern", "vorschlag", "dublettenverdacht", "verdacht_kandidat", "vorlage",
+                 "kredit", "kredit_zuordnung", "kredit_abgleich")
 # Objektart (bzw. "split") → Tabelle der App-Datenbank mit AUTOINCREMENT-Zähler.
 ZAEHLER = {"konto": "konto", "empfaenger": "empfaenger", "tag": "tag", "buchung": "buchung", "split": "split",
-           "regel": "regel", "verdacht": "dublettenverdacht", "abstimmung": "abstimmung", "vorlage": "vorlage"}
+           "regel": "regel", "verdacht": "dublettenverdacht", "abstimmung": "abstimmung", "vorlage": "vorlage",
+           "kredit": "kredit"}
 
 _SHA = re.compile(r"^[0-9a-f]{64}$")
 _ZEIT = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
@@ -130,10 +149,15 @@ def inhalt_sha256(formen: dict[str, dict[int, dict]], arten) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
+def vorhandene_arten(formen: dict[str, dict[int, dict]]) -> tuple[str, ...]:
+    """Objektarten von ``anzahl``/``inhalt``: die aus M9 immer, ab M5 nur bei Vorhandensein (sicherung.md 2.5)."""
+    return tuple(o for o in OBJEKTE if o in OBJEKTE_IMMER or formen.get(o))
+
+
 def alle_formen(con) -> dict[str, dict[int, dict]]:
     """Protokollformen des gesamten Buchbestands (je Objektart: ID → Form)."""
     tabellen = {"konto": "konto", "empfaenger": "empfaenger", "tag": "tag", "buchung": "buchung", "regel": "regel",
-                "verdacht": "dublettenverdacht", "abstimmung": "abstimmung", "vorlage": "vorlage"}
+                "verdacht": "dublettenverdacht", "abstimmung": "abstimmung", "vorlage": "vorlage", "kredit": "kredit"}
     aus = {}
     for o in OBJEKTE:
         ids = [r[0] for r in con.execute(f"SELECT id FROM {tabellen[o]} ORDER BY id")]
@@ -180,6 +204,7 @@ def _erstellen(pfad, modus: str, erstellt: dt.datetime) -> tuple[bytes, str]:
     finally:
         ziel.close()
         con.close()
+    arten = vorhandene_arten(formen)
     manifest = {
         "format": FORMAT,
         "formatversion": FORMATVERSION,
@@ -187,8 +212,8 @@ def _erstellen(pfad, modus: str, erstellt: dt.datetime) -> tuple[bytes, str]:
         "modus": modus,
         "app_version": __version__,
         "schemaversion": SCHEMAVERSION,
-        "anzahl": {o: len(formen[o]) for o in OBJEKTE},
-        "inhalt_sha256": inhalt_sha256(formen, OBJEKTE),
+        "anzahl": {o: len(formen[o]) for o in arten},
+        "inhalt_sha256": inhalt_sha256(formen, arten),
         "datenbank_sha256": hashlib.sha256(daten).hexdigest(),
     }
     zeit = erstellt.astimezone(dt.timezone.utc)
@@ -330,7 +355,7 @@ def _manifest_pruefen(roh: bytes) -> dict:
     if m["formatversion"] <= FORMATVERSION and m["schemaversion"] <= SCHEMAVERSION:
         # Schlüssel nur für unterstützte Versionen prüfbar (spätere Versionen: version_nicht_unterstuetzt)
         bekannt = OBJEKTE_JE_VERSION[m["schemaversion"]]
-        if not set(a) <= set(bekannt) or (m["schemaversion"] == SCHEMAVERSION and set(a) != set(bekannt)):
+        if not set(a) <= set(bekannt) or not set(OBJEKTE_IMMER) <= set(a):
             schlecht("anzahl")
     for feld in ("inhalt_sha256", "datenbank_sha256"):
         if not isinstance(m[feld], str) or not _SHA.match(m[feld]):
@@ -374,7 +399,7 @@ def _schema_pruefen(con: sqlite3.Connection, schemaversion: int) -> None:
     def fremd(meldung: str):
         _ungueltig("datenbank_fremd", f"kontor.sqlite passt nicht zum erwarteten Schema: {meldung}")
 
-    erwartet = SPALTEN  # Schemaversion 1 (ältere Versionen gibt es noch nicht)
+    erwartet = {t: s for t, s in SPALTEN.items() if TABELLEN_AB.get(t, 1) <= schemaversion}
     tabellen = {}
     for typ, name, sql in con.execute("SELECT type, name, sql FROM sqlite_master"):
         if typ not in ("table", "index"):
@@ -394,9 +419,12 @@ def _schema_pruefen(con: sqlite3.Connection, schemaversion: int) -> None:
             fremd(f"Spalten der Tabelle {tabelle}.")
 
 
-def _zeilen_lesen(con: sqlite3.Connection) -> dict[str, list[tuple]]:
+def _zeilen_lesen(con: sqlite3.Connection, schemaversion: int) -> dict[str, list[tuple]]:
     aus: dict[str, list[tuple]] = {}
     for tabelle, spalten in SPALTEN.items():
+        if TABELLEN_AB.get(tabelle, 1) > schemaversion:
+            aus[tabelle] = []  # ältere Sicherung: Objektart gilt als leer (3.4)
+            continue
         namen = [s[0] for s in spalten]
         zeilen = []
         for r in con.execute(f'SELECT {", ".join(namen)} FROM "{tabelle}" ORDER BY rowid'):
@@ -445,6 +473,9 @@ def _inhalt_pruefen(zeilen: dict[str, list[tuple]]) -> dict[str, dict[int, dict]
                                         ("abstimmung", "erstellt_am", "zeit", False),
                                         ("dublettenverdacht", "erstellt_am", "zeit", False),
                                         ("sync_konto_zustand", "letzter_abruf_bis", "datum", True),
+                                        ("kredit", "stand_datum", "datum", False),
+                                        ("kredit", "erste_faelligkeit", "datum", False),
+                                        ("kredit_zuordnung", "faelligkeit", "datum", False),
                                         ("sync_konto_zustand", "letzter_erfolg_am", "zeit", True)):
         i = spalte(tabelle, name)
         for r in zeilen[tabelle]:
@@ -502,6 +533,30 @@ def _inhalt_pruefen(zeilen: dict[str, list[tuple]]) -> dict[str, dict[int, dict]
                                                      "teile": json.loads(r["teile"])}).encode(), True)
             except (ValueError, ApiFehler):
                 schlecht("Split-Vorlage")
+        for r in mem.execute("SELECT * FROM kredit").fetchall():
+            try:
+                geprueft = kredite.kredit_pruefen({"name": r["name"], "konto_id": r["konto_id"],
+                                        "zahlungskonto_id": r["zahlungskonto_id"], "zins_konto_id": r["zins_konto_id"],
+                                        "restschuld": r["restschuld"], "stand_datum": r["stand_datum"],
+                                        "sollzins": r["sollzins"], "zinsmethode": r["zinsmethode"], "rate": r["rate"],
+                                        "erste_faelligkeit": r["erste_faelligkeit"],
+                                        "sondertilgungen": json.loads(r["sondertilgungen"]),
+                                        "bedingungen": json.loads(r["bedingungen"]), "aktiv": bool(r["aktiv"])}, True)
+                k = kredite.kredit_dict(mem, r)
+                fehler: list[dict] = []
+                kredite.parameter_beziehungen(k, [], fehler)
+                if fehler or geprueft["sondertilgungen"] != k["sondertilgungen"] or geprueft["name"] != k["name"]:
+                    raise ValueError("Kredit")
+                arten = {x["id"]: x["art"] for x in mem.execute(
+                    "SELECT id, art FROM konto WHERE id IN (?, ?, ?)",
+                    (k["konto_id"], k["zahlungskonto_id"], k["zins_konto_id"]))}
+                if (arten.get(k["konto_id"]) != "kreditkonto" or arten.get(k["zins_konto_id"]) != "aufwand"
+                        or arten.get(k["zahlungskonto_id"]) not in buch.BESTAND
+                        or k["zahlungskonto_id"] == k["konto_id"]):
+                    raise ValueError("Kredit")
+                kredite.plan_berechnen(kredite.parameter_von(k))
+            except (ValueError, TypeError, KeyError, ApiFehler, kredite.KreditRateZuKlein):
+                schlecht("Kredit")
         try:
             protokoll.bezuege_pruefen(mem)
         except ApiFehler:
@@ -542,7 +597,7 @@ def pruefen(roh: bytes) -> Sicherung:
         con = _oeffnen(daten)
         try:
             _schema_pruefen(con, m["schemaversion"])
-            zeilen = _zeilen_lesen(con)
+            zeilen = _zeilen_lesen(con, m["schemaversion"])
         finally:
             con.close()
         formen = _inhalt_pruefen(zeilen)
@@ -563,7 +618,10 @@ def pruefen(roh: bytes) -> Sicherung:
 def vergleich(aktuell: dict[str, dict[int, dict]], s: Sicherung) -> tuple[dict, int]:
     """sicherung.md 5.2 und 5.5: (Unterschied je Objektart, betroffene abgestimmte/abgeglichene Buchungen)."""
     unterschied = {}
-    for o in s.arten:
+    for o in OBJEKTE:
+        # ab M5: Objektart nur, wenn Sicherung oder aktueller Bestand Objekte dieser Art enthalten (2.5)
+        if o not in s.arten and not (o in OBJEKTE_OPTIONAL and aktuell.get(o)):
+            continue
         a, b = aktuell.get(o, {}), s.formen.get(o, {})
         unterschied[o] = {"angelegt": sum(1 for i in b if i not in a),
                           "geaendert": sum(1 for i in b if i in a and a[i] != b[i]),
@@ -594,7 +652,7 @@ def probelauf(con, s: Sicherung) -> dict:
     return _ergebnis(s, True, not _identisch(aktuell, s), None, unterschied, betroffen)
 
 
-_LOESCHEN = ("vorschlag", "buchung_tag", "buchung_extern", "verdacht_kandidat", "dublettenverdacht", "split",
+_LOESCHEN = ("kredit_abgleich", "kredit_zuordnung", "kredit", "vorschlag", "buchung_tag", "buchung_extern", "verdacht_kandidat", "dublettenverdacht", "split",
              "buchung", "abstimmung", "regel", "vorlage", "empfaenger_alias", "empfaenger", "tag", "konto")
 
 

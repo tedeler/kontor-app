@@ -17,7 +17,7 @@ from dataclasses import dataclass
 
 import json
 
-from . import buch, db, lernmodell, pflege, protokoll, regeln, vorlagen
+from . import buch, db, kredite, lernmodell, pflege, protokoll, regeln, vorlagen, wiederkehrend
 from .buch import BESTAND, ApiFehler
 from .config import KontorConfig
 from .fehler import (BankPinFalsch, KontorFehler, TanAbgelaufen, TanErforderlich, TanUngueltig)
@@ -187,6 +187,8 @@ class SyncDienst:
             with db.transaktion(con):
                 for r in faellig:
                     self._tan_ablaufen(con, r["id"], r["lauf_id"])
+            for r in faellig:
+                self._wiederkehrend_nach_lauf(con, r["lauf_id"])
         finally:
             con.close()
 
@@ -221,6 +223,7 @@ class SyncDienst:
                 "buchungen_zur_pruefung": k["buchungen_zur_pruefung"],
                 "buchungen_kategorisiert": k["buchungen_kategorisiert"],
                 "buchungen_gesplittet": k["buchungen_gesplittet"], "vorlage_abweichungen": k["vorlage_abweichungen"],
+                "buchungen_kredit": k["buchungen_kredit"],
                 "fehler": None if k["fehler_code"] is None else {"code": k["fehler_code"],
                                                                  "meldung": k["fehler_meldung"]},
             })
@@ -378,6 +381,7 @@ class SyncDienst:
             con.execute("UPDATE sync_lauf SET status = 'fehlgeschlagen', beendet_am = ?, fehler_code = ?,"
                         " fehler_meldung = ? WHERE id = ?", (self.jetzt_text(), code, meldung, lid))
             self._fehler_melden(con, [code])
+        self._wiederkehrend_nach_lauf(con, lid)
 
     def _fehler_melden(self, con, codes: list[str]) -> None:
         for code in dict.fromkeys(codes):
@@ -437,8 +441,9 @@ class SyncDienst:
                             "Synchronisation übersprungen. Soll das Konto wiederhergestellt oder das Bankkonto "
                             "künftig ignoriert werden?", link="/sync/konten")
                     continue
-                con.execute("INSERT INTO sync_lauf_konto (lauf_id, iban, konto_id, konto_neu, status)"
-                            " VALUES (?, ?, ?, ?, 'ausstehend')", (lid, iban, kid, 1 if neu else 0))
+                vorher = 1 if z is not None and z["letzter_erfolg_am"] is not None else 0  # wiederkehrend.md 5
+                con.execute("INSERT INTO sync_lauf_konto (lauf_id, iban, konto_id, konto_neu, status, vorher_abgerufen)"
+                            " VALUES (?, ?, ?, ?, 'ausstehend', ?)", (lid, iban, kid, 1 if neu else 0, vorher))
                 con.execute("INSERT INTO sync_konto_zustand (iban, konto_id) VALUES (?, ?)"
                             " ON CONFLICT(iban) DO UPDATE SET konto_id = excluded.konto_id, entscheidung = NULL,"
                             " entscheidung_buchungen = NULL", (iban, kid))
@@ -514,6 +519,32 @@ class SyncDienst:
             else:
                 con.execute("UPDATE sync_lauf SET status = 'erfolgreich', beendet_am = ? WHERE id = ?",
                             (self.jetzt_text(), lid))
+        self._wiederkehrend_nach_lauf(con, lid)
+
+    def _wiederkehrend_nach_lauf(self, con, lid: int) -> None:
+        """wiederkehrend.md 5 / synchronisation.md 17.3: nach einem Lauf mit Endstatus auf unerwartete Buchungen
+        prüfen – mit den in diesem Lauf neu angelegten, noch existierenden Buchungen von Bankkonten, die vor dem
+        Lauf schon einmal erfolgreich abgerufen wurden. Nur bei ``wiederkehrend_automatisch``."""
+        if not self.config.wiederkehrend_automatisch:
+            return
+        ibans = [r["iban"] for r in con.execute("SELECT iban FROM sync_lauf_konto WHERE lauf_id = ?"
+                                                " AND vorher_abgerufen = 1", (lid,))]
+        ids: set[int] = set()
+        if ibans:
+            for r in con.execute(
+                    "SELECT DISTINCT e.objekt_id AS id FROM aenderung a JOIN aenderung_eintrag e ON e.aenderung_id = a.id"
+                    " WHERE a.gruppe = ? AND a.aktion = 'sync_konto' AND e.objekt = 'buchung' AND e.art = 'angelegt'",
+                    (f"sync:{lid}",)):
+                ids.add(r["id"])
+            erlaubt = set()
+            for teil in buch._stueckweise(sorted(ids)):
+                for r in con.execute(f"SELECT buchung_id, extern_id FROM buchung_extern WHERE buchung_id IN"
+                                     f" ({buch._platzhalter(len(teil))})", teil):
+                    if any(r["extern_id"].startswith(f"bank:{i}:") for i in ibans):
+                        erlaubt.add(r["buchung_id"])
+            ids &= erlaubt
+        with db.transaktion(con):
+            wiederkehrend.pruefen(con, sorted(ids), self.heute().isoformat(), self.jetzt_text())
 
     # ------------------------------------------------------------- TAN
     def _tan_anlegen(self, con, lid: int, k, von: dt.date, bis: dt.date, e: TanErforderlich, plugin) -> None:
@@ -612,6 +643,7 @@ class SyncDienst:
                     raise ApiFehler(409, "tan_nicht_offen", "Die TAN-Anforderung ist nicht mehr offen.")
                 self._tan_beenden(con, tid, "abgebrochen")
                 self._lauf_abbrechen(con, t["lauf_id"], self.jetzt_text())
+            self._wiederkehrend_nach_lauf(con, t["lauf_id"])
             return self.tan_lesen(con, tid)
         finally:
             con.close()
@@ -621,7 +653,7 @@ class SyncDienst:
         iban, kid = k["iban"], k["konto_id"]
         z = dict(umsaetze_gesamt=len(umsaetze), vormerkungen_ignoriert=0, buchungen_vorhanden=0,
                  buchungen_zusammengefuehrt=0, buchungen_neu=0, buchungen_zur_pruefung=0, buchungen_kategorisiert=0,
-                 buchungen_gesplittet=0, vorlage_abweichungen=0)
+                 buchungen_gesplittet=0, vorlage_abweichungen=0, buchungen_kredit=0)
         reihe = sorted(umsaetze, key=lambda u: (u.buchungstag, u.umsatz_id))
         neue: set[int] = set()
         with protokoll.protokolliert(con, "sync", "sync_konto", self.jetzt_text(), f"sync:{lid}"):
@@ -643,11 +675,11 @@ class SyncDienst:
                         " fehler_meldung = NULL, umsaetze_gesamt = ?, vormerkungen_ignoriert = ?,"
                         " buchungen_vorhanden = ?, buchungen_zusammengefuehrt = ?, buchungen_neu = ?,"
                         " buchungen_zur_pruefung = ?, buchungen_kategorisiert = ?, buchungen_gesplittet = ?,"
-                        " vorlage_abweichungen = ? WHERE lauf_id = ? AND iban = ?",
+                        " vorlage_abweichungen = ?, buchungen_kredit = ? WHERE lauf_id = ? AND iban = ?",
                         (von.isoformat(), bis.isoformat(), z["umsaetze_gesamt"], z["vormerkungen_ignoriert"],
                          z["buchungen_vorhanden"], z["buchungen_zusammengefuehrt"], z["buchungen_neu"],
                          z["buchungen_zur_pruefung"], z["buchungen_kategorisiert"], z["buchungen_gesplittet"],
-                         z["vorlage_abweichungen"], lid, iban))
+                         z["vorlage_abweichungen"], z["buchungen_kredit"], lid, iban))
             alt = con.execute("SELECT letzter_abruf_bis FROM sync_konto_zustand WHERE iban = ?", (iban,)).fetchone()
             neu_bis = bis.isoformat()
             if alt is not None and alt["letzter_abruf_bis"] and alt["letzter_abruf_bis"] > neu_bis:
@@ -698,6 +730,7 @@ class SyncDienst:
         # M4 (lernmodell.md 5.1): Trainingsmenge zu Beginn der Verarbeitung des Kontos
         modell = (lernmodell.trainieren(con) if self.config.lernmodell_automatisch and bewertung else None)
         eigene_ibans = {r["iban"] for r in con.execute("SELECT iban FROM konto WHERE iban IS NOT NULL")}
+        kredit_erkennung = kredite.SyncErkennung(con, kid) if bewertung else None  # M5: Stufe 0 (17.1)
         unk_id: int | None = None
         jetzt = self.jetzt_text()
         for u, kennung, name, exakt, aehnlich in bewertung:
@@ -711,15 +744,21 @@ class SyncDienst:
             empf_id = buch.empfaenger_bestimmen(con, name) if name is not None else None
             gegen_iban = pflege.gegen_iban(u.gegenpartei_iban)
             # Stufenfolge (synchronisation.md 15.1): Vorlage → Regel → Standardkategorie → Lernmodell → Unkategorisiert
-            erkennung = vorlagen.erkennen(vorlagenliste, sicht)
+            rate = kredit_erkennung.erkennen(sicht, u.buchungstag, u.betrag) if kredit_erkennung else None
+            erkennung = vorlagen.KEINE if rate is not None else vorlagen.erkennen(vorlagenliste, sicht)
             vorschlag = None  # (kategorie_id, regel_id, quelle, sicherheit)
-            if erkennung.art == "treffer":
+            status = "importiert"
+            if rate is not None:
+                plan, zeile = rate
+                splits = [{"konto_id": kid, "betrag": u.betrag, "memo": ""}] + kredite.aufteilung(plan.kredit, zeile)
+                status = "vorlaeufig"
+            elif erkennung.art == "treffer":
                 splits = [{"konto_id": kid, "betrag": u.betrag, "memo": ""}] + vorlagen.teile_splits(erkennung.vorlage)
             else:
                 if unk_id is None:
                     unk_id = buch.unkategorisiert_id(con)
                 gegen = unk_id
-                if erkennung.art == "keine":
+                if erkennung.art == "keine" and rate is None:
                     regel = regeln.erste_regel(regelliste, sicht)
                     std = None
                     if regel is None and empf_id is not None:
@@ -737,10 +776,14 @@ class SyncDienst:
                         gegen = vorschlag[0]
                 splits = [{"konto_id": kid, "betrag": u.betrag, "memo": ""},
                           {"konto_id": gegen, "betrag": -u.betrag, "memo": ""}]
-            bid = buch.buchung_einfuegen(con, u.buchungstag.isoformat(), empf_id, u.verwendungszweck, "importiert",
+            bid = buch.buchung_einfuegen(con, u.buchungstag.isoformat(), empf_id, u.verwendungszweck, status,
                                          splits, (), [kennung], gegen_iban=gegen_iban)
             neue.add(bid)
             z["buchungen_neu"] += 1
+            if rate is not None:
+                plan.vergeben.add(zeile["faelligkeit"])
+                kredite.zuordnung_eintragen(con, plan.kredit["id"], zeile["faelligkeit"], bid)
+                z["buchungen_kredit"] += 1
             if erkennung.art == "treffer":
                 z["buchungen_gesplittet"] += 1
             elif erkennung.art == "abweichung":

@@ -47,9 +47,14 @@ class KontorConfig:
     umbuchung_fenster_tage: int = 3
     # Meilenstein 4: Lernmodell bei neuen Buchungen (python-api.md 10.1)
     lernmodell_automatisch: bool = False
+    # Meilenstein 5: Prüfung auf unerwartete Buchungen nach jedem Lauf (python-api.md 12.1)
+    wiederkehrend_automatisch: bool = False
 
     def __post_init__(self) -> None:
         setze = object.__setattr__
+        if not isinstance(self.wiederkehrend_automatisch, bool):
+            raise KonfigurationsFehler("wiederkehrend_automatisch muss wahr oder falsch sein.",
+                                       feld="wiederkehrend_automatisch")
         if not isinstance(self.lernmodell_automatisch, bool):
             raise KonfigurationsFehler("lernmodell_automatisch muss wahr oder falsch sein.",
                                        feld="lernmodell_automatisch")
@@ -140,6 +145,8 @@ class KontorConfig:
                                                "KONTOR_UMBUCHUNG_AUTOMATISCH", False)
         lernmodell_automatisch = _wahrheitswert(wert("KONTOR_LERNMODELL_AUTOMATISCH"),
                                                 "KONTOR_LERNMODELL_AUTOMATISCH", False)
+        wiederkehrend_automatisch = _wahrheitswert(wert("KONTOR_WIEDERKEHREND_AUTOMATISCH"),
+                                                   "KONTOR_WIEDERKEHREND_AUTOMATISCH", False)
         text = wert("KONTOR_UMBUCHUNG_FENSTER_TAGE")
         if text:
             if not text.isascii() or not text.isdigit() or int(text) > 366:
@@ -168,6 +175,7 @@ class KontorConfig:
             planer_starten=planer_starten,
             umbuchung_automatisch=umbuchung_automatisch,
             lernmodell_automatisch=lernmodell_automatisch,
+            wiederkehrend_automatisch=wiederkehrend_automatisch,
             **ganz,
         )
 

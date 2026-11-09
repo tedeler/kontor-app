@@ -136,6 +136,8 @@ def konto_aendern(con, konto_id: int, d: dict) -> dict:
 
 def konto_loeschen(con, konto_id: int) -> None:
     konto_lesen(con, konto_id)
+    from . import kredite
+    kredite.konto_pruefen(con, konto_id)  # M5: Kredit verweist auf das Konto (kredite.md 2.3)
     if con.execute("SELECT 1 FROM split WHERE konto_id = ? LIMIT 1", (konto_id,)).fetchone():
         raise ApiFehler(409, "konto_in_verwendung", "Auf das Konto wird noch gebucht.")
     if con.execute("SELECT 1 FROM konto WHERE eltern_id = ? LIMIT 1", (konto_id,)).fetchone():

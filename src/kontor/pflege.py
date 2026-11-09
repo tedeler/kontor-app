@@ -426,6 +426,8 @@ def _regel_bezieht(r: dict, kid: int) -> bool:
 def konto_loeschen_mit_buchungen(con, kid: int, d: dict) -> dict:
     """loeschen.md 2–4; im Probelauf wird alles in einem Sicherungspunkt gerechnet und verworfen."""
     k = buch.konto_lesen(con, kid)
+    from . import kredite
+    kredite.konto_pruefen(con, kid)  # M5 (loeschen.md 7): nach Schritt 2, auch im Probelauf
     variante, konflikte = d["buchungen"], d["konflikte"]
     trocken = d.get("trocken", False)
     if variante == "elternkonto" and k["eltern_id"] is None:
