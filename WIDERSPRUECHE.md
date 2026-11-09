@@ -74,4 +74,23 @@ widersprüchlich ist). Gelöst werden Widersprüche nur von einem Test-Thread.
 - **Status:** vom Test-Thread behoben (E-111, kontor-tests Commit `3649524`/`8cece3c`: die Zeile mit
   `rate = 0` bleibt im Plan und wird nie einer Zahlung zugeordnet); umgesetzt, der Test ist grün. Erledigt.
 
-Stand: Meilenstein 5, keine offenen Widersprüche.
+## W-004 M2-Test verlangt `SyncStatus` ohne das M6-Feld `pin_quelle`
+
+- **Betroffener Test:** `tests/app/m2/test_m2_sync.py::test_laeufe_und_status` (kontor-tests Commit `10855a3`).
+- **Was der Test erwartet:** `GET /api/sync/status` ist exakt gleich einem Objekt mit genau den acht Schlüsseln
+  `automatisch`, `intervall_minuten`, `laeuft`, `jetzt`, `naechster_lauf`, `letzter_lauf`,
+  `offene_tan_anforderung`, `pin_vorhanden` (Vergleich mit `==`, zusätzliche Schlüssel lassen ihn scheitern).
+- **Was die Spezifikation sagt:** `fints.md` 5: „`GET /api/sync/status`: zusätzliches Feld `pin_quelle`
+  (`eingabe` | `systemd-creds`; im Schema optional, in M6-Tests Pflicht)“; `synchronisation.md` 18.1:
+  „`SyncStatus` erhält das Feld `pin_quelle`.“ Der M6-Test `tests/app/m6/test_m6_pin_systemd.py::test_vorgabe_eingabe`
+  verlangt das Feld auch bei der Vorgabe `eingabe` im Mock-Modus (`status(mock_api)["pin_quelle"] == "eingabe"`).
+  E-029: neue Felder bestehender Antwortschemas sind im Schema optional, Tests früherer Meilensteine bleiben
+  unverändert.
+- **Warum widersprüchlich:** Dieselbe Instanz (Mock-Modus, Vorgabe `eingabe`) müsste das Feld für den M6-Test
+  liefern und für den M2-Test weglassen. Der M2-Test prüft auf exakte Gleichheit und verträgt damit keine
+  rückwärtskompatible Erweiterung nach E-029. Vorschlag: im M2-Test nur die acht Schlüssel vergleichen
+  (z. B. `{k: st[k] for k in (...)}`) oder `pin_quelle` dort zulassen.
+- **Umgang:** Umgesetzt ist die Spezifikation (`pin_quelle` immer vorhanden); der M2-Test schlägt fehl.
+- **Status:** offen.
+
+Stand: Meilenstein 6, ein offener Widerspruch (W-004).

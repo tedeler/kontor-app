@@ -964,8 +964,17 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     async def wiederkehrend_pruefen(request: Request):
         roh = await request.body()
         d = pruefe_koerper(roh if roh.strip() else b"{}", WIEDERKEHREND_PRUEFEN)
-        return await schreiben(wiederkehrend.pruefen_rest, d.get("buchung_ids") or [], sync.heute().isoformat(),
-                               sync.jetzt_text())
+        erg = await schreiben(wiederkehrend.pruefen_rest, d.get("buchung_ids") or [], sync.heute().isoformat(),
+                              sync.jetzt_text())
+        if erg["benachrichtigungen"] and zustellung.plugin is not None:
+            # M6: erst zustellen, dann antworten – die Antwort zeigt den Stand der Zustellung (4.3 Schritt 1)
+            await neue_zustellen()
+
+            def neu_lesen(con):
+                ids = [b["id"] for b in erg["benachrichtigungen"]]
+                return [b for b in buch.benachrichtigungen_liste(con, None) if b["id"] in ids]
+            erg = {**erg, "benachrichtigungen": await lesen(neu_lesen)}
+        return erg
 
     # -------------------------------------------- M5: Berichte und Export
     def berichtsfilter(request: Request) -> dict:
