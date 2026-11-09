@@ -167,6 +167,20 @@ Commit-Nachrichten sind auf Deutsch.
 - Beenden: `SyncDienst.beenden` (Frist, `_schreib_sperre`/`_abbruch`), danach `db.checkpoint`.
 - Maßstab: alle Tests einschließlich `m7` und `leistung`; `m8` erst, wenn beauftragt.
 
+## Codequalität vor jedem Meilenstein
+
+- **Vor Beginn jedes neuen Meilensteins** die Codequalitätsanalyse nach
+  `refactor.md` („Ablauf der Analyse“) wiederholen: Kennzahlentabelle um eine
+  Zeile ergänzen, Bewertung und Maßnahmenliste (`R-xx`) fortschreiben, als
+  eigenen Commit („Mx: Codequalitätsanalyse“) vor der ersten Änderung des
+  Meilensteins.
+- Verschlechtert sich eine Kennzahl gegenüber der Vorzeile (mehr mypy-Fehler,
+  mehr Funktionen mit radon D/E/F, echte SQL-Funde), die Ursache benennen und
+  eine Maßnahme anlegen. Echte SQL-Funde und neue unbegründete breite
+  `except` vor dem Meilenstein beheben.
+- Refactorings ändern kein Verhalten; Maßstab bleibt die Testsuite aus
+  kontor-tests. Neue Funktionen mit C901 ≤ 15, Überschreitungen begründen.
+
 ## Arbeitsablauf
 
 1. `pip install --break-system-packages -e /home/claude/impl/kontor-app`
