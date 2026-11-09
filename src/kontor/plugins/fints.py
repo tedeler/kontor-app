@@ -31,7 +31,7 @@ from ..fehler import (BankFehler, BankKontoUnbekannt, BankPinFalsch, BankPinFehl
                       TanAbgelaufen, TanErforderlich, TanUngueltig)
 from ..netz import http_anfrage
 from ..text import iban_gueltig, iban_normalisieren
-from .bank import BankKonto, BankPlugin, BankUmsatz, TanAntwort
+from .bank import BankKonto, BankPlugin, BankSaldo, BankUmsatz, TanAntwort, Umsatzliste
 
 BERLIN = ZoneInfo("Europe/Berlin")
 UTC = dt.timezone.utc
@@ -352,7 +352,7 @@ class FintsBankPlugin(BankPlugin):
             return [k for k, _ in konten]
 
     def umsaetze(self, iban: str, von: dt.date, bis: dt.date, *,
-                 tan: TanAntwort | None = None) -> list[BankUmsatz]:
+                 tan: TanAntwort | None = None) -> Umsatzliste:
         with self._sperre:
             self._konfiguriert()
             if von > bis:
@@ -571,8 +571,49 @@ class FintsBankPlugin(BankPlugin):
             aufsetzpunkt = self._seite_lesen(antwort, seg, camt, seiten)
             if aufsetzpunkt is None:
                 break
+        return self._abschluss(d, iban, von, bis, konto, seiten)
+
+    def _abschluss(self, d: _Dialog, iban: str, von: dt.date, bis: dt.date, konto, seiten: list) -> Umsatzliste:
+        """Nach dem letzten Abrufteil: Umsätze auswerten, im selben Dialog den Saldo abfragen, Dialog beenden."""
+        umsaetze = self._ergebnis(iban, von, bis, seiten)
+        saldo = self._saldo(d, iban, konto)
         self._dialog_beenden(d)
-        return self._ergebnis(iban, von, bis, seiten)
+        return Umsatzliste(umsaetze, saldo=saldo)
+
+    # ------------------------------------------------------------ Saldo (kontostand.md 1.2)
+    def _saldo_angeboten(self, d: _Dialog, iban: str) -> bool:
+        """HISALS in der BPD und HKSAL unter den erlaubten Geschäftsvorfällen des Kontos in der UPD."""
+        if d.client.bpd.find_segment_first("HISALS") is None:
+            return False
+        for u in d.client.upd.find_segments("HIUPD"):
+            u_iban = getattr(u, "iban", None)
+            if u_iban and iban_normalisieren(str(u_iban)) == iban:
+                return any(str(getattr(t, "transaction", "") or "") == "HKSAL"
+                           for t in (getattr(u, "allowed_transactions", None) or []))
+        return False
+
+    def _saldo(self, d: _Dialog, iban: str, konto) -> BankSaldo | None:
+        """Genau ein HKSAL im Dialog des Umsatzabrufs; scheitert nur die Saldenabfrage, ist der Saldo None."""
+        from fints.segments.saldo import HKSAL5, HKSAL6, HKSAL7
+        if not self._saldo_angeboten(d, iban):
+            return None
+        try:
+            klasse = d.client._find_highest_supported_command(HKSAL5, HKSAL6, HKSAL7)
+            seg = klasse(account=klasse._fields["account"].type.from_sepa_account(konto), all_accounts=False)
+        except Exception:  # noqa: BLE001 - FinTSUnsupportedOperation o. ä.: keine passende Version
+            return None
+        if self._tan_noetig(d, seg):
+            return None  # für den Saldo nie eine TAN (kontostand.md 1)
+        try:
+            antwort = self._senden(d, seg)
+        except KontorFehler:
+            return None
+        if any(c.startswith("9") for c in _codes(antwort, seg)):
+            return None
+        for h in list(antwort.response_segments(seg, "HISAL")) or [
+                h for h in antwort.find_segments("HISAL") if h.header.reference is None]:
+            return _saldo_aus_hisal(iban, h)
+        return None
 
     def _seite_lesen(self, antwort, seg, camt: bool, seiten: list) -> str | None:
         """Prüft die Rückmeldungen zum Abruf, sammelt die Daten und liefert den Aufsetzpunkt (3040) oder None."""
@@ -680,14 +721,45 @@ class FintsBankPlugin(BankPlugin):
             _fehler_aus_codes(codes)
             aufsetzpunkt = self._seite_lesen(antwort, o.segment, o.camt, o.seiten)
             if aufsetzpunkt is None:
-                self._dialog_beenden(d)
-                return self._ergebnis(iban, o.von, o.bis, o.seiten)
+                return self._abschluss(d, iban, o.von, o.bis, o.konto, o.seiten)
             return self._abruf(d, iban, o.von, o.bis, o.konto, o.seiten, aufsetzpunkt)
         except TanErforderlich:
             raise
         except BaseException:
             self._dialog_verwerfen(d)
             raise
+
+
+def _saldo_aus_hisal(iban: str, h) -> BankSaldo | None:
+    """HISAL (Version 5: Balance1, 6/7: Balance2) → BankSaldo in Cent; Haben positiv, Soll negativ, nur EUR."""
+    import decimal
+    b = getattr(h, "balance_booked", None)
+    if b is None or getattr(b, "date", None) is None:
+        return None
+    betrag = getattr(b, "amount", None)
+    waehrung = getattr(b, "currency", None)
+    if betrag is not None and hasattr(betrag, "amount"):  # Balance2 mit Amount1
+        betrag, waehrung = betrag.amount, betrag.currency
+    if betrag is None or str(waehrung or "") != "EUR":
+        return None
+    try:
+        cent_dez = decimal.Decimal(betrag) * 100
+    except (decimal.InvalidOperation, TypeError, ValueError):
+        return None
+    if cent_dez != cent_dez.to_integral_value():
+        return None
+    cent = abs(int(cent_dez))
+    kennzeichen = str(getattr(getattr(b, "credit_debit", None), "value", getattr(b, "credit_debit", "")) or "")
+    if kennzeichen == "D":
+        cent = -cent
+    elif kennzeichen != "C":
+        return None
+    datum = b.date
+    if isinstance(datum, dt.datetime):
+        datum = datum.date()
+    if not isinstance(datum, dt.date):
+        return None
+    return BankSaldo(iban=iban, betrag=cent, stichtag=datum)
 
 
 __all__ = ["FintsBankPlugin", "camt_eintraege", "mt940_eintraege", "kennungen_vergeben"]

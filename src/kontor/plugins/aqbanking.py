@@ -36,7 +36,7 @@ from ..fehler import (BankFehler, BankKontoUnbekannt, BankPinFalsch, BankPinFehl
                       BankVerbindungsFehler, BankZeitueberschreitung, BankZugangGesperrt, PluginNichtVerfuegbar,
                       TanUngueltig)
 from ..text import iban_gueltig, iban_normalisieren
-from .bank import BankKonto, BankPlugin, BankUmsatz, TanAntwort
+from .bank import BankKonto, BankPlugin, BankSaldo, BankUmsatz, TanAntwort, Umsatzliste
 from .fints import PIN_CODES, _Roh, kennungen_vergeben
 
 CLI = "aqbanking-cli"
@@ -243,20 +243,44 @@ def _roh(t: _Gruppe) -> _Roh | None:
     return _Roh(buchungstag, valuta, cent, name or None, _gegen_iban(t.wert("remoteIban")), zweck, False, False)
 
 
-def umsaetze_aus_kontext(text: str, iban: str) -> list[_Roh]:
-    """Gebuchte Umsätze des Kontos ``iban`` (normalisiert) in Lieferreihenfolge."""
-    wurzel = kontext_lesen(text)
+def _konten_im_kontext(wurzel: _Gruppe, iban: str) -> list[_Gruppe]:
+    """``accountInfo``-Gruppen des Kontos ``iban``; ohne IBAN nur, wenn es genau ein Konto gibt."""
     konten = wurzel.alle("accountInfo")
     passend = [k for k in konten if iban_normalisieren(k.wert("iban") or "") == iban]
     if not passend:
         passend = [k for k in konten if not k.wert("iban")] if len(konten) == 1 else []
+    return passend
+
+
+def umsaetze_aus_kontext(text: str, iban: str) -> list[_Roh]:
+    """Gebuchte Umsätze des Kontos ``iban`` (normalisiert) in Lieferreihenfolge."""
     aus: list[_Roh] = []
-    for k in passend:
+    for k in _konten_im_kontext(kontext_lesen(text), iban):
         for t in k.alle("transaction"):
             r = _roh(t)
             if r is not None:
                 aus.append(r)
     return aus
+
+
+def saldo_aus_kontext(text: str, iban: str) -> BankSaldo | None:
+    """kontostand.md 1.3: gebuchter Saldo (``balance`` mit ``type = booked``, spätestes ``date``), nur EUR."""
+    beste: tuple[dt.date, int] | None = None
+    for k in _konten_im_kontext(kontext_lesen(text), iban):
+        for b in k.alle("balance"):
+            if (b.wert("type") or "").lower() != "booked":
+                continue
+            datum = _datum(b.wert("date"))
+            cent, waehrung = _betrag(b.wert("value"))
+            if datum is None or (waehrung or "").upper() != "EUR":
+                continue
+            if beste is None or datum > beste[0]:
+                beste = (datum, cent)
+    return None if beste is None else BankSaldo(iban=iban, betrag=beste[1], stichtag=beste[0])
+
+
+# Lokale Ablehnung der Saldenabfrage durch AqBanking (E-166): Die Bank wurde nicht kontaktiert.
+_SALDO_NICHT_UNTERSTUETZT = re.compile(r'Request\s+"getBalance".*not\s+supported', re.IGNORECASE)
 
 
 # ================================================================ Konten und Benutzer
@@ -336,7 +360,7 @@ class AqbankingBankPlugin(BankPlugin):
             return [k for k, _ in self._konten(programme)]
 
     def umsaetze(self, iban: str, von: dt.date, bis: dt.date, *,
-                 tan: TanAntwort | None = None) -> list[BankUmsatz]:
+                 tan: TanAntwort | None = None) -> Umsatzliste:
         with self._sperre:
             programme = self._verfuegbar()
             if von > bis:
@@ -464,22 +488,43 @@ class AqbankingBankPlugin(BankPlugin):
         return benutzer
 
     def _abruf(self, programme: dict[str, str], iban: str, konto: str, *, von: dt.date, bis: dt.date,
-               pin: bytes) -> list[BankUmsatz]:
-        """Genau ein ``request --transactions`` (nicht interaktiv, ohne Wiederholung), dann Abbildung (4.2)."""
+               pin: bytes) -> Umsatzliste:
+        """Genau ein ``request --transactions`` (nicht interaktiv, ohne Wiederholung), dann Abbildung (4.2).
+
+        Mit ``aqbanking_saldo`` zusätzlich ``--balance`` im selben Auftrag; lehnt AqBanking das lokal ab (die Bank
+        bietet die Saldenabfrage nicht an), folgt sofort genau ein ``request`` ohne ``--balance`` (kontostand.md
+        1.3, E-166)."""
+        mit_saldo = self._config.aqbanking_saldo
         with tempfile.TemporaryDirectory(prefix="kontor-aqbanking-", dir=tempfile.gettempdir()) as ablage:
             kontext = Path(ablage) / "abruf.ctx"
-            lauf = self._starten(programme[CLI], [
-                "-n", "request", "--transactions", f"--iban={konto}", f"--fromdate={von:%Y%m%d}",
-                f"--todate={bis:%Y%m%d}", "-c", str(kontext)], pin=pin)
-            fehler_aus_ausgabe(lauf.rc, lauf.stderr.decode("utf-8", errors="replace"))
+            lauf = self._request(programme, konto, von, bis, kontext, pin, mit_saldo)
+            stderr = lauf.stderr.decode("utf-8", errors="replace")
+            if mit_saldo and lauf.rc != 0 and _SALDO_NICHT_UNTERSTUETZT.search(stderr):
+                mit_saldo = False
+                kontext.unlink(missing_ok=True)
+                lauf = self._request(programme, konto, von, bis, kontext, pin, False)
+                stderr = lauf.stderr.decode("utf-8", errors="replace")
+            fehler_aus_ausgabe(lauf.rc, stderr)
             try:
                 text = kontext.read_text(encoding="utf-8", errors="replace")
                 roh = umsaetze_aus_kontext(text, iban)
             except (OSError, ValueError):
                 raise BankVerbindungsFehler("Die Antwort der Bank ist unlesbar.") from None
+            saldo = None
+            if mit_saldo:
+                try:
+                    saldo = saldo_aus_kontext(text, iban)
+                except ValueError:
+                    saldo = None  # nur der Saldo ist unlesbar: Umsätze bleiben gültig
         aus = [u for u in kennungen_vergeben(iban, roh) if von <= u.buchungstag <= bis]
         aus.sort(key=lambda u: (u.buchungstag, u.umsatz_id))
-        return aus
+        return Umsatzliste(aus, saldo=saldo)
+
+    def _request(self, programme: dict[str, str], konto: str, von: dt.date, bis: dt.date, kontext: Path,
+                 pin: bytes, mit_saldo: bool) -> _Lauf:
+        return self._starten(programme[CLI], [
+            "-n", "request", "--transactions", *(["--balance"] if mit_saldo else []), f"--iban={konto}",
+            f"--fromdate={von:%Y%m%d}", f"--todate={bis:%Y%m%d}", "-c", str(kontext)], pin=pin)
 
 
 __all__ = ["AqbankingBankPlugin"]
