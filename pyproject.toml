@@ -29,7 +29,7 @@ kontor = "kontor.__main__:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-kontor = ["web/*.html", "web/*.webmanifest", "web/static/*", "web/oeffentlich/*", "betrieb/*"]
+kontor = ["web/*.html", "web/*.js", "web/oeffentlich/*", "web/oeffentlich/app/*", "betrieb/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

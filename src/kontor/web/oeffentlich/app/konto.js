@@ -1,0 +1,875 @@
+/* Kontor – Kontoansicht (oberflaeche.md 7): Filter, Buchungsliste, Auswahl und Fokus, Mehrfachbearbeitung,
+ * Inline-Bearbeitung, Kontextmenü, Drag and Drop auf Kategorien, Panels (15) und Gesten (16.4). */
+import {
+  STATUS_TEXT, abfrage, aktion, api, betragEl, betragLesen, datumEl, datumText, h, kategorien, kontoPfad,
+  melde, neueId, oberflaeche, pfadVon, stamm, tid,
+} from "./kern.js";
+import {
+  bestaetigen, dialog, dubletteDialog, erfassenDialog, kategorieAuswahl, kontextmenue, knopf, menuePosition,
+  splitDialog, tagAuswahl,
+} from "./ui.js";
+import { kategorienBaum, langeBeruehrung, ziehbar } from "./baum.js";
+
+const PRO_SEITE = 200;
+const STATUS = ["importiert", "vorlaeufig", "bestaetigt", "abgeglichen"];
+const PARAMETER = ["von", "bis", "betrag_min", "betrag_max", "empfaenger_id", "ohne_empfaenger", "verwendungszweck",
+  "suche", "kategorie_id", "unterkategorien", "tag_id", "status", "sortierung"];
+const SPALTEN = [["datum", "Datum", true], ["empfaenger", "Empfänger", true], ["verwendungszweck", "Verwendungszweck"],
+  ["kategorie", "Kategorie"], ["tags", "Tags"], ["status", "Status"], ["betrag", "Betrag", true]];
+
+// ------------------------------------------------------------------ Layout der Panels (15, E-141)
+const LAYOUT_SCHLUESSEL = "kontor.layout";
+const VORGABE = () => ({ version: 1, panels: {
+  kategorien: { bereich: "links", position: 0, breite: 240, eingeklappt: false },
+  details: { bereich: "rechts", position: 1, breite: 320, eingeklappt: false } } });
+const PANEL_TITEL = { kategorien: "Kategorien", details: "Einzelheiten" };
+const BREITE_MIN = 160;
+const BREITE_MAX = 600;
+
+export function layoutLaden() {
+  try {
+    const l = JSON.parse(localStorage.getItem(LAYOUT_SCHLUESSEL));
+    if (!l || l.version !== 1 || !l.panels) return VORGABE();
+    for (const p of ["kategorien", "details"]) {
+      const e = l.panels[p];
+      if (!e || !["links", "rechts"].includes(e.bereich) || !Number.isInteger(e.position) || !Number.isInteger(e.breite)
+        || e.breite < BREITE_MIN || e.breite > BREITE_MAX || typeof e.eingeklappt !== "boolean") return VORGABE();
+    }
+    return { version: 1, panels: { kategorien: { ...l.panels.kategorien }, details: { ...l.panels.details } } };
+  } catch (e) {
+    return VORGABE();
+  }
+}
+
+const layoutSpeichern = (l) => localStorage.setItem(LAYOUT_SCHLUESSEL, JSON.stringify(l));
+
+export function layoutZuruecksetzen() {
+  localStorage.removeItem(LAYOUT_SCHLUESSEL);
+}
+
+// ------------------------------------------------------------------ Seite
+export async function kontoSeite(seite, kontoId, suche) {
+  const konto = await api("GET", `/api/konten/${kontoId}`);
+  const s = new Kontoansicht(seite, konto, suche);
+  await s.start();
+  return s;
+}
+
+class Kontoansicht {
+  constructor(seite, konto, suche) {
+    this.seite = seite;
+    this.konto = konto;
+    this.titel = konto.name;
+    this.filter = this.filterAusUrl(suche);
+    this.eintraege = [];
+    this.gesamt = 0;
+    this.summe = 0;
+    this.seiten = 1;
+    this.auswahl = new Set();
+    this.anker = null;
+    this.fokusId = null;
+    this.zeilen = new Map();
+    this.verdachte = [];
+    this.layout = layoutLaden();
+    this.filterSichtbar = !oberflaeche.istMobil();
+  }
+
+  // ---------------------------------------------------------------- Filter (7.1)
+  filterAusUrl(suche) {
+    const q = new URLSearchParams(suche || "");
+    const f = {};
+    for (const p of PARAMETER) {
+      if (p === "status") { const st = q.getAll("status").filter((x) => STATUS.includes(x)); if (st.length) f.status = st; }
+      else if (q.has(p) && q.get(p) !== "") f[p] = q.get(p);
+    }
+    for (const p of ["betrag_min", "betrag_max", "empfaenger_id", "kategorie_id", "tag_id"]) {
+      if (f[p] !== undefined && !/^-?\d+$/.test(f[p])) delete f[p];
+    }
+    if (f.ohne_empfaenger !== undefined && f.ohne_empfaenger !== "true") delete f.ohne_empfaenger;
+    if (f.unterkategorien !== undefined && f.unterkategorien !== "true") delete f.unterkategorien;
+    return f;
+  }
+
+  get sortierung() { return this.filter.sortierung || "-datum"; }
+
+  filterAnzahl() {
+    return Object.keys(this.filter).filter((k) => k !== "sortierung").length;
+  }
+
+  urlSchreiben() {
+    const f = { ...this.filter };
+    if (!f.sortierung) f.sortierung = this.sortierung;
+    history.replaceState(history.state, "", `/konten/${this.konto.id}${abfrage(f)}`);
+  }
+
+  async filterSetzen(name, wert) {
+    const neu = { ...this.filter };
+    if (wert === null || wert === undefined || wert === "" || (Array.isArray(wert) && !wert.length)) delete neu[name];
+    else neu[name] = wert;
+    if (JSON.stringify(neu) === JSON.stringify(this.filter)) return;
+    this.filter = neu;
+    this.auswahl.clear();           // ein Filterwechsel hebt die Auswahl auf (7.1)
+    this.anker = null;
+    this.seiten = 1;
+    this.urlSchreiben();
+    await this.laden();
+  }
+
+  // ---------------------------------------------------------------- Laden
+  async start() {
+    this.aufbauen();
+    await this.laden();
+  }
+
+  async laden() {
+    this.seite.dataset.geladen = "nein";
+    const basis = { konto_id: this.konto.id, ...this.filter, sortierung: this.sortierung, pro_seite: PRO_SEITE };
+    const eintraege = [];
+    let gesamt = 0;
+    let summe = 0;
+    for (let n = 1; n <= this.seiten; n++) {
+      const s = await api("GET", "/api/buchungen" + abfrage({ ...basis, seite: n }));
+      eintraege.push(...s.eintraege);
+      gesamt = s.gesamt;
+      summe = s.summe;
+      if (eintraege.length >= gesamt) break;
+    }
+    try { this.verdachte = await api("GET", "/api/dubletten?status=offen"); } catch (e) { this.verdachte = []; }
+    this.eintraege = eintraege;
+    this.gesamt = gesamt;
+    this.summe = summe;
+    const ids = new Set(eintraege.map((b) => b.id));
+    for (const id of [...this.auswahl]) if (!ids.has(id)) this.auswahl.delete(id);
+    if (!ids.has(this.anker)) this.anker = null;
+    if (!ids.has(this.fokusId)) this.fokusId = null;
+    this.listeZeichnen();
+    this.seite.dataset.geladen = "ja";
+  }
+
+  async aktualisieren() {
+    await this.laden();
+  }
+
+  // ---------------------------------------------------------------- Aufbau
+  aufbauen() {
+    const s = this.seite;
+    const mobil = oberflaeche.istMobil();
+    this.filterKnopf = h("button", { type: "button", class: "knopf", tid: "filter-umschalten",
+      "aria-controls": "filter-leiste", "aria-expanded": String(this.filterSichtbar),
+      onclick: () => this.filterUmschalten() }, "Filter ",
+    this.filterZahl = h("span", { class: "zahl-marke sichtbar", tid: "filter-anzahl", "data-anzahl": "0" }, "0"));
+    this.anzahlEl = h("span", { tid: "buchungsliste-anzahl", "data-anzahl": "0" });
+    this.summeEl = h("span", { tid: "buchungsliste-summe", "data-betrag": "0", class: "betrag" });
+    this.auswahlEl = h("span", { tid: "auswahl-anzahl", "data-anzahl": "0", class: "auswahl-anzahl" });
+    const erfassen = knopf("Buchung erfassen", { tid: "buchung-erfassen",
+      onclick: (e) => erfassenDialog(this.konto.id, e.currentTarget) });
+    s.append(h("div", { class: "seiten-kopf" }, h("h1", null, this.konto.name),
+      h("div", { class: "werkzeuge" }, this.filterKnopf, erfassen)),
+    h("div", { class: "listen-info" }, this.anzahlEl, " · Summe ", this.summeEl, " · ", this.auswahlEl));
+    this.filterLeiste = this.filterAufbauen();
+    s.append(this.filterLeiste);
+    this.liste = h("div", { role: "grid", tid: "buchungsliste", "aria-multiselectable": "true", "aria-label": "Buchungen",
+      "aria-rowcount": "-1", class: "buchungsliste", "data-kompakt": mobil ? "ja" : "nein" });
+    this.leerEl = h("p", { tid: "buchungsliste-leer", class: "leer", hidden: true }, "Keine Buchungen.");
+    this.mehrEl = knopf("Weitere laden", { tid: "buchungsliste-mehr", hidden: true, onclick: async () => {
+      this.seiten += 1;
+      await this.laden();
+    } });
+    this.listenSpalte = h("div", { class: "listen-spalte" }, this.liste, this.leerEl, this.mehrEl);
+    this.arbeit = h("div", { class: "arbeitsbereich" });
+    s.append(this.arbeit);
+    this.mehrfach = this.mehrfachAufbauen();
+    s.append(this.mehrfach);
+    this.arbeitZeichnen();
+    this.listeEreignisse();
+  }
+
+  layoutGeaendert() {
+    const mobil = oberflaeche.istMobil();
+    this.liste.dataset.kompakt = mobil ? "ja" : "nein";
+    this.arbeitZeichnen();
+    this.listeZeichnen();
+  }
+
+  filterUmschalten() {
+    this.filterSichtbar = !this.filterSichtbar;
+    this.filterLeiste.hidden = !this.filterSichtbar;
+    this.filterKnopf.setAttribute("aria-expanded", String(this.filterSichtbar));
+  }
+
+  filterAufbauen() {
+    const f = this.filter;
+    const leiste = h("div", { class: "filter-leiste", id: "filter-leiste", tid: "filter-leiste", role: "search",
+      "aria-label": "Filter der Buchungsliste", hidden: !this.filterSichtbar });
+    const feld = (text, el) => {
+      el.id = el.id || neueId("filter");
+      return h("div", { class: "feld" }, h("label", { for: el.id }, text), el);
+    };
+    const datum = (name) => {
+      const el = h("input", { type: "date", tid: `filter-${name}`, value: f[name] || "" });
+      el.addEventListener("change", () => this.filterSetzen(name, el.value));
+      return el;
+    };
+    const text = (name, testid) => {
+      const el = h("input", { type: "text", tid: testid, value: f[name] || "", maxlength: "200" });
+      const setzen = () => this.filterSetzen(name, el.value.trim());
+      el.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); setzen(); } });
+      el.addEventListener("change", setzen);
+      return el;
+    };
+    const betrag = (name, testid) => {
+      const el = h("input", { type: "text", inputmode: "decimal", tid: testid,
+        value: f[name] !== undefined ? betragEingabeText(Number(f[name])) : "" });
+      const setzen = () => {
+        const c = betragLesen(el.value);
+        if (c === null) { el.setAttribute("aria-invalid", "true"); return; }
+        el.removeAttribute("aria-invalid");
+        this.filterSetzen(name, c === "" ? "" : String(c));
+      };
+      el.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); setzen(); } });
+      el.addEventListener("change", setzen);
+      return el;
+    };
+    const empf = h("select", { tid: "filter-empfaenger" }, h("option", { value: "" }, "– alle Empfänger –"),
+      h("option", { value: "ohne" }, "ohne Empfänger"),
+      stamm.empfaenger.map((e) => h("option", { value: String(e.id) }, e.name)));
+    empf.value = f.ohne_empfaenger ? "ohne" : (f.empfaenger_id || "");
+    empf.addEventListener("change", async () => {
+      const neu = { ...this.filter };
+      delete neu.empfaenger_id;
+      delete neu.ohne_empfaenger;
+      if (empf.value === "ohne") neu.ohne_empfaenger = "true";
+      else if (empf.value) neu.empfaenger_id = empf.value;
+      this.filter = neu;
+      this.auswahl.clear();
+      this.anker = null;
+      this.seiten = 1;
+      this.urlSchreiben();
+      await this.laden();
+    });
+    const kat = h("select", { tid: "filter-kategorie" }, h("option", { value: "" }, "– alle Kategorien –"),
+      kategorien().map(({ konto }) => h("option", { value: String(konto.id) }, kontoPfad(konto))));
+    kat.value = f.kategorie_id || "";
+    kat.addEventListener("change", () => this.filterSetzen("kategorie_id", kat.value));
+    const unter = h("input", { type: "checkbox", tid: "filter-unterkategorien", checked: f.unterkategorien === "true" });
+    unter.addEventListener("change", () => this.filterSetzen("unterkategorien", unter.checked ? "true" : ""));
+    const tag = h("select", { tid: "filter-tag" }, h("option", { value: "" }, "– alle Tags –"),
+      stamm.tags.slice().sort((a, b) => a.name.localeCompare(b.name, "de"))
+        .map((t) => h("option", { value: String(t.id) }, t.name)));
+    tag.value = f.tag_id || "";
+    tag.addEventListener("change", () => this.filterSetzen("tag_id", tag.value));
+    const status = h("fieldset", { class: "status-filter" }, h("legend", null, "Status"),
+      STATUS.map((st) => {
+        const c = h("input", { type: "checkbox", tid: `filter-status-${st}`, value: st,
+          checked: (f.status || []).includes(st) });
+        c.addEventListener("change", () => {
+          const gew = [...leiste.querySelectorAll(".status-filter input:checked")].map((x) => x.value);
+          this.filterSetzen("status", gew);
+        });
+        return h("label", { class: "wahl" }, c, " " + STATUS_TEXT[st]);
+      }));
+    const zurueck = knopf("Filter zurücksetzen", { tid: "filter-zuruecksetzen", onclick: async () => {
+      const sort = this.filter.sortierung;
+      this.filter = sort ? { sortierung: sort } : {};
+      this.auswahl.clear();
+      this.anker = null;
+      this.seiten = 1;
+      this.urlSchreiben();
+      const neu = this.filterAufbauen();
+      neu.hidden = this.filterLeiste.hidden;
+      this.filterLeiste.replaceWith(neu);
+      this.filterLeiste = neu;
+      await this.laden();
+    } });
+    leiste.append(feld("Von", datum("von")), feld("Bis", datum("bis")),
+      feld("Betrag ab (€)", betrag("betrag_min", "filter-betrag-min")),
+      feld("Betrag bis (€)", betrag("betrag_max", "filter-betrag-max")),
+      feld("Empfänger", empf), feld("Verwendungszweck", text("verwendungszweck", "filter-verwendungszweck")),
+      feld("Freitext", text("suche", "filter-freitext")), feld("Kategorie", kat),
+      h("label", { class: "wahl" }, unter, " mit Unterkategorien"), feld("Tag", tag), status, zurueck);
+    return leiste;
+  }
+
+  // ---------------------------------------------------------------- Panels (15)
+  arbeitZeichnen() {
+    const mobil = oberflaeche.istMobil();
+    this.panelEls = {};
+    if (mobil) {
+      this.arbeit.replaceChildren(this.listenSpalte);
+      this.baumEl = null;
+      return;
+    }
+    const bereich = (name) => {
+      const el = h("div", { class: `bereich bereich-${name}`, tid: `bereich-${name}` });
+      const panels = Object.entries(this.layout.panels).filter(([, p]) => p.bereich === name)
+        .sort((a, b) => a[1].position - b[1].position);
+      // von außen (Fensterrand) nach innen (Liste): links aufsteigend, rechts absteigend in der DOM-Reihenfolge
+      if (name === "rechts") panels.reverse();
+      for (const [p] of panels) el.append(this.panel(p));
+      el.append(h("div", { class: "ablage", tid: `ablage-${name}`, hidden: true, "aria-hidden": "true" }));
+      return el;
+    };
+    this.bereichLinks = bereich("links");
+    this.bereichRechts = bereich("rechts");
+    this.arbeit.replaceChildren(this.bereichLinks, this.listenSpalte, this.bereichRechts);
+    this.detailsZeichnen();
+  }
+
+  panel(p) {
+    const l = this.layout.panels[p];
+    const kopfId = neueId("panel-titel");
+    const einklappen = h("button", { type: "button", class: "knopf-flach", tid: `panel-einklappen-${p}`,
+      "aria-expanded": String(!l.eingeklappt), "aria-label": `Panel ${PANEL_TITEL[p]} ${l.eingeklappt ? "aufklappen" : "einklappen"}`,
+      onclick: () => { l.eingeklappt = !l.eingeklappt; this.layoutAnwenden(); } }, l.eingeklappt ? "▸" : "▾");
+    const verschieben = h("button", { type: "button", class: "knopf-flach", tid: `panel-verschieben-${p}`,
+      "aria-label": `Panel ${PANEL_TITEL[p]} in den ${l.bereich === "links" ? "rechten" : "linken"} Bereich verschieben`,
+      onclick: () => this.panelVerschieben(p, l.bereich === "links" ? "rechts" : "links") }, "⇄");
+    const kopf = h("div", { class: "panel-kopf", tid: `panel-kopf-${p}` }, h("h2", { id: kopfId }, PANEL_TITEL[p]),
+      verschieben, einklappen);
+    const inhalt = h("div", { class: "panel-inhalt" });
+    const griff = h("div", { class: "panel-griff", tid: `panel-groesse-${p}`, role: "separator",
+      "aria-orientation": "vertical", "aria-valuenow": String(l.breite), "aria-valuemin": String(BREITE_MIN),
+      "aria-valuemax": String(BREITE_MAX), tabindex: "0", "aria-label": `Breite des Panels ${PANEL_TITEL[p]}` });
+    const el = h("section", { class: "panel", tid: `panel-${p}`, "aria-labelledby": kopfId, "data-bereich": l.bereich,
+      "data-eingeklappt": l.eingeklappt ? "ja" : "nein" }, kopf, inhalt, griff);
+    el.style.width = (l.eingeklappt ? 40 : l.breite) + "px";
+    this.panelEls[p] = { el, inhalt, griff };
+    this.griffBedienung(p, griff);
+    this.panelZiehen(p, kopf);
+    if (p === "kategorien") {
+      this.baumEl = kategorienBaum({ neuZeichnen: () => this.baumNeu() });
+      inhalt.append(this.baumEl);
+    }
+    return el;
+  }
+
+  baumNeu() {
+    const pe = this.panelEls.kategorien;
+    if (!pe) return;
+    this.baumEl = kategorienBaum({ neuZeichnen: () => this.baumNeu() });
+    pe.inhalt.replaceChildren(this.baumEl);
+  }
+
+  layoutAnwenden() {
+    layoutSpeichern(this.layout);
+    this.arbeitZeichnen();
+  }
+
+  panelVerschieben(p, ziel) {
+    const andere = Object.values(this.layout.panels).filter((x) => x.bereich === ziel);
+    const l = this.layout.panels[p];
+    l.bereich = ziel;
+    l.position = andere.length ? Math.max(...andere.map((x) => x.position)) + 1 : 0;   // innerste Stelle (15.2)
+    this.layoutAnwenden();
+  }
+
+  breiteSetzen(p, breite) {
+    const l = this.layout.panels[p];
+    l.breite = Math.max(BREITE_MIN, Math.min(BREITE_MAX, Math.round(breite)));
+    const pe = this.panelEls[p];
+    if (pe) {
+      pe.griff.setAttribute("aria-valuenow", String(l.breite));
+      if (!l.eingeklappt) pe.el.style.width = l.breite + "px";
+    }
+    layoutSpeichern(this.layout);
+  }
+
+  griffBedienung(p, griff) {
+    const l = this.layout.panels[p];
+    griff.addEventListener("keydown", (e) => {
+      const links = l.bereich === "links";
+      const schritt = { ArrowRight: links ? 16 : -16, ArrowLeft: links ? -16 : 16 }[e.key];
+      if (schritt) { e.preventDefault(); this.breiteSetzen(p, l.breite + schritt); }
+      else if (e.key === "Home") { e.preventDefault(); this.breiteSetzen(p, BREITE_MIN); }
+      else if (e.key === "End") { e.preventDefault(); this.breiteSetzen(p, BREITE_MAX); }
+    });
+    griff.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const x0 = e.clientX;
+      const b0 = l.breite;
+      griff.setPointerCapture(e.pointerId);
+      const bewegen = (ev) => {
+        const dx = ev.clientX - x0;
+        this.breiteSetzen(p, l.bereich === "links" ? b0 + dx : b0 - dx);
+      };
+      const ende = () => {
+        griff.removeEventListener("pointermove", bewegen);
+        griff.removeEventListener("pointerup", ende);
+        griff.removeEventListener("pointercancel", ende);
+      };
+      griff.addEventListener("pointermove", bewegen);
+      griff.addEventListener("pointerup", ende);
+      griff.addEventListener("pointercancel", ende);
+    });
+  }
+
+  panelZiehen(p, kopf) {
+    let zielBereich = null;
+    ziehbar(kopf, {
+      quelle: () => ({ p }),
+      text: () => PANEL_TITEL[p],
+      start: () => {
+        this.arbeit.classList.add("panel-ziehen");
+        for (const n of ["links", "rechts"]) tid(`ablage-${n}`, this.arbeit).hidden = false;
+      },
+      ziel: (x, y) => {
+        zielBereich = null;
+        for (const n of ["links", "rechts"]) {
+          const a = tid(`ablage-${n}`, this.arbeit);
+          const r = a && a.getBoundingClientRect();
+          if (r && x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) {
+            zielBereich = n;
+            return { el: a, annehmen: true, bereich: n };
+          }
+        }
+        return null;
+      },
+      ende: () => {
+        this.arbeit.classList.remove("panel-ziehen");
+        for (const n of ["links", "rechts"]) { const a = tid(`ablage-${n}`, this.arbeit); if (a) a.hidden = true; }
+      },
+      ablegen: (q, z) => {
+        if (z.bereich !== this.layout.panels[p].bereich) this.panelVerschieben(p, z.bereich);
+      },
+    });
+    return zielBereich;
+  }
+
+  // ---------------------------------------------------------------- Einzelheiten (7.3)
+  detailsInhalt(b) {
+    if (!b) return [h("p", { class: "leer" }, "Keine Buchung gewählt.")];
+    return [
+      h("p", null, datumText(b.datum), " · ", b.empfaenger ? b.empfaenger.name : "ohne Empfänger"),
+      h("p", { class: "zweck" }, b.verwendungszweck),
+      h("ul", { class: "details-splits" }, b.splits.map((s) => h("li", { tid: `details-split-${s.id}`, class: "details-split" },
+        h("span", null, pfadVon(s.konto_id)), " ", betragEl("span", s.betrag), s.memo ? h("small", null, " " + s.memo) : null))),
+      b.tags.length ? h("p", null, "Tags: ", b.tags.map((t) => t.name).join(", ")) : null,
+      b.extern_ids.length ? h("p", { class: "klein" }, "Herkunft: ", b.extern_ids.join(", ")) : null,
+      h("p", { class: "klein" }, "Status: ", STATUS_TEXT[b.status] || b.status, b.abgestimmt ? " · abgestimmt" : ""),
+    ];
+  }
+
+  detailsZeichnen() {
+    const pe = this.panelEls && this.panelEls.details;
+    if (!pe) return;
+    const b = this.eintraege.find((x) => x.id === this.fokusId);
+    pe.inhalt.replaceChildren(...this.detailsInhalt(b).filter(Boolean));
+  }
+
+  detailsOeffnen() {
+    if (oberflaeche.istMobil()) {
+      const b = this.eintraege.find((x) => x.id === this.fokusId);
+      if (!b) return;
+      dialog("panel-details", "Einzelheiten", (inhalt) => {
+        inhalt.append(...this.detailsInhalt(b).filter(Boolean));
+      }, { schliessenKnopf: "details-schliessen", klasse: "dialog-details", fokus: (box) => tid("details-schliessen", box) });
+      return;
+    }
+    const l = this.layout.panels.details;
+    if (l.eingeklappt) { l.eingeklappt = false; this.layoutAnwenden(); }
+    this.detailsZeichnen();
+  }
+
+  // ---------------------------------------------------------------- Liste (7.2)
+  listeZeichnen() {
+    const kompakt = oberflaeche.istMobil();
+    const sort = this.sortierung;
+    const kopf = h("div", { role: "row", class: "liste-kopf" }, SPALTEN.map(([feld, text, sortierbar]) => {
+      const aktiv = sort.replace(/^-/, "") === feld;
+      const zelle = h("div", { role: "columnheader", class: `zelle zelle-${feld}`, "data-feld": feld,
+        "aria-sort": sortierbar ? (aktiv ? (sort.startsWith("-") ? "descending" : "ascending") : "none") : null });
+      if (sortierbar) {
+        zelle.append(h("button", { type: "button", class: "spalten-knopf", tid: `spalte-${feld}`,
+          onclick: () => this.filterSetzen("sortierung", aktiv ? (sort.startsWith("-") ? feld : "-" + feld) : feld) },
+        text, aktiv ? (sort.startsWith("-") ? " ↓" : " ↑") : ""));
+      } else zelle.append(text);
+      return zelle;
+    }));
+    this.zeilen = new Map();
+    const fokusImGrid = this.liste.contains(document.activeElement) && document.activeElement.getAttribute("role") === "row";
+    const zeilen = this.eintraege.map((b) => this.zeile(b, kompakt));
+    this.liste.replaceChildren(kopf, ...zeilen);
+    this.anzahlEl.dataset.anzahl = String(this.gesamt);
+    this.anzahlEl.textContent = this.gesamt === 1 ? "1 Buchung" : `${this.gesamt} Buchungen`;
+    this.summeEl.dataset.betrag = String(this.summe);
+    this.summeEl.textContent = betragEl("span", this.summe).textContent;
+    this.leerEl.hidden = this.gesamt !== 0;
+    this.mehrEl.hidden = this.eintraege.length >= this.gesamt;
+    this.filterZahl.dataset.anzahl = String(this.filterAnzahl());
+    this.filterZahl.textContent = String(this.filterAnzahl());
+    this.auswahlZeigen();
+    if (fokusImGrid && this.fokusId) this.zeilen.get(this.fokusId)?.focus({ preventScroll: true });
+    this.detailsZeichnen();
+  }
+
+  zeile(b, kompakt) {
+    const gegen = b.splits.filter((s) => s.konto_id !== this.konto.id);
+    const katText = b.kategorie_id ? pfadVon(b.kategorie_id) : (gegen.length > 1 ? "Gesplittet" : "");
+    const kat = h("div", { role: "gridcell", class: "zelle zelle-kategorie", "data-feld": "kategorie",
+      "data-kategorie-id": b.kategorie_id ? String(b.kategorie_id) : "" }, h("span", { class: "kat-text" }, katText));
+    if (b.vorschlag) {
+      kat.append(h("span", { class: "vorschlag-marke", tid: "vorschlag-marke", title: "Vorschlag" }, "Vorschlag"),
+        h("button", { type: "button", class: "mini-knopf", tid: `vorschlag-annehmen-${b.id}`, "data-nicht-ziehen": "",
+          "aria-label": `Vorschlag ${katText} annehmen`, onclick: (e) => this.vorschlag(e, [b.id], "annehmen") }, "✓"),
+        h("button", { type: "button", class: "mini-knopf", tid: `vorschlag-ablehnen-${b.id}`, "data-nicht-ziehen": "",
+          "aria-label": "Vorschlag ablehnen", onclick: (e) => this.vorschlag(e, [b.id], "ablehnen") }, "✗"));
+    }
+    const empfName = b.empfaenger ? b.empfaenger.name : "";
+    const empf = h("div", { role: "gridcell", class: "zelle zelle-empfaenger", "data-feld": "empfaenger",
+      "data-empfaenger-id": b.empfaenger ? String(b.empfaenger.id) : "" },
+    empfName || (kompakt ? h("span", { class: "ersatz" }, b.verwendungszweck) : ""));
+    const zeile = h("div", { role: "row", tid: `buchung-${b.id}`, class: "zeile", "aria-selected": "false",
+      tabindex: "-1", "data-id": String(b.id), "data-status": b.status, "data-vorschlag": b.vorschlag ? "ja" : "nein" },
+    datumEl("div", b.datum, { role: "gridcell", class: "zelle zelle-datum", "data-feld": "datum" }),
+    empf,
+    h("div", { role: "gridcell", class: "zelle zelle-verwendungszweck", "data-feld": "verwendungszweck" }, b.verwendungszweck),
+    kat,
+    h("div", { role: "gridcell", class: "zelle zelle-tags", "data-feld": "tags" },
+      b.tags.map((t) => h("span", { class: "tag", tid: "tag", "data-tag-id": String(t.id) }, t.name))),
+    h("div", { role: "gridcell", class: "zelle zelle-status", "data-feld": "status" }, STATUS_TEXT[b.status] || b.status),
+    betragEl("div", b.betrag, { role: "gridcell", class: "zelle zelle-betrag", "data-feld": "betrag" }));
+    if (b.abgestimmt || b.status === "abgeglichen") zeile.dataset.gesperrt = "ja";
+    this.zeilen.set(b.id, zeile);
+    return zeile;
+  }
+
+  auswahlZeigen() {
+    for (const [id, z] of this.zeilen) {
+      z.setAttribute("aria-selected", this.auswahl.has(id) ? "true" : "false");
+      z.tabIndex = id === this.fokusId ? 0 : -1;
+    }
+    if (!this.fokusId && this.zeilen.size) [...this.zeilen.values()][0].tabIndex = 0;
+    const n = this.auswahl.size;
+    this.auswahlEl.dataset.anzahl = String(n);
+    this.auswahlEl.textContent = n ? `${n} ausgewählt` : "keine Auswahl";
+    this.mehrfach.hidden = n === 0;
+    const mitVorschlag = this.eintraege.some((b) => this.auswahl.has(b.id) && b.vorschlag);
+    for (const t of ["mehrfach-vorschlag-annehmen", "mehrfach-vorschlag-ablehnen"]) tid(t, this.mehrfach).disabled = !mitVorschlag;
+  }
+
+  ids() { return this.eintraege.map((b) => b.id); }
+
+  bereich(a, b) {
+    const ids = this.ids();
+    let i = ids.indexOf(a);
+    let j = ids.indexOf(b);
+    if (i < 0) i = j;
+    if (i > j) [i, j] = [j, i];
+    return ids.slice(i, j + 1);
+  }
+
+  fokussieren(id, mitDom = true) {
+    this.fokusId = id;
+    this.auswahlZeigen();
+    const z = this.zeilen.get(id);
+    if (z && mitDom) { z.focus({ preventScroll: true }); z.scrollIntoView({ block: "nearest" }); }
+    this.detailsZeichnen();
+  }
+
+  klick(id, e) {
+    const strg = e.ctrlKey || e.metaKey;
+    if (oberflaeche.istMobil() && !strg && !e.shiftKey) {
+      if (this.auswahl.size === 0) { this.fokussieren(id); this.detailsOeffnen(); return; }
+      if (this.auswahl.has(id)) this.auswahl.delete(id); else this.auswahl.add(id);
+      this.anker = id;
+      this.fokussieren(id);
+      return;
+    }
+    if (strg && e.shiftKey) {
+      if (this.anker !== null) for (const x of this.bereich(this.anker, id)) this.auswahl.add(x);
+      else { this.auswahl.add(id); this.anker = id; }
+    } else if (strg) {
+      if (this.auswahl.has(id)) this.auswahl.delete(id); else this.auswahl.add(id);
+      this.anker = id;
+    } else if (e.shiftKey && this.anker !== null) {
+      this.auswahl = new Set(this.bereich(this.anker, id));
+    } else {
+      this.auswahl = new Set([id]);
+      this.anker = id;
+    }
+    this.fokussieren(id);
+  }
+
+  taste(e) {
+    const z = e.target.closest('[role="row"][data-id]');
+    if (!z || e.target !== z) return;
+    const id = Number(z.dataset.id);
+    const ids = this.ids();
+    const i = ids.indexOf(id);
+    const strg = e.ctrlKey || e.metaKey;
+    const ziel = { ArrowDown: ids[i + 1], ArrowUp: ids[i - 1], Home: ids[0], End: ids[ids.length - 1] }[e.key];
+    if (["ArrowDown", "ArrowUp", "Home", "End"].includes(e.key)) {
+      e.preventDefault();
+      if (ziel === undefined) return;
+      if (strg && !e.shiftKey) { this.fokussieren(ziel); return; }
+      if (e.shiftKey) {
+        if (this.anker === null) this.anker = id;
+        this.auswahl = new Set(this.bereich(this.anker, ziel));
+      } else {
+        this.auswahl = new Set([ziel]);
+        this.anker = ziel;
+      }
+      this.fokussieren(ziel);
+    } else if (e.key === " ") {
+      e.preventDefault();
+      if (this.auswahl.has(id)) this.auswahl.delete(id); else this.auswahl.add(id);
+      this.anker = id;
+      this.fokussieren(id);
+    } else if (strg && (e.key === "a" || e.key === "A")) {
+      e.preventDefault();
+      this.auswahl = new Set(ids);
+      this.auswahlZeigen();
+    } else if (e.key === "F2") {
+      e.preventDefault();
+      this.bearbeiten(id, "verwendungszweck");
+    } else if (e.key === "Delete") {
+      e.preventDefault();
+      if (!this.auswahl.size) { this.auswahl.add(id); this.auswahlZeigen(); }
+      this.loeschen(z);
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      this.fokussieren(id);
+      this.detailsOeffnen();
+    } else if ((e.key === "F10" && e.shiftKey) || e.key === "ContextMenu") {
+      e.preventDefault();
+      if (!this.auswahl.has(id)) { this.auswahl = new Set([id]); this.anker = id; }
+      this.fokussieren(id);
+      const [x, y] = menuePosition(null, z);
+      this.menue(x, y, z);
+    }
+  }
+
+  escape() {
+    if (!this.auswahl.size) return false;
+    this.auswahl.clear();
+    this.auswahlZeigen();
+    return true;
+  }
+
+  // ---------------------------------------------------------------- Ereignisse der Liste
+  listeEreignisse() {
+    const zeileVon = (t) => t && t.closest && t.closest('[role="row"][data-id]');
+    this.liste.addEventListener("click", (e) => {
+      if (e.target.closest("button, input, select, [data-testid=inline-editor]")) return;
+      const z = zeileVon(e.target);
+      if (z) this.klick(Number(z.dataset.id), e);
+    });
+    this.liste.addEventListener("dblclick", (e) => {
+      if (oberflaeche.istMobil()) return;
+      const zelle = e.target.closest("[data-feld]");
+      const z = zeileVon(e.target);
+      if (!z || !zelle || e.target.closest("button, input, select")) return;
+      if (["datum", "verwendungszweck", "kategorie"].includes(zelle.dataset.feld)) {
+        this.bearbeiten(Number(z.dataset.id), zelle.dataset.feld);
+      }
+    });
+    this.liste.addEventListener("keydown", (e) => this.taste(e));
+    this.liste.addEventListener("contextmenu", (e) => {
+      const z = zeileVon(e.target);
+      if (!z || e.target.closest("input, textarea")) return;
+      e.preventDefault();
+      const id = Number(z.dataset.id);
+      if (!this.auswahl.has(id)) { this.auswahl = new Set([id]); this.anker = id; }
+      this.fokussieren(id);
+      this.menue(e.clientX, e.clientY, z);
+    });
+    // Drag and Drop auf eine Kategorie im Panel (10)
+    ziehbar(this.liste, {
+      quelle: (ev) => {
+        const z = zeileVon(ev.target);
+        return z && !ev.target.closest("[data-testid=inline-editor]") ? { id: Number(z.dataset.id), z } : null;
+      },
+      start: (q) => {
+        if (!this.auswahl.has(q.id)) { this.auswahl = new Set([q.id]); this.anker = q.id; this.fokussieren(q.id); }
+        q.ids = this.ids().filter((x) => this.auswahl.has(x));
+      },
+      text: (q) => (this.auswahl.size > 1 ? `${this.auswahl.size} Buchungen` : "1 Buchung"),
+      ziel: (x, y) => (this.baumEl ? this.baumEl.buchungsZiel(x, y) : null),
+      ablegen: (q, z) => this.kategorieSetzen(q.ids, z.kategorie_id),
+    });
+    // Gesten (16.4)
+    langeBeruehrung(this.liste, (t) => zeileVon(t), (z, x, y) => {
+      const id = Number(z.dataset.id);
+      if (!this.auswahl.has(id)) { this.auswahl = new Set([id]); this.anker = id; }
+      this.fokussieren(id, false);
+      this.menue(x, y, z);
+    });
+    let w = null;
+    this.liste.addEventListener("touchstart", (e) => {
+      if (e.touches.length !== 1) { w = null; return; }
+      const z = zeileVon(e.target);
+      w = z ? { z, x: e.touches[0].clientX, y: e.touches[0].clientY, t: performance.now() } : null;
+    }, { passive: true });
+    this.liste.addEventListener("touchmove", (e) => {
+      if (w) { w.ex = e.touches[0].clientX; w.ey = e.touches[0].clientY; }
+    }, { passive: true });
+    this.liste.addEventListener("touchend", (e) => {
+      if (!w || w.ex === undefined) { w = null; return; }
+      const dx = w.ex - w.x;
+      const dy = Math.abs(w.ey - w.y);
+      const dt = performance.now() - w.t;
+      const z = w.z;
+      w = null;
+      if (Math.abs(dx) < 80 || dy > 40 || dt > 1000) return;
+      if (e.cancelable) e.preventDefault();
+      const id = Number(z.dataset.id);
+      if (dx > 0) {
+        if (this.auswahl.has(id)) this.auswahl.delete(id); else this.auswahl.add(id);
+        this.anker = id;
+        this.fokussieren(id, false);
+      } else {
+        const ids = this.auswahl.has(id) ? this.ids().filter((x) => this.auswahl.has(x)) : [id];
+        this.kategorieWaehlen(ids, z);
+      }
+    });
+  }
+
+  // ---------------------------------------------------------------- Kontextmenü (8.2)
+  auswahlIds() { return this.ids().filter((x) => this.auswahl.has(x)); }
+
+  menue(x, y, ausloeser) {
+    const ids = this.auswahlIds();
+    const eine = ids.length === 1;
+    const mitVorschlag = this.eintraege.some((b) => this.auswahl.has(b.id) && b.vorschlag);
+    const verdacht = eine ? this.verdachte.find((v) => v.buchung_id === ids[0] || v.kandidat_ids.includes(ids[0])) : null;
+    const b = eine ? this.eintraege.find((x2) => x2.id === ids[0]) : null;
+    kontextmenue(x, y, [
+      { tid: "km-kategorie", text: "Kategorie setzen…", tun: () => this.kategorieWaehlen(ids, ausloeser) },
+      { tid: "km-tags", text: "Tags…", tun: () => tagAuswahl(ids, ausloeser) },
+      { tid: "km-splitten", text: "Splitten…", aktiv: eine, tun: () => splitDialog(b, ausloeser) },
+      { tid: "km-dublette", text: "Als Dublette markieren…", aktiv: !!verdacht, tun: () => dubletteDialog(verdacht, ausloeser) },
+      { tid: "km-vorschlag-annehmen", text: "Vorschlag annehmen", aktiv: mitVorschlag, tun: () => this.vorschlag(null, ids, "annehmen") },
+      { tid: "km-vorschlag-ablehnen", text: "Vorschlag ablehnen", aktiv: mitVorschlag, tun: () => this.vorschlag(null, ids, "ablehnen") },
+      { tid: "km-bearbeiten", text: "Verwendungszweck bearbeiten", aktiv: eine, tun: () => this.bearbeiten(ids[0], "verwendungszweck") },
+      { tid: "km-loeschen", text: "Löschen…", tun: () => this.loeschen(ausloeser) },
+    ], ausloeser);
+  }
+
+  // ---------------------------------------------------------------- Mehrfachbearbeitung (7.5)
+  mehrfachAufbauen() {
+    const k = (testid, text, tun) => knopf(text, { tid: testid, onclick: (e) => tun(e.currentTarget) });
+    return h("div", { class: "mehrfach-leiste", tid: "mehrfach-leiste", role: "toolbar", "aria-label": "Auswahl bearbeiten",
+      hidden: true },
+    k("mehrfach-kategorie", "Kategorie…", (el) => this.kategorieWaehlen(this.auswahlIds(), el)),
+    k("mehrfach-tags", "Tags…", (el) => tagAuswahl(this.auswahlIds(), el)),
+    k("mehrfach-vorschlag-annehmen", "Vorschläge annehmen", () => this.vorschlag(null, this.auswahlIds(), "annehmen")),
+    k("mehrfach-vorschlag-ablehnen", "Vorschläge ablehnen", () => this.vorschlag(null, this.auswahlIds(), "ablehnen")),
+    k("mehrfach-loeschen", "Löschen…", (el) => this.loeschen(el)),
+    k("auswahl-aufheben", "Auswahl aufheben", () => { this.auswahl.clear(); this.auswahlZeigen(); }));
+  }
+
+  async kategorieWaehlen(ids, ausloeser) {
+    if (!ids.length) return;
+    const kat = await kategorieAuswahl(ids.length === 1 ? "Kategorie setzen" : `Kategorie für ${ids.length} Buchungen`,
+      ausloeser);
+    if (kat) await this.kategorieSetzen(ids, kat);
+  }
+
+  async kategorieSetzen(ids, kategorieId) {
+    const sortiert = ids.slice().sort((a, b) => a - b);
+    try {
+      await aktion(() => (sortiert.length === 1
+        ? api("PUT", `/api/buchungen/${sortiert[0]}/kategorie`, { kategorie_id: kategorieId })
+        : api("POST", "/api/buchungen/mehrfach/kategorie", { buchung_ids: sortiert, kategorie_id: kategorieId })),
+      { erfolg: `Kategorie „${pfadVon(kategorieId)}“ gesetzt.` });
+    } catch (e) { /* gemeldet, Liste zeigt den Stand des Servers */ }
+  }
+
+  async vorschlag(e, ids, was) {
+    if (e) { e.stopPropagation(); }
+    const mit = this.eintraege.filter((b) => ids.includes(b.id) && b.vorschlag).map((b) => b.id).sort((a, b) => a - b);
+    if (!mit.length) return;
+    try {
+      await aktion(() => (mit.length === 1 && e
+        ? api("POST", `/api/buchungen/${mit[0]}/vorschlag`, { aktion: was })
+        : api("POST", "/api/buchungen/mehrfach/vorschlag", { buchung_ids: mit, aktion: was })),
+      { erfolg: was === "annehmen" ? "Vorschlag angenommen." : "Vorschlag abgelehnt." });
+    } catch (f) { /* gemeldet */ }
+  }
+
+  async loeschen(ausloeser) {
+    const ids = this.auswahlIds().sort((a, b) => a - b);
+    if (!ids.length) return;
+    const ok = await bestaetigen(ids.length === 1 ? "1 Buchung löschen?" : `${ids.length} Buchungen löschen?`,
+      { ja: "Löschen", ausloeser });
+    if (!ok) return;
+    try {
+      await aktion(async () => {
+        for (const id of ids) await api("DELETE", `/api/buchungen/${id}`);
+      }, { erfolg: ids.length === 1 ? "Buchung gelöscht." : `${ids.length} Buchungen gelöscht.` });
+    } catch (e) { /* gemeldet */ }
+  }
+
+  // ---------------------------------------------------------------- Inline-Bearbeitung (7.6)
+  bearbeiten(id, feld) {
+    const b = this.eintraege.find((x) => x.id === id);
+    const z = this.zeilen.get(id);
+    if (!b || !z) return;
+    if (b.abgestimmt || b.status === "abgeglichen") {
+      melde("hinweis", "Diese Buchung ist abgestimmt bzw. abgeglichen und kann nicht bearbeitet werden.");
+      return;
+    }
+    const gegen = b.splits.filter((s) => s.konto_id !== this.konto.id);
+    if (feld === "kategorie" && gegen.length !== 1) {
+      melde("hinweis", "Gesplittete Buchungen über „Splitten…“ bearbeiten.");
+      return;
+    }
+    const zelle = z.querySelector(`[data-feld="${feld}"]`);
+    let editor;
+    let alt;
+    if (feld === "datum") {
+      alt = b.datum;
+      editor = h("input", { type: "date", value: b.datum, "aria-label": "Datum" });
+    } else if (feld === "verwendungszweck") {
+      alt = b.verwendungszweck;
+      editor = h("input", { type: "text", value: b.verwendungszweck, "aria-label": "Verwendungszweck" });
+    } else {
+      alt = b.kategorie_id ? String(b.kategorie_id) : "";
+      editor = h("select", { "aria-label": "Kategorie" }, h("option", { value: "" }, "– Kategorie wählen –"),
+        kategorien().map(({ konto }) => h("option", { value: String(konto.id) }, kontoPfad(konto))));
+      editor.value = alt;
+    }
+    editor.dataset.testid = "inline-editor";
+    editor.dataset.feld = feld;
+    editor.classList.add("inline-editor");
+    const inhalt = [...zelle.childNodes];
+    let fertig = false;
+    const zurueck = () => { if (zelle.isConnected) zelle.replaceChildren(...inhalt); };
+    const uebernehmen = async (fokusZurueck) => {
+      if (fertig) return;
+      fertig = true;
+      const wert = editor.value;
+      zurueck();
+      if (fokusZurueck) z.focus({ preventScroll: true });
+      if (wert === alt || (feld === "datum" && !wert) || (feld === "kategorie" && !wert)) return;
+      try {
+        await aktion(() => (feld === "kategorie"
+          ? api("PUT", `/api/buchungen/${id}/kategorie`, { kategorie_id: Number(wert) })
+          : api("PATCH", `/api/buchungen/${id}`, { [feld]: wert })), { erfolg: "Buchung geändert." });
+      } catch (e) { /* gemeldet; die Zelle zeigt wieder den Stand des Servers */ }
+    };
+    editor.addEventListener("keydown", (e) => {
+      e.stopPropagation();
+      if (e.key === "Enter") { e.preventDefault(); uebernehmen(true); }
+      else if (e.key === "Tab") { uebernehmen(false); }
+      else if (e.key === "Escape") { e.preventDefault(); fertig = true; zurueck(); z.focus({ preventScroll: true }); }
+    });
+    editor.addEventListener("blur", () => uebernehmen(false));
+    if (feld === "kategorie") editor.addEventListener("change", () => uebernehmen(true));
+    for (const t of ["click", "dblclick", "pointerdown", "contextmenu"]) editor.addEventListener(t, (e) => e.stopPropagation());
+    zelle.replaceChildren(editor);
+    editor.focus();
+    if (feld === "verwendungszweck") editor.select();
+  }
+}
+
+function betragEingabeText(cent) {
+  if (!Number.isFinite(cent)) return "";
+  const neg = cent < 0;
+  const abs = Math.abs(cent);
+  return (neg ? "-" : "") + Math.trunc(abs / 100) + "," + String(abs % 100).padStart(2, "0");
+}
+
+export const _intern = { datumText };

@@ -44,6 +44,10 @@ from .validierung import KONTOARTEN
 log = logging.getLogger("kontor")
 
 WEB = pathlib.Path(__file__).parent / "web"
+#: Routen der Oberfläche (oberflaeche.md 3) und Links aus Benachrichtigungen (/buchungen/<id>, /sync/konten)
+SPA_ROUTEN = re.compile(r"/(?:konten(?:/\d{1,18})?|kategorien|wiederkehrend|kredite(?:/\d{1,18})?|berichte|import"
+                        r"|einstellungen|protokoll|empfaenger|regeln|vorlagen|dubletten|sync(?:/konten)?"
+                        r"|benachrichtigungen|suche|tan/\d{1,18}|mail/postfaecher/\d{1,18}|buchungen/\d{1,18})?")
 MOCK_HINWEIS = "Mock-Modus: Es werden ausschließlich synthetische Testdaten verwendet (eigene Mock-Datenbank)."
 
 
@@ -201,9 +205,10 @@ DUBLETTE_AUFLOESEN = {
 def _index_html(config: KontorConfig) -> str:
     vorlage = (WEB / "index.html").read_text(encoding="utf-8")
     if config.mock_modus:
-        hinweis = ('<div id="mock-hinweis" class="mock-hinweis" role="status">'
+        hinweis = ('<div id="mock-hinweis" class="mock-hinweis" data-testid="mock-hinweis" role="note">'
                    '<strong>Mock-Modus</strong> – nur synthetische Testdaten, eigene Mock-Datenbank'
-                   f' (Szenario: {config.mock_szenario}). Keine Verbindung zu Bank oder Mailserver.</div>')
+                   f' (Szenario: {html.escape(config.mock_szenario or "")}). Keine Verbindung zu Bank oder'
+                   ' Mailserver.</div>')
         klasse = "mock"
     else:
         hinweis, klasse = "", "echt"
@@ -1402,45 +1407,29 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
         eingerichtet = await run_in_threadpool(anmeldedienst.eingerichtet)
         return HTMLResponse(_anmelde_html(config, eingerichtet), headers={"Cache-Control": "no-store"})
 
-    @app.get("/", include_in_schema=False)
-    async def startseite():
-        return HTMLResponse(index, headers={"Cache-Control": "no-store"})
+    huelle_koepfe = {"Cache-Control": "no-store"}
 
-    @app.get("/tan/{tan_id}", include_in_schema=False)
-    async def tan_seite(tan_id: str):
-        # Link aus der Benachrichtigung (synchronisation.md 7.2) öffnet die TAN-Seite der Oberfläche.
-        return HTMLResponse(index, headers={"Cache-Control": "no-store"})
+    @app.get("/sw.js", include_in_schema=False)
+    async def service_worker():
+        # oberflaeche.md 18 (E-146): Bereich "/", geschützt wie jede Seite, nie lange zwischengespeichert.
+        return Response((WEB / "sw.js").read_bytes(), media_type="text/javascript",
+                        headers={"Cache-Control": "no-cache"})
 
-    @app.get("/buchungen/{buchung_id}", include_in_schema=False)
-    async def buchung_seite(buchung_id: str):
-        # Link aus der Benachrichtigung split_abweichung (vorlagen.md 6) öffnet die Buchung in der Oberfläche.
-        return HTMLResponse(index, headers={"Cache-Control": "no-store"})
-
-    @app.get("/sync/konten", include_in_schema=False)
-    async def sync_konten_seite():
-        # Link aus der Benachrichtigung konto_fehlt (synchronisation.md 16.5).
-        return HTMLResponse(index, headers={"Cache-Control": "no-store"})
-
-    @app.get("/wiederkehrend", include_in_schema=False)
-    async def wiederkehrend_seite():
-        # Link aus den Benachrichtigungen wiederkehrend_ausbleibend (wiederkehrend.md 6).
-        return HTMLResponse(index, headers={"Cache-Control": "no-store"})
-
-    @app.get("/mail/postfaecher/{postfach_id}", include_in_schema=False)
-    async def postfach_seite(postfach_id: str):
-        # Link aus den Mail-Benachrichtigungen (benachrichtigungen.md 6) öffnet die Postfach-Einstellungen.
-        return HTMLResponse(index, headers={"Cache-Control": "no-store"})
-
-    @app.get("/einstellungen", include_in_schema=False)
-    async def einstellungen_seite():
-        return HTMLResponse(index, headers={"Cache-Control": "no-store"})
-
-    @app.get("/manifest.webmanifest", include_in_schema=False)
+    @app.get("/oeffentlich/manifest.webmanifest", include_in_schema=False)
     async def manifest():
-        return Response((WEB / "manifest.webmanifest").read_bytes(), media_type="application/manifest+json")
+        return Response((WEB / "oeffentlich" / "manifest.webmanifest").read_bytes(),
+                        media_type="application/manifest+json", headers={"Cache-Control": "no-cache"})
 
-    app.mount("/static", StaticFiles(directory=str(WEB / "static")), name="static")
     app.mount("/oeffentlich", StaticFiles(directory=str(WEB / "oeffentlich")), name="oeffentlich")
+
+    @app.get("/{pfad:path}", include_in_schema=False)
+    async def oberflaeche(pfad: str):
+        # oberflaeche.md 2/3: jede Route der Oberfläche liefert dieselbe Hülle (auch mit Abfrage); sonst 404
+        # (sicherheit.md 7.2, der Pfad erscheint nicht in der Antwort).
+        if SPA_ROUTEN.fullmatch("/" + pfad):
+            return HTMLResponse(index, headers=huelle_koepfe)
+        raise StarletteHTTPException(404)
+
     return app
 
 

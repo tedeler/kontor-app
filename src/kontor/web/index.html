@@ -2,66 +2,70 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#1f5f8b">
+<meta name="referrer" content="no-referrer">
 <title>Kontor</title>
-<link rel="manifest" href="/manifest.webmanifest">
-<link rel="icon" href="/static/icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/static/app.css">
+<link rel="manifest" href="/oeffentlich/manifest.webmanifest">
+<link rel="icon" href="/oeffentlich/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/oeffentlich/icon-192.png">
+<link rel="stylesheet" href="/oeffentlich/app.css">
+<script type="module" src="/oeffentlich/app/haupt.js"></script>
 </head>
 <body class="modus-{{MODUS}}">
 <!--MODUS-HINWEIS-->
-<div class="rahmen">
-  <header class="kopf">
-    <button type="button" class="menue-knopf" id="menue-knopf" aria-label="Navigation ein-/ausblenden"
-            aria-controls="navigation" aria-expanded="false">&#9776;</button>
-    <a class="marke" href="#/uebersicht">Kontor</a>
-    <span class="kopf-titel" id="kopf-titel"></span>
-    <form class="suche-kopf" id="suche-kopf" role="search">
-      <input type="search" id="suche-global" placeholder="Suchen …" aria-label="Volltextsuche über Konten, Empfänger, Tags und Buchungen" maxlength="200" enterkeyhint="search">
+<div id="app" class="app" data-testid="app" data-bereit="nein" data-layout="desktop">
+  <header class="kopf" data-testid="app-kopf">
+    <button type="button" class="kopf-knopf menue-knopf" id="menue-knopf" data-testid="menue-knopf"
+            aria-label="Navigation einblenden" aria-controls="navigation" aria-expanded="false">&#9776;</button>
+    <a class="marke" href="/" aria-label="Kontor – Finanzübersicht">Kontor</a>
+    <form class="suche-kopf" id="suche-form" role="search" aria-label="Volltextsuche">
+      <input type="search" id="suche-feld" data-testid="suche-feld" placeholder="Suchen … (/)"
+             aria-label="Suchen in Konten, Empfängern, Tags und Buchungen" maxlength="200" enterkeyhint="search"
+             autocomplete="off">
     </form>
-    <button type="button" class="kopf-knopf" id="rueckgaengig-knopf" aria-label="Letzte Änderung rückgängig machen (Strg+Z)" title="Letzte Änderung rückgängig machen (Strg+Z)">&#8630;</button>
-    <button type="button" class="glocke" id="glocke" aria-label="Benachrichtigungen" title="Benachrichtigungen">&#128276;<span class="zahl-marke" aria-live="polite"></span></button>
-    <button type="button" class="kopf-knopf" id="abmelden-knopf" hidden aria-label="Abmelden" title="Abmelden" data-testid="abmelden">&#9211;</button>
-    <span class="kopf-version">v{{VERSION}}</span>
-  </header>
-  <nav class="navigation" id="navigation" aria-label="Hauptnavigation">
-    <ul>
-      <li><a href="#/uebersicht" data-bereich="uebersicht">Finanzübersicht</a></li>
-      <li><a href="#/konten" data-bereich="konten">Konten</a></li>
-      <li><a href="#/kategorien" data-bereich="kategorien">Kategorien</a></li>
-      <li><a href="#/empfaenger" data-bereich="empfaenger">Empfänger</a></li>
-      <li><a href="#/umbuchungen" data-bereich="umbuchungen">Umbuchungen</a></li>
-      <li><a href="#/abstimmung" data-bereich="abstimmung">Kontenabstimmung</a></li>
-      <li><a href="#/wiederkehrend" data-bereich="wiederkehrend">Wiederkehrende Buchungen</a></li>
-      <li><a href="#/kredite" data-bereich="kredite">Kredite</a></li>
-      <li><a href="#/berichte" data-bereich="berichte">Berichte</a></li>
-      <li><a href="#/sync" data-bereich="sync">Synchronisation</a></li>
-      <li><a href="#/regeln" data-bereich="regeln">Regeln</a></li>
-      <li><a href="#/vorlagen" data-bereich="vorlagen">Split-Vorlagen</a></li>
-      <li><a href="#/lernmodell" data-bereich="lernmodell">Lernmodell</a></li>
-      <li><a href="#/benachrichtigungen" data-bereich="benachrichtigungen">Benachrichtigungen</a></li>
-      <li><a href="#/import" data-bereich="import">Import</a></li>
-      <li><a href="#/protokoll" data-bereich="protokoll">Änderungsprotokoll</a></li>
-      <li><a href="#/sicherung" data-bereich="sicherung">Datensicherung</a></li>
-      <li><a href="#/mail" data-bereich="mail">Mails</a></li>
-      <li><a href="#/anbindungen" data-bereich="anbindungen">Anbindungen</a></li>
-      <li><a href="#/einstellungen" data-bereich="einstellungen">Einstellungen</a></li>
-    </ul>
-    <div class="nav-unten">
-      <a href="#/buchungen" data-bereich="buchungen">Alle Buchungen</a>
+    <div class="kopf-knoepfe">
+      <button type="button" class="kopf-knopf" id="sync-starten" data-testid="sync-starten"
+              aria-label="Bankkonten jetzt synchronisieren" title="Bankkonten jetzt synchronisieren">&#8635;</button>
+      <button type="button" class="kopf-knopf" id="rueckgaengig-knopf" data-testid="rueckgaengig-knopf" disabled
+              aria-label="Rückgängig (Strg+Z)" title="Rückgängig (Strg+Z)">&#8630;</button>
+      <button type="button" class="kopf-knopf" id="wiederholen-knopf" data-testid="wiederholen-knopf" disabled
+              aria-label="Wiederholen (Strg+Umschalt+Z)" title="Wiederholen (Strg+Umschalt+Z)">&#8631;</button>
+      <button type="button" class="kopf-knopf" id="befehlspalette-knopf" data-testid="befehlspalette-knopf"
+              aria-label="Befehlspalette (Strg+K)" title="Befehlspalette (Strg+K)">&#8984;</button>
+      <a class="kopf-knopf glocke" id="benachrichtigungen-knopf" data-testid="benachrichtigungen-knopf"
+         href="/benachrichtigungen" aria-label="Benachrichtigungen" title="Benachrichtigungen">&#128276;<span
+         class="zahl-marke" id="benachrichtigungen-anzahl" data-testid="benachrichtigungen-anzahl"
+         data-anzahl="0"></span></a>
     </div>
-  </nav>
-  <div class="trenner" id="trenner" role="separator" aria-orientation="vertical" title="Breite ziehen, Doppelklick klappt ein"></div>
-  <main class="inhalt" id="inhalt" tabindex="-1">
-    <noscript><p>Kontor benötigt JavaScript.</p></noscript>
-  </main>
+  </header>
+  <div class="koerper">
+    <nav class="navigation" id="navigation" data-testid="navigation" aria-label="Hauptnavigation">
+      <a href="/" data-testid="nav-uebersicht">Finanzübersicht</a>
+      <a href="/konten" data-testid="nav-konten">Konten</a>
+      <a href="/kategorien" data-testid="nav-kategorien">Kategorien</a>
+      <a href="/wiederkehrend" data-testid="nav-wiederkehrend">Wiederkehrende Buchungen</a>
+      <a href="/kredite" data-testid="nav-kredite">Kredite</a>
+      <a href="/berichte" data-testid="nav-berichte">Berichte</a>
+      <a href="/import" data-testid="nav-import">Import</a>
+      <a href="/einstellungen" data-testid="nav-einstellungen">Einstellungen</a>
+      <a href="/protokoll" data-testid="nav-protokoll">Änderungsprotokoll</a>
+      <a href="/empfaenger" data-testid="nav-empfaenger">Empfänger</a>
+      <a href="/regeln" data-testid="nav-regeln">Regeln</a>
+      <a href="/vorlagen" data-testid="nav-vorlagen">Split-Vorlagen</a>
+      <a href="/dubletten" data-testid="nav-dubletten">Dubletten</a>
+      <a href="/sync" data-testid="nav-sync">Synchronisation</a>
+    </nav>
+    <div class="menue-hintergrund" id="menue-hintergrund" data-testid="menue-hintergrund" hidden></div>
+    <main class="hauptbereich" id="hauptbereich" data-testid="hauptbereich" tabindex="-1">
+      <noscript><p>Kontor benötigt JavaScript.</p></noscript>
+    </main>
+  </div>
+  <div class="offline-hinweis" id="offline-hinweis" data-testid="offline-hinweis" role="status" hidden>
+    Keine Verbindung zum Server – Kontor ist offline. Daten werden geladen, sobald die Verbindung zurück ist.
+  </div>
+  <div class="meldungen" id="meldungen" data-testid="meldungen" role="status" aria-live="polite"></div>
 </div>
-<div class="schleier" id="schleier"></div>
-<div class="kontextmenue" id="kontextmenue" role="menu" hidden></div>
-<div class="dialog-huelle" id="dialog-huelle" hidden></div>
-<div class="meldungen" id="meldungen" aria-live="polite"></div>
-<script src="/static/app.js"></script>
 </body>
 </html>

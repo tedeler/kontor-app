@@ -13,6 +13,12 @@
     return "/";
   }
 
+  // Fehlertext setzen: das Element ist nur mit Text sichtbar (oberflaeche.md 19, anmeldung-fehler)
+  function zeige(text) {
+    meldung.textContent = text;
+    meldung.hidden = !text;
+  }
+
   let sperreTimer = null;
   function sperreAnzeigen(bis) {
     clearInterval(sperreTimer);
@@ -25,10 +31,10 @@
         clearInterval(sperreTimer);
         knopf.disabled = false;
         meldung.className = "meldung";
-        meldung.textContent = "Die Sperre ist abgelaufen. Bitte erneut versuchen.";
+        zeige("Die Sperre ist abgelaufen. Bitte erneut versuchen.");
         return;
       }
-      meldung.textContent = "Zu viele falsche Versuche. Die Anmeldung ist noch " + rest + " s gesperrt.";
+      zeige("Zu viele falsche Versuche. Die Anmeldung ist noch " + rest + " s gesperrt.");
     }
     zeigen();
     sperreTimer = setInterval(zeigen, 1000);
@@ -46,12 +52,12 @@
   formular.addEventListener("submit", async function (ev) {
     ev.preventDefault();
     meldung.className = "meldung";
-    meldung.textContent = "";
+    zeige("");
     const passwort = formular.elements.passwort.value;
     const koerper = { passwort: passwort };
     if (einrichten) koerper.einrichtungscode = formular.elements.einrichtungscode.value.trim();
     if ([...passwort.normalize("NFC")].length < 12) {
-      meldung.textContent = "Das Passwort muss mindestens 12 Zeichen lang sein.";
+      zeige("Das Passwort muss mindestens 12 Zeichen lang sein.");
       return;
     }
     knopf.disabled = true;
@@ -73,11 +79,12 @@
         csrf_ungueltig: "Die Anfrage wurde abgelehnt (fremde Herkunft).",
         netz_nicht_erlaubt: "Zugriff nur aus dem Heimnetz.",
       };
-      meldung.textContent = texte[code] || "Die Anmeldung ist fehlgeschlagen (Status " + r.status + ").";
+      zeige(texte[code] || "Die Anmeldung ist fehlgeschlagen (Status " + r.status + ").");
       knopf.disabled = false;
-      formular.elements.passwort.select();
+      formular.elements.passwort.value = "";
+      formular.elements.passwort.focus();
     } catch (e) {
-      meldung.textContent = "Der Server ist nicht erreichbar.";
+      zeige("Der Server ist nicht erreichbar.");
       knopf.disabled = false;
     }
   });
