@@ -1,5 +1,53 @@
 # Ergebnis der Implementierung
 
+## Meilenstein 10 (AqBanking-Plugin)
+
+Stand: 2026-11-09, Implementierungs-Thread.
+
+### Testlauf kontor-tests
+
+- Getestet gegen **kontor-tests Commit `77a4cae`** („M10: Tests, Testhilfen und Selbstprüfung für das
+  AqBanking-Plugin …“), Lese-Klon nach `git pull`. AqBanking 6.5.4 (`aqbanking-tools`, Gwenhywfar 5.10.2) unter
+  Ubuntu 24.04, Python 3.13, Playwright mit Chrome headless.
+- Aufrufe: `python -m pytest -m "not leistung" -n 2` (2473) und `python -m pytest -m leistung` (22); zusammen alle
+  **2495** gesammelten Tests. Zusätzlich `-m m10` seriell, mit `KONTOR_TESTS_ZUSATZFELDER=1` und mit
+  `KONTOR_TESTS_ANMELDUNG=1` (je 46/46).
+
+| Auswahl | vorher (Stand `a15f0f0`) | nachher |
+| --- | ---: | ---: |
+| **vollständig** | 2451 / 2495 | **2495 / 2495** |
+| `m1` | 674 / 674 | 674 / 674 |
+| `m2` | 226 / 226 | 226 / 226 |
+| `m3` | 245 / 245 | 245 / 245 |
+| `m4` | 227 / 227 | 227 / 227 |
+| `m5` | 212 / 212 | 212 / 212 |
+| `m6` | 273 / 273 | 273 / 273 |
+| `m7` (davon 22 `leistung`) | 192 / 192 | 192 / 192 |
+| `m8` (davon 214 Browsertests) | 258 / 258 | 258 / 258 |
+| `m9` | 56 / 56 | 56 / 56 |
+| `m10` | 2 / 46 | **46 / 46**, 0 übersprungen |
+
+Kein Fehlschlag, kein übersprungener Test, kein neuer W-Eintrag. „Vorher“ ist der Lauf vor der ersten Änderung
+(`-m "not leistung" -n 2`: 2429 bestanden, 44 Fehlschläge/Fehler ausschließlich in `tests/app/m10/`; `leistung`
+war schon vorher grün).
+
+### Umsetzung
+
+- `src/kontor/plugins/aqbanking.py` (neu): `AqbankingBankPlugin` nach aqbanking.md 3–6; Entscheidungen D-098 bis
+  D-100. `erzeuge_bank_plugin` liefert es bei `bank_plugin = "aqbanking"`.
+- `config.py`: `aqbanking_verzeichnis`, `aqbanking_programme`, `aqbanking_timeout_sekunden`, `bank_plugin`
+  zusätzlich `aqbanking` (D-101); `fehler.py`: `BankTanNichtUnterstuetzt` (`BankZugangGesperrt` gab es seit M6).
+- Betrieb: README-Abschnitt „Bankabruf über AqBanking (M10)“, `kontor.env` mit den vier Variablen als Kommentar;
+  systemd-Units unverändert.
+- Eigene Tests `tests/test_m10_eigen.py` (Auswertung, Kontextdatei, Kontoliste, PIN-Datei; ohne AqBanking).
+
+### Einschränkungen
+
+- Eigene Tests: `tests/test_m3_eigen.py::test_migration_von_schemaversion_2_ohne_datenverlust` scheitert in
+  einem frischen Klon, weil `tests/daten/schema_m2.sql` wegen `daten/` in `.gitignore` nie eingecheckt wurde
+  (schon vor M10, unabhängig vom AqBanking-Plugin); die übrigen 75 eigenen Tests sind grün.
+- Gegen eine echte Bank ist das Plugin nicht geprüft (nur gegen die FinTS-Attrappe, E-028).
+
 ## Meilenstein 8 (vollständige Oberfläche) und W-005
 
 Stand: 2026-11-09, Implementierungs-Thread (Nachtrag nach E-151).

@@ -80,7 +80,7 @@ Commit-Nachrichten sind auf Deutsch.
 | `src/kontor/zustellung.py` | M6: Zustellung der Benachrichtigungen über das Benachrichtigungs-Plugin (erster Versuch, Wiederholung, Status) |
 | `src/kontor/netz.py` | M6: ausgehende HTTP-Anfragen ohne Umleitungen/Proxy, TLS-Kontext mit `tls_ca_datei` |
 | `src/kontor/importer/` | KMyMoney- und GnuCash-Import (`gnucash.py`: XML und SQLite, SQLite nur als Kopie im Arbeitsspeicher geöffnet) und `ImportErgebnis` |
-| `src/kontor/plugins/` | Bank-/Mail-/Benachrichtigungs-Schnittstellen, Mock-Plugins, FinTS (python-fints), IMAP (imaplib, XOAUTH2), ntfy |
+| `src/kontor/plugins/` | Bank-/Mail-/Benachrichtigungs-Schnittstellen, Mock-Plugins, FinTS (python-fints), AqBanking (M10, `aqbanking-cli` als Unterprozess), IMAP (imaplib, XOAUTH2), ntfy |
 | `src/kontor/anmeldung.py` | M7: Haushaltskonto (scrypt), Sitzungen (nur SHA-256 des Tokens gespeichert, CSRF-Token per HMAC abgeleitet), Bremse, Einrichtungscode, Kommandozeile `passwort-setzen` |
 | `src/kontor/schutz.py` | M7: äußerste ASGI-Hülle: Netz → Sitzung → Herkunft → CSRF → Größe; Sicherheitsköpfe an jeder Antwort |
 | `src/kontor/betrieb/` | M7: ausgelieferte systemd-Units, sysusers, `kontor.env`, Drop-in (Paketdaten) |
@@ -179,6 +179,15 @@ Commit-Nachrichten sind auf Deutsch.
 - Browsertests aus kontor-tests: `python -m pytest -m m8 -n 2` (Chrome über den Kanal `chrome`, ca. 2–3 min);
   eigene Rauchtests `tests/test_browser*.py`. Debug-Hilfe außerhalb des Repos: `/home/claude/impl/werkzeug/sicht.py`.
 - Maßstab: alle Tests einschließlich `m8` und `leistung`.
+
+## Hinweise ab Meilenstein 10 (AqBanking-Plugin)
+
+- `plugins/aqbanking.py` startet nur `aqbanking-cli` (`listaccs`, `request --transactions`) und
+  `aqhbci-tool4 listusers`, immer mit `-D <aqbanking_verzeichnis>`. Ausgaben von AqBanking nie loggen oder
+  weitergeben; die PIN nur über die Pipe (`-P /dev/fd/N`). Auswertung über `fehler_aus_ausgabe` (D-099).
+- Tests brauchen `aqbanking-tools` (`sudo apt-get install -y aqbanking-tools`); ohne werden 24 M10-Tests
+  übersprungen – das gilt nicht als grün.
+- Maßstab: alle Tests einschließlich `m10`.
 
 ## Codequalität vor jedem Meilenstein
 
