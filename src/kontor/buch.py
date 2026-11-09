@@ -658,13 +658,13 @@ def buchungsliste(con, f: dict) -> dict:
     konto_id = f.get("konto_id")
     par: list[Any] = []
     if konto_id is not None:
-        betrag_sql = "(SELECT COALESCE(SUM(s.betrag), 0) FROM split s WHERE s.buchung_id = b.id AND s.konto_id = ?)"
+        betrag_sql = "(SELECT COALESCE(SUM(s.betrag), 0) FROM split s WHERE s.buchung_id = b.id AND +s.konto_id = ?)"
         par.append(sichere_id(konto_id))
     else:
-        betrag_sql = "(SELECT COALESCE(SUM(s.betrag), 0) FROM split s WHERE s.buchung_id = b.id AND s.betrag > 0)"
+        betrag_sql = "(SELECT COALESCE(SUM(s.betrag), 0) FROM split s WHERE s.buchung_id = b.id AND +s.betrag > 0)"
     bed: list[str] = []
     if konto_id is not None:
-        bed.append("EXISTS (SELECT 1 FROM split s WHERE s.buchung_id = b.id AND s.konto_id = ?)")
+        bed.append("b.id IN (SELECT s.buchung_id FROM split s WHERE s.konto_id = ?)")
         par.append(sichere_id(konto_id))
     if f.get("von"):
         bed.append("b.datum >= ?")
@@ -675,11 +675,10 @@ def buchungsliste(con, f: dict) -> dict:
     if f.get("kategorie_id") is not None:
         kid = sichere_id(f["kategorie_id"])
         ziel = nachfahren(con, kid) if f.get("unterkategorien") else {kid}
-        bed.append(f"EXISTS (SELECT 1 FROM split s WHERE s.buchung_id = b.id AND s.konto_id IN "
-                   f"({_platzhalter(len(ziel))}))")
+        bed.append(f"b.id IN (SELECT s.buchung_id FROM split s WHERE s.konto_id IN ({_platzhalter(len(ziel))}))")
         par.extend(sorted(ziel))
     for t in sorted(set(f.get("tag_id") or [])):
-        bed.append("EXISTS (SELECT 1 FROM buchung_tag bt WHERE bt.buchung_id = b.id AND bt.tag_id = ?)")
+        bed.append("b.id IN (SELECT bt.buchung_id FROM buchung_tag bt WHERE bt.tag_id = ?)")
         par.append(sichere_id(t))
     if f.get("empfaenger_id") is not None:
         bed.append("b.empfaenger_id = ?")
@@ -692,15 +691,15 @@ def buchungsliste(con, f: dict) -> dict:
     if f.get("suche"):
         n = norm(f["suche"])
         bed.append("(instr(norm(e.name), ?) > 0 OR instr(norm(b.verwendungszweck), ?) > 0"
-                   " OR EXISTS (SELECT 1 FROM split s WHERE s.buchung_id = b.id AND instr(norm(s.memo), ?) > 0)"
-                   " OR EXISTS (SELECT 1 FROM buchung_tag bt JOIN tag t ON t.id = bt.tag_id"
-                   " WHERE bt.buchung_id = b.id AND instr(norm(t.name), ?) > 0))")
+                   " OR b.id IN (SELECT s.buchung_id FROM split s WHERE s.memo <> '' AND instr(norm(s.memo), ?) > 0)"
+                   " OR b.id IN (SELECT bt.buchung_id FROM buchung_tag bt JOIN tag t ON t.id = bt.tag_id"
+                   " WHERE instr(norm(t.name), ?) > 0))")
         par.extend([n, n, n, n])
     if f.get("vorschlag") is not None:
         bed.append(("" if f["vorschlag"] else "NOT ") + "EXISTS (SELECT 1 FROM vorschlag v WHERE v.buchung_id = b.id)")
     if f.get("abgestimmt") is not None:
         bed.append(("" if f["abgestimmt"] else "NOT ")
-                   + "EXISTS (SELECT 1 FROM split s WHERE s.buchung_id = b.id AND s.abstimmung_id IS NOT NULL)")
+                   + "b.id IN (SELECT s.buchung_id FROM split s WHERE s.abstimmung_id IS NOT NULL)")
     if f.get("status"):
         st = sorted(set(f["status"]))
         bed.append(f"b.status IN ({_platzhalter(len(st))})")

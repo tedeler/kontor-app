@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import functools
 import unicodedata
 from collections import defaultdict
 
@@ -376,6 +377,13 @@ def abstimmung_aufheben(con, aid: int) -> None:
 def snorm(s: str | None) -> str:
     if not s:
         return ""
+    if s.isascii():  # M7 (Leistung): für ASCII ist NFC/NFKD die Identität und casefold gleich lower
+        return s.lower()
+    return _snorm_voll(s)
+
+
+@functools.lru_cache(maxsize=65536)
+def _snorm_voll(s: str) -> str:
     z = unicodedata.normalize("NFKD", norm(unicodedata.normalize("NFC", s)))
     return "".join(c for c in z if unicodedata.category(c) != "Mn")
 
@@ -394,24 +402,29 @@ def suche(con, q: str, limit: int) -> dict:
     kontoname = {r["id"]: snorm(r["name"]) for r in con.execute("SELECT id, name FROM konto")}
     tagname = {r["id"]: snorm(r["name"]) for r in con.execute("SELECT id, name FROM tag")}
     empfname = {r["id"]: snorm(r["name"]) for r in con.execute("SELECT id, name FROM empfaenger")}
-    felder: dict[int, list[str]] = {}
+    # Alle Felder einer Buchung, getrennt durch \x00, in einem Text: ein Wort trifft genau dann ein Feld,
+    # wenn es im Gesamttext vorkommt (Wörter mit \x00 können über Feldgrenzen reichen → Einzelprüfung).
+    trenner = "\x00"
+    teile: dict[int, list[str]] = {}
     reihe: list[tuple[str, int]] = []
-    for r in con.execute("SELECT id, datum, empfaenger_id, verwendungszweck FROM buchung"):
-        f = [snorm(r["verwendungszweck"])]
-        if r["empfaenger_id"] is not None:
-            f.append(empfname.get(r["empfaenger_id"], ""))
-        felder[r["id"]] = f
-        reihe.append((r["datum"], r["id"]))
-    for r in con.execute("SELECT buchung_id, konto_id, memo FROM split"):
-        f = felder.get(r["buchung_id"])
+    for bid, datum, eid, vz in con.execute("SELECT id, datum, empfaenger_id, verwendungszweck FROM buchung"):
+        teile[bid] = [snorm(vz), empfname.get(eid, "") if eid is not None else ""]
+        reihe.append((datum, bid))
+    for bid, kid, memo in con.execute("SELECT buchung_id, konto_id, memo FROM split"):
+        f = teile.get(bid)
         if f is not None:
-            f.append(snorm(r["memo"]))
-            f.append(kontoname.get(r["konto_id"], ""))
-    for r in con.execute("SELECT buchung_id, tag_id FROM buchung_tag"):
-        f = felder.get(r["buchung_id"])
+            f.append(snorm(memo))
+            f.append(kontoname.get(kid, ""))
+    for bid, tid in con.execute("SELECT buchung_id, tag_id FROM buchung_tag"):
+        f = teile.get(bid)
         if f is not None:
-            f.append(tagname.get(r["tag_id"], ""))
-    treffer = [bid for datum, bid in sorted(reihe, reverse=True) if _trifft(woerter, felder[bid])]
+            f.append(tagname.get(tid, ""))
+    if any(trenner in w for w in woerter):
+        treffer = [bid for datum, bid in sorted(reihe, reverse=True) if _trifft(woerter, teile[bid])]
+    else:
+        texte = {bid: trenner.join(f) for bid, f in teile.items()}
+        treffer = [bid for datum, bid in sorted(reihe, reverse=True)
+                   if all(w in texte[bid] for w in woerter)]
     return {"q": q, "konten": konten, "empfaenger": empfaenger, "tags": tags,
             "buchungen": buch.buchungen_laden(con, treffer[:limit]), "buchungen_gesamt": len(treffer)}
 
