@@ -1,5 +1,55 @@
 # Ergebnis der Implementierung
 
+## Meilenstein 11 (Kontostand, Kategorien als Konten, Empfänger zusammenführen)
+
+Stand: 2026-11-09, Implementierungs-Thread.
+
+### Testlauf kontor-tests
+
+- Getestet gegen **kontor-tests Commit `9bee6bc`** („M11: Selbstprüfung festgehalten …“), Lese-Klon nach
+  `git pull`. AqBanking 6.5.4 (`aqbanking-tools`), Python 3.13, Playwright mit Chrome headless.
+- Aufrufe: `python -m pytest -m "not leistung" -n 3` (2519) und `python -m pytest -m leistung` (22); zusammen alle
+  **2541** gesammelten Tests. Zusätzlich `-m m11` seriell, mit `KONTOR_TESTS_ZUSATZFELDER=1` und mit
+  `KONTOR_TESTS_ANMELDUNG=1` (je 45/45, nichts übersprungen).
+
+| Auswahl | vorher (Stand `99c2c95`) | nachher |
+| --- | ---: | ---: |
+| **vollständig** | 2503 / 2541 | **2541 / 2541** |
+| `m1`–`m10` | 2409 / 2409 | 2409 / 2409 |
+| `m11` | 7 / 45 | **45 / 45**, 0 übersprungen |
+
+- „Vorher“: `-m m11` vor der ersten Änderung (38 Fehlschläge, alle in `tests/app/m11/`); frühere Meilensteine
+  laut M10-Ergebnis vollständig grün.
+- Im parallelen Gesamtlauf (`-n 3`) scheiterte einmal `tests/app/m8/test_m8_bearbeiten.py::
+  test_neue_aktion_leert_wiederholen` an einer Zeitgrenze (Meldung noch sichtbar); im Lauf `-m "m8 or m11"` und
+  dreimal einzeln wiederholt grün. Kein Zusammenhang mit M11 (Rückgängig/Wiederholen unverändert); kein W-Eintrag.
+- Kein neuer W-Eintrag.
+
+### Umsetzung
+
+- **Kontostand** (`kontostand.md`): `BankSaldo`, `Umsatzliste` in `plugins/bank.py`; Mock mit
+  `bank.anfangssalden`; FinTS sendet `HKSAL` im Dialog des Umsatzabrufs (auch nach TAN), AqBanking `--balance` nur
+  mit `aqbanking_saldo` und genau einem zweiten `request` bei lokaler Ablehnung. Abgleich und Ausgleichsbuchung in
+  `SyncDienst._saldo_abgleichen` (eigene Änderung `sync_saldoausgleich`, Benachrichtigung `saldo_ausgeglichen`),
+  Ergebnis `SyncKonto.saldo_abgleich`; Konfiguration `sync_saldo_angleichen`, `aqbanking_saldo`. Datenbankschema 9
+  (Spalte `sync_lauf_konto.saldo_abgleich`, Migration). D-102, D-103.
+- **REST:** Filter `unterkonten` für Buchungsliste und Exporte; `name` beim Zusammenführen von Empfängern.
+- **Oberfläche** (`oberflaeche.md` 22): Kategorien in der Finanzübersicht (einklappbar, Zustand im Browser),
+  Kategorieansicht mit `data-kontoklasse`, Spalte „Konto“, `filter-konto`, `filter-unterkonten`; Empfänger mit
+  Auswahl und Zusammenführen-Dialog (Ziel nach Buchungszahl, Name, Vorschau der Aliase); `/sync` zeigt den
+  letzten Saldoabgleich je Bankkonto. D-104.
+- Eigene Tests `tests/test_m11_eigen.py` (HISAL-Abbildung, AqBanking-Kontext, Migration 8→9); in
+  `tests/test_m7_eigen.py` die Schemaversion nicht mehr fest auf 8.
+- Codequalitätsanalyse vor M11 in `refactor.md` (eigener Commit).
+
+### Einschränkungen
+
+- Eigene Tests: weiterhin scheitert `tests/test_m3_eigen.py::test_migration_von_schemaversion_2_ohne_datenverlust`
+  in einem frischen Klon (fehlende, nie eingecheckte `tests/daten/schema_m2.sql`, siehe unten); alle übrigen
+  eigenen Tests grün.
+- Keine echten Banken angesprochen; FinTS nur gegen die Attrappe, AqBanking gegen die Attrappe im Profil `mt940`.
+
+
 ## Meilenstein 10 (AqBanking-Plugin)
 
 Stand: 2026-11-09, Implementierungs-Thread.
