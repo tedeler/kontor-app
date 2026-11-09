@@ -135,7 +135,7 @@ widersprüchlich ist). Gelöst werden Widersprüche nur von einem Test-Thread.
   `position`); der Test schlägt fehl.
 - **Status:** vom Test-Thread behoben (kontor-tests Commit `174b292`: der Test erwartet `liste.x < kat.x < det.x`); grün. Erledigt.
 
-## W-007 Umbuchung als zu kategorisierende Buchung (Drag and Drop, Wischen nach links)
+## W-007 Umbuchung als zu kategorisierende Buchung (Drag and Drop, Wischen nach links) (erledigt)
 
 - **Betroffene Tests:** `tests/app/m8/test_m8_split_dnd.py::test_buchung_auf_kategorie_ziehen` und
   `tests/app/m8/test_m8_panels_mobil.py::test_wischen_links_setzt_kategorie_und_rueckgaengig` (Commit `d53f74b`).
@@ -154,9 +154,9 @@ widersprüchlich ist). Gelöst werden Widersprüche nur von einem Test-Thread.
   `r[4..6]`, Wischen auf `r[6]`, `r[7]`) funktionieren. Vorschlag: im Test eine kategorisierbare Buchung wählen
   (z. B. die erste Buchung mit `kategorie_id ≠ null`).
 - **Umgang:** Spezifikation umgesetzt; beide Tests schlagen am ersten Schritt fehl.
-- **Status:** offen.
+- **Status:** vom Test-Thread geklärt (E-151, `oberflaeche.md` 10, kontor-tests `bf35445`): Tests wählen kategorisierbare Buchungen nach der Generator-Wahrheit; für Umbuchungen sendet die Oberfläche die Anfrage und zeigt die Ablehnung 422 `nicht_kategorisierbar` als Fehlermeldung (so bereits umgesetzt). Neue Tests grün. Erledigt.
 
-## W-008 Protokollseite: IDs aus `data-testid` mit `slice(9)` gelesen
+## W-008 Protokollseite: IDs aus `data-testid` mit `slice(9)` gelesen (erledigt)
 
 - **Betroffener Test:** `tests/app/m8/test_m8_bearbeiten.py::test_protokollseite` (Commit `d53f74b`).
 - **Was der Test erwartet:** Er liest die angezeigten Änderungs-IDs mit
@@ -166,7 +166,7 @@ widersprüchlich ist). Gelöst werden Widersprüche nur von einem Test-Thread.
 - **Warum widersprüchlich:** Für jede vertragsgemäße Oberfläche liefert der Test negative IDs (`[-2, -1]` statt
   `[2, 1]`); die Reihenfolge der Oberfläche stimmt mit der REST-Antwort überein. Vorschlag: `slice(10)`.
 - **Umgang:** `aenderung-<id>` wie spezifiziert; der Test schlägt fehl.
-- **Status:** offen.
+- **Status:** vom Test-Thread behoben (kontor-tests `bf35445`); `test_protokollseite` ist grün. Erledigt.
 
 ## W-009 Kodierung von `weiter` bei der Weiterleitung des Servers zur Anmeldung (erledigt)
 
@@ -188,4 +188,4 @@ widersprüchlich ist). Gelöst werden Widersprüche nur von einem Test-Thread.
   Anmeldung führt `weiter` korrekt nach `/kredite`.
 - **Status:** vom Test-Thread behoben (Commit `174b292`: `oberflaeche.md` 19 kodiert wie `sicherheit.md` 3.2, beide Tests erwarten `weiter=/…`); die Oberfläche kodiert nach einer 401-Antwort ebenso. Grün. Erledigt.
 
-Stand: Meilenstein 8 (getestet gegen kontor-tests `48e3671`); offen: W-007 und W-008.
+Stand: Meilenstein 8 (getestet gegen kontor-tests `bf35445`); kein offener Eintrag.
