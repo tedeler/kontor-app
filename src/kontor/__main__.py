@@ -62,7 +62,6 @@ def main(argv: list[str] | None = None) -> int:
                     server_header=False, workers=1, log_config=None, log_level=config.log_stufe.lower())
     except KeyboardInterrupt:  # pragma: no cover
         pass
-    log.info("Kontor beendet")
     return 0
 
 

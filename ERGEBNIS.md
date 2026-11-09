@@ -1,5 +1,103 @@
 # Ergebnis der Implementierung
 
+## Meilenstein 7 (Sicherheit, Betrieb, Leistung)
+
+Stand: 2026-11-09, Implementierungs-Thread.
+
+### Testlauf kontor-tests
+
+- Getestet gegen **kontor-tests Commit `f17e23a`** („M7: ERGEBNIS.md (Abschnitt M7)“, nach Abschluss der
+  M7-Selbstprüfung des Test-Threads), nach `git pull` im Lese-Klon unmittelbar vor dem Abschlusslauf.
+- Aufruf im Wurzelverzeichnis des Lese-Klons gegen die per `pip install --break-system-packages -e`
+  installierte kontor-app, Python 3.13, Hypothesis-Profil `standard`. Wegen der 10-Minuten-Grenze je Aufruf in
+  sechs Teilen (Vordergrund): `-m "not leistung and (m7 or not (m1 or m2 or m3 or m4 or m5 or m6 or m9))"`,
+  `-m "m6 and not m7"`, `-m "m1 and not m6"`, `-m "(m2 or m3) and not m6"`,
+  `-m "(m4 or m5 or m9) and not (m1 or m2 or m3 or m6 or m7)"`, `-m leistung`; zusammen alle 2189
+  gesammelten Tests (`--collect-only`: 2189).
+- Tests für `m8`: keine vorhanden (0 gesammelt).
+
+| Auswahl | gesamt | bestanden | fehlgeschlagen | Fehler |
+| --- | ---: | ---: | ---: | ---: |
+| **vollständig (alle gesammelten Tests)** | **2189** | **2189** | 0 | 0 |
+| Teil 1: `m7` ohne `leistung` und Tests ohne Meilenstein-Marker | 254 | 254 | 0 | 0 |
+| Teil 2: `m6` | 273 | 273 | 0 | 0 |
+| Teil 3: `m1` | 674 | 674 | 0 | 0 |
+| Teil 4: `m2`, `m3` | 471 | 471 | 0 | 0 |
+| Teil 5: `m4`, `m5`, `m9` | 495 | 495 | 0 | 0 |
+| Teil 6: `leistung` (großer Datensatz, 50 000 Buchungen) | 22 | 22 | 0 | 0 |
+| `m8` | 0 | – | – | – |
+
+W-004 (M2-Statusvergleich mit `pin_quelle`) ist durch E-124 behoben; der M2-Test ist grün. Es gibt **keinen
+Fehlschlag**. Offen ist nur W-005 (Spezifikationslücke `POST /api/benachrichtigungen/test`, kein
+Testwiderspruch).
+
+### Gemessene Leistungswerte
+
+Eigene Messung mit dem Datensatz `gross` (50 000 Buchungen, erzeugt mit `generator.__main__.gross_dateien`,
+Startwert 4711) in-process über `TestClient`, Median aus drei Läufen nach einem Aufwärmlauf (Schreib- und
+Exportvorgänge einmal), auf der Testmaschine (2 Kerne; parallel lief die Selbstprüfung des Test-Threads):
+
+| Nr. | Vorgang | gemessen | Grenze |
+| --- | --- | ---: | ---: |
+| L1 | Import `gross.kmy` in leere Datenbank | 7,5 s | 120 s |
+| L2 | zweiter Import (ohne Wirkung) | 2,5 s | 120 s |
+| L3 | Buchungsliste Seite 1 (`pro_seite=100`) | 0,20 s | 1 s |
+| L4 | letzte Seite | 0,14 s | 1 s |
+| L5 | Filter Konto / Zeitraum / Kategorie+Unterkat. / Empfänger / Verwendungszweck / Suche / Betrag / Tag / `-betrag` | 0,10 / 0,01 / 0,03 / 0,01 / 0,03 / 0,15 / 0,14 / 0,01 / 0,24 s | je 1 s |
+| L6 | Konto + Zeitraum + Suche | 0,21 s | 1 s |
+| L7 | Volltextsuche / Kontenübersicht | 0,30 / 0,27 s | je 1 s |
+| L8 | Mehrfachbearbeitung 1 000 Buchungen (mit Protokoll) | 0,13 s | 10 s |
+| L9 | Einzeländerung | 0,03 s | 1 s |
+| L10 | Kontostandsverlauf / Einnahmen-Ausgaben | 0,15 / 0,13 s | je 3 s |
+| L11 | Lernmodell, 100 Vorhersagen | 0,59 s | 3 s |
+| L12 | wiederkehrende Buchungen | 0,54 s | 10 s |
+| L13 | CSV-Export 50 000 Buchungen | 2,0 s | 20 s |
+| L14 | Sicherung | 2,4 s | 30 s |
+| L15 | `create_app` auf gefüllter Datenbank | 0,03 s | 5 s |
+
+Vor M7 brauchte der Konto-Filter über eine Minute (SQLite wählte in der korrelierten Teilabfrage den Index
+`split_konto`, D-089); behoben ohne neue Indizes, Ergebnisse unverändert.
+
+### Eigene Tests (kontor-app)
+
+`python -m pytest tests`: **73 bestanden**. Neu: `tests/test_m7_eigen.py` (Migration der App-Datenbank von
+Schemaversion 7 auf 8 ohne Datenverlust, Sicherung ohne Anmeldetabellen und ohne Passwort-Hash,
+CSRF-Ableitung) und der Playwright-Rauchtest `tests/test_browser_m7.py` (Chrome headless, echter Server im
+Mock-Modus auf freiem Loopback-Port, Desktop- und Handybreite): Weiterleitung zur Anmeldeseite mit `weiter`,
+Mock-Hinweis, Ersteinrichtung mit falschem und richtigem Einrichtungscode, Rücksprung, kein waagerechtes
+Scrollen, Passwort ändern (falsches/richtiges altes Passwort), Abmelden (danach 401), Sperre nach drei
+Fehlversuchen mit Restzeit-Hinweis und Anmeldung nach Ablauf. Die bestehenden Browsertests verwenden statt
+`wait_for_function("…")` eine Abfrage ohne String-Auswertung im Seitenkontext (die CSP verbietet
+`unsafe-eval`). Rauchprobe von Hand: `python -m kontor` im Mock-Modus mit Anmeldung (Gesundheit 200, ohne
+Sitzung 401, Anmeldung 200, mit Cookie 200, Beenden per `SIGTERM` mit Lognachrichten im Format
+`<STUFE> <logger>: …`). Alle Server-, Browser- und Testprozesse sind beendet.
+
+### Umgesetzt
+
+- Haushalts-Login (D-083–D-085): scrypt (n = 2^15) mit NFC, Sitzungen mit Leerlauf/Höchstdauer nach Systemuhr,
+  nur SHA-256 des Tokens gespeichert, CSRF-Token per HMAC abgeleitet, Herkunftsprüfung, Bremse mit
+  Verdopplung, Ersteinrichtung per Einrichtungscode-Datei (0600) oder `python -m kontor.anmeldung
+  passwort-setzen`, Abmelden, Passwort ändern; abschaltbar mit Vorgabe aus, Warnung im Echtmodus ohne
+  Anmeldung.
+- Schutzhülle `kontor.schutz`: Netzbeschränkung, 401/303 ohne Sitzung, Größengrenzen (auch chunked),
+  Sicherheitsköpfe mit CSP an jeder Antwort, `no-store`; Eingabehärtung (tiefes JSON, übergroße Ganzzahlen → 422).
+- Betrieb: `kontor.betrieb` mit `kontor.service` (Härtung, `LoadCredentialEncrypted`), Sicherungs-Service und
+  -Timer, sysusers, `kontor.env`, Drop-in; `python -m kontor` ohne Argumente (D-086); Logging nach stderr;
+  `GET /api/gesundheit`; sauberes Beenden mit Frist und WAL-Checkpoint (D-088); `sichere_in_verzeichnis` und
+  `python -m kontor.sicherung` mit Aufbewahrung je Modus.
+- Leistung (D-089), Datenbankschema 8 mit Migration ohne Datenverlust.
+- Weboberfläche (D-090): Anmeldeseite mit Einrichtung und Sperrhinweis, Abmelden, Passwort ändern, CSRF in
+  allen schreibenden Anfragen, responsiv. README: Installation als systemd-Dienst im LXC Schritt für Schritt,
+  Login einrichten, Mock-Modus.
+
+### Einschränkungen
+
+- Die systemd-Units sind nur statisch (Tests) geprüft, nicht in einem echten Proxmox-LXC gestartet.
+- Kein TLS im Anwendungsserver (sicherheit.md 12); HTTPS nur über einen Reverse-Proxy.
+- `POST /api/benachrichtigungen/test` (D-076) steht nicht in `openapi.yaml` (W-005, offen für den Test-Thread).
+- Die Leistungswerte stammen von einer geteilten Testmaschine; sie schwanken, liegen aber überall deutlich
+  unter den Grenzen.
+
 ## Meilenstein 6 (echte Anbindungen und Benachrichtigungen)
 
 Stand: 2026-11-09, Implementierungs-Thread.

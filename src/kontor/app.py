@@ -300,6 +300,7 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
             # betrieb.md 5.2: Planer anhalten, laufenden Lauf in der Frist beenden, WAL-Checkpoint
             await run_in_threadpool(sync.beenden)
             await run_in_threadpool(db.checkpoint, pfad)
+            log.info("Kontor beendet (Datenbank %s geschlossen)", pfad.name)
 
     app = fastapi.FastAPI(title="Kontor", version=__version__, docs_url=None, redoc_url=None, openapi_url=None,
                           lifespan=lebensdauer)
