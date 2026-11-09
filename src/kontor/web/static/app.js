@@ -83,14 +83,46 @@
     }
   }
 
+  // M7: Anmeldestatus (sicherheit.md 4.1); CSRF-Token für schreibende Anfragen (4.6)
+  const anmeldung = { aktiv: false, csrf: null, ablauf: null };
+
+  async function anmeldungLaden() {
+    try {
+      const r = await fetch("/api/anmeldung", { cache: "no-store", credentials: "same-origin" });
+      const d = await r.json();
+      anmeldung.aktiv = !!d.aktiv;
+      anmeldung.csrf = d.csrf_token || null;
+      anmeldung.ablauf = d.sitzung_ablauf || null;
+      if (d.aktiv && !d.angemeldet) zurAnmeldung();
+    } catch (e) { /* ohne Status weiter; 401 führt später zur Anmeldeseite */ }
+    const knopf = $("#abmelden-knopf");
+    if (knopf) knopf.hidden = !anmeldung.aktiv;
+  }
+
+  function zurAnmeldung() {
+    const hier = location.pathname + location.search + location.hash;
+    location.href = "/anmelden?weiter=" + encodeURIComponent(hier.startsWith("/") ? hier : "/");
+  }
+
+  async function abmelden() {
+    try { await api("POST", "/api/anmeldung/abmelden"); } catch (e) { /* trotzdem zur Anmeldeseite */ }
+    anmeldung.csrf = null;
+    location.href = "/anmelden";
+  }
+
   async function api(methode, pfad, koerper, roh) {
-    const opt = { method: methode, headers: {} };
+    const opt = { method: methode, headers: {}, credentials: "same-origin" };
     if (roh) opt.body = roh;
     else if (koerper !== undefined) {
       opt.headers["Content-Type"] = "application/json";
       opt.body = JSON.stringify(koerper);
     }
+    if (anmeldung.csrf && methode !== "GET" && methode !== "HEAD") opt.headers["X-Kontor-CSRF"] = anmeldung.csrf;
     const r = await fetch(pfad, opt);
+    if (r.status === 401 && anmeldung.aktiv && !pfad.startsWith("/api/anmeldung")) {
+      zurAnmeldung();
+      throw new ApiFehler(401, { code: "nicht_angemeldet", meldung: "Die Sitzung ist abgelaufen. Bitte neu anmelden." });
+    }
     if (r.status === 204) return null;
     let daten = null;
     try { daten = await r.json(); } catch (e) { daten = null; }
@@ -1048,6 +1080,46 @@
       form);
   }
 
+  // M7: Anmeldung in den Einstellungen – Passwort ändern, Abmelden (sicherheit.md 4.7, 4.8)
+  function anmeldeKarte() {
+    if (!anmeldung.aktiv) {
+      return h("div", { class: "karte", "data-testid": "anmeldung-karte" }, h("h2", { style: "margin-top:0" }, "Anmeldung"),
+        h("p", { class: "leise" }, "Die Anmeldung ist abgeschaltet (KONTOR_ANMELDUNG). Im Betrieb wird sie über die ausgelieferte Umgebungsdatei eingeschaltet."));
+    }
+    const alt = h("input", { type: "password", autocomplete: "current-password", maxlength: 1024, required: true, "data-testid": "passwort-alt" });
+    const neu = h("input", { type: "password", autocomplete: "new-password", minlength: 12, maxlength: 1024, required: true, "data-testid": "passwort-neu" });
+    const wdh = h("input", { type: "password", autocomplete: "new-password", minlength: 12, maxlength: 1024, required: true, "data-testid": "passwort-wiederholen" });
+    const hinweis = h("p", { class: "leise", role: "status", "data-testid": "passwort-hinweis" });
+    const form = h("form", { class: "formular", "data-testid": "passwort-formular", onsubmit: async (e) => {
+      e.preventDefault();
+      hinweis.textContent = "";
+      if ([...neu.value.normalize("NFC")].length < 12) { hinweis.textContent = "Das neue Passwort muss mindestens 12 Zeichen haben."; return; }
+      if (neu.value !== wdh.value) { hinweis.textContent = "Die Wiederholung stimmt nicht überein."; return; }
+      try {
+        const st = await api("PUT", "/api/anmeldung/passwort", { altes_passwort: alt.value, neues_passwort: neu.value });
+        anmeldung.csrf = st.csrf_token;
+        alt.value = neu.value = wdh.value = "";
+        hinweis.textContent = "Passwort geändert. Alle anderen Geräte wurden abgemeldet.";
+        melden("Passwort geändert.");
+      } catch (err) {
+        if (err.code === "anmeldung_gesperrt" && err.details) {
+          hinweis.textContent = "Zu viele falsche Versuche – gesperrt bis " + new Date(err.details.gesperrt_bis).toLocaleTimeString("de-DE") + ".";
+        } else if (err.code === "anmeldung_fehlgeschlagen") hinweis.textContent = "Das bisherige Passwort ist falsch.";
+        else hinweis.textContent = err.message;
+      }
+    } },
+      h("label", { class: "feld" }, "Bisheriges Passwort", alt),
+      h("label", { class: "feld" }, "Neues Passwort (mindestens 12 Zeichen)", neu),
+      h("label", { class: "feld" }, "Neues Passwort wiederholen", wdh),
+      h("div", { class: "werkzeug" }, h("button", { type: "submit", class: "knopf primaer" }, "Passwort ändern"),
+        h("button", { type: "button", class: "knopf", "data-testid": "abmelden-einstellungen", onclick: abmelden }, "Abmelden")),
+      hinweis);
+    return h("div", { class: "karte", "data-testid": "anmeldung-karte" }, h("h2", { style: "margin-top:0" }, "Anmeldung"),
+      h("p", { class: "leise" }, "Ein gemeinsames Passwort für den Haushalt.",
+        anmeldung.ablauf ? " Diese Sitzung läuft spätestens " + new Date(anmeldung.ablauf).toLocaleString("de-DE") + " ab (bei Inaktivität früher)." : ""),
+      form);
+  }
+
   async function ansichtEinstellungen() {
     await stammLaden();
     const status = await api("GET", "/api/status");
@@ -1072,6 +1144,7 @@
           neu, h("button", { type: "submit", class: "knopf" }, "Anlegen")));
     };
     seite("Einstellungen",
+      anmeldeKarte(),
       h("div", { class: "karte" }, h("h2", { style: "margin-top:0" }, "Betrieb"),
         h("ul", null, h("li", null, "Modus: ", h("strong", null, status.modus === "mock" ? "Mock-Modus" : "Echtbetrieb")),
           status.hinweis ? h("li", null, status.hinweis) : null,
@@ -2838,9 +2911,12 @@
   const direktPfad = /^\/(tan\/\d+|buchungen\/\d+|sync\/konten|wiederkehrend|mail\/postfaecher\/\d+|einstellungen)\/?$/.exec(location.pathname);
   if (direktPfad) history.replaceState(null, "", "/#/" + direktPfad[1]);
   $("#glocke").addEventListener("click", () => { location.hash = "#/benachrichtigungen"; });
-  glockeAktualisieren();
-  setInterval(() => { if (!document.hidden) glockeAktualisieren(); }, 30000);
+  $("#abmelden-knopf").addEventListener("click", abmelden);
   layoutLaden();
   trennerEinrichten();
-  route();
+  anmeldungLaden().then(() => {
+    glockeAktualisieren();
+    setInterval(() => { if (!document.hidden) glockeAktualisieren(); }, 30000);
+    route();
+  });
 })();
