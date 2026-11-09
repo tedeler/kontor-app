@@ -12,8 +12,10 @@ import datetime as dt
 import functools
 import html
 import logging
+import math
 import pathlib
 import re
+import time
 import urllib.parse
 from collections.abc import Callable
 from typing import Any
@@ -28,7 +30,9 @@ from starlette.staticfiles import StaticFiles
 
 from . import (__version__, berichte, buch, db, export, kredite, lernmodell, mail, pflege, protokoll, regeln,
                sicherung, vorlagen, wiederkehrend)
+from . import anmeldung as anm
 from .geheimnisse import REST_NAMEN
+from .schutz import Schutz, cookie_token, ist_https
 from .sync import SyncDienst
 from .config import KontorConfig
 from .importer.kmymoney import importiere_bytes
@@ -207,6 +211,38 @@ def _index_html(config: KontorConfig) -> str:
             .replace("{{VERSION}}", __version__))
 
 
+class _Antwort(Exception):
+    """Fertige Antwort aus einer Hilfsfunktion (z. B. 429 mit Retry-After)."""
+
+    def __init__(self, antwort: Response) -> None:
+        super().__init__("antwort")
+        self.antwort = antwort
+
+
+def _anmelde_html(config: KontorConfig, eingerichtet: bool) -> str:
+    """Anmeldeseite (sicherheit.md 3.4): ohne Inhalte aus dem Buchbestand und ohne Teile der Anfrage."""
+    vorlage = (WEB / "anmelden.html").read_text(encoding="utf-8")
+    if config.mock_modus:
+        hinweis = ('<div id="mock-hinweis" class="mock-hinweis" role="status"><strong>Mock-Modus</strong> – nur '
+                   'synthetische Testdaten, eigene Mock-Datenbank. Keine Verbindung zu Bank oder Mailserver.</div>')
+    else:
+        hinweis = ""
+    if eingerichtet:
+        felder, titel, knopf = "", "Anmelden", "Anmelden"
+        art = "anmelden"
+    else:
+        felder = ('<label for="einrichtungscode">Einrichtungscode</label>'
+                  '<input id="einrichtungscode" name="einrichtungscode" type="text" autocomplete="one-time-code"'
+                  ' required maxlength="64" spellcheck="false" autocapitalize="off"'
+                  ' data-testid="anmeldung-einrichtungscode">'
+                  '<p class="hilfe">Der Code steht auf dem Server in der Datei <code>&lt;Datenbank&gt;.einrichtung'
+                  '</code> (z. B. <code>cat /var/lib/kontor/kontor.sqlite3.einrichtung</code>).</p>')
+        titel, knopf, art = "Kontor einrichten", "Passwort festlegen", "einrichten"
+    return (vorlage.replace("<!--MODUS-HINWEIS-->", hinweis).replace("<!--EINRICHTUNG-->", felder)
+            .replace("{{TITEL}}", titel).replace("{{KNOPF}}", knopf).replace("{{ART}}", art)
+            .replace("{{MODUS}}", "mock" if config.mock_modus else "echt").replace("{{VERSION}}", __version__))
+
+
 class _AbfrageSchwaerzen(logging.Filter):
     """Zugriffsprotokoll von uvicorn ohne Abfrageteil: ``/oauth2/rueckruf?state=…&code=…`` trägt Geheimnisse
     (geheimnisse.md 1 und 6)."""
@@ -242,6 +278,11 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     protokolle_absichern()
     db.schema_anlegen(pfad)  # vor der Rückkehr: Datei und Schema existieren
     modus = "mock" if config.mock_modus else "echt"
+    if config.anmeldung:
+        anm.Anmeldedienst(config).einrichtung_vorbereiten()  # sicherheit.md 5 Weg 2
+    elif not config.mock_modus:
+        log.warning("Die Anmeldung ist abgeschaltet (KONTOR_ANMELDUNG): Kontor ist ohne Passwort erreichbar. "
+                    "Für den Betrieb KONTOR_ANMELDUNG=1 setzen.")
     sync = SyncDienst(config)
     sync.neustart_aufraeumen()  # synchronisation.md 10
     sync.zustellung.vorbereiten()  # M6: neue Benachrichtigungen ausstehend oder „keine“ (benachrichtigungen.md 4.1)
@@ -255,13 +296,18 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
         try:
             yield
         finally:
-            await run_in_threadpool(sync.planer_stoppen)
+            # betrieb.md 5.2: Planer anhalten, laufenden Lauf in der Frist beenden, WAL-Checkpoint
+            await run_in_threadpool(sync.beenden)
+            await run_in_threadpool(db.checkpoint, pfad)
 
     app = fastapi.FastAPI(title="Kontor", version=__version__, docs_url=None, redoc_url=None, openapi_url=None,
                           lifespan=lebensdauer)
     app.state.config = config
     app.state.sync = sync
     app.add_middleware(ModusHeader, modus=modus)
+    app.add_middleware(Schutz, config=config, modus=modus)  # M7: äußerste Hülle (sicherheit.md 3, 4.6, 6, 8, 10)
+    anmeldedienst = anm.Anmeldedienst(config)
+    app.state.anmeldung = anmeldedienst
 
     @app.exception_handler(StarletteHTTPException)
     async def http_fehler(request: Request, exc: StarletteHTTPException):
@@ -1169,8 +1215,190 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
         return await aendern("dublette_aufloesen", buch.verdacht_aufloesen, pid(request, "verdacht_id"), d["entscheidung"],
                                d.get("behalten_id"))
 
+    # ------------------------------------------------- M7: Anmeldung (sicherheit.md 4, 5)
+    def _zeit(sekunden: float | None) -> str | None:
+        if sekunden is None:
+            return None
+        z = dt.datetime.fromtimestamp(sekunden, dt.timezone.utc)
+        return z.strftime("%Y-%m-%dT%H:%M:%S.") + f"{z.microsecond // 1000:03d}Z"
+
+    def _status(con, sitzung: tuple[float, float] | None, token: str | None) -> dict:
+        jetzt = time.time()
+        angemeldet = config.anmeldung and sitzung is not None and token is not None
+        return {"aktiv": config.anmeldung, "eingerichtet": anmeldedienst.eingerichtet(con),
+                "angemeldet": bool(angemeldet), "csrf_token": anm.csrf_token(token) if angemeldet else None,
+                "sitzung_ablauf": _zeit(anmeldedienst.ablauf(*sitzung)) if angemeldet else None,
+                "gesperrt_bis": _zeit(anmeldedienst.gesperrt_bis(con, jetzt))}
+
+    def _abgeschaltet():
+        if not config.anmeldung:
+            raise ApiFehler(409, "anmeldung_abgeschaltet", "Die Anmeldung ist nicht eingeschaltet.")
+
+    def _gesperrt(con, jetzt: float):
+        bis = anmeldedienst.gesperrt_bis(con, jetzt)
+        if bis is not None:
+            rest = max(1, math.ceil(bis - jetzt))
+            antwort = fehler_antwort(429, "anmeldung_gesperrt",
+                                     "Zu viele falsche Versuche; die Anmeldung ist vorübergehend gesperrt.",
+                                     {"gesperrt_bis": _zeit(bis)})
+            antwort.headers["Retry-After"] = str(rest)
+            raise _Antwort(antwort)
+
+    def _cookie(request: Request, token: str, loeschen: bool = False) -> str:
+        if loeschen:
+            return "kontor_sitzung=; Max-Age=0; Path=/; HttpOnly; SameSite=Strict"
+        secure = config.sitzung_cookie_secure
+        if secure is None:
+            secure = ist_https(request.scope)
+        return (f"kontor_sitzung={token}; HttpOnly; SameSite=Strict; Path=/; "
+                f"Max-Age={config.sitzung_hoechstdauer_sekunden}" + ("; Secure" if secure else ""))
+
+    def _client(request: Request) -> str:
+        return request.client.host if request.client else "unbekannt"
+
+    def _neue_sitzung(con, jetzt: float) -> tuple[str, dict]:
+        token = anmeldedienst.sitzung_anlegen(con, jetzt)
+        return token, _status(con, (jetzt, jetzt), token)
+
+    def _pw_regel(passwort: str, feld: str) -> None:
+        if not anm.passwort_gueltig(passwort):
+            raise Validierungsfehler([fehler_eintrag(["body", feld], "Das Passwort muss 12 bis 1024 Zeichen lang sein.")])
+
+    PW = S("str", pflicht=True, min_len=1, max_len=4096)
+
+    @endpunkt("GET", "/api/anmeldung")
+    async def anmeldung_status(request: Request):
+        token = cookie_token(request.scope) if config.anmeldung else None
+        sitzung = await run_in_threadpool(anmeldedienst.sitzung_pruefen, token) if token else None
+        return await lesen(lambda con: _status(con, sitzung, token))
+
+    @endpunkt("POST", "/api/anmeldung")
+    async def anmelden(request: Request):
+        _abgeschaltet()
+        d = await koerper(request, {"passwort": PW})
+
+        def ausfuehren(con):
+            jetzt = time.time()
+            if not anmeldedienst.eingerichtet(con):
+                raise ApiFehler(409, "nicht_eingerichtet", "Kontor ist noch nicht eingerichtet.")
+            _gesperrt(con, jetzt)
+            ok = anm.passwort_pruefen(d["passwort"], anmeldedienst.passwort_hash_lesen(con) or "")
+            with db.transaktion(con):
+                if not ok:
+                    anmeldedienst.fehlversuch(con, jetzt, _client(request))
+                    return None
+                anmeldedienst.erfolg(con)
+                return _neue_sitzung(con, jetzt)
+
+        ergebnis = await _mit_antwort(ausfuehren)
+        if isinstance(ergebnis, Response):
+            return ergebnis
+        if ergebnis is None:
+            return fehler_antwort(401, "anmeldung_fehlgeschlagen", "Das Passwort ist falsch.", {})
+        token, st = ergebnis
+        return JSONResponse(st, headers={"Set-Cookie": _cookie(request, token)})
+
+    @endpunkt("POST", "/api/anmeldung/einrichten")
+    async def einrichten(request: Request):
+        _abgeschaltet()
+        d = await koerper(request, {"einrichtungscode": S("str", pflicht=True, min_len=1, max_len=64),
+                                    "passwort": PW})
+        _pw_regel(d["passwort"], "passwort")
+
+        def ausfuehren(con):
+            jetzt = time.time()
+            if anmeldedienst.eingerichtet(con):
+                raise ApiFehler(409, "bereits_eingerichtet", "Kontor ist bereits eingerichtet.")
+            _gesperrt(con, jetzt)
+            ok = anmeldedienst.einrichtungscode_stimmt(d["einrichtungscode"])
+            neu = anm.passwort_hash(d["passwort"]) if ok else None
+            with db.transaktion(con):
+                if not ok:
+                    anmeldedienst.fehlversuch(con, jetzt, _client(request))
+                    return None
+                anmeldedienst.einrichten(con, neu)
+                ergebnis = _neue_sitzung(con, jetzt)
+            anm.einrichtungsdatei(config).unlink(missing_ok=True)
+            return ergebnis
+
+        ergebnis = await _mit_antwort(ausfuehren)
+        if isinstance(ergebnis, Response):
+            return ergebnis
+        if ergebnis is None:
+            return fehler_antwort(403, "einrichtungscode_ungueltig", "Der Einrichtungscode ist falsch.", {})
+        token, st = ergebnis
+        return JSONResponse(st, headers={"Set-Cookie": _cookie(request, token)})
+
+    @endpunkt("POST", "/api/anmeldung/abmelden", 204)
+    async def abmelden(request: Request):
+        _abgeschaltet()
+        token = request.scope.get("state", {}).get("kontor_sitzung")
+        if token:
+            await run_in_threadpool(anmeldedienst.abmelden, token)
+        return Response(status_code=204, headers={"Set-Cookie": _cookie(request, "", loeschen=True)})
+
+    @endpunkt("PUT", "/api/anmeldung/passwort")
+    async def passwort_aendern(request: Request):
+        _abgeschaltet()
+        d = await koerper(request, {"altes_passwort": PW, "neues_passwort": PW})
+        _pw_regel(d["neues_passwort"], "neues_passwort")
+        token = request.scope["state"]["kontor_sitzung"]
+        zeiten = request.scope["state"]["kontor_sitzung_zeiten"]
+
+        def ausfuehren(con):
+            jetzt = time.time()
+            _gesperrt(con, jetzt)
+            ok = anm.passwort_pruefen(d["altes_passwort"], anmeldedienst.passwort_hash_lesen(con) or "")
+            neu = anm.passwort_hash(d["neues_passwort"]) if ok else None
+            with db.transaktion(con):
+                if not ok:
+                    anmeldedienst.fehlversuch(con, jetzt, _client(request))
+                    return None
+                anmeldedienst.neues_passwort(con, neu, token)
+            return _status(con, zeiten, token)
+
+        ergebnis = await _mit_antwort(ausfuehren)
+        if isinstance(ergebnis, Response):
+            return ergebnis
+        if ergebnis is None:
+            return fehler_antwort(403, "anmeldung_fehlgeschlagen", "Das bisherige Passwort ist falsch.", {})
+        return ergebnis
+
+    async def _mit_antwort(f):
+        try:
+            return await lesen(f)
+        except _Antwort as a:
+            return a.antwort
+
+    # ------------------------------------------------ M7: Gesundheitsprüfung (betrieb.md 6)
+    @endpunkt("GET", "/api/gesundheit")
+    async def gesundheit(request: Request):
+        def pruefen():
+            try:
+                con = db.verbinde_lesend(pfad)
+                try:
+                    con.execute("SELECT 1 FROM meta LIMIT 1").fetchall()
+                finally:
+                    con.close()
+                return True
+            except Exception:  # noqa: BLE001
+                return False
+        if not await run_in_threadpool(pruefen):
+            return fehler_antwort(503, "nicht_bereit", "Die Datenbank antwortet nicht.")
+        return {"status": "ok", "version": __version__}
+
     # ---------------------------------------------------- Weboberfläche
     index = _index_html(config)
+
+    @app.get("/anmelden", include_in_schema=False)
+    async def anmeldeseite(request: Request):
+        if not config.anmeldung:
+            return Response(status_code=303, headers={"Location": "/"})
+        token = cookie_token(request.scope)
+        if token and await run_in_threadpool(anmeldedienst.sitzung_pruefen, token):
+            return Response(status_code=303, headers={"Location": "/"})
+        eingerichtet = await run_in_threadpool(anmeldedienst.eingerichtet)
+        return HTMLResponse(_anmelde_html(config, eingerichtet), headers={"Cache-Control": "no-store"})
 
     @app.get("/", include_in_schema=False)
     async def startseite():
@@ -1210,6 +1438,7 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
         return Response((WEB / "manifest.webmanifest").read_bytes(), media_type="application/manifest+json")
 
     app.mount("/static", StaticFiles(directory=str(WEB / "static")), name="static")
+    app.mount("/oeffentlich", StaticFiles(directory=str(WEB / "oeffentlich")), name="oeffentlich")
     return app
 
 

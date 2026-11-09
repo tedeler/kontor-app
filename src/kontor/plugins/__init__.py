@@ -14,7 +14,8 @@ def erzeuge_bank_plugin(config: KontorConfig, *,
                         pin_quelle: Callable[[], str | None] | None = None) -> BankPlugin:
     if config.bank_plugin == "mock":
         from .mock_bank import MockBankPlugin
-        return MockBankPlugin(config.mock_daten, config.mock_szenario, config.mock_heute, pin_quelle=pin_quelle)
+        return MockBankPlugin(config.mock_daten, config.mock_szenario, config.mock_heute, pin_quelle=pin_quelle,
+                              verzoegerung_ms=config.mock_verzoegerung_ms)
     if config.bank_plugin == "fints":
         from .fints import FintsBankPlugin
         return FintsBankPlugin(config, pin_quelle=pin_quelle)

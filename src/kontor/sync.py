@@ -13,6 +13,7 @@ import contextlib
 import datetime as dt
 import logging
 import threading
+import time
 from dataclasses import dataclass
 
 import json
@@ -77,6 +78,10 @@ class SyncDienst:
         self._tan: dict[int, _TanKontext] = {}
         self._thread: threading.Thread | None = None
         self._stopp = threading.Event()
+        # M7 (betrieb.md 5.2): Beenden der App; _abbruch = nach Fristablauf nichts mehr schreiben
+        self._beenden = False
+        self._abbruch = False
+        self._schreib_sperre = threading.Lock()
         # M6: PIN aus systemd-creds (fints.md 5), Geheimnisse, Mail, Zustellung
         self._pin_gesperrt = False
         self.geheimnisse = Geheimnisspeicher(config, self.jetzt_text)
@@ -451,6 +456,9 @@ class SyncDienst:
         except Exception as e:  # noqa: BLE001 - Pluginfehler führen nie zu 5xx
             self._lauf_scheitert(con, lid, *self._pluginfehler(e))
             return
+        if self._beenden:
+            self._beim_beenden_abbrechen(con, lid)
+            return
         self._zuordnen(con, lid, bankkonten)
         self._fortsetzen(con, lid, plugin)
 
@@ -538,18 +546,33 @@ class SyncDienst:
                             " ORDER BY iban LIMIT 1", (lid,)).fetchone()
             if k is None:
                 break
+            if self._beenden:  # betrieb.md 5.2: keine weiteren Konten abrufen
+                self._beim_beenden_abbrechen(con, lid)
+                return
             von, bis = self._zeitraum(con, lauf, k["iban"])
+            fehler: BaseException | None = None
             try:
                 self._vor_aufruf(plugin)
                 umsaetze = plugin.umsaetze(k["iban"], von, bis)
             except TanErforderlich as e:
-                self._tan_anlegen(con, lid, k, von, bis, e, plugin)
+                with self._schreib_sperre:
+                    if self._abbruch:
+                        return
+                    self._tan_anlegen(con, lid, k, von, bis, e, plugin)
                 return
             except Exception as e:  # noqa: BLE001
-                self._konto_scheitert(con, lid, k["iban"], von, bis, *self._pluginfehler(e))
-                continue
-            self._konto_uebernehmen(con, lid, k, von, bis, umsaetze)
-        self._abschliessen(con, lid)
+                fehler = e
+            with self._schreib_sperre:
+                if self._abbruch:  # Frist überschritten: dieses Konto wird nicht geschrieben
+                    return
+                if fehler is not None:
+                    self._konto_scheitert(con, lid, k["iban"], von, bis, *self._pluginfehler(fehler))
+                else:
+                    self._konto_uebernehmen(con, lid, k, von, bis, umsaetze)
+        with self._schreib_sperre:
+            if self._abbruch:
+                return
+            self._abschliessen(con, lid)
 
     def _konto_scheitert(self, con, lid: int, iban: str, von: dt.date, bis: dt.date, code: str,
                          meldung: str) -> None:
@@ -872,6 +895,8 @@ class SyncDienst:
             self.tan_erinnerungen()               # 2. TAN-Erinnerungen
             self.mail.anmeldungen_pruefen()       # 3. Vorwarnung und Ablauf der Mail-Anmeldungen
             lauf = self._lauf_falls_faellig()     # 4. Synchronisationslauf
+            if self._beenden:                     # betrieb.md 5.2: nach dem Beenden nichts Neues
+                return lauf
             if self.mail.faellig():               # 5. Mail-Abruf
                 try:
                     self.mail.abruf()
@@ -879,11 +904,12 @@ class SyncDienst:
                     pass
             return lauf
         finally:
-            self.zustellung.neue()                # neue Benachrichtigungen dieses Takts sofort
-            self.zustellung.faellige()            # 6. Wiederholung fälliger Zustellungen
+            if not self._abbruch:
+                self.zustellung.neue()            # neue Benachrichtigungen dieses Takts sofort
+                self.zustellung.faellige()        # 6. Wiederholung fälliger Zustellungen
 
     def _lauf_falls_faellig(self) -> dict | None:
-        if self.config.sync_intervall_minuten <= 0:
+        if self.config.sync_intervall_minuten <= 0 or self._beenden:
             return None
         con = self._con()
         try:
@@ -943,6 +969,38 @@ class SyncDienst:
 
         self._thread = threading.Thread(target=schleife, name="kontor-planer", daemon=True)
         self._thread.start()
+
+    def _beim_beenden_abbrechen(self, con, lid: int) -> None:
+        with self._schreib_sperre:
+            if self._abbruch:
+                return
+            with db.transaktion(con):
+                self._lauf_abbrechen(con, lid, self.jetzt_text())
+
+    def beenden(self) -> None:
+        """betrieb.md 5.2 Schritte 1–3: kein neuer Takt/Lauf; ein laufender Lauf darf das aktuelle Konto bis
+        ``beenden_frist_sekunden`` fertig verarbeiten, danach wird er abgebrochen (nichts mehr geschrieben)."""
+        frist = self.config.beenden_frist_sekunden
+        ende = time.monotonic() + frist
+        self._beenden = True
+        self._stopp.set()
+        if self._thread is not None:
+            self._thread.join(timeout=frist)
+            if not self._thread.is_alive():
+                self._thread = None
+        if self._sperre.acquire(timeout=max(0.0, ende - time.monotonic())):
+            self._sperre.release()  # kein Lauf mehr aktiv
+            return
+        with self._schreib_sperre:
+            self._abbruch = True
+            con = self._con()
+            try:
+                with db.transaktion(con):
+                    for r in con.execute("SELECT id FROM sync_lauf WHERE status = 'laeuft'").fetchall():
+                        self._lauf_abbrechen(con, r["id"], self.jetzt_text())
+            finally:
+                con.close()
+        log.info("Beim Beenden lief noch eine Synchronisation; sie wurde abgebrochen.")
 
     def planer_stoppen(self) -> None:
         self._stopp.set()

@@ -61,6 +61,9 @@ class Feld:
     unter: dict[str, "Feld"] = field(default_factory=dict)
 
 
+INT64 = 2 ** 63 - 1  # sicherheit.md 7.4: übergroße Ganzzahlen → 422
+
+
 def ist_int(x: Any) -> bool:
     return type(x) is int
 
@@ -96,6 +99,8 @@ def _pruefe_wert(f: Feld, wert: Any, ort: list, fehler: list[dict]) -> Any:
     if t == "int":
         if not ist_int(wert):
             fehler.append(fehler_eintrag(ort, "Ganzzahl erwartet."))
+        elif not -INT64 <= wert <= INT64:
+            fehler.append(fehler_eintrag(ort, "Ganzzahl außerhalb des zulässigen Bereichs."))
         return wert
     if t == "betrag":
         if not ist_int(wert):
@@ -178,7 +183,7 @@ def pruefe_objekt(daten: Any, schema: dict[str, Feld], ort: list, fehler: list[d
 def json_koerper(roh: bytes) -> Any:
     try:
         return json.loads(roh.decode("utf-8"))
-    except (UnicodeDecodeError, ValueError):
+    except (UnicodeDecodeError, ValueError, RecursionError):
         raise Validierungsfehler([fehler_eintrag(["body"], "Kein gültiges JSON.")]) from None
 
 

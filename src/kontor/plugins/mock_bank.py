@@ -34,7 +34,8 @@ class MockBankPlugin(BankPlugin):
 
     def __init__(self, daten: pathlib.Path | None = None, szenario: str = "normal",
                  heute: dt.date | None = None, *,
-                 pin_quelle: Callable[[], str | None] | None = None) -> None:
+                 pin_quelle: Callable[[], str | None] | None = None, verzoegerung_ms: int = 0) -> None:
+        self._verzoegerung = verzoegerung_ms / 1000  # betrieb.md 5.4 (Testhilfe)
         self._szenario = md.szenario_pruefen(szenario)
         self._daten = md.lade_datei(pathlib.Path(daten)) if daten is not None else None
         self._heute = heute
@@ -96,6 +97,9 @@ class MockBankPlugin(BankPlugin):
 
     def umsaetze(self, iban: str, von: dt.date, bis: dt.date, *,
                  tan: TanAntwort | None = None) -> list[BankUmsatz]:
+        if self._verzoegerung > 0:
+            import time
+            time.sleep(self._verzoegerung)
         self._pin_pruefen()
         self._stoerung()
         if von > bis:

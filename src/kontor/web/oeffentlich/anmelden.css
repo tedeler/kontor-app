@@ -1,0 +1,28 @@
+/* Anmeldeseite (sicherheit.md 3.4) – ohne externe Ressourcen, responsiv */
+:root { --hg: #f6f7f9; --flaeche: #fff; --text: #1c2430; --leise: #5d6b7a; --linie: #d8dee6; --akzent: #1f5f8b;
+  --akzent-text: #fff; --negativ: #b3261e; --warn-hg: #fff3c4; --warn-text: #5a4300; --warn-linie: #e0b400; }
+@media (prefers-color-scheme: dark) {
+  :root { --hg: #12161c; --flaeche: #1a2029; --text: #e3e8ef; --leise: #9aa7b6; --linie: #333e4c; --akzent: #5aa6dc;
+    --akzent-text: #0b1520; --negativ: #ff8a80; --warn-hg: #3d3200; --warn-text: #ffe28a; --warn-linie: #b38f00; }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; background: var(--hg); color: var(--text);
+  font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+.mock-hinweis { background: var(--warn-hg); color: var(--warn-text); border-bottom: 3px solid var(--warn-linie);
+  padding: .6rem 1rem; text-align: center; }
+.anmelde-rahmen { max-width: 26rem; margin: 3rem auto; padding: 1.5rem; background: var(--flaeche);
+  border: 1px solid var(--linie); border-radius: 10px; }
+h1 { margin: 0 0 .25rem; font-size: 1.6rem; display: flex; align-items: center; gap: .5rem; }
+h2 { margin: 0 0 1rem; font-size: 1.1rem; font-weight: 600; color: var(--leise); }
+.anmelde-formular { display: flex; flex-direction: column; gap: .4rem; }
+label { font-weight: 600; margin-top: .4rem; }
+input { font: inherit; padding: .65rem .7rem; border: 1px solid var(--linie); border-radius: 6px;
+  background: var(--hg); color: var(--text); width: 100%; }
+button { font: inherit; margin-top: .8rem; padding: .7rem; border: 0; border-radius: 6px; background: var(--akzent);
+  color: var(--akzent-text); font-weight: 600; cursor: pointer; }
+button[disabled] { opacity: .6; cursor: wait; }
+.meldung { min-height: 1.4em; margin: .3rem 0 0; color: var(--negativ); }
+.meldung.sperre { font-weight: 600; }
+.hilfe, .fuss { font-size: .85rem; color: var(--leise); }
+code { font-size: .85em; word-break: break-all; }
+@media (max-width: 30rem) { .anmelde-rahmen { margin: 0; border: 0; border-radius: 0; min-height: 100vh; } }

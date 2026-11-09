@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#1f5f8b">
+<meta name="referrer" content="no-referrer">
+<title>Kontor – {{TITEL}}</title>
+<link rel="icon" href="/oeffentlich/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/oeffentlich/anmelden.css">
+</head>
+<body class="modus-{{MODUS}}">
+<!--MODUS-HINWEIS-->
+<main class="anmelde-rahmen">
+  <h1><img src="/oeffentlich/icon.svg" alt="" width="32" height="32"> Kontor</h1>
+  <h2>{{TITEL}}</h2>
+  <form id="anmeldung-formular" class="anmelde-formular" data-testid="anmeldung-formular" data-art="{{ART}}"
+        method="post" action="/anmelden" novalidate>
+    <!--EINRICHTUNG-->
+    <label for="passwort">Haushaltspasswort</label>
+    <input id="passwort" name="passwort" type="password" autocomplete="current-password" required
+           minlength="12" maxlength="1024" data-testid="anmeldung-passwort">
+    <p class="meldung" id="anmeldung-meldung" role="alert" aria-live="assertive" data-testid="anmeldung-meldung"></p>
+    <button type="submit" data-testid="anmeldung-knopf">{{KNOPF}}</button>
+  </form>
+  <p class="fuss">Kontor v{{VERSION}} – gemeinsamer Zugang für den Haushalt.</p>
+</main>
+<script src="/oeffentlich/anmelden.js"></script>
+</body>
+</html>

@@ -15,7 +15,7 @@ from collections.abc import Iterator
 
 from .text import norm
 
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 8
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (
@@ -382,6 +382,22 @@ CREATE TABLE IF NOT EXISTS mail_nachricht (
     UNIQUE (adresse_cf, nachricht_id)
 );
 CREATE INDEX IF NOT EXISTS mail_nachricht_sortierung ON mail_nachricht(empfangen, nachricht_id);
+
+-- ------------------------------------------------------------ Meilenstein 7
+-- Anmeldedaten (sicherheit.md 1): Betriebszustand, nie protokolliert, nie in der Sicherung.
+-- Zeiten in Sekunden seit der Epoche nach der Systemuhr (nie die Mock-Uhr, sicherheit.md 4.4).
+CREATE TABLE IF NOT EXISTS anmeldung_konto (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    passwort_hash TEXT,
+    fehlversuche INTEGER NOT NULL DEFAULT 0,
+    gesperrt_bis REAL
+);
+-- Sitzungen: nur der SHA-256 des Tokens wird gespeichert.
+CREATE TABLE IF NOT EXISTS sitzung (
+    token_hash TEXT PRIMARY KEY,
+    erstellt REAL NOT NULL,
+    aktivitaet REAL NOT NULL
+);
 """
 
 # Spalten, die frühere Schemaversionen noch nicht haben (Migration ohne Datenverlust).
@@ -501,3 +517,25 @@ def transaktion(con: sqlite3.Connection, schreibend: bool = True) -> Iterator[sq
             if con.in_transaction:
                 con.execute("ROLLBACK")
             raise
+
+
+def verbinde_lesend(pfad: pathlib.Path) -> sqlite3.Connection:
+    """Nur lesende Verbindung (legt nichts an; Gesundheitsprüfung, betrieb.md 6)."""
+    con = sqlite3.connect(f"file:{pathlib.Path(pfad)}?mode=ro", uri=True, timeout=5, check_same_thread=False)
+    con.row_factory = sqlite3.Row
+    return con
+
+
+def checkpoint(pfad: pathlib.Path) -> None:
+    """betrieb.md 5.2 Schritt 4: WAL in die Hauptdatei übernehmen und leeren."""
+    try:
+        con = sqlite3.connect(str(pfad), timeout=10)
+    except sqlite3.Error:
+        return
+    try:
+        con.execute("PRAGMA busy_timeout = 10000")
+        con.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchall()
+    except sqlite3.Error:
+        pass
+    finally:
+        con.close()
