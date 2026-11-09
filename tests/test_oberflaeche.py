@@ -73,7 +73,9 @@ def test_oberflaeche_nutzt_nur_spezifizierte_api():
                # M6 (/api/benachrichtigungen/test: App-Erweiterung D-076)
                "/api/benachrichtigungen/zustellung", "/api/benachrichtigungen/zustellen", "/api/benachrichtigungen/test",
                "/api/geheimnisse", "/api/geheimnisse/", "/api/mail/postfaecher", "/api/mail/postfaecher/",
-               "/api/mail/anmeldung/abschluss", "/api/mail/abruf", "/api/mail/nachrichten"}
+               "/api/mail/anmeldung/abschluss", "/api/mail/abruf", "/api/mail/nachrichten",
+               # M7
+               "/api/anmeldung", "/api/anmeldung/abmelden", "/api/anmeldung/passwort", "/api/anmeldung/einrichten"}
     assert pfade <= erlaubt, pfade - erlaubt
 
 

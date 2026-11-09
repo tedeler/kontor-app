@@ -59,6 +59,17 @@ def browser():
     sp.stop()
 
 
+def warte_js(page, ausdruck: str, timeout: int = 30000) -> None:
+    """Wie ``page.wait_for_function``, aber ohne Auswertung von Zeichenketten im Seitenkontext (CSP
+    ``script-src 'self'`` ohne ``'unsafe-eval'``, sicherheit.md 6): Python fragt den Ausdruck ab."""
+    ende = time.monotonic() + timeout / 1000
+    while time.monotonic() < ende:
+        if page.evaluate(ausdruck):
+            return
+        time.sleep(0.1)
+    raise AssertionError(f"Zeitüberschreitung: {ausdruck}")
+
+
 def _neue_seite(browser, **kw):
     page = browser.new_page(**kw)
     fehler: list[str] = []
@@ -93,7 +104,7 @@ def test_regel_sync_und_vorschlaege(tmp_path, browser):
         assert vorher > 2 and page.locator(".vorschlag").count() == vorher
         zeilen.first.locator("button[title='Vorschlag annehmen']").click()
         page.wait_for_selector(".meldung:has-text('angenommen')")
-        page.wait_for_function(f"document.querySelectorAll('table.buchungen tbody tr[data-id]').length === {vorher - 1}")
+        warte_js(page, f"document.querySelectorAll('table.buchungen tbody tr[data-id]').length === {vorher - 1}")
         # Mehrfach ablehnen über Auswahl
         zeilen.nth(0).click()
         zeilen.nth(1).click(modifiers=["Shift"])
@@ -114,7 +125,7 @@ def test_tan_seite_und_benachrichtigung(tmp_path, browser):
         assert speichern.get_attribute("download", timeout=2000).endswith(".png")
         assert page.locator("button", has_text="Teilen").count() == 1
         # Glocke zeigt die Benachrichtigung; Link /tan/<id> führt auf die TAN-Seite
-        page.wait_for_function("document.querySelector('#glocke .zahl-marke').textContent === '1'", timeout=40000)
+        warte_js(page, "document.querySelector('#glocke .zahl-marke').textContent === '1'", timeout=40000)
         tan_id = page.evaluate("location.hash").split("/")[-1]
         page.goto(url + f"/tan/{tan_id}")
         page.wait_for_selector("h1:has-text('TAN-Freigabe')")

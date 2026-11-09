@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pytest
 
-from .test_browser_m2 import _neue_seite, _server, browser  # noqa: F401  (Fixture)
+from .test_browser_m2 import warte_js, _neue_seite, _server, browser  # noqa: F401  (Fixture)
 
 playwright = pytest.importorskip("playwright.sync_api")
 
@@ -29,13 +29,13 @@ def test_m3_desktop(tmp_path, browser):  # noqa: F811
         assert paare >= 1
         page.locator(".paar button", has_text="Zusammenführen").first.click()
         page.wait_for_selector(".meldung:has-text('Umbuchung zusammengeführt')")
-        page.wait_for_function(f"document.querySelectorAll('.paar').length === {paare - 1}")
+        warte_js(page, f"document.querySelectorAll('.paar').length === {paare - 1}")
         # Strg+Z nimmt die letzte Änderung (das Zusammenführen) zurück
         page.locator("h1").click()
         page.keyboard.press("Control+z")
         page.wait_for_selector(".meldung:has-text('Rückgängig gemacht')")
         page.goto(url + "/#/umbuchungen")
-        page.wait_for_function(f"document.querySelectorAll('.paar').length === {paare}")
+        warte_js(page, f"document.querySelectorAll('.paar').length === {paare}")
         page.locator("button", has_text="zusammenführen").first.click()
         page.wait_for_selector(".meldung:has-text('zusammengeführt')")
         # Buchung erfassen
