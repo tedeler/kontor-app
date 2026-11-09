@@ -19,6 +19,9 @@ def erzeuge_bank_plugin(config: KontorConfig, *,
     if config.bank_plugin == "fints":
         from .fints import FintsBankPlugin
         return FintsBankPlugin(config, pin_quelle=pin_quelle)
+    if config.bank_plugin == "aqbanking":
+        from .aqbanking import AqbankingBankPlugin
+        return AqbankingBankPlugin(config, pin_quelle=pin_quelle)
     raise KonfigurationsFehler(f"Unbekanntes Bank-Plugin {config.bank_plugin!r}.")
 
 
