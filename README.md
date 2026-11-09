@@ -1,7 +1,7 @@
 # kontor-app
 
 Implementierung von **Kontor**, einer selbst gehosteten Finanz-Web-App
-(Python, FastAPI, SQLite, Single-Page-Weboberfläche). Stand: **Meilenstein 9** (nach M4, vor M5)
+(Python, FastAPI, SQLite, Single-Page-Weboberfläche). Stand: **Meilenstein 5** (M1–M5 und M9)
 
 - M1: KMyMoney-Import, Finanzübersicht, Konten- und Buchungsliste mit Filtern
   und Mehrfachbearbeitung, doppelte Buchführung mit Splits und Tags,
@@ -29,6 +29,17 @@ Implementierung von **Kontor**, einer selbst gehosteten Finanz-Web-App
   als ZIP (SQLite-Datenbank und Manifest mit Prüfsummen), Einspielen mit
   Probelauf und ausdrücklicher Bestätigung als eine rückgängig machbare
   Änderung im Protokoll; Geheimnisse und Protokoll sind nie enthalten.
+- M5: Wiederkehrende Buchungen (Erkennung aus dem Buchbestand, Übersicht mit
+  Rhythmus, Betrag, Jahreskosten und Status, Benachrichtigungen bei neuem
+  Empfänger, geändertem Betrag und ausbleibender Zahlung), Kredite
+  (Annuitätendarlehen ohne Kontozugriff, Zinsmethoden 30/360, act/360,
+  act/365, Sondertilgungen, centgenauer Tilgungsplan, automatische Aufteilung
+  der Raten als „vorläufig“ bei der Synchronisation oder nachträglich,
+  Jahresabgleich mit genau einer Korrekturbuchung und Status „abgeglichen“),
+  Berichte (Kontostandsverlauf als Liniendiagramm, Einnahmen/Ausgaben ohne
+  Umbuchungen), Export der gefilterten Buchungsliste als CSV (verlustfrei) und
+  PDF (reportlab, ohne Netzwerk). Kredite sind protokolliert, rückgängig
+  machbar und Teil der Sicherung.
 
 Die verbindliche Spezifikation liegt im getrennten Repository **kontor-tests**
 (`spec/konzept.md`, `spec/api/*`); dort liegen auch die Tests.
@@ -140,6 +151,7 @@ python -m kontor serve --host 127.0.0.1 --port 8000
 | `KONTOR_UMBUCHUNG_AUTOMATISCH` | Umbuchungen bei jeder Synchronisation automatisch erkennen und zusammenführen (Vorgabe nein; für den Betrieb empfohlen: `1`) |
 | `KONTOR_UMBUCHUNG_FENSTER_TAGE` | größter Datumsabstand der beiden Seiten einer Umbuchung (0–366, Vorgabe 3) |
 | `KONTOR_LERNMODELL_AUTOMATISCH` | Lernmodell bei neuen Buchungen (Synchronisation, Erfassen) als Vorschlag befragen (Vorgabe nein; für den Betrieb empfohlen: `1`) |
+| `KONTOR_WIEDERKEHREND_AUTOMATISCH` | nach jedem Synchronisationslauf auf unerwartete Buchungen prüfen (neuer Empfänger, geänderter Betrag, ausbleibende Zahlung; Vorgabe nein; für den Betrieb empfohlen: `1`) |
 
 ### Empfohlene Konfiguration für den Betrieb
 
@@ -151,9 +163,11 @@ export KONTOR_DATENBANK=/var/lib/kontor/kontor.sqlite3
 export KONTOR_SYNC_INTERVALL_MINUTEN=240     # automatischer Abruf alle 4 Stunden
 export KONTOR_UMBUCHUNG_AUTOMATISCH=1        # Umbuchungen zwischen eigenen Konten zusammenführen
 export KONTOR_LERNMODELL_AUTOMATISCH=1       # Kategorien aus dem Lernmodell vorschlagen
+export KONTOR_WIEDERKEHREND_AUTOMATISCH=1    # Abos/Daueraufträge überwachen, Auffälligkeiten melden
 ```
 
-Reihenfolge der Kategorisierung neuer Bankumsätze: Split-Vorlage → Regel →
+Reihenfolge der Kategorisierung neuer Bankumsätze: Kreditrate (Aufteilung in
+Zins und Tilgung, Status „vorläufig“) → Split-Vorlage → Regel →
 Standardkategorie des Empfängers → Lernmodell → „Unkategorisiert“. Alles
 außer Vorlagen-Treffern bleibt als Vorschlag markiert, bis es bestätigt ist.
 
@@ -227,6 +241,10 @@ lauf = planer_takt(app)    # ein Planer-Takt, synchron (None, wenn nichts fälli
 
 from kontor.sicherung import erstelle_sicherung
 zip_bytes = erstelle_sicherung(config)   # nur lesend; Einspielen nur über REST
+
+from kontor.kredite import tilgungsplan   # reine Funktion (M5), Beträge in Cent, Sollzins in Millionstel
+plan = tilgungsplan({"restschuld": 1_000_000, "stand_datum": "2024-01-15", "sollzins": 36_000,
+                     "rate": 50_000, "erste_faelligkeit": "2024-02-01", "zinsmethode": "30/360"})
 ```
 
 ## Weboberfläche
@@ -281,6 +299,23 @@ Single-Page-App ohne Build-Schritt und ohne externe Ressourcen
   beschädigten oder fremden Dateien), verlangt dann ein Häkchen und eine
   zweite Bestätigung und zeigt das Ergebnis mit Link ins
   Änderungsprotokoll und „Einspielen rückgängig machen“.
+- **Wiederkehrende Buchungen** (M5): erkannte Serien mit Empfänger, Konto,
+  Rhythmus, aktuellem Betrag, Jahreskosten, nächster Fälligkeit und Status
+  (aktiv/ausbleibend/beendet) zu einem wählbaren Stichtag, Summe der
+  Jahreskosten; „Ausbleibende Zahlungen prüfen“; Klick zeigt die Buchungen
+  des Empfängers. Benachrichtigungen verlinken auf `/buchungen/<id>` bzw.
+  `/wiederkehrend`.
+- **Kredite** (M5): anlegen/bearbeiten (Darlehens-, Zahlungs- und Zinskonto,
+  Restschuld, Sollzins in Prozent, Zinsmethode, Rate, erste Fälligkeit,
+  Sondertilgungen, Erkennungsbedingungen, „Plan berechnen“), Tilgungsplan mit
+  gebuchten Raten, „Raten in vorhandenen Buchungen suchen“ (Probelauf, dann
+  aufteilen), Jahresabgleich-Dialog: Auszugswerte eingeben, Vorschlag mit
+  Differenzen und Korrektursplits ansehen, erst dann bestätigen.
+- **Berichte** (M5): Kontostandsverlauf je Konto als selbst gezeichnetes
+  SVG-Liniendiagramm (Zeitachse, Fadenkreuz mit Werten, Legende, Werte auch
+  als Tabelle), Einnahmen und Ausgaben je Intervall; Export-Knöpfe.
+- **Export** (M5): „⤓ CSV“ und „⤓ PDF“ in jeder Buchungsliste exportieren
+  genau die gefilterten Buchungen in der angezeigten Sortierung.
 - **Einstellungen**: Betriebsmodus, Plugins, Tags verwalten.
 - **Änderungsprotokoll** (M3): alle Änderungen, neueste zuerst, filterbar nach
   Quelle und Wirksamkeit, mit Einträgen je Objekt; Knöpfe „Rückgängig“,

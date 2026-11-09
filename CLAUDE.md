@@ -68,8 +68,11 @@ Commit-Nachrichten sind auf Deutsch.
 | `src/kontor/lernmodell.py` | M4: Lernmodell (Merkmale, Naive Bayes mit `Fraction`, Trainingsmenge aus dem Buchbestand, Vorhersage, Anwenden) – keine Gleitkommazahlen, kein gespeicherter Zustand |
 | `src/kontor/vorlagen.py` | M4: Split-Vorlagen (Validierung, CRUD, Erkennung, Aufteilen, Anwenden, Konto löschen) |
 | `src/kontor/pflege.py` | M3: Empfängerverwaltung, Erfassungshilfe, Umbuchungen, Kontenabstimmung, Volltextsuche, Konto mit Buchungen löschen |
+| `src/kontor/kredite.py` | M5: Kredite (Validierung, CRUD, Tilgungsplan mit Ganzzahlarithmetik, Ratenerkennung für Synchronisation und Zuordnen, Jahresabgleich, Bezüge, `verwaiste_entfernen`) |
+| `src/kontor/wiederkehrend.py` | M5: Erkennung wiederkehrender Buchungen (ohne Zustand), Ereignisse und Benachrichtigungen |
+| `src/kontor/berichte.py`, `export.py` | M5: Kontostandsverlauf, Einnahmen/Ausgaben; CSV- und PDF-Export (reportlab) der Buchungsliste |
 | `src/kontor/sicherung.py` | M9: Datensicherung (eigenes Schema der Sicherungsdatei `SPALTEN`, Version `SCHEMAVERSION`), Prüfung nach sicherung.md 5.1, Inhaltsprüfung in einer App-Datenbank im Arbeitsspeicher, Probelauf, Einspielen |
-| `src/kontor/db.py` | SQLite-Schema (Version 5), Migration früherer Versionen ohne Datenverlust, Verbindungen |
+| `src/kontor/db.py` | SQLite-Schema (Version 6), Migration früherer Versionen ohne Datenverlust, Verbindungen |
 | `src/kontor/importer/` | KMyMoney- und GnuCash-Import (`gnucash.py`: XML und SQLite, SQLite nur als Kopie im Arbeitsspeicher geöffnet) und `ImportErgebnis` |
 | `src/kontor/plugins/` | Bank-/Mail-Schnittstellen, Mock-Plugins, FinTS-/IMAP-Platzhalter |
 | `src/kontor/web/` | Weboberfläche (HTML, CSS, Vanilla-JS, ohne externe Ressourcen) |
@@ -102,7 +105,26 @@ Commit-Nachrichten sind auf Deutsch.
   (protokoll.md 10.2). Während des Einspielens hält `SyncDienst.ohne_lauf()`
   die Laufsperre.
 - Maßstab für „grün“: `python -m pytest` im Lese-Klon; Tests späterer
-  Meilensteine (Marker `m5`…`m8`) erst, wenn beauftragt.
+  Meilensteine (Marker `m6`…`m8`) erst, wenn beauftragt
+  (`-m "not m6 and not m7 and not m8"`).
+
+## Hinweise ab Meilenstein 5
+
+- Kredite: Tabellen `kredit`, `kredit_zuordnung`, `kredit_abgleich` (eine
+  Objektart `kredit` in `protokoll._TABELLEN`). Zuordnungen haben bewusst
+  keinen Fremdschlüssel auf Buchungen; `protokoll.protokolliert` ruft am Ende
+  jeder Operation `kredite.verwaiste_entfernen` auf (Zuordnung gelöschter
+  Buchungen entfällt in derselben Änderung). Konten mit Kreditbezug sind nicht
+  löschbar (`kredite.konto_pruefen`).
+- Stufenfolge neuer Bankumsätze: Kreditrate (Stufe 0) → Vorlage → Regel →
+  Standardkategorie → Lernmodell → „Unkategorisiert“.
+- Sicherungsdatei Schemaversion 2: Kredittabellen; `kredit` steht in `anzahl`
+  und Inhaltsprüfsumme nur, wenn Kredite vorhanden sind
+  (`sicherung.OBJEKTE_OPTIONAL`); Sicherungen der Version 1 werden ohne
+  Kredittabellen gelesen (`TABELLEN_AB`). Künftige Objektarten genauso.
+- Wiederkehrende Buchungen, Berichte und Export haben keinen Zustand; nur
+  Benachrichtigungen werden gespeichert (je Schlüssel höchstens eine).
+- Beträge im PDF/CSV nur über Ganzzahlarithmetik formatieren (`export.betrag_text`).
 
 ## Arbeitsablauf
 

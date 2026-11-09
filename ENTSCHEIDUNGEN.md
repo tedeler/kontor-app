@@ -725,3 +725,106 @@ Weitere Abkürzungen: SY = `spec/api/synchronisation.md`, KA =
   Alles nur über REST, responsiv (Tabelle scrollt auf schmalen Bildschirmen).
 - **Begründung:** Auftrag des Koordinators; sicherung.md 5.3 („die Oberfläche zeigt
   vorher das Ergebnis eines Probelaufs“), E-092.
+
+## D-059 Speicherung der Kredite und Zuordnungen ohne Fremdschlüssel auf Buchungen
+
+- **Entscheidung:** Drei Tabellen: `kredit` (Parameter, Sondertilgungen und Bedingungen als JSON,
+  `konto_id` UNIQUE), `kredit_zuordnung (kredit_id, faelligkeit, buchung_id UNIQUE)` und
+  `kredit_abgleich (kredit_id, jahr, restschuld, zinsen, buchung_id NULL)`; alle drei bilden die Objektart
+  `kredit` im Protokoll. Die Spalten `buchung_id` haben bewusst keinen Fremdschlüssel: Rückgängig entfernt
+  Buchungen kurzzeitig und fügt sie mit derselben ID wieder ein; ein `ON DELETE CASCADE` würde dabei
+  Zuordnungen außerhalb der Änderung verändern. Stattdessen entfernt `protokoll.protokolliert` am Ende jeder
+  Operation Zuordnungen gelöschter Buchungen und setzt `buchung_id` eines Abgleichs auf null – in derselben
+  Änderung (kredite.md 2.3). Beim Rückgängig prüft die Bezugsprüfung vorher, ob alle Bezüge bestehen
+  (sonst 409 `rueckgaengig_konflikt`), sodass das Aufräumen dort nie greift.
+- **Begründung:** Eine Stelle für alle Löschwege (Buchung löschen, Dublettenauflösung, Konto mit Buchungen
+  löschen), ohne jede Operation einzeln anzupassen; exakt rückgängig machbar.
+
+## D-060 Tilgungsplan nur mit ganzen Zahlen
+
+- **Entscheidung:** Der Zins einer Periode wird als Zähler `Σ R_j · sollzins · länge_j` über dem Nenner
+  `basis · 1 000 000` geführt und mit `(2·Z + N) // (2·N)` kaufmännisch gerundet; keine `Fraction`, keine
+  Gleitkommazahl. Sondertilgungen werden nach Datum stabil sortiert (gleiche Daten in Eingabereihenfolge).
+  `kontor.kredite.tilgungsplan` akzeptiert Daten als `datetime.date` (nicht `datetime.datetime`) oder Text,
+  lehnt unbekannte Schlüssel ab (`ValueError`) und gibt Daten immer als Text zurück. Eine entfallende
+  Nullrate (3.5 Schritt 3) wird wörtlich umgesetzt (siehe W-003).
+- **Begründung:** kredite.md 3.4, T 22; identisch mit dem Bruch-Orakel der Tests.
+
+## D-061 Ratenerkennung, Zuordnen und Prüfreihenfolgen der Kredit-Endpunkte
+
+- **Entscheidung:** Passende Rate: Fälligkeiten im Abstand 0, 1, …, 5 Tage um das Buchungsdatum, jeweils
+  die frühere zuerst; erste passende gewinnt (= kleinster Abstand, bei Gleichstand die frühere). Bei
+  `PATCH`, `zuordnen` und `jahresabgleich` gilt 404 vor 422 (wie bei Vorlagen). `POST …/zuordnen` und
+  `…/jahresabgleich` mit `trocken` rechnen in einem Sicherungspunkt und verwerfen ihn (gleiche Antwort,
+  keine Änderung); beim Probelauf des Jahresabgleichs kann `korrektur_splits` die ID des Kontos
+  „Korrekturen“ enthalten, das erst beim Bestätigen angelegt wird. Der Jahresabgleich entfernt bei den
+  abgeglichenen Raten einen etwaigen offenen Vorschlag (wie die Statusänderung auf `abgeglichen`,
+  kategorisierung.md 5). Das Löschen eines Kontos mit Kreditbezug wird direkt nach der Existenzprüfung
+  abgelehnt (auch im Probelauf, loeschen.md 7).
+- **Begründung:** kredite.md 2–5, E-103, E-105, E-110.
+
+## D-062 Wiederkehrende Buchungen: Berechnung und Texte
+
+- **Entscheidung:** Die Einträge (Buchung × Bestandskonto, ohne Darlehenskonten von Krediten) entstehen in
+  einer SQL-Abfrage mit Gruppierung je Buchung und Konto; Ketten, Status und Ereignisse werden in Python
+  genau nach wiederkehrend.md 2–3 gebildet. Benachrichtigungen: Titel „Neuer Empfänger: …“, „Geänderter
+  Betrag: …“, „Zahlung ausgeblieben: …“; Texte nennen Empfänger, Beträge (Euro-Text aus Cent), Rhythmus und
+  Datum. Ein Schlüssel wird nie zweimal angelegt (gelesen oder nicht).
+- **Begründung:** wiederkehrend.md 3, 6; E-100.
+
+## D-063 Automatische Prüfung nach Läufen
+
+- **Entscheidung:** Ob ein Bankkonto vor dem Lauf schon erfolgreich abgerufen wurde, wird beim Zuordnen
+  der Konten in `sync_lauf_konto.vorher_abgerufen` festgehalten (Schema 6). Die neuen Buchungen eines Laufs
+  sind die in den Änderungen `sync_konto` der Gruppe `sync:<lauf>` angelegten, noch existierenden Buchungen,
+  deren Umsatzkennung zu einem solchen Bankkonto gehört. Geprüft wird nach `erfolgreich`, `fehlgeschlagen`
+  (auch beim Scheitern vor dem Kontenabruf) und `abgebrochen` (TAN abgebrochen oder abgelaufen) – jeweils
+  in einer eigenen Transaktion nach dem Endstatus.
+- **Begründung:** wiederkehrend.md 5, synchronisation.md 17.3.
+
+## D-064 Berichte
+
+- **Entscheidung:** Prüfreihenfolge: Query-Parameter (Typ, Intervall, `von > bis` bei beiden Angaben) →
+  `referenz_unbekannt` → `konto_ungueltig` (nur Einnahmen/Ausgaben) → Vorgaben für `von`/`bis` und
+  `von > bis` danach → `bericht_zu_gross`. Kontostände: je Konto die kumulierten Tagessummen bis `bis`,
+  Wert per Binärsuche; bei `unterkonten` die Summe über alle Nachfahren. Einnahmen/Ausgaben: Summen je
+  (Datum, Konto) der berücksichtigten Buchungen, Zuordnung zur Periode per Binärsuche; `kategorien` enthält
+  auch Konten, deren Summe 0 ist, sofern sie einen berücksichtigten Split haben.
+- **Begründung:** berichte.md 1–3.
+
+## D-065 Export
+
+- **Entscheidung:** Beide Exporte nutzen die Filter der Buchungsliste (gemeinsame Auswertung in
+  `app.buchungsfilter`, ohne `seite`/`pro_seite`). CSV mit `csv.writer` (`;`, `\r\n`, `QUOTE_MINIMAL`), BOM
+  vorangestellt. PDF mit **reportlab** (neue Abhängigkeit; reine Python-Bibliothek, Standardschrift
+  Helvetica, keine Schriften oder Dateien aus dem Netz), A4 quer, je Buchung genau eine Textzeile
+  „[#id] TT.MM.JJJJ Betrag Empfänger Verwendungszweck Kategorie Status“ (der variable Teil wird auf die
+  Zeilenbreite gekürzt), Kopf mit Filter, „Anzahl Buchungen: n“ und Summe auf Seite 1. Anwendertexte werden
+  bereinigt: `[`/`]` werden zu runden Klammern, Steuerzeichen zu Leerzeichen, „Anzahl Buchungen:“ wird
+  entschärft – so kann kein Text eine Marke oder die Anzahlzeile vortäuschen. Nicht darstellbare Zeichen
+  ersetzt reportlab.
+- **Begründung:** berichte.md 4, 5; E-107, E-108.
+
+## D-066 Sicherung ab M5
+
+- **Entscheidung:** Schemaversion der Sicherungsdatei 2 mit den Tabellen `kredit`, `kredit_zuordnung`,
+  `kredit_abgleich` und dem Zähler `kredit`. `anzahl`/Inhaltsprüfsumme enthalten `kredit` nur bei
+  vorhandenen Krediten, `unterschied` nur, wenn Sicherung oder Bestand Kredite haben. Sicherungen der
+  Version 1 (ohne Kredittabellen) werden weiter eingespielt (Kredite gelten als leer). Pflichtschlüssel in
+  `anzahl` sind die acht aus M9; `kredit` ist erst ab Version 2 erlaubt. Die Inhaltsprüfung prüft Kredite
+  wie `POST /api/kredite` (Schema, Kontoarten, Plan berechenbar) und die Bezüge aus kredite.md 2.3.
+- **Begründung:** sicherung.md 2.5, 3.4; E-109.
+
+## D-067 Weboberfläche für Meilenstein 5
+
+- **Entscheidung:** Navigationseinträge „Wiederkehrende Buchungen“ (`#/wiederkehrend`, auch Link
+  `/wiederkehrend`), „Kredite“ (`#/kredite`, `#/kredit/<id>`) und „Berichte“ (`#/berichte`) sind aktiv.
+  Sollzins wird in Prozent mit bis zu vier Nachkommastellen eingegeben und ganzzahlig in Millionstel
+  umgerechnet. Der Jahresabgleich-Dialog erlaubt das Bestätigen erst nach einem Probelauf mit unveränderten
+  Eingaben. Das Liniendiagramm ist ein selbst gezeichnetes SVG mit Zeitachse nach Kalendertagen,
+  überschneidungsfreien Datumsmarken, Fadenkreuz mit Tooltip, Legende ab zwei Reihen und Tabellenansicht;
+  Reihenfarben aus einer geprüften kategorialen Palette (hell/dunkel), die Farbe folgt dem Konto. Export-
+  Knöpfe stehen in jeder Buchungsliste und auf der Berichtsseite. Alles nur über REST, ohne externe
+  Ressourcen; Tabellen scrollen auf schmalen Bildschirmen in ihrer Hülle.
+- **Begründung:** Auftrag des Koordinators; K 9–11, K 14; kredite.md 5 („die Oberfläche zeigt vorher das
+  Ergebnis des Probelaufs“).
