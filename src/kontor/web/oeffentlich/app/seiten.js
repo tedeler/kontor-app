@@ -271,8 +271,21 @@ export async function berichte(seite) {
     seite.dataset.geladen = "ja";
   }
   for (const el of [konten, von, bis, intervall]) el.addEventListener("change", laden);
+  const ea = h("div", { "aria-live": "polite" });
+  const eaLaden = knopf("Einnahmen und Ausgaben berechnen", { onclick: async () => {
+    const ids = [...konten.selectedOptions].map((o) => Number(o.value));
+    try {
+      const b = await api("GET", "/api/berichte/einnahmen-ausgaben" + abfrage({ konto_id: ids, von: von.value || null,
+        bis: bis.value || null, intervall: intervall.value }));
+      ea.replaceChildren(tabelle(null, ["Zeitraum", "Einnahmen", "Ausgaben", "Saldo", "nicht kategorisiert"],
+        b.perioden.map((p) => h("tr", null, h("td", null, `${datumText(p.von)} – ${datumText(p.bis)}`), betragEl("td", p.einnahmen, { class: "zahl" }),
+          betragEl("td", p.ausgaben, { class: "zahl" }), betragEl("td", p.saldo, { class: "zahl" }),
+          betragEl("td", p.nicht_kategorisiert, { class: "zahl" })))));
+    } catch (e) { melde("fehler", e.message); }
+  } });
   seite.append(abschnitt("Kontostandsverlauf", h("div", { class: "formular-zeile" }, feld("Konten", konten), feld("Von", von),
     feld("Bis", bis), feld("Intervall", intervall)), diagramm, ausgabe),
+  abschnitt("Einnahmen und Ausgaben", h("p", { class: "klein" }, "Ohne Umbuchungen; Konten, Zeitraum und Intervall wie oben."), eaLaden, ea),
   abschnitt("Export", h("p", null, csv, " · ", pdf)));
   diagramm.replaceChildren(svgDiagramm(null));
   ausgabe.replaceChildren(leer("Bitte Konten wählen."));
@@ -455,6 +468,20 @@ export async function einstellungen(seite, _p, _s, kontext) {
   } })), knopf("Mails jetzt abrufen", { onclick: async () => {
     try { await api("POST", "/api/mail/abruf"); melde("erfolg", "Mails abgerufen."); } catch (e) { melde("fehler", e.message); }
   } })));
+  // Tags
+  seite.append(abschnitt("Tags", stamm.tags.length ? h("ul", null, stamm.tags.slice().sort(nachName).map((t) => h("li", null,
+    `${t.name} (${t.anzahl_buchungen} Buchungen) `,
+    knopf("Umbenennen…", { "aria-label": `Tag ${t.name} umbenennen`, onclick: (e) => dialog("tag-dialog", `Tag „${t.name}“ umbenennen`, (inhalt, d) => {
+      const n = h("input", { type: "text", value: t.name, maxlength: "200" });
+      const ok = knopf("Speichern", { class: "knopf knopf-haupt" });
+      ok.addEventListener("click", () => imDialog(d, ok, () => aktion(() => api("PATCH", `/api/tags/${t.id}`, { name: n.value.trim() }),
+        { stillBeiFehler: true, danach: () => d.schliessen(true), erfolg: "Tag umbenannt." })));
+      inhalt.append(feld("Name", n), knopfLeiste(ok, knopf("Abbrechen", { onclick: () => d.schliessen(null) })));
+    }, { ausloeser: e.currentTarget }) }),
+    knopf("Löschen", { "aria-label": `Tag ${t.name} löschen`, onclick: async (e) => {
+      if (!(await bestaetigen(`Tag „${t.name}“ löschen?`, { ja: "Löschen", ausloeser: e.currentTarget }))) return;
+      try { await aktion(() => api("DELETE", `/api/tags/${t.id}`), { erfolg: "Tag gelöscht." }); } catch (f) { /* gemeldet */ }
+    } })))) : leer("Noch keine Tags.")));
   // Anmeldung (19)
   if (anmeldung.aktiv) {
     const alt = h("input", { type: "password", autocomplete: "current-password" });
@@ -570,9 +597,15 @@ export async function regeln(seite) {
   } }), knopf("Lernmodell anwenden", { onclick: async () => {
     try { await aktion(() => api("POST", "/api/lernmodell/anwenden", {}), { erfolg: "Lernmodell angewendet." }); } catch (e) { /* gemeldet */ }
   } }));
+  seite.querySelector(".werkzeuge").prepend(knopf("Regel anlegen", { tid: "regel-anlegen", onclick: (e) => regelDialog(null, e.currentTarget) }));
   seite.append(liste.length ? h("ul", { class: "karten-liste" }, liste.map((r) => h("li", { tid: `regel-${r.id}`, class: "karte" },
     h("strong", null, r.name), ` → ${pfadVon(r.kategorie_id)} · Priorität ${r.prioritaet}${r.aktiv ? "" : " · inaktiv"}`,
-    h("ul", { class: "klein" }, r.bedingungen.map((b) => h("li", null, BED_TEXT(b))))))) : leer("Noch keine Regeln."));
+    h("ul", { class: "klein" }, r.bedingungen.map((b) => h("li", null, BED_TEXT(b)))),
+    knopfLeiste(knopf("Bearbeiten…", { "aria-label": `Regel ${r.name} bearbeiten`, onclick: (e) => regelDialog(r, e.currentTarget) }),
+      knopf("Löschen", { "aria-label": `Regel ${r.name} löschen`, onclick: async (e) => {
+        if (!(await bestaetigen(`Regel „${r.name}“ löschen?`, { ja: "Löschen", ausloeser: e.currentTarget }))) return;
+        try { await aktion(() => api("DELETE", `/api/regeln/${r.id}`), { erfolg: "Regel gelöscht." }); } catch (f) { /* gemeldet */ }
+      } }))))) : leer("Noch keine Regeln."));
   return { titel: "Regeln" };
 }
 
@@ -586,6 +619,41 @@ export async function vorlagen(seite) {
     h("ul", { class: "klein" }, v.teile.map((t) => h("li", null, `${pfadVon(t.konto_id)}: `,
       t.betrag !== undefined && t.betrag !== null ? betragEl("span", t.betrag) : (t.rest ? "Rest" : ""), t.memo ? ` – ${t.memo}` : "")))))) : leer("Noch keine Split-Vorlagen."));
   return { titel: "Split-Vorlagen" };
+}
+
+/** Bedingungen als Zeilen „feld operator wert“ (Text: empfaenger/verwendungszweck; Betrag in Euro). */
+function regelDialog(r, ausloeser) {
+  dialog("regel-dialog", r ? `Regel „${r.name}“` : "Regel anlegen", (inhalt, d) => {
+    const name = h("input", { type: "text", maxlength: "200", value: r ? r.name : "" });
+    const kat = h("select", null, kategorien().map(({ konto }) => h("option", { value: String(konto.id),
+      selected: r && konto.id === r.kategorie_id }, kontoPfad(konto))));
+    const prio = h("input", { type: "number", step: "1", value: String(r ? r.prioritaet : 100) });
+    const aktiv = h("input", { type: "checkbox", checked: r ? r.aktiv : true });
+    const bed = h("textarea", { rows: "4", spellcheck: "false" });
+    bed.value = r ? r.bedingungen.map((b) => (b.feld === "betrag" ? `betrag ${b.operator} ${betragEingabeText(b.wert)}`
+      : `${b.feld} ${b.operator} ${b.wert}`)).join("\n") : "empfaenger enthaelt ";
+    const speichern = knopf("Speichern", { class: "knopf knopf-haupt" });
+    speichern.addEventListener("click", () => imDialog(d, speichern, async () => {
+      const bedingungen = bed.value.split("\n").map((z) => z.trim()).filter(Boolean).map((z) => {
+        const [feld, operator, ...rest] = z.split(/\s+/);
+        const wert = rest.join(" ");
+        return feld === "betrag" ? { feld, operator, wert: betragLesen(wert) } : { feld, operator, wert };
+      });
+      const body = { name: name.value.trim(), kategorie_id: Number(kat.value), prioritaet: Number(prio.value), aktiv: aktiv.checked,
+        bedingungen };
+      await aktion(() => (r ? api("PATCH", `/api/regeln/${r.id}`, body) : api("POST", "/api/regeln", body)),
+        { stillBeiFehler: true, danach: () => d.schliessen(true), erfolg: "Regel gespeichert." });
+    }));
+    inhalt.append(feld("Name", name), feld("Kategorie", kat), feld("Priorität", prio), h("label", { class: "wahl" }, aktiv, " aktiv"),
+      feld("Bedingungen (je Zeile: Feld Operator Wert, z. B. „empfaenger enthaelt Bäckerei“ oder „betrag hoechstens -10,00“)", bed),
+      knopfLeiste(speichern, knopf("Abbrechen", { onclick: () => d.schliessen(null) })));
+  }, { ausloeser });
+}
+
+function betragEingabeText(c) {
+  const neg = c < 0;
+  const a = Math.abs(c);
+  return (neg ? "-" : "") + Math.trunc(a / 100) + "," + String(a % 100).padStart(2, "0");
 }
 
 // ------------------------------------------------------------------ Dubletten (13.10)
@@ -636,6 +704,15 @@ export async function syncSeite(seite, _p, _s, kontext) {
     }
     return li;
   })) : leer("Noch keine Bankkonten synchronisiert.")));
+  if (st.jetzt && document.querySelector('[data-testid="mock-hinweis"]')) {
+    const zeit = h("input", { type: "datetime-local", step: "1" });
+    seite.append(abschnitt("Mock-Uhr", h("p", null, "Simulierte Zeit des Servers: ", zeitEl("span", st.jetzt)),
+      h("div", { class: "formular-zeile" }, feld("Neue Zeit (UTC)", zeit), knopf("Setzen", { onclick: async () => {
+        if (!zeit.value) return;
+        try { await api("PUT", "/api/mock/zeit", { jetzt: (zeit.value.length === 16 ? zeit.value + ":00" : zeit.value) + "Z" }); await oberflaeche.neuLaden(); }
+        catch (e) { melde("fehler", e.message); }
+      } }))));
+  }
   seite.append(abschnitt("Läufe", laeufe.length ? h("ul", { class: "laeufe" }, laeufe.slice().reverse().map((l) => h("li", { tid: `lauf-${l.id}`,
     "data-status": l.status }, zeitEl("span", l.gestartet_am), ` · ${LAUFSTATUS[l.status] || l.status}`,
   l.fehler ? ` · ${l.fehler.meldung || l.fehler.code}` : "",

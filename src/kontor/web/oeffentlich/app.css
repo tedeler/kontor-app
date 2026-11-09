@@ -185,7 +185,7 @@ html.zieht, html.zieht * { cursor: grabbing !important; }
 .buchungsliste[data-kompakt="ja"] .liste-kopf { display: flex; flex-wrap: wrap; }
 .buchungsliste[data-kompakt="ja"] .liste-kopf .zelle-verwendungszweck, .buchungsliste[data-kompakt="ja"] .liste-kopf .zelle-status,
 .buchungsliste[data-kompakt="ja"] .liste-kopf .zelle-tags, .buchungsliste[data-kompakt="ja"] .liste-kopf .zelle-kategorie { display: none; }
-.buchungsliste[data-kompakt="ja"] .zeile { grid-template-columns: 5.6rem minmax(0, 1fr) auto; grid-template-areas: "datum empf betrag" "kat kat tags";
+.buchungsliste[data-kompakt="ja"] .zeile { grid-template-columns: 6.6rem minmax(0, 1fr) auto; grid-template-areas: "datum empf betrag" "kat kat tags";
   min-height: 52px; padding: .2rem 0; }
 .buchungsliste[data-kompakt="ja"] .zelle-datum { grid-area: datum; }
 .buchungsliste[data-kompakt="ja"] .zelle-empfaenger { grid-area: empf; font-weight: 600; }
@@ -284,3 +284,5 @@ html.zieht, html.zieht * { cursor: grabbing !important; }
 .zelle-kategorie { display: flex; align-items: center; gap: .1rem; }
 .zelle-kategorie .kat-text { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .zelle-kategorie .mini-knopf, .zelle-kategorie .vorschlag-marke { flex: none; }
+.zahl-marke[data-anzahl="0"] { display: none; }
+.buchungsliste[data-kompakt="ja"] .liste-kopf { gap: .2rem; }
