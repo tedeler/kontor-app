@@ -511,7 +511,9 @@ class Kontoansicht {
 
   zeile(b, kompakt) {
     const gegen = gegensplits(b);
-    const katText = b.kategorie_id ? pfadVon(b.kategorie_id) : (gegen.length > 1 ? "Gesplittet" : "");
+    // oberflaeche.md 7.2: Pfad; ohne kategorie_id „Gesplittet“, „Umbuchung“ oder der Pfad des einen Gegensplits
+    const katText = b.kategorie_id ? pfadVon(b.kategorie_id)
+      : (gegen.length > 1 ? "Gesplittet" : gegen.length === 0 ? "Umbuchung" : pfadVon(gegen[0].konto_id));
     const kat = h("div", { role: "gridcell", class: "zelle zelle-kategorie", "data-feld": "kategorie",
       "data-kategorie-id": b.kategorie_id ? String(b.kategorie_id) : "" }, h("span", { class: "kat-text" }, katText));
     if (b.vorschlag) {

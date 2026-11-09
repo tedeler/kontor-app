@@ -45,9 +45,10 @@ log = logging.getLogger("kontor")
 
 WEB = pathlib.Path(__file__).parent / "web"
 #: Routen der Oberfläche (oberflaeche.md 3) und Links aus Benachrichtigungen (/buchungen/<id>, /sync/konten)
-SPA_ROUTEN = re.compile(r"/(?:konten(?:/\d{1,18})?|kategorien|wiederkehrend|kredite(?:/\d{1,18})?|berichte|import"
-                        r"|einstellungen|protokoll|empfaenger|regeln|vorlagen|dubletten|sync(?:/konten)?"
-                        r"|benachrichtigungen|suche|tan/\d{1,18}|mail/postfaecher/\d{1,18}|buchungen/\d{1,18})?")
+SPA_ROUTEN = ["/", "/konten", "/konten/{konto_id:int}", "/kategorien", "/wiederkehrend", "/kredite",
+              "/kredite/{kredit_id:int}", "/berichte", "/import", "/einstellungen", "/protokoll", "/empfaenger", "/regeln",
+              "/vorlagen", "/dubletten", "/sync", "/sync/konten", "/benachrichtigungen", "/suche", "/tan/{tan_id:int}",
+              "/mail/postfaecher/{postfach_id:int}", "/buchungen/{buchung_id:int}"]
 MOCK_HINWEIS = "Mock-Modus: Es werden ausschließlich synthetische Testdaten verwendet (eigene Mock-Datenbank)."
 
 
@@ -1422,13 +1423,13 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
 
     app.mount("/oeffentlich", StaticFiles(directory=str(WEB / "oeffentlich")), name="oeffentlich")
 
-    @app.get("/{pfad:path}", include_in_schema=False)
-    async def oberflaeche(pfad: str):
-        # oberflaeche.md 2/3: jede Route der Oberfläche liefert dieselbe Hülle (auch mit Abfrage); sonst 404
-        # (sicherheit.md 7.2, der Pfad erscheint nicht in der Antwort).
-        if SPA_ROUTEN.fullmatch("/" + pfad):
-            return HTMLResponse(index, headers=huelle_koepfe)
-        raise StarletteHTTPException(404)
+    async def oberflaeche(request: Request):
+        # oberflaeche.md 2/3: jede Route der Oberfläche liefert dieselbe Hülle (auch mit Abfrage). Andere Pfade
+        # außerhalb von /api/ liefern 404 (sicherheit.md 7.2); der Pfad erscheint nicht in der Antwort.
+        return HTMLResponse(index, headers=huelle_koepfe)
+
+    for route in SPA_ROUTEN:
+        app.add_api_route(route, oberflaeche, methods=["GET"], include_in_schema=False)
 
     return app
 

@@ -162,7 +162,10 @@ export async function anmeldungLaden() {
 
 export function zurAnmeldung() {
   const hier = location.pathname + location.search;
-  location.assign("/anmelden?weiter=" + encodeURIComponent(hier.startsWith("/") ? hier : "/"));
+  // kodiert wie sicherheit.md 3.2: alles außer A–Z a–z 0–9 - . _ ~ / prozentkodiert (oberflaeche.md 19)
+  const weiter = encodeURIComponent(hier.startsWith("/") ? hier : "/").replace(/%2F/g, "/")
+    .replace(/[!'()*]/g, (c) => "%" + c.charCodeAt(0).toString(16).toUpperCase());
+  location.assign("/anmelden?weiter=" + weiter);
 }
 
 async function fetchSicher(pfad, opt) {
