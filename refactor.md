@@ -34,6 +34,7 @@ SQL-Text eingesetzt werden.
 | Datum | Stand (kontor-app) | Meilenstein davor | Python-Zeilen | `app.js`-Zeilen | ruff-Funde¹ | C901 | radon D/E/F | mypy-Fehler | Parameter ohne Annotation | echte SQL-Funde |
 | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | 2026-11-09 | `b04091f` | M7 (in Arbeit) | 13 811 | 2 846 | 305 | 43 | 36 | 121 | 361 | 0 |
+| 2026-11-09 | `12cadb0` | M7 (abgeschlossen), vor M8 | 13 823 | 2 922 | 334 | 43 | 37 | 119 | 361 | 0 |
 
 ¹ `--select E,F,W,B,C90,SIM,UP,PL --line-length 120`.
 
@@ -90,6 +91,20 @@ strukturell an einigen Stellen über die Wartbarkeitsgrenze gewachsen.
    88 magische Werte in Vergleichen, 15× `dt.timezone.utc` statt `dt.UTC`,
    wenige Docstrings an öffentlichen Funktionen.
 
+## Fortschreibung vor M8 (2026-11-09, Stand `12cadb0`)
+
+- **ruff-Funde 305 → 334 (+29), radon D/E/F 36 → 37:** Ursache ist der Abschluss von M7
+  nach der ersten Messung (Schutzhülle `schutz.py`, `__main__.py`, Kommandozeilen der
+  zeitgesteuerten Sicherung): überwiegend `PLR2004` (magische Werte bei HTTP-Statuscodes und
+  Größengrenzen) und `PLR0911/0912` in `Schutz._bearbeiten`; neue D-Funktion ist die
+  Aufbewahrungsregel der Sicherung. Keine neuen breiten `except` ohne Begründung, keine echten
+  SQL-Funde. Maßnahme: in R-01 `PLR2004` für HTTP-Statuscodes über benannte Konstanten
+  (`http.HTTPStatus`) abbauen (**R-08**).
+- **mypy 121 → 119:** leicht verbessert.
+- **M8 betrifft vor allem die Oberfläche:** `app.js` wächst durch M8 stark. R-07 (Aufteilung in
+  ES-Module) wird mit M8 umgesetzt, damit die Oberfläche nicht als eine Datei mit mehreren
+  tausend Zeilen weiterwächst.
+
 ## Maßnahmen
 
 Reihenfolge nach Nutzen. Jede Maßnahme als eigener kleiner Commit; nach
@@ -116,6 +131,7 @@ jedem Schritt muss die Testsuite aus kontor-tests unverändert grün bleiben
   zerlegen.
 - [ ] **R-07 `app.js` in ES-Module** je Ansicht aufteilen (ohne Bundler,
   `<script type="module">`, weiterhin ohne externe Ressourcen).
+- [ ] **R-08 Magische Statuscodes** in `schutz.py`/`app.py` durch `http.HTTPStatus` ersetzen.
 
 Neue Funktionen sollen die Grenze C901 ≤ 15 einhalten; Überschreitungen nur
 mit Begründung im Code.
