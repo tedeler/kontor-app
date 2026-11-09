@@ -1,12 +1,12 @@
-"""Browser-Rauchtest der Weboberfläche (Playwright). Wird übersprungen, wenn kein Browser verfügbar ist.
-
-Startet einen echten Server im Mock-Modus auf einem freien lokalen Port und
-bedient Übersicht, Kontoansicht, Mehrfachauswahl, Kontextmenü und die mobile
-Navigation.
+"""Browser-Rauchtests der Oberfläche (M8, Playwright mit Chrome headless). Werden übersprungen, wenn kein Browser
+verfügbar ist. Jeder Test startet einen echten Server im Mock-Modus auf einem freien Loopback-Port (synthetische
+Daten) und beendet ihn wieder. Ergänzen die Oberflächentests aus kontor-tests (tests/app/m8), ersetzen sie nicht.
 """
 
 from __future__ import annotations
 
+import contextlib
+import datetime as dt
 import os
 import shutil
 import socket
@@ -18,6 +18,7 @@ import pytest
 from .conftest import GIRO, kmy, transaktion
 
 playwright = pytest.importorskip("playwright.sync_api")
+expect = playwright.expect
 
 
 def _chrome() -> str | None:
@@ -27,39 +28,43 @@ def _chrome() -> str | None:
     return None
 
 
-@pytest.fixture(scope="module")
-def server(tmp_path_factory):
+@contextlib.contextmanager
+def server(basis, *, daten: bool = True, **kw):
     import uvicorn
 
     from kontor.app import create_app
     from kontor.config import KontorConfig
     from kontor.importer.kmymoney import importiere_kmy
 
-    pfad = tmp_path_factory.mktemp("browser")
-    config = KontorConfig(datenbank=pfad / "kontor.sqlite3", mock_modus=True)
-    transaktionen = "".join(transaktion(f"T{i}", f"2024-01-{i:02d}", ("A1", f"-{i * 100}/100"), ("A2", f"{i * 100}/100"))
-                            for i in range(1, 21))
-    assert importiere_kmy(config, kmy(GIRO, transaktionen=transaktionen)).erfolgreich
+    kw.setdefault("mock_modus", True)
+    kw.setdefault("mock_heute", dt.date(2024, 6, 30))
+    config = KontorConfig(datenbank=basis / "kontor.sqlite3", **kw)
+    if daten:
+        transaktionen = "".join(transaktion(f"T{i}", f"2024-01-{i:02d}", ("A1", f"-{i * 100}/100"), ("A2", f"{i * 100}/100"),
+                                            memo=f"Einkauf {i}") for i in range(1, 21))
+        assert importiere_kmy(config, kmy(GIRO, transaktionen=transaktionen)).erfolgreich
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0))
         port = s.getsockname()[1]
     srv = uvicorn.Server(uvicorn.Config(create_app(config), host="127.0.0.1", port=port, log_level="warning"))
     t = threading.Thread(target=srv.run, daemon=True)
     t.start()
-    for _ in range(100):
+    for _ in range(200):
         if srv.started:
             break
         time.sleep(0.05)
-    yield f"http://127.0.0.1:{port}/"
-    srv.should_exit = True
-    t.join(timeout=10)
+    try:
+        yield f"http://127.0.0.1:{port}", config
+    finally:
+        srv.should_exit = True
+        t.join(timeout=30)
 
 
 @pytest.fixture(scope="module")
 def browser():
     sp = playwright.sync_playwright().start()
     try:
-        b = sp.chromium.launch(executable_path=_chrome(), headless=True, args=["--no-sandbox"])
+        b = sp.chromium.launch(executable_path=_chrome(), headless=True, args=["--no-sandbox", "--no-proxy-server"])
     except Exception as e:  # noqa: BLE001
         sp.stop()
         pytest.skip(f"Kein Browser verfügbar: {e}")
@@ -68,52 +73,140 @@ def browser():
     sp.stop()
 
 
-def test_desktop_ablauf(server, browser):
+HANDY = {"viewport": {"width": 390, "height": 844}, "device_scale_factor": 3, "is_mobile": True, "has_touch": True}
+DESKTOP = {"viewport": {"width": 1280, "height": 800}}
+
+
+@contextlib.contextmanager
+def seite(browser, url, **kw):
+    ctx = browser.new_context(locale="de-DE", timezone_id="Europe/Berlin", reduced_motion="reduce", **kw)
+    ctx.set_default_timeout(10_000)
+    page = ctx.new_page()
     fehler: list[str] = []
-    page = browser.new_page(viewport={"width": 1280, "height": 900})
     page.on("pageerror", lambda e: fehler.append(str(e)))
-    page.goto(server + "#/uebersicht")
-    page.wait_for_selector("table")
-    assert page.locator("#mock-hinweis").is_visible()
-    assert "Giro" in page.locator("#inhalt").inner_text()
-    page.locator("tbody tr", has_text="Giro").first.click()
-    zeilen = page.locator("table.buchungen tbody tr[data-id]")
-    zeilen.first.wait_for()
-    assert zeilen.count() == 20
-    zeilen.nth(0).click()
-    zeilen.nth(3).click(modifiers=["Shift"])
-    zeilen.nth(6).click(modifiers=["Control"])
-    assert page.locator("tr.markiert").count() == 5
-    zeilen.nth(6).click(button="right")
-    assert page.locator("#kontextmenue").is_visible()
-    page.locator("#kontextmenue button", has_text="Kategorie setzen").click()
-    page.select_option(".dialog select", index=1)
-    page.locator(".dialog button[type=submit]").click()
-    page.wait_for_selector(".meldung")
-    assert "gesetzt" in page.locator(".meldung").first.inner_text()
+    page.on("console", lambda m: fehler.append(m.text) if "Content Security Policy" in m.text else None)
+    page.on("request", lambda r: fehler.append("fremd: " + r.url) if not r.url.startswith((url, "data:", "blob:")) else None)
+    try:
+        yield page
+    finally:
+        ctx.close()
     assert not fehler, fehler
 
 
-def test_mobil_menue_und_lange_beruehrung(server, browser):
-    ctx = browser.new_context(viewport={"width": 390, "height": 800}, has_touch=True, is_mobile=True)
-    page = ctx.new_page()
-    page.goto(server + "#/konten")
-    page.wait_for_selector("table")
-    assert page.locator("#navigation").bounding_box()["x"] < 0, "Navigation ist eingeklappt"
-    page.click("#menue-knopf")
-    page.wait_for_timeout(400)
-    assert page.locator("#navigation").bounding_box()["x"] >= 0
-    page.locator("#navigation a", has_text="Finanzübersicht").click()
-    page.wait_for_timeout(300)
-    page.goto(server + "#/konto/1")
-    page.wait_for_timeout(1000)
-    zeile = page.locator("table.buchungen tbody tr[data-id]").nth(1)
-    zeile.scroll_into_view_if_needed()
-    box = zeile.bounding_box()
-    cdp = ctx.new_cdp_session(page)
-    cdp.send("Input.dispatchTouchEvent", {"type": "touchStart", "touchPoints": [{"x": box["x"] + 40, "y": box["y"] + 10}]})
-    page.wait_for_timeout(800)
-    cdp.send("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []})
-    page.wait_for_timeout(200)
-    assert page.locator("#kontextmenue").is_visible(), "lange Berührung öffnet das Kontextmenü"
-    ctx.close()
+def tid(page, x):
+    return page.get_by_test_id(x)
+
+
+def bereit(page, name):
+    expect(tid(page, "app")).to_have_attribute("data-bereit", "ja")
+    expect(tid(page, f"seite-{name}")).to_have_attribute("data-geladen", "ja")
+
+
+def test_desktop_ablauf(tmp_path, browser):
+    with server(tmp_path) as (url, _), seite(browser, url, **DESKTOP) as page:
+        page.goto(url + "/")
+        bereit(page, "uebersicht")
+        expect(tid(page, "mock-hinweis")).to_be_visible()
+        expect(page).to_have_title("Finanzübersicht – Kontor")
+        page.locator('[data-testid^="uebersicht-konto-"] [data-feld="name"]', has_text="Giro").click()
+        bereit(page, "konto")
+        zeilen = page.locator('[data-testid="buchungsliste"] [role="row"][data-id]')
+        expect(zeilen).to_have_count(20)
+        expect(zeilen.first.locator('[data-feld="betrag"]')).to_have_text("-20,00 €")
+        # Auswahl wie im Dateimanager, Kontextmenü, Kategorie-Auswahl mit Suche
+        zeilen.nth(0).locator('[data-feld="datum"]').click()
+        zeilen.nth(3).locator('[data-feld="datum"]').click(modifiers=["Shift"])
+        zeilen.nth(6).locator('[data-feld="datum"]').click(modifiers=["Control"])
+        expect(tid(page, "auswahl-anzahl")).to_have_attribute("data-anzahl", "5")
+        zeilen.nth(6).click(button="right")
+        expect(tid(page, "km-kategorie")).to_be_focused()
+        page.keyboard.press("Enter")
+        page.keyboard.type("lebens")
+        page.keyboard.press("Enter")
+        erfolg = page.locator('[data-testid="meldung"][data-art="erfolg"]')
+        expect(erfolg.first).to_contain_text("Lebensmittel")
+        # Inline-Bearbeitung und Rückgängig über das Protokoll
+        zweck = zeilen.nth(1).locator('[data-feld="verwendungszweck"]')
+        alt = zweck.inner_text()
+        zweck.dblclick()
+        tid(page, "inline-editor").fill("Geändert <b>&</b>")
+        page.keyboard.press("Enter")
+        expect(zweck).to_have_text("Geändert <b>&</b>")
+        page.evaluate("() => document.activeElement.blur()")
+        page.keyboard.press("Control+z")
+        expect(zweck).to_have_text(alt)
+        expect(tid(page, "wiederholen-knopf")).to_be_enabled()
+        # Befehlspalette mit Umlautfaltung
+        page.keyboard.press("Control+k")
+        page.keyboard.type("aenderungsprot")
+        page.keyboard.press("Enter")
+        bereit(page, "protokoll")
+        expect(page.locator('[data-testid^="aenderung-"][data-wirksam]').first).to_be_visible()
+
+
+def test_panels_und_layout(tmp_path, browser):
+    with server(tmp_path) as (url, _), seite(browser, url, **DESKTOP) as page:
+        page.goto(url + "/konten/1")
+        bereit(page, "konto")
+        griff = tid(page, "panel-groesse-kategorien")
+        griff.focus()
+        page.keyboard.press("ArrowRight")
+        expect(griff).to_have_attribute("aria-valuenow", "256")
+        tid(page, "panel-verschieben-details").click()
+        expect(tid(page, "panel-details")).to_have_attribute("data-bereich", "links")
+        page.reload()
+        bereit(page, "konto")
+        expect(tid(page, "panel-details")).to_have_attribute("data-bereich", "links")
+        assert abs(tid(page, "panel-kategorien").bounding_box()["width"] - 256) <= 1
+
+
+def test_mobil(tmp_path, browser):
+    with server(tmp_path) as (url, _), seite(browser, url, **HANDY) as page:
+        page.goto(url + "/konten/1")
+        bereit(page, "konto")
+        expect(tid(page, "app")).to_have_attribute("data-layout", "mobil")
+        expect(tid(page, "buchungsliste")).to_have_attribute("data-kompakt", "ja")
+        assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
+        # lange Berührung öffnet das Kontextmenü
+        zeile = page.locator('[data-testid="buchungsliste"] [role="row"][data-id]').nth(1)
+        box = zeile.bounding_box()
+        cdp = page.context.new_cdp_session(page)
+        x, y = box["x"] + 60, box["y"] + box["height"] / 2
+        cdp.send("Input.dispatchTouchEvent", {"type": "touchStart", "touchPoints": [{"x": x, "y": y}]})
+        page.wait_for_timeout(700)
+        cdp.send("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []})
+        expect(tid(page, "kontextmenue")).to_be_visible()
+        page.keyboard.press("Escape")
+        expect(zeile).to_have_attribute("aria-selected", "true")      # wie Rechtsklick: Auswahl = diese Zeile
+        # Wischen nach rechts schaltet die Auswahl einer weiteren Zeile um
+        zeile = page.locator('[data-testid="buchungsliste"] [role="row"][data-id]').nth(3)
+        box = zeile.bounding_box()
+        y = box["y"] + box["height"] / 2
+        cdp.send("Input.dispatchTouchEvent", {"type": "touchStart", "touchPoints": [{"x": 20, "y": y}]})
+        for i in range(1, 9):
+            cdp.send("Input.dispatchTouchEvent", {"type": "touchMove", "touchPoints": [{"x": 20 + 20 * i, "y": y}]})
+        cdp.send("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []})
+        expect(zeile).to_have_attribute("aria-selected", "true")
+        expect(tid(page, "auswahl-anzahl")).to_have_attribute("data-anzahl", "2")
+        expect(tid(page, "mehrfach-leiste")).to_be_visible()
+        # Menü
+        tid(page, "menue-knopf").click()
+        tid(page, "nav-einstellungen").click()
+        bereit(page, "einstellungen")
+        expect(tid(page, "navigation")).to_be_hidden()
+
+
+def test_service_worker_und_offline(tmp_path, browser):
+    with server(tmp_path) as (url, _), seite(browser, url, **DESKTOP) as page:
+        page.goto(url + "/kategorien")
+        bereit(page, "kategorien")
+        page.evaluate("() => navigator.serviceWorker.ready.then(() => true)")
+        page.reload()
+        bereit(page, "kategorien")
+        page.context.set_offline(True)
+        page.goto(url + "/konten")
+        expect(tid(page, "offline-hinweis")).to_be_visible()
+        page.context.set_offline(False)
+        page.evaluate("() => window.dispatchEvent(new Event('online'))")
+        bereit(page, "konten")
+        expect(tid(page, "offline-hinweis")).to_be_hidden()
