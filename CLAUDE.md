@@ -74,14 +74,18 @@ Commit-Nachrichten sind auf Deutsch.
 | `src/kontor/wiederkehrend.py` | M5: Erkennung wiederkehrender Buchungen (ohne Zustand), Ereignisse und Benachrichtigungen |
 | `src/kontor/berichte.py`, `export.py` | M5: Kontostandsverlauf, Einnahmen/Ausgaben; CSV- und PDF-Export (reportlab) der Buchungsliste |
 | `src/kontor/sicherung.py` | M9: Datensicherung (eigenes Schema der Sicherungsdatei `SPALTEN`, Version `SCHEMAVERSION`), Prüfung nach sicherung.md 5.1, Inhaltsprüfung in einer App-Datenbank im Arbeitsspeicher, Probelauf, Einspielen |
-| `src/kontor/db.py` | SQLite-Schema (Version 7), Migration früherer Versionen ohne Datenverlust, Verbindungen |
+| `src/kontor/db.py` | SQLite-Schema (Version 8), WAL, Migration früherer Versionen ohne Datenverlust, Verbindungen, `checkpoint` |
 | `src/kontor/geheimnisse.py` | M6: verschlüsselter Geheimnisspeicher (AES-256-GCM, Schlüssel aus systemd-creds oder Schlüsseldatei), `verwaiste_entfernen` |
 | `src/kontor/mail.py` | M6: Postfächer (Buchbestand), Betriebszustand, OAuth2 mit PKCE, `zugang` (Token-Erneuerung, Ablauf, Widerruf), paralleler Abruf, Spiegel |
 | `src/kontor/zustellung.py` | M6: Zustellung der Benachrichtigungen über das Benachrichtigungs-Plugin (erster Versuch, Wiederholung, Status) |
 | `src/kontor/netz.py` | M6: ausgehende HTTP-Anfragen ohne Umleitungen/Proxy, TLS-Kontext mit `tls_ca_datei` |
 | `src/kontor/importer/` | KMyMoney- und GnuCash-Import (`gnucash.py`: XML und SQLite, SQLite nur als Kopie im Arbeitsspeicher geöffnet) und `ImportErgebnis` |
 | `src/kontor/plugins/` | Bank-/Mail-/Benachrichtigungs-Schnittstellen, Mock-Plugins, FinTS (python-fints), IMAP (imaplib, XOAUTH2), ntfy |
-| `src/kontor/web/` | Weboberfläche (HTML, CSS, Vanilla-JS, ohne externe Ressourcen) |
+| `src/kontor/anmeldung.py` | M7: Haushaltskonto (scrypt), Sitzungen (nur SHA-256 des Tokens gespeichert, CSRF-Token per HMAC abgeleitet), Bremse, Einrichtungscode, Kommandozeile `passwort-setzen` |
+| `src/kontor/schutz.py` | M7: äußerste ASGI-Hülle: Netz → Sitzung → Herkunft → CSRF → Größe; Sicherheitsköpfe an jeder Antwort |
+| `src/kontor/betrieb/` | M7: ausgelieferte systemd-Units, sysusers, `kontor.env`, Drop-in (Paketdaten) |
+| `src/kontor/__main__.py` | M7: Startmodul `python -m kontor` (ohne Argumente, Logging nach stderr, uvicorn) |
+| `src/kontor/web/` | Weboberfläche (HTML, CSS, Vanilla-JS, ohne externe Ressourcen); `anmelden.html` und `oeffentlich/` für die Anmeldeseite |
 | `tests/` | eigene Tests (ergänzend; ersetzen nicht die Tests aus kontor-tests) |
 
 ## Hinweise ab Meilenstein 4
@@ -146,7 +150,22 @@ Commit-Nachrichten sind auf Deutsch.
   am Ende von `protokoll.protokolliert`. Sicherungsdatei Schemaversion 3 (`postfach`, nur bei Vorhandensein in
   `anzahl`).
 - Planer-Takt in der Reihenfolge von `synchronisation.md` 18.2 (`SyncDienst.takt`).
-- Maßstab: Tests mit Marker `m6` gehören jetzt dazu; `m7`/`m8` erst, wenn beauftragt.
+- Maßstab: Tests mit Marker `m6` gehören dazu (ab M7 auch `m7`, siehe unten).
+
+## Hinweise ab Meilenstein 7
+
+- **Neue Endpunkte sind automatisch geschützt** (`schutz.py`); öffentlich sind nur die Pfade aus
+  `sicherheit.md` 3.1 (`schutz.OEFFENTLICH`). Neue Upload-Endpunkte in `schutz.UPLOADS` eintragen.
+- Anmeldedaten (`anmeldung_konto`, `sitzung`) sind Betriebszustand: nie in `protokoll._TABELLEN`, nie in
+  `sicherung.SPALTEN`. Zeiten der Anmeldung immer nach `time.time()`, nie nach der Mock-Uhr.
+- Weboberfläche: kein Inline-Skript, keine `on…`-Attribute, kein `eval`/`new Function` (CSP
+  `script-src 'self'`); schreibende `fetch`-Aufrufe nur über `api()` in `app.js` (sendet `X-Kontor-CSRF`).
+  Browsertests nicht mit `page.wait_for_function("…")` (String-Auswertung), sondern `warte_js`.
+- Lange Lesezugriffe: Filter als unkorrelierte Teilabfragen (`b.id IN (SELECT …)`), in korrelierten
+  Teilabfragen mit `+s.konto_id` den falschen Index vermeiden. Leistung prüfen mit
+  `python -m pytest -m leistung` (eigene Messung: `/home/claude/impl/werkzeug/messen.py`, nicht im Repo).
+- Beenden: `SyncDienst.beenden` (Frist, `_schreib_sperre`/`_abbruch`), danach `db.checkpoint`.
+- Maßstab: alle Tests einschließlich `m7` und `leistung`; `m8` erst, wenn beauftragt.
 
 ## Arbeitsablauf
 

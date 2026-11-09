@@ -988,3 +988,83 @@ Weitere Abkürzungen: SY = `spec/api/synchronisation.md`, KA =
 - **Entscheidung:** Die Nummer der letzten Erinnerung steht in `tan_anforderung.erinnerung_nr` (Betriebszustand,
   nicht gesichert); Erinnerungen entstehen im Planer-Takt nach den TAN-Abläufen, je Schlüssel höchstens einmal.
 - **Begründung:** benachrichtigungen.md 5, E-121.
+
+## D-083 Speicherung der Anmeldedaten (M7)
+
+- **Entscheidung:** Zwei neue Tabellen (Schemaversion 8, Migration durch `CREATE TABLE IF NOT EXISTS`):
+  `anmeldung_konto` (genau eine Zeile: Passwort-Hash, Fehlversuche, `gesperrt_bis`) und `sitzung` (SHA-256 des
+  Tokens, Erstellung, letzte Aktivität). Zeiten als Sekunden seit der Epoche nach `time.time()`, nie nach der
+  Mock-Uhr. Das CSRF-Token wird nicht gespeichert, sondern als HMAC-SHA-256 des Sitzungstokens (Base64url,
+  43 Zeichen) abgeleitet; es ist damit je Sitzung fest, übersteht Neustarts und steht in keiner Datei. Beide
+  Tabellen sind Betriebszustand: weder im Protokoll noch in der Sicherung (E-135). Abgelaufene Sitzungen werden
+  bei jeder neuen Anmeldung bzw. beim Zugriff gelöscht.
+- **Begründung:** sicherheit.md 4.3/4.4 (nur Hash des Tokens, Systemuhr, Neustartfestigkeit); ein abgeleitetes
+  Token braucht keine weitere Speicherung und ist ohne das Cookie nicht berechenbar.
+
+## D-084 Aktivität der Sitzung bei gesperrter Datenbank
+
+- **Entscheidung:** Die Gültigkeit wird bei jeder Anfrage in der Datenbank geprüft (Wirkung von
+  `passwort_setzen` sofort). Die Aktualisierung der letzten Aktivität wartet höchstens 2 s auf die Schreibsperre;
+  gelingt sie nicht (z. B. während eines langen Imports), gilt die Anfrage trotzdem als gültig und die Aktivität
+  wird bei der nächsten Anfrage nachgetragen.
+- **Begründung:** Lesende Anfragen sollen nicht an einer langen Schreibtransaktion hängen; der Leerlauf beträgt
+  mindestens Sekunden, eine ausgelassene Aktualisierung verkürzt eine Sitzung höchstens unwesentlich.
+
+## D-085 Schutzhülle als äußerste ASGI-Middleware
+
+- **Entscheidung:** `kontor.schutz.Schutz` prüft in der Reihenfolge von sicherheit.md 4.6: Netz, Sitzung
+  (geschützte Pfade), Herkunft, CSRF-Token, Größe – vor Routing und Validierung. Der Körper schreibender
+  Anfragen wird dabei bis zur Grenze gelesen und an die App weitergereicht (bei `Content-Length` über der Grenze
+  ohne Lesen abgelehnt). Sicherheitsköpfe werden an jede Antwort gehängt, auch an 5xx (letzte Absicherung in der
+  Hülle). `Cache-Control: no-store` für `/api/`, HTML und alle übrigen Antworten außer `/static/` und
+  `/oeffentlich/`. Die Anmeldeseite bezieht CSS, Skript und Symbol aus `/oeffentlich/`; die eigentliche
+  Oberfläche (`/static/`) bleibt geschützt.
+- **Begründung:** Eine zentrale Stelle schützt automatisch auch künftige Endpunkte; 401 statt 404/405/413/422
+  verrät nichts über vorhandene Pfade (3.2).
+
+## D-086 `python -m kontor` ohne Unterbefehle (ersetzt die Kommandozeile aus M1)
+
+- **Entscheidung:** Die bisherigen Unterbefehle `serve` und `import` entfallen: `python -m kontor` startet den
+  Server, jedes Argument ergibt Rückgabecode 2 (betrieb.md 2). Host und Port kommen aus `KONTOR_HOST`/`KONTOR_PORT`.
+  Importe laufen über die Oberfläche bzw. `POST /api/import/kmymoney` (README zeigt `curl`). uvicorn startet mit
+  `log_config=None`, damit auch seine Meldungen das Format `<STUFE> <logger>: <Meldung>` haben.
+- **Begründung:** betrieb.md 2 lässt keine Argumente zu (K 6: keine Konfiguration in der Kommandozeile).
+
+## D-087 Zugriffsprotokoll: Abfrageteil nur bei `/oauth2/` geschwärzt (ergänzt D-080)
+
+- **Entscheidung:** Der Filter des uvicorn-Zugriffsprotokolls entfernt den Abfrageteil nur noch für Pfade unter
+  `/oauth2/` (Rückruf mit `state`/`code`); alle anderen Einträge enthalten Methode, Pfad samt Abfrage und Status.
+- **Begründung:** betrieb.md 7 verlangt Pfad samt Abfrage; die Schnittstelle nimmt Geheimnisse sonst nur im Körper
+  an. Der OAuth-Rückruf bleibt geschützt (geheimnisse.md 6).
+
+## D-088 Beenden während eines Laufs
+
+- **Entscheidung:** `SyncDienst.beenden` setzt ein Beenden-Kennzeichen (kein neuer Takt, kein neuer Lauf, kein
+  weiteres Konto), wartet bis `beenden_frist_sekunden` auf den Planer-Thread bzw. die Laufsperre und bricht danach
+  den Lauf in der Datenbank ab (`abgebrochen`, `beendet_am`). Schreibvorgänge eines Kontos laufen unter einer
+  Schreibsperre; nach dem Abbruch (`_abbruch`) schreibt der noch wartende Abruf nichts mehr, auch keine
+  Zustellung. Danach `PRAGMA wal_checkpoint(TRUNCATE)`. Die Verzögerung des Mock-Plugins ist ein einfaches
+  `time.sleep` in `umsaetze()`.
+- **Begründung:** betrieb.md 5.2 und E-136; die Schreibsperre verhindert, dass Abbruch und Übernahme eines Kontos
+  ineinander laufen.
+
+## D-089 Leistung ohne neue Indizes und ohne Volltextindex
+
+- **Entscheidung:** Die Filter der Buchungsliste nach Konto, Kategorie, Tag, Memo und Abstimmung werden als
+  unkorrelierte Teilabfragen (`b.id IN (SELECT buchung_id …)`) formuliert; in den korrelierten Betragsabfragen
+  verhindert `+s.konto_id` bzw. `+s.betrag`, dass SQLite den Index `split_konto` statt `split_buchung` wählt
+  (vorher quadratisch, Konto-Filter > 1 min bei 50 000 Buchungen). Die Volltextsuche normalisiert reine
+  ASCII-Texte direkt (`lower`), andere mit Zwischenspeicher, und prüft je Buchung einen zusammengesetzten Text.
+  Kein FTS5-Index: die gemessenen Werte liegen weit unter den Grenzen, und ein Index müsste dieselben
+  Vergleichsregeln (Teilwörter, Umlaute, NFKD) exakt nachbilden. Ergebnisse sind unverändert (M1/M3-Filter- und
+  Suchtests grün).
+- **Begründung:** leistung.md 3; geringstes Risiko für identische Ergebnisse.
+
+## D-090 Weboberfläche für Meilenstein 7
+
+- **Entscheidung:** Eigene Anmeldeseite `/anmelden` (Formular, bei fehlender Einrichtung mit Feld für den
+  Einrichtungscode, Hinweis mit Restzeit bei Sperre, Weiterleitung nur auf eigene Pfade). In der Oberfläche liest
+  `app.js` beim Start `GET /api/anmeldung`, sendet das CSRF-Token bei jeder schreibenden Anfrage und leitet bei
+  401 zur Anmeldeseite (Rücksprung über `weiter`). Abmelden über den Knopf ⏻ im Kopf und in den Einstellungen;
+  Passwort ändern unter **Einstellungen → Anmeldung**. Alles responsiv, ohne Inline-Skripte.
+- **Begründung:** Auftrag des Koordinators; sicherheit.md 3.4, 6.

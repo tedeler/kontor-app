@@ -1,7 +1,7 @@
 # kontor-app
 
 Implementierung von **Kontor**, einer selbst gehosteten Finanz-Web-App
-(Python, FastAPI, SQLite, Single-Page-Weboberfläche). Stand: **Meilenstein 6** (M1–M6 und M9)
+(Python, FastAPI, SQLite, Single-Page-Weboberfläche). Stand: **Meilenstein 7** (M1–M7 und M9)
 
 - M1: KMyMoney-Import, Finanzübersicht, Konten- und Buchungsliste mit Filtern
   und Mehrfachbearbeitung, doppelte Buchführung mit Splits und Tags,
@@ -50,6 +50,14 @@ Implementierung von **Kontor**, einer selbst gehosteten Finanz-Web-App
   Erinnerungen), verschlüsselter Geheimnisspeicher (AES-256-GCM) für Tokens
   und Client-Secret. Postfächer sind protokolliert und Teil der Sicherung;
   Geheimnisse nie.
+- M7: Sicherheit und Betrieb: gemeinsamer Haushalts-Login (scrypt, Sitzungen
+  mit Leerlauf- und Höchstdauer, Bremse mit Verdopplung nach falschen
+  Passwörtern, CSRF-Token und Herkunftsprüfung, Ersteinrichtung mit
+  Einrichtungscode), Beschränkung auf das Heimnetz, Sicherheitsköpfe (CSP ohne
+  Inline-Skripte), Eingabehärtung und Größengrenzen, ausgelieferte
+  systemd-Units mit Härtung und `LoadCredentialEncrypted`, tägliche Sicherung
+  per Timer, sauberes Beenden mit WAL-Checkpoint, Gesundheitsprüfung und
+  Leistung mit 50 000 Buchungen (Liste, Filter und Suche deutlich unter 1 s).
 
 **Alles lässt sich im Mock-Modus ohne echte Daten ausprobieren:** Mock-Bank,
 Mock-Postfächer und Mock-Benachrichtigungen (Liste unter
@@ -71,16 +79,20 @@ pip install -e .
 #    … oder systemweit, z. B. in einem Container:
 #    pip install --break-system-packages -e .
 
-# 2. Konfiguration über Umgebungsvariablen
+# 2. Konfiguration über Umgebungsvariablen (Kommandozeilenargumente gibt es nicht)
 export KONTOR_DATENBANK="$PWD/daten/kontor.sqlite3"   # Echt-Datenbank (wird im Mock-Modus NICHT angelegt)
 export KONTOR_MOCK_MODUS=ja                           # Mock-Modus: eigene Datenbank daten/kontor-mock.sqlite3
+# Anmeldung bleibt hier aus (Vorgabe); zum Ausprobieren des Logins siehe „Anmeldung“ unten.
 
-# 3. Synthetische Testdaten importieren (Fixture aus kontor-tests, nur fiktive Daten)
-python -m kontor import ../kontor-tests/fixtures/kmy/standard.kmy
+# 3. Server starten (127.0.0.1:8000; ändern über KONTOR_HOST/KONTOR_PORT)
+python -m kontor
 
-# 4. Server starten
-python -m kontor serve --host 127.0.0.1 --port 8000
+# 4. In einer zweiten Shell synthetische Testdaten importieren (Fixture aus kontor-tests)
+curl -F datei=@../kontor-tests/fixtures/kmy/standard.kmy http://127.0.0.1:8000/api/import/kmymoney
 ```
+
+Beenden mit Strg+C (bzw. `SIGTERM`): Kontor beendet einen laufenden Abruf
+geordnet und schreibt das WAL in die Datenbankdatei zurück.
 
 Danach im Browser **http://127.0.0.1:8000/** öffnen. Oben erscheint deutlich
 der gelbe Hinweis „Mock-Modus“; `GET /api/status` meldet `"modus": "mock"`
@@ -95,7 +107,8 @@ uvicorn --factory kontor.app:create_app --host 127.0.0.1 --port 8000
 
 Weitere synthetische Dateien: `kontor-tests/fixtures/kmy/minimal.kmy`,
 `sonderfaelle.kmy`, `dubletten.kmy` usw. Eine `.kmy`-Datei lässt sich auch in
-der Oberfläche unter **Import** hochladen. Ein zweiter Import derselben Datei
+der Oberfläche unter **Import** hochladen (bei eingeschalteter Anmeldung nur
+so oder mit Sitzungscookie und CSRF-Kopf). Ein zweiter Import derselben Datei
 ändert nichts; eine erweiterte Fassung (z. B. erst `standard_bis_2023.kmy`,
 dann `standard.kmy`) fügt nur das Neue hinzu.
 
@@ -115,7 +128,7 @@ export KONTOR_MOCK_HEUTE=2024-06-30                # Startzeitpunkt der simulier
 export KONTOR_MOCK_DATEN=../kontor-tests/fixtures/mock/sync_daten.json
 # optional: automatischer Abruf alle 60 Minuten (Planer-Thread im Server)
 export KONTOR_SYNC_INTERVALL_MINUTEN=60
-python -m kontor serve --host 127.0.0.1 --port 8000
+python -m kontor
 ```
 
 1. **Regeln** → „+ Regel anlegen“, z. B. *Empfänger enthält „Frischekorb“ →
@@ -147,6 +160,29 @@ python -m kontor serve --host 127.0.0.1 --port 8000
    der Lauf scheitert ohne Datenverlust, es entsteht genau eine
    Benachrichtigung je Fehlercode, solange sie ungelesen ist.
 
+## Anmeldung (Login) ausprobieren – Mock-Modus
+
+```bash
+export KONTOR_DATENBANK="$PWD/daten/kontor.sqlite3"
+export KONTOR_MOCK_MODUS=ja
+export KONTOR_ANMELDUNG=1
+# Variante A: Passwort direkt setzen (liest eine Zeile von stdin; synthetisches Beispielpasswort)
+echo 'Mein-Testhaushalt-2026' | python -m kontor.anmeldung passwort-setzen
+python -m kontor
+```
+
+Variante B (wie im Betrieb): ohne Passwort starten; Kontor legt neben der
+aktiven Datenbank die Datei `daten/kontor-mock.sqlite3.einrichtung` mit einem
+Einrichtungscode an (Rechte 0600, im Log steht nur der Pfad). Auf
+**http://127.0.0.1:8000/anmelden** den Code (`cat daten/kontor-mock.sqlite3.einrichtung`)
+und das neue Passwort (12–1024 Zeichen) eingeben. Danach: **Einstellungen →
+Anmeldung** zum Ändern des Passworts (beendet alle anderen Sitzungen), Knopf
+⏻ oben rechts zum Abmelden. Nach fünf falschen Passwörtern ist die Anmeldung
+60 s gesperrt, jede weitere Fehleingabe verdoppelt die Sperre (höchstens ein
+Tag); die Anmeldeseite zeigt die Restzeit. Passwort vergessen: auf dem Server
+`python -m kontor.anmeldung passwort-setzen` (mit denselben `KONTOR_*`-Variablen
+bzw. `EnvironmentFile`) ausführen.
+
 ## Konfiguration
 
 | Variable | Bedeutung |
@@ -168,6 +204,24 @@ python -m kontor serve --host 127.0.0.1 --port 8000
 | `KONTOR_UMBUCHUNG_FENSTER_TAGE` | größter Datumsabstand der beiden Seiten einer Umbuchung (0–366, Vorgabe 3) |
 | `KONTOR_LERNMODELL_AUTOMATISCH` | Lernmodell bei neuen Buchungen (Synchronisation, Erfassen) als Vorschlag befragen (Vorgabe nein; für den Betrieb empfohlen: `1`) |
 | `KONTOR_WIEDERKEHREND_AUTOMATISCH` | nach jedem Synchronisationslauf auf unerwartete Buchungen prüfen (neuer Empfänger, geänderter Betrag, ausbleibende Zahlung; Vorgabe nein; für den Betrieb empfohlen: `1`) |
+
+### Sicherheit und Betrieb (M7)
+
+| Variable | Bedeutung |
+| --- | --- |
+| `KONTOR_ANMELDUNG` | Haushalts-Login einschalten (Vorgabe aus; **im Betrieb `1`**, ausgelieferte `kontor.env`) |
+| `KONTOR_SITZUNG_LEERLAUF_SEKUNDEN`, `KONTOR_SITZUNG_HOECHSTDAUER_SEKUNDEN` | Ablauf der Sitzung (1 Tag ohne Aktivität, höchstens 30 Tage) |
+| `KONTOR_SITZUNG_COOKIE_SECURE` | `Secure`-Cookie erzwingen (`1`, hinter HTTPS-Proxy) oder verbieten; leer = nur bei HTTPS-Anfragen |
+| `KONTOR_ANMELDUNG_FEHLVERSUCHE`, `KONTOR_ANMELDUNG_SPERRE_SEKUNDEN` | Bremse: nach 5 Fehlversuchen 60 s Sperre, danach verdoppelt |
+| `KONTOR_ERLAUBTE_NETZE` | CIDR-Liste, z. B. `127.0.0.0/8,192.168.0.0/16`; andere Adressen → 403 (leer = alle) |
+| `KONTOR_UPLOAD_MAX_MIB`, `KONTOR_ANFRAGE_MAX_KIB` | Größengrenzen für Importe/Sicherungen (200 MiB) und andere Körper (4 096 KiB) |
+| `KONTOR_HOST`, `KONTOR_PORT` | Adresse und Port von `python -m kontor` (Vorgabe `127.0.0.1`, `8000`) |
+| `KONTOR_LOG_STUFE` | `DEBUG`, `INFO` (Vorgabe), `WARNING`, `ERROR`; Ausgabe nach stderr `<STUFE> <logger>: <Meldung>` |
+| `KONTOR_BEENDEN_FRIST_SEKUNDEN` | Frist für einen laufenden Abruf beim Beenden (Vorgabe 20) |
+| `KONTOR_MOCK_VERZOEGERUNG_MS` | nur Mock-Modus: jeder Umsatzabruf der Mock-Bank wartet so lange (Testhilfe) |
+
+`GET /api/gesundheit` antwortet ohne Anmeldung mit `{"status": "ok", "version": …}`
+(für Überwachung), `GET /api/anmeldung` mit dem Anmeldestatus.
 
 ### Empfohlene Konfiguration für den Betrieb
 
@@ -225,56 +279,74 @@ Unverschlüsseltes `http://` (und `KONTOR_IMAP_TLS=nein`) ist nur für
 `127.0.0.1`, `::1` und `localhost` erlaubt. Kontor folgt keinen Umleitungen
 und verwendet keine Proxy-Variablen der Umgebung.
 
-### Betrieb als systemd-Dienst mit systemd-creds
+### Installation als systemd-Dienst im Proxmox-LXC-Container
 
-PIN und Geheimnisschlüssel werden einmalig verschlüsselt (möglichst an das TPM
-gebunden) und nur dem Dienst übergeben; Kontor ruft `systemd-creds` nie selbst
-auf und schreibt die PIN nirgends hin.
+Kontor liefert alle Betriebsdateien im Paket `kontor.betrieb` aus
+(`kontor.service`, `kontor-sicherung.service`, `kontor-sicherung.timer`,
+`kontor.sysusers`, `kontor.env`, `pin-eingabe.conf`). Schritt für Schritt
+(als root im Container, z. B. Debian 13 mit systemd):
 
-```bash
-# als root, einmalig (die PIN wird interaktiv abgefragt, steht nie in der Shell-Historie)
-install -d -m 0700 /etc/credstore.encrypted
-systemd-ask-password -n "Banking-PIN:" | systemd-creds encrypt --with-key=tpm2 --name=kontor-bank-pin -     /etc/credstore.encrypted/kontor-bank-pin
-python3 -c 'import base64, secrets; print(base64.b64encode(secrets.token_bytes(32)).decode())'     | systemd-creds encrypt --with-key=tpm2 --name=kontor-geheimnisschluessel -     /etc/credstore.encrypted/kontor-geheimnisschluessel
-```
+1. **Container:** unprivilegierter LXC mit `nesting=1` (Vorgabe neuer
+   Container; nötig für die Härtungsoptionen der Unit). Feste IP im Heimnetz,
+   keine Portweiterleitung am Router.
+2. **Pakete und Programm:**
+   ```bash
+   apt install python3 python3-venv git
+   git clone https://github.com/tedeler/kontor-app /opt/kontor/src
+   python3 -m venv /opt/kontor/venv
+   /opt/kontor/venv/bin/pip install /opt/kontor/src
+   B=$(/opt/kontor/venv/bin/python -c 'import importlib.resources as r; print(r.files("kontor.betrieb"))')
+   ```
+3. **Benutzer und Dateien:**
+   ```bash
+   install -m 0644 "$B/kontor.sysusers" /etc/sysusers.d/kontor.conf && systemd-sysusers
+   install -d -m 0750 -o root -g kontor /etc/kontor
+   install -m 0640 -o root -g kontor "$B/kontor.env" /etc/kontor/kontor.env
+   install -m 0644 "$B/kontor.service" "$B/kontor-sicherung.service" "$B/kontor-sicherung.timer" /etc/systemd/system/
+   ```
+   In `/etc/kontor/kontor.env` die FinTS-, ntfy- und Mail-Einstellungen
+   eintragen (die Datei enthält **keine Geheimnisse**; Anmeldung, Heimnetz und
+   `systemd-creds` sind voreingestellt).
+4. **Geheimnisse verschlüsselt ablegen** (die PIN wird nie in eine Datei,
+   Umgebungsvariable oder Kommandozeile geschrieben):
+   ```bash
+   systemd-ask-password -n "Banking-PIN:" | systemd-creds encrypt --with-key=host --name=kontor-bank-pin - /etc/kontor/kontor-bank-pin.cred
+   openssl rand -base64 32 | systemd-creds encrypt --with-key=host --name=kontor-geheimnisschluessel - /etc/kontor/kontor-geheimnisschluessel.cred
+   ```
+   Mit TPM im Container `--with-key=tpm2` (oder ohne Angabe) statt `host`.
+   Wer die PIN nur in der Oberfläche eingeben will:
+   `install -D -m 0644 "$B/pin-eingabe.conf" /etc/systemd/system/kontor.service.d/pin-eingabe.conf`
+   und nur den Geheimnisschlüssel anlegen.
+5. **Starten:**
+   ```bash
+   systemctl daemon-reload
+   systemctl enable --now kontor.service kontor-sicherung.timer
+   journalctl -u kontor -f          # Start-, Anmelde- und Fehlermeldungen
+   curl -s http://127.0.0.1:8000/api/gesundheit
+   ```
+6. **Login einrichten:** Beim ersten Start legt Kontor
+   `/var/lib/kontor/kontor.sqlite3.einrichtung` an (das Journal nennt den Pfad).
+   `cat` dieser Datei liefert den Einrichtungscode; im Browser
+   `http://<container-ip>:8000/anmelden` öffnen, Code und Haushaltspasswort
+   eingeben. Alternativ direkt auf dem Server:
+   `set -a; . /etc/kontor/kontor.env; set +a; sudo -u kontor -E /opt/kontor/venv/bin/python -m kontor.anmeldung passwort-setzen`.
+7. **Daten übernehmen:** in der Oberfläche unter **Import** die KMyMoney- oder
+   GnuCash-Datei hochladen.
 
-```ini
-# /etc/systemd/system/kontor.service
-[Unit]
-Description=Kontor – selbst gehostete Finanz-Web-App
-After=network-online.target
+Die Unit läuft als Benutzer `kontor` mit `ProtectSystem=strict`, leeren
+Capabilities, `SystemCallFilter=@system-service`, nur IPv4/IPv6/Unix-Sockets
+und `UMask=0077`; Daten liegen in `/var/lib/kontor` (`StateDirectory`, 0700).
+Ein Konfigurationsfehler beendet den Dienst mit Rückgabecode 2 ohne
+Neustartschleife (`RestartPreventExitStatus=2`). Beim Stoppen hat ein laufender
+Abruf bis zu 20 s, danach schreibt Kontor das WAL zurück – ein Snapshot oder
+eine Kopie von `kontor.sqlite3` ist dann vollständig. Updates:
+`/opt/kontor/venv/bin/pip install --upgrade /opt/kontor/src` (nach `git pull`),
+dann `systemctl restart kontor`; die Datenbank wird beim Start ohne
+Datenverlust migriert.
 
-[Service]
-User=kontor
-EnvironmentFile=/etc/kontor.env
-LoadCredentialEncrypted=kontor-bank-pin:/etc/credstore.encrypted/kontor-bank-pin
-LoadCredentialEncrypted=kontor-geheimnisschluessel:/etc/credstore.encrypted/kontor-geheimnisschluessel
-ExecStart=/opt/kontor/.venv/bin/python -m kontor serve --host 0.0.0.0 --port 8000
-Restart=on-failure
-NoNewPrivileges=yes
-ProtectSystem=strict
-ReadWritePaths=/var/lib/kontor
-PrivateTmp=yes
-
-[Install]
-WantedBy=multi-user.target
-```
-
-```bash
-# /etc/kontor.env (keine Geheimnisse!)
-KONTOR_DATENBANK=/var/lib/kontor/kontor.sqlite3
-KONTOR_BANK_PIN_QUELLE=systemd-creds
-KONTOR_FINTS_URL=https://banking.example.invalid/fints    # Endpunkt Ihrer Bank
-KONTOR_FINTS_BLZ=00000000
-KONTOR_FINTS_BENUTZER=…
-KONTOR_FINTS_PRODUKT_ID=…
-KONTOR_SYNC_INTERVALL_MINUTEN=240
-KONTOR_MAIL_INTERVALL_MINUTEN=60
-KONTOR_OAUTH_CLIENT_ID=…apps.googleusercontent.com
-KONTOR_BENACHRICHTIGUNG_PLUGIN=ntfy
-KONTOR_NTFY_TOPIC=…                                      # schwer erratbares Thema
-KONTOR_OEFFENTLICHE_URL=http://kontor.lan:8000
-```
+HTTPS: Kontor selbst spricht kein TLS. Wer es will, setzt einen Reverse-Proxy
+auf demselben Host davor (Kontor dann auf `127.0.0.1` binden) und
+`KONTOR_SITZUNG_COOKIE_SECURE=1`.
 
 Lehnt die Bank die PIN ab (oder sperrt den Zugang), verwendet Kontor die PIN
 bis zum nächsten Neustart des Dienstes nicht mehr (Schutz vor Kontosperre).
@@ -333,23 +405,19 @@ Konfiguration (schnelles Zurücksetzen nach einem missglückten Update); die
 Kontor-Sicherung ist klein, geprüft (Prüfsummen), unabhängig vom Container und
 lässt sich auf neuer Hardware oder in eine frische Instanz einspielen. Eine
 Sicherung im laufenden Betrieb ist ein konsistenter Schnappschuss; der Server
-muss dafür nicht angehalten werden. Beispiel für eine nächtliche Sicherung per
-cron (Ziel außerhalb des Containers, z. B. NAS):
+muss dafür nicht angehalten werden. Die ausgelieferte Unit
+`kontor-sicherung.timer` legt täglich eine Sicherung in
+`/var/lib/kontor/sicherungen` ab (Rechte 0600, die 14 neuesten je Modus
+bleiben):
 
 ```bash
-#!/bin/sh
-# /usr/local/bin/kontor-sicherung – mit denselben KONTOR_*-Umgebungsvariablen wie der Server
-set -e
-ziel=/mnt/nas/kontor
-python3 -c 'import sys; from kontor.config import KontorConfig; from kontor.sicherung import erstelle_sicherung
-open(sys.argv[1], "wb").write(erstelle_sicherung(KontorConfig.from_env()))' "$ziel/kontor-$(date +%F).zip"
-find "$ziel" -name 'kontor-*.zip' -mtime +30 -delete      # 30 Tage aufbewahren
+systemctl list-timers kontor-sicherung.timer
+systemctl start kontor-sicherung.service      # sofort eine Sicherung
+# von Hand bzw. in ein anderes Verzeichnis (gleiche KONTOR_*-Variablen):
+python -m kontor.sicherung --verzeichnis /mnt/nas/kontor --behalten 30
 ```
 
-```bash
-# /etc/cron.d/kontor-sicherung – täglich 02:17
-17 2 * * * kontor . /etc/kontor.env && /usr/local/bin/kontor-sicherung
-```
+Dieses Verzeichnis zusätzlich außerhalb des Containers kopieren (z. B. NAS).
 
 Die Dateien enthalten sensible Finanzdaten: nur auf verschlüsselten
 bzw. zugriffsgeschützten Speichern ablegen. Wiederherstellen über die Seite
