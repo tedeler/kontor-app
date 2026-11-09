@@ -15,7 +15,7 @@ from collections.abc import Iterator
 
 from .text import norm
 
-SCHEMA_VERSION = 8
+SCHEMA_VERSION = 9
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (
@@ -424,6 +424,8 @@ _NEUE_SPALTEN = (
     ("benachrichtigung", "zugestellt_am", "TEXT"),
     ("benachrichtigung", "naechster_versuch", "TEXT"),
     ("tan_anforderung", "erinnerung_nr", "INTEGER NOT NULL DEFAULT 0"),
+    # M11: Ergebnis des Saldoabgleichs je Konto und Lauf als JSON (kontostand.md 2.1); NULL = nicht verarbeitet
+    ("sync_lauf_konto", "saldo_abgleich", "TEXT"),
 )
 _NACH_MIGRATION = (
     "CREATE INDEX IF NOT EXISTS split_abstimmung ON split(abstimmung_id)",

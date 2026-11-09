@@ -161,6 +161,9 @@ class KontorConfig:
     aqbanking_verzeichnis: pathlib.Path | None = None
     aqbanking_programme: pathlib.Path | None = None
     aqbanking_timeout_sekunden: int = 120
+    # Meilenstein 11: Kontostand bei der Synchronisation (python-api.md 17.1, kontostand.md)
+    aqbanking_saldo: bool = False
+    sync_saldo_angleichen: bool = True
 
     def __post_init__(self) -> None:
         setze = object.__setattr__
@@ -325,6 +328,9 @@ class KontorConfig:
             if isinstance(wert, str) and not wert.strip():
                 wert = None  # leer → None (wie in der Umgebung)
             setze(self, feld, None if wert is None else _als_pfad(wert, feld))
+        for feld in ("aqbanking_saldo", "sync_saldo_angleichen"):  # M11, python-api.md 17.1
+            if not isinstance(getattr(self, feld), bool):
+                raise KonfigurationsFehler(f"{feld} muss wahr oder falsch sein.", feld=feld)
         t = self.aqbanking_timeout_sekunden
         if type(t) is not int or not AQBANKING_TIMEOUT[0] <= t <= AQBANKING_TIMEOUT[1]:
             raise KonfigurationsFehler("aqbanking_timeout_sekunden muss eine Ganzzahl von 1 bis 3600 sein.",
@@ -448,6 +454,10 @@ def _m10_aus_umgebung(wert: Callable[[str], str]) -> dict:
         if not text.isascii() or not text.isdigit():
             raise KonfigurationsFehler(f"{variable} muss eine Ganzzahl von 1 bis 3600 sein.", variable=variable)
         aus["aqbanking_timeout_sekunden"] = int(text)
+    # M11 (python-api.md 17.1)
+    aus["aqbanking_saldo"] = _wahrheitswert(wert("KONTOR_AQBANKING_SALDO"), "KONTOR_AQBANKING_SALDO", False)
+    aus["sync_saldo_angleichen"] = _wahrheitswert(wert("KONTOR_SYNC_SALDO_ANGLEICHEN"),
+                                                  "KONTOR_SYNC_SALDO_ANGLEICHEN", True)
     return aus
 
 

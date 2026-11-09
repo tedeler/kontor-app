@@ -21,7 +21,7 @@ from collections.abc import Callable
 from ..fehler import (BankKontoUnbekannt, BankPinFalsch, BankPinFehlt, BankVerbindungsFehler,
                       BankZeitueberschreitung, TanErforderlich, TanUngueltig)
 from . import mock_daten as md
-from .bank import BankKonto, BankPlugin, BankUmsatz, TanAntwort
+from .bank import BankKonto, BankPlugin, BankSaldo, BankUmsatz, TanAntwort, Umsatzliste
 
 VORGABE_TAN = "123456"
 CHALLENGE = ("Bitte scannen Sie den QR-Code mit Ihrer (Mock-)Banking-App und geben Sie die angezeigte TAN ein. "
@@ -96,7 +96,7 @@ class MockBankPlugin(BankPlugin):
         self._freigabe = heute
 
     def umsaetze(self, iban: str, von: dt.date, bis: dt.date, *,
-                 tan: TanAntwort | None = None) -> list[BankUmsatz]:
+                 tan: TanAntwort | None = None) -> Umsatzliste:
         if self._verzoegerung > 0:
             import time
             time.sleep(self._verzoegerung)
@@ -123,7 +123,22 @@ class MockBankPlugin(BankPlugin):
         else:
             aus = []
         aus.sort(key=lambda u: (u.buchungstag, u.umsatz_id))
-        return aus
+        return Umsatzliste(aus, saldo=self._saldo(n, heute))
+
+    def _betrag(self, i: int, u: BankUmsatz) -> int:
+        neu = self._daten.beitraege[i] if self._daten is not None and i < len(self._daten.beitraege) else None
+        return neu if self._szenario == "beitragsaenderung" and neu is not None else u.betrag
+
+    def _saldo(self, iban: str, heute: dt.date) -> BankSaldo | None:
+        """kontostand.md 1.1: Anfangssaldo + gebuchte Umsätze bis heute, unabhängig vom Abrufzeitraum."""
+        if self._daten is None or self._daten.anfangssalden is None:
+            return None
+        anfang = self._daten.anfangssalden.get(iban)
+        if anfang is None:
+            return None
+        summe = sum(self._betrag(i, u) for i, u in enumerate(self._daten.umsaetze)
+                    if u.iban == iban and not u.vormerkung and u.buchungstag <= heute)
+        return BankSaldo(iban=iban, betrag=anfang + summe, stichtag=heute)
 
 
 # ------------------------------------------------------------- QR-Bild

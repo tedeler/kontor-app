@@ -100,6 +100,8 @@ class MockDaten:
     tan: str | None = None   # optional bank.tan
     # M4 (plugins.md 8): optionaler Betrag je Umsatz im Szenario „beitragsaenderung“ (gleiche Reihenfolge)
     beitraege: tuple[int | None, ...] = ()
+    # M11 (kontostand.md 1.1): optionale Anfangssalden je normalisierter IBAN; None = Schlüssel fehlt
+    anfangssalden: dict[str, int | None] | None = None
 
     def __repr__(self) -> str:  # nie PIN oder TAN ausgeben
         return f"MockDaten(konten={len(self.konten)}, umsaetze={len(self.umsaetze)})"
@@ -166,7 +168,22 @@ def lade_datei(pfad: pathlib.Path) -> MockDaten:
     pin = _text(bank["pin"], "bank.pin") if "pin" in bank else None
     tan = _text(bank["tan"], "bank.tan") if "tan" in bank else None
     return MockDaten(tuple(konten), tuple(umsaetze), tuple(postfaecher), tuple(nachrichten), pin, tan,
-                     tuple(beitraege))
+                     tuple(beitraege), _anfangssalden(bank))
+
+
+def _anfangssalden(bank: dict) -> dict[str, int | None] | None:
+    """Optionaler Schlüssel ``bank.anfangssalden`` (kontostand.md 1.1): Objekt IBAN → int | null."""
+    if "anfangssalden" not in bank:
+        return None
+    roh = bank["anfangssalden"]
+    if not isinstance(roh, dict):
+        raise _fehler("bank.anfangssalden muss ein Objekt sein.")
+    aus: dict[str, int | None] = {}
+    for iban, wert in roh.items():
+        if wert is not None and (type(wert) is not int or not -BETRAG_MAX <= wert <= BETRAG_MAX):
+            raise _fehler("bank.anfangssalden: Werte müssen Ganzzahlen in Cent oder null sein.")
+        aus[normalisiere_iban(_text(iban, "bank.anfangssalden"))] = wert
+    return aus
 
 
 # ----------------------------------------------------- eingebauter Datensatz

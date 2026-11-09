@@ -279,6 +279,7 @@ class SyncDienst:
                 "buchungen_kategorisiert": k["buchungen_kategorisiert"],
                 "buchungen_gesplittet": k["buchungen_gesplittet"], "vorlage_abweichungen": k["vorlage_abweichungen"],
                 "buchungen_kredit": k["buchungen_kredit"],
+                "saldo_abgleich": json.loads(k["saldo_abgleich"]) if k["saldo_abgleich"] else None,
                 "fehler": None if k["fehler_code"] is None else {"code": k["fehler_code"],
                                                                  "meldung": k["fehler_meldung"]},
             })
@@ -766,6 +767,53 @@ class SyncDienst:
             # buchhaltungspflege.md 4.4: eigene Änderung derselben Gruppe
             with protokoll.protokolliert(con, "umbuchung", "umbuchung_erkennen", self.jetzt_text(), f"sync:{lid}"):
                 pflege.umbuchungen_erkennen(con, False, self.config.umbuchung_fenster_tage, neue)
+        self._saldo_abgleichen(con, lid, iban, kid, umsaetze)
+
+    # ======================================================= Kontostand (M11)
+    def _saldo_abgleichen(self, con, lid: int, iban: str, kid: int, umsaetze: object) -> None:
+        """kontostand.md 2: Saldo der Bank mit dem Kontor-Saldo vergleichen, bei Differenz ausgleichen."""
+        from .plugins.bank import BankSaldo
+        erg: dict = {"status": "aus", "bank_saldo": None, "stichtag": None, "kontor_saldo": None,
+                     "differenz": None, "buchung_id": None}
+        s = getattr(umsaetze, "saldo", None) if self.config.sync_saldo_angleichen else None
+        if self.config.sync_saldo_angleichen:
+            erg["status"] = "nicht_verfuegbar"
+        if isinstance(s, BankSaldo) and type(s.betrag) is int and isinstance(s.stichtag, dt.date):
+            stichtag = s.stichtag.isoformat()
+            kontor = con.execute("SELECT COALESCE(SUM(s.betrag), 0) AS summe FROM split s JOIN buchung b"
+                                 " ON b.id = s.buchung_id WHERE s.konto_id = ? AND b.datum <= ?",
+                                 (kid, stichtag)).fetchone()["summe"]
+            differenz = s.betrag - kontor
+            erg.update(status="stimmt" if differenz == 0 else "ausgeglichen", bank_saldo=s.betrag,
+                       stichtag=stichtag, kontor_saldo=kontor, differenz=differenz)
+            if differenz != 0:
+                erg["buchung_id"] = self._saldo_ausgleich_buchen(con, lid, iban, kid, stichtag, s.betrag, kontor)
+        with db.transaktion(con):
+            con.execute("UPDATE sync_lauf_konto SET saldo_abgleich = ? WHERE lauf_id = ? AND iban = ?",
+                        (json.dumps(erg, ensure_ascii=False), lid, iban))
+
+    def _saldo_ausgleich_buchen(self, con, lid: int, iban: str, kid: int, stichtag: str, bank: int,
+                                kontor: int) -> int:
+        """kontostand.md 2 Schritt 5, 2.2, 2.3: Ausgleichsbuchung gegen „Korrekturen“ als eigene Änderung."""
+        differenz = bank - kontor
+        with protokoll.protokolliert(con, "sync", "sync_saldoausgleich", self.jetzt_text(), f"sync:{lid}"):
+            korrektur = pflege.korrektur_id(con)
+            basis = f"saldo:{iban}:{stichtag}"
+            kennung, n = basis, 1
+            while con.execute("SELECT 1 FROM buchung_extern WHERE extern_id = ?", (kennung,)).fetchone():
+                n += 1
+                kennung = f"{basis}:{n}"
+            bid = buch.buchung_einfuegen(
+                con, stichtag, None, "Saldoausgleich Bank", "importiert",
+                [{"konto_id": kid, "betrag": differenz, "memo": ""},
+                 {"konto_id": korrektur, "betrag": -differenz, "memo": ""}], (), [kennung])
+            name = con.execute("SELECT name FROM konto WHERE id = ?", (kid,)).fetchone()["name"]
+            self._benachrichtigen(
+                con, "saldo_ausgeglichen", f"saldo:{iban}", "Kontostand ausgeglichen",
+                f"Der Kontostand von „{name}“ weicht von dem der Bank ab: Bank {euro(bank)}, Kontor "
+                f"{euro(kontor)} (Stichtag {stichtag}). Die Differenz von {euro(differenz)} wurde gegen "
+                "„Korrekturen“ gebucht und kann in der Buchungsliste geprüft werden.", link=f"/konten/{kid}")
+        return bid
 
     def _abgleichen_und_buchen(self, con, kid: int, iban: str, offen: list, z: dict) -> set[int]:
         """4.4: erst alle Umsätze bewerten, dann anwenden; danach 4.2 (Anlegen). Ergebnis: neue Buchungen."""
@@ -786,7 +834,7 @@ class SyncDienst:
                     " JOIN buchung b ON b.id = s.buchung_id LEFT JOIN empfaenger e ON e.id = b.empfaenger_id"
                     " WHERE s.konto_id = ? AND s.betrag = ?"
                     " AND NOT EXISTS (SELECT 1 FROM buchung_extern x WHERE x.buchung_id = b.id"
-                    "                 AND substr(x.extern_id, 1, ?) = ?)",
+                    "                 AND (substr(x.extern_id, 1, ?) = ? OR substr(x.extern_id, 1, 6) = 'saldo:'))",
                     (kid, u.betrag, len(praefix), praefix)):
                 c_datum = dt.date.fromisoformat(c["datum"])
                 if c_datum == tag and passend(name, c["name"]):

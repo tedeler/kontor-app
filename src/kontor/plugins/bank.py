@@ -41,6 +41,29 @@ class TanAntwort:
     tan: str = field(repr=False)
 
 
+@dataclass(frozen=True)
+class BankSaldo:
+    """Gebuchter Saldo eines Kontos, wie die Bank ihn beim Umsatzabruf meldet (kontostand.md 1)."""
+
+    iban: str
+    betrag: int
+    stichtag: dt.date
+
+
+class Umsatzliste(list):  # type: ignore[type-arg]
+    """Ergebnis von ``umsaetze()``: eine Liste von ``BankUmsatz`` mit dem Attribut ``saldo`` (kontostand.md 1).
+
+    Vergleicht und verhält sich wie eine gewöhnliche Liste; ``saldo`` ist None, wenn die Bank keinen Saldo
+    gemeldet hat.
+    """
+
+    saldo: BankSaldo | None = None
+
+    def __init__(self, umsaetze: object = (), saldo: BankSaldo | None = None) -> None:
+        super().__init__(umsaetze)  # type: ignore[call-overload]
+        self.saldo = saldo
+
+
 class BankPlugin(abc.ABC):
     """Lesender Zugriff auf Bankkonten. Es gibt bewusst keine schreibenden Methoden."""
 
@@ -58,4 +81,4 @@ class BankPlugin(abc.ABC):
         return None
 
 
-__all__ = ["BankPlugin", "BankKonto", "BankUmsatz", "TanAntwort"]
+__all__ = ["BankPlugin", "BankKonto", "BankUmsatz", "BankSaldo", "TanAntwort", "Umsatzliste"]
