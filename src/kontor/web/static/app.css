@@ -270,3 +270,10 @@ tr.serie-beendet { opacity: .65; }
 .diagramm .reihe { stroke: var(--farbe); }
 .diagramm .punkt { fill: var(--farbe); }
 .legende-marke { background: var(--farbe); }
+
+/* M6: Anbindungen und Mails */
+tr.markiert td { background: var(--auswahl); }
+.ablauf-warnung { font-weight: 600; }
+pre.mail-text { white-space: pre-wrap; word-break: break-word; max-height: 60vh; overflow: auto; font: inherit; }
+#postfach-tabelle td.aktionen { white-space: normal; }
+#postfach-tabelle td.aktionen .knopf { margin: .1rem .2rem .1rem 0; }

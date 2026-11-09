@@ -123,6 +123,28 @@ class Zustelldienst:
                         " zugestellt_am = ?, naechster_versuch = NULL WHERE id = ?", (_zeit(self._jetzt()), r["id"]))
         return True
 
+    def testnachricht(self) -> dict:
+        """Test-Benachrichtigung aus der Oberfläche (D-076): direkt über das Plugin, nicht in der internen Liste.
+        Im Mock-Plugin landet sie nicht in ``gesendet`` (dort stehen nur Benachrichtigungen der Liste)."""
+        from .validierung import ApiFehler
+        if self.plugin is None:
+            raise ApiFehler(409, "kein_benachrichtigungs_plugin",
+                            "Es ist kein Benachrichtigungs-Plugin eingerichtet (benachrichtigung_plugin = keins).")
+        if self.plugin.ist_mock:
+            return {"gesendet": True, "plugin": self.plugin_name}
+        n = PushNachricht(benachrichtigung_id=0, titel=("[Mock] " if self._config.mock_modus else "")
+                          + "Kontor: Test-Benachrichtigung",
+                          text="Diese Nachricht bestätigt, dass Kontor Benachrichtigungen zustellen kann.",
+                          link=(self._config.oeffentliche_url.rstrip("/") + "/") if self._config.oeffentliche_url else None,
+                          prioritaet=3, tags=("test",), schluessel="test")
+        with self._sperre:
+            try:
+                self.plugin.senden(n)
+            except KontorFehler as e:
+                raise ApiFehler(409, e.code, e.meldung or "Die Zustellung ist fehlgeschlagen.",
+                                {"status": e.details.get("status")}) from None
+        return {"gesendet": True, "plugin": self.plugin_name}
+
     # ------------------------------------------------------------ Lesen
     def status(self, con) -> dict:
         anzahl = {z: 0 for z in ("ausstehend", "zugestellt", "aufgegeben")}

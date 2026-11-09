@@ -1079,7 +1079,7 @@
           h("li", null, `Bank-Plugin: ${status.plugins.bank.name}${status.plugins.bank.mock ? " (Mock)" : ""}`),
           h("li", null, `Mail-Plugin: ${status.plugins.mail.name}${status.plugins.mail.mock ? " (Mock)" : ""}`),
           h("li", null, "Version: ", status.version)),
-        h("p", { class: "leise" }, "Bank-Synchronisation, PIN und Mock-Uhr: ", h("a", { href: "#/sync" }, "Synchronisation"), ". Zustellung per ntfy und Login folgen in späteren Meilensteinen.")),
+        h("p", { class: "leise" }, "Bank-Synchronisation, PIN und Mock-Uhr: ", h("a", { href: "#/sync" }, "Synchronisation"), ". Bankzugang, Geheimnisse, ntfy und Postfächer: ", h("a", { href: "#/anbindungen" }, "Anbindungen"), ".")),
       h("h2", null, "Tags"), tagsBox,
       h("h2", null, "Empfänger"),
       stamm.empfaenger.length ? h("ul", null, stamm.empfaenger.map((e) => h("li", null, e.name))) : h("p", { class: "leise" }, "Keine Empfänger."),
@@ -1231,6 +1231,8 @@
           h("li", null, "Letzter Lauf: ", st.letzter_lauf ? [statusMarke(st.letzter_lauf.status), " ", zeitText(st.letzter_lauf.gestartet_am)] : h("strong", null, "noch keiner")),
           h("li", null, "PIN: ", h("strong", null, st.pin_vorhanden ? "im Arbeitsspeicher" : "nicht hinterlegt"))),
         startForm),
+      st.pin_quelle === "systemd-creds" ? h("div", { class: "karte" }, h("h2", { class: "oben" }, "Banking-PIN"),
+        h("p", { class: "leise" }, "Die PIN stellt systemd beim Dienststart verschlüsselt bereit (systemd-creds). Lehnt die Bank sie ab, verwendet Kontor sie bis zum nächsten Neustart nicht mehr.")) :
       h("div", { class: "karte" }, h("h2", { class: "oben" }, "Banking-PIN"),
         h("p", { class: "leise" }, "Die PIN wird nur im Arbeitsspeicher gehalten – nie gespeichert, nie protokolliert – und ist nach einem Neustart weg. Lehnt die Bank sie ab, wird sie sofort verworfen."),
         pinForm),
@@ -2539,6 +2541,227 @@
   }
 
   // ------------------------------------------------------------ Router
+  // ------------------------------------------ M6: Anbindungen (Bank, Geheimnisse, ntfy, Postfächer)
+  const ANMELDUNG_TEXT = { nicht_erforderlich: "nicht erforderlich (Mock)", fehlt: "nicht angemeldet", angemeldet: "angemeldet",
+    abgelaufen: "abgelaufen", widerrufen: "widerrufen" };
+  const GEHEIMNIS_TEXT = { ntfy_token: "ntfy-Zugriffstoken", oauth_client_secret: "OAuth-Client-Secret (Google-Cloud-Projekt)" };
+
+  function anmeldungMarke(s) {
+    const klasse = s.anmeldung === "angemeldet" || s.anmeldung === "nicht_erforderlich" ? "erfolgreich"
+      : s.anmeldung === "fehlt" ? "abgebrochen" : "fehlgeschlagen";
+    return statusMarke(klasse, ANMELDUNG_TEXT[s.anmeldung] || s.anmeldung);
+  }
+
+  /** Ablaufwarnung: abgelaufen/widerrufen oder Ablauf in weniger als 24 Stunden. */
+  function ablaufHinweis(s) {
+    if (s.anmeldung === "abgelaufen" || s.anmeldung === "widerrufen")
+      return h("div", { class: "zweck negativ ablauf-warnung" }, "Mails werden nicht mehr abgerufen – bitte erneut anmelden.");
+    if (s.anmeldung === "angemeldet" && s.laeuft_ab_am) {
+      const rest = new Date(s.laeuft_ab_am) - Date.now();
+      const text = "läuft ab am " + zeitText(s.laeuft_ab_am);
+      return h("div", { class: "zweck" + (rest < 24 * 3600 * 1000 ? " negativ ablauf-warnung" : "") },
+        rest < 24 * 3600 * 1000 ? "Achtung: Anmeldung " + text + " – bitte rechtzeitig erneut anmelden." : "Anmeldung " + text);
+    }
+    return null;
+  }
+
+  async function postfachDialog(p) {
+    const adresse = h("input", { type: "email", id: "postfach-adresse", required: true, maxlength: 254, value: p ? p.adresse : "",
+      disabled: !!p, autocomplete: "off", placeholder: "name@example.invalid" });
+    const bez = h("input", { type: "text", id: "postfach-bezeichnung", maxlength: 200, value: p ? p.bezeichnung : "" });
+    const ordner = h("input", { type: "text", id: "postfach-ordner", required: true, maxlength: 200, value: p ? p.ordner : "INBOX" });
+    const filt = h("textarea", { id: "postfach-filter", rows: 3, placeholder: "ein Eintrag je Zeile, leer = alle Absender" },
+      p ? p.absender_filter.join("\n") : "");
+    const aktiv = h("input", { type: "checkbox", id: "postfach-aktiv", checked: p ? p.aktiv : true });
+    const inhalt = h("div", null,
+      h("label", { class: "feld" }, "Adresse", adresse),
+      h("label", { class: "feld" }, "Bezeichnung", bez),
+      h("label", { class: "feld" }, "IMAP-Ordner", ordner, h("span", { class: "leise" }, "z. B. INBOX oder [Gmail]/Alle Nachrichten")),
+      h("label", { class: "feld" }, "Absenderfilter", filt),
+      h("label", { class: "auswahl" }, aktiv, " aktiv (wird abgerufen)"));
+    return dialog(p ? "Postfach bearbeiten" : "Postfach anlegen", inhalt, [{ text: p ? "Speichern" : "Anlegen", klasse: "primaer", submit: true, tun: async () => {
+      const koerper = { bezeichnung: bez.value, ordner: ordner.value.trim(),
+        absender_filter: [...new Set(filt.value.split("\n").map((x) => x.trim()).filter(Boolean))], aktiv: aktiv.checked };
+      try {
+        const r = p ? await api("PATCH", `/api/mail/postfaecher/${p.id}`, koerper)
+          : await api("POST", "/api/mail/postfaecher", { adresse: adresse.value.trim(), ...koerper });
+        melden(p ? "Postfach gespeichert." : "Postfach angelegt.");
+        return r;
+      } catch (e) { melden(e.message, true); return undefined; }
+    } }]);
+  }
+
+  /** OAuth2-Anmeldung: Link öffnen, danach die Umleitungs-URL aus der Adresszeile einfügen (mail.md 4.2/4.3). */
+  async function anmeldenDialog(p) {
+    let start;
+    try { start = await api("POST", `/api/mail/postfaecher/${p.id}/anmeldung`); } catch (e) { melden(e.message, true); return false; }
+    const antwort = h("input", { type: "url", id: "anmeldung-antwort", required: true, maxlength: 8192, autocomplete: "off",
+      placeholder: "…/oauth2/rueckruf?state=…&code=…" });
+    const inhalt = h("div", null,
+      h("ol", null,
+        h("li", null, h("a", { href: start.autorisierung_url, target: "_blank", rel: "noopener noreferrer", id: "anmeldung-link" },
+          "Anmeldung bei Google öffnen"), " (gültig bis ", zeitText(start.gueltig_bis), ") und dem Zugriff zustimmen."),
+        h("li", null, "Google leitet danach auf die Umleitungsadresse um. Lädt diese Seite nicht (Browser nicht auf dem Server), die vollständige Adresse aus der Adresszeile kopieren und hier einfügen:")),
+      h("label", { class: "feld" }, "Umleitungs-URL", antwort),
+      h("p", { class: "leise" }, "Kontor fordert nur Lesezugriff an (IMAP mit EXAMINE und BODY.PEEK, keine Passwörter). Die Tokens werden verschlüsselt gespeichert und nie angezeigt."));
+    const w = await dialog(`Postfach ${p.adresse} anmelden`, inhalt, [{ text: "Anmeldung abschließen", klasse: "primaer", submit: true, tun: async () => {
+      try { return await api("POST", "/api/mail/anmeldung/abschluss", { antwort_url: antwort.value.trim() }); }
+      catch (e) { melden(e.message, true); return e.code === "oauth_zustand_ungueltig" || e.code === "oauth_abgelehnt" ? null : undefined; }
+    } }]);
+    if (w) { melden("Postfach angemeldet."); glockeAktualisieren(); return true; }
+    return false;
+  }
+
+  async function ansichtAnbindungen(markiert) {
+    const [status, sync, geheim, zust, postfaecher] = await Promise.all([api("GET", "/api/status"), api("GET", "/api/sync/status"),
+      api("GET", "/api/geheimnisse"), api("GET", "/api/benachrichtigungen/zustellung"), api("GET", "/api/mail/postfaecher")]);
+    const stati = await Promise.all(postfaecher.map((p) => api("GET", `/api/mail/postfaecher/${p.id}/status`)));
+
+    // Bankzugang
+    const bank = h("div", { class: "karte", id: "anbindung-bank" }, h("h2", { class: "oben" }, "Bankzugang (FinTS)"),
+      h("ul", { class: "eckdaten" },
+        h("li", null, "Bank-Plugin: ", h("strong", null, status.plugins.bank.name + (status.plugins.bank.mock ? " (Mock)" : ""))),
+        h("li", null, "PIN-Quelle: ", h("strong", { id: "pin-quelle" }, sync.pin_quelle === "systemd-creds" ? "systemd-creds (beim Dienststart)" : "Eingabe (nur Arbeitsspeicher)")),
+        h("li", null, "PIN: ", h("strong", null, sync.pin_vorhanden ? "vorhanden" : "fehlt"))),
+      h("p", { class: "leise" }, "Bank-URL, Bankleitzahl, Benutzerkennung und Produkt-ID werden über Umgebungsvariablen konfiguriert (siehe README). ",
+        sync.pin_quelle === "systemd-creds" ? "Die PIN stellt systemd verschlüsselt bereit; sie lässt sich hier weder setzen noch verwerfen."
+          : h("span", null, "Die PIN geben Sie unter ", h("a", { href: "#/sync" }, "Synchronisation"), " ein.")));
+
+    // Geheimnisspeicher
+    const s = geheim.schluessel;
+    const eintraege = new Map(geheim.eintraege.map((e) => [e.name, e]));
+    const geheimZeilen = Object.keys(GEHEIMNIS_TEXT).map((name) => {
+      const e = eintraege.get(name);
+      const feld = h("input", { type: "password", autocomplete: "new-password", maxlength: 4096, "aria-label": GEHEIMNIS_TEXT[name], placeholder: e ? "neuen Wert setzen" : "Wert setzen", id: "geheimnis-" + name });
+      const form = h("form", { class: "werkzeug" }, feld, h("button", { type: "submit", class: "knopf" }, "Speichern"),
+        e ? h("button", { type: "button", class: "knopf gefahr", onclick: async () => {
+          if (!(await bestaetigen(`${GEHEIMNIS_TEXT[name]} löschen?`))) return;
+          try { await api("DELETE", `/api/geheimnisse/${name}`); melden("Gelöscht."); route(); } catch (err) { melden(err.message, true); }
+        } }, "Löschen") : null);
+      form.addEventListener("submit", async (ev) => {
+        ev.preventDefault();
+        const wert = feld.value;
+        feld.value = "";
+        if (!wert) return;
+        try { await api("PUT", `/api/geheimnisse/${name}`, { wert }); melden("Verschlüsselt gespeichert."); route(); } catch (err) { melden(err.message, true); }
+      });
+      return h("tr", null, h("td", null, GEHEIMNIS_TEXT[name]),
+        h("td", null, e ? (e.lesbar ? statusMarke("erfolgreich", "gesetzt") : statusMarke("fehlgeschlagen", "nicht lesbar")) : statusMarke("abgebrochen", "nicht gesetzt"),
+          e ? h("div", { class: "zweck" }, "seit " + zeitText(e.gesetzt_am)) : null),
+        h("td", null, form));
+    });
+    const mailTokens = geheim.eintraege.filter((e) => e.name.startsWith("mail_token:"));
+    const geheimnisse = h("div", { class: "karte", id: "anbindung-geheimnisse" }, h("h2", { class: "oben" }, "Geheimnisspeicher"),
+      h("p", null, "Schlüssel: ", h("strong", null, s.quelle === "systemd-creds" ? "systemd-creds" : "Schlüsseldatei"), " – ",
+        !s.vorhanden ? "wird beim ersten Speichern angelegt" : s.gueltig ? "gültig" : h("span", { class: "negativ" }, "ungültig (Speichern nicht möglich)")),
+      h("table", { class: "tabelle" }, h("thead", null, h("tr", null, h("th", null, "Geheimnis"), h("th", null, "Stand"), h("th", null, ""))),
+        h("tbody", null, geheimZeilen)),
+      mailTokens.length ? h("p", { class: "leise" }, `${mailTokens.length} Postfach-Anmeldung(en) gespeichert.`) : null,
+      h("p", { class: "leise" }, "Werte werden mit AES-256-GCM verschlüsselt gespeichert und nie angezeigt, protokolliert oder gesichert."));
+
+    // Benachrichtigungen
+    const ntfyErgebnis = h("div", { id: "ntfy-ergebnis", "aria-live": "polite" });
+    const ntfy = h("div", { class: "karte", id: "anbindung-ntfy" }, h("h2", { class: "oben" }, "Benachrichtigungen per ntfy"),
+      h("ul", { class: "eckdaten" },
+        h("li", null, "Plugin: ", h("strong", { id: "zustell-plugin" }, zust.plugin === "keins" ? "keins (keine Zustellung)" : zust.plugin)),
+        h("li", null, "Zugestellt: ", h("strong", null, String(zust.zugestellt))),
+        h("li", null, "Ausstehend: ", h("strong", null, String(zust.ausstehend))),
+        h("li", null, "Aufgegeben: ", h("strong", null, String(zust.aufgegeben)))),
+      zust.letzter_fehler ? h("p", { class: "negativ" }, "Letzter Fehler (", zeitText(zust.letzter_fehler.zeitpunkt), "): ", zust.letzter_fehler.meldung) : null,
+      h("div", { class: "werkzeug" },
+        h("button", { type: "button", class: "knopf primaer", id: "ntfy-test", disabled: zust.plugin === "keins", onclick: async () => {
+          try { await api("POST", "/api/benachrichtigungen/test"); ntfyErgebnis.replaceChildren(h("p", null, "Test-Benachrichtigung gesendet.")); }
+          catch (err) { ntfyErgebnis.replaceChildren(h("p", { class: "negativ" }, err.message)); }
+        } }, "Test-Benachrichtigung senden"),
+        h("button", { type: "button", class: "knopf", disabled: !zust.ausstehend, onclick: async () => {
+          try { const r = await api("POST", "/api/benachrichtigungen/zustellen"); melden(`${r.zugestellt} von ${r.versucht} zugestellt.`); route(); } catch (err) { melden(err.message, true); }
+        } }, "Ausstehende jetzt zustellen")),
+      ntfyErgebnis,
+      h("p", { class: "leise" }, "ntfy-Server und Thema werden über KONTOR_NTFY_URL und KONTOR_NTFY_TOPIC konfiguriert, ein Zugriffstoken oben im Geheimnisspeicher. ",
+        status.mock ? "Im Mock-Modus beginnt jeder Titel mit „[Mock]“." : ""));
+
+    // Postfächer
+    const zeilen = postfaecher.map((p, i) => {
+      const st = stati[i];
+      return h("tr", { id: "postfach-" + p.id, class: markiert === p.id ? "markiert" : null },
+        h("td", null, h("strong", null, p.adresse), p.bezeichnung ? h("div", { class: "zweck" }, p.bezeichnung) : null,
+          h("div", { class: "zweck" }, "Ordner: ", p.ordner, p.absender_filter.length ? ` · Filter: ${p.absender_filter.join(", ")}` : "", p.aktiv ? "" : " · inaktiv")),
+        h("td", null, anmeldungMarke(st), ablaufHinweis(st)),
+        h("td", { class: "nur-breit" }, st.letzter_abruf_am ? zeitText(st.letzter_abruf_am) : "–",
+          st.letzter_fehler ? h("div", { class: "zweck negativ" }, st.letzter_fehler.meldung) : null,
+          h("div", { class: "zweck" }, `${st.nachrichten} Nachricht(en)`)),
+        h("td", { class: "aktionen" },
+          st.anmeldung !== "nicht_erforderlich" ? h("button", { type: "button", class: "knopf" + (st.anmeldung === "angemeldet" ? "" : " primaer"),
+            onclick: async () => { if (await anmeldenDialog(p)) route(); } }, st.anmeldung === "angemeldet" ? "Neu anmelden" : "Anmelden …") : null,
+          st.anmeldung === "angemeldet" ? h("button", { type: "button", class: "knopf", onclick: async () => {
+            if (!(await bestaetigen(`Postfach ${p.adresse} abmelden? Der Zugriff wird beim Anbieter widerrufen.`))) return;
+            try { await api("DELETE", `/api/mail/postfaecher/${p.id}/anmeldung`); melden("Abgemeldet."); route(); } catch (err) { melden(err.message, true); }
+          } }, "Abmelden") : null,
+          h("button", { type: "button", class: "knopf", onclick: async () => { if (await postfachDialog(p)) route(); } }, "Bearbeiten"),
+          h("button", { type: "button", class: "knopf gefahr", onclick: async () => {
+            if (!(await bestaetigen(`Postfach ${p.adresse} löschen? Anmeldung und abgerufene Mails entfallen.`))) return;
+            try { await api("DELETE", `/api/mail/postfaecher/${p.id}`); melden("Postfach gelöscht. Rückgängig über das Änderungsprotokoll."); route(); } catch (err) { melden(err.message, true); }
+          } }, "Löschen")));
+    });
+    const mailKarte = h("div", { class: "karte", id: "anbindung-postfaecher" }, h("h2", { class: "oben" }, "Postfächer (IMAP mit OAuth2)"),
+      postfaecher.length ? h("table", { class: "tabelle", id: "postfach-tabelle" },
+        h("thead", null, h("tr", null, h("th", null, "Postfach"), h("th", null, "Anmeldung"), h("th", { class: "nur-breit" }, "Letzter Abruf"), h("th", null, ""))),
+        h("tbody", null, zeilen)) : h("p", { class: "leise" }, "Noch kein Postfach eingerichtet."),
+      h("div", { class: "werkzeug" },
+        h("button", { type: "button", class: "knopf primaer", id: "postfach-neu", onclick: async () => { if (await postfachDialog(null)) route(); } }, "+ Postfach anlegen"),
+        h("a", { class: "knopf", href: "#/mail" }, "Mail-Übersicht")),
+      h("p", { class: "leise" }, status.mock ? "Mock-Modus: Postfächer werden aus den synthetischen Mock-Daten abgerufen, eine Anmeldung ist nicht nötig."
+        : "Für Gmail ein eigenes Google-Cloud-Projekt mit Client-Typ „Desktop-App“ anlegen (Client-ID über KONTOR_OAUTH_CLIENT_ID, Secret oben). Im Testmodus des Projekts laufen Anmeldungen nach sieben Tagen ab; Kontor warnt vorher."));
+
+    seite("Anbindungen", bank, geheimnisse, ntfy, mailKarte);
+    if (markiert) { const z = $("#postfach-" + markiert); if (z) z.scrollIntoView(); }
+  }
+
+  // ------------------------------------------------------- M6: Mail-Übersicht
+  async function ansichtMail(params) {
+    const postfaecher = await api("GET", "/api/mail/postfaecher");
+    const pid = params.get("postfach_id") || "";
+    const seiteNr = Math.max(1, Number(params.get("seite") || 1));
+    const daten = await api("GET", "/api/mail/nachrichten" + query({ postfach_id: pid, seite: seiteNr, pro_seite: 50 }));
+    const name = (id) => { const p = postfaecher.find((x) => x.id === id); return p ? (p.bezeichnung || p.adresse) : "#" + id; };
+    const ergebnis = h("div", { id: "abruf-ergebnis", "aria-live": "polite" });
+    const auswahl = h("select", { "aria-label": "Postfach", id: "mail-filter", onchange: () => { location.hash = "#/mail" + query({ postfach_id: auswahl.value }); } },
+      h("option", { value: "" }, "alle Postfächer"), postfaecher.map((p) => h("option", { value: String(p.id), selected: String(p.id) === pid }, p.bezeichnung || p.adresse)));
+    const abrufKnopf = h("button", { type: "button", class: "knopf primaer", id: "mail-abruf", disabled: !postfaecher.some((p) => p.aktiv), onclick: async () => {
+      abrufKnopf.disabled = true;
+      abrufKnopf.textContent = "Rufe ab …";
+      try {
+        const r = await api("POST", "/api/mail/abruf");
+        ergebnis.replaceChildren(h("ul", { class: "lauf-konten" }, r.postfaecher.map((x) => h("li", null,
+          statusMarke(x.status === "erfolgreich" ? "erfolgreich" : x.status === "anmeldung_erforderlich" ? "abgebrochen" : "fehlgeschlagen",
+            x.status === "anmeldung_erforderlich" ? "Anmeldung erforderlich" : x.status), " ", x.adresse, " ",
+          x.status === "erfolgreich" ? h("span", { class: "leise" }, `${x.nachrichten_neu} neu, ${x.nachrichten_vorhanden} vorhanden, ${x.nachrichten_gefiltert} gefiltert`) : null,
+          x.fehler ? h("div", { class: "zweck negativ" }, x.fehler.meldung) : null))));
+        glockeAktualisieren();
+        setTimeout(route, 1500);
+      } catch (err) { melden(err.message, true); }
+      abrufKnopf.disabled = false;
+      abrufKnopf.textContent = "Jetzt abrufen";
+    } }, "Jetzt abrufen");
+    const seiten = Math.max(1, Math.ceil(daten.gesamt / daten.pro_seite));
+    const blaettern = (n) => { location.hash = "#/mail" + query({ postfach_id: pid, seite: n }); };
+    seite("Mails",
+      h("div", { class: "werkzeug" }, abrufKnopf, auswahl, h("a", { class: "knopf", href: "#/anbindungen" }, "Postfächer verwalten")),
+      ergebnis,
+      h("p", { class: "leise" }, "Abgerufene Bestell- und Zahlungsmails (nur gelesen, nicht verändert). Sie dienen später dem Abgleich mit Sammelbuchungen."),
+      daten.eintraege.length ? h("table", { class: "tabelle", id: "mail-tabelle" },
+        h("thead", null, h("tr", null, h("th", null, "Empfangen"), h("th", { class: "nur-breit" }, "Postfach"), h("th", null, "Absender / Betreff"))),
+        h("tbody", null, daten.eintraege.map((n) => h("tr", { class: "klickbar", onclick: () => dialog(n.betreff || "(ohne Betreff)",
+          h("div", null, h("p", { class: "leise" }, `${n.absender} · ${zeitText(n.empfangen)} · ${name(n.postfach_id)}`), h("pre", { class: "mail-text" }, n.text)), []) },
+          h("td", null, zeitText(n.empfangen)), h("td", { class: "nur-breit" }, name(n.postfach_id)),
+          h("td", null, h("div", null, n.absender), h("div", { class: "zweck" }, n.betreff))))))
+        : h("div", { class: "karte leer" }, "Noch keine Mails abgerufen."),
+      seiten > 1 ? h("div", { class: "werkzeug" },
+        h("button", { type: "button", class: "knopf", disabled: seiteNr <= 1, onclick: () => blaettern(seiteNr - 1) }, "‹ zurück"),
+        h("span", null, `Seite ${seiteNr} von ${seiten} (${daten.gesamt} Mails)`),
+        h("button", { type: "button", class: "knopf", disabled: seiteNr >= seiten, onclick: () => blaettern(seiteNr + 1) }, "weiter ›")) : null);
+  }
+
   async function route() {
     menueSchliessen();
     navUmschalten(false);
@@ -2550,7 +2773,7 @@
     if (bereich !== "suche" && document.activeElement !== $("#suche-global")) $("#suche-global").value = "";
     for (const a of document.querySelectorAll(".navigation a")) {
       const b = a.dataset.bereich;
-      a.classList.toggle("aktiv", b === bereich || (bereich === "konto" && b === "konten") || (bereich === "kategorie" && b === "kategorien") || (bereich === "kredit" && b === "kredite") || (bereich === "spaeter" && b === arg));
+      a.classList.toggle("aktiv", b === bereich || (bereich === "konto" && b === "konten") || (bereich === "kategorie" && b === "kategorien") || (bereich === "kredit" && b === "kredite") || (bereich === "mail" && arg === "postfaecher" && b === "anbindungen") || (bereich === "spaeter" && b === arg));
     }
     try {
       if (bereich === "uebersicht") { await stammLaden(); await ansichtUebersicht(); }
@@ -2573,6 +2796,9 @@
       else if (bereich === "benachrichtigungen") await ansichtBenachrichtigungen();
       else if (bereich === "import") await ansichtImport();
       else if (bereich === "einstellungen") await ansichtEinstellungen();
+      else if (bereich === "anbindungen") await ansichtAnbindungen(null);
+      else if (bereich === "mail" && arg === "postfaecher") await ansichtAnbindungen(Number(teile[2]) || null);
+      else if (bereich === "mail") await ansichtMail(hashParameter);
       else if (bereich === "sicherung") await ansichtSicherung();
       else if (bereich === "wiederkehrend") await ansichtWiederkehrend(hashParameter);
       else if (bereich === "kredite") await ansichtKredite();
@@ -2609,7 +2835,7 @@
   $("#schleier").addEventListener("click", () => navUmschalten(false));
   window.addEventListener("hashchange", route);
   // Links aus Benachrichtigungen (/tan/<id>, /buchungen/<id>, /sync/konten) öffnen die passende Ansicht.
-  const direktPfad = /^\/(tan\/\d+|buchungen\/\d+|sync\/konten|wiederkehrend)\/?$/.exec(location.pathname);
+  const direktPfad = /^\/(tan\/\d+|buchungen\/\d+|sync\/konten|wiederkehrend|mail\/postfaecher\/\d+|einstellungen)\/?$/.exec(location.pathname);
   if (direktPfad) history.replaceState(null, "", "/#/" + direktPfad[1]);
   $("#glocke").addEventListener("click", () => { location.hash = "#/benachrichtigungen"; });
   glockeAktualisieren();

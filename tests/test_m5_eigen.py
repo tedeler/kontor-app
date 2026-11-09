@@ -39,7 +39,7 @@ def test_migration_von_schemaversion_5(tmp_path):
     assert [k["name"] for k in c.get("/api/konten").json()] == ["Giro"]
     assert c.get("/api/kredite").json() == []
     con = sqlite3.connect(pfad)
-    assert con.execute("SELECT wert FROM meta WHERE schluessel = 'schema_version'").fetchone()[0] == "6"
+    assert con.execute("SELECT wert FROM meta WHERE schluessel = 'schema_version'").fetchone()[0] == str(db.SCHEMA_VERSION)
     spalten = {r[1] for r in con.execute("PRAGMA table_info(sync_lauf_konto)")}
     assert {"buchungen_kredit", "vorher_abgerufen"} <= spalten
     con.close()
@@ -52,9 +52,9 @@ def _als_version_1(roh: bytes) -> bytes:
         daten = z.read("kontor.sqlite")
     con = sqlite3.connect(":memory:")
     con.deserialize(daten)
-    for t in ("kredit", "kredit_zuordnung", "kredit_abgleich"):
+    for t in ("kredit", "kredit_zuordnung", "kredit_abgleich", "postfach"):
         con.execute(f"DROP TABLE {t}")
-    con.execute("DELETE FROM id_zaehler WHERE objekt = 'kredit'")
+    con.execute("DELETE FROM id_zaehler WHERE objekt IN ('kredit', 'postfach')")
     con.commit()
     con.execute("VACUUM")
     daten = con.serialize()
@@ -79,7 +79,7 @@ def test_sicherung_der_schemaversion_1_einspielbar(tmp_path):
     assert r.status_code == 200, r.json()
     assert r.json()["geaendert"] is True and "kredit" not in r.json()["unterschied"]
     assert z.get("/api/buchungen").json()["gesamt"] == 1
-    assert sicherung.SCHEMAVERSION == 2
+    assert sicherung.SCHEMAVERSION >= 2
 
 
 def test_pdf_ohne_vorgetaeuschte_marken(tmp_path):

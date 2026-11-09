@@ -207,6 +207,26 @@ def _index_html(config: KontorConfig) -> str:
             .replace("{{VERSION}}", __version__))
 
 
+class _AbfrageSchwaerzen(logging.Filter):
+    """Zugriffsprotokoll von uvicorn ohne Abfrageteil: ``/oauth2/rueckruf?state=…&code=…`` trägt Geheimnisse
+    (geheimnisse.md 1 und 6)."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        args = record.args
+        if isinstance(args, tuple) and len(args) >= 3 and isinstance(args[2], str) and "?" in args[2]:
+            record.args = args[:2] + (args[2].split("?", 1)[0] + "?…",) + args[3:]
+        return True
+
+
+def protokolle_absichern() -> None:
+    """Bibliotheks-Logger so einstellen, dass sie keine Geheimnisse ausgeben (geheimnisse.md 6 Punkt 2)."""
+    from .plugins.fints import bibliothek_stilllegen
+    bibliothek_stilllegen()
+    zugriff = logging.getLogger("uvicorn.access")
+    if not any(isinstance(f, _AbfrageSchwaerzen) for f in zugriff.filters):
+        zugriff.addFilter(_AbfrageSchwaerzen())
+
+
 def _rueckruf_html(ok: bool, meldung: str) -> str:
     """Antwortseite für GET /oauth2/rueckruf (mail.md 4.3) – ohne Codes, Tokens oder state."""
     titel = "Anmeldung erfolgreich" if ok else "Anmeldung fehlgeschlagen"
@@ -219,6 +239,7 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     if config is None:
         config = KontorConfig.from_env()
     pfad = config.aktive_datenbank
+    protokolle_absichern()
     db.schema_anlegen(pfad)  # vor der Rückkehr: Datei und Schema existieren
     modus = "mock" if config.mock_modus else "echt"
     sync = SyncDienst(config)
@@ -597,6 +618,11 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     @endpunkt("POST", "/api/benachrichtigungen/zustellen")
     async def zustellen(request: Request):
         return await run_in_threadpool(zustellung.alle)
+
+    @endpunkt("POST", "/api/benachrichtigungen/test")
+    async def test_benachrichtigung(request: Request):
+        # App-Erweiterung (D-076): eine Push-Nachricht direkt über das Plugin, ohne Eintrag in der internen Liste.
+        return await run_in_threadpool(zustellung.testnachricht)
 
     @endpunkt("GET", "/api/mock/zustellungen")
     async def mock_zustellungen(request: Request):
