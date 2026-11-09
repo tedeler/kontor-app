@@ -36,6 +36,7 @@ SQL-Text eingesetzt werden.
 | 2026-11-09 | `b04091f` | M7 (in Arbeit) | 13 811 | 2 846 | 305 | 43 | 36 | 121 | 361 | 0 |
 | 2026-11-09 | `12cadb0` | M7 (abgeschlossen), vor M8 | 13 823 | 2 922 | 334 | 43 | 37 | 119 | 361 | 0 |
 | 2026-11-09 | `a15f0f0` | M8 (abgeschlossen), vor M10 | 13 818 | 3 584² | 334 | 43 | 37 | 119 | 361 | 0 |
+| 2026-11-09 | `99c2c95` | M10 (abgeschlossen), vor M11 | 14 351 | 3 584² | 337 | 44 | 36 | 119 | 361 | 0 |
 
 ¹ `--select E,F,W,B,C90,SIM,UP,PL --line-length 120`.
 ² Ab M8 Summe der ES-Module `src/kontor/web/oeffentlich/app/*.js` (R-07, `app.js` gibt es nicht mehr).
@@ -117,6 +118,21 @@ strukturell an einigen Stellen über die Wartbarkeitsgrenze gewachsen.
 - **M10 (AqBanking-Plugin)** kommt als eigenes Modul `plugins/aqbanking.py` dazu; es soll die Grenze
   C901 ≤ 15 einhalten (Auswertung der AqBanking-Ausgabe in kleine Funktionen zerlegt) und vollständig
   annotiert sein. Keine neue Maßnahme nötig.
+
+## Fortschreibung vor M11 (2026-11-09, Stand `99c2c95`)
+
+- **ruff-Funde 334 → 337 (+3), C901 43 → 44:** alle drei aus dem neuen Modul `plugins/aqbanking.py`
+  (M10): `_werte_lesen` mit C901 11 (unter der Projektgrenze 15, eine Verzweigung je Feld der
+  AqBanking-Ausgabe), ein `PLR0913` (sechs Parameter beim Unterprozessaufruf) und ein weiterer Hinweis
+  derselben Art. Keine Maßnahme nötig; das Modul ist vollständig annotiert (Parameter ohne Annotation
+  unverändert 361, mypy unverändert 119).
+- **radon D/E/F 37 → 36:** gleich geblieben bzw. leicht besser (Zählweise `-n D`, eine Funktion knapp
+  unter D gerutscht); keine neue D-Funktion.
+- **Keine echten SQL-Funde, keine neuen breiten `except`** (weiterhin 2 begründete `BLE001`).
+- **M11** berührt `sync._abgleichen_und_buchen` nicht direkt: Der Saldoabgleich kommt als eigene
+  Funktion nach der Verarbeitung eines Bankkontos dazu (C901 ≤ 15), statt die F-Funktion weiter
+  wachsen zu lassen (R-04 bleibt offen). Der Filter `unterkonten` in `buch.buchungsliste` (D) wird als
+  Hilfsfunktion für die Kontenmenge ergänzt.
 
 ## Maßnahmen
 
