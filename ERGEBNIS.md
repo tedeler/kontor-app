@@ -1,5 +1,76 @@
 # Ergebnis der Implementierung
 
+## Meilenstein 5 (wiederkehrende Buchungen, Kredite, Berichte, Export)
+
+Stand: 2026-11-09, Implementierungs-Thread.
+
+### Testlauf kontor-tests
+
+- Getestet gegen **kontor-tests Commit `8cece3c`** („M5: E-111 (Schlussrate 0, Probelauf ohne Konto
+  Korrekturen), TESTS_AUSFUEHREN.md und CLAUDE.md für M5“), nach `git pull` im Lese-Klon unmittelbar vor
+  dem Abschlusslauf.
+- Aufruf im Wurzelverzeichnis des Lese-Klons gegen die per `pip install --break-system-packages -e`
+  installierte kontor-app, Python 3.13, SQLite 3.53, reportlab 5.0.1, pypdf 6.17, Hypothesis-Profil
+  `standard`. Wegen der 10-Minuten-Grenze je Aufruf in zwei Teilen:
+  `python -m pytest -p no:cacheprovider -m "not m4 and not m5 and not m9 and not m6 and not m7 and not m8"`
+  und `python -m pytest -p no:cacheprovider -m "(m4 or m5 or m9) and not m6 and not m7 and not m8"`;
+  zusammen genau die 1719 Tests des Maßstabs `-m "not m6 and not m7 and not m8"`.
+
+| Auswahl | gesamt | bestanden | fehlgeschlagen | Fehler |
+| --- | ---: | ---: | ---: | ---: |
+| Maßstab (ohne m6–m8) | 1719 | 1719 | 0 | 0 |
+| vollständig (alle gesammelten Tests) | 1719 | 1719 | 0 | 0 |
+| davon `-m m1` | 674 | 674 | 0 | 0 |
+| davon `-m m2` | 226 | 226 | 0 | 0 |
+| davon `-m m3` | 245 | 245 | 0 | 0 |
+| davon `-m m4` (inkl. `langsam`) | 227 | 227 | 0 | 0 |
+| davon `-m m5` (inkl. M5-Generatortests) | 212 | 212 | 0 | 0 |
+| davon `-m m9` | 56 | 56 | 0 | 0 |
+| davon `m6`–`m8` (nicht beauftragt) | 0 | – | – | – |
+
+(Die übrigen 79 Tests sind Generator- und Spezifikationstests ohne Meilenstein-Marker; alle grün.)
+**Keine Fehlschläge, keine offenen Widersprüche.** W-003 (entfallende Nullrate gegen Summeninvariante des
+Tilgungsplans, gefunden von `test_zufaellige_plaene_gleich_orakel` gegen Commit `dbe9a7c`) hat der
+Test-Thread mit E-111 behoben; umgesetzt (D-068) und als erledigt markiert.
+
+### Eigene Tests (kontor-app)
+
+`python -m pytest tests`: 57 bestanden, neu `tests/test_m5_eigen.py` (Migration der App-Datenbank von
+Schemaversion 5 auf 6 ohne Datenverlust, Einspielen einer Sicherung der Schemaversion 1 ohne
+Kredittabellen, PDF ohne vorgetäuschte Marken, Schlussrate 0) und der Playwright-Rauchtest
+`tests/test_browser_m5.py` (Chrome headless, Desktop und Handy): wiederkehrende Buchungen mit
+Jahreskosten und Prüfung, Kredit über den Dialog anlegen (Sollzins in Prozent → Millionstel), Tilgungsplan,
+Raten zuordnen (Probelauf, dann aufteilen), Jahresabgleich-Dialog (Vorschlag ändert nichts, dann
+bestätigen), Kontostandsverlauf als SVG-Liniendiagramm mit Legende und Tooltip, CSV/PDF-Export-Knöpfe,
+keine horizontale Überbreite. Zusätzlich manuell geprüft: PDF mit 5 000 Buchungen (5 000 Marken, eine
+Anzahlzeile, < 1 s), Bildschirmfotos von Diagramm, Kreditseite und Handy-Ansicht. Gestartete Server und
+Browser wurden beendet.
+
+### Umgesetzt
+
+- Kredite (`kontor/kredite.py`): CRUD mit Prüfreihenfolge, Anfangsbuchung, Tilgungsplan (30/360, act/360,
+  act/365, Sondertilgungen, Zins je Rate kaufmännisch gerundet, nur Ganzzahlen), `kontor.kredite.tilgungsplan`,
+  Ratenerkennung als Stufe 0 der Synchronisation (`buchungen_kredit`), `…/zuordnen`, Jahresabgleich mit
+  genau einer Korrekturbuchung und Status `abgeglichen`, Bezüge (Konten nicht löschbar, Zuordnung entfällt
+  mit der Buchung), Protokoll (Objekt `kredit`, Quelle `kredit`) und Rückgängig.
+- Wiederkehrende Buchungen (`kontor/wiederkehrend.py`): Übersicht zum Stichtag, Ereignisse, Prüfung auf
+  Wunsch und automatisch nach Läufen (`wiederkehrend_automatisch`, `KONTOR_WIEDERKEHREND_AUTOMATISCH`).
+- Berichte (`kontor/berichte.py`) und Export (`kontor/export.py`, CSV verlustfrei, PDF mit reportlab).
+- Sicherung: Schemaversion 2 mit Kredittabellen, `kredit` nur bei Vorhandensein, Version 1 weiter lesbar.
+- App-Datenbank Schemaversion 6 (Kredittabellen, zwei Spalten in `sync_lauf_konto`), Migration ohne
+  Datenverlust.
+- Weboberfläche: „Wiederkehrende Buchungen“, „Kredite“ (Plan, Zuordnen, Jahresabgleich-Dialog),
+  „Berichte“ (Liniendiagramm, Einnahmen/Ausgaben), Export-Knöpfe in jeder Buchungsliste (D-067).
+- README, CLAUDE.md, ENTSCHEIDUNGEN.md (D-059 bis D-068).
+
+### Einschränkungen
+
+- Hypothesis lief nur im Profil `standard` (nicht `gruendlich`).
+- Neue Abhängigkeit `reportlab` (reine Python-Bibliothek, in `pyproject.toml`); Zeichen außerhalb der
+  Standardschrift erscheinen im PDF als Ersatzzeichen (zulässig laut berichte.md 5).
+- Die automatische Prüfung bei abgebrochenen Läufen greift beim Abbrechen bzw. Ablaufen einer TAN über
+  `ablauf_pruefen`; ein Ablauf, der erst beim Beantworten der TAN festgestellt wird, prüft nicht erneut.
+
 ## Meilenstein 9 (Datensicherung und Wiederherstellung)
 
 Stand: 2026-11-09, Implementierungs-Thread.
