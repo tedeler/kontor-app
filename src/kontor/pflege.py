@@ -95,7 +95,8 @@ def empfaenger_loeschen(con, eid: int) -> None:
     con.execute("DELETE FROM empfaenger WHERE id = ?", (eid,))
 
 
-def empfaenger_zusammenfuehren(con, ziel_id: int, quelle_ids: list[int]) -> dict:
+def empfaenger_zusammenfuehren(con, ziel_id: int, quelle_ids: list[int], name: str | None = None) -> dict:
+    """buchhaltungspflege.md 2.4, mit optionalem neuem Namen des Ziels (10, M11)."""
     ziel = buch.empfaenger_lesen(con, ziel_id)
     if ziel_id in quelle_ids:
         raise Validierungsfehler([fehler_eintrag(["body", "quelle_ids"], "Das Ziel darf keine Quelle sein.")])
@@ -104,13 +105,20 @@ def empfaenger_zusammenfuehren(con, ziel_id: int, quelle_ids: list[int]) -> dict
     if fehlend:
         raise ApiFehler(422, "referenz_unbekannt", "Unbekannte Empfänger.", {"empfaenger_ids": fehlend})
     beteiligt = {ziel_id, *quelle_ids}
+    umbenennen = name is not None and name != ziel["name"]
+    if umbenennen:
+        ph = buch._platzhalter(len(beteiligt))
+        if con.execute(f"SELECT 1 FROM empfaenger WHERE name = ? AND id NOT IN ({ph})",
+                       (name, *sorted(beteiligt))).fetchone():
+            raise ApiFehler(409, "empfaenger_existiert", "Ein anderer Empfänger trägt bereits diesen Namen.")
     belegt = {r["ekey"] for r in con.execute("SELECT ekey, empfaenger_id FROM empfaenger_alias")
               if r["empfaenger_id"] not in beteiligt}
-    zielkey = ekey(ziel["name"])
+    zielkey = ekey(name if umbenennen else ziel["name"])
     neu: list[str] = []
     schluessel: set[str] = set()
-    for kand in list(ziel["aliase"]) + [x for q in sorted(quellen, key=lambda q: q["id"])
-                                        for x in [q["name"], *q["aliase"]]]:
+    kandidaten = list(ziel["aliase"]) + ([ziel["name"]] if umbenennen else [])
+    for kand in kandidaten + [x for q in sorted(quellen, key=lambda q: q["id"])
+                              for x in [q["name"], *q["aliase"]]]:
         k = ekey(kand)
         if not k or k == zielkey or k in schluessel or k in belegt:
             continue
@@ -119,6 +127,8 @@ def empfaenger_zusammenfuehren(con, ziel_id: int, quelle_ids: list[int]) -> dict
     ph = buch._platzhalter(len(quelle_ids))
     con.execute(f"UPDATE buchung SET empfaenger_id = ? WHERE empfaenger_id IN ({ph})", (ziel_id, *quelle_ids))
     con.execute(f"DELETE FROM empfaenger WHERE id IN ({ph})", quelle_ids)
+    if umbenennen:
+        con.execute("UPDATE empfaenger SET name = ? WHERE id = ?", (name, ziel_id))
     _aliase_schreiben(con, ziel_id, sorted(neu))
     return buch.empfaenger_lesen(con, ziel_id)
 

@@ -376,8 +376,12 @@ def kontoarten(con) -> dict[int, str]:
 
 
 def buchungen_laden(con, ids: list[int], konto_id: int | None = None,
-                    art_von: dict[int, str] | None = None) -> list[dict]:
-    """Lädt vollständige Buchungen in der Reihenfolge von ``ids``."""
+                    art_von: dict[int, str] | None = None, konten: set[int] | None = None) -> list[dict]:
+    """Lädt vollständige Buchungen in der Reihenfolge von ``ids``.
+
+    ``betrag`` ist die Summe der Splits auf ``konten`` (M11, ``unterkonten``), sonst auf ``konto_id``."""
+    if konten is None and konto_id is not None:
+        konten = {konto_id}
     if not ids:
         return []
     if art_von is None:
@@ -415,8 +419,8 @@ def buchungen_laden(con, ids: list[int], konto_id: int | None = None,
         if r is None:
             continue
         sp = splits[bid]
-        if konto_id is not None:
-            betrag = sum(s["betrag"] for s in sp if s["konto_id"] == konto_id)
+        if konten is not None:
+            betrag = sum(s["betrag"] for s in sp if s["konto_id"] in konten)
         else:
             betrag = sum(s["betrag"] for s in sp if s["betrag"] > 0)
         aus.append({
@@ -657,15 +661,18 @@ def buchungsliste(con, f: dict) -> dict:
     """Filter laut openapi.yaml; alle UND-verknüpft."""
     konto_id = f.get("konto_id")
     par: list[Any] = []
-    if konto_id is not None:
-        betrag_sql = "(SELECT COALESCE(SUM(s.betrag), 0) FROM split s WHERE s.buchung_id = b.id AND +s.konto_id = ?)"
-        par.append(sichere_id(konto_id))
+    konten = _listenkonten(con, konto_id, bool(f.get("unterkonten")))
+    if konten is not None:
+        ph = _platzhalter(len(konten))
+        betrag_sql = (f"(SELECT COALESCE(SUM(s.betrag), 0) FROM split s WHERE s.buchung_id = b.id"
+                      f" AND +s.konto_id IN ({ph}))")
+        par.extend(konten)
     else:
         betrag_sql = "(SELECT COALESCE(SUM(s.betrag), 0) FROM split s WHERE s.buchung_id = b.id AND +s.betrag > 0)"
     bed: list[str] = []
-    if konto_id is not None:
-        bed.append("b.id IN (SELECT s.buchung_id FROM split s WHERE s.konto_id = ?)")
-        par.append(sichere_id(konto_id))
+    if konten is not None:
+        bed.append(f"b.id IN (SELECT s.buchung_id FROM split s WHERE s.konto_id IN ({_platzhalter(len(konten))}))")
+        par.extend(konten)
     if f.get("von"):
         bed.append("b.datum >= ?")
         par.append(f["von"])
@@ -736,8 +743,17 @@ def buchungsliste(con, f: dict) -> dict:
     if offset < gesamt:
         zeilen = con.execute(f"{basis} ORDER BY {order} LIMIT ? OFFSET ?", alle_par + [pro_seite, offset])
         ids = [z["id"] for z in zeilen]
-        eintraege = buchungen_laden(con, ids, konto_id=konto_id)
+        eintraege = buchungen_laden(con, ids, konten=None if konten is None else set(konten))
     return {"eintraege": eintraege, "gesamt": gesamt, "seite": seite, "pro_seite": pro_seite, "summe": summe}
+
+
+def _listenkonten(con, konto_id: int | None, unterkonten: bool) -> list[int] | None:
+    """Kontenmenge K der Buchungsliste: ``konto_id``, mit ``unterkonten`` samt allen Nachfahren (datenmodell.md
+    16.1); None ohne ``konto_id``."""
+    if konto_id is None:
+        return None
+    kid = sichere_id(konto_id)
+    return sorted(nachfahren(con, kid)) if unterkonten else [kid]
 
 
 # ================================================================== Importe

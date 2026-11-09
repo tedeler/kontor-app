@@ -134,7 +134,9 @@ EMPFAENGER_NEU = {"name": S("str", pflicht=True, strip=True, min_len=1, max_len=
                   "standardkategorie_id": S("int", nullbar=True)}
 EMPFAENGER_AENDERUNG = {"name": S("str", strip=True, min_len=1, max_len=200), "aliase": ALIASE,
                         "standardkategorie_id": S("int", nullbar=True)}
-EMPFAENGER_ZUSAMMEN = {"quelle_ids": S("int_liste", pflicht=True, min_items=1, max_items=100, eindeutig=True)}
+EMPFAENGER_ZUSAMMEN = {"quelle_ids": S("int_liste", pflicht=True, min_items=1, max_items=100, eindeutig=True),
+                       # M11 (buchhaltungspflege.md 10): optionaler neuer Name des Ziels
+                       "name": S("str", strip=True, min_len=1, max_len=200)}
 BUCHUNG_ERFASSEN = {
     "art": S("enum", pflicht=True, werte=("ausgabe", "einnahme", "umbuchung", "korrektur")),
     "datum": S("datum", pflicht=True),
@@ -460,6 +462,7 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
         q = Query(request.query_params)
         f: dict[str, Any] = {
             "konto_id": q.ganzzahl("konto_id"),
+            "unterkonten": q.wahrheitswert("unterkonten") or False,  # M11, datenmodell.md 16.1
             "von": q.datum("von"),
             "bis": q.datum("bis"),
             "betrag_min": q.ganzzahl("betrag_min"),
@@ -847,7 +850,7 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     async def empfaenger_zusammenfuehren(request: Request):
         d = await koerper(request, EMPFAENGER_ZUSAMMEN)
         return await aendern("empfaenger_zusammenfuehren", pflege.empfaenger_zusammenfuehren,
-                             pid(request, "empfaenger_id"), d["quelle_ids"])
+                             pid(request, "empfaenger_id"), d["quelle_ids"], d.get("name"))
 
     # ----------------------------------------------------- M3: Pflege
     @endpunkt("POST", "/api/konten/{konto_id:int}/loeschen")
