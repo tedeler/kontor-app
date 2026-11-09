@@ -5,6 +5,8 @@ from __future__ import annotations
 import datetime as dt
 import os
 import pathlib
+import re
+import urllib.parse
 from collections.abc import Mapping
 from dataclasses import dataclass
 
@@ -13,6 +15,50 @@ from .fehler import KonfigurationsFehler
 BANK_PLUGINS = ("mock", "fints")
 MAIL_PLUGINS = ("mock", "imap")
 SZENARIEN = ("normal", "bankfehler", "zeitueberschreitung", "tan_erforderlich", "token_ablauf", "beitragsaenderung")
+
+BENACHRICHTIGUNG_PLUGINS = ("keins", "mock", "ntfy")
+PIN_QUELLEN = ("eingabe", "systemd-creds")
+LOOPBACK = ("127.0.0.1", "::1", "localhost")
+_THEMA = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+
+# M6 (python-api.md 13.1): Ganzzahlfelder mit Bereich (None = ohne Obergrenze)
+_M6_GANZ = {
+    "fints_timeout_sekunden": (1, 600), "imap_port": (1, 65535), "imap_timeout_sekunden": (1, 600),
+    "oauth_timeout_sekunden": (1, 600), "oauth_refresh_gueltig_stunden": (0, 87600),
+    "oauth_vorwarnung_stunden": (0, 8760), "mail_intervall_minuten": (0, None), "mail_erstabruf_tage": (0, 3650),
+    "mail_ueberlappung_stunden": (0, 8760), "ntfy_timeout_sekunden": (1, 600), "zustellung_max_versuche": (1, 1000),
+    "zustellung_wiederholung_minuten": (1, 1440), "tan_erinnerung_minuten": (0, 1440),
+    "tan_erinnerung_anzahl": (0, 100),
+}
+# Zeichenkettenfelder (None erlaubt) mit Länge
+_M6_TEXT = {"fints_benutzer": (1, 64), "fints_kunden_id": (1, 64), "fints_produkt_id": (1, 25),
+            "oauth_client_id": (1, 256)}
+# URL-Felder: (darf None sein, beliebiger http-Host erlaubt) – geheimnisse.md 7
+_M6_URL = {"fints_url": (True, False), "oauth_autorisierung_url": (False, False), "oauth_token_url": (False, False),
+           "oauth_widerruf_url": (False, False), "oauth_redirect_uri": (False, True), "ntfy_url": (False, False),
+           "oeffentliche_url": (True, True)}
+
+
+def ist_loopback(host: str | None) -> bool:
+    return (host or "").lower() in LOOPBACK
+
+
+def url_pruefen(wert: object, feld: str, http_ueberall: bool) -> None:
+    """geheimnisse.md 7: absolute http(s)-URL mit Host; http nur auf Loopback (außer ``http_ueberall``)."""
+    if not isinstance(wert, str) or not wert or any(c.isspace() for c in wert):
+        raise KonfigurationsFehler(f"{feld} muss eine absolute http- oder https-URL sein.", feld=feld)
+    try:
+        teile = urllib.parse.urlsplit(wert)
+        host = teile.hostname
+        teile.port  # noqa: B018 - ungültiger Port wirft ValueError
+    except ValueError:
+        raise KonfigurationsFehler(f"{feld} ist keine gültige URL.", feld=feld) from None
+    if teile.scheme not in ("http", "https") or not host:
+        raise KonfigurationsFehler(f"{feld} muss eine absolute http- oder https-URL mit Host sein.", feld=feld)
+    if teile.scheme == "http" and not http_ueberall and not ist_loopback(host):
+        raise KonfigurationsFehler(f"{feld}: unverschlüsseltes http ist nur für 127.0.0.1, ::1 und localhost "
+                                   "erlaubt.", feld=feld)
+
 
 _WAHR = {"1", "true", "ja", "yes", "on"}
 _FALSCH = {"0", "false", "nein", "no", "off", ""}
@@ -49,9 +95,46 @@ class KontorConfig:
     lernmodell_automatisch: bool = False
     # Meilenstein 5: Prüfung auf unerwartete Buchungen nach jedem Lauf (python-api.md 12.1)
     wiederkehrend_automatisch: bool = False
+    # Meilenstein 6: echte Anbindungen und Benachrichtigungen (python-api.md 13.1). Keine Geheimnisse.
+    bank_pin_quelle: str = "eingabe"
+    credentials_verzeichnis: pathlib.Path | None = None
+    fints_url: str | None = None
+    fints_blz: str | None = None
+    fints_benutzer: str | None = None
+    fints_kunden_id: str | None = None
+    fints_produkt_id: str | None = None
+    fints_tan_verfahren: str | None = None
+    fints_timeout_sekunden: int = 30
+    imap_host: str = "imap.gmail.com"
+    imap_port: int = 993
+    imap_tls: bool = True
+    imap_timeout_sekunden: int = 30
+    oauth_client_id: str | None = None
+    oauth_autorisierung_url: str = "https://accounts.google.com/o/oauth2/v2/auth"
+    oauth_token_url: str = "https://oauth2.googleapis.com/token"
+    oauth_widerruf_url: str = "https://oauth2.googleapis.com/revoke"
+    oauth_redirect_uri: str = "http://127.0.0.1/oauth2/rueckruf"
+    oauth_timeout_sekunden: int = 30
+    oauth_refresh_gueltig_stunden: int = 168
+    oauth_vorwarnung_stunden: int = 24
+    mail_intervall_minuten: int = 0
+    mail_erstabruf_tage: int = 30
+    mail_ueberlappung_stunden: int = 24
+    benachrichtigung_plugin: str | None = None
+    ntfy_url: str = "https://ntfy.sh"
+    ntfy_topic: str | None = None
+    ntfy_timeout_sekunden: int = 10
+    zustellung_max_versuche: int = 10
+    zustellung_wiederholung_minuten: int = 5
+    tan_erinnerung_minuten: int = 5
+    tan_erinnerung_anzahl: int = 3
+    oeffentliche_url: str | None = None
+    geheimnis_schluessel_datei: pathlib.Path | None = None
+    tls_ca_datei: pathlib.Path | None = None
 
     def __post_init__(self) -> None:
         setze = object.__setattr__
+        self._m6_pruefen()
         if not isinstance(self.wiederkehrend_automatisch, bool):
             raise KonfigurationsFehler("wiederkehrend_automatisch muss wahr oder falsch sein.",
                                        feld="wiederkehrend_automatisch")
@@ -108,6 +191,67 @@ class KontorConfig:
             raise KonfigurationsFehler("Die Mock-Datenbank darf nicht die Echt-Datenbank sein.",
                                        feld="mock_datenbank")
 
+    def _m6_pruefen(self) -> None:
+        """python-api.md 13.1: Felder von Meilenstein 6 prüfen (ohne Dateien zu lesen oder anzulegen)."""
+        setze = object.__setattr__
+        if self.bank_pin_quelle not in PIN_QUELLEN:
+            raise KonfigurationsFehler("bank_pin_quelle muss „eingabe“ oder „systemd-creds“ sein.",
+                                       feld="bank_pin_quelle")
+        for feld in ("credentials_verzeichnis", "geheimnis_schluessel_datei", "tls_ca_datei"):
+            wert = getattr(self, feld)
+            if wert is not None:
+                if isinstance(wert, str) and not wert:
+                    raise KonfigurationsFehler(f"{feld} darf nicht leer sein.", feld=feld)
+                setze(self, feld, _als_pfad(wert, feld))
+        if self.bank_pin_quelle == "systemd-creds" and self.credentials_verzeichnis is None:
+            raise KonfigurationsFehler("Für bank_pin_quelle „systemd-creds“ muss credentials_verzeichnis "
+                                       "($CREDENTIALS_DIRECTORY) gesetzt sein.", feld="credentials_verzeichnis")
+        for feld, (minimum, maximum) in _M6_GANZ.items():
+            wert = getattr(self, feld)
+            if type(wert) is not int or wert < minimum or (maximum is not None and wert > maximum):
+                bereich = f"{minimum} bis {maximum}" if maximum is not None else f"≥ {minimum}"
+                raise KonfigurationsFehler(f"{feld} muss eine Ganzzahl {bereich} sein.", feld=feld)
+        for feld, (minimum, maximum) in _M6_TEXT.items():
+            wert = getattr(self, feld)
+            if wert is not None and (not isinstance(wert, str) or not minimum <= len(wert) <= maximum):
+                raise KonfigurationsFehler(f"{feld} muss {minimum} bis {maximum} Zeichen lang sein.", feld=feld)
+        blz = self.fints_blz
+        if blz is not None and not (isinstance(blz, str) and len(blz) == 8 and blz.isascii() and blz.isdigit()):
+            raise KonfigurationsFehler("fints_blz muss aus genau 8 Ziffern bestehen.", feld="fints_blz")
+        tv = self.fints_tan_verfahren
+        if tv is not None and not (isinstance(tv, str) and len(tv) == 3 and tv.isascii() and tv.isdigit()):
+            raise KonfigurationsFehler("fints_tan_verfahren muss aus genau 3 Ziffern bestehen.",
+                                       feld="fints_tan_verfahren")
+        if not isinstance(self.imap_host, str) or not self.imap_host or len(self.imap_host) > 253 or any(
+                c.isspace() for c in self.imap_host):
+            raise KonfigurationsFehler("imap_host darf nicht leer sein.", feld="imap_host")
+        if not isinstance(self.imap_tls, bool):
+            raise KonfigurationsFehler("imap_tls muss wahr oder falsch sein.", feld="imap_tls")
+        if not self.imap_tls and not ist_loopback(self.imap_host):
+            raise KonfigurationsFehler("IMAP ohne TLS ist nur für 127.0.0.1, ::1 und localhost erlaubt.",
+                                       feld="imap_tls")
+        for feld, (nullbar, http_ueberall) in _M6_URL.items():
+            wert = getattr(self, feld)
+            if wert is None and nullbar:
+                continue
+            url_pruefen(wert, feld, http_ueberall)
+        if self.ntfy_topic is not None and not (isinstance(self.ntfy_topic, str) and _THEMA.match(self.ntfy_topic)):
+            raise KonfigurationsFehler("ntfy_topic darf nur aus 1 bis 64 Zeichen A–Z, a–z, 0–9, _ und - bestehen.",
+                                       feld="ntfy_topic")
+        plugin = self.benachrichtigung_plugin
+        if plugin is None:
+            plugin = "mock" if self.mock_modus is True else "keins"
+        if plugin not in BENACHRICHTIGUNG_PLUGINS:
+            raise KonfigurationsFehler("benachrichtigung_plugin muss „keins“, „mock“ oder „ntfy“ sein.",
+                                       feld="benachrichtigung_plugin")
+        if plugin == "mock" and self.mock_modus is not True:
+            raise KonfigurationsFehler("Das Mock-Benachrichtigungs-Plugin ist nur im Mock-Modus erlaubt.",
+                                       feld="benachrichtigung_plugin")
+        if plugin == "ntfy" and self.ntfy_topic is None:
+            raise KonfigurationsFehler("Für das Benachrichtigungs-Plugin ntfy muss ntfy_topic gesetzt sein.",
+                                       feld="ntfy_topic")
+        setze(self, "benachrichtigung_plugin", plugin)
+
     @property
     def standard_mock_datenbank(self) -> pathlib.Path:
         d = self.datenbank
@@ -153,6 +297,7 @@ class KontorConfig:
                 raise KonfigurationsFehler("KONTOR_UMBUCHUNG_FENSTER_TAGE muss eine Ganzzahl von 0 bis 366 sein.",
                                            variable="KONTOR_UMBUCHUNG_FENSTER_TAGE")
             ganz["umbuchung_fenster_tage"] = int(text)
+        m6 = _m6_aus_umgebung(wert)
         heute_text = wert("KONTOR_MOCK_HEUTE")
         mock_heute = None
         if heute_text:
@@ -177,7 +322,35 @@ class KontorConfig:
             lernmodell_automatisch=lernmodell_automatisch,
             wiederkehrend_automatisch=wiederkehrend_automatisch,
             **ganz,
+            **m6,
         )
+
+
+def _m6_aus_umgebung(wert) -> dict:
+    """python-api.md 13.1: Umgebungsvariablen von Meilenstein 6 (leer/fehlend → Vorgabe bzw. None)."""
+    aus: dict = {}
+    for feld in _M6_GANZ:
+        variable = "KONTOR_" + feld.upper()
+        text = wert(variable)
+        if text:
+            if not text.isascii() or not text.isdigit():
+                raise KonfigurationsFehler(f"{variable} muss eine nicht negative Ganzzahl sein.", variable=variable)
+            aus[feld] = int(text)
+    for feld in ("bank_pin_quelle", "fints_url", "fints_blz", "fints_benutzer", "fints_kunden_id",
+                 "fints_produkt_id", "fints_tan_verfahren", "imap_host", "oauth_client_id", "oauth_autorisierung_url",
+                 "oauth_token_url", "oauth_widerruf_url", "oauth_redirect_uri", "benachrichtigung_plugin", "ntfy_url",
+                 "ntfy_topic", "oeffentliche_url"):
+        text = wert("KONTOR_" + feld.upper())
+        if text:
+            aus[feld] = text
+    for feld, variable in (("credentials_verzeichnis", "CREDENTIALS_DIRECTORY"),
+                           ("geheimnis_schluessel_datei", "KONTOR_GEHEIMNIS_SCHLUESSEL_DATEI"),
+                           ("tls_ca_datei", "KONTOR_TLS_CA_DATEI")):
+        text = wert(variable)
+        if text:
+            aus[feld] = pathlib.Path(text)
+    aus["imap_tls"] = _wahrheitswert(wert("KONTOR_IMAP_TLS"), "KONTOR_IMAP_TLS", True)
+    return aus
 
 
 def _wahrheitswert(text: str, variable: str, leer: bool) -> bool:

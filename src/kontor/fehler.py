@@ -112,6 +112,38 @@ class PostfachUnbekannt(MailFehler):
     code = "mail_postfach_unbekannt"
 
 
+class BankZugangGesperrt(BankFehler):
+    """M6 (fints.md 3.6): Rückmeldung 3938 – der Zugang ist bei der Bank gesperrt."""
+
+    code = "bank_zugang_gesperrt"
+
+
+class MailTokenWiderrufen(MailFehler):
+    code = "mail_token_widerrufen"
+
+
+class MailAnmeldungFehlt(MailFehler):
+    code = "mail_anmeldung_fehlt"
+
+
+class MailAnmeldungAbgelehnt(MailFehler):
+    code = "mail_anmeldung_abgelehnt"
+
+
+class MailOAuthFehler(MailFehler):
+    code = "mail_oauth_fehler"
+
+
+class MailOrdnerUnbekannt(MailFehler):
+    code = "mail_ordner_unbekannt"
+
+
+class BenachrichtigungFehler(PluginFehler):
+    """M6 (benachrichtigungen.md 2): Zustellung gescheitert; ``details.status`` = HTTP-Status oder None."""
+
+    code = "benachrichtigung_fehler"
+
+
 class KreditRateZuKlein(KontorFehler):
     """M5 (python-api.md 12.2): Der Tilgungsplan endet nicht innerhalb von 1 200 Raten."""
 
@@ -120,6 +152,13 @@ class KreditRateZuKlein(KontorFehler):
 
 __all__ = [
     "KreditRateZuKlein",
+    "BankZugangGesperrt",
+    "MailTokenWiderrufen",
+    "MailAnmeldungFehlt",
+    "MailAnmeldungAbgelehnt",
+    "MailOAuthFehler",
+    "MailOrdnerUnbekannt",
+    "BenachrichtigungFehler",
     "KontorFehler",
     "KonfigurationsFehler",
     "PluginFehler",
