@@ -20,11 +20,15 @@ Einspielen:
 
 from __future__ import annotations
 
+import contextlib
 import datetime as dt
 import hashlib
 import io
 import json
+import os
+import pathlib
 import re
+import tempfile
 import sqlite3
 import zipfile
 import zlib
@@ -706,4 +710,79 @@ def einspielen(con, s: Sicherung, zeitpunkt: str) -> dict:
     return _ergebnis(s, False, erg["geaendert"], aid, erg["unterschied"], erg["betroffen"])
 
 
-__all__ = ["erstelle_sicherung"]
+# ======================================================= M7: zeitgesteuerte Sicherung (betrieb.md 8)
+_DATEI = re.compile(r"^kontor-sicherung-(echt|mock)-([0-9]{8}T[0-9]{6})Z\.zip$")
+
+
+def sichere_in_verzeichnis(config: KontorConfig, verzeichnis, *, behalten: int = 14) -> pathlib.Path:
+    """Sicherung atomar mit Rechten 0600 in ``verzeichnis`` ablegen; je Modus die ``behalten`` neuesten behalten."""
+    if type(behalten) is not int or behalten < 1:
+        raise ValueError("behalten muss eine Ganzzahl ≥ 1 sein.")
+    from .sync import SyncDienst
+
+    ziel = pathlib.Path(verzeichnis)
+    _schema_sicherstellen(config.aktive_datenbank)
+    modus = "mock" if config.mock_modus else "echt"
+    daten, name = _erstellen(config.aktive_datenbank, modus, SyncDienst(config).jetzt())
+    if not ziel.exists():
+        ziel.mkdir(parents=True, mode=0o700)
+        os.chmod(ziel, 0o700)
+    datei = ziel / name
+    fd, tmp = tempfile.mkstemp(prefix=".kontor-sicherung-", suffix=".tmp", dir=ziel)
+    try:
+        with os.fdopen(fd, "wb") as f:
+            f.write(daten)
+            f.flush()
+            os.fsync(f.fileno())
+        os.chmod(tmp, 0o600)
+        os.replace(tmp, datei)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            os.unlink(tmp)
+        raise
+    eigene = sorted((m[2], p.name) for p in ziel.iterdir()
+                    if (m := _DATEI.match(p.name)) and m[1] == modus and p.is_file())
+    for _, alt in eigene[:-behalten]:
+        with contextlib.suppress(FileNotFoundError):
+            (ziel / alt).unlink()
+    return datei
+
+
+def main(argv: list[str] | None = None) -> int:
+    """``python -m kontor.sicherung --verzeichnis <pfad> [--behalten N]`` (betrieb.md 8)."""
+    import argparse
+    import sys
+
+    from .fehler import KonfigurationsFehler
+
+    parser = argparse.ArgumentParser(prog="python -m kontor.sicherung",
+                                     description="Kontor-Sicherung in ein Verzeichnis schreiben")
+    parser.add_argument("--verzeichnis", required=True)
+    parser.add_argument("--behalten", type=int, default=14)
+    args = parser.parse_args(argv)
+    try:
+        config = KontorConfig.from_env()
+    except KonfigurationsFehler as e:
+        print(f"Konfigurationsfehler: {e}", file=sys.stderr)
+        return 2
+    try:
+        pfad = sichere_in_verzeichnis(config, args.verzeichnis, behalten=args.behalten)
+    except ValueError as e:
+        print(f"Fehler: {e}", file=sys.stderr)
+        return 1
+    except OSError as e:
+        print(f"Fehler: Die Sicherung konnte nicht geschrieben werden ({e.strerror or 'Dateisystemfehler'}).",
+              file=sys.stderr)
+        return 1
+    except Exception:  # noqa: BLE001 - kein Stacktrace auf der Kommandozeile
+        print("Fehler: Die Sicherung ist fehlgeschlagen.", file=sys.stderr)
+        return 1
+    print(pfad)
+    return 0
+
+
+if __name__ == "__main__":  # pragma: no cover
+    import sys as _sys
+    _sys.exit(main())
+
+__all__ = ["erstelle_sicherung", "sichere_in_verzeichnis"]

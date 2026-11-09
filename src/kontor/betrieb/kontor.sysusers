@@ -1,0 +1,2 @@
+# Systembenutzer für Kontor (betrieb.md 4.4). Ziel: /etc/sysusers.d/kontor.conf
+u kontor - "Kontor" /var/lib/kontor

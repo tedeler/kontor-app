@@ -249,7 +249,8 @@ class _AbfrageSchwaerzen(logging.Filter):
 
     def filter(self, record: logging.LogRecord) -> bool:
         args = record.args
-        if isinstance(args, tuple) and len(args) >= 3 and isinstance(args[2], str) and "?" in args[2]:
+        if (isinstance(args, tuple) and len(args) >= 3 and isinstance(args[2], str) and "?" in args[2]
+                and args[2].startswith("/oauth2/")):
             record.args = args[:2] + (args[2].split("?", 1)[0] + "?…",) + args[3:]
         return True
 

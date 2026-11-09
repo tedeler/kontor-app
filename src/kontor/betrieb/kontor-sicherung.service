@@ -1,0 +1,38 @@
+# Kontor – tägliche Sicherung (betrieb.md 4.3, 8). Gestartet von kontor-sicherung.timer.
+# Braucht keine Geheimnisse: keine Credentials.
+[Unit]
+Description=Kontor – Datensicherung in /var/lib/kontor/sicherungen
+After=kontor.service
+
+[Service]
+Type=oneshot
+User=kontor
+Group=kontor
+EnvironmentFile=/etc/kontor/kontor.env
+ExecStart=/opt/kontor/venv/bin/python -m kontor.sicherung --verzeichnis /var/lib/kontor/sicherungen --behalten 14
+StateDirectory=kontor
+StateDirectoryMode=0700
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectHome=yes
+ProtectSystem=strict
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+ProcSubset=pid
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+RestrictNamespaces=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+LockPersonality=yes
+RemoveIPC=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+CapabilityBoundingSet=
+AmbientCapabilities=

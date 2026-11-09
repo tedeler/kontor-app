@@ -1,0 +1,51 @@
+# Kontor – Hauptdienst (betrieb.md 4.1). Ziel: /etc/systemd/system/kontor.service
+# Geheimnisse nur verschlüsselt über LoadCredentialEncrypted (K 6), nie in Kommandozeile oder Umgebung.
+[Unit]
+Description=Kontor – selbst gehostete Finanz-Web-App
+Documentation=file:///opt/kontor/README.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=exec
+User=kontor
+Group=kontor
+EnvironmentFile=/etc/kontor/kontor.env
+ExecStart=/opt/kontor/venv/bin/python -m kontor
+LoadCredentialEncrypted=kontor-bank-pin:/etc/kontor/kontor-bank-pin.cred
+LoadCredentialEncrypted=kontor-geheimnisschluessel:/etc/kontor/kontor-geheimnisschluessel.cred
+StateDirectory=kontor
+StateDirectoryMode=0700
+UMask=0077
+Restart=on-failure
+RestartSec=5
+# Rückgabecode 2 = Konfigurationsfehler: nicht endlos neu starten
+RestartPreventExitStatus=2
+TimeoutStopSec=40
+# Härtung (im unprivilegierten Proxmox-LXC mit nesting=1 lauffähig)
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectHome=yes
+ProtectSystem=strict
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+ProcSubset=pid
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+RestrictNamespaces=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+LockPersonality=yes
+RemoveIPC=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+CapabilityBoundingSet=
+AmbientCapabilities=
+
+[Install]
+WantedBy=multi-user.target

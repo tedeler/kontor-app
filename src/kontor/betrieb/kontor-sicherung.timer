@@ -1,0 +1,12 @@
+# Kontor – Zeitplan der täglichen Sicherung (betrieb.md 4.3)
+[Unit]
+Description=Kontor – tägliche Datensicherung
+
+[Timer]
+OnCalendar=*-*-* 03:15:00
+Persistent=yes
+RandomizedDelaySec=600
+Unit=kontor-sicherung.service
+
+[Install]
+WantedBy=timers.target
