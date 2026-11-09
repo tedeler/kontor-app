@@ -192,8 +192,7 @@ def plan_berechnen(p: Mapping) -> dict:
             zahlung, tilgung, schluss = r + zins, r, True
         else:
             zahlung, tilgung, schluss = rate, rate - zins, False
-        if schluss and zahlung == 0:
-            break
+        # E-111: auch eine Schlussrate 0 (Sondertilgung hat alles getilgt) bleibt als Zeile im Plan
         zeilen.append({"nr": i, "faelligkeit": f.isoformat(), "zinstage": laenge, "restschuld_vorher": vorher,
                        "sondertilgung": summe_sonder, "zins": zins, "tilgung": tilgung, "rate": zahlung,
                        "restschuld_nachher": r - tilgung})
@@ -206,7 +205,7 @@ def plan_berechnen(p: Mapping) -> dict:
     return {"zeilen": zeilen, "anzahl_raten": len(zeilen), "summe_zins": sum(z["zins"] for z in zeilen),
             "summe_tilgung": sum(z["tilgung"] for z in zeilen),
             "summe_sondertilgung": sum(z["sondertilgung"] for z in zeilen),
-            "letzte_faelligkeit": zeilen[-1]["faelligkeit"] if zeilen else None}
+            "letzte_faelligkeit": zeilen[-1]["faelligkeit"]}
 
 
 def _rate_zu_klein() -> ApiFehler:
@@ -506,7 +505,7 @@ class Ratenplan:
         for abstand in range(0, TOLERANZ + 1):
             for f in (datum - dt.timedelta(days=abstand), datum + dt.timedelta(days=abstand)):
                 z = self.zeilen.get(f)
-                if z is None or z["faelligkeit"] in self.vergeben or betrag != -z["rate"]:
+                if z is None or z["rate"] <= 0 or z["faelligkeit"] in self.vergeben or betrag != -z["rate"]:
                     continue
                 if beste is None or f < dt.date.fromisoformat(beste["faelligkeit"]):
                     beste = z
@@ -651,15 +650,20 @@ def _abgleichen(con, k: dict, d: dict, trocken: bool) -> dict:
     dz = d["zinsen"] - zinsen_berechnet
     splits = []
     if dz or dr:
-        from .pflege import korrektur_id
+        from .pflege import KORREKTUR, korrektur_id
         if dz:
             splits.append({"konto_id": k["zins_konto_id"], "betrag": dz, "memo": "Zinskorrektur"})
         if dr:
             splits.append({"konto_id": k["konto_id"], "betrag": -dr, "memo": "Restschuldkorrektur"})
         if dr != dz:
-            splits.append({"konto_id": korrektur_id(con), "betrag": dr - dz, "memo": ""})
+            if trocken:  # E-111: der Probelauf legt das Konto „Korrekturen“ nicht an (konto_id null)
+                r = con.execute("SELECT id FROM konto WHERE extern_id = ?", (KORREKTUR,)).fetchone()
+                korr = r["id"] if r else None
+            else:
+                korr = korrektur_id(con)
+            splits.append({"konto_id": korr, "betrag": dr - dz, "memo": ""})
     korrektur = None
-    if splits:
+    if splits and not trocken:
         bid = buch.buchung_einfuegen(con, stichtag, None, f"Jahresabgleich {jahr} {k['name']}", "abgeglichen", splits)
         korrektur = bid
     im_jahr.sort()

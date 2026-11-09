@@ -828,3 +828,12 @@ Weitere Abkürzungen: SY = `spec/api/synchronisation.md`, KA =
   Ressourcen; Tabellen scrollen auf schmalen Bildschirmen in ihrer Hülle.
 - **Begründung:** Auftrag des Koordinators; K 9–11, K 14; kredite.md 5 („die Oberfläche zeigt vorher das
   Ergebnis des Probelaufs“).
+
+## D-068 Umsetzung von E-111 (ersetzt den letzten Satz von D-060 und ergänzt D-061)
+
+- **Entscheidung:** Eine Schlussrate 0 bleibt als Zeile im Plan (`letzte_faelligkeit` nie null); Zeilen mit
+  `rate = 0` werden weder bei der Synchronisation noch beim Zuordnen einer Zahlung zugeordnet. Der Probelauf
+  des Jahresabgleichs legt nichts an und rechnet ohne Sicherungspunkt-Buchung: Fehlt das Konto
+  „Korrekturen“, hat der betreffende Korrektursplit `konto_id = null`; die Oberfläche zeigt dafür
+  „Korrekturen (wird beim Bestätigen angelegt)“.
+- **Begründung:** kredite.md 3.5, 4.1, 5 in der Fassung von E-111.

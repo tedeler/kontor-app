@@ -96,9 +96,10 @@ def test_pdf_ohne_vorgetaeuschte_marken(tmp_path):
 
 
 def test_kredit_sonderfall_null_zins(tmp_path):
-    """kredite.md 3.5 Schritt 3: eine Schlussrate 0 entfällt (vgl. W-003)."""
+    """kredite.md 3.5 Schritt 3 (E-111): auch eine Schlussrate 0 bleibt als Zeile im Plan (vgl. W-003)."""
     c = _client(tmp_path)
     p = {"restschuld": 1, "stand_datum": "2020-01-01", "sollzins": 0, "zinsmethode": "30/360", "rate": 1,
          "erste_faelligkeit": "2020-01-02", "sondertilgungen": [{"datum": "2020-01-02", "betrag": 1}]}
     plan = c.post("/api/kredite/tilgungsplan", json=p).json()
-    assert plan["zeilen"] == [] and plan["anzahl_raten"] == 0 and plan["letzte_faelligkeit"] is None
+    assert plan["anzahl_raten"] == 1 and plan["summe_sondertilgung"] == 1 and plan["letzte_faelligkeit"] == "2020-01-02"
+    assert (plan["zeilen"][0]["rate"], plan["zeilen"][0]["restschuld_nachher"]) == (0, 0)

@@ -2358,7 +2358,7 @@
         const d = koerper();
         const t = await api("POST", `/api/kredite/${k.id}/jahresabgleich`, Object.assign({ trocken: true }, d));
         geprueft = d;
-        const name = (id) => (kontoNach(id) || { name: "#" + id }).name;
+        const name = (id) => id === null ? "Korrekturen (wird beim Bestätigen angelegt)" : (kontoNach(id) || { name: "#" + id }).name;
         ergebnis.replaceChildren(h("div", { class: "karte", id: "abgleich-probelauf" },
           h("table", { class: "tabelle" }, h("thead", null, h("tr", null, h("th"), h("th", { class: "zahl" }, "Auszug"), h("th", { class: "zahl" }, "Gebucht"), h("th", { class: "zahl" }, "Differenz"))),
             h("tbody", null,

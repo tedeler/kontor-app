@@ -69,6 +69,9 @@ widersprüchlich ist). Gelöst werden Widersprüche nur von einem Test-Thread.
   das Orakel des Tests folgt Schritt 3 genauso wie die Anwendung. Vorschlag: Die Zeile nur entfallen lassen, wenn
   zusätzlich `sondertilgung = 0` ist (sonst eine Zeile mit `rate = 0`, `tilgung = 0` und der Sondertilgung
   behalten), oder die Invariante auf nicht leere Pläne bzw. „ohne entfallene Zeile“ einschränken.
-- **Umgang:** Umgesetzt ist `kredite.md` 3.5 Schritt 3 wörtlich (gleiches Ergebnis wie das Orakel des Tests).
+- **Umgang:** Umgesetzt war zunächst `kredite.md` 3.5 Schritt 3 wörtlich (gleiches Ergebnis wie das Orakel des
+  Tests).
+- **Status:** vom Test-Thread behoben (E-111, kontor-tests Commit `3649524`/`8cece3c`: die Zeile mit
+  `rate = 0` bleibt im Plan und wird nie einer Zahlung zugeordnet); umgesetzt, der Test ist grün. Erledigt.
 
-Stand: Meilenstein 5, ein offener Widerspruch (W-003).
+Stand: Meilenstein 5, keine offenen Widersprüche.
