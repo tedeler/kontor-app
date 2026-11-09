@@ -286,3 +286,15 @@ html.zieht, html.zieht * { cursor: grabbing !important; }
 .zelle-kategorie .mini-knopf, .zelle-kategorie .vorschlag-marke { flex: none; }
 .zahl-marke[data-anzahl="0"] { display: none; }
 .buchungsliste[data-kompakt="ja"] .liste-kopf { gap: .2rem; }
+
+/* M11 (oberflaeche.md 22.1): Kategorien in der Finanzübersicht, abgesetzt und einklappbar */
+.uebersicht-kategorien { margin-top: 1.5rem; }
+.uebersicht-kategorien .seiten-kopf { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+.kategorien-gruppe { margin-top: .75rem; }
+.kategorien-gruppe caption { text-align: left; font-weight: 600; padding: .25rem 0; }
+
+/* M11 (oberflaeche.md 22.2): Buchungsliste einer Kategorie mit Spalte „Konto“ */
+.buchungsliste.mit-konto .liste-kopf, .buchungsliste.mit-konto .zeile { grid-template-columns: 6.5rem minmax(7rem, 1.2fr) minmax(8rem, 2fr) minmax(7rem, 1.3fr) minmax(7rem, 1.2fr) minmax(4rem, .8fr) 6.5rem 7.5rem; }
+.buchungsliste.mit-konto[data-kompakt="ja"] .liste-kopf .zelle-konto { display: none; }
+.buchungsliste.mit-konto[data-kompakt="ja"] .zeile { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; grid-template-areas: "datum empf betrag" "kat konto tags"; }
+.buchungsliste.mit-konto[data-kompakt="ja"] .zelle-konto { grid-area: konto; font-size: .85rem; color: var(--text-2); }

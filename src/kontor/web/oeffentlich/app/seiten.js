@@ -17,51 +17,105 @@ const leer = (text) => h("p", { class: "leer" }, text);
 const tabelle = (attrs, spalten, zeilen) => h("table", { class: "tabelle", ...(attrs || {}) },
   h("thead", null, h("tr", null, spalten.map((s) => h("th", { scope: "col" }, s)))), h("tbody", null, zeilen));
 
-// ------------------------------------------------------------------ Finanzübersicht (6)
+// ------------------------------------------------------------------ Finanzübersicht (6, 22.1)
+const KATEGORIEN_OFFEN = "kontor.uebersicht.kategorien";
+const KATEGORIE_GRUPPEN = [["aufwand", "Ausgaben", 1], ["ertrag", "Einnahmen", -1], ["eigenkapital", "Sonstige", -1]];
+
+const speicherLesen = (schluessel) => { try { return localStorage.getItem(schluessel); } catch { return null; } };
+const speicherSchreiben = (schluessel, wert) => { try { localStorage.setItem(schluessel, wert); } catch { /* ohne Speicher */ } };
+
+// Zeilen eines Kontobaums (6): Baumreihenfolge, aria-level, geschlossene nur mit `mit`, Klick/Enter/Kontextmenü.
+// `zellen(k, name)` liefert die Zellen nach der Namenszelle; `vz` kehrt nur die Anzeige um (22.1).
+function kontoZeilen(konten, mit, praefix, zellen) {
+  const nachId = new Map(konten.map((k) => [k.konto_id, k]));
+  const sichtbar = konten.filter((k) => mit || !k.geschlossen).map((k) => ({ id: k.konto_id, name: k.name,
+    eltern_id: k.eltern_id && nachId.has(k.eltern_id) && (mit || !nachId.get(k.eltern_id).geschlossen) ? k.eltern_id : null }));
+  return baumFolge(sichtbar).map(({ konto, ebene }) => {
+    const k = nachId.get(konto.id);
+    const name = h("td", { "data-feld": "name", class: "name", stil: { "--stufe": String(ebene - 1) } }, k.name);
+    const tr = h("tr", { tid: `${praefix}-${k.konto_id}`, "aria-level": String(ebene), tabindex: "0",
+      class: "klickbar" + (k.geschlossen ? " geschlossen" : ""), "data-geschlossen": k.geschlossen ? "ja" : null },
+    name, zellen(k));
+    const oeffnen = () => oberflaeche.gehe(`/konten/${k.konto_id}`);
+    const menue = (x, y) => kontoMenue(kontoNach(k.konto_id) || { id: k.konto_id, name: k.name, art: k.art,
+      eltern_id: k.eltern_id }, x, y, tr, { namensZelle: () => name });
+    tr.addEventListener("click", (e) => { if (!e.target.closest("input")) oeffnen(); });
+    tr.addEventListener("keydown", (e) => {
+      if (e.target !== tr) return;
+      if (e.key === "Enter") { e.preventDefault(); oeffnen(); }
+      else if ((e.key === "F10" && e.shiftKey) || e.key === "ContextMenu") {
+        e.preventDefault(); const [x, y] = menuePosition(null, tr); menue(x, y);
+      }
+    });
+    tr.addEventListener("contextmenu", (e) => { if (e.target.closest("input")) return; e.preventDefault(); menue(e.clientX, e.clientY); });
+    return tr;
+  });
+}
+
+// Betrag mit Rohwert in data-betrag, Anzeige mit Vorzeichen `vz` (22.1: Einnahmen und Sonstige umgekehrt).
+function anzeigeBetrag(tag, roh, vz, attrs) {
+  const el = betragEl(tag, roh * vz, attrs);
+  el.setAttribute("data-betrag", String(roh));
+  return el;
+}
+
 export async function uebersicht(seite) {
   const u = await api("GET", "/api/kontenuebersicht");
   kopf(seite, "Finanzübersicht");
   const bestand = u.konten.filter((k) => BESTAND.has(k.art));
-  const nachId = new Map(bestand.map((k) => [k.konto_id, k]));
   const geschlossene = h("input", { type: "checkbox", tid: "uebersicht-geschlossene", id: "uebersicht-geschlossene" });
   const tbody = h("tbody");
+  const kategorienInhalt = h("div", { id: "uebersicht-kategorien-inhalt", class: "kategorien-inhalt" });
   const zeichnen = () => {
     const mit = geschlossene.checked;
-    const sichtbar = bestand.filter((k) => mit || !k.geschlossen).map((k) => ({ id: k.konto_id, name: k.name,
-      eltern_id: k.eltern_id && nachId.has(k.eltern_id) && (mit || !nachId.get(k.eltern_id).geschlossen) ? k.eltern_id : null }));
-    tbody.replaceChildren(...baumFolge(sichtbar).map(({ konto, ebene }) => {
-      const k = nachId.get(konto.id);
-      const name = h("td", { "data-feld": "name", class: "name", stil: { "--stufe": String(ebene - 1) } }, k.name);
-      const tr = h("tr", { tid: `uebersicht-konto-${k.konto_id}`, "aria-level": String(ebene), tabindex: "0",
-        class: "klickbar" + (k.geschlossen ? " geschlossen" : ""), "data-geschlossen": k.geschlossen ? "ja" : null },
-      name, h("td", null, ARTEN[k.art] || k.art), betragEl("td", k.saldo_gesamt, { "data-feld": "saldo", class: "zahl" }),
-      h("td", { class: "zahl" }, String(k.anzahl_buchungen)));
-      const oeffnen = () => oberflaeche.gehe(`/konten/${k.konto_id}`);
-      const menue = (x, y) => kontoMenue(kontoNach(k.konto_id) || { id: k.konto_id, name: k.name, art: k.art,
-        eltern_id: k.eltern_id }, x, y, tr, { namensZelle: () => name });
-      tr.addEventListener("click", (e) => { if (!e.target.closest("input")) oeffnen(); });
-      tr.addEventListener("keydown", (e) => {
-        if (e.target !== tr) return;
-        if (e.key === "Enter") { e.preventDefault(); oeffnen(); }
-        else if ((e.key === "F10" && e.shiftKey) || e.key === "ContextMenu") {
-          e.preventDefault(); const [x, y] = menuePosition(null, tr); menue(x, y);
-        }
-      });
-      tr.addEventListener("contextmenu", (e) => { if (e.target.closest("input")) return; e.preventDefault(); menue(e.clientX, e.clientY); });
-      return tr;
+    tbody.replaceChildren(...kontoZeilen(bestand, mit, "uebersicht-konto", (k) => [
+      h("td", null, ARTEN[k.art] || k.art), betragEl("td", k.saldo_gesamt, { "data-feld": "saldo", class: "zahl" }),
+      h("td", { class: "zahl" }, String(k.anzahl_buchungen))]));
+    kategorienInhalt.replaceChildren(...KATEGORIE_GRUPPEN.flatMap(([art, titel, vz]) => {
+      const liste = u.konten.filter((k) => k.art === art);
+      if (!liste.length) return [];
+      const summe = liste.reduce((a, k) => a + k.saldo, 0);
+      return [h("table", { class: "tabelle kategorien-gruppe", tid: `uebersicht-gruppe-${art}` },
+        h("caption", null, titel),
+        h("thead", null, h("tr", null, ["Kategorie", "Saldo", "Buchungen"].map((x) => h("th", { scope: "col" }, x)))),
+        h("tbody", null, kontoZeilen(liste, mit, "uebersicht-kategorie", (k) => [
+          anzeigeBetrag("td", k.saldo_gesamt, vz, { "data-feld": "saldo", class: "zahl" }),
+          h("td", { class: "zahl" }, String(k.anzahl_buchungen))])),
+        h("tfoot", null, h("tr", null, h("th", { scope: "row" }, `Summe ${titel}`),
+          anzeigeBetrag("td", summe, vz, { tid: `uebersicht-summe-${art}`, class: "zahl" }), h("td"))))];
     }));
   };
   geschlossene.addEventListener("change", zeichnen);
-  langeBeruehrung(tbody, (t) => t.closest("tr"), (tr, x, y) => tr.dispatchEvent(new MouseEvent("contextmenu",
-    { bubbles: true, cancelable: true, clientX: x, clientY: y })));
   zeichnen();
+  // Kategorien: abgesetzter, einklappbarer Bereich (22.1), Zustand im Browser-Speicher
+  const umschalten = h("button", { type: "button", class: "knopf knopf-flach", tid: "uebersicht-kategorien-umschalten",
+    "aria-controls": "uebersicht-kategorien-inhalt" });
+  const setzen = (offen) => {
+    umschalten.setAttribute("aria-expanded", offen ? "true" : "false");
+    umschalten.textContent = offen ? "Kategorien ausblenden" : "Kategorien einblenden";
+    kategorienInhalt.hidden = !offen;
+  };
+  setzen(speicherLesen(KATEGORIEN_OFFEN) === "ja");
+  umschalten.addEventListener("click", () => {
+    const offen = umschalten.getAttribute("aria-expanded") !== "true";
+    speicherSchreiben(KATEGORIEN_OFFEN, offen ? "ja" : "nein");
+    setzen(offen);
+  });
+  for (const t of [tbody, kategorienInhalt]) {
+    langeBeruehrung(t, (x) => x.closest("tr[tabindex]"), (tr, x, y) => tr.dispatchEvent(new MouseEvent("contextmenu",
+      { bubbles: true, cancelable: true, clientX: x, clientY: y })));
+  }
   seite.append(h("label", { class: "wahl" }, geschlossene, " geschlossene Konten anzeigen"),
     h("table", { class: "tabelle", tid: "uebersicht-tabelle" },
       h("thead", null, h("tr", null, ["Konto", "Art", "Saldo", "Buchungen"].map((s) => h("th", { scope: "col" }, s)))),
       tbody,
       h("tfoot", null, h("tr", null, h("th", { scope: "row", colspan: "2" }, "Summe der Bestandskonten"),
         betragEl("td", u.summe_bestand, { tid: "uebersicht-summe", class: "zahl" }), h("td")))),
-    h("p", { class: "klein" }, "Saldo = Summe aller Splits je Konto einschließlich Unterkonten. Schulden sind negativ."));
+    h("p", { class: "klein" }, "Saldo = Summe aller Splits je Konto einschließlich Unterkonten. Schulden sind negativ."),
+    h("section", { class: "karte uebersicht-kategorien", tid: "uebersicht-kategorien" },
+      h("div", { class: "seiten-kopf" }, h("h2", null, "Kategorien"), umschalten),
+      kategorienInhalt,
+      h("p", { class: "klein" }, "Ausgaben, Einnahmen und Sonstige über alle Buchungen; Einnahmen positiv angezeigt.")));
   return { titel: "Finanzübersicht" };
 }
 
@@ -542,11 +596,19 @@ export async function protokoll(seite) {
 // ------------------------------------------------------------------ Empfänger (13.10)
 export async function empfaenger(seite) {
   const liste = stamm.empfaenger;
-  kopf(seite, "Empfänger", knopf("Zusammenführen…", { tid: "empfaenger-zusammenfuehren", onclick: (e) => zusammenfuehren(e.currentTarget) }));
-  seite.append(liste.length ? tabelle({ class: "tabelle" }, ["Name", "Aliase", "Standardkategorie", ""], liste.map((e) => h("tr", { tid: `empfaenger-${e.id}` },
-    h("td", null, e.name), h("td", null, (e.aliase || []).join(", ")),
-    h("td", null, e.standardkategorie_id ? pfadVon(e.standardkategorie_id) : ""),
-    h("td", null, knopf("Bearbeiten…", { "aria-label": `Empfänger ${e.name} bearbeiten`, onclick: (ev) => empfaengerDialog(e, ev.currentTarget) })))))
+  const auswahl = new Set();
+  const zusammen = knopf("Zusammenführen…", { tid: "empfaenger-zusammenfuehren", disabled: true,
+    onclick: (e) => zusammenfuehren(liste.filter((x) => auswahl.has(x.id)), e.currentTarget) });
+  const pruefen = () => { zusammen.disabled = auswahl.size < 2; };   // 22.3: ab zwei ausgewählten
+  kopf(seite, "Empfänger", zusammen);
+  seite.append(liste.length ? tabelle({ class: "tabelle" }, ["", "Name", "Aliase", "Standardkategorie", ""], liste.map((e) => {
+    const wahl = h("input", { type: "checkbox", tid: `empfaenger-auswahl-${e.id}`, "aria-label": `${e.name} auswählen` });
+    wahl.addEventListener("change", () => { if (wahl.checked) auswahl.add(e.id); else auswahl.delete(e.id); pruefen(); });
+    return h("tr", { tid: `empfaenger-${e.id}` },
+      h("td", null, wahl), h("td", null, e.name), h("td", null, (e.aliase || []).join(", ")),
+      h("td", null, e.standardkategorie_id ? pfadVon(e.standardkategorie_id) : ""),
+      h("td", null, knopf("Bearbeiten…", { "aria-label": `Empfänger ${e.name} bearbeiten`, onclick: (ev) => empfaengerDialog(e, ev.currentTarget) })));
+  }))
     : leer("Noch keine Empfänger."));
   return { titel: "Empfänger" };
 }
@@ -568,18 +630,66 @@ function empfaengerDialog(e, ausloeser) {
   }, { ausloeser });
 }
 
-function zusammenfuehren(ausloeser) {
+// Vergleichsschlüssel für die Vorschau (wie `ekey` des Servers: Groß-/Kleinschreibung und Leerraum egal).
+const vergleich = (t) => (t || "").normalize("NFKC").toLowerCase().replace(/\s+/g, " ").trim();
+
+/** Aliase nach dem Zusammenführen (buchhaltungspflege.md 2.4, 10) – nur als Vorschau, maßgeblich ist der Server. */
+function aliasVorschau(ziel, quellen, name) {
+  const neu = name !== ziel.name;
+  const zielKey = vergleich(neu ? name : ziel.name);
+  const gesehen = new Set();
+  const aus = [];
+  const kandidaten = [...(ziel.aliase || []), ...(neu ? [ziel.name] : []),
+    ...quellen.slice().sort((a, b) => a.id - b.id).flatMap((q) => [q.name, ...(q.aliase || [])])];
+  for (const k of kandidaten) {
+    const key = vergleich(k);
+    if (!key || key === zielKey || gesehen.has(key)) continue;
+    gesehen.add(key);
+    aus.push(k);
+  }
+  return aus.sort();
+}
+
+/** 22.3: Ziel (vorbelegt mit den meisten Buchungen), neuer Name, Vorschau der Aliase. */
+function zusammenfuehren(gewaehlt, ausloeser) {
   dialog("zusammenfuehren-dialog", "Empfänger zusammenführen", (inhalt, d) => {
-    const ziel = h("select", null, stamm.empfaenger.map((e) => h("option", { value: String(e.id) }, e.name)));
-    const quellen = h("select", { multiple: true, size: "8" }, stamm.empfaenger.map((e) => h("option", { value: String(e.id) }, e.name)));
-    const los = knopf("Zusammenführen", { class: "knopf knopf-haupt" });
+    const ziel = h("select", { tid: "zusammenfuehren-ziel" },
+      gewaehlt.map((e) => h("option", { value: String(e.id) }, e.name)));
+    const name = h("input", { type: "text", tid: "zusammenfuehren-name", maxlength: "200", value: gewaehlt[0].name });
+    const vorschau = h("ul", { tid: "zusammenfuehren-aliase", class: "alias-vorschau", "aria-live": "polite" });
+    let nameGeaendert = false;
+    const zielObj = () => gewaehlt.find((e) => String(e.id) === ziel.value) || gewaehlt[0];
+    const zeigen = () => {
+      const z = zielObj();
+      const aliase = aliasVorschau(z, gewaehlt.filter((e) => e.id !== z.id), name.value.trim() || z.name);
+      vorschau.replaceChildren(...(aliase.length ? aliase.map((a) => h("li", null, a)) : [h("li", { class: "leer" }, "keine")]));
+    };
+    const zielSetzen = (id) => {
+      ziel.value = String(id);
+      if (!nameGeaendert) name.value = zielObj().name;
+      zeigen();
+    };
+    ziel.addEventListener("change", () => zielSetzen(ziel.value));
+    name.addEventListener("input", () => { nameGeaendert = true; zeigen(); });
+    zeigen();
+    // Buchungszahl je Empfänger; Ziel = meiste Buchungen, bei Gleichstand kleinste id
+    Promise.all(gewaehlt.map((e) => api("GET", `/api/buchungen${abfrage({ empfaenger_id: e.id, pro_seite: 1 })}`)
+      .then((r) => [e.id, r.gesamt]).catch(() => [e.id, 0]))).then((zahlen) => {
+      if (!d.offen) return;
+      zahlen.sort((a, b) => b[1] - a[1] || a[0] - b[0]);
+      zielSetzen(zahlen[0][0]);
+    });
+    const los = knopf("Zusammenführen", { class: "knopf knopf-haupt", tid: "zusammenfuehren-ausfuehren" });
     los.addEventListener("click", () => imDialog(d, los, async () => {
-      const q = [...quellen.selectedOptions].map((o) => Number(o.value)).filter((x) => x !== Number(ziel.value));
-      if (!q.length) { d.fehler("Bitte mindestens einen anderen Empfänger wählen."); return; }
-      await aktion(() => api("POST", `/api/empfaenger/${ziel.value}/zusammenfuehren`, { quelle_ids: q }),
+      const z = zielObj();
+      const body = { quelle_ids: gewaehlt.filter((e) => e.id !== z.id).map((e) => e.id) };
+      const neuerName = name.value.trim();
+      if (neuerName !== z.name) body.name = neuerName;
+      await aktion(() => api("POST", `/api/empfaenger/${z.id}/zusammenfuehren`, body),
         { stillBeiFehler: true, danach: () => d.schliessen(true), erfolg: "Empfänger zusammengeführt." });
     }));
-    inhalt.append(feld("Ziel (bleibt bestehen)", ziel), feld("Zusammenführen mit", quellen),
+    inhalt.append(feld("Ziel (bleibt bestehen)", ziel), feld("Neuer Name", name),
+      h("div", { class: "feld" }, h("span", null, "Suchtexte (Aliase) danach"), vorschau),
       knopfLeiste(los, knopf("Abbrechen", { onclick: () => d.schliessen(null) })));
   }, { ausloeser });
 }
@@ -692,7 +802,8 @@ export async function syncSeite(seite, _p, _s, kontext) {
     st.offene_tan_anforderung ? h("a", { href: `/tan/${st.offene_tan_anforderung.id}` }, " Offene TAN-Freigabe") : null)));
   seite.append(abschnitt("Bankkonten", konten.length ? h("ul", null, konten.map((k) => {
     const li = h("li", { tid: `bankkonto-${k.iban}`, "data-status": k.status || "aktiv" }, `${k.iban} → ${pfadVon(k.konto_id)}`,
-      ` · ${k.status || "aktiv"}`, k.letzter_abruf_bis ? ` · abgerufen bis ${datumText(k.letzter_abruf_bis)}` : "");
+      ` · ${k.status || "aktiv"}`, k.letzter_abruf_bis ? ` · abgerufen bis ${datumText(k.letzter_abruf_bis)}` : "",
+      saldoAbgleich(k, laeufe));
     if (k.status === "konto_fehlt") {
       const entscheiden = async (body) => {
         try { await api("POST", `/api/sync/konten/${encodeURIComponent(k.iban)}/entscheidung`, body); melde("erfolg", "Entscheidung gespeichert."); await oberflaeche.neuLaden(); }
@@ -719,6 +830,28 @@ export async function syncSeite(seite, _p, _s, kontext) {
   l.tan_anforderung_id && l.status === "wartet_auf_tan" ? h("a", { href: `/tan/${l.tan_anforderung_id}` }, " TAN eingeben") : null)))
     : leer("Noch keine Läufe.")));
   return { titel: "Synchronisation" };
+}
+
+// 22.4: Saldoabgleich des letzten Laufs, in dem das Bankkonto erfolgreich verarbeitet wurde (kontostand.md 2.1).
+const SALDO_TEXT = { aus: "Kontostandsabgleich aus", nicht_verfuegbar: "Bank meldet keinen Kontostand",
+  stimmt: "Kontostand stimmt", ausgeglichen: "Kontostand ausgeglichen" };
+function saldoAbgleich(k, laeufe) {
+  let sa = null;
+  for (const l of laeufe.slice().sort((a, b) => b.id - a.id)) {
+    const x = (l.konten || []).find((y) => y.iban === k.iban && y.status === "erfolgreich" && y.saldo_abgleich);
+    if (x) { sa = { ...x.saldo_abgleich, konto_id: x.konto_id }; break; }
+  }
+  const el = h("span", { tid: "bankkonto-saldo", class: "bankkonto-saldo", "data-status": sa ? sa.status : "" });
+  if (!sa) return el;
+  el.append(" · ", SALDO_TEXT[sa.status] || sa.status);
+  if (sa.status === "stimmt" || sa.status === "ausgeglichen") {
+    el.append(": Bank ", betragEl("span", sa.bank_saldo), ` am ${datumText(sa.stichtag)}, Differenz `,
+      betragEl("span", sa.differenz));
+  }
+  if (sa.status === "ausgeglichen") {
+    el.append(" ", h("a", { href: `/konten/${sa.konto_id}`, tid: `bankkonto-ausgleich-${k.iban}` }, "Ausgleichsbuchung prüfen"));
+  }
+  return el;
 }
 
 // ------------------------------------------------------------------ Benachrichtigungen (13.10)

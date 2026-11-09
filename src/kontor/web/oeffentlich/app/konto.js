@@ -1,8 +1,8 @@
 /* Kontor – Kontoansicht (oberflaeche.md 7): Filter, Buchungsliste, Auswahl und Fokus, Mehrfachbearbeitung,
  * Inline-Bearbeitung, Kontextmenü, Drag and Drop auf Kategorien, Panels (15) und Gesten (16.4). */
 import {
-  BESTAND, STATUS_TEXT, abfrage, aktion, api, betragEl, betragLesen, datumEl, datumText, h, kategorien, kontoNach, kontoPfad,
-  melde, neueId, oberflaeche, pfadVon, stamm, tid,
+  BESTAND, STATUS_TEXT, abfrage, aktion, api, baumFolge, betragEl, betragLesen, datumEl, datumText, h, kategorien, klasse,
+  kontoNach, kontoPfad, melde, neueId, oberflaeche, pfadVon, stamm, tid,
 } from "./kern.js";
 import {
   bestaetigen, dialog, dubletteDialog, erfassenDialog, kategorieAuswahl, kontextmenue, knopf, menuePosition,
@@ -13,9 +13,11 @@ import { kategorienBaum, langeBeruehrung, ziehbar } from "./baum.js";
 const PRO_SEITE = 200;
 const STATUS = ["importiert", "vorlaeufig", "bestaetigt", "abgeglichen"];
 const PARAMETER = ["von", "bis", "betrag_min", "betrag_max", "empfaenger_id", "ohne_empfaenger", "verwendungszweck",
-  "suche", "kategorie_id", "unterkategorien", "tag_id", "status", "sortierung"];
+  "suche", "kategorie_id", "unterkategorien", "unterkonten", "tag_id", "status", "sortierung"];
 const SPALTEN = [["datum", "Datum", true], ["empfaenger", "Empfänger", true], ["verwendungszweck", "Verwendungszweck"],
   ["kategorie", "Kategorie"], ["tags", "Tags"], ["status", "Status"], ["betrag", "Betrag", true]];
+// M11 (oberflaeche.md 22.2): Kontoansicht einer Kategorie mit zusätzlicher Spalte „Konto“ nach „Kategorie“
+const SPALTEN_KATEGORIE = [...SPALTEN.slice(0, 4), ["konto", "Konto"], ...SPALTEN.slice(4)];
 
 // ------------------------------------------------------------------ Layout der Panels (15, E-141)
 const LAYOUT_SCHLUESSEL = "kontor.layout";
@@ -50,6 +52,7 @@ export function layoutZuruecksetzen() {
 // ------------------------------------------------------------------ Seite
 export async function kontoSeite(seite, kontoId, suche) {
   const konto = await api("GET", `/api/konten/${kontoId}`);
+  seite.dataset.kontoklasse = klasse(konto);   // 22.2
   const s = new Kontoansicht(seite, konto, suche);
   await s.start();
   return s;
@@ -59,6 +62,8 @@ class Kontoansicht {
   constructor(seite, konto, suche) {
     this.seite = seite;
     this.konto = konto;
+    this.istKategorie = klasse(konto) !== "bestand";   // 22.2: Kategorie oder technisches Konto
+    this.spalten = this.istKategorie ? SPALTEN_KATEGORIE : SPALTEN;
     this.titel = konto.name;
     this.filter = this.filterAusUrl(suche);
     this.eintraege = [];
@@ -86,7 +91,8 @@ class Kontoansicht {
       if (f[p] !== undefined && !/^-?\d+$/.test(f[p])) delete f[p];
     }
     if (f.ohne_empfaenger !== undefined && f.ohne_empfaenger !== "true") delete f.ohne_empfaenger;
-    if (f.unterkategorien !== undefined && f.unterkategorien !== "true") delete f.unterkategorien;
+    for (const p of ["unterkategorien", "unterkonten"]) if (f[p] !== undefined && f[p] !== "true") delete f[p];
+    if (this.istKategorie) delete f.unterkategorien;   // 22.2: entfällt in der Kategorieansicht
     return f;
   }
 
@@ -97,8 +103,7 @@ class Kontoansicht {
   }
 
   urlSchreiben() {
-    const f = { ...this.filter };
-    if (!f.sortierung) f.sortierung = this.sortierung;
+    const f = { ...this.filter };   // nur gesetzte Filter und eine gewählte Sortierung (7.1)
     history.replaceState(history.state, "", `/konten/${this.konto.id}${abfrage(f)}`);
   }
 
@@ -174,7 +179,8 @@ class Kontoansicht {
     this.filterLeiste = this.filterAufbauen();
     s.append(this.filterLeiste);
     this.liste = h("div", { role: "grid", tid: "buchungsliste", "aria-multiselectable": "true", "aria-label": "Buchungen",
-      "aria-rowcount": "-1", class: "buchungsliste", "data-kompakt": mobil ? "ja" : "nein" });
+      "aria-rowcount": "-1", class: "buchungsliste" + (this.istKategorie ? " mit-konto" : ""),
+      "data-kompakt": mobil ? "ja" : "nein" });
     this.leerEl = h("p", { tid: "buchungsliste-leer", class: "leer", hidden: true }, "Keine Buchungen.");
     this.mehrEl = knopf("Weitere laden", { tid: "buchungsliste-mehr", hidden: true, onclick: async () => {
       this.seiten += 1;
@@ -252,12 +258,19 @@ class Kontoansicht {
       this.urlSchreiben();
       await this.laden();
     });
-    const kat = h("select", { tid: "filter-kategorie" }, h("option", { value: "" }, "– alle Kategorien –"),
-      kategorien().map(({ konto }) => h("option", { value: String(konto.id) }, kontoPfad(konto))));
+    // 22.2: In einer Kategorie filtert `filter-konto` über die Bestandskonten (REST kategorie_id).
+    const katListe = this.istKategorie
+      ? baumFolge(stamm.konten.filter((k) => BESTAND.has(k.art)))
+      : kategorien();
+    const kat = h("select", { tid: this.istKategorie ? "filter-konto" : "filter-kategorie" },
+      h("option", { value: "" }, this.istKategorie ? "– alle Konten –" : "– alle Kategorien –"),
+      katListe.map(({ konto }) => h("option", { value: String(konto.id) }, kontoPfad(konto))));
     kat.value = f.kategorie_id || "";
     kat.addEventListener("change", () => this.filterSetzen("kategorie_id", kat.value));
     const unter = h("input", { type: "checkbox", tid: "filter-unterkategorien", checked: f.unterkategorien === "true" });
     unter.addEventListener("change", () => this.filterSetzen("unterkategorien", unter.checked ? "true" : ""));
+    const unterkonten = h("input", { type: "checkbox", tid: "filter-unterkonten", checked: f.unterkonten === "true" });
+    unterkonten.addEventListener("change", () => this.filterSetzen("unterkonten", unterkonten.checked ? "true" : ""));
     const tag = h("select", { tid: "filter-tag" }, h("option", { value: "" }, "– alle Tags –"),
       stamm.tags.slice().sort((a, b) => a.name.localeCompare(b.name, "de"))
         .map((t) => h("option", { value: String(t.id) }, t.name)));
@@ -286,12 +299,13 @@ class Kontoansicht {
       this.filterLeiste = neu;
       await this.laden();
     } });
-    leiste.append(feld("Von", datum("von")), feld("Bis", datum("bis")),
+    leiste.append(...[feld("Von", datum("von")), feld("Bis", datum("bis")),
       feld("Betrag ab (€)", betrag("betrag_min", "filter-betrag-min")),
       feld("Betrag bis (€)", betrag("betrag_max", "filter-betrag-max")),
       feld("Empfänger", empf), feld("Verwendungszweck", text("verwendungszweck", "filter-verwendungszweck")),
-      feld("Freitext", text("suche", "filter-freitext")), feld("Kategorie", kat),
-      h("label", { class: "wahl" }, unter, " mit Unterkategorien"), feld("Tag", tag), status, zurueck);
+      feld("Freitext", text("suche", "filter-freitext")), feld(this.istKategorie ? "Konto" : "Kategorie", kat),
+      this.istKategorie ? null : h("label", { class: "wahl" }, unter, " mit Unterkategorien"),
+      h("label", { class: "wahl" }, unterkonten, " mit Unterkonten"), feld("Tag", tag), status, zurueck].filter(Boolean));
     return leiste;
   }
 
@@ -481,7 +495,7 @@ class Kontoansicht {
   listeZeichnen() {
     const kompakt = oberflaeche.istMobil();
     const sort = this.sortierung;
-    const kopf = h("div", { role: "row", class: "liste-kopf" }, SPALTEN.map(([feld, text, sortierbar]) => {
+    const kopf = h("div", { role: "row", class: "liste-kopf" }, this.spalten.map(([feld, text, sortierbar]) => {
       const aktiv = sort.replace(/^-/, "") === feld;
       const zelle = h("div", { role: "columnheader", class: `zelle zelle-${feld}`, "data-feld": feld,
         "aria-sort": sortierbar ? (aktiv ? (sort.startsWith("-") ? "descending" : "ascending") : "none") : null });
@@ -533,6 +547,7 @@ class Kontoansicht {
     empf,
     h("div", { role: "gridcell", class: "zelle zelle-verwendungszweck", "data-feld": "verwendungszweck" }, b.verwendungszweck),
     kat,
+    this.istKategorie ? kontoZelle(b) : null,
     h("div", { role: "gridcell", class: "zelle zelle-tags", "data-feld": "tags" },
       b.tags.map((t) => h("span", { class: "tag", tid: "tag", "data-tag-id": String(t.id) }, t.name))),
     h("div", { role: "gridcell", class: "zelle zelle-status", "data-feld": "status" }, STATUS_TEXT[b.status] || b.status),
@@ -889,3 +904,15 @@ function betragEingabeText(cent) {
 }
 
 export const _intern = { datumText };
+
+// 22.2: Bestandskonto der Buchung – genau eines → Pfad und ID, mehrere → „Mehrere“, keines → leer.
+function kontoZelle(b) {
+  const ids = [...new Set(b.splits.map((s) => s.konto_id).filter((id) => {
+    const k = kontoNach(id);
+    return k && BESTAND.has(k.art);
+  }))];
+  const eins = ids.length === 1 ? ids[0] : null;
+  return h("div", { role: "gridcell", class: "zelle zelle-konto", "data-feld": "konto",
+    "data-konto-id": eins !== null ? String(eins) : "" },
+  eins !== null ? pfadVon(eins) : ids.length > 1 ? "Mehrere" : "");
+}
