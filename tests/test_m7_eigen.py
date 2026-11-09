@@ -31,7 +31,7 @@ def test_migration_von_schemaversion_7(tmp_path):
     assert client.post("/api/anmeldung", json={"passwort": PASSWORT}).status_code == 200
     assert [k["name"] for k in client.get("/api/konten").json()] == ["Alt"]
     con = sqlite3.connect(pfad)
-    assert con.execute("SELECT wert FROM meta WHERE schluessel = 'schema_version'").fetchone()[0] == "8"
+    assert con.execute("SELECT wert FROM meta WHERE schluessel = 'schema_version'").fetchone()[0] == str(db.SCHEMA_VERSION)
     con.close()
 
 

@@ -74,7 +74,7 @@ Commit-Nachrichten sind auf Deutsch.
 | `src/kontor/wiederkehrend.py` | M5: Erkennung wiederkehrender Buchungen (ohne Zustand), Ereignisse und Benachrichtigungen |
 | `src/kontor/berichte.py`, `export.py` | M5: Kontostandsverlauf, Einnahmen/Ausgaben; CSV- und PDF-Export (reportlab) der Buchungsliste |
 | `src/kontor/sicherung.py` | M9: Datensicherung (eigenes Schema der Sicherungsdatei `SPALTEN`, Version `SCHEMAVERSION`), Prüfung nach sicherung.md 5.1, Inhaltsprüfung in einer App-Datenbank im Arbeitsspeicher, Probelauf, Einspielen |
-| `src/kontor/db.py` | SQLite-Schema (Version 8), WAL, Migration früherer Versionen ohne Datenverlust, Verbindungen, `checkpoint` |
+| `src/kontor/db.py` | SQLite-Schema (Version 9), WAL, Migration früherer Versionen ohne Datenverlust, Verbindungen, `checkpoint` |
 | `src/kontor/geheimnisse.py` | M6: verschlüsselter Geheimnisspeicher (AES-256-GCM, Schlüssel aus systemd-creds oder Schlüsseldatei), `verwaiste_entfernen` |
 | `src/kontor/mail.py` | M6: Postfächer (Buchbestand), Betriebszustand, OAuth2 mit PKCE, `zugang` (Token-Erneuerung, Ablauf, Widerruf), paralleler Abruf, Spiegel |
 | `src/kontor/zustellung.py` | M6: Zustellung der Benachrichtigungen über das Benachrichtigungs-Plugin (erster Versuch, Wiederholung, Status) |
@@ -188,6 +188,16 @@ Commit-Nachrichten sind auf Deutsch.
 - Tests brauchen `aqbanking-tools` (`sudo apt-get install -y aqbanking-tools`); ohne werden 24 M10-Tests
   übersprungen – das gilt nicht als grün.
 - Maßstab: alle Tests einschließlich `m10`.
+
+## Hinweise ab Meilenstein 11 (Kontostand, Kategorien, Zusammenführen)
+
+- `umsaetze()` aller Bank-Plugins liefert `plugins.bank.Umsatzliste` mit `saldo` (`BankSaldo` oder None); keine
+  neue öffentliche Plugin-Methode. Saldoabgleich in `SyncDienst._saldo_abgleichen` (D-102), Ergebnis als JSON in
+  `sync_lauf_konto.saldo_abgleich`.
+- Buchungsliste: `unterkonten` bildet die Kontenmenge über `buch._listenkonten`; `buchungen_laden(konten=…)`.
+- Oberfläche: Kontoansicht kennt `istKategorie` (Spalte `konto`, Filter `filter-konto`), URL ohne
+  Vorgabesortierung (D-104).
+- Maßstab: alle Tests einschließlich `m11` (AqBanking- und Browsertests laufen, nicht übersprungen).
 
 ## Codequalität vor jedem Meilenstein
 

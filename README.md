@@ -305,6 +305,7 @@ ein und ändert keine Einstellungen. Voraussetzung: AqBanking 6
 | `KONTOR_AQBANKING_VERZEICHNIS` | AqBanking-Konfigurationsverzeichnis (`-D`); leer = Plugin nicht verfügbar (`plugin_nicht_verfuegbar`) |
 | `KONTOR_AQBANKING_PROGRAMME` | Verzeichnis mit `aqbanking-cli` und `aqhbci-tool4`; leer = Suche über `PATH` |
 | `KONTOR_AQBANKING_TIMEOUT_SEKUNDEN` | Höchstdauer je Programmaufruf (1–3600, Vorgabe 120); danach wird AqBanking samt Kindprozessen beendet |
+| `KONTOR_AQBANKING_SALDO` | M11: Kontostand im selben Auftrag mit abfragen (`--balance`, Vorgabe aus); empfohlen `1` |
 
 - **Verzeichnis für den systemd-Dienst:** außerhalb von `/home` (die Unit hat
   `ProtectHome=yes`), z. B. `/var/lib/kontor/aqbanking` im `StateDirectory`;
@@ -602,3 +603,20 @@ kontor-tests gegen diese installierte App). Ergebnis des letzten Laufs:
 | `ENTSCHEIDUNGEN.md` | Entscheidungen der Implementierung |
 | `WIDERSPRUECHE.md` | Widersprüche zwischen Tests und Spezifikation |
 | `ERGEBNIS.md` | Ergebnis des letzten vollständigen Testlaufs |
+
+## Kontostand bei der Synchronisation (M11)
+
+Jeder erfolgreiche Abruf eines Bankkontos bringt, wenn die Bank ihn meldet, den gebuchten Kontostand mit
+(FinTS: `HKSAL` im selben Dialog; AqBanking nur mit `KONTOR_AQBANKING_SALDO=1`; Mock nur mit
+`bank.anfangssalden` in der Datendatei). Weicht der Kontor-Saldo zum Stichtag der Bank ab, entsteht eine
+Ausgleichsbuchung „Saldoausgleich Bank“ gegen „Korrekturen“ (Status `importiert`, einzeln prüf- und löschbar)
+und eine Benachrichtigung. Die Seite `/sync` zeigt den letzten Abgleich je Bankkonto.
+
+| Variable | Bedeutung |
+| --- | --- |
+| `KONTOR_SYNC_SALDO_ANGLEICHEN` | Abgleich an (Vorgabe) oder aus (`0`) |
+
+Grenzen (kontostand.md 3): Der erste Lauf holt nur 90 Tage – die erste Ausgleichsbuchung ist dann der fehlende
+Anfangsbestand. Wer danach ältere Historie importiert, zählt sie doppelt und löscht die Ausgleichsbuchung. Eigene
+Buchungen, die die Bank noch nicht gebucht hat, erzeugen einen Ausgleich, der beim späteren Zusammenführen mit
+dem Bankumsatz wieder zurückgeglichen wird.

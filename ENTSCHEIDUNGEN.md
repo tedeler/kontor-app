@@ -1195,3 +1195,36 @@ Weitere Abkürzungen: SY = `spec/api/synchronisation.md`, KA =
   `/home` und die einmalige TAN-Freigabe in AqBanking. An der systemd-Härtung ändert sich nichts: das empfohlene
   Verzeichnis `/var/lib/kontor/aqbanking` liegt im `StateDirectory` und ist dort schreibbar.
 - **Begründung:** python-api.md 16.1, aqbanking.md 7; keine Änderung, die M7-Tests der Units berühren könnte.
+
+## D-102 Saldoabgleich: Ablage und Ablauf (M11)
+
+- **Entscheidung:** Das Ergebnis `saldo_abgleich` steht als JSON in der neuen Spalte
+  `sync_lauf_konto.saldo_abgleich` (Datenbankschema 9, Migration ergänzt die Spalte; NULL = nicht erfolgreich
+  verarbeitet). Der Abgleich läuft in `SyncDienst._saldo_abgleichen` direkt nach `sync_konto` und ggf.
+  `umbuchung_erkennen` desselben Bankkontos, in einer eigenen Funktion (nicht in `_abgleichen_und_buchen`, R-04).
+  Die Ausgleichsbuchung ist eine eigene Änderung `sync_saldoausgleich`; „Korrekturen“ über `pflege.korrektur_id`.
+  Kandidaten im Abgleich (synchronisation.md 4.4) schließen Buchungen mit einer Kennung `saldo:` aus. Der Lauf
+  zählt den Saldo nicht als fachlichen Zustand: Die Sicherung ist unverändert (Ausgleichsbuchungen sind gewöhnliche
+  Buchungen).
+- **Begründung:** kontostand.md 2, 2.1, 2.2, 4; `sync_lauf_konto` ist Betriebszustand wie die übrigen Zählungen.
+
+## D-103 Saldo in den Plugins (M11)
+
+- **Entscheidung:** FinTS: `HKSAL` nur, wenn `HISALS` in der BPD und `HKSAL` unter den erlaubten
+  Geschäftsvorfällen des Kontos in der UPD stehen; höchste von python-fints unterstützte Version; verlangt die
+  Bank dafür eine TAN, wird nicht gefragt (Saldo None, kontostand.md 1: nie eine TAN für den Saldo). Rückmeldung
+  9xxx zu `HKSAL` oder ein Verbindungsfehler nur bei dieser Abfrage → None, Umsätze bleiben. Betrag aus `Decimal`
+  exakt in Cent (Bruchteile von Cent → None). AqBanking: lokale Ablehnung erkannt am Text
+  `Request "getBalance" … not supported` bei Rückgabecode ≠ 0; nur dann genau ein zweiter `request` ohne
+  `--balance`. Ein unlesbarer Saldoeintrag macht nur den Saldo None.
+- **Begründung:** kontostand.md 1.2, 1.3, E-159, E-166.
+
+## D-104 Oberfläche M11
+
+- **Entscheidung:** Die URL der Kontoansicht enthält die Sortierung nur, wenn sie gewählt wurde (bisher immer
+  `sortierung=-datum`); 7.1 nennt „gesetzte Filter und die Sortierung“, das Beispiel dort zeigt die Vorgabe nicht.
+  Kategorien der Übersicht: Zustand unter `kontor.uebersicht.kategorien` im `localStorage` (Fehler beim Speicher
+  werden ignoriert, dann eingeklappt). Die Vorschau der Aliase im Zusammenführen-Dialog bildet die Regel aus
+  buchhaltungspflege.md 2.4/10 im Browser nach (Vergleich ohne Groß-/Kleinschreibung und Leerraum); maßgeblich
+  bleibt der Server. Mobil zeigt die Kategorieansicht Kategorie und Konto nebeneinander in der zweiten Zeile.
+- **Begründung:** oberflaeche.md 7.1, 22.1–22.4, E-163 bis E-165.
