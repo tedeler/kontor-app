@@ -1068,3 +1068,68 @@ Weitere Abkürzungen: SY = `spec/api/synchronisation.md`, KA =
   401 zur Anmeldeseite (Rücksprung über `weiter`). Abmelden über den Knopf ⏻ im Kopf und in den Einstellungen;
   Passwort ändern unter **Einstellungen → Anmeldung**. Alles responsiv, ohne Inline-Skripte.
 - **Begründung:** Auftrag des Koordinators; sicherheit.md 3.4, 6.
+
+## D-091 Oberfläche M8 neu als ES-Module ohne Framework (ersetzt die Hash-Oberfläche aus M1–M7)
+
+- **Entscheidung:** Die Single-Page-Oberfläche ist neu geschrieben: Pfad-Routen mit History API statt `#/…`
+  (oberflaeche.md 3, E-140), Vanilla-JS als ES-Module ohne Bundler unter `/oeffentlich/app/` (`kern.js`: DOM,
+  REST, Werte, Stammdaten, Meldungen, Ebenen, Rückgängig; `ui.js`: Dialoge und Kontextmenü; `baum.js`:
+  Kategorienbaum, Konto-Kontextmenü, Ziehen, lange Berührung; `konto.js`: Kontoansicht mit Panels; `seiten.js`:
+  übrige Seiten; `haupt.js`: Router, Kopf, Tastatur, Befehlspalette, Design, Offline, Start), Stile in
+  `/oeffentlich/app.css`. Das alte `static/app.js` (2 900 Zeilen) entfällt; damit ist R-07 erledigt.
+- **Begründung:** Die Hash-Routen, IDs und Bedienmuster der bisherigen Oberfläche passten nicht zum Vertrag aus
+  `oberflaeche.md`; ein Umbau in derselben Datei hätte sie weiter vergrößert. Module halten jede Datei unter
+  1 000 Zeilen, laufen ohne Build-Schritt und CSP-konform (`script-src 'self'`).
+
+## D-092 Hülle nur für die Routen der Oberfläche
+
+- **Entscheidung:** `create_app` registriert die Hülle für genau die Routen aus oberflaeche.md 3 (IDs als
+  `int`) sowie `/sync/konten` und `/buchungen/<id>` (Links aus Benachrichtigungen); alle anderen Pfade außerhalb
+  von `/api/` liefern 404 (sicherheit.md 7.2). Keine Sammelroute `/{pfad:path}`.
+- **Begründung:** Eine Sammelroute für GET hätte auch `/api/…`-Pfade erfasst und dort 405 (`methode_nicht_erlaubt`)
+  durch 404 ersetzt.
+
+## D-093 Statische Dateien öffentlich unter `/oeffentlich/`, Service Worker unter `/sw.js`
+
+- **Entscheidung:** Skripte, Stile, Symbole (SVG und PNG 192/512, maskierbar 512) und das Manifest liegen unter
+  `/oeffentlich/` (öffentlich, sicherheit.md 3.1); `/static/` und `/manifest.webmanifest` entfallen. `/sw.js`
+  (geschützt, `Cache-Control: no-cache`) legt die Hülle und die Liste der statischen Dateien in den Cache
+  `kontor-huelle-1` (zuerst Netz, offline aus dem Cache), nie Antworten unter `/api/`; jede erfolgreiche Navigation
+  aktualisiert die zwischengespeicherte Hülle. Neue Moduldateien müssen in `DATEIEN` in `sw.js` eingetragen werden
+  (eigener Test prüft das).
+- **Begründung:** oberflaeche.md 2, 18, E-146. Die Hülle enthält keinen Buchbestand, darf also offline liegen.
+
+## D-094 Kategorienbaum: Eintrag eine Zeile hoch, Unterkategorien darunter angeordnet
+
+- **Entscheidung:** Ein Baumeintrag (`role="treeitem"`) ist genau eine Zeile hoch; die Unterkategorien stehen im
+  DOM innerhalb des Eintrags (`role="group"`), werden aber absolut darunter angeordnet; der Eintrag reserviert ihren
+  Platz mit einem Außenabstand (`--nach` = Zahl der sichtbaren Nachfahren × Zeilenhöhe).
+- **Begründung:** So liegt der Mittelpunkt eines Eintrags auf seiner eigenen Zeile. Klicks, Rechtsklicks, lange
+  Berührungen und Ziehen „auf den Eintrag“ treffen damit die gemeinte Kategorie und nicht eine Unterkategorie.
+
+## D-095 Rückgängig-Eintrag auch bei teilweise fehlgeschlagener Aktion
+
+- **Entscheidung:** `aktion()` sammelt nach jeder eigenen Operation die neuen Änderungen (ohne Gruppe `sync:`),
+  auch wenn ein späterer Teil fehlgeschlagen ist (z. B. Tag angelegt, Zuordnung abgelehnt), und legt sie als einen
+  Eintrag auf den Stapel; danach wird die Fehlermeldung gezeigt. Dialoge werden nach Erfolg geschlossen, bevor die
+  Seite neu geladen wird.
+- **Begründung:** oberflaeche.md 11 legt nur den Erfolgsfall fest; was tatsächlich geändert wurde, soll sich auch
+  dann mit Strg+Z zurücknehmen lassen.
+
+## D-096 Weitere Bedienung über den Mindestumfang hinaus
+
+- **Entscheidung:** Zusätzlich zu oberflaeche.md: Regeln anlegen/bearbeiten/löschen (Bedingungen als Zeilen
+  „Feld Operator Wert“), Lernmodell und Vorlagen anwenden, Umbuchungen erkennen (Seite Dubletten), Tags umbenennen
+  und löschen, Passwort ändern, Mails abrufen, Postfach anlegen, Kredit anlegen, Einnahmen/Ausgaben-Bericht,
+  Mock-Uhr auf der Seite Synchronisation. Nicht mehr in der Oberfläche (nur über REST): Split-Vorlagen bearbeiten,
+  Kredite bearbeiten/Raten zuordnen, Lernmodell-Vorhersage, Liste abgerufener Mails, Abstimmung aufheben,
+  Synchronisation mit eigenem Zeitraum.
+- **Begründung:** E-148 verlangt für diese Seiten einen Mindestumfang; die genannten Funktionen sind ohne viel Code
+  möglich. Die übrigen Formulare der alten Oberfläche werden bei Bedarf nachgezogen.
+
+## D-097 Test-Benachrichtigung nach E-138 (ersetzt D-076)
+
+- **Entscheidung:** `POST /api/benachrichtigungen/test` folgt `benachrichtigungen.md` 8: Antwort
+  `{plugin, zugestellt, gesendet, fehler}`, Mock ohne Aufruf von `senden`, ntfy genau ein Versuch, Fehlschlag als 200
+  mit `fehler.status`; `keins` → 409 mit `details = {}`. W-005 erledigt.
+- **Begründung:** Der Test-Thread hat die Spezifikationslücke mit E-138 geschlossen.

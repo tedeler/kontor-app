@@ -1,7 +1,7 @@
 # kontor-app
 
 Implementierung von **Kontor**, einer selbst gehosteten Finanz-Web-App
-(Python, FastAPI, SQLite, Single-Page-Weboberfläche). Stand: **Meilenstein 7** (M1–M7 und M9)
+(Python, FastAPI, SQLite, Single-Page-Weboberfläche). Stand: **Meilenstein 8** (M1–M9, Plan abgeschlossen)
 
 - M1: KMyMoney-Import, Finanzübersicht, Konten- und Buchungsliste mit Filtern
   und Mehrfachbearbeitung, doppelte Buchführung mit Splits und Tags,
@@ -58,6 +58,13 @@ Implementierung von **Kontor**, einer selbst gehosteten Finanz-Web-App
   systemd-Units mit Härtung und `LoadCredentialEncrypted`, tägliche Sicherung
   per Timer, sauberes Beenden mit WAL-Checkpoint, Gesundheitsprüfung und
   Leistung mit 50 000 Buchungen (Liste, Filter und Suche deutlich unter 1 s).
+- M8: Vollständige Oberfläche als Single-Page-App mit Pfad-Routen: linke
+  Navigation, Panels (verschiebbar, größenveränderbar, einklappbar, Layout im
+  Browser gespeichert), Kontextmenüs, Drag and Drop, Mehrfachauswahl wie im
+  Dateimanager, Tastaturkürzel und Befehlspalette, Inline-Bearbeitung mit
+  Rückgängig per Strg+Z über das Änderungsprotokoll, helles/dunkles Design,
+  installierbare PWA mit Offline-Hinweis, mobile Bedienung mit Gesten,
+  TAN-Seite mit „QR-Code speichern“/„Teilen“, Barrierefreiheit.
 
 **Alles lässt sich im Mock-Modus ohne echte Daten ausprobieren:** Mock-Bank,
 Mock-Postfächer und Mock-Benachrichtigungen (Liste unter
@@ -131,30 +138,30 @@ export KONTOR_SYNC_INTERVALL_MINUTEN=60
 python -m kontor
 ```
 
-1. **Regeln** → „+ Regel anlegen“, z. B. *Empfänger enthält „Frischekorb“ →
+1. **Regeln** → „Regel anlegen“, z. B. *empfaenger enthaelt Frischekorb →
    Lebensmittel* (vorher unter **Kategorien** eine Aufwandskategorie anlegen).
    Sie greift im eingebauten Datensatz wie in `sync_daten.json`.
-2. **Synchronisation** → „Jetzt synchronisieren“. Fehlende Konten werden über
+2. **Synchronisation** → „Jetzt synchronisieren“ (oder ↻ im Kopf). Fehlende Konten werden über
    die IBAN angelegt, neue Umsätze gebucht, Gegenkonto ist die Kategorie der
    ersten passenden Regel oder das technische Konto „Unkategorisiert“. Die
    Liste der Läufe zeigt je Konto, was neu, vorhanden, zusammengeführt oder zur
    Prüfung vorgelegt wurde. Ein zweiter Lauf erzeugt keine Dubletten.
-3. **Alle Buchungen** (Filter „Kategorie-Vorschlag: nur mit Vorschlag“):
-   Regel-Kategorien tragen die Marke „Vorschlag“ und lassen sich per ✓/✗ in
-   der Zeile, über die Mehrfachauswahl („✓ Vorschläge annehmen“, „✗ ablehnen“)
-   oder das Kontextmenü bestätigen bzw. ablehnen.
-4. **Mock-Uhr** (auf der Seite Synchronisation): Zeit vorstellen (z. B.
-   „+1 Tag“) und erneut synchronisieren – neue Umsätze erscheinen, der
+3. **Kontoansicht** des Girokontos: Regel-Kategorien tragen die Marke
+   „Vorschlag“ und lassen sich per ✓/✗ in der Zeile, über die Mehrfachauswahl
+   („Vorschläge annehmen“/„ablehnen“) oder das Kontextmenü bestätigen bzw.
+   ablehnen.
+4. **Mock-Uhr** (auf der Seite Synchronisation): Zeit vorstellen und erneut
+   synchronisieren – neue Umsätze erscheinen, der
    Zeitraum überlappt den letzten Abruf um 14 Tage.
 5. **TAN-Ablauf**: mit `KONTOR_MOCK_SZENARIO=tan_erforderlich` starten. Der
    Lauf pausiert, die Glocke oben zeigt eine Benachrichtigung, die TAN-Seite
    (`/tan/<id>`) zeigt Anweisung und QR-Bild mit „QR-Code speichern“ und
-   „Teilen …“. Richtige TAN: `123456` (bzw. `bank.tan` der Datendatei); nach
+   „Teilen“. Richtige TAN: `123456` (bzw. `bank.tan` der Datendatei); nach
    23:59:59 UTC des simulierten Tages läuft die Anforderung ab.
 6. **PIN**: mit `KONTOR_MOCK_DATEN=../kontor-tests/fixtures/mock/sync_daten_pin.json`
    verlangt die Mock-Bank eine PIN (steht synthetisch in der Datei unter
-   `bank.pin`). Ohne PIN scheitert der Lauf mit `bank_pin_fehlt`; die PIN wird
-   auf der Seite Synchronisation eingegeben, liegt nur im Arbeitsspeicher und
+   `bank.pin`). Ohne PIN scheitert der Lauf mit `bank_pin_fehlt`; die Oberfläche
+   fragt dann im PIN-Dialog danach (↻ im Kopf), die PIN liegt nur im Arbeitsspeicher und
    ist nach einem Neustart oder einer Ablehnung durch die Bank weg.
 7. Fehlerfälle: `KONTOR_MOCK_SZENARIO=bankfehler` bzw. `zeitueberschreitung` –
    der Lauf scheitert ohne Datenverlust, es entsteht genau eine
@@ -176,8 +183,8 @@ aktiven Datenbank die Datei `daten/kontor-mock.sqlite3.einrichtung` mit einem
 Einrichtungscode an (Rechte 0600, im Log steht nur der Pfad). Auf
 **http://127.0.0.1:8000/anmelden** den Code (`cat daten/kontor-mock.sqlite3.einrichtung`)
 und das neue Passwort (12–1024 Zeichen) eingeben. Danach: **Einstellungen →
-Anmeldung** zum Ändern des Passworts (beendet alle anderen Sitzungen), Knopf
-⏻ oben rechts zum Abmelden. Nach fünf falschen Passwörtern ist die Anmeldung
+Anmeldung** zum Ändern des Passworts (beendet alle anderen Sitzungen) und zum
+Abmelden (auch über die Befehlspalette). Nach fünf falschen Passwörtern ist die Anmeldung
 60 s gesperrt, jede weitere Fehleingabe verdoppelt die Sperre (höchstens ein
 Tag); die Anmeldeseite zeigt die Restzeit. Passwort vergessen: auf dem Server
 `python -m kontor.anmeldung passwort-setzen` (mit denselben `KONTOR_*`-Variablen
@@ -364,10 +371,11 @@ er gehört nicht in dieselbe Datensicherung wie die Datenbank.
    Inhalte per `BODY.PEEK[]`, nie `LOGIN`).
 2. OAuth-Client vom Typ **Desktop-App** anlegen; Client-ID nach
    `KONTOR_OAUTH_CLIENT_ID`, das Client-Secret in der Oberfläche unter
-   **Anbindungen → Geheimnisspeicher** eintragen (wird verschlüsselt
+   **Einstellungen → Geheimnisse** eintragen (wird verschlüsselt
    gespeichert, nie angezeigt).
-3. Unter **Anbindungen → Postfächer** beide Postfächer anlegen (z. B. Ordner
-   `[Gmail]/Alle Nachrichten`, optional Absenderfilter) und je „Anmelden …“:
+3. Unter **Einstellungen → Mail-Postfächer** beide Postfächer anlegen (Ordner
+   und Absenderfilter über `PATCH /api/mail/postfaecher/{id}`) und auf der Seite
+   des Postfachs je „Anmeldung starten“:
    Link öffnen, zustimmen; lädt die Umleitungsseite nicht (Browser nicht auf
    dem Server), die Adresse aus der Adresszeile kopieren und einfügen.
 4. **Testmodus:** Refresh-Tokens laufen nach sieben Tagen ab. Kontor zeigt den
@@ -380,7 +388,7 @@ er gehört nicht in dieselbe Datensicherung wie die Datenbank.
 
 Eigener oder öffentlicher ntfy-Server; das Thema wirkt wie ein Passwort
 (schwer erratbar wählen) oder der Server verlangt ein Zugriffstoken, das unter
-**Anbindungen → Geheimnisspeicher** als „ntfy-Zugriffstoken“ eingetragen wird.
+**Einstellungen → Geheimnisse** als „ntfy-Token“ eingetragen wird.
 Jede Benachrichtigung erzeugt genau eine Push-Nachricht (TAN-Anforderungen und
 abgelaufene Mail-Anmeldungen mit hoher Priorität, Links über
 `KONTOR_OEFFENTLICHE_URL`). „Test-Benachrichtigung senden“ prüft die
@@ -390,7 +398,7 @@ Verbindung. Im Mock-Modus kann ebenfalls per ntfy zugestellt werden
 ### Datensicherung im Betrieb
 
 Kontor sichert den **fachlichen Bestand** in der App (`GET /api/sicherung`,
-Seite „Datensicherung“, Python `kontor.sicherung.erstelle_sicherung`):
+Einstellungen → Datensicherung, Python `kontor.sicherung.erstelle_sicherung`):
 Konten, Buchungen mit Splits, Empfänger, Tags, Regeln, Dublettenverdachte,
 Abstimmungen, Split-Vorlagen, gemerkte Umsatzkennungen, Stand je Bankkonto
 und ID-Zähler – als ZIP mit `kontor.sqlite` und `manifest.json`. Nicht
@@ -456,114 +464,78 @@ plan = tilgungsplan({"restschuld": 1_000_000, "stand_datum": "2024-01-15", "soll
 
 ## Weboberfläche
 
-Single-Page-App ohne Build-Schritt und ohne externe Ressourcen
-(`src/kontor/web/`). Bedienung:
+Single-Page-App ohne Build-Schritt, Framework und externe Ressourcen (ES-Module unter
+`src/kontor/web/oeffentlich/app/`, Stile `app.css`, Service Worker `src/kontor/web/sw.js`). Verbindlich ist
+`kontor-tests/spec/api/oberflaeche.md`; die Oberfläche nutzt ausschließlich die REST-Schnittstelle.
 
-- **Navigation** links (auf dem Handy über ☰ einblendbar); Breite per Ziehen
-  am Rand änderbar, Doppelklick klappt ein (Layout wird gespeichert).
-- **Finanzübersicht**: alle Bestandskonten mit Saldo; **Konten** und
-  **Kategorien** als Baum; Klick öffnet die Buchungsliste.
-- **Buchungsliste**: Filter (Freitext, Zeitraum, Betrag, Empfänger,
-  Verwendungszweck, Kategorie, Tags, Status), Sortierung per Spaltenkopf,
-  Mehrfachauswahl mit Strg/⌘ und Umschalt, Strg+A, Entf, `/` springt in die
-  Suche. Rechtsklick (bzw. lange Berührung, Umschalt+F10) öffnet das
-  Kontextmenü: bearbeiten/splitten, Kategorie setzen, Tags, bestätigen,
-  abgleichen, löschen. Doppelklick/Enter bearbeitet eine Buchung.
-- **Vorschläge**: Kategorien aus Regeln und Standardkategorien sind mit
-  „Vorschlag“ markiert, die aus dem Lernmodell mit „Lernmodell 93,8 %“
-  (Sicherheit); alle
-  werden per ✓/✗ (einzeln, mehrfach oder im Kontextmenü) bestätigt bzw.
-  abgelehnt; Filter „Kategorie-Vorschlag“.
-- **Synchronisation**: Lauf starten (optional mit Zeitraum), Status, nächster
-  Lauf, Läufe mit Ergebnis je Konto, Bankkonten, PIN-Eingabe, Mock-Uhr.
-- **TAN-Seite** (`#/tan/<id>`, auch über den Link `/tan/<id>`): Anweisung,
-  QR-Bild, „QR-Code speichern“, „Teilen …“ (Web Share, falls der Browser
-  Dateien teilen kann), TAN-Eingabe, Abbrechen.
-- **Regeln**: anlegen, bearbeiten, (de)aktivieren, löschen, Probelauf und
-  Anwenden auf vorhandene Buchungen.
-- **Benachrichtigungen** (Glocke im Kopf mit Anzahl ungelesener).
-- **Import**: KMyMoney (`.kmy`) oder GnuCash (XML/SQLite; die Quelle wird an
-  der Endung vorgewählt) hochladen, Ergebnis und Hinweise, Dublettenverdachte
-  zusammenführen oder verwerfen.
-- **Lernmodell** (M4): Zustand (Trainingsbuchungen, Kategorien, Merkmale,
-  Schwelle, automatisch an/aus), „Neu trainieren“ (das Modell wird ohnehin
-  bei jeder Anfrage aus dem Buchbestand trainiert), Probelauf/Anwenden auf
-  unkategorisierte Buchungen, Vorhersage ausprobieren mit Kandidaten.
-- **Split-Vorlagen** (M4): anlegen (auch aus einer gesplitteten Buchung über
-  das Kontextmenü „Als Split-Vorlage speichern …“), bearbeiten (z. B. neuer
-  Teilbetrag nach Beitragsänderung), (de)aktivieren, löschen, Probelauf und
-  Aufteilen vorhandener Buchungen; Hinweise zu Abweichungen aus der
-  Synchronisation stehen oben auf der Seite mit „Vorlage anpassen …“. Der
-  Link der Benachrichtigung (`/buchungen/<id>`) öffnet die Buchung.
-- **Gelöschte Bankkonten**: Auf der Seite Synchronisation zeigt die Tabelle
-  „Bankkonten“ den Status (aktiv, Konto fehlt, ignoriert, wird
-  wiederhergestellt); „Entscheiden …“ fragt ohne Vorauswahl nach
-  Wiederherstellen (mit allen oder nur neuen Umsätzen) oder Ignorieren und
-  bietet danach einen sofortigen Lauf an (Link `/sync/konten`).
-- **Datensicherung** (M9): „Sicherung herunterladen“ (ZIP); „Sicherung
-  einspielen“ prüft die Datei zuerst (Probelauf: Unterschied je Objektart,
-  betroffene abgestimmte/abgeglichene Buchungen, verständliche Meldung bei
-  beschädigten oder fremden Dateien), verlangt dann ein Häkchen und eine
-  zweite Bestätigung und zeigt das Ergebnis mit Link ins
-  Änderungsprotokoll und „Einspielen rückgängig machen“.
-- **Wiederkehrende Buchungen** (M5): erkannte Serien mit Empfänger, Konto,
-  Rhythmus, aktuellem Betrag, Jahreskosten, nächster Fälligkeit und Status
-  (aktiv/ausbleibend/beendet) zu einem wählbaren Stichtag, Summe der
-  Jahreskosten; „Ausbleibende Zahlungen prüfen“; Klick zeigt die Buchungen
-  des Empfängers. Benachrichtigungen verlinken auf `/buchungen/<id>` bzw.
-  `/wiederkehrend`.
-- **Kredite** (M5): anlegen/bearbeiten (Darlehens-, Zahlungs- und Zinskonto,
-  Restschuld, Sollzins in Prozent, Zinsmethode, Rate, erste Fälligkeit,
-  Sondertilgungen, Erkennungsbedingungen, „Plan berechnen“), Tilgungsplan mit
-  gebuchten Raten, „Raten in vorhandenen Buchungen suchen“ (Probelauf, dann
-  aufteilen), Jahresabgleich-Dialog: Auszugswerte eingeben, Vorschlag mit
-  Differenzen und Korrektursplits ansehen, erst dann bestätigen.
-- **Berichte** (M5): Kontostandsverlauf je Konto als selbst gezeichnetes
-  SVG-Liniendiagramm (Zeitachse, Fadenkreuz mit Werten, Legende, Werte auch
-  als Tabelle), Einnahmen und Ausgaben je Intervall; Export-Knöpfe.
-- **Export** (M5): „⤓ CSV“ und „⤓ PDF“ in jeder Buchungsliste exportieren
-  genau die gefilterten Buchungen in der angezeigten Sortierung.
-- **Einstellungen**: Betriebsmodus, Plugins, Tags verwalten.
-- **Änderungsprotokoll** (M3): alle Änderungen, neueste zuerst, filterbar nach
-  Quelle und Wirksamkeit, mit Einträgen je Objekt; Knöpfe „Rückgängig“,
-  „Wiederholen“ und „Ganze Gruppe“. **Strg+Z** (bzw. ↶ im Kopf) nimmt die
-  letzte Änderung zurück, **Strg+Y**/Strg+Umschalt+Z stellt sie wieder her.
-- **Globale Suche** im Kopf (Volltext über Konten, Empfänger inkl. Aliase,
-  Tags und Buchungen; Umlaut- und Akzent-unabhängig).
-- **Empfänger**: anlegen, bearbeiten (Aliase je Zeile, Standardkategorie),
-  löschen, mehrere markieren und zusammenführen.
-- **Buchung erfassen** (Buchungsliste/Konto): Ausgabe, Einnahme, Umbuchung
-  zwischen eigenen Konten, Korrektur – immer mit positivem Betrag (Korrektur
-  vorzeichenbehaftet).
-- **Umbuchungen**: Vorschläge eindeutiger Paare, einzeln oder alle
-  zusammenführen; in der Buchungsliste zwei markierte Buchungen über das
-  Kontextmenü zusammenführen. Getrennt wird über Rückgängig.
-- **Kontenabstimmung**: Auszugssaldo prüfen (Differenz wird angezeigt) und
-  abstimmen; abgestimmte Buchungen tragen „🔒 abgestimmt“ und sind gesperrt;
-  die letzte Abstimmung lässt sich auf der Kontoseite aufheben.
-- **Konto/Kategorie löschen** (Kontextmenü „Löschen …“ bzw. Kontoseite):
-  unbenutzte nach einfacher Rückfrage; sonst Dialog mit Zahlen aus dem
-  Probelauf und Wahl ohne Vorauswahl (Buchungen löschen / dem übergeordneten
-  Konto zuschlagen / als unkategorisiert einstufen), ggf. Umgang mit
-  Konfliktbuchungen und Bestätigung für gesperrte Buchungen.
-- **Anbindungen** (M6): Bankzugang (Plugin, PIN-Quelle, PIN vorhanden),
-  Geheimnisspeicher (ntfy-Token und OAuth-Client-Secret setzen oder löschen –
-  Werte werden nie angezeigt), Zustellung per ntfy (Zählungen, letzter Fehler,
-  Test-Benachrichtigung, Ausstehende zustellen) und Postfächer (anlegen,
-  bearbeiten, löschen; OAuth2-Anmeldung starten und abschließen, Status mit
-  Ablaufwarnung, Abmelden). Links aus Mail-Benachrichtigungen
-  (`/mail/postfaecher/<id>`) öffnen das Postfach.
-- **Mails** (M6): Abruf aller aktiven Postfächer mit Ergebnis je Postfach,
-  Liste der abgerufenen Nachrichten mit Postfachfilter und Blättern. Im
-  Mock-Modus z. B. die eingebauten Postfächer `haushalt.eins@example.invalid`
-  und `haushalt.zwei@example.invalid` anlegen.
-- Helles/dunkles Design folgt der Systemeinstellung.
+### Aufbau
+
+- **Kopf:** ☰ (nur Handy), Suche (Enter → `/suche?q=…`), ↻ Synchronisieren (bei TAN mit Link zur TAN-Seite,
+  bei fehlender/falscher PIN mit PIN-Dialog), ↶ Rückgängig, ↷ Wiederholen, ⌘ Befehlspalette, 🔔
+  Benachrichtigungen mit Zahl der ungelesenen. Im Mock-Modus steht darüber immer der gelbe Mock-Hinweis.
+- **Navigation links:** Finanzübersicht, Konten, Kategorien, Wiederkehrende Buchungen, Kredite, Berichte, Import,
+  Einstellungen, Änderungsprotokoll, Empfänger, Regeln, Split-Vorlagen, Dubletten, Synchronisation. Jede Seite hat
+  eine eigene Adresse (Lesezeichen, Zurück/Vor, Neuladen), z. B. `/konten/5?von=2024-03-01&status=bestaetigt`.
+- **Kontoansicht** (`/konten/<id>`): Filterleiste (Zeitraum, Betrag, Empfänger, Verwendungszweck, Freitext,
+  Kategorie mit Unterkategorien, Tag, Status; in der Adresse gespeichert), sortierbare Spalten, 200 Buchungen je
+  Seite mit „Weitere laden“, Vorschläge mit ✓/✗, „Buchung erfassen“. Links das Panel **Kategorien** (Buchungen
+  darauf ziehen), rechts **Einzelheiten** der fokussierten Buchung (alle Splits). Panels: Kopf ziehen bzw. ⇄
+  verschiebt in den anderen Bereich, Rand ziehen oder Pfeiltasten ändert die Breite (160–600 px), ▾ klappt ein;
+  das Layout liegt im `localStorage` (`kontor.layout`), „Layout zurücksetzen“ in den Einstellungen.
+- **Mehrfachauswahl:** Klick, Strg/⌘+Klick (umschalten), Umschalt+Klick (Bereich), Strg+Umschalt+Klick
+  (Bereich hinzu); die Leiste unten setzt Kategorie, Tags, Vorschläge oder löscht. Rechtsklick öffnet das
+  Kontextmenü (Kategorie, Tags, Splitten, Als Dublette markieren, Vorschlag annehmen/ablehnen, Verwendungszweck
+  bearbeiten, Löschen); auf Konten und Kategorien: Öffnen, Umbenennen, Unterkonto, Verschieben nach…, Löschen.
+- **Inline-Bearbeitung:** Doppelklick auf Datum, Verwendungszweck oder Kategorie (F2 = Verwendungszweck); Enter,
+  Tab oder Verlassen übernimmt, Esc bricht ab.
+- **Rückgängig:** Jede eigene Änderung (auch Import, Löschen, Drag and Drop, Jahresabgleich) ist ein Schritt auf dem
+  Rückgängig-Stapel des Tabs; Strg+Z nimmt ihn über das Änderungsprotokoll zurück, Strg+Umschalt+Z/Strg+Y stellt
+  ihn wieder her. Die Seite Änderungsprotokoll bietet Rückgängig je Änderung.
+- **Kategorien:** Baum mit Ausgaben/Einnahmen; Kategorie auf eine andere ziehen = Unterkategorie, auf die
+  Gruppenüberschrift = oberste Ebene.
+- **Weitere Seiten:** Kredite mit Tilgungsplan und Jahresabgleich (Prüfen, dann Buchen), Berichte
+  (Kontostandsverlauf als SVG und Tabelle, Einnahmen/Ausgaben, Export CSV/PDF), Import (KMyMoney/GnuCash),
+  Einstellungen (Design, Test-Benachrichtigung, PIN verwerfen, Geheimnisse, Datensicherung, Postfächer, Tags,
+  Passwort, Abmelden), Empfänger, Regeln, Split-Vorlagen, Dubletten, Synchronisation (Läufe, Bankkonten, Mock-Uhr),
+  Benachrichtigungen, Suche, TAN-Seite (`/tan/<id>`: QR-Code, „QR-Code speichern“, „Teilen“ wo der Browser Dateien
+  teilen kann, TAN-Eingabe), Postfach (`/mail/postfaecher/<id>`: OAuth2-Anmeldung).
+
+### Tastaturkürzel
+
+| Kürzel | Wirkung |
+| --- | --- |
+| Strg+K, ⌘+K, Strg+Umschalt+P | Befehlspalette (Navigation, Rückgängig, Synchronisieren, Design, Konto öffnen …) |
+| `/` | in die Suche springen |
+| `?` | Übersicht der Kürzel |
+| Strg+Z / Strg+Umschalt+Z, Strg+Y | Rückgängig / Wiederholen (in Textfeldern das Text-Rückgängig des Browsers) |
+| Alt+1 … Alt+8 | Finanzübersicht, Konten, Kategorien, Wiederkehrend, Kredite, Berichte, Import, Einstellungen |
+| Esc | Menü/Dialog/Palette schließen, sonst Auswahl leeren |
+| Pfeil auf/ab, Pos1, Ende | Buchung wählen (mit Umschalt: Bereich, mit Strg: nur Fokus) |
+| Leertaste, Strg+A | Buchung umschalten, alle wählen |
+| F2, Entf, Enter | Verwendungszweck bearbeiten, Auswahl löschen (Rückfrage), Einzelheiten |
+| Umschalt+F10, Kontextmenü-Taste | Kontextmenü |
+
+### Handy
+
+Unter 768 px Breite: Navigation über ☰, kompakte Buchungsliste (Tippen zeigt die Einzelheiten), **lange
+Berührung** = Kontextmenü, **nach rechts wischen** = Buchung zur Auswahl hinzufügen/entfernen (danach schaltet
+Tippen um), **nach links wischen** = Kategorie wählen; Kategorien verschieben über „Verschieben nach…“ im Menü der
+langen Berührung. Rückgängig über ↶ im Kopf oder in der Erfolgsmeldung.
+
+### Design und Installation als App (PWA)
+
+Hell/dunkel folgt der Systemeinstellung; fest einstellbar unter Einstellungen → Design oder in der
+Befehlspalette (`localStorage` `kontor.thema`). Kontor ist installierbar: in Chrome/Edge über „App installieren“
+in der Adresszeile, auf Android über „Zum Startbildschirm hinzufügen“, auf iOS in Safari über „Teilen → Zum
+Home-Bildschirm“. Voraussetzung ist ein sicherer Ursprung (HTTPS oder `http://127.0.0.1`/`localhost`; im Heimnetz
+z. B. hinter einem Reverse-Proxy mit Zertifikat). Ohne Netz zeigt die installierte App die Hülle mit dem Hinweis
+„offline“, aber keine Daten; Finanzdaten werden nie im Browser zwischengespeichert.
 
 ## Tests
 
 ```bash
 pip install -e . pytest httpx
-python -m pytest tests          # eigene Tests (Browsertest nur mit Playwright + Chrome/Chromium)
+python -m pytest tests          # eigene Tests (Browser-Rauchtests nur mit Playwright + Chrome/Chromium)
 ```
 
 Die maßgeblichen Tests liegen in kontor-tests; Anleitung dort in

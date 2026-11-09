@@ -129,7 +129,7 @@ jedem Schritt muss die Testsuite aus kontor-tests unverändert grün bleiben
 - [ ] **R-06 Übrige E/F-Funktionen** (`vorlage_koerper`, `erfassen`,
   `_inhalt_pruefen`, `_loeschen_ausfuehren`) in benannte Teilschritte
   zerlegen.
-- [ ] **R-07 `app.js` in ES-Module** je Ansicht aufteilen (ohne Bundler,
+- [x] **R-07 `app.js` in ES-Module** (M8, D-091) je Ansicht aufteilen (ohne Bundler,
   `<script type="module">`, weiterhin ohne externe Ressourcen).
 - [ ] **R-08 Magische Statuscodes** in `schutz.py`/`app.py` durch `http.HTTPStatus` ersetzen.
 

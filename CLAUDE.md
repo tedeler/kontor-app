@@ -85,7 +85,7 @@ Commit-Nachrichten sind auf Deutsch.
 | `src/kontor/schutz.py` | M7: äußerste ASGI-Hülle: Netz → Sitzung → Herkunft → CSRF → Größe; Sicherheitsköpfe an jeder Antwort |
 | `src/kontor/betrieb/` | M7: ausgelieferte systemd-Units, sysusers, `kontor.env`, Drop-in (Paketdaten) |
 | `src/kontor/__main__.py` | M7: Startmodul `python -m kontor` (ohne Argumente, Logging nach stderr, uvicorn) |
-| `src/kontor/web/` | Weboberfläche (HTML, CSS, Vanilla-JS, ohne externe Ressourcen); `anmelden.html` und `oeffentlich/` für die Anmeldeseite |
+| `src/kontor/web/` | M8: Hülle `index.html`, Service Worker `sw.js`, Anmeldeseite `anmelden.html`; unter `oeffentlich/` Stile `app.css`, Symbole, Manifest und die ES-Module `app/` (`kern`, `ui`, `baum`, `konto`, `seiten`, `haupt`), ohne externe Ressourcen |
 | `tests/` | eigene Tests (ergänzend; ersetzen nicht die Tests aus kontor-tests) |
 
 ## Hinweise ab Meilenstein 4
@@ -159,13 +159,26 @@ Commit-Nachrichten sind auf Deutsch.
 - Anmeldedaten (`anmeldung_konto`, `sitzung`) sind Betriebszustand: nie in `protokoll._TABELLEN`, nie in
   `sicherung.SPALTEN`. Zeiten der Anmeldung immer nach `time.time()`, nie nach der Mock-Uhr.
 - Weboberfläche: kein Inline-Skript, keine `on…`-Attribute, kein `eval`/`new Function` (CSP
-  `script-src 'self'`); schreibende `fetch`-Aufrufe nur über `api()` in `app.js` (sendet `X-Kontor-CSRF`).
+  `script-src 'self'`); schreibende `fetch`-Aufrufe nur über `api()` in `app/kern.js` (sendet `X-Kontor-CSRF`).
   Browsertests nicht mit `page.wait_for_function("…")` (String-Auswertung), sondern `warte_js`.
 - Lange Lesezugriffe: Filter als unkorrelierte Teilabfragen (`b.id IN (SELECT …)`), in korrelierten
   Teilabfragen mit `+s.konto_id` den falschen Index vermeiden. Leistung prüfen mit
   `python -m pytest -m leistung` (eigene Messung: `/home/claude/impl/werkzeug/messen.py`, nicht im Repo).
 - Beenden: `SyncDienst.beenden` (Frist, `_schreib_sperre`/`_abbruch`), danach `db.checkpoint`.
 - Maßstab: alle Tests einschließlich `m7` und `leistung`; `m8` erst, wenn beauftragt.
+
+## Hinweise ab Meilenstein 8 (Oberfläche)
+
+- Vertrag ist `oberflaeche.md`: `data-testid`, Rollen, Zustandsattribute (`data-geladen`, `data-bereit`,
+  `data-layout`, `data-betrag` in Cent …). Texte aus dem Buchbestand nur über `h()`/`textContent`, nie HTML.
+- Jede Operation mit Wirkung auf den Buchbestand in der Oberfläche läuft über `aktion()` (`kern.js`): legt den
+  Rückgängig-Eintrag an und lädt danach mit dem Stand des Servers neu (`oberflaeche.neuLaden`). Dialoge mit
+  `danach: () => d.schliessen(true)` vor dem Neuladen schließen; Fehler in Dialogen über `imDialog`.
+- Neue Routen in `SPA_ROUTEN` (`app.py`) **und** in `ROUTEN` (`haupt.js`) eintragen; neue Moduldateien in
+  `DATEIEN` von `sw.js` (eigener Test). Keine Sammelroute für GET (würde 405 der REST-Pfade verdecken).
+- Browsertests aus kontor-tests: `python -m pytest -m m8 -n 2` (Chrome über den Kanal `chrome`, ca. 2–3 min);
+  eigene Rauchtests `tests/test_browser*.py`. Debug-Hilfe außerhalb des Repos: `/home/claude/impl/werkzeug/sicht.py`.
+- Maßstab: alle Tests einschließlich `m8` und `leistung`.
 
 ## Codequalität vor jedem Meilenstein
 
