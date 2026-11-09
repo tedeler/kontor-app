@@ -1,5 +1,80 @@
 # Ergebnis der Implementierung
 
+## Meilenstein 6 (echte Anbindungen und Benachrichtigungen)
+
+Stand: 2026-11-09, Implementierungs-Thread.
+
+### Testlauf kontor-tests
+
+- Getestet gegen **kontor-tests Commit `5cbf031`** („M6: ERGEBNIS.md (Abschnitt M6)“, enthält `fe5f1ad`
+  „Vorwarnungstest prüft auch nach dem Lesen“), nach `git pull` im Lese-Klon unmittelbar vor dem
+  Abschlusslauf.
+- Aufruf im Wurzelverzeichnis des Lese-Klons gegen die per `pip install --break-system-packages -e`
+  installierte kontor-app, Python 3.13, SQLite 3.53.1, fints 5.0.1, cryptography 50.0.1, Hypothesis-Profil
+  `standard`. Wegen der 10-Minuten-Grenze je Aufruf in vier Teilen:
+  `-m "m6 or not (m1 or m2 or m3 or m4 or m5 or m9)"`, `-m "m1 and not m6"`, `-m "(m2 or m3) and not m6"`,
+  `-m "(m4 or m5 or m9) and not (m1 or m2 or m3 or m6)"`; zusammen alle 1994 gesammelten Tests.
+- Tests für `m7`/`m8`: keine vorhanden (0 gesammelt).
+
+| Auswahl | gesamt | bestanden | fehlgeschlagen | Fehler |
+| --- | ---: | ---: | ---: | ---: |
+| vollständig (alle gesammelten Tests) | 1994 | 1993 | 1 | 0 |
+| davon `-m m1` | 674 | 674 | 0 | 0 |
+| davon `-m m2` | 226 | 225 | 1 (W-004) | 0 |
+| davon `-m m3` | 245 | 245 | 0 | 0 |
+| davon `-m m4` (inkl. `langsam`) | 227 | 227 | 0 | 0 |
+| davon `-m m5` | 212 | 212 | 0 | 0 |
+| davon `-m m6` (inkl. `tests/attrappen`, M6-Generatortests) | 273 | 273 | 0 | 0 |
+| davon `-m m9` | 56 | 56 | 0 | 0 |
+| ohne Meilenstein-Marker (Generator, Spezifikation) | 81 | 81 | 0 | 0 |
+| `m7`, `m8` | 0 | – | – | – |
+
+**Einziger Fehlschlag:** `tests/app/m2/test_m2_sync.py::test_laeufe_und_status` – der M2-Test vergleicht
+`GET /api/sync/status` exakt und verträgt das in M6 verlangte Feld `pin_quelle` nicht (fints.md 5,
+synchronisation.md 18.1; der M6-Test `test_vorgabe_eingabe` verlangt es auch bei `eingabe`). Dokumentiert als
+**W-004** in `WIDERSPRUECHE.md`; umgesetzt ist die Spezifikation.
+
+### Eigene Tests (kontor-app)
+
+`python -m pytest tests`: 68 bestanden. Neu: `tests/test_m6_eigen.py` (Migration der App-Datenbank von
+Schemaversion 6 auf 7 – frühere Benachrichtigungen gelten als `keine`; Sicherung der Schemaversion 2 ohne
+Postfächer einspielbar; Spiegel bleibt beim Einspielen mit gleicher Adresse; Zugriffsprotokoll ohne
+Abfrageteil; Logger `fints` gibt nichts weiter; MT940 mit `RC`/`RD` und Buchungsjahr; camt mit Vormerkung und
+Referenz; Test-Benachrichtigung) und der Playwright-Rauchtest `tests/test_browser_m6.py` (Chrome headless,
+echter Server auf freiem Loopback-Port): Anbindungen im Mock-Modus auf Desktop- und Handybreite
+(Geheimnis setzen ohne Anzeige, Test-Benachrichtigung, Postfach anlegen, Mail-Abruf und -Liste, Link
+`/mail/postfaecher/<id>`, kein waagerechtes Scrollen) und im Echtmodus der Start einer OAuth2-Anmeldung
+(Autorisierungs-URL wird nur angezeigt) mit abgelehnter Umleitungs-URL. Alle Server-, Browser- und
+Attrappen-Prozesse enden mit den Tests; es läuft kein Prozess weiter.
+
+### Umgesetzt
+
+- FinTS-Plugin über python-fints (D-069–D-071): Konten aus HIUPD/HISPA, camt.052.001.08 bevorzugt, MT940
+  als Rückfall, Aufsetzpunkte, Hash-Kennungen, QR-TAN im offenen Dialog, Fehlerabbildung nach fints.md 3.6,
+  nur lesende Segmente, Logger `fints` stillgelegt; PIN aus der Eingabe oder aus `$CREDENTIALS_DIRECTORY` mit
+  Sperre nach Ablehnung (D-079).
+- IMAP-Plugin mit XOAUTH2 (nur `EXAMINE`/`BODY.PEEK[]`), OAuth2 mit PKCE, Token-Erneuerung, Vorwarnung,
+  proaktiver/reaktiver Ablauf und Widerruf mit je einer Benachrichtigung, paralleler Abruf, Spiegel
+  (D-077, D-078).
+- Benachrichtigungen: Plugins `keins`/`mock`/`ntfy`, Zustellung mit Wiederholung und Höchstzahl, TAN-Push mit
+  Link, TAN-Erinnerungen (D-074, D-082); App-Erweiterung `POST /api/benachrichtigungen/test` (D-076).
+- Geheimnisspeicher AES-256-GCM (D-073); ausgehende Verbindungen ohne Umleitungen und Proxy, eigene
+  Vertrauensanker (D-072); Zugriffsprotokoll ohne Abfrageteil (D-080).
+- Postfächer im Protokoll und in der Sicherung (Schemaversion 3), Betriebszustand je Adresse (D-075);
+  Datenbankschema 7 mit Migration ohne Datenverlust.
+- Weboberfläche „Anbindungen“ und „Mails“ (D-081); README mit Betrieb über systemd-creds, eigenem
+  Google-Cloud-Projekt und ntfy.
+
+### Einschränkungen
+
+- Geprüft nur gegen die lokalen Attrappen aus kontor-tests und eigene Loopback-Server; keine echte Bank, kein
+  Gmail/Google, kein ntfy.sh angesprochen.
+- Starke Kundenauthentifizierung schon beim FinTS-Dialogbeginn und entkoppelte App-Freigaben (3955) werden
+  nicht unterstützt (`BankFehler`, D-071, fints.md 3.5).
+- Der Mail-Abgleich mit Sammelbuchungen ist nicht Teil von M6 (K 1).
+- Die Test-Benachrichtigung ist kein Teil des Vertrags (`openapi.yaml`); beim Mock-Plugin wird sie nur
+  bestätigt, nicht in die Zustellliste eingetragen.
+
 ## Meilenstein 5 (wiederkehrende Buchungen, Kredite, Berichte, Export)
 
 Stand: 2026-11-09, Implementierungs-Thread.
