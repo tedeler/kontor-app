@@ -2,23 +2,23 @@
 
 ## Meilenstein 8 (vollständige Oberfläche) und W-005
 
-Stand: 2026-11-09, Implementierungs-Thread.
+Stand: 2026-11-09, Implementierungs-Thread (Nachtrag nach E-151).
 
 ### Testlauf kontor-tests
 
-- Getestet gegen **kontor-tests Commit `48e3671`** („M8: ERGEBNIS präzisiert …“, nach Abschluss der
-  M8-Selbstprüfung des Test-Threads), nach `git pull` im Lese-Klon unmittelbar vor dem Abschlusslauf.
+- Getestet gegen **kontor-tests Commit `bf35445`** („W-007/W-008: Selbstprüfung und ERGEBNIS festgehalten“), nach
+  `git pull` im Lese-Klon unmittelbar vor dem Abschlusslauf.
 - Aufruf im Wurzelverzeichnis des Lese-Klons gegen die per `pip install --break-system-packages -e`
-  installierte kontor-app (Stand `main` nach diesem Commit), Python 3.13, Hypothesis-Profil `standard`,
-  Playwright 1.x mit dem installierten Google Chrome (Kanal `chrome`, headless). Wegen der 10-Minuten-Grenze je
-  Aufruf in vier Teilen, die ersten drei mit `pytest-xdist -n 2`:
-  `-m "not leistung and not m8 and (m7 or not (m1 … m9)) or (m6 and not m7) or (m1 and not m6)"`,
-  `-m "((m2 or m3) and not m6) or ((m4 or m5 or m9) and not (m1 or m2 or m3 or m6 or m7))"`, `-m m8`,
-  `-m leistung`; zusammen alle **2446** gesammelten Tests (`--collect-only`: 2446).
+  installierte kontor-app, Python 3.13, Hypothesis-Profil `standard`, Playwright mit dem installierten Google
+  Chrome (Kanal `chrome`, headless). Wegen der 10-Minuten-Grenze je Aufruf in vier Vordergrund-Teilen, drei davon
+  mit `pytest-xdist -n 2`:
+  `-m "not leistung and not m8 and (m7 or not (m1 … m9)) or (m6 and not m7) or (m1 and not m6)"` (1202),
+  `-m "((m2 or m3) and not m6) or ((m4 or m5 or m9) and not (m1 or m2 or m3 or m6 or m7))"` (966), `-m leistung`
+  (22), `-m m8` (258); zusammen alle **2448** gesammelten Tests (`--collect-only`: 2448).
 
 | Auswahl | gesamt | bestanden | fehlgeschlagen |
 | --- | ---: | ---: | ---: |
-| **vollständig** | **2446** | **2443** | **3** (W-007, W-008) |
+| **vollständig** | **2448** | **2448** | **0** |
 | `m1` | 674 | 674 | 0 |
 | `m2` | 226 | 226 | 0 |
 | `m3` | 245 | 245 | 0 |
@@ -26,25 +26,26 @@ Stand: 2026-11-09, Implementierungs-Thread.
 | `m5` | 212 | 212 | 0 |
 | `m6` | 273 | 273 | 0 |
 | `m7` (davon 22 `leistung`) | 192 | 192 | 0 |
-| `m8` (davon 212 Browsertests) | 256 | 253 | 3 |
+| `m8` (davon 214 Browsertests) | 258 | 258 | 0 |
 | `m9` | 56 | 56 | 0 |
 | ohne Meilenstein-Marker (Generator, Spezifikation, Attrappen) | 85 | 85 | 0 |
 
-Fehlschläge (alle als Widerspruch dokumentiert, Test erwartet etwas, das der Spezifikation widerspricht):
+**Kein Fehlschlag, kein offener W-Eintrag.** W-005 (E-138), W-006 und W-009 (`174b292`), W-007 (E-151) und W-008
+(`bf35445`) sind erledigt. Zu E-151: Für nicht kategorisierbare Buchungen (Umbuchungen, gesplittete Buchungen) sendet
+die Oberfläche beim Kategorie-Setzen, Ziehen und Wischen die spezifizierte Anfrage und zeigt die Ablehnung 422
+`nicht_kategorisierbar` als Fehlermeldung mit der Meldung des Servers; die Zeile behält „Umbuchung“ bzw.
+„Gesplittet“, es entsteht kein Protokolleintrag. Das war bereits so umgesetzt; die neuen Tests
+(`test_kategorie_setzen_umbuchung_meldet_ablehnung`, `test_umbuchung_auf_kategorie_ziehen_aendert_nichts` u. a.)
+sind ohne Änderung an der App grün.
 
-| Test | Ursache |
-| --- | --- |
-| `test_m8_split_dnd.py::test_buchung_auf_kategorie_ziehen` | W-007: `r[2]` ist eine Umbuchung, Kategorie setzen → 422 `nicht_kategorisierbar` (datenmodell.md 3.2) |
-| `test_m8_panels_mobil.py::test_wischen_links_setzt_kategorie_und_rueckgaengig` | W-007 (dieselbe Buchung) |
-| `test_m8_bearbeiten.py::test_protokollseite` | W-008: `slice(9)` liest aus `aenderung-<id>` die Zahl `-<id>` |
-
-W-006 (Reihenfolge im rechten Panelbereich) und W-009 (Kodierung von `weiter`) hat der Test-Thread während des
-Meilensteins behoben (Commit `174b292`); die Tests sind grün. W-005 ist mit E-138 spezifiziert und umgesetzt (die
-zehn Tests in `test_m8_testbenachrichtigung.py` sind grün).
-
-Der erste von zwei vollständigen `m8`-Läufen hatte zusätzlich einen einmaligen Fehlschlag in
-`test_m8_kontextmenue.py::test_menue_tastatur_und_klick_ausserhalb` (unter paralleler Last); er ließ sich danach
-weder einzeln (3×) noch parallel (4× mit `test_m8_tastatur.py`) noch im zweiten vollständigen Lauf wiederholen.
+**Einmalig instabiler Test** `test_m8_kontextmenue.py::test_menue_tastatur_und_klick_ausserhalb`: Er schlug in
+einem früheren vollständigen `m8`-Lauf (gegen `48e3671`) einmal fehl. Seitdem in drei vollständigen `m8`-Läufen,
+dreimal einzeln, viermal parallel mit `test_m8_tastatur.py` sowie in neun Läufen unter zusätzlicher Volllast
+eines CPU-Kerns (`-n 2` mit `test_m8_auswahl.py` bzw. `test_m8_tastatur.py`) grün. Geprüfte mögliche Ursachen auf
+Seiten der App ohne Befund: Umschalt+F10 löst in Chrome kein zusätzliches `contextmenu`-Ereignis aus (gemessen),
+das Menü erhält den Fokus synchron beim Öffnen, der Klick außerhalb wird über ein `pointerdown` in der
+Capture-Phase erkannt, das lange vor dem Klick registriert ist, und die Liste lädt während des Tests nicht neu.
+Eine Ursache in der App wurde nicht gefunden; daher keine Änderung.
 
 ### Eigene Tests (kontor-app)
 
