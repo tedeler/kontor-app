@@ -1133,3 +1133,65 @@ Weitere Abkürzungen: SY = `spec/api/synchronisation.md`, KA =
   `{plugin, zugestellt, gesendet, fehler}`, Mock ohne Aufruf von `senden`, ntfy genau ein Versuch, Fehlschlag als 200
   mit `fehler.status`; `keins` → 409 mit `details = {}`. W-005 erledigt.
 - **Begründung:** Der Test-Thread hat die Spezifikationslücke mit E-138 geschlossen.
+
+## D-098 AqBanking-Plugin: Konten über `listaccs` mit eigener Vorlage
+
+- **Entscheidung:** `konten()` ruft `aqbanking-cli -D <verz> listaccs --template=…` mit den Feldern
+  `$(iban)`, `$(bic)`, `$(typeAsString)`, `$(accountName)`, `$(ownerName)` auf; Datensätze beginnen mit dem
+  Steuerzeichen RS (0x1E), Felder sind durch US (0x1F) getrennt. Die Kopfzeile von `listaccs` fällt so weg.
+  Kontotyp-Namen nach aqbanking.md 4.1; `unknown`/`unspecified` → Girokonto, andere Typen entfallen. Die IBAN wird
+  normalisiert und auf Prüfziffer geprüft; für `request --iban=` wird sie so übergeben, wie AqBanking sie kennt.
+- **Begründung:** Die Standardausgabe enthält weder Kontobezeichnung noch Inhaber; Tabulatoren oder `|` könnten in
+  Namen vorkommen, die Steuerzeichen praktisch nie. Der Typ als Text (`typeAsString`, Standardvorlage von
+  AqBanking 6.5) ist stabiler als die interne Nummer.
+
+## D-099 AqBanking-Plugin: Auswertung des Abrufs
+
+- **Entscheidung:** Je `umsaetze()` genau ein `aqbanking-cli -D <verz> -P /dev/fd/N -n request --transactions
+  --iban=… --fromdate=JJJJMMTT --todate=JJJJMMTT -c <temp>/abruf.ctx` mit `AQHBCI_LOGLEVEL=info`. Ausgewertet
+  werden nur vollständig erkannte Diagnosezeilen (Präfix `<stufe>:<datum> <zeit>:<modul>(<pid>):<datei>: <zeile>:`),
+  damit Hexdumps der Bankkommunikation nichts vortäuschen: Rückmeldungen `Result: … (NNNN: …)` (Fehler **und**
+  Warnungen, da 3938 als Warnung erscheint), der letzte Status von `JobGetTransactions` und „No TAN input in
+  non-interactive mode“. Reihenfolge nach aqbanking.md 5.1; Erfolg nur, wenn keine 9xxx-Rückmeldung, Rückgabecode 0
+  und letzter Status `answered` (erprobt: bei 9380 steht der Auftrag trotzdem auf `answered`). Rückmeldung 0030
+  gilt wie der Hinweistext als TAN-Bedarf. Ein Rückgabecode ≠ 0 ohne Rückmeldung (z. B. 2 für ein lokal
+  unbekanntes Konto, nach der Prüfung über `konten()` nur bei gleichzeitiger Änderung der Konfiguration) ergibt
+  `BankVerbindungsFehler`. Eine unlesbare oder fehlende Kontextdatei nach Erfolg ebenfalls.
+- **Kontextdatei:** eigener kleiner Leser für das GWEN-DB-Textformat (Gruppen, `typ name="wert", "wert"`,
+  URL-kodierte Werte); Beträge `Zähler/Nenner:Währung` exakt mit `Fraction` in Cent, Bruchteile von Cent → unlesbar.
+  Gewählt wird die `accountInfo` mit der abgerufenen IBAN. Hash-Kennungen wie beim FinTS-Plugin
+  (`kennungen_vergeben`, laufende Nummer in Lieferreihenfolge vor dem Datumsfilter, wie dort).
+- **Begründung:** aqbanking.md 5.2 (Rückgabecode allein unzuverlässig); die Kontextdatei enthält Zeilenumbrüche im
+  Verwendungszweck verlustfrei, eine Vorlage für `listtrans` nicht.
+
+## D-100 AqBanking-Plugin: Prozesse, Umgebung, PIN-Datei
+
+- **Entscheidung:** Jeder Programmaufruf läuft in einer eigenen Sitzung/Prozessgruppe (`start_new_session`) mit
+  `stdin=/dev/null`, Ausgabe vollständig in Pipes (nie an Logger, stdout oder stderr). Bei Überschreiten von
+  `aqbanking_timeout_sekunden` erst SIGTERM, nach 2 s SIGKILL an die Prozessgruppe, dann
+  `BankZeitueberschreitung`. Je Aufruf ein eigenes temporäres Verzeichnis unter `tempfile.gettempdir()` (zur
+  Laufzeit ermittelt), das auch Arbeitsverzeichnis und `TMPDIR` des Programms ist und danach entfernt wird; die
+  Kontextdatei liegt in einem weiteren eigenen temporären Verzeichnis. Umgebung: die von Kontor ohne alle
+  Variablen, deren Name `proxy` enthält (beliebige Schreibweise), Sprache fest `C.UTF-8` (`LANGUAGE`, `LC_*`
+  entfernt bzw. gesetzt), damit die ausgewerteten Texte nicht übersetzt werden. Eine Sperre je Plugin-Instanz
+  lässt höchstens ein Programm gleichzeitig laufen.
+- **PIN-Datei:** Benutzer aus `aqhbci-tool4 listusers --xml` (BLZ, Benutzerkennung); je Benutzer eine Zeile
+  `PIN_<BLZ>_<Kennung> = "<PIN>"` mit `\` → `\\` und `"` → `\"`. Die Datei wird vor dem Start vollständig in eine
+  Pipe geschrieben (Grenze 60 000 Bytes, darüber `PluginNichtVerfuegbar`) und als `/dev/fd/N` übergeben.
+  `listusers` ohne Benutzer oder mit Fehler → `PluginNichtVerfuegbar`. Eine PIN mit Zeilenumbruch oder NUL ist
+  im Format nicht darstellbar → `BankPinFalsch` ohne Programmaufruf (die App verwirft sie dann).
+- **Reihenfolge in `umsaetze()`:** Verfügbarkeit → `von > bis` → `tan` → Konto über `listaccs` → `pin_quelle()`
+  (genau einmal) → `listusers` → `request`. `konten()` und `listusers` starten ohne `-P`.
+- **Begründung:** aqbanking.md 5.3 und 6; die Prozessgruppe erfasst auch Kindprozesse, `TMPDIR` hält auch
+  Zwischendateien von AqBanking selbst im aufgeräumten Verzeichnis.
+
+## D-101 Konfiguration M10
+
+- **Entscheidung:** `aqbanking_verzeichnis`/`aqbanking_programme`: `str`/`os.PathLike` → `Path`, leere
+  Zeichenkette auch im Konstruktor → None (wie in der Umgebung); `aqbanking_timeout_sekunden` nur `int` (kein
+  `bool`, keine Zeichenkette) von 1 bis 3600, in der Umgebung nur Dezimalziffern. `bank_plugin = "aqbanking"` im
+  Mock-Modus ergibt wie `fints` `KonfigurationsFehler`. Die ausgelieferte `kontor.env` enthält die vier Variablen
+  nur als Kommentar (Vorgabe im Betrieb bleibt `fints`); README beschreibt Einrichtung, Verzeichnis außerhalb von
+  `/home` und die einmalige TAN-Freigabe in AqBanking. An der systemd-Härtung ändert sich nichts: das empfohlene
+  Verzeichnis `/var/lib/kontor/aqbanking` liegt im `StateDirectory` und ist dort schreibbar.
+- **Begründung:** python-api.md 16.1, aqbanking.md 7; keine Änderung, die M7-Tests der Units berühren könnte.
