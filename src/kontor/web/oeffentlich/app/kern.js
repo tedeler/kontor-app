@@ -371,6 +371,7 @@ export async function aktion(ausfuehren, optionen) {
   let ergebnis;
   let fehler = null;
   try { ergebnis = await ausfuehren(); } catch (e) { fehler = e; }
+  if (!fehler && o.danach) o.danach(ergebnis);       // z. B. Dialog schließen, bevor neu geladen wird
   try {
     const neu = await aenderungenSeit(m);
     if (neu.length) {

@@ -115,4 +115,77 @@ widersprüchlich ist). Gelöst werden Widersprüche nur von einem Test-Thread.
   `test:<App-Uhr>`; 409 `kein_benachrichtigungs_plugin` mit `details = {}`. Die zehn Tests in
   `tests/app/m8/test_m8_testbenachrichtigung.py` sind grün. Erledigt.
 
-Stand: Meilenstein 8, kein offener Punkt.
+## W-006 Reihenfolge der Panels im rechten Bereich (Panel nach dem Verschieben „innen“)
+
+- **Betroffener Test:** `tests/app/m8/test_m8_panels_mobil.py::test_verschieben_per_drag_und_knopf`
+  (kontor-tests Commit `d53f74b`).
+- **Was der Test erwartet:** Nach dem Ziehen von `panel-kategorien` in den rechten Bereich gilt
+  `liste.x < details.x < kategorien.x`, d. h. das verschobene Panel steht rechts vom Details-Panel, also am
+  Fensterrand. Zugleich prüft er (wie spezifiziert) `position(kategorien) > position(details)`; die Meldung des
+  Tests lautet „das verschobene Panel kommt nach innen (größte position)“.
+- **Was die Spezifikation sagt:** `oberflaeche.md` 15.1: „Panels in einem Bereich stehen nebeneinander; Reihenfolge
+  von außen (Fensterrand) nach innen (Liste) nach `position`.“ 15.2: „Das Panel kommt an die innerste Stelle
+  (größte `position`) des Zielbereichs.“
+- **Warum widersprüchlich:** Im rechten Bereich ist „außen“ der rechte Fensterrand und „innen“ die Liste links
+  davon. Das Panel mit der größten `position` steht daher direkt neben der Liste, also *links* vom Details-Panel
+  (`liste.x < kategorien.x < details.x`). Der Test erwartet die umgekehrte Anordnung, die nur entsteht, wenn beide
+  Bereiche unabhängig von der Seite von links nach rechts nach `position` sortiert werden – das widerspricht 15.1
+  für den rechten Bereich. Vorschlag: im Test `liste.x < kat.x < det.x` prüfen (oder 15.1 ändern).
+- **Umgang:** Umgesetzt ist 15.1/15.2 (rechter Bereich in der Darstellung von innen nach außen nach aufsteigender
+  `position`); der Test schlägt fehl.
+- **Status:** offen.
+
+## W-007 Umbuchung als zu kategorisierende Buchung (Drag and Drop, Wischen nach links)
+
+- **Betroffene Tests:** `tests/app/m8/test_m8_split_dnd.py::test_buchung_auf_kategorie_ziehen` und
+  `tests/app/m8/test_m8_panels_mobil.py::test_wischen_links_setzt_kategorie_und_rueckgaengig` (Commit `d53f74b`).
+- **Was die Tests erwarten:** Die dritte Buchung der Girokonto-Liste (`r[2]`, nach `-datum`) wird per Drag and Drop
+  auf „Kino“ bzw. per Wischen nach links auf „Mobilität“ kategorisiert; erwartet wird eine Änderung
+  `kategorie_setzen` bzw. `kategorie_id` = Zielkategorie.
+- **Was die Spezifikation sagt:** Im Datensatz `m8/oberflaeche.kmy` ist `r[2]` die Buchung „Sparrate“ vom
+  15.12.2024 mit den Splits Girokonto −500,00 € und Tagesgeld +500,00 € – eine Umbuchung zwischen zwei
+  Bestandskonten ohne Gegensplit. `datenmodell.md` 3.2: „Eine Buchung ist kategorisierbar, wenn sie genau einen
+  Gegensplit hat“ (Gegensplits = Splits auf Nicht-Bestandskonten); „Nicht kategorisierbare Buchungen werden
+  abgelehnt (422 `nicht_kategorisierbar`)“. `oberflaeche.md` 10/16.4: Ablegen bzw. Wischen „wirkt wie
+  `mehrfach-kategorie`“, also `PUT /api/buchungen/{id}/kategorie`.
+- **Warum widersprüchlich:** Die Oberfläche sendet die spezifizierte Anfrage; der Server lehnt sie für eine
+  Umbuchung nach `datenmodell.md` 3.2 mit 422 ab (die Oberfläche zeigt die Fehlermeldung, 1 Nr. 8). Keine
+  vertragsgemäße Implementierung kann die Umbuchung kategorisieren. Die übrigen Teile der Tests (Auswahl ziehen
+  `r[4..6]`, Wischen auf `r[6]`, `r[7]`) funktionieren. Vorschlag: im Test eine kategorisierbare Buchung wählen
+  (z. B. die erste Buchung mit `kategorie_id ≠ null`).
+- **Umgang:** Spezifikation umgesetzt; beide Tests schlagen am ersten Schritt fehl.
+- **Status:** offen.
+
+## W-008 Protokollseite: IDs aus `data-testid` mit `slice(9)` gelesen
+
+- **Betroffener Test:** `tests/app/m8/test_m8_bearbeiten.py::test_protokollseite` (Commit `d53f74b`).
+- **Was der Test erwartet:** Er liest die angezeigten Änderungs-IDs mit
+  `Number(e.getAttribute('data-testid').slice(9))` und vergleicht sie mit den IDs aus `GET /api/aenderungen`.
+- **Was die Spezifikation sagt:** `oberflaeche.md` 13.9: Einträge `aenderung-<id>`. Das Präfix `aenderung-` hat zehn
+  Zeichen; `"aenderung-2".slice(9)` ergibt `"-2"`, die Zahl also `-2`.
+- **Warum widersprüchlich:** Für jede vertragsgemäße Oberfläche liefert der Test negative IDs (`[-2, -1]` statt
+  `[2, 1]`); die Reihenfolge der Oberfläche stimmt mit der REST-Antwort überein. Vorschlag: `slice(10)`.
+- **Umgang:** `aenderung-<id>` wie spezifiziert; der Test schlägt fehl.
+- **Status:** offen.
+
+## W-009 Kodierung von `weiter` bei der Weiterleitung des Servers zur Anmeldung
+
+- **Betroffener Test:** `tests/app/m8/test_m8_anmeldung_a11y.py::test_anmelden_und_weiterleiten[desktop]` und
+  `[handy]` (Commit `d53f74b`).
+- **Was der Test erwartet:** Der direkte Aufruf von `/kredite` ohne Sitzung landet auf
+  `/anmelden?weiter=%2Fkredite` (Schrägstrich kodiert).
+- **Was die Spezifikation sagt:** Die Weiterleitung beim direkten Aufruf erzeugt der Server: `sicherheit.md` 3.2
+  „303 mit `Location: /anmelden?weiter=<p>` … prozentkodiert nach RFC 3986 (jedes Zeichen außer
+  `A–Z a–z 0–9 - . _ ~ /` kodiert)“ – der Schrägstrich bleibt also unkodiert. Der M7-Test
+  `tests/app/m7/test_m7_anmeldung.py::test_oberflaeche_leitet_zur_anmeldung` prüft genau das
+  (`quote(pfad, safe="/-._~")`). `oberflaeche.md` 19 („prozentkodiert“) betrifft die Weiterleitung der Oberfläche
+  nach einer 401-Antwort; dort kodiert die Oberfläche auch `/` (`test_sitzung_beendet_fuehrt_zur_anmeldung`
+  erwartet `%2Fkategorien` und ist grün).
+- **Warum widersprüchlich:** Der Server kann nicht zugleich `/anmelden?weiter=/kredite` (M7, sicherheit.md 3.2) und
+  `/anmelden?weiter=%2Fkredite` (M8-Test) liefern. Vorschlag: im M8-Test die Form nach `sicherheit.md` 3.2
+  erwarten oder beide Formen zulassen.
+- **Umgang:** `sicherheit.md` 3.2 umgesetzt (M7-Test grün); der M8-Test schlägt in beiden Layouts fehl. Nach der
+  Anmeldung führt `weiter` korrekt nach `/kredite`.
+- **Status:** offen.
+
+Stand: Meilenstein 8; offen: W-006 bis W-009.

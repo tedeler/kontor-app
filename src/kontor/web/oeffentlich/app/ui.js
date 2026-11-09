@@ -258,7 +258,7 @@ export function tagAuswahl(ids, ausloeser) {
           let t = finden(n);
           if (!t) t = await api("POST", "/api/tags", { name: n });
           return api("POST", "/api/buchungen/mehrfach/tags", { buchung_ids: ids, hinzufuegen: [t.id], entfernen: [] });
-        }, { stillBeiFehler: true, erfolg: `Tag „${n}“ hinzugefügt.` });
+        }, { stillBeiFehler: true, danach: () => d.schliessen(true), erfolg: `Tag „${n}“ hinzugefügt.` });
       } catch (e) { fehler = e; }
       if (fehler) throw fehler;
       d.schliessen(true);
@@ -268,8 +268,7 @@ export function tagAuswahl(ids, ausloeser) {
       const t = n ? finden(n) : null;
       if (!t) { d.fehler(n ? `Den Tag „${n}“ gibt es nicht.` : "Bitte einen Tag-Namen eingeben."); return; }
       await aktion(() => api("POST", "/api/buchungen/mehrfach/tags",
-        { buchung_ids: ids, hinzufuegen: [], entfernen: [t.id] }), { stillBeiFehler: true, erfolg: `Tag „${t.name}“ entfernt.` });
-      d.schliessen(true);
+        { buchung_ids: ids, hinzufuegen: [], entfernen: [t.id] }), { stillBeiFehler: true, danach: () => d.schliessen(true), erfolg: `Tag „${t.name}“ entfernt.` });
     }));
     name.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); hinzu.click(); } });
     inhalt.append(feld("Tag", name), vorschlaege, knopfLeiste(hinzu, weg,
@@ -327,8 +326,7 @@ export function splitDialog(buchung, ausloeser) {
     speichern.addEventListener("click", () => imDialog(d, speichern, async () => {
       const splits = zeilen.map((z) => ({ konto_id: z.konto_id, betrag: betragLesen(z.betrag), memo: z.memo }));
       await aktion(() => api("PUT", `/api/buchungen/${buchung.id}/splits`, { splits }),
-        { stillBeiFehler: true, erfolg: "Splits gespeichert." });
-      d.schliessen(true);
+        { stillBeiFehler: true, danach: () => d.schliessen(true), erfolg: "Splits gespeichert." });
     }));
     zeichnen();
     inhalt.append(h("p", null, `${datumText(buchung.datum)} · ${buchung.empfaenger ? buchung.empfaenger.name : ""} · `,
@@ -399,8 +397,7 @@ export function kontoDialog(vorgabe, ausloeser) {
       const body = { name: name.value.trim(), art: art ? art.value : v.art };
       if (v.eltern_id) body.eltern_id = v.eltern_id;
       if (iban && iban.value.trim()) body.iban = iban.value.trim();
-      await aktion(() => api("POST", "/api/konten", body), { stillBeiFehler: true, erfolg: `„${body.name}“ angelegt.` });
-      d.schliessen(true);
+      await aktion(() => api("POST", "/api/konten", body), { stillBeiFehler: true, danach: () => d.schliessen(true), erfolg: `„${body.name}“ angelegt.` });
     }));
     name.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); speichern.click(); } });
     inhalt.append(knopfLeiste(speichern, knopf("Abbrechen", { onclick: () => d.schliessen(null) })));
@@ -483,8 +480,7 @@ export async function kontoLoeschen(konto, ausloeser) {
     ausfuehren.addEventListener("click", () => imDialog(d, ausfuehren, async () => {
       const body = { buchungen: gewaehlt(), konflikte: letzte.konfliktbuchungen.length ? konfliktWahl() : "behalten" };
       if (letzte.gesperrt.length) body.gesperrte_einbeziehen = true;
-      await aktion(() => api("POST", pfad, body), { stillBeiFehler: true, erfolg: `„${konto.name}“ gelöscht.` });
-      d.schliessen(true);
+      await aktion(() => api("POST", pfad, body), { stillBeiFehler: true, danach: () => d.schliessen(true), erfolg: `„${konto.name}“ gelöscht.` });
     }));
   }, { ausloeser, fokus: (b) => b.querySelector("input:not([disabled])") });
 }
@@ -504,8 +500,7 @@ export async function dubletteDialog(verdacht, ausloeser) {
     async function aufloesen(k, body) {
       await imDialog(d, k, async () => {
         await aktion(() => api("POST", `/api/dubletten/${verdacht.id}/aufloesen`, body),
-          { stillBeiFehler: true, erfolg: "Dublettenverdacht aufgelöst." });
-        d.schliessen(true);
+          { stillBeiFehler: true, danach: () => d.schliessen(true), erfolg: "Dublettenverdacht aufgelöst." });
       });
     }
     inhalt.append(h("p", null, verdacht.grund === "mehrdeutig" ? "Mehrere mögliche Gegenstücke gefunden."
@@ -549,8 +544,7 @@ export function erfassenDialog(kontoId, ausloeser) {
       if (empf.value.trim()) body.empfaenger_name = empf.value.trim();
       if ((art.value === "ausgabe" || art.value === "einnahme") && kat.value) body.kategorie_id = Number(kat.value);
       if (art.value === "umbuchung" && gegen.value) body.gegenkonto_id = Number(gegen.value);
-      await aktion(() => api("POST", "/api/buchungen/erfassen", body), { stillBeiFehler: true, erfolg: "Buchung erfasst." });
-      d.schliessen(true);
+      await aktion(() => api("POST", "/api/buchungen/erfassen", body), { stillBeiFehler: true, danach: () => d.schliessen(true), erfolg: "Buchung erfasst." });
     }));
     inhalt.append(feld("Art", art), feld("Datum", datum), feld("Betrag (€)", betrag), feld("Empfänger", empf), empfListe,
       feld("Verwendungszweck", zweck), katFeld, gegenFeld,
@@ -579,8 +573,9 @@ export function abstimmungDialog(konto, ausloeser) {
     }));
     speichern.addEventListener("click", () => imDialog(d, speichern, async () => {
       const body = koerper(false);
-      const r = await aktion(() => api("POST", "/api/abstimmungen", body), { stillBeiFehler: true });
-      if (r && r.abgestimmt) { melde("erfolg", "Konto abgestimmt.", { rueckgaengig: true }); d.schliessen(true); }
+      const r = await aktion(() => api("POST", "/api/abstimmungen", body), { stillBeiFehler: true,
+        danach: (e) => { if (e && e.abgestimmt) d.schliessen(true); } });
+      if (r && r.abgestimmt) melde("erfolg", "Konto abgestimmt.", { rueckgaengig: true });
       else if (r) d.fehler(`Der Saldo stimmt nicht (Differenz ${betragText(r.differenz)}).`);
     }));
     inhalt.append(feld("Stichtag", stichtag), feld("Saldo laut Kontoauszug (€)", saldo), ergebnis,

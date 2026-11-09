@@ -172,8 +172,7 @@ function kreditDialog(ausloeser) {
         zins_konto_id: Number(zins.value), restschuld: betragLesen(rest.value), stand_datum: stand.value, sollzins,
         rate: betragLesen(rate.value), erste_faelligkeit: erste.value,
         bedingungen: empf.value.trim() ? [{ feld: "empfaenger", operator: "enthaelt", wert: empf.value.trim() }] : [] };
-      await aktion(() => api("POST", "/api/kredite", body), { stillBeiFehler: true, erfolg: "Kredit angelegt." });
-      d.schliessen(true);
+      await aktion(() => api("POST", "/api/kredite", body), { stillBeiFehler: true, danach: () => d.schliessen(true), erfolg: "Kredit angelegt." });
     }));
     inhalt.append(feld("Name", name), feld("Kreditkonto", konto), feld("Zahlungskonto", zahlung), feld("Zinskonto", zins),
       feld("Restschuld (€)", rest), feld("Stand am", stand), feld("Sollzins p. a. (%)", satz), feld("Rate (€)", rate),
@@ -339,7 +338,7 @@ export async function importSeite(seite) {
   });
   seite.append(abschnitt("Datei importieren", feld("Format", format), feld("Datei", datei), starten,
     h("p", { class: "klein" }, "Der Import ist wie jede Änderung rückgängig zu machen (Strg+Z).")), ausgabe);
-  return { titel: "Import" };
+  return { titel: "Import", aktualisieren: async () => {} };      // Ergebnis bleibt stehen
 }
 
 const ZAEHLFELDER = ["konten_neu", "konten_vorhanden", "kategorien_neu", "kategorien_vorhanden", "empfaenger_neu",
@@ -535,8 +534,7 @@ function empfaengerDialog(e, ausloeser) {
     speichern.addEventListener("click", () => imDialog(d, speichern, async () => {
       const body = { name: name.value.trim(), aliase: aliase.value.split(",").map((x) => x.trim()).filter(Boolean),
         standardkategorie_id: kat.value ? Number(kat.value) : null };
-      await aktion(() => api("PATCH", `/api/empfaenger/${e.id}`, body), { stillBeiFehler: true, erfolg: "Empfänger gespeichert." });
-      d.schliessen(true);
+      await aktion(() => api("PATCH", `/api/empfaenger/${e.id}`, body), { stillBeiFehler: true, danach: () => d.schliessen(true), erfolg: "Empfänger gespeichert." });
     }));
     inhalt.append(feld("Name", name), feld("Aliase (durch Komma getrennt)", aliase), feld("Standardkategorie", kat),
       knopfLeiste(speichern, knopf("Abbrechen", { onclick: () => d.schliessen(null) })));
@@ -552,8 +550,7 @@ function zusammenfuehren(ausloeser) {
       const q = [...quellen.selectedOptions].map((o) => Number(o.value)).filter((x) => x !== Number(ziel.value));
       if (!q.length) { d.fehler("Bitte mindestens einen anderen Empfänger wählen."); return; }
       await aktion(() => api("POST", `/api/empfaenger/${ziel.value}/zusammenfuehren`, { quelle_ids: q }),
-        { stillBeiFehler: true, erfolg: "Empfänger zusammengeführt." });
-      d.schliessen(true);
+        { stillBeiFehler: true, danach: () => d.schliessen(true), erfolg: "Empfänger zusammengeführt." });
     }));
     inhalt.append(feld("Ziel (bleibt bestehen)", ziel), feld("Zusammenführen mit", quellen),
       knopfLeiste(los, knopf("Abbrechen", { onclick: () => d.schliessen(null) })));
