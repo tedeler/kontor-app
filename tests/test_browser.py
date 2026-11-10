@@ -218,7 +218,7 @@ def test_ueber_fenster(tmp_path, browser):
     with server(tmp_path, daten=False) as (url, config), seite(browser, url, **DESKTOP) as page:
         page.goto(url + "/")
         bereit(page, "uebersicht")
-        knopf = tid(page, "nav-version")
+        knopf = tid(page, "version-knopf")
         expect(knopf).to_have_text(f"Version {kontor.__version__}")
         knopf.click()
         expect(tid(page, "ueber-dialog")).to_be_visible()
@@ -233,7 +233,7 @@ def test_ueber_fenster(tmp_path, browser):
         page.goto(url + "/")
         bereit(page, "uebersicht")
         tid(page, "menue-knopf").click()
-        tid(page, "nav-version").click()
+        tid(page, "version-knopf").click()
         expect(tid(page, "ueber-dialog")).to_be_visible()
         expect(tid(page, "navigation")).to_be_hidden()
         assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")

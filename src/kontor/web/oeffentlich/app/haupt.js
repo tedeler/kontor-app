@@ -82,7 +82,7 @@ function menueSchliessen(fokusZurueck) {
 menueKnopf.addEventListener("click", () => (menueEbene ? menueSchliessen(true) : menueOeffnen()));
 
 // ------------------------------------------------------------------ Über Kontor (D-105)
-const versionKnopf = tid("nav-version");
+const versionKnopf = tid("version-knopf");
 
 async function ueberOeffnen() {
   menueSchliessen(false);

@@ -1251,7 +1251,7 @@ Weitere Abkürzungen: SY = `spec/api/synchronisation.md`, KA =
     `commit` (12 Zeichen oder null), `build_datum` (oder null), `entwicklungsstand` (true ohne `build.json`),
     `python`, `repository`, `modus`, `datenbank` (Pfad der aktiven Datenbank), `datenbank_schema`,
     `sicherung_schema`. Kein fachlicher Zustand, nichts im Protokoll oder in der Sicherung.
-  - Oberfläche: Knopf `nav-version` („Version 0.07“) unten in der Navigation, serverseitig in die Hülle
+  - Oberfläche: Knopf `version-knopf` („Version 0.07“) unten in der Navigation, serverseitig in die Hülle
     eingesetzt; Klick öffnet den Dialog `ueber-dialog` (Felder `ueber-version`, `ueber-build`, `ueber-modus`,
     `ueber-python`, `ueber-datenbank`, `ueber-schema`, `ueber-repository`, Knopf `ueber-schliessen`, Esc schließt,
     Fokus zurück auf den Knopf). Mobil schließt der Klick zuerst das Menü.

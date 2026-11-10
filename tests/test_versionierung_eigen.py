@@ -71,6 +71,6 @@ def test_status_und_gesundheit_nennen_dieselbe_version(client):
 
 def test_huelle_zeigt_version_in_der_navigation(client):
     html = client.get("/").text
-    knopf = re.search(r'<button[^>]*data-testid="nav-version"[^>]*>([^<]*)</button>', html, re.S)
+    knopf = re.search(r'<button[^>]*data-testid="version-knopf"[^>]*>([^<]*)</button>', html, re.S)
     assert knopf and knopf.group(1).strip() == f"Version {kontor.__version__}"
     assert "{{VERSION}}" not in html
