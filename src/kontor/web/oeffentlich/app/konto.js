@@ -991,7 +991,7 @@ class Kontoansicht {
       const name = "verschieben-umfang";
       const radio = (wert, text, attrs) => h("label", { class: "auswahl-zeile" },
         h("input", { type: "radio", name, value: wert, tid: `verschieben-${wert}`, ...(attrs || {}) }), " ", text);
-      const herkunftWahl = h("select", { tid: "verschieben-herkunft", disabled: true },
+      const herkunftWahl = h("select", { tid: "verschieben-herkunft-wahl", disabled: true },
         herkunft.map((x) => h("option", { value: x.gruppe }, `${x.beschreibung}${x.zeitpunkt ? ` (${datumText(x.zeitpunkt.slice(0, 10))})` : ""}`
           + ` – ${x.anzahl === 1 ? "1 Buchung" : `${x.anzahl} Buchungen`}`)));
       const rAuswahl = radio("auswahl", sortiert.length === 1 ? "Die ausgewählte Buchung" : `Die ${sortiert.length} ausgewählten Buchungen`,
