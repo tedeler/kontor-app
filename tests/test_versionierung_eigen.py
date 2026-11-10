@@ -58,7 +58,7 @@ def test_api_version(client, config):
     assert r.status_code == 200
     d = r.json()
     assert d["name"] == "Kontor" and d["version"] == kontor.__version__
-    assert d["modus"] == "echt" and d["datenbank"] == str(config.aktive_datenbank)
+    assert d["modus"] == "echt" and d["datenbank"] == str(config.aktive_datenbank.resolve())
     assert isinstance(d["datenbank_schema"], int) and isinstance(d["sicherung_schema"], int)
     assert d["repository"].startswith("https://github.com/")
     assert set(d) == {"name", "version", "commit", "build_datum", "entwicklungsstand", "python", "repository",

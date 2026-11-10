@@ -422,7 +422,7 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     @endpunkt("GET", "/api/version")
     async def version(request: Request):
         """About-Fenster (D-105): Version, Build, Laufzeit und Schemaversionen."""
-        return {**versionsinfo.info(), "modus": modus, "datenbank": str(pfad),
+        return {**versionsinfo.info(), "modus": modus, "datenbank": str(pathlib.Path(pfad).resolve()),
                 "datenbank_schema": db.SCHEMA_VERSION, "sicherung_schema": sicherung.SCHEMAVERSION}
 
     # ------------------------------------------------------------ Konten
