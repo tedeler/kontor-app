@@ -481,7 +481,7 @@ class SyncDienst:
                 if not neu:
                     kid = r["id"]  # Regel 1; eine gespeicherte Entscheidung wird verworfen
                 elif z is None and not self.config.sync_konten_anlegen:
-                    # D-110: nicht anlegen, sondern überspringen; die Oberfläche bietet die Zuordnung an
+                    # D-111: nicht anlegen, sondern überspringen; die Oberfläche bietet die Zuordnung an
                     art = bk.art if bk.art in KONTOARTEN_BESTAND else "girokonto"
                     uebersprungen.append({"iban": iban, "name": name, "status": "nicht_zugeordnet", "art": art})
                     self._benachrichtigen(

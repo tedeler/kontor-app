@@ -1,4 +1,4 @@
-"""Eigene Tests zum Sammelpaket (D-107 bis D-112): Rückgängig bis, Mehrfach löschen, Verschieben, Zuordnung
+"""Eigene Tests zum Sammelpaket (D-108 bis D-113): Rückgängig bis, Mehrfach löschen, Verschieben, Zuordnung
 unbekannter Bankkonten. Ergänzen die Abnahmetests aus kontor-tests, ersetzen sie nicht."""
 
 from __future__ import annotations
@@ -46,7 +46,7 @@ def tagnamen(c: TestClient) -> list[str]:
     return sorted(t["name"] for t in ok(c.get("/api/tags")))
 
 
-# ------------------------------------------------------------------ Rückgängig bis (D-107)
+# ------------------------------------------------------------------ Rückgängig bis (D-108)
 def test_rueckgaengig_bis_einschliesslich(client: TestClient) -> None:
     ids = [ok(client.post("/api/tags", json={"name": f"t{i}"}), 201) and None for i in range(4)]
     ids = sorted(wirksam(client))
@@ -89,7 +89,7 @@ def test_rueckgaengig_bis_fehler(client: TestClient) -> None:
     assert client.post("/api/aenderungen/rueckgaengig", json={"bis_id": "1"}).status_code == 422
 
 
-# ------------------------------------------------------------------ Mehrfach löschen (D-108)
+# ------------------------------------------------------------------ Mehrfach löschen (D-109)
 def test_mehrfach_loeschen_eine_aenderung(client: TestClient) -> None:
     g = konto(client, "Giro")
     k = konto(client, "Essen", "aufwand")
@@ -115,7 +115,7 @@ def test_mehrfach_loeschen_fehler(client: TestClient) -> None:
     assert client.post("/api/buchungen/mehrfach/loeschen", json={"buchung_ids": []}).status_code == 422
 
 
-# ------------------------------------------------------------------ Verschieben (D-109)
+# ------------------------------------------------------------------ Verschieben (D-110)
 def test_verschieben_auswahl(client: TestClient) -> None:
     a = konto(client, "A")
     b = konto(client, "B", "sparkonto")
@@ -180,7 +180,7 @@ def test_verschieben_ganzer_import(client: TestClient) -> None:
     assert client.get("/api/konten/999/herkunft").status_code == 404
 
 
-# ------------------------------------------------------------------ Zuordnung unbekannter Bankkonten (D-110)
+# ------------------------------------------------------------------ Zuordnung unbekannter Bankkonten (D-111)
 def _mock_daten(pfad: Path, iban: str) -> Path:
     d = {"format": "kontor-mock-daten", "version": 1, "mail": {"postfaecher": [], "nachrichten": []},
          "bank": {"konten": [{"iban": iban, "bic": None, "name": "Giro Bank", "art": "girokonto",
@@ -242,7 +242,7 @@ def test_ausgelieferte_umgebung_schaltet_anlegen_ab() -> None:
     assert "\nKONTOR_SYNC_KONTEN_ANLEGEN=0\n" in text
 
 
-# ------------------------------------------------------------------ Oberfläche: Plotly lokal (D-112)
+# ------------------------------------------------------------------ Oberfläche: Plotly lokal (D-113)
 def test_plotly_wird_lokal_ausgeliefert(client: TestClient) -> None:
     r = client.get("/oeffentlich/vendor/plotly-basic.min.js")
     assert r.status_code == 200 and b"window.Plotly" in r.content and b"new Function" not in r.content

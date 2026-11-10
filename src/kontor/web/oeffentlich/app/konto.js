@@ -463,7 +463,7 @@ class Kontoansicht {
   }
 
   // ---------------------------------------------------------------- Einzelheiten (7.3)
-  // ---------------------------------------------------------------- Vorschläge (D-111)
+  // ---------------------------------------------------------------- Vorschläge (D-112)
   vorschlagText(v) {
     const pct = v.sicherheit === null || v.sicherheit === undefined ? null : `${Math.floor((v.sicherheit + 5) / 10)} %`;
     if (v.quelle === "lernmodell") {
@@ -594,7 +594,7 @@ class Kontoansicht {
       "data-kategorie-id": b.kategorie_id ? String(b.kategorie_id) : "" },
     h("span", { class: "kat-text" + (vs ? " vorschlag-kategorie" : ""), title: vs ? `${katText} – ${vs.lang}` : katText }, katText));
     if (b.vorschlag) {
-      // Sammelpaket (D-111): vorgeschlagene Kategorie, Quelle und Sicherheit je Zeile
+      // Sammelpaket (D-112): vorgeschlagene Kategorie, Quelle und Sicherheit je Zeile
       kat.append(h("span", { class: "vorschlag-marke", tid: "vorschlag-marke", title: vs.lang, "aria-label": vs.lang,
         "data-quelle": b.vorschlag.quelle, "data-sicherheit": b.vorschlag.sicherheit === null || b.vorschlag.sicherheit === undefined
           ? "" : String(b.vorschlag.sicherheit) }, vs.marke), h("span", { class: "vorschlag-knoepfe" },
@@ -978,7 +978,7 @@ class Kontoansicht {
       }, { ausloeser });
   }
 
-  // ---------------------------------------------------------------- Verschieben (D-109)
+  // ---------------------------------------------------------------- Verschieben (D-110)
   async verschiebenDialog(ids, ausloeser) {
     const ziele = baumFolge(stamm.konten.filter((k) => BESTAND.has(k.art) && k.id !== this.konto.id)).map((x) => x.konto);
     if (!ziele.length) { melde("hinweis", "Es gibt kein weiteres Bestandskonto."); return; }
@@ -1030,7 +1030,7 @@ class Kontoansicht {
       { ja: "Löschen", ausloeser });
     if (!ok) return;
     try {
-      // D-108: mehrere Buchungen in einer Änderung (ein Eintrag im Änderungsprotokoll)
+      // D-109: mehrere Buchungen in einer Änderung (ein Eintrag im Änderungsprotokoll)
       await aktion(() => (ids.length === 1 ? api("DELETE", `/api/buchungen/${ids[0]}`)
         : api("POST", "/api/buchungen/mehrfach/loeschen", { buchung_ids: ids })), { erfolg: ids.length === 1 ? "Buchung gelöscht." : `${ids.length} Buchungen gelöscht.` });
     } catch (e) { /* gemeldet */ }

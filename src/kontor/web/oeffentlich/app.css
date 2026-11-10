@@ -325,7 +325,7 @@ html.zieht, html.zieht * { cursor: grabbing !important; }
 .buchungsliste.mit-konto[data-kompakt="ja"] .zeile { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; grid-template-areas: "datum empf betrag" "kat konto tags"; }
 .buchungsliste.mit-konto[data-kompakt="ja"] .zelle-konto { grid-area: konto; font-size: .85rem; color: var(--text-2); }
 
-/* Sammelpaket: Statusanzeige im PIN-Dialog, Verschieben, Zuordnung (D-108 bis D-110) */
+/* Sammelpaket: Statusanzeige im PIN-Dialog, Verschieben, Zuordnung (D-109 bis D-111) */
 .sync-status-zeile { display: flex; align-items: center; gap: .5rem; min-height: 1.6rem; }
 .sync-status { margin: .3rem 0; font-weight: 500; }
 .sync-status[data-phase="pin_falsch"], .sync-status[data-phase="fehler"] { color: var(--gefahr); }

@@ -352,7 +352,7 @@ export async function berichte(seite) {
   return { titel: "Berichte" };
 }
 
-// ------------------------------------------------------------------ Diagramme mit Plotly (D-112)
+// ------------------------------------------------------------------ Diagramme mit Plotly (D-113)
 // plotly.js (Basis-Paket, MIT) liegt unter /oeffentlich/vendor und wird erst auf der Berichtsseite geladen. Beträge
 // bleiben ganze Cent: Plotly bekommt Cent-Werte, die Achsenbeschriftung entsteht mit betragText (Ganzzahlarithmetik).
 let plotlyVersprechen = null;
@@ -695,7 +695,7 @@ export async function protokoll(seite) {
     }));
     mehr.hidden = geladen.length >= gesamt;
   }
-  // Rückgängig bis hierher (D-107): alle Änderungen ab dieser (einschließlich) in einem Schritt
+  // Rückgängig bis hierher (D-108): alle Änderungen ab dieser (einschließlich) in einem Schritt
   function markieren(id) {
     for (const li of liste.children) li.classList.toggle("bis-markiert", id !== null && Number(li.dataset.id) >= id);
   }
@@ -958,7 +958,7 @@ export async function syncSeite(seite, _p, _s, kontext) {
     }
     return li;
   })) : leer("Noch keine Bankkonten synchronisiert.")));
-  // D-110: Bankkonten, die der letzte Lauf übersprungen hat, weil sie noch keinem Konto zugeordnet sind
+  // D-111: Bankkonten, die der letzte Lauf übersprungen hat, weil sie noch keinem Konto zugeordnet sind
   const letzter = laeufe.slice().sort((a, b) => b.id - a.id)[0];
   const offen = ((letzter && letzter.uebersprungen) || []).filter((u) => u.status === "nicht_zugeordnet"
     && !stamm.konten.some((k) => k.iban === u.iban));

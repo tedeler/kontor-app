@@ -596,7 +596,7 @@ export function abstimmungDialog(konto, ausloeser) {
 
 export { kontoNach };
 
-// ------------------------------------------------------------------ Kontoeinstellungen (D-110)
+// ------------------------------------------------------------------ Kontoeinstellungen (D-111)
 /** Bekannte Bankkonten: Zustand je Bankkonto und nicht zugeordnete aus dem letzten Lauf. */
 export async function bankkontenBekannt() {
   const [zustand, laeufe] = await Promise.all([api("GET", "/api/sync/konten").catch(() => []),
@@ -665,7 +665,7 @@ export async function kontoEinstellungen(konto, ausloeser) {
   }, { ausloeser });
 }
 
-// ------------------------------------------------------------------ Bankkonto zuordnen (D-110)
+// ------------------------------------------------------------------ Bankkonto zuordnen (D-111)
 /**
  * Fragt für ein bei der Synchronisation übersprungenes Bankkonto `{iban, name, art}`, welches Konto seine Umsätze
  * aufnimmt: ein vorhandenes Bestandskonto ohne Synchronisationskonto oder ein neues. Trägt die IBAN in den

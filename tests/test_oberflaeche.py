@@ -73,7 +73,7 @@ def test_service_worker_kennt_alle_module():
 def test_keine_externen_ressourcen():
     """Kein CDN, keine Laufzeit-Downloads: alle Ressourcen liegen im Paket."""
     for datei in WEB.rglob("*"):
-        # D-112: plotly.js (vendor/) enthält nur Vorgabewerte für Funktionen, die Kontor nicht nutzt
+        # D-113: plotly.js (vendor/) enthält nur Vorgabewerte für Funktionen, die Kontor nicht nutzt
         # (Chart Studio, Geo-Karten); die CSP (connect-src 'self') verhindert jeden Abruf.
         if datei.is_file() and datei.suffix in (".html", ".js", ".css", ".webmanifest", ".svg") and datei.parent.name != "vendor":
             text = datei.read_text(encoding="utf-8")

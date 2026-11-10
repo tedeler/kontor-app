@@ -137,7 +137,7 @@ def konto_aendern(con, konto_id: int, d: dict) -> dict:
 
 
 def _zuordnung_erledigt(con, iban: str | None) -> None:
-    """D-110: Trägt ein Konto die IBAN eines nicht zugeordneten Bankkontos, ist dessen Hinweis erledigt."""
+    """D-111: Trägt ein Konto die IBAN eines nicht zugeordneten Bankkontos, ist dessen Hinweis erledigt."""
     if iban:
         con.execute("UPDATE benachrichtigung SET gelesen = 1 WHERE schluessel = ? AND gelesen = 0",
                     (f"konto_nicht_zugeordnet:{iban}",))
@@ -701,7 +701,7 @@ def mehrfach_aendern(con, d: dict) -> dict:
 
 
 def mehrfach_loeschen(con, ids: list[int]) -> dict:
-    """Sammelpaket (D-108): mehrere Buchungen in einer Änderung löschen, atomar. Prüfreihenfolge wie beim
+    """Sammelpaket (D-109): mehrere Buchungen in einer Änderung löschen, atomar. Prüfreihenfolge wie beim
     einzelnen Löschen: unbekannte Buchungen (422), gesperrte Buchungen (409, alle aufgezählt)."""
     ids = sorted(ids)
     fehlend = sorted(set(ids) - _vorhandene_buchungen(con, ids))

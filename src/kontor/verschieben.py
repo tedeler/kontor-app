@@ -1,4 +1,4 @@
-"""Sammelpaket: Buchungen von einem Bestandskonto auf ein anderes verschieben (D-109).
+"""Sammelpaket: Buchungen von einem Bestandskonto auf ein anderes verschieben (D-110).
 
 Verschoben wird je Buchung der Split auf dem Quellkonto; Betrag, Memo, Gegensplits, Status, Tags und
 Herkunftskennungen bleiben. Die Auswahl ist entweder eine Liste von Buchungen oder die Herkunft (Gruppe eines
@@ -75,7 +75,7 @@ def herkunft(con, konto_id: int) -> list[dict]:
 
 
 def verschieben(con, d: dict) -> dict:
-    """``POST /api/buchungen/mehrfach/verschieben`` (D-109), atomar.
+    """``POST /api/buchungen/mehrfach/verschieben`` (D-110), atomar.
 
     Prüfreihenfolge: Quell- und Zielkonto (422 ``referenz_unbekannt`` / ``konto_ungueltig``; gleich → 422
     ``validierung`` schon in der Anfrageprüfung), unbekannte Buchungen bzw. Gruppe (422 ``referenz_unbekannt``), Buchungen ohne Split auf dem

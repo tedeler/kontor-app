@@ -278,7 +278,7 @@ def protokolliert(con, quelle: str, aktion: str, zeitpunkt: str, gruppe: str | N
         if eintraege or k.rueckgaengig_von:
             k.aenderung_id = _speichern(con, quelle, aktion, zeitpunkt, k.gruppe, eintraege, k.rueckgaengig_von,
                                         k.beschreibung)
-            # absteigend: macht U auch Ziele von U rückgängig (Rückgängig bis, D-107), setzt das Freigeben der
+            # absteigend: macht U auch Ziele von U rückgängig (Rückgängig bis, D-108), setzt das Freigeben der
             # Ziele von U deren eigenen Eintrag nicht wieder zurück
             for a in sorted(k.rueckgaengig_von, reverse=True):
                 _durch_setzen(con, a, k.aenderung_id)
@@ -326,7 +326,7 @@ def _durch_setzen(con, aid: int, wert: int | None) -> None:
     war, ist = r["rueckgaengig_durch"] is None, wert is None
     if war != ist:
         # aid wirkt wieder → seine Ziele werden (absteigend) durch aid ersetzt; sonst werden sie aufsteigend
-        # freigegeben, damit eine freigegebene Rückgängig-Änderung ihre eigenen Ziele wieder bindet (D-107)
+        # freigegeben, damit eine freigegebene Rückgängig-Änderung ihre eigenen Ziele wieder bindet (D-108)
         ziele = _von(con, aid)
         for k in (sorted(ziele, reverse=True) if ist else sorted(ziele)):
             _durch_setzen(con, k, aid if ist else None)
@@ -696,7 +696,7 @@ def mehrere_rueckgaengig(con, d: dict, zeitpunkt: str) -> dict:
 
 
 def bis_menge(con, bis_id: int) -> list[int]:
-    """Rückgängig bis (D-107): Änderungen, die nacheinander (absteigend) zurückzunehmen sind, damit der Buchbestand
+    """Rückgängig bis (D-108): Änderungen, die nacheinander (absteigend) zurückzunehmen sind, damit der Buchbestand
     wieder so ist wie unmittelbar vor ``bis_id``. Von der neuesten Änderung abwärts wird jede Änderung
     ``k >= bis_id`` gewählt, die im Zwischenstand nach den bereits gewählten Schritten wirksam ist; die
     Wirksamkeit (6.5) wird dabei im Speicher genauso fortgeschrieben wie von ``_durch_setzen``. Wird eine

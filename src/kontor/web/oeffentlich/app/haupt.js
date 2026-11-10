@@ -325,7 +325,7 @@ function syncErgebnis(lauf, pinDialogOffen) {
   return lauf;
 }
 
-/** D-110: Nach einem Lauf für jedes nicht zugeordnete Bankkonto die Zuordnung anbieten, danach erneut abrufen. */
+/** D-111: Nach einem Lauf für jedes nicht zugeordnete Bankkonto die Zuordnung anbieten, danach erneut abrufen. */
 async function zuordnenNachLauf(lauf) {
   const offen = nichtZugeordnet(lauf);
   if (!offen.length || PIN_FEHLER.has(lauf.fehler && lauf.fehler.code)) return;

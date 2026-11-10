@@ -242,7 +242,7 @@ def test_ueber_fenster(tmp_path, browser):
         expect(tid(page, "menue-knopf")).to_be_focused()
 
 
-# ------------------------------------------------------------------ Sammelpaket (D-107 bis D-112)
+# ------------------------------------------------------------------ Sammelpaket (D-108 bis D-113)
 def test_sammelpaket_loeschen_verschieben_bis(tmp_path, browser):
     with server(tmp_path) as (url, _), seite(browser, url, **DESKTOP) as page:
         page.goto(url + "/")

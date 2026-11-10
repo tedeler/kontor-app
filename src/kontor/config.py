@@ -106,7 +106,7 @@ class KontorConfig:
     lernmodell_automatisch: bool = False
     # Meilenstein 5: Prüfung auf unerwartete Buchungen nach jedem Lauf (python-api.md 12.1)
     wiederkehrend_automatisch: bool = False
-    # Sammelpaket (D-110): unbekannte Bankkonten automatisch als Konto anlegen (synchronisation.md 3) oder
+    # Sammelpaket (D-111): unbekannte Bankkonten automatisch als Konto anlegen (synchronisation.md 3) oder
     # überspringen und den Anwender zuordnen lassen. Vorgabe wie bisher; die ausgelieferte Umgebungsdatei schaltet ab.
     sync_konten_anlegen: bool = True
     # Meilenstein 6: echte Anbindungen und Benachrichtigungen (python-api.md 13.1). Keine Geheimnisse.
