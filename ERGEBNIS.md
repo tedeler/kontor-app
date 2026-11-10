@@ -1,5 +1,19 @@
 # Ergebnis der Implementierung
 
+## Feature Update (Meilenstein-Definition M14 als Entwurf, D-107)
+
+Stand: 2026-11-10, Implementierungs-Thread, Branch `feature/update`. Auf Anweisung des Auftraggebers vor den
+Abnahmetests auf main gemergt (Tests für M14 gibt es in kontor-tests noch nicht; Definition im Projekt unter
+`claude/feature-update.md`).
+
+- Gegen **kontor-tests `65bffb0`**: Volllauf `--voll -m "not leistung" -n 4` **2661 / 2661**.
+- Eigene Tests **128 / 128** (davon 22 neu in `tests/test_update_eigen.py`).
+- Oberfläche im Browser gegen eine lokale Attrappe der GitHub-API geprüft (Punkt am Versionsknopf, Abschnitt
+  „Aktualisierung“ im About-Dialog, Auftrag abgelegt).
+- Einschränkungen: kein echter Abruf bei GitHub aus der Sandbox (direkte Verbindungen ohne Proxy werden dort mit
+  403 abgewiesen; Kontor nutzt absichtlich keinen Proxy aus der Umgebung); Installation und Neustart über systemd
+  nicht real ausgeführt, nur mit untergeschobenen Befehlen getestet.
+
 ## Meilenstein 12 (Bearbeiten, Massenänderungen, Filterleiste) gegen kontor-tests `65bffb0`
 
 Stand: 2026-11-10, Implementierungs-Thread, Branch `feature/buchungsbearbeitung`. Definition und Abnahmetests lagen
