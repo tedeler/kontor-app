@@ -31,6 +31,7 @@ from starlette.staticfiles import StaticFiles
 from . import (__version__, berichte, buch, db, export, kredite, lernmodell, mail, pflege, protokoll, regeln,
                sicherung, vorlagen, wiederkehrend)
 from . import anmeldung as anm
+from . import version as versionsinfo
 from .geheimnisse import REST_NAMEN
 from .schutz import Schutz, cookie_token, ist_https
 from .sync import SyncDienst
@@ -417,6 +418,12 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
             "plugins": {"bank": {"name": config.bank_plugin, "mock": config.bank_plugin == "mock"},
                         "mail": {"name": config.mail_plugin, "mock": config.mail_plugin == "mock"}},
         }
+
+    @endpunkt("GET", "/api/version")
+    async def version(request: Request):
+        """About-Fenster (D-105): Version, Build, Laufzeit und Schemaversionen."""
+        return {**versionsinfo.info(), "modus": modus, "datenbank": str(pfad),
+                "datenbank_schema": db.SCHEMA_VERSION, "sicherung_schema": sicherung.SCHEMAVERSION}
 
     # ------------------------------------------------------------ Konten
     @endpunkt("GET", "/api/konten")

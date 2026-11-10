@@ -1,5 +1,5 @@
 """Kontor – selbst gehostete Finanz-Web-App."""
 
-__version__ = "0.1.0"
+from .version import VERSION as __version__  # Schema MAJOR.MINOR (D-105)
 
 __all__ = ["__version__"]

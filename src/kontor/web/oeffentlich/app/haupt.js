@@ -80,6 +80,32 @@ function menueSchliessen(fokusZurueck) {
 }
 
 menueKnopf.addEventListener("click", () => (menueEbene ? menueSchliessen(true) : menueOeffnen()));
+
+// ------------------------------------------------------------------ Über Kontor (D-105)
+const versionKnopf = tid("version-knopf");
+
+async function ueberOeffnen() {
+  menueSchliessen(false);
+  let info;
+  try { info = await api("GET", "/api/version"); } catch (e) { behandeln(e); return; }
+  const zeile = (testid, titel, wert) => h("tr", null, h("th", { scope: "row" }, titel), h("td", { tid: testid }, wert));
+  const build = info.entwicklungsstand ? "Entwicklungsstand (nicht über die Release-CI gebaut)"
+    : [info.build_datum, info.commit].filter(Boolean).join(" · ") || "–";
+  dialog("ueber-dialog", `Über ${info.name}`, (inhalt, d) => {
+    inhalt.append(
+      h("p", { class: "ueber-version" }, h("strong", { tid: "ueber-version" }, `Version ${info.version}`)),
+      h("table", { class: "ueber-tabelle" }, h("tbody", null,
+        zeile("ueber-build", "Build", build),
+        zeile("ueber-modus", "Modus", info.modus === "mock" ? "Mock-Modus" : "Echtbetrieb"),
+        zeile("ueber-python", "Python", info.python),
+        zeile("ueber-datenbank", "Datenbank", info.datenbank),
+        zeile("ueber-schema", "Schemaversion", `Datenbank ${info.datenbank_schema} · Sicherung ${info.sicherung_schema}`),
+        zeile("ueber-repository", "Quellcode", h("a", { href: info.repository, target: "_blank",
+          rel: "noopener noreferrer" }, info.repository)))),
+      knopfLeiste(knopf("Schließen", { tid: "ueber-schliessen", onclick: () => d.schliessen(null) })));
+  }, { ausloeser: istMobil() ? menueKnopf : versionKnopf, schliessenKnopf: "ueber-x", fokus: (box) => box.querySelector("[data-testid=ueber-schliessen]") });
+}
+versionKnopf.addEventListener("click", ueberOeffnen);
 hintergrund.addEventListener("click", () => menueSchliessen(true));
 
 // ------------------------------------------------------------------ Routen (3)

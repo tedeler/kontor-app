@@ -210,3 +210,33 @@ def test_service_worker_und_offline(tmp_path, browser):
         page.evaluate("() => window.dispatchEvent(new Event('online'))")
         bereit(page, "konten")
         expect(tid(page, "offline-hinweis")).to_be_hidden()
+
+
+def test_ueber_fenster(tmp_path, browser):
+    """D-105: Klick auf die Versionsnummer öffnet das About-Fenster (Desktop und mobil über das Menü)."""
+    import kontor
+    with server(tmp_path, daten=False) as (url, config), seite(browser, url, **DESKTOP) as page:
+        page.goto(url + "/")
+        bereit(page, "uebersicht")
+        knopf = tid(page, "version-knopf")
+        expect(knopf).to_have_text(f"Version {kontor.__version__}")
+        knopf.click()
+        expect(tid(page, "ueber-dialog")).to_be_visible()
+        expect(tid(page, "ueber-version")).to_have_text(f"Version {kontor.__version__}")
+        expect(tid(page, "ueber-modus")).to_have_text("Mock-Modus")
+        expect(tid(page, "ueber-datenbank")).to_have_text(str(config.aktive_datenbank))
+        expect(tid(page, "ueber-schliessen")).to_be_focused()
+        page.keyboard.press("Escape")
+        expect(tid(page, "ueber-dialog")).to_have_count(0)
+        expect(knopf).to_be_focused()
+    with server(tmp_path / "m", daten=False) as (url, _), seite(browser, url, **HANDY) as page:
+        page.goto(url + "/")
+        bereit(page, "uebersicht")
+        tid(page, "menue-knopf").click()
+        tid(page, "version-knopf").click()
+        expect(tid(page, "ueber-dialog")).to_be_visible()
+        expect(tid(page, "navigation")).to_be_hidden()
+        assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
+        tid(page, "ueber-schliessen").click()
+        expect(tid(page, "ueber-dialog")).to_have_count(0)
+        expect(tid(page, "menue-knopf")).to_be_focused()

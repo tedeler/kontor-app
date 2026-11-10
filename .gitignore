@@ -10,3 +10,5 @@ dist/
 *.sqlite3-wal
 *.sqlite3-shm
 daten/
+# von der Release-CI erzeugt (D-105)
+src/kontor/build.json

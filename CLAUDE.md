@@ -86,6 +86,8 @@ Commit-Nachrichten sind auf Deutsch.
 | `src/kontor/betrieb/` | M7: ausgelieferte systemd-Units, sysusers, `kontor.env`, Drop-in (Paketdaten) |
 | `src/kontor/__main__.py` | M7: Startmodul `python -m kontor` (ohne Argumente, Logging nach stderr, uvicorn) |
 | `src/kontor/web/` | M8: Hülle `index.html`, Service Worker `sw.js`, Anmeldeseite `anmelden.html`; unter `oeffentlich/` Stile `app.css`, Symbole, Manifest und die ES-Module `app/` (`kern`, `ui`, `baum`, `konto`, `seiten`, `haupt`), ohne externe Ressourcen |
+| `src/kontor/VERSION`, `version.py`, `release.py` | Versionsnummer `MAJOR.MINOR`, Build-Angaben aus `build.json`, Kommandozeile der Release-CI (D-105) |
+| `.github/workflows/release.yml` | Release-CI: bei jedem Push auf main Minor + 1, Major nur von Hand (D-105) |
 | `tests/` | eigene Tests (ergänzend; ersetzen nicht die Tests aus kontor-tests) |
 
 ## Hinweise ab Meilenstein 4
@@ -198,6 +200,12 @@ Commit-Nachrichten sind auf Deutsch.
 - Oberfläche: Kontoansicht kennt `istKategorie` (Spalte `konto`, Filter `filter-konto`), URL ohne
   Vorgabesortierung (D-104).
 - Maßstab: alle Tests einschließlich `m11` (AqBanking- und Browsertests laufen, nicht übersprungen).
+
+## Hinweise zur Versionierung (D-105)
+
+- Die Version nie von Hand in `VERSION` ändern; das macht nur die Release-CI beim Push auf main. Nach einem
+  Merge daher `git pull` (die CI committet „Version x.yy veröffentlicht“ auf main).
+- Neue Angaben im About-Fenster über `GET /api/version` (`app.py`) und `ueberOeffnen` (`haupt.js`).
 
 ## Codequalität vor jedem Meilenstein
 

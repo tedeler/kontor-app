@@ -1228,3 +1228,32 @@ Weitere Abkürzungen: SY = `spec/api/synchronisation.md`, KA =
   buchhaltungspflege.md 2.4/10 im Browser nach (Vergleich ohne Groß-/Kleinschreibung und Leerraum); maßgeblich
   bleibt der Server. Mobil zeigt die Kategorieansicht Kategorie und Konto nebeneinander in der zweiten Zeile.
 - **Begründung:** oberflaeche.md 7.1, 22.1–22.4, E-163 bis E-165.
+
+## D-105 Versionierung, Release-CI und About-Fenster (Feature `versionierung`)
+
+- **Auftrag (2026-11-10, iterativ abgestimmt):** Versionsschema `MAJOR.MINOR` mit zweistelligem Minor (`0.07`,
+  `1.00`); bei jedem Release auf main Minor + 1, Major nur auf Anweisung; Release-CI in GitHub; Klick auf die
+  Versionsnummer öffnet ein About-Fenster.
+- **Entscheidung:**
+  - Einzige Quelle ist die Paketdatei `src/kontor/VERSION` (Startwert `0.00` = noch kein Release). Daraus lesen
+    `kontor.__version__`, `pyproject.toml` (`dynamic`), `/api/status`, die Hülle (`{{VERSION}}`) und die Sicherung
+    (`app_version`). `0.07` ist PEP 440-gültig (python-api.md 1); Paketwerkzeuge normalisieren es zu `0.7`, daher
+    heißen Wheel und Quellpaket z. B. `kontor-0.7-…` – die Anzeige bleibt `0.07`.
+  - Nach `0.99` folgt `0.100` (Minor zählt ohne Grenze weiter); Major steigt nie von selbst.
+  - Release = jeder Push auf main (`.github/workflows/release.yml`), d. h. jeder Merge eines Feature-Branches.
+    Major über „Run workflow“ mit `major` angekreuzt. Die CI führt die eigenen Tests aus, erhöht die Version
+    (`python -m kontor.release`), committet sie als „Kontor Release-CI“ mit `[skip ci]`, setzt den Tag
+    `vMAJOR.MINOR`, schreibt `build.json` (Commit, Build-Datum, nicht im Repository), baut Wheel und Quellpaket,
+    prüft das installierte Wheel, pusht atomar und legt ein GitHub-Release mit automatischen Notizen an.
+  - Die Abnahmetests aus kontor-tests laufen nicht in der CI: Dafür bräuchte die CI einen Zugang zu kontor-tests
+    (Secret), und Secrets legen Threads nicht an. Abnahme bleibt Schritt 6 des Feature-Ablaufs.
+  - Neuer Endpunkt `GET /api/version` (geschützt wie alle Endpunkte außer sicherheit.md 3.1): `name`, `version`,
+    `commit` (12 Zeichen oder null), `build_datum` (oder null), `entwicklungsstand` (true ohne `build.json`),
+    `python`, `repository`, `modus`, `datenbank` (Pfad der aktiven Datenbank), `datenbank_schema`,
+    `sicherung_schema`. Kein fachlicher Zustand, nichts im Protokoll oder in der Sicherung.
+  - Oberfläche: Knopf `version-knopf` („Version 0.07“) unten in der Navigation, serverseitig in die Hülle
+    eingesetzt; Klick öffnet den Dialog `ueber-dialog` (Felder `ueber-version`, `ueber-build`, `ueber-modus`,
+    `ueber-python`, `ueber-datenbank`, `ueber-schema`, `ueber-repository`, Knopf `ueber-schliessen`, Esc schließt,
+    Fokus zurück auf den Knopf). Mobil schließt der Klick zuerst das Menü.
+- **Begründung:** Eine Datei als Quelle verhindert abweichende Angaben; die CI ist der einzige Ort, der hochzählt,
+  damit Feature-Branches keine Versionskonflikte erzeugen.
