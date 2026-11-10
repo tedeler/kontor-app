@@ -225,7 +225,7 @@ export function abfrage(params) {
 }
 
 // ------------------------------------------------------------------ Stammdaten
-export const stamm = { konten: [], tags: [], empfaenger: [] };
+export const stamm = { konten: [], tags: [], empfaenger: [], empfaengerFolge: [] };
 
 export async function stammLaden() {
   const [konten, tags, empfaenger] = await Promise.all([
@@ -233,6 +233,7 @@ export async function stammLaden() {
   stamm.konten = konten;
   stamm.tags = tags;
   stamm.empfaenger = empfaenger.slice().sort(nachName);
+  stamm.empfaengerFolge = empfaenger;   // Reihenfolge der Antwort (oberflaeche.md 23.2)
   return stamm;
 }
 
