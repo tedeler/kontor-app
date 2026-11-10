@@ -1,5 +1,20 @@
 # Ergebnis der Implementierung
 
+## Feature Versionierung (Meilenstein-Definition M13, D-105)
+
+Stand: 2026-11-10, Implementierungs-Thread, Branch `feature/versionierung`. Definition vom Auftraggeber freigegeben;
+auf seine Anweisung vor den Abnahmetests auf main gemergt (Tests für M13 gibt es in kontor-tests noch nicht).
+
+- Gegen **kontor-tests `569016f`**: Schnelllauf `python -m pytest -n auto` 2198 bestanden, 54 rot – alle in
+  `tests/app/m12/` (M12 ist noch nicht umgesetzt); außerhalb von M12 keine Fehlschläge. `-m m8 --voll`: 258/258 nach
+  der Umbenennung `nav-version` → `version-knopf` (die Navigation darf nur die spezifizierten `nav-`Einträge haben).
+- Eigene Tests: alle grün außer dem vorbestehenden `test_m3_eigen.py::test_migration_von_schemaversion_2_ohne_datenverlust`
+  (Datei `tests/daten/schema_m2.sql` fehlt im Repository, weil `.gitignore` `daten/` ausschließt; nicht Teil dieses
+  Features).
+- Release-CI lokal nachgestellt (Version erhöhen, `build.json`, Wheel bauen, installiert prüfen); der erste echte Lauf
+  folgt mit dem Merge auf main (erwartet: `v0.01`).
+- Einschränkung: Kein Volllauf `--voll` aller Abnahmetests in einem Durchgang (Zeitgrenze der Sitzung).
+
 ## Meilenstein 11 (Kontostand, Kategorien als Konten, Empfänger zusammenführen)
 
 Stand: 2026-11-09, Implementierungs-Thread.
