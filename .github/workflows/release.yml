@@ -1,0 +1,106 @@
+# Release-CI von Kontor (D-105).
+#
+# Jeder Push auf main (also jeder Merge eines Feature-Branches) ist ein Release: Minor wird um 1 erhöht
+# (0.07 → 0.08). Major wird nur auf Anweisung erhöht: Workflow „Release“ von Hand starten und „major“ ankreuzen
+# (0.08 → 1.00). Die CI committet die neue VERSION auf main, setzt den Tag vMAJOR.MINOR und legt ein
+# GitHub-Release mit automatisch erzeugten Notizen sowie Wheel und Quellpaket an.
+#
+# Die Commits der CI selbst lösen keinen weiteren Lauf aus (Pushes mit GITHUB_TOKEN starten keine Workflows).
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      major:
+        description: "Major-Version erhöhen (Minor wird 00)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Quellstand holen
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Python einrichten
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Abhängigkeiten installieren
+        run: python -m pip install -e ".[test]" build
+
+      - name: Eigene Tests
+        # Browser- und AqBanking-Tests werden ohne Chrome bzw. aqbanking-tools übersprungen.
+        run: python -m pytest -q -p no:cacheprovider tests
+
+      - name: Version erhöhen
+        id: version
+        env:
+          MAJOR: ${{ github.event_name == 'workflow_dispatch' && inputs.major }}
+        run: |
+          git pull --rebase origin main
+          if [ "$MAJOR" = "true" ]; then
+            neu=$(python -m kontor.release hochzaehlen --major src/kontor/VERSION)
+          else
+            neu=$(python -m kontor.release hochzaehlen src/kontor/VERSION)
+          fi
+          if git rev-parse -q --verify "refs/tags/v$neu" >/dev/null; then
+            echo "::error::Tag v$neu gibt es schon"
+            exit 1
+          fi
+          echo "neu=$neu" >> "$GITHUB_OUTPUT"
+          echo "Neue Version: $neu"
+
+      - name: Version committen und taggen
+        env:
+          NEU: ${{ steps.version.outputs.neu }}
+        run: |
+          git config user.name "Kontor Release-CI"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Version $NEU veröffentlicht [skip ci]" -- src/kontor/VERSION
+          git tag -a "v$NEU" -m "Kontor $NEU"
+
+      - name: Pakete bauen
+        env:
+          NEU: ${{ steps.version.outputs.neu }}
+        run: |
+          python -m kontor.release build src/kontor/build.json \
+            --commit "$(git rev-parse HEAD)" --datum "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          python -m build --outdir dist
+          ls -l dist
+
+      - name: Paket prüfen
+        env:
+          NEU: ${{ steps.version.outputs.neu }}
+        run: |
+          python -m venv /tmp/pruefung
+          /tmp/pruefung/bin/pip install -q dist/*.whl
+          /tmp/pruefung/bin/python -c "import kontor, kontor.version as v, sys; \
+            assert kontor.__version__ == '$NEU', kontor.__version__; \
+            b = v.build(); assert not b['entwicklungsstand'] and b['commit'], b; print(kontor.__version__, b)"
+
+      - name: Pushen
+        env:
+          NEU: ${{ steps.version.outputs.neu }}
+        run: git push --atomic origin HEAD:main "v$NEU"
+
+      - name: GitHub-Release anlegen
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NEU: ${{ steps.version.outputs.neu }}
+        run: |
+          gh release create "v$NEU" dist/* --verify-tag --title "Kontor $NEU" --generate-notes
