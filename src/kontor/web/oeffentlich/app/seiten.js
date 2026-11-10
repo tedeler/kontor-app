@@ -203,7 +203,7 @@ export async function kredite(seite) {
     li.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); oeffnen(); } });
     return li;
   }));
-  seite.append(ul, liste.length ? null : leer("Noch keine Kredite."));
+  seite.append(...[ul, liste.length ? null : leer("Noch keine Kredite.")].filter(Boolean));
   return { titel: "Kredite" };
 }
 
@@ -396,9 +396,9 @@ function farben() {
 
 function plotlyLayout(f, achse, extra) {
   return {
-    margin: { l: 100, r: 16, t: 10, b: 40 }, height: 300, separators: ",.", paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
+    margin: { l: 100, r: 16, t: 36, b: 40 }, height: 320, separators: ",.", paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
     font: { color: f.text, family: "inherit" }, hovermode: "x unified", showlegend: true,
-    legend: { orientation: "h", y: -0.18 },
+    legend: { orientation: "h", x: 0, y: 1.02, yanchor: "bottom" },
     xaxis: { type: "date", gridcolor: f.rand, linecolor: f.rand, tickformat: "%d.%m.%Y", hoverformat: "%d.%m.%Y" },
     yaxis: { tickmode: "array", tickvals: achse.tickvals, ticktext: achse.ticktext, range: achse.range, gridcolor: f.rand,
       zeroline: true, zerolinecolor: f.text2, fixedrange: true },
@@ -406,7 +406,8 @@ function plotlyLayout(f, achse, extra) {
   };
 }
 
-const PLOTLY_OPTIONEN = { displaylogo: false, responsive: true,
+const PLOTLY_OPTIONEN = { displaylogo: false, responsive: true, showSendToCloud: false, showEditInChartStudio: false,
+  showLink: false, plotlyServerURL: "", topojsonURL: "/oeffentlich/vendor/",
   modeBarButtonsToRemove: ["select2d", "lasso2d", "autoScale2d", "toggleSpikelines"] };
 
 async function diagrammZeichnen(rahmen, b) {
@@ -731,7 +732,7 @@ export async function protokoll(seite) {
   seiteNr = 1;
   geladen = s.eintraege;
   zeichnen(s.gesamt);
-  seite.append(liste, geladen.length ? null : leer("Noch keine Änderungen."), mehr);
+  seite.append(...[liste, geladen.length ? null : leer("Noch keine Änderungen."), mehr].filter(Boolean));
   return { titel: "Änderungsprotokoll" };
 }
 

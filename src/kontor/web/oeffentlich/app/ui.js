@@ -706,12 +706,12 @@ export function zuordnungDialog(bk, ausloeser, hinweis) {
           danach: () => dd.schliessen(true), erfolg: `Konto „${n}“ für das Bankkonto angelegt.` });
       }
     }));
-    inhalt.append(h("p", null, "Für das Bankkonto ", h("strong", null, bk.name || bk.iban), ` (IBAN ${bk.iban}) gibt es noch kein Konto. `
+    inhalt.append(...[h("p", null, "Für das Bankkonto ", h("strong", null, bk.name || bk.iban), ` (IBAN ${bk.iban}) gibt es noch kein Konto. `
       + "Wohin sollen seine Umsätze übernommen werden?"), hinweis ? h("p", { class: "hinweis" }, hinweis) : null,
     h("fieldset", { class: "umfang" }, h("legend", null, "Konto"), rVorhanden, vorhanden, rNeu,
       h("div", { class: "formular-zeile" }, feld("Name", neuName), feld("Art", neuArt))),
     h("p", { class: "hinweis" }, "Die IBAN wird in den Einstellungen des Kontos als Synchronisationskonto eingetragen."),
-    knopfLeiste(ok, knopf("Später", { tid: "zuordnung-spaeter", onclick: () => dd.schliessen(false) })));
+    knopfLeiste(ok, knopf("Später", { tid: "zuordnung-spaeter", onclick: () => dd.schliessen(false) }))].filter(Boolean));
     aktualisieren();
   }, { ausloeser });
   return d.ergebnis;

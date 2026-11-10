@@ -5,7 +5,7 @@ import {
   kontoNach, kontoPfad, melde, neueId, oberflaeche, pfadVon, stamm, tid,
 } from "./kern.js";
 import {
-  bestaetigen, dialog, dubletteDialog, erfassenDialog, imDialog, kategorieAuswahl, kontextmenue, knopf, knopfLeiste,
+  bestaetigen, dialog, dubletteDialog, erfassenDialog, feld, imDialog, kategorieAuswahl, kontextmenue, knopf, knopfLeiste,
   kontoEinstellungen, menuePosition, splitDialog, tagAuswahl,
 } from "./ui.js";
 import { kategorienBaum, langeBeruehrung, ziehbar } from "./baum.js";
@@ -467,13 +467,13 @@ class Kontoansicht {
   vorschlagText(v) {
     const pct = v.sicherheit === null || v.sicherheit === undefined ? null : `${Math.floor((v.sicherheit + 5) / 10)} %`;
     if (v.quelle === "lernmodell") {
-      return { kurz: pct ? `Lernmodell ${pct}` : "Lernmodell", lang: `Vorschlag des Lernmodells${pct ? `, Sicherheit ${pct}` : ""}` };
+      return { marke: pct || "LM", lang: `Vorschlag des Lernmodells${pct ? `, Sicherheit ${pct}` : ""}` };
     }
     if (v.quelle === "regel") {
       const name = v.regel_id && this.regelNamen ? this.regelNamen.get(v.regel_id) : null;
-      return { kurz: "Regel", lang: name ? `Vorschlag der Regel „${name}“` : "Vorschlag einer Regel" };
+      return { marke: "Regel", lang: name ? `Vorschlag der Regel „${name}“` : "Vorschlag einer Regel" };
     }
-    return { kurz: "Empfänger", lang: "Vorschlag: Standardkategorie des Empfängers" };
+    return { marke: "Empf.", lang: "Vorschlag: Standardkategorie des Empfängers" };
   }
 
   async regelnLaden(eintraege) {
@@ -496,8 +496,9 @@ class Kontoansicht {
         knopf("Ablehnen", { tid: "details-vorschlag-ablehnen", onclick: () => this.vorschlag(null, [b.id], "ablehnen") })));
     // Alternativen des Lernmodells (lernmodell.md 5.3, ohne Wirkung)
     this.kandidatenCache = this.kandidatenCache || new Map();
-    const fuellen = (liste) => {
-      if (!liste || !liste.length) return;
+    const fuellen = (alle) => {
+      const liste = (alle || []).filter((k) => k.sicherheit >= 5 || k.kategorie_id === v.kategorie_id);   // ab 1 %
+      if (!liste.length) return;
       kandidaten.replaceChildren(h("li", { class: "klein kopf" }, "Einschätzung des Lernmodells:"),
         ...liste.map((k) => h("li", { "data-kategorie-id": String(k.kategorie_id),
           class: k.kategorie_id === v.kategorie_id ? "gewaehlt" : "" },
@@ -596,11 +597,11 @@ class Kontoansicht {
       // Sammelpaket (D-111): vorgeschlagene Kategorie, Quelle und Sicherheit je Zeile
       kat.append(h("span", { class: "vorschlag-marke", tid: "vorschlag-marke", title: vs.lang, "aria-label": vs.lang,
         "data-quelle": b.vorschlag.quelle, "data-sicherheit": b.vorschlag.sicherheit === null || b.vorschlag.sicherheit === undefined
-          ? "" : String(b.vorschlag.sicherheit) }, vs.kurz),
+          ? "" : String(b.vorschlag.sicherheit) }, vs.marke), h("span", { class: "vorschlag-knoepfe" },
         h("button", { type: "button", class: "mini-knopf", tid: `vorschlag-annehmen-${b.id}`, "data-nicht-ziehen": "",
           "aria-label": `Vorschlag ${katText} annehmen`, onclick: (e) => this.vorschlag(e, [b.id], "annehmen") }, "✓"),
         h("button", { type: "button", class: "mini-knopf", tid: `vorschlag-ablehnen-${b.id}`, "data-nicht-ziehen": "",
-          "aria-label": "Vorschlag ablehnen", onclick: (e) => this.vorschlag(e, [b.id], "ablehnen") }, "✗"));
+          "aria-label": "Vorschlag ablehnen", onclick: (e) => this.vorschlag(e, [b.id], "ablehnen") }, "✗")));
     }
     const empfName = b.empfaenger ? b.empfaenger.name : "";
     const empf = h("div", { role: "gridcell", class: "zelle zelle-empfaenger", "data-feld": "empfaenger",
@@ -1012,12 +1013,12 @@ class Kontoansicht {
           danach: () => d.schliessen(true),
           erfolg: (r) => `${r && r.anzahl === 1 ? "1 Buchung" : `${r ? r.anzahl : ""} Buchungen`} nach „${zielName}“ verschoben.` });
       }));
-      inhalt.append(feld("Zielkonto", ziel), h("fieldset", { class: "umfang" }, h("legend", null, "Welche Buchungen?"),
+      inhalt.append(...[feld("Zielkonto", ziel), h("fieldset", { class: "umfang" }, h("legend", null, "Welche Buchungen?"),
         rAuswahl, rHerkunft, herkunftWahl),
       !sortiert.length && !herkunft.length ? h("p", { class: "hinweis" }, "Bitte zuerst Buchungen auswählen.") : null,
       this.konto.iban ? h("p", { class: "hinweis" }, "Hinweis: Künftige Umsätze des Bankkontos landen weiter in diesem Konto, "
         + "solange das Synchronisationskonto in den Kontoeinstellungen nicht geändert wird.") : null,
-      knopfLeiste(ok, knopf("Abbrechen", { onclick: () => d.schliessen(null) })));
+      knopfLeiste(ok, knopf("Abbrechen", { onclick: () => d.schliessen(null) }))].filter(Boolean));
       aktualisieren();
     }, { ausloeser });
   }
