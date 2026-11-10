@@ -100,8 +100,8 @@ async function ueberOeffnen() {
         zeile("ueber-python", "Python", info.python),
         zeile("ueber-datenbank", "Datenbank", info.datenbank),
         zeile("ueber-schema", "Schemaversion", `Datenbank ${info.datenbank_schema} · Sicherung ${info.sicherung_schema}`),
-        zeile("ueber-repository", "Quellcode", h("a", { href: info.repository, target: "_blank",
-          rel: "noopener noreferrer" }, info.repository)))),
+        h("tr", null, h("th", { scope: "row" }, "Quellcode"), h("td", null, h("a", { tid: "ueber-repository",
+          href: info.repository, target: "_blank", rel: "noopener noreferrer" }, info.repository))))),
       knopfLeiste(knopf("Schließen", { tid: "ueber-schliessen", onclick: () => d.schliessen(null) })));
   }, { ausloeser: istMobil() ? menueKnopf : versionKnopf, schliessenKnopf: "ueber-x", fokus: (box) => box.querySelector("[data-testid=ueber-schliessen]") });
 }

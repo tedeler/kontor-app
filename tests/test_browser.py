@@ -224,7 +224,7 @@ def test_ueber_fenster(tmp_path, browser):
         expect(tid(page, "ueber-dialog")).to_be_visible()
         expect(tid(page, "ueber-version")).to_have_text(f"Version {kontor.__version__}")
         expect(tid(page, "ueber-modus")).to_have_text("Mock-Modus")
-        expect(tid(page, "ueber-datenbank")).to_have_text(str(config.aktive_datenbank))
+        expect(tid(page, "ueber-datenbank")).to_have_text(str(config.aktive_datenbank.resolve()))
         expect(tid(page, "ueber-schliessen")).to_be_focused()
         page.keyboard.press("Escape")
         expect(tid(page, "ueber-dialog")).to_have_count(0)
