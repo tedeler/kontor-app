@@ -129,6 +129,14 @@ MEHRFACH_TAGS = {
     "hinzufuegen": S("int_liste"),
     "entfernen": S("int_liste"),
 }
+MEHRFACH_AENDERUNG = {
+    "buchung_ids": S("int_liste", pflicht=True, min_items=1, eindeutig=True),
+    "status": S("enum", werte=STATUS),
+    "datum": S("datum"),
+    "empfaenger_id": S("int", nullbar=True),
+    "verwendungszweck": S("str", max_len=10000),
+    "entsperren": S("bool"),
+}
 TAG_EINGABE = {"name": S("str", pflicht=True, strip=True, min_len=1, max_len=100)}
 ALIASE = S("str_liste", strip=True, min_len=1, max_len=200, max_items=100)
 EMPFAENGER_NEU = {"name": S("str", pflicht=True, strip=True, min_len=1, max_len=200), "aliase": ALIASE,
@@ -518,6 +526,14 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
         d = await koerper(request, MEHRFACH_TAGS)
         return await aendern("mehrfach_tags", buch.mehrfach_tags, d["buchung_ids"], d.get("hinzufuegen") or [],
                                d.get("entfernen") or [])
+
+    @endpunkt("POST", "/api/buchungen/mehrfach/aendern")
+    async def mehrfach_aendern(request: Request):
+        d = await koerper(request, MEHRFACH_AENDERUNG)
+        if not any(f in d for f in ("status", "datum", "empfaenger_id", "verwendungszweck")):
+            raise Validierungsfehler([fehler_eintrag(
+                ["body"], "Mindestens eines der Felder status, datum, empfaenger_id, verwendungszweck.")])
+        return await aendern("mehrfach_aendern", buch.mehrfach_aendern, d)
 
     @endpunkt("GET", "/api/buchungen/{buchung_id:int}")
     async def buchung_lesen(request: Request):
