@@ -164,12 +164,18 @@ class KontorConfig:
     # Meilenstein 11: Kontostand bei der Synchronisation (python-api.md 17.1, kontostand.md)
     aqbanking_saldo: bool = False
     sync_saldo_angleichen: bool = True
+    # Feature update (D-107): Suche nach neuen Releases auf GitHub, Update-Dienst
+    update_pruefen: bool = False
+    update_url: str = "https://api.github.com/repos/tedeler/kontor-app/releases/latest"
+    update_intervall_stunden: int = 24
+    update_verzeichnis: pathlib.Path | None = None
 
     def __post_init__(self) -> None:
         setze = object.__setattr__
         self._m6_pruefen()
         self._m7_pruefen()
         self._m10_pruefen()
+        self._aktualisierung_pruefen()
         if not isinstance(self.wiederkehrend_automatisch, bool):
             raise KonfigurationsFehler("wiederkehrend_automatisch muss wahr oder falsch sein.",
                                        feld="wiederkehrend_automatisch")
@@ -336,6 +342,16 @@ class KontorConfig:
             raise KonfigurationsFehler("aqbanking_timeout_sekunden muss eine Ganzzahl von 1 bis 3600 sein.",
                                        feld="aqbanking_timeout_sekunden")
 
+    def _aktualisierung_pruefen(self) -> None:
+        if not isinstance(self.update_pruefen, bool):
+            raise KonfigurationsFehler("update_pruefen muss wahr oder falsch sein.", feld="update_pruefen")
+        if (not isinstance(self.update_intervall_stunden, int) or isinstance(self.update_intervall_stunden, bool)
+                or not 1 <= self.update_intervall_stunden <= 720):
+            raise KonfigurationsFehler("update_intervall_stunden muss eine Ganzzahl von 1 bis 720 sein.",
+                                       feld="update_intervall_stunden")
+        if not isinstance(self.update_url, str) or not self.update_url.startswith(("https://", "http://127.0.0.1")):
+            raise KonfigurationsFehler("update_url muss eine HTTPS-Adresse sein.", feld="update_url")
+
     @property
     def standard_mock_datenbank(self) -> pathlib.Path:
         d = self.datenbank
@@ -384,6 +400,7 @@ class KontorConfig:
         m6 = _m6_aus_umgebung(wert)
         m7 = _m7_aus_umgebung(wert)
         m10 = _m10_aus_umgebung(wert)
+        upd = _update_aus_umgebung(wert)
         heute_text = wert("KONTOR_MOCK_HEUTE")
         mock_heute = None
         if heute_text:
@@ -411,6 +428,7 @@ class KontorConfig:
             **m6,
             **m7,
             **m10,
+            **upd,
         )
 
 
@@ -458,6 +476,22 @@ def _m10_aus_umgebung(wert: Callable[[str], str]) -> dict:
     aus["aqbanking_saldo"] = _wahrheitswert(wert("KONTOR_AQBANKING_SALDO"), "KONTOR_AQBANKING_SALDO", False)
     aus["sync_saldo_angleichen"] = _wahrheitswert(wert("KONTOR_SYNC_SALDO_ANGLEICHEN"),
                                                   "KONTOR_SYNC_SALDO_ANGLEICHEN", True)
+    return aus
+
+
+def _update_aus_umgebung(wert: Callable[[str], str]) -> dict:
+    """Feature update (D-107): KONTOR_UPDATE_PRUEFEN, _URL, _INTERVALL_STUNDEN, _VERZEICHNIS."""
+    aus: dict = {"update_pruefen": _wahrheitswert(wert("KONTOR_UPDATE_PRUEFEN"), "KONTOR_UPDATE_PRUEFEN", False)}
+    if wert("KONTOR_UPDATE_URL"):
+        aus["update_url"] = wert("KONTOR_UPDATE_URL")
+    variable = "KONTOR_UPDATE_INTERVALL_STUNDEN"
+    text = wert(variable)
+    if text:
+        if not text.isascii() or not text.isdigit() or not 1 <= int(text) <= 720:
+            raise KonfigurationsFehler(f"{variable} muss eine Ganzzahl von 1 bis 720 sein.", variable=variable)
+        aus["update_intervall_stunden"] = int(text)
+    if wert("KONTOR_UPDATE_VERZEICHNIS"):
+        aus["update_verzeichnis"] = pathlib.Path(wert("KONTOR_UPDATE_VERZEICHNIS"))
     return aus
 
 
