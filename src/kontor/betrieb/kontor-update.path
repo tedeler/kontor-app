@@ -1,0 +1,11 @@
+# Kontor – Update-Dienst auslösen (D-107). Ziel: /etc/systemd/system/kontor-update.path
+# Kontor (Benutzer kontor) legt im About-Dialog den Auftrag auftrag.json ab; dann startet kontor-update.service.
+[Unit]
+Description=Kontor – auf Update-Aufträge warten
+
+[Path]
+PathExists=/var/lib/kontor/update/auftrag.json
+Unit=kontor-update.service
+
+[Install]
+WantedBy=paths.target

@@ -30,6 +30,7 @@ from starlette.staticfiles import StaticFiles
 
 from . import (__version__, berichte, buch, db, export, kredite, lernmodell, mail, pflege, protokoll, regeln,
                sicherung, verschieben, vorlagen, wiederkehrend)
+from . import aktualisierung
 from . import anmeldung as anm
 from . import version as versionsinfo
 from .geheimnisse import REST_NAMEN
@@ -137,6 +138,7 @@ MEHRFACH_AENDERUNG = {
     "verwendungszweck": S("str", max_len=10000),
     "entsperren": S("bool"),
 }
+UPDATE_INSTALLIEREN = {"version": S("str", pflicht=True, min_len=4, max_len=20)}
 TAG_EINGABE = {"name": S("str", pflicht=True, strip=True, min_len=1, max_len=100)}
 ALIASE = S("str_liste", strip=True, min_len=1, max_len=200, max_items=100)
 EMPFAENGER_NEU = {"name": S("str", pflicht=True, strip=True, min_len=1, max_len=200), "aliase": ALIASE,
@@ -313,14 +315,17 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     sync.zustellung.vorbereiten()  # M6: neue Benachrichtigungen ausstehend oder „keine“ (benachrichtigungen.md 4.1)
     zustellung = sync.zustellung
     maildienst = sync.mail
+    updates = aktualisierung.UpdateDienst(config)  # D-107: Betriebszustand, nur im Arbeitsspeicher
 
     @contextlib.asynccontextmanager
     async def lebensdauer(_app):
         # Der Planer-Thread startet nur im ASGI-Lifespan, nie in create_app (synchronisation.md 9).
         sync.planer_starten()
+        updates.starten()
         try:
             yield
         finally:
+            await run_in_threadpool(updates.beenden)
             # betrieb.md 5.2: Planer anhalten, laufenden Lauf in der Frist beenden, WAL-Checkpoint
             await run_in_threadpool(sync.beenden)
             await run_in_threadpool(db.checkpoint, pfad)
@@ -330,6 +335,7 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
                           lifespan=lebensdauer)
     app.state.config = config
     app.state.sync = sync
+    app.state.updates = updates
     app.add_middleware(ModusHeader, modus=modus)
     app.add_middleware(Schutz, config=config, modus=modus)  # M7: äußerste Hülle (sicherheit.md 3, 4.6, 6, 8, 10)
     anmeldedienst = anm.Anmeldedienst(config)
@@ -439,6 +445,23 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
         """About-Fenster (D-105): Version, Build, Laufzeit und Schemaversionen."""
         return {**versionsinfo.info(), "modus": modus, "datenbank": str(pathlib.Path(pfad).resolve()),
                 "datenbank_schema": db.SCHEMA_VERSION, "sicherung_schema": sicherung.SCHEMAVERSION}
+
+    # ------------------------------------------------------------ Aktualisierung (D-107)
+    @endpunkt("GET", "/api/update")
+    async def update_status(request: Request):
+        return updates.status()
+
+    @endpunkt("POST", "/api/update/pruefen")
+    async def update_pruefen(request: Request):
+        roh = await request.body()
+        if roh.strip():
+            pruefe_koerper(roh, {})  # leerer Körper oder {} (unbekannte Felder → 422)
+        return await run_in_threadpool(updates.pruefen)
+
+    @endpunkt("POST", "/api/update/installieren", 202)
+    async def update_installieren(request: Request):
+        d = await koerper(request, UPDATE_INSTALLIEREN)
+        return await run_in_threadpool(updates.installieren, d["version"])
 
     # ------------------------------------------------------------ Konten
     @endpunkt("GET", "/api/konten")

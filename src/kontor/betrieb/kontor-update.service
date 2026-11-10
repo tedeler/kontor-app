@@ -1,0 +1,25 @@
+# Kontor – Update-Dienst (D-107). Ziel: /etc/systemd/system/kontor-update.service
+# Läuft als root, weil er ins venv unter /opt/kontor schreibt und Kontor neu startet; der Hauptdienst bleibt
+# gehärtet und kann nur einen Auftrag (gewünschte Versionsnummer) ablegen. Das Programm fragt die GitHub-API
+# selbst, prüft die SHA-256-Prüfsumme des Wheels, legt vorher eine Sicherung an (kontor-sicherung.service) und
+# schreibt das Ergebnis nach /var/lib/kontor/update/ergebnis.json.
+[Unit]
+Description=Kontor – Aktualisierung aus einem GitHub-Release
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/kontor/kontor.env
+ExecStart=/opt/kontor/venv/bin/python -m kontor.aktualisierung ausfuehren --verzeichnis /var/lib/kontor/update --venv /opt/kontor/venv
+TimeoutStartSec=20min
+UMask=0022
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=yes
+ProtectSystem=full
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictRealtime=yes
+LockPersonality=yes

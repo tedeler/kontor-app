@@ -1279,6 +1279,32 @@ Weitere Abkürzungen: SY = `spec/api/synchronisation.md`, KA =
 - **Begründung:** Nah an `PATCH` und den übrigen Mehrfach-Endpunkten; eine Funktion je Oberflächenablauf hält
   Rückfrage und Fehlermeldung einheitlich.
 
+## D-107 Aktualisierung über GitHub-Releases (Feature `update`)
+
+- **Frage:** Wie sucht Kontor nach neuen Releases, zeigt sie an und aktualisiert sich aus dem About-Dialog, ohne
+  die Härtung des Dienstes (`ProtectSystem=strict`, Benutzer `kontor`) aufzugeben?
+- **Entscheidung (mit dem Auftraggeber abgestimmt 2026-11-10):**
+  - Prüfen beim Start (nach 30 s) und alle `update_intervall_stunden` (Vorgabe 24) über
+    `GET https://api.github.com/repos/tedeler/kontor-app/releases/latest` (öffentlich, ohne Token), zusätzlich
+    „Jetzt prüfen“ im About-Dialog. Abschaltbar; in `KontorConfig` Vorgabe aus (`update_pruefen = False`, damit
+    Tests und Entwicklungsstände nie ungefragt ins Netz gehen), in der ausgelieferten `kontor.env` an. Im
+    Mock-Modus nie (409 `update_mock`). Ergebnis nur im Arbeitsspeicher (Betriebszustand, nicht in Datenbank,
+    Protokoll oder Sicherung); Fehlertexte der Gegenstelle werden nie weitergegeben.
+  - Anzeige: nur ein Punkt am Versionsknopf (mobil zusätzlich am Menüknopf), Text des Knopfs unverändert.
+  - Installation über einen eigenen Update-Dienst: Kontor legt nur `auftrag.json` (gewünschte Version) in
+    `update_verzeichnis` ab; `kontor-update.path` startet `kontor-update.service` (root). Das Programm
+    `python -m kontor.aktualisierung ausfuehren` vertraut dem Auftrag nur die Versionsnummer an, fragt die API
+    selbst, verlangt genau ein Wheel mit SHA-256-Digest, prüft die Prüfsumme, legt über
+    `kontor-sicherung.service` eine Sicherung an (schlägt sie fehl, wird nicht installiert), installiert mit pip
+    ins venv, schreibt `ergebnis.json` und startet `kontor.service` neu.
+  - REST: `GET /api/update`, `POST /api/update/pruefen`, `POST /api/update/installieren` (202; 409
+    `update_nicht_eingerichtet`, `update_nicht_verfuegbar`, `update_laeuft`, `update_mock`).
+  - Konfiguration: `KONTOR_UPDATE_PRUEFEN`, `KONTOR_UPDATE_URL` (HTTPS, für Attrappen auch `http://127.0.0.1…`),
+    `KONTOR_UPDATE_INTERVALL_STUNDEN` (1–720), `KONTOR_UPDATE_VERZEICHNIS`.
+- **Begründung:** Die Rechtetrennung hält einen kompromittierten Webprozess davon ab, beliebigen Code als root zu
+  installieren: Er kann nur das neueste offizielle Release mit passender Prüfsumme anstoßen. Die Sicherung vorher
+  macht ein misslungenes Update rückholbar.
+
 ## D-108 Rückgängig bis zu einer Änderung (Feature `sammelpaket`)
 
 - **Frage:** Wie nimmt „bis hierher rückgängig“ alle Änderungen seit einer gewählten Änderung in einem Schritt

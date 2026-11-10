@@ -6,7 +6,7 @@ import {
   fehlerMelden, h, istTexteingabe, kontoNach, melde, nachName, neueId, oberflaeche, obersteEbene, passt, rueckgaengig, stamm,
   stammLaden, stapelAnzeigen, tid, wiederholen,
 } from "./kern.js";
-import { dialog, feld, fokusFalle, knopf, knopfLeiste, zuordnungDialog } from "./ui.js";
+import { bestaetigen, dialog, feld, fokusFalle, imDialog, knopf, knopfLeiste, zuordnungDialog } from "./ui.js";
 import { kontoSeite, layoutZuruecksetzen } from "./konto.js";
 import * as S from "./seiten.js";
 
@@ -102,10 +102,117 @@ async function ueberOeffnen() {
         zeile("ueber-schema", "Schemaversion", `Datenbank ${info.datenbank_schema} · Sicherung ${info.sicherung_schema}`),
         h("tr", null, h("th", { scope: "row" }, "Quellcode"), h("td", null, h("a", { tid: "ueber-repository",
           href: info.repository, target: "_blank", rel: "noopener noreferrer" }, info.repository))))),
+      updateBereich(d, info),
       knopfLeiste(knopf("Schließen", { tid: "ueber-schliessen", onclick: () => d.schliessen(null) })));
   }, { ausloeser: istMobil() ? menueKnopf : versionKnopf, schliessenKnopf: "ueber-x", fokus: (box) => box.querySelector("[data-testid=ueber-schliessen]") });
 }
 versionKnopf.addEventListener("click", ueberOeffnen);
+
+// ------------------------------------------------------------------ Aktualisierung (D-107)
+const UPDATE_ABFRAGE_MS = 60 * 60 * 1000;
+
+/** Punkt am Versionsknopf (und mobil am Menüknopf), wenn eine neuere Version verfügbar ist. */
+function updateAnzeigen(st) {
+  const neu = !!(st && st.verfuegbar);
+  for (const el of [versionKnopf, menueKnopf]) {
+    if (!el) continue;
+    if (neu) el.dataset.update = "verfuegbar"; else delete el.dataset.update;
+  }
+  versionKnopf.title = neu ? `Über Kontor – Version ${st.neueste_version} ist verfügbar` : "Über Kontor";
+}
+
+async function updateLaden() {
+  try { const st = await api("GET", "/api/update"); updateAnzeigen(st); return st; } catch (e) { return null; }
+}
+
+function zeitText(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? iso : d.toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" });
+}
+
+/** Abschnitt „Aktualisierung“ im About-Dialog: Stand, „Jetzt prüfen“, „Aktualisieren“. */
+function updateBereich(d, info) {
+  const status = h("p", { tid: "ueber-update-status", "aria-live": "polite" }, "Suche nach Aktualisierungen …");
+  const ergebnis = h("p", { tid: "ueber-update-ergebnis", class: "hinweis", hidden: true });
+  const pruefen = knopf("Jetzt prüfen", { tid: "ueber-update-pruefen" });
+  const installieren = knopf("Aktualisieren", { tid: "ueber-update-installieren", class: "knopf knopf-haupt", hidden: true });
+  const bereich = h("section", { class: "ueber-update", tid: "ueber-update", "aria-label": "Aktualisierung" },
+    h("h3", null, "Aktualisierung"), status, ergebnis, knopfLeiste(installieren, pruefen));
+  if (info.modus === "mock") {
+    status.textContent = "Im Mock-Modus wird nicht nach Aktualisierungen gesucht.";
+    pruefen.hidden = true;
+    return bereich;
+  }
+  let stand = null;
+  const zeigen = (st) => {
+    stand = st;
+    updateAnzeigen(st);
+    bereich.dataset.verfuegbar = st.verfuegbar ? "ja" : "nein";
+    let text;
+    if (st.laeuft) text = "Die Aktualisierung läuft. Kontor startet danach neu.";
+    else if (st.verfuegbar) text = `Version ${st.neueste_version} ist verfügbar (installiert: ${st.version}).`;
+    else if (st.fehler) text = `Suche fehlgeschlagen: ${st.fehler}`;
+    else if (st.neueste_version) text = `Kontor ist auf dem neuesten Stand (${st.version}).`;
+    else text = "Noch nicht nach Aktualisierungen gesucht.";
+    if (st.geprueft_um && !st.laeuft) text += ` Zuletzt geprüft: ${zeitText(st.geprueft_um)}.`;
+    if (!st.automatisch && !st.laeuft) text += " Automatische Suche abgeschaltet.";
+    if (st.verfuegbar && !st.eingerichtet) text += " Der Update-Dienst ist nicht eingerichtet (siehe README).";
+    status.textContent = text;
+    if (st.verfuegbar && st.release_url) {
+      status.append(" ", h("a", { href: st.release_url, target: "_blank", rel: "noopener noreferrer",
+        tid: "ueber-update-notizen" }, "Versionshinweise"));
+    }
+    const e = st.letztes_ergebnis;
+    ergebnis.hidden = !e;
+    if (e) {
+      ergebnis.dataset.erfolg = e.erfolg ? "ja" : "nein";
+      ergebnis.textContent = `Letzte Aktualisierung${e.zeit ? ` (${zeitText(e.zeit)})` : ""}: ${e.meldung}`;
+    }
+    installieren.hidden = !st.installierbar;
+    installieren.textContent = st.installierbar ? `Auf ${st.neueste_version} aktualisieren` : "Aktualisieren";
+    pruefen.disabled = st.laeuft;
+  };
+  pruefen.addEventListener("click", () => imDialog(d, pruefen, async () => {
+    status.textContent = "Suche nach Aktualisierungen …";
+    zeigen(await api("POST", "/api/update/pruefen", {}));
+  }));
+  installieren.addEventListener("click", async () => {
+    if (!stand || !stand.installierbar) return;
+    const ziel = stand.neueste_version;
+    const ok = await bestaetigen(`Kontor auf Version ${ziel} aktualisieren? Vorher wird eine Datensicherung angelegt; `
+      + "danach startet Kontor neu und ist kurz nicht erreichbar.", { ja: "Aktualisieren", ausloeser: installieren });
+    if (!ok) return;
+    await imDialog(d, installieren, async () => {
+      zeigen(await api("POST", "/api/update/installieren", { version: ziel }));
+      warteAufNeustart(ziel, status);
+    });
+  });
+  updateLaden().then((st) => { if (st && d.offen) zeigen(st); });
+  return bereich;
+}
+
+/** Nach dem Auftrag: /api/version abfragen, bis die neue Version antwortet, dann die Seite neu laden. */
+function warteAufNeustart(ziel, status) {
+  const ende = Date.now() + 20 * 60 * 1000;
+  const runde = async () => {
+    if (Date.now() > ende) { melde("fehler", "Die Aktualisierung dauert ungewöhnlich lange. Siehe journalctl -u kontor-update."); return; }
+    try {
+      const v = await api("GET", "/api/version");
+      if (v.version === ziel) { location.reload(); return; }
+      const st = await api("GET", "/api/update");
+      if (!st.laeuft && st.letztes_ergebnis && !st.letztes_ergebnis.erfolg) {
+        if (status.isConnected) status.textContent = `Aktualisierung fehlgeschlagen: ${st.letztes_ergebnis.meldung}`;
+        melde("fehler", `Aktualisierung fehlgeschlagen: ${st.letztes_ergebnis.meldung}`);
+        return;
+      }
+    } catch (e) { /* Kontor startet gerade neu */ }
+    setTimeout(runde, 3000);
+  };
+  setTimeout(runde, 3000);
+}
+updateLaden();
+setInterval(updateLaden, UPDATE_ABFRAGE_MS);
 hintergrund.addEventListener("click", () => menueSchliessen(true));
 
 // ------------------------------------------------------------------ Routen (3)

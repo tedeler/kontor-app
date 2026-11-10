@@ -64,6 +64,14 @@ html[data-thema="dunkel"] .zahl-marke { color: #15181c; }
   padding: .5rem .9rem; min-height: 36px; color: var(--text-2, var(--text)); font: inherit; font-size: .85em; cursor: pointer; }
 .version-knopf:hover, .version-knopf:focus-visible { background: var(--hg-3); text-decoration: underline; }
 [data-layout="mobil"] .version-knopf { min-height: 44px; }
+/* D-107: neuere Version verfügbar */
+.version-knopf[data-update="verfuegbar"]::after, .menue-knopf[data-update="verfuegbar"]::after { content: ""; display: inline-block;
+  width: .55em; height: .55em; margin-left: .45em; border-radius: 50%; background: var(--akzent); vertical-align: middle; }
+.menue-knopf[data-update="verfuegbar"] { position: relative; }
+.menue-knopf[data-update="verfuegbar"]::after { position: absolute; top: 6px; right: 6px; margin: 0; }
+.ueber-update { margin-top: .8rem; border-top: 1px solid var(--rand); padding-top: .4rem; }
+.ueber-update h3 { font-size: .95rem; margin: .2rem 0 .3rem; }
+.ueber-update [data-erfolg="nein"] { color: var(--gefahr); }
 .ueber-tabelle { width: 100%; border-collapse: collapse; }
 .ueber-tabelle th { text-align: left; font-weight: 600; padding: .25rem .8rem .25rem 0; vertical-align: top; white-space: nowrap; }
 .ueber-tabelle td { padding: .25rem 0; overflow-wrap: anywhere; }
