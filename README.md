@@ -342,7 +342,7 @@ ein und ändert keine Einstellungen. Voraussetzung: AqBanking 6
 
 Kontor liefert alle Betriebsdateien im Paket `kontor.betrieb` aus
 (`kontor.service`, `kontor-sicherung.service`, `kontor-sicherung.timer`,
-`kontor.sysusers`, `kontor.env`, `pin-eingabe.conf`). Schritt für Schritt
+`kontor-update.path`, `kontor-update.service`, `kontor.sysusers`, `kontor.env`, `pin-eingabe.conf`). Schritt für Schritt
 (als root im Container, z. B. Debian 13 mit systemd):
 
 1. **Container:** unprivilegierter LXC mit `nesting=1` (Vorgabe neuer
@@ -361,7 +361,8 @@ Kontor liefert alle Betriebsdateien im Paket `kontor.betrieb` aus
    install -m 0644 "$B/kontor.sysusers" /etc/sysusers.d/kontor.conf && systemd-sysusers
    install -d -m 0750 -o root -g kontor /etc/kontor
    install -m 0640 -o root -g kontor "$B/kontor.env" /etc/kontor/kontor.env
-   install -m 0644 "$B/kontor.service" "$B/kontor-sicherung.service" "$B/kontor-sicherung.timer" /etc/systemd/system/
+   install -m 0644 "$B/kontor.service" "$B/kontor-sicherung.service" "$B/kontor-sicherung.timer" \
+     "$B/kontor-update.path" "$B/kontor-update.service" /etc/systemd/system/
    ```
    In `/etc/kontor/kontor.env` die FinTS-, ntfy- und Mail-Einstellungen
    eintragen (die Datei enthält **keine Geheimnisse**; Anmeldung, Heimnetz und
@@ -379,7 +380,7 @@ Kontor liefert alle Betriebsdateien im Paket `kontor.betrieb` aus
 5. **Starten:**
    ```bash
    systemctl daemon-reload
-   systemctl enable --now kontor.service kontor-sicherung.timer
+   systemctl enable --now kontor.service kontor-sicherung.timer kontor-update.path
    journalctl -u kontor -f          # Start-, Anmelde- und Fehlermeldungen
    curl -s http://127.0.0.1:8000/api/gesundheit
    ```
@@ -398,10 +399,23 @@ und `UMask=0077`; Daten liegen in `/var/lib/kontor` (`StateDirectory`, 0700).
 Ein Konfigurationsfehler beendet den Dienst mit Rückgabecode 2 ohne
 Neustartschleife (`RestartPreventExitStatus=2`). Beim Stoppen hat ein laufender
 Abruf bis zu 20 s, danach schreibt Kontor das WAL zurück – ein Snapshot oder
-eine Kopie von `kontor.sqlite3` ist dann vollständig. Updates:
-`/opt/kontor/venv/bin/pip install --upgrade /opt/kontor/src` (nach `git pull`),
-dann `systemctl restart kontor`; die Datenbank wird beim Start ohne
-Datenverlust migriert.
+eine Kopie von `kontor.sqlite3` ist dann vollständig.
+
+**Updates (D-107):** Kontor fragt beim Start und alle 24 Stunden bei GitHub nach
+dem neuesten Release (`KONTOR_UPDATE_PRUEFEN=1` in der Umgebungsdatei; `0`
+schaltet das ab). Gibt es eine neuere Version, trägt der Versionsknopf unten in
+der Navigation einen Punkt. Im About-Dialog (Klick auf den Versionsknopf)
+startet „Aktualisieren“ den Update-Dienst: `kontor-update.path` bemerkt den
+Auftrag, `kontor-update.service` (root) lädt das Wheel des Releases, prüft dessen
+SHA-256 gegen GitHub, legt eine Sicherung an (`kontor-sicherung.service`),
+installiert ins venv und startet Kontor neu; die Datenbank wird beim Start ohne
+Datenverlust migriert. Ergebnis: About-Dialog bzw.
+`journalctl -u kontor-update`. Bestehende Installationen richten den Dienst
+einmal nach Schritt 3 und 5 ein (Units kopieren, `KONTOR_UPDATE_PRUEFEN=1` und
+`KONTOR_UPDATE_VERZEICHNIS=/var/lib/kontor/update` in `/etc/kontor/kontor.env`,
+`systemctl enable --now kontor-update.path`, Kontor neu starten). Von Hand geht
+es weiterhin mit `/opt/kontor/venv/bin/pip install --upgrade /opt/kontor/src`
+(nach `git pull`) und `systemctl restart kontor`.
 
 HTTPS: Kontor selbst spricht kein TLS. Wer es will, setzt einen Reverse-Proxy
 auf demselben Host davor (Kontor dann auf `127.0.0.1` binden) und
