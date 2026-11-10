@@ -1,5 +1,25 @@
 # Ergebnis der Implementierung
 
+## Meilenstein 12 (Bearbeiten, Massenänderungen, Filterleiste) gegen kontor-tests `65bffb0`
+
+Stand: 2026-11-10, Implementierungs-Thread, Branch `feature/buchungsbearbeitung`. Definition und Abnahmetests lagen
+in kontor-tests bereits vor (E-167 bis E-174, `tests/app/m12/`).
+
+| Auswahl | vorher (`d2246ca`) | nachher |
+| --- | ---: | ---: |
+| `m12` (`--voll`) | 19 / 73 (54 rot) | **73 / 73** |
+| Volllauf `--voll -m "not leistung" -n 4` | – | **2661 / 2661**, 0 übersprungen |
+| `-m leistung` | – | **22 / 22** |
+| `-m m12` mit `KONTOR_TESTS_ANMELDUNG=1` bzw. `KONTOR_TESTS_ZUSATZFELDER=1` | – | je 73 / 73 |
+| eigene Tests (`tests/`) | 103 | **106 / 106** |
+
+- Zusammen alle **2683** Abnahmetests grün (AqBanking 6.5.4 installiert, Browsertests mit Chrome headless liefen).
+- Kein neuer W-Eintrag.
+- Umsetzung: `POST /api/buchungen/mehrfach/aendern` (`buch.mehrfach_aendern`, Aktion `mehrfach_aendern`);
+  Oberfläche: Filterleiste anfangs eingeklappt, Inline-Editoren für Empfänger, Status und Betrag, `mehrfach-status`,
+  `mehrfach-bearbeiten`, `km-status`, `km-mehrfach`, `status-auswahl`, `mehrfach-dialog`; Entscheidungen D-106.
+- Nebenbei behoben: Beim Fokussieren einer Zeile sprang die waagerecht gescrollte Liste an den Zeilenanfang (D-106).
+
 ## Abnahme M13 (Versionierung) gegen kontor-tests `65bffb0`
 
 Stand: 2026-11-10, Implementierungs-Thread, Branch `feature/versionierung-abnahme`.
