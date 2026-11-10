@@ -38,6 +38,7 @@ SQL-Text eingesetzt werden.
 | 2026-11-09 | `a15f0f0` | M8 (abgeschlossen), vor M10 | 13 818 | 3 584² | 334 | 43 | 37 | 119 | 361 | 0 |
 | 2026-11-09 | `99c2c95` | M10 (abgeschlossen), vor M11 | 14 351 | 3 584² | 337 | 44 | 36 | 119 | 361 | 0 |
 | 2026-11-10 | `4487cff` | M11 (abgeschlossen), vor Versionierung | 14 612 | 3 744² | 349 | 44 | 36 | 125 | 367 | 0 |
+| 2026-11-10 | `d2246ca` | M13 (abgeschlossen), vor M12 | 14 740 | 3 770² | 352 | 44 | 36 | 125 | 367 | 0 |
 
 ¹ `--select E,F,W,B,C90,SIM,UP,PL --line-length 120`.
 ² Ab M8 Summe der ES-Module `src/kontor/web/oeffentlich/app/*.js` (R-07, `app.js` gibt es nicht mehr).
@@ -169,3 +170,11 @@ jedem Schritt muss die Testsuite aus kontor-tests unverändert grün bleiben
 
 Neue Funktionen sollen die Grenze C901 ≤ 15 einhalten; Überschreitungen nur
 mit Begründung im Code.
+
+### Fortschreibung vor M12 (2026-11-10, Stand `d2246ca`)
+
+Gegenüber `4487cff` stiegen nur die ruff-Funde um 3 (`PLC0415`, Importe innerhalb von Funktionen in
+`version.py`/`release.py` aus der Versionierung, gewollt: die Release-Kommandozeile lädt nichts unnötig). C901,
+radon D/E/F, mypy-Fehler und Parameter ohne Annotation unverändert; keine neuen breiten `except` (die zwei
+`BLE001` in `app.py` bestehen seit M6 und sind begründet), keine echten SQL-Funde. Keine neue Maßnahme; R-03
+(doppelter Name `abmelden`) bleibt offen.
