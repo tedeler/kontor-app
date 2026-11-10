@@ -1,5 +1,25 @@
 # Ergebnis der Implementierung
 
+## Feature Sammelpaket (Meilenstein-Definition M15, Entwurf) gegen kontor-tests `65bffb0`
+
+Stand: 2026-11-10, Implementierungs-Thread, Branch `feature/sammelpaket` (iterative Phase; Definition zur Freigabe im
+Projekt als `claude/feature-sammelpaket.md`, Abnahmetests für M15 gibt es noch nicht).
+
+| Auswahl | vorher (`d308b96`) | nachher |
+| --- | ---: | ---: |
+| Volllauf `--voll -n 2` (inkl. Browser, Leistung, AqBanking) | 2303 / 2303 (Schnelllauf) | **2683 / 2683**, 0 übersprungen |
+| eigene Tests (`tests/`) | 106 | **126 / 126** |
+
+- Umfang: Rückgängig bis einschließlich einer Änderung (`bis_id`, D-108), Mehrfach-Löschen als eine Änderung
+  (D-109), Verschieben von Buchungen bzw. eines ganzen Imports/Laufs auf ein anderes Konto (D-110),
+  Synchronisationskonto in den Kontoeinstellungen und Zuordnungsdialog für unbekannte Bankkonten
+  (`KONTOR_SYNC_KONTEN_ANLEGEN`, ausgeliefert `0`, D-111), gesperrter PIN-Dialog mit Statusanzeige und Vorschläge
+  je Zeile (D-112), Berichtsgrafiken mit Plotly (lokal ausgeliefert, D-113).
+- Kein neuer W-Eintrag. Die neuen Endpunkte stehen noch nicht in `openapi.yaml`; das übernimmt der Test-Thread mit
+  der Definition.
+- Einschränkung: Das Feature `update` (Branch `feature/update`, D-107) ist noch nicht auf main; beim späteren Merge
+  beider Branches sind in `ENTSCHEIDUNGEN.md`, `ERGEBNIS.md` und `haupt.js` kleine Konflikte zu erwarten.
+
 ## Meilenstein 12 (Bearbeiten, Massenänderungen, Filterleiste) gegen kontor-tests `65bffb0`
 
 Stand: 2026-11-10, Implementierungs-Thread, Branch `feature/buchungsbearbeitung`. Definition und Abnahmetests lagen
