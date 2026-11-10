@@ -6,7 +6,7 @@ import {
 } from "./kern.js";
 import {
   bestaetigen, dialog, dubletteDialog, erfassenDialog, imDialog, kategorieAuswahl, kontextmenue, knopf, knopfLeiste,
-  menuePosition, splitDialog, tagAuswahl,
+  kontoEinstellungen, menuePosition, splitDialog, tagAuswahl,
 } from "./ui.js";
 import { kategorienBaum, langeBeruehrung, ziehbar } from "./baum.js";
 
@@ -142,7 +142,9 @@ class Kontoansicht {
     }
     let verdachte = [];
     try { verdachte = await api("GET", "/api/dubletten?status=offen"); } catch (e) { verdachte = []; }
+    await this.regelnLaden(eintraege);
     if (nr !== this.ladeNr) return;
+    this.kandidatenCache = new Map();
     this.verdachte = verdachte;
     this.eintraege = eintraege;
     this.gesamt = gesamt;
@@ -174,7 +176,11 @@ class Kontoansicht {
     const erfassen = knopf("Buchung erfassen", { tid: "buchung-erfassen",
       onclick: (e) => erfassenDialog(this.konto.id, e.currentTarget) });
     s.append(h("div", { class: "seiten-kopf" }, h("h1", null, this.konto.name),
-      h("div", { class: "werkzeuge" }, this.filterKnopf, erfassen)),
+      h("div", { class: "werkzeuge" }, this.filterKnopf, erfassen,
+        knopf("Einstellungen…", { tid: "konto-einstellungen-oeffnen", onclick: (e) => kontoEinstellungen(this.konto, e.currentTarget) }),
+        this.istKategorie ? null : knopf("Verschieben…", { tid: "konto-verschieben",
+          title: "Buchungen dieses Kontos auf ein anderes Konto verschieben",
+          onclick: (e) => this.verschiebenDialog(this.auswahlIds(), e.currentTarget) }))),
     h("div", { class: "listen-info" }, this.anzahlEl, " · Summe ", this.summeEl, " · ", this.auswahlEl));
     this.filterLeiste = this.filterAufbauen();
     s.append(this.filterLeiste);
@@ -457,9 +463,63 @@ class Kontoansicht {
   }
 
   // ---------------------------------------------------------------- Einzelheiten (7.3)
+  // ---------------------------------------------------------------- Vorschläge (D-111)
+  vorschlagText(v) {
+    const pct = v.sicherheit === null || v.sicherheit === undefined ? null : `${Math.floor((v.sicherheit + 5) / 10)} %`;
+    if (v.quelle === "lernmodell") {
+      return { kurz: pct ? `Lernmodell ${pct}` : "Lernmodell", lang: `Vorschlag des Lernmodells${pct ? `, Sicherheit ${pct}` : ""}` };
+    }
+    if (v.quelle === "regel") {
+      const name = v.regel_id && this.regelNamen ? this.regelNamen.get(v.regel_id) : null;
+      return { kurz: "Regel", lang: name ? `Vorschlag der Regel „${name}“` : "Vorschlag einer Regel" };
+    }
+    return { kurz: "Empfänger", lang: "Vorschlag: Standardkategorie des Empfängers" };
+  }
+
+  async regelnLaden(eintraege) {
+    if (!eintraege.some((b) => b.vorschlag && b.vorschlag.quelle === "regel")) return;
+    try {
+      const regeln = await api("GET", "/api/regeln");
+      this.regelNamen = new Map(regeln.map((r) => [r.id, r.name]));
+    } catch (e) { /* ohne Regelnamen */ }
+  }
+
+  vorschlagDetails(b) {
+    const v = b.vorschlag;
+    const vs = this.vorschlagText(v);
+    const kandidaten = h("ol", { class: "vorschlag-kandidaten", tid: "details-vorschlag-kandidaten" });
+    const el = h("div", { class: "details-vorschlag", tid: "details-vorschlag", "data-quelle": v.quelle },
+      h("p", null, h("strong", null, "Vorschlag: "), pfadVon(v.kategorie_id)),
+      h("p", { class: "klein" }, vs.lang, v.vorher_konto_id ? ` · vorher: ${pfadVon(v.vorher_konto_id)}` : ""),
+      kandidaten,
+      knopfLeiste(knopf("Annehmen", { tid: "details-vorschlag-annehmen", onclick: () => this.vorschlag(null, [b.id], "annehmen") }),
+        knopf("Ablehnen", { tid: "details-vorschlag-ablehnen", onclick: () => this.vorschlag(null, [b.id], "ablehnen") })));
+    // Alternativen des Lernmodells (lernmodell.md 5.3, ohne Wirkung)
+    this.kandidatenCache = this.kandidatenCache || new Map();
+    const fuellen = (liste) => {
+      if (!liste || !liste.length) return;
+      kandidaten.replaceChildren(h("li", { class: "klein kopf" }, "Einschätzung des Lernmodells:"),
+        ...liste.map((k) => h("li", { "data-kategorie-id": String(k.kategorie_id),
+          class: k.kategorie_id === v.kategorie_id ? "gewaehlt" : "" },
+        `${pfadVon(k.kategorie_id)} – ${Math.floor((k.sicherheit + 5) / 10)} %`,
+        k.kategorie_id !== v.kategorie_id ? knopf("Übernehmen", { class: "knopf knopf-klein",
+          tid: `details-kandidat-${k.kategorie_id}`, onclick: () => this.kategorieSetzen([b.id], k.kategorie_id) }) : null)));
+    };
+    if (this.kandidatenCache.has(b.id)) fuellen(this.kandidatenCache.get(b.id));
+    else {
+      api("POST", "/api/lernmodell/vorhersage", { eintraege: [{ buchung_id: b.id }] }).then((r) => {
+        const liste = (r.ergebnisse[0] || {}).kandidaten || [];
+        this.kandidatenCache.set(b.id, liste);
+        fuellen(liste);
+      }).catch(() => { /* ohne Alternativen */ });
+    }
+    return el;
+  }
+
   detailsInhalt(b) {
     if (!b) return [h("p", { class: "leer" }, "Keine Buchung gewählt.")];
     return [
+      b.vorschlag ? this.vorschlagDetails(b) : null,
       h("p", null, datumText(b.datum), " · ", b.empfaenger ? b.empfaenger.name : "ohne Empfänger"),
       h("p", { class: "zweck" }, b.verwendungszweck),
       h("ul", { class: "details-splits" }, b.splits.map((s) => h("li", { tid: `details-split-${s.id}`, class: "details-split" },
@@ -528,10 +588,15 @@ class Kontoansicht {
     // oberflaeche.md 7.2: Pfad; ohne kategorie_id „Gesplittet“, „Umbuchung“ oder der Pfad des einen Gegensplits
     const katText = b.kategorie_id ? pfadVon(b.kategorie_id)
       : (gegen.length > 1 ? "Gesplittet" : gegen.length === 0 ? "Umbuchung" : pfadVon(gegen[0].konto_id));
+    const vs = b.vorschlag ? this.vorschlagText(b.vorschlag) : null;
     const kat = h("div", { role: "gridcell", class: "zelle zelle-kategorie", "data-feld": "kategorie",
-      "data-kategorie-id": b.kategorie_id ? String(b.kategorie_id) : "" }, h("span", { class: "kat-text" }, katText));
+      "data-kategorie-id": b.kategorie_id ? String(b.kategorie_id) : "" },
+    h("span", { class: "kat-text" + (vs ? " vorschlag-kategorie" : ""), title: vs ? `${katText} – ${vs.lang}` : katText }, katText));
     if (b.vorschlag) {
-      kat.append(h("span", { class: "vorschlag-marke", tid: "vorschlag-marke", title: "Vorschlag" }, "Vorschlag"),
+      // Sammelpaket (D-111): vorgeschlagene Kategorie, Quelle und Sicherheit je Zeile
+      kat.append(h("span", { class: "vorschlag-marke", tid: "vorschlag-marke", title: vs.lang, "aria-label": vs.lang,
+        "data-quelle": b.vorschlag.quelle, "data-sicherheit": b.vorschlag.sicherheit === null || b.vorschlag.sicherheit === undefined
+          ? "" : String(b.vorschlag.sicherheit) }, vs.kurz),
         h("button", { type: "button", class: "mini-knopf", tid: `vorschlag-annehmen-${b.id}`, "data-nicht-ziehen": "",
           "aria-label": `Vorschlag ${katText} annehmen`, onclick: (e) => this.vorschlag(e, [b.id], "annehmen") }, "✓"),
         h("button", { type: "button", class: "mini-knopf", tid: `vorschlag-ablehnen-${b.id}`, "data-nicht-ziehen": "",
@@ -777,6 +842,8 @@ class Kontoansicht {
       { tid: "km-bearbeiten", text: "Verwendungszweck bearbeiten", aktiv: eine, tun: () => this.bearbeiten(ids[0], "verwendungszweck") },
       { tid: "km-status", text: "Status setzen…", tun: () => this.statusWaehlen(ids, ausloeser) },
       { tid: "km-mehrfach", text: "Bearbeiten…", tun: () => this.mehrfachDialog(ids, ausloeser) },
+      ...(this.istKategorie ? [] : [{ tid: "km-verschieben", text: "Auf anderes Konto verschieben…",
+        tun: () => this.verschiebenDialog(ids, ausloeser) }]),
       { tid: "km-loeschen", text: "Löschen…", tun: () => this.loeschen(ausloeser) },
     ], ausloeser);
   }
@@ -792,6 +859,7 @@ class Kontoansicht {
     k("mehrfach-bearbeiten", "Bearbeiten…", (el) => this.mehrfachDialog(this.auswahlIds(), el)),
     k("mehrfach-vorschlag-annehmen", "Vorschläge annehmen", () => this.vorschlag(null, this.auswahlIds(), "annehmen")),
     k("mehrfach-vorschlag-ablehnen", "Vorschläge ablehnen", () => this.vorschlag(null, this.auswahlIds(), "ablehnen")),
+    this.istKategorie ? null : k("mehrfach-verschieben", "Verschieben…", (el) => this.verschiebenDialog(this.auswahlIds(), el)),
     k("mehrfach-loeschen", "Löschen…", (el) => this.loeschen(el)),
     k("auswahl-aufheben", "Auswahl aufheben", () => { this.auswahl.clear(); this.auswahlZeigen(); }));
   }
@@ -909,6 +977,51 @@ class Kontoansicht {
       }, { ausloeser });
   }
 
+  // ---------------------------------------------------------------- Verschieben (D-109)
+  async verschiebenDialog(ids, ausloeser) {
+    const ziele = baumFolge(stamm.konten.filter((k) => BESTAND.has(k.art) && k.id !== this.konto.id)).map((x) => x.konto);
+    if (!ziele.length) { melde("hinweis", "Es gibt kein weiteres Bestandskonto."); return; }
+    let herkunft = [];
+    try { herkunft = await api("GET", `/api/konten/${this.konto.id}/herkunft`); } catch (e) { /* ohne Herkunft */ }
+    const sortiert = ids.slice().sort((a, b) => a - b);
+    dialog("verschieben-dialog", "Buchungen verschieben", (inhalt, d) => {
+      const ziel = h("select", { tid: "verschieben-ziel" }, h("option", { value: "" }, "– Zielkonto wählen –"),
+        ziele.map((k) => h("option", { value: String(k.id) }, kontoPfad(k))));
+      const name = "verschieben-umfang";
+      const radio = (wert, text, attrs) => h("label", { class: "auswahl-zeile" },
+        h("input", { type: "radio", name, value: wert, tid: `verschieben-${wert}`, ...(attrs || {}) }), " ", text);
+      const herkunftWahl = h("select", { tid: "verschieben-herkunft", disabled: true },
+        herkunft.map((x) => h("option", { value: x.gruppe }, `${x.beschreibung}${x.zeitpunkt ? ` (${datumText(x.zeitpunkt.slice(0, 10))})` : ""}`
+          + ` – ${x.anzahl === 1 ? "1 Buchung" : `${x.anzahl} Buchungen`}`)));
+      const rAuswahl = radio("auswahl", sortiert.length === 1 ? "Die ausgewählte Buchung" : `Die ${sortiert.length} ausgewählten Buchungen`,
+        { disabled: !sortiert.length, checked: !!sortiert.length });
+      const rHerkunft = radio("herkunft", "Alle Buchungen dieses Kontos aus einem Import oder einer Synchronisation:",
+        { disabled: !herkunft.length, checked: !sortiert.length && !!herkunft.length });
+      const umfang = () => (inhalt.querySelector(`input[name='${name}']:checked`) || {}).value;
+      const ok = knopf("Verschieben", { tid: "verschieben-ok", class: "knopf knopf-haupt" });
+      const aktualisieren = () => {
+        herkunftWahl.disabled = umfang() !== "herkunft";
+        ok.disabled = !ziel.value || !umfang();
+      };
+      inhalt.addEventListener("change", aktualisieren);
+      ok.addEventListener("click", () => imDialog(d, ok, async () => {
+        const k = { von_konto_id: this.konto.id, nach_konto_id: Number(ziel.value) };
+        if (umfang() === "auswahl") k.buchung_ids = sortiert; else k.gruppe = herkunftWahl.value;
+        const zielName = pfadVon(k.nach_konto_id);
+        await aktion(() => api("POST", "/api/buchungen/mehrfach/verschieben", k), { stillBeiFehler: true,
+          danach: () => d.schliessen(true),
+          erfolg: (r) => `${r && r.anzahl === 1 ? "1 Buchung" : `${r ? r.anzahl : ""} Buchungen`} nach „${zielName}“ verschoben.` });
+      }));
+      inhalt.append(feld("Zielkonto", ziel), h("fieldset", { class: "umfang" }, h("legend", null, "Welche Buchungen?"),
+        rAuswahl, rHerkunft, herkunftWahl),
+      !sortiert.length && !herkunft.length ? h("p", { class: "hinweis" }, "Bitte zuerst Buchungen auswählen.") : null,
+      this.konto.iban ? h("p", { class: "hinweis" }, "Hinweis: Künftige Umsätze des Bankkontos landen weiter in diesem Konto, "
+        + "solange das Synchronisationskonto in den Kontoeinstellungen nicht geändert wird.") : null,
+      knopfLeiste(ok, knopf("Abbrechen", { onclick: () => d.schliessen(null) })));
+      aktualisieren();
+    }, { ausloeser });
+  }
+
   async loeschen(ausloeser) {
     const ids = this.auswahlIds().sort((a, b) => a - b);
     if (!ids.length) return;
@@ -916,9 +1029,9 @@ class Kontoansicht {
       { ja: "Löschen", ausloeser });
     if (!ok) return;
     try {
-      await aktion(async () => {
-        for (const id of ids) await api("DELETE", `/api/buchungen/${id}`);
-      }, { erfolg: ids.length === 1 ? "Buchung gelöscht." : `${ids.length} Buchungen gelöscht.` });
+      // D-108: mehrere Buchungen in einer Änderung (ein Eintrag im Änderungsprotokoll)
+      await aktion(() => (ids.length === 1 ? api("DELETE", `/api/buchungen/${ids[0]}`)
+        : api("POST", "/api/buchungen/mehrfach/loeschen", { buchung_ids: ids })), { erfolg: ids.length === 1 ? "Buchung gelöscht." : `${ids.length} Buchungen gelöscht.` });
     } catch (e) { /* gemeldet */ }
   }
 

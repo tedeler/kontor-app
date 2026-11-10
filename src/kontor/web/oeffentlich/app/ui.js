@@ -44,7 +44,18 @@ export function dialog(testid, titel, aufbau, optionen) {
       if (ausloeser && ausloeser.isConnected && typeof ausloeser.focus === "function") ausloeser.focus();
       fertig(wert === undefined ? null : wert);
     },
-    escape() { d.schliessen(null); },
+    gesperrt: false,
+    escape() { if (!d.gesperrt) d.schliessen(null); },
+    /** Sperrt den Dialog (alle Eingaben und Knöpfe, Esc), z. B. während eine Synchronisation läuft. */
+    sperren(an) {
+      d.gesperrt = !!an;
+      box.setAttribute("aria-busy", an ? "true" : "false");
+      box.dataset.gesperrt = an ? "ja" : "nein";
+      for (const el of box.querySelectorAll("input, select, textarea, button")) {
+        if (an) { if (!el.disabled) { el.disabled = true; el.dataset.gesperrtDurchDialog = "ja"; } }
+        else if (el.dataset.gesperrtDurchDialog) { el.disabled = false; delete el.dataset.gesperrtDurchDialog; }
+      }
+    },
     fehler(text) {
       fehlerEl.textContent = text || "";
       fehlerEl.hidden = !text;
@@ -584,3 +595,124 @@ export function abstimmungDialog(konto, ausloeser) {
 }
 
 export { kontoNach };
+
+// ------------------------------------------------------------------ Kontoeinstellungen (D-110)
+/** Bekannte Bankkonten: Zustand je Bankkonto und nicht zugeordnete aus dem letzten Lauf. */
+export async function bankkontenBekannt() {
+  const [zustand, laeufe] = await Promise.all([api("GET", "/api/sync/konten").catch(() => []),
+    api("GET", "/api/sync/laeufe").catch(() => [])]);
+  const m = new Map();
+  for (const z of zustand) m.set(z.iban, { iban: z.iban, name: null });
+  const letzter = laeufe.slice().sort((a, b) => b.id - a.id)[0];
+  for (const u of (letzter && letzter.uebersprungen) || []) m.set(u.iban, { iban: u.iban, name: u.name });
+  for (const l of laeufe) for (const k of l.konten || []) if (!m.has(k.iban)) m.set(k.iban, { iban: k.iban, name: null });
+  return [...m.values()].sort((a, b) => a.iban.localeCompare(b.iban));
+}
+
+export async function kontoEinstellungen(konto, ausloeser) {
+  const bestand = BESTAND.has(konto.art);
+  const bekannt = bestand ? await bankkontenBekannt() : [];
+  dialog("konto-einstellungen", `Einstellungen „${konto.name}“`, (inhalt, d) => {
+    const name = h("input", { type: "text", tid: "einstellungen-name", maxlength: "200", value: konto.name });
+    inhalt.append(feld("Name", name));
+    let sync = null;
+    let ibanFrei = null;
+    if (bestand) {
+      const belegt = new Map(stamm.konten.filter((k) => k.iban && k.id !== konto.id).map((k) => [k.iban, k]));
+      sync = h("select", { tid: "einstellungen-sync" }, h("option", { value: "" }, "– keins (keine Synchronisation) –"),
+        bekannt.map((b) => {
+          const anderes = belegt.get(b.iban);
+          return h("option", { value: b.iban, disabled: !!anderes },
+            `${b.name ? `${b.name} · ` : ""}${b.iban}${anderes ? ` (gehört zu „${anderes.name}“)` : ""}`);
+        }),
+        h("option", { value: "*" }, "Andere IBAN eingeben…"));
+      ibanFrei = h("input", { type: "text", tid: "einstellungen-iban", maxlength: "42", autocomplete: "off",
+        spellcheck: "false", hidden: true, placeholder: "IBAN" });
+      if (konto.iban && !bekannt.some((b) => b.iban === konto.iban)) {
+        sync.prepend(h("option", { value: konto.iban }, konto.iban));
+      }
+      sync.value = konto.iban || "";
+      sync.addEventListener("change", () => { ibanFrei.hidden = sync.value !== "*"; if (!ibanFrei.hidden) ibanFrei.focus(); });
+      inhalt.append(feld("Synchronisationskonto", h("div", null, sync, ibanFrei),
+        "Bankkonto, dessen Umsätze bei der Synchronisation in dieses Konto übernommen werden."));
+    }
+    const eroeffnet = h("input", { type: "date", tid: "einstellungen-eroeffnet", value: konto.eroeffnet_am || "" });
+    const geschlossen = h("input", { type: "checkbox", tid: "einstellungen-geschlossen" });
+    geschlossen.checked = !!konto.geschlossen;
+    const notiz = h("textarea", { tid: "einstellungen-notiz", rows: "3", maxlength: "10000" });
+    notiz.value = konto.notiz || "";
+    inhalt.append(feld("Eröffnet am", eroeffnet),
+      h("label", { class: "auswahl-zeile" }, geschlossen, " Konto ist geschlossen"), feld("Notiz", notiz));
+    const speichern = knopf("Speichern", { tid: "einstellungen-speichern", class: "knopf knopf-haupt" });
+    speichern.addEventListener("click", () => imDialog(d, speichern, async () => {
+      const body = {};
+      const n = name.value.trim();
+      if (!n) { d.fehler("Bitte einen Namen eingeben."); return; }
+      if (n !== konto.name) body.name = n;
+      if (sync) {
+        const iban = sync.value === "*" ? ibanFrei.value.replace(/\s+/g, "").toUpperCase() : sync.value;
+        if (sync.value === "*" && !iban) { d.fehler("Bitte eine IBAN eingeben."); return; }
+        if ((iban || null) !== (konto.iban || null)) body.iban = iban || null;
+      }
+      if ((eroeffnet.value || null) !== (konto.eroeffnet_am || null)) body.eroeffnet_am = eroeffnet.value || null;
+      if (geschlossen.checked !== !!konto.geschlossen) body.geschlossen = geschlossen.checked;
+      if (notiz.value !== (konto.notiz || "")) body.notiz = notiz.value;
+      if (!Object.keys(body).length) { d.schliessen(null); return; }
+      await aktion(() => api("PATCH", `/api/konten/${konto.id}`, body), { stillBeiFehler: true,
+        danach: () => d.schliessen(true), erfolg: "Einstellungen gespeichert." });
+    }));
+    inhalt.append(knopfLeiste(speichern, knopf("Abbrechen", { onclick: () => d.schliessen(null) })));
+  }, { ausloeser });
+}
+
+// ------------------------------------------------------------------ Bankkonto zuordnen (D-110)
+/**
+ * Fragt für ein bei der Synchronisation übersprungenes Bankkonto `{iban, name, art}`, welches Konto seine Umsätze
+ * aufnimmt: ein vorhandenes Bestandskonto ohne Synchronisationskonto oder ein neues. Trägt die IBAN in den
+ * Kontoeinstellungen ein. Ergebnis: true (zugeordnet), false (übersprungen), null (abgebrochen).
+ */
+export function zuordnungDialog(bk, ausloeser, hinweis) {
+  const frei = baumFolge(stamm.konten.filter((k) => BESTAND.has(k.art) && !k.iban)).map((x) => x.konto);
+  const d = dialog("zuordnung-dialog", "Bankkonto zuordnen", (inhalt, dd) => {
+    const name = neueId("zuordnung-wahl");
+    const radio = (wert, text, attrs) => h("label", { class: "auswahl-zeile" },
+      h("input", { type: "radio", name, value: wert, tid: `zuordnung-${wert}`, ...(attrs || {}) }), " ", text);
+    const vorhanden = h("select", { tid: "zuordnung-konto" }, frei.map((k) => h("option", { value: String(k.id) }, kontoPfad(k))));
+    const neuName = h("input", { type: "text", tid: "zuordnung-name", maxlength: "200", value: bk.name || bk.iban });
+    const neuArt = h("select", { tid: "zuordnung-art" }, ["girokonto", "sparkonto", "kreditkonto"].map((a) =>
+      h("option", { value: a }, ART_NAMEN[a])));
+    neuArt.value = BESTAND.has(bk.art) ? bk.art : "girokonto";
+    // gleichnamiges freies Konto vorschlagen, sonst ein neues Konto
+    const gleich = frei.find((k) => k.name.trim().toLocaleLowerCase("de") === (bk.name || "").trim().toLocaleLowerCase("de"));
+    if (gleich) vorhanden.value = String(gleich.id);
+    const rVorhanden = radio("vorhanden", "Vorhandenes Konto verwenden:", { disabled: !frei.length, checked: !!gleich });
+    const rNeu = radio("neu", "Neues Konto anlegen:", { checked: !gleich });
+    const wahl = () => (inhalt.querySelector(`input[name='${name}']:checked`) || {}).value;
+    const aktualisieren = () => {
+      vorhanden.disabled = wahl() !== "vorhanden";
+      neuName.disabled = neuArt.disabled = wahl() !== "neu";
+    };
+    inhalt.addEventListener("change", aktualisieren);
+    const ok = knopf("Zuordnen", { tid: "zuordnung-ok", class: "knopf knopf-haupt" });
+    ok.addEventListener("click", () => imDialog(dd, ok, async () => {
+      if (wahl() === "vorhanden") {
+        const k = kontoNach(Number(vorhanden.value));
+        await aktion(() => api("PATCH", `/api/konten/${k.id}`, { iban: bk.iban }), { stillBeiFehler: true,
+          danach: () => dd.schliessen(true), erfolg: `Bankkonto „${bk.name || bk.iban}“ → „${k.name}“ zugeordnet.` });
+      } else {
+        const n = neuName.value.trim();
+        if (!n) { dd.fehler("Bitte einen Namen eingeben."); return; }
+        await aktion(() => api("POST", "/api/konten", { name: n, art: neuArt.value, iban: bk.iban }), { stillBeiFehler: true,
+          danach: () => dd.schliessen(true), erfolg: `Konto „${n}“ für das Bankkonto angelegt.` });
+      }
+    }));
+    inhalt.append(h("p", null, "Für das Bankkonto ", h("strong", null, bk.name || bk.iban), ` (IBAN ${bk.iban}) gibt es noch kein Konto. `
+      + "Wohin sollen seine Umsätze übernommen werden?"), hinweis ? h("p", { class: "hinweis" }, hinweis) : null,
+    h("fieldset", { class: "umfang" }, h("legend", null, "Konto"), rVorhanden, vorhanden, rNeu,
+      h("div", { class: "formular-zeile" }, feld("Name", neuName), feld("Art", neuArt))),
+    h("p", { class: "hinweis" }, "Die IBAN wird in den Einstellungen des Kontos als Synchronisationskonto eingetragen."),
+    knopfLeiste(ok, knopf("Später", { tid: "zuordnung-spaeter", onclick: () => dd.schliessen(false) })));
+    aktualisieren();
+  }, { ausloeser });
+  return d.ergebnis;
+}

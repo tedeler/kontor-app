@@ -106,6 +106,9 @@ class KontorConfig:
     lernmodell_automatisch: bool = False
     # Meilenstein 5: Prüfung auf unerwartete Buchungen nach jedem Lauf (python-api.md 12.1)
     wiederkehrend_automatisch: bool = False
+    # Sammelpaket (D-110): unbekannte Bankkonten automatisch als Konto anlegen (synchronisation.md 3) oder
+    # überspringen und den Anwender zuordnen lassen. Vorgabe wie bisher; die ausgelieferte Umgebungsdatei schaltet ab.
+    sync_konten_anlegen: bool = True
     # Meilenstein 6: echte Anbindungen und Benachrichtigungen (python-api.md 13.1). Keine Geheimnisse.
     bank_pin_quelle: str = "eingabe"
     credentials_verzeichnis: pathlib.Path | None = None
@@ -173,6 +176,8 @@ class KontorConfig:
         if not isinstance(self.wiederkehrend_automatisch, bool):
             raise KonfigurationsFehler("wiederkehrend_automatisch muss wahr oder falsch sein.",
                                        feld="wiederkehrend_automatisch")
+        if not isinstance(self.sync_konten_anlegen, bool):
+            raise KonfigurationsFehler("sync_konten_anlegen muss wahr oder falsch sein.", feld="sync_konten_anlegen")
         if not isinstance(self.lernmodell_automatisch, bool):
             raise KonfigurationsFehler("lernmodell_automatisch muss wahr oder falsch sein.",
                                        feld="lernmodell_automatisch")
@@ -373,6 +378,7 @@ class KontorConfig:
                                                "KONTOR_UMBUCHUNG_AUTOMATISCH", False)
         lernmodell_automatisch = _wahrheitswert(wert("KONTOR_LERNMODELL_AUTOMATISCH"),
                                                 "KONTOR_LERNMODELL_AUTOMATISCH", False)
+        sync_konten_anlegen = _wahrheitswert(wert("KONTOR_SYNC_KONTEN_ANLEGEN"), "KONTOR_SYNC_KONTEN_ANLEGEN", True)
         wiederkehrend_automatisch = _wahrheitswert(wert("KONTOR_WIEDERKEHREND_AUTOMATISCH"),
                                                    "KONTOR_WIEDERKEHREND_AUTOMATISCH", False)
         text = wert("KONTOR_UMBUCHUNG_FENSTER_TAGE")
@@ -407,6 +413,7 @@ class KontorConfig:
             umbuchung_automatisch=umbuchung_automatisch,
             lernmodell_automatisch=lernmodell_automatisch,
             wiederkehrend_automatisch=wiederkehrend_automatisch,
+            sync_konten_anlegen=sync_konten_anlegen,
             **ganz,
             **m6,
             **m7,

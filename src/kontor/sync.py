@@ -480,6 +480,16 @@ class SyncDienst:
                 neu = r is None
                 if not neu:
                     kid = r["id"]  # Regel 1; eine gespeicherte Entscheidung wird verworfen
+                elif z is None and not self.config.sync_konten_anlegen:
+                    # D-110: nicht anlegen, sondern überspringen; die Oberfläche bietet die Zuordnung an
+                    art = bk.art if bk.art in KONTOARTEN_BESTAND else "girokonto"
+                    uebersprungen.append({"iban": iban, "name": name, "status": "nicht_zugeordnet", "art": art})
+                    self._benachrichtigen(
+                        con, "konto_nicht_zugeordnet", f"konto_nicht_zugeordnet:{iban}", "Bankkonto ohne Zuordnung",
+                        f"Das Bankkonto „{name}“ (IBAN {iban}) ist noch keinem Konto zugeordnet und wurde bei der "
+                        "Synchronisation übersprungen. Bitte ein vorhandenes Konto wählen oder ein neues anlegen.",
+                        link="/sync")
+                    continue
                 elif z is None or z["entscheidung"] == "wiederherstellen":
                     art = bk.art if bk.art in KONTOARTEN_BESTAND else "girokonto"
                     kid = con.execute(

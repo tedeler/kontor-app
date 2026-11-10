@@ -62,6 +62,7 @@ BESCHREIBUNG = {
     "mehrfach_kategorie": "Kategorie für mehrere Buchungen gesetzt",
     "mehrfach_tags": "Tags mehrerer Buchungen geändert",
     "mehrfach_aendern": "Mehrere Buchungen geändert",
+    "mehrfach_loeschen": "Mehrere Buchungen gelöscht", "mehrfach_verschieben": "Buchungen auf anderes Konto verschoben",
     "vorschlag_entscheiden": "Vorschlag entschieden", "mehrfach_vorschlag": "Vorschläge entschieden",
     "tag_anlegen": "Tag angelegt", "tag_umbenennen": "Tag umbenannt", "tag_loeschen": "Tag gelöscht",
     "empfaenger_anlegen": "Empfänger angelegt", "empfaenger_aendern": "Empfänger geändert",
@@ -277,7 +278,9 @@ def protokolliert(con, quelle: str, aktion: str, zeitpunkt: str, gruppe: str | N
         if eintraege or k.rueckgaengig_von:
             k.aenderung_id = _speichern(con, quelle, aktion, zeitpunkt, k.gruppe, eintraege, k.rueckgaengig_von,
                                         k.beschreibung)
-            for a in k.rueckgaengig_von:
+            # absteigend: macht U auch Ziele von U rückgängig (Rückgängig bis, D-107), setzt das Freigeben der
+            # Ziele von U deren eigenen Eintrag nicht wieder zurück
+            for a in sorted(k.rueckgaengig_von, reverse=True):
                 _durch_setzen(con, a, k.aenderung_id)
             for f in k.danach:
                 f(k.aenderung_id)
@@ -322,7 +325,10 @@ def _durch_setzen(con, aid: int, wert: int | None) -> None:
     con.execute("UPDATE aenderung SET rueckgaengig_durch = ? WHERE id = ?", (wert, aid))
     war, ist = r["rueckgaengig_durch"] is None, wert is None
     if war != ist:
-        for k in _von(con, aid):
+        # aid wirkt wieder → seine Ziele werden (absteigend) durch aid ersetzt; sonst werden sie aufsteigend
+        # freigegeben, damit eine freigegebene Rückgängig-Änderung ihre eigenen Ziele wieder bindet (D-107)
+        ziele = _von(con, aid)
+        for k in (sorted(ziele, reverse=True) if ist else sorted(ziele)):
             _durch_setzen(con, k, aid if ist else None)
 
 
@@ -678,6 +684,8 @@ def mehrere_rueckgaengig(con, d: dict, zeitpunkt: str) -> dict:
             raise ApiFehler(409, "bereits_rueckgaengig", "Einige Änderungen sind bereits rückgängig gemacht.",
                             {"aenderung_ids": nicht})
         return rueckgaengig(con, ids, zeitpunkt)
+    if "bis_id" in d:
+        return bis_rueckgaengig(con, d["bis_id"], zeitpunkt)
     zeilen = con.execute("SELECT id, rueckgaengig_durch FROM aenderung WHERE gruppe = ?", (d["gruppe"],)).fetchall()
     if not zeilen:
         raise ApiFehler(422, "referenz_unbekannt", "Keine Änderung mit dieser Gruppe.")
@@ -685,6 +693,47 @@ def mehrere_rueckgaengig(con, d: dict, zeitpunkt: str) -> dict:
     if not ids:
         raise ApiFehler(409, "bereits_rueckgaengig", "Alle Änderungen dieser Gruppe sind bereits rückgängig gemacht.")
     return rueckgaengig(con, ids, zeitpunkt)
+
+
+def bis_menge(con, bis_id: int) -> list[int]:
+    """Rückgängig bis (D-107): Änderungen, die nacheinander (absteigend) zurückzunehmen sind, damit der Buchbestand
+    wieder so ist wie unmittelbar vor ``bis_id``. Von der neuesten Änderung abwärts wird jede Änderung
+    ``k >= bis_id`` gewählt, die im Zwischenstand nach den bereits gewählten Schritten wirksam ist; die
+    Wirksamkeit (6.5) wird dabei im Speicher genauso fortgeschrieben wie von ``_durch_setzen``. Wird eine
+    Rückgängig-Änderung gewählt, wirken ihre Ziele wieder: Ziele ``>= bis_id`` werden danach ebenfalls gewählt,
+    ältere bleiben wiederhergestellt. Sich aufhebende Paare erscheinen in ``rueckgaengig_von``, ändern aber die
+    Einträge (Nettowirkung) nicht."""
+    zeilen = con.execute("SELECT id, rueckgaengig_von, rueckgaengig_durch FROM aenderung WHERE id >= ?"
+                         " ORDER BY id DESC", (bis_id,)).fetchall()
+    von = {z["id"]: json.loads(z["rueckgaengig_von"]) for z in zeilen}
+    durch: dict[int, int | None] = {z["id"]: z["rueckgaengig_durch"] for z in zeilen}
+
+    def setzen(aid: int, wert: int | None) -> None:
+        if aid not in durch or durch[aid] == wert:
+            return
+        war, ist = durch[aid] is None, wert is None
+        durch[aid] = wert
+        if war != ist:
+            ziele = von[aid]
+            for k in (sorted(ziele, reverse=True) if ist else sorted(ziele)):
+                setzen(k, aid if ist else None)
+
+    neu = 0  # Platzhalter für die entstehende Änderung
+    menge: list[int] = []
+    for z in zeilen:
+        k = z["id"]
+        if durch[k] is None:
+            menge.append(k)
+            setzen(k, neu)
+    return menge
+
+
+def bis_rueckgaengig(con, bis_id: int, zeitpunkt: str) -> dict:
+    aenderung_lesen(con, bis_id)  # 404
+    menge = bis_menge(con, bis_id)
+    if not menge:
+        raise ApiFehler(409, "bereits_rueckgaengig", "Seit dieser Änderung ist nichts mehr wirksam.")
+    return rueckgaengig(con, menge, zeitpunkt)
 
 
 __all__: list[Any] = ["protokolliert", "ausfuehren", "rueckgaengig", "aenderungen_liste", "aenderung_lesen"]

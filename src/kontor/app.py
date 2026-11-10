@@ -29,7 +29,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.staticfiles import StaticFiles
 
 from . import (__version__, berichte, buch, db, export, kredite, lernmodell, mail, pflege, protokoll, regeln,
-               sicherung, vorlagen, wiederkehrend)
+               sicherung, verschieben, vorlagen, wiederkehrend)
 from . import anmeldung as anm
 from . import version as versionsinfo
 from .geheimnisse import REST_NAMEN
@@ -170,8 +170,15 @@ KONTO_LOESCHEN = {
     "gesperrte_einbeziehen": S("bool"),
     "trocken": S("bool"),
 }
+MEHRFACH_LOESCHEN = {"buchung_ids": S("int_liste", pflicht=True, min_items=1, eindeutig=True)}
+MEHRFACH_VERSCHIEBEN = {
+    "von_konto_id": S("int", pflicht=True),
+    "nach_konto_id": S("int", pflicht=True),
+    "buchung_ids": S("int_liste", min_items=1, eindeutig=True),
+    "gruppe": S("str", min_len=1),
+}
 RUECKGAENGIG = {"aenderung_ids": S("int_liste", min_items=1, max_items=1000, eindeutig=True),
-                "gruppe": S("str", min_len=1)}
+                "gruppe": S("str", min_len=1), "bis_id": S("int")}
 VORSCHLAG_AKTION = {"aktion": S("enum", pflicht=True, werte=("annehmen", "ablehnen"))}
 MEHRFACH_VORSCHLAG = {
     "buchung_ids": S("int_liste", pflicht=True, min_items=1, eindeutig=True),
@@ -534,6 +541,24 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
             raise Validierungsfehler([fehler_eintrag(
                 ["body"], "Mindestens eines der Felder status, datum, empfaenger_id, verwendungszweck.")])
         return await aendern("mehrfach_aendern", buch.mehrfach_aendern, d)
+
+    @endpunkt("POST", "/api/buchungen/mehrfach/loeschen")
+    async def mehrfach_loeschen(request: Request):
+        d = await koerper(request, MEHRFACH_LOESCHEN)
+        return await aendern("mehrfach_loeschen", buch.mehrfach_loeschen, d["buchung_ids"])
+
+    @endpunkt("POST", "/api/buchungen/mehrfach/verschieben")
+    async def mehrfach_verschieben(request: Request):
+        d = await koerper(request, MEHRFACH_VERSCHIEBEN)
+        if ("buchung_ids" in d) == ("gruppe" in d):
+            raise Validierungsfehler([fehler_eintrag(["body"], "Genau eines der Felder buchung_ids oder gruppe.")])
+        if d["von_konto_id"] == d["nach_konto_id"]:
+            raise Validierungsfehler([fehler_eintrag(["body", "nach_konto_id"], "Muss vom Quellkonto abweichen.")])
+        return await aendern("mehrfach_verschieben", verschieben.verschieben, d)
+
+    @endpunkt("GET", "/api/konten/{konto_id:int}/herkunft")
+    async def konto_herkunft(request: Request):
+        return await lesen(verschieben.herkunft, pid(request, "konto_id"))
 
     @endpunkt("GET", "/api/buchungen/{buchung_id:int}")
     async def buchung_lesen(request: Request):
@@ -1145,8 +1170,9 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     @endpunkt("POST", "/api/aenderungen/rueckgaengig")
     async def aenderungen_rueckgaengig(request: Request):
         d = await koerper(request, RUECKGAENGIG)
-        if ("aenderung_ids" in d) == ("gruppe" in d):
-            raise Validierungsfehler([fehler_eintrag(["body"], "Genau eines der Felder aenderung_ids oder gruppe.")])
+        if sum(f in d for f in ("aenderung_ids", "gruppe", "bis_id")) != 1:
+            raise Validierungsfehler([fehler_eintrag(["body"],
+                                                     "Genau eines der Felder aenderung_ids, gruppe oder bis_id.")])
         return await lesen(mit_uhr(protokoll.mehrere_rueckgaengig), d)
 
     @endpunkt("GET", "/api/aenderungen/{aenderung_id:int}")

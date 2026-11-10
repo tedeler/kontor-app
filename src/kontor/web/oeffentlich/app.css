@@ -279,6 +279,8 @@ html.zieht, html.zieht * { cursor: grabbing !important; }
 .protokoll { padding-left: 1.2rem; }
 .aenderung { margin-bottom: .35rem; overflow-wrap: anywhere; }
 .aenderung.unwirksam { color: var(--text-2); }
+.aenderung.bis-markiert { background: var(--akzent-hell); border-radius: 4px; }
+.knopf-klein { font-size: .8rem; padding: .1rem .45rem; margin-left: .3rem; }
 .marke { font-size: .75rem; background: var(--hg-3); border-radius: 4px; padding: 0 .3em; }
 
 /* Bewegung (20) */
@@ -289,8 +291,15 @@ html.zieht, html.zieht * { cursor: grabbing !important; }
   .knopf, .zeile, .option, .menue-eintrag { transition: background-color .12s; }
 }
 .zelle-kategorie { display: flex; align-items: center; gap: .1rem; }
-.zelle-kategorie .kat-text { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.zelle-kategorie .mini-knopf, .zelle-kategorie .vorschlag-marke { flex: none; }
+.zelle-kategorie .kat-text { flex: 0 1 auto; min-width: 3.5em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.zelle-kategorie .kat-text.vorschlag-kategorie { font-style: italic; color: var(--akzent); }
+.zelle-kategorie .mini-knopf { flex: none; }
+.zelle-kategorie .vorschlag-marke { flex: 0 2 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vorschlag-marke[data-quelle="lernmodell"] { background: var(--hg-3); }
+.details-vorschlag { border-left: 3px solid var(--akzent); padding-left: .5rem; margin-bottom: .6rem; }
+.vorschlag-kandidaten { list-style: none; padding: 0; margin: .3rem 0; font-size: .85rem; }
+.vorschlag-kandidaten li { display: flex; align-items: center; gap: .3rem; }
+.vorschlag-kandidaten li.gewaehlt { font-weight: 600; }
 .zahl-marke[data-anzahl="0"] { display: none; }
 .buchungsliste[data-kompakt="ja"] .liste-kopf { gap: .2rem; }
 
@@ -305,3 +314,16 @@ html.zieht, html.zieht * { cursor: grabbing !important; }
 .buchungsliste.mit-konto[data-kompakt="ja"] .liste-kopf .zelle-konto { display: none; }
 .buchungsliste.mit-konto[data-kompakt="ja"] .zeile { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; grid-template-areas: "datum empf betrag" "kat konto tags"; }
 .buchungsliste.mit-konto[data-kompakt="ja"] .zelle-konto { grid-area: konto; font-size: .85rem; color: var(--text-2); }
+
+/* Sammelpaket: Statusanzeige im PIN-Dialog, Verschieben, Zuordnung (D-108 bis D-110) */
+.sync-status-zeile { display: flex; align-items: center; gap: .5rem; min-height: 1.6rem; }
+.sync-status { margin: .3rem 0; font-weight: 500; }
+.sync-status[data-phase="pin_falsch"], .sync-status[data-phase="fehler"] { color: var(--gefahr); }
+.sync-status[data-phase="fertig"] { color: var(--erfolg); }
+.kreisel { width: 1rem; height: 1rem; border: 2px solid var(--akzent-hell); border-top-color: var(--akzent); border-radius: 50%;
+  animation: kreisel 0.8s linear infinite; flex: none; }
+@keyframes kreisel { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .kreisel { animation: none; } }
+.dialog[data-gesperrt="ja"] .dialog-inhalt { cursor: progress; }
+.umfang { border: 1px solid var(--rand); border-radius: var(--radius); padding: .5rem .75rem; margin: .5rem 0; display: grid; gap: .35rem; }
+.auswahl-zeile { display: flex; align-items: center; gap: .3rem; }

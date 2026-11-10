@@ -3,10 +3,10 @@
  * 15.4, 16–19). */
 import {
   ApiFehler, BESTAND, anmeldung, anmeldungLaden, api, beiOffline, dialogOffen, ebeneOeffnen, ebeneSchliessen, ebenen,
-  fehlerMelden, h, istTexteingabe, melde, nachName, neueId, oberflaeche, obersteEbene, passt, rueckgaengig, stamm,
+  fehlerMelden, h, istTexteingabe, kontoNach, melde, nachName, neueId, oberflaeche, obersteEbene, passt, rueckgaengig, stamm,
   stammLaden, stapelAnzeigen, tid, wiederholen,
 } from "./kern.js";
-import { dialog, feld, fokusFalle, imDialog, knopf, knopfLeiste } from "./ui.js";
+import { dialog, feld, fokusFalle, knopf, knopfLeiste, zuordnungDialog } from "./ui.js";
 import { kontoSeite, layoutZuruecksetzen } from "./konto.js";
 import * as S from "./seiten.js";
 
@@ -281,8 +281,9 @@ async function synchronisieren() {
   syncLaeuft = true;
   const knopfEl = tid("sync-starten");
   knopfEl.disabled = true;
+  let lauf = null;
   try {
-    const lauf = await api("POST", "/api/sync", {});
+    lauf = await api("POST", "/api/sync", {});
     syncErgebnis(lauf);
   } catch (e) {
     fehlerMelden(e);
@@ -292,14 +293,26 @@ async function synchronisieren() {
     await zeigen({ behalten: true });
     await benachrichtigungenZaehlen();
   }
+  if (lauf) await zuordnenNachLauf(lauf);
 }
 
 const LAUF = { erfolgreich: "Synchronisation erfolgreich.", fehlgeschlagen: "Synchronisation fehlgeschlagen.",
   wartet_auf_tan: "Die Bank verlangt eine TAN-Freigabe.", abgebrochen: "Synchronisation abgebrochen.", laeuft: "Synchronisation läuft." };
+const PIN_FEHLER = new Set(["bank_pin_fehlt", "bank_pin_falsch"]);
+
+const nichtZugeordnet = (lauf) => (lauf.uebersprungen || []).filter((u) => u.status === "nicht_zugeordnet");
+
+function laufText(lauf) {
+  const neu = (lauf.konten || []).reduce((s, k) => s + (k.buchungen_neu || 0), 0);
+  const offen = nichtZugeordnet(lauf).length;
+  return (LAUF[lauf.status] || lauf.status) + (lauf.status === "erfolgreich" ? ` ${neu === 1 ? "1 neue Buchung" : `${neu} neue Buchungen`}.` : "")
+    + (offen ? ` ${offen === 1 ? "Ein Bankkonto ist" : `${offen} Bankkonten sind`} noch keinem Konto zugeordnet.` : "")
+    + (lauf.fehler && lauf.fehler.meldung ? " " + lauf.fehler.meldung : "");
+}
 
 function syncErgebnis(lauf, pinDialogOffen) {
   const code = lauf.fehler && lauf.fehler.code;
-  if (code === "bank_pin_fehlt" || code === "bank_pin_falsch") {
+  if (PIN_FEHLER.has(code)) {
     if (pinDialogOffen) return lauf;
     pinDialog(code === "bank_pin_falsch");
     return lauf;
@@ -307,40 +320,118 @@ function syncErgebnis(lauf, pinDialogOffen) {
   if (lauf.status === "wartet_auf_tan" && lauf.tan_anforderung_id) {
     melde("hinweis", LAUF.wartet_auf_tan, { link: { href: `/tan/${lauf.tan_anforderung_id}`, tid: "sync-tan-link", text: "TAN eingeben" } });
   } else {
-    const neu = (lauf.konten || []).reduce((s, k) => s + (k.buchungen_neu || 0), 0);
-    melde(lauf.status === "erfolgreich" ? "erfolg" : lauf.status === "fehlgeschlagen" ? "fehler" : "hinweis",
-      (LAUF[lauf.status] || lauf.status) + (lauf.status === "erfolgreich" ? ` ${neu} neue Buchungen.` : "")
-      + (lauf.fehler && lauf.fehler.meldung ? " " + lauf.fehler.meldung : ""));
+    melde(lauf.status === "erfolgreich" ? "erfolg" : lauf.status === "fehlgeschlagen" ? "fehler" : "hinweis", laufText(lauf));
   }
   return lauf;
+}
+
+/** D-110: Nach einem Lauf für jedes nicht zugeordnete Bankkonto die Zuordnung anbieten, danach erneut abrufen. */
+async function zuordnenNachLauf(lauf) {
+  const offen = nichtZugeordnet(lauf);
+  if (!offen.length || PIN_FEHLER.has(lauf.fehler && lauf.fehler.code)) return;
+  let zugeordnet = 0;
+  for (const bk of offen) {
+    const w = await zuordnungDialog(bk, tid("sync-starten"),
+      offen.length > 1 ? `Bankkonto ${offen.indexOf(bk) + 1} von ${offen.length}.` : null);
+    if (w === null) break;
+    if (w) zugeordnet += 1;
+  }
+  if (zugeordnet) await synchronisieren();   // Umsätze der eben zugeordneten Bankkonten abrufen
+}
+
+/**
+ * Statusanzeige während eines Laufs: fragt `GET /api/sync/status` ab, solange `POST /api/sync` läuft, und meldet
+ * den Fortschritt je Bankkonto (Zuordnung, Abruf, TAN).
+ */
+function laufBeobachten(zeigenText) {
+  let aktiv = true;
+  (async () => {
+    await new Promise((r) => setTimeout(r, 400));
+    while (aktiv) {
+      try {
+        const st = await api("GET", "/api/sync/status");
+        const l = st.letzter_lauf;
+        if (aktiv && l && l.status === "laeuft") {
+          const konten = l.konten || [];
+          const fertig = konten.filter((k) => k.status !== "ausstehend").length;
+          if (!konten.length) zeigenText("verbinden", "Verbinde mit der Bank …");
+          else {
+            const aktuell = konten.find((k) => k.status === "ausstehend");
+            const name = aktuell ? (kontoNach(aktuell.konto_id) || {}).name || aktuell.iban : "";
+            zeigenText("abruf", `Rufe Umsätze ab … (${Math.min(fertig + 1, konten.length)} von ${konten.length}${name ? `: ${name}` : ""})`);
+          }
+        }
+      } catch (e) { /* Anzeige bleibt */ }
+      await new Promise((r) => setTimeout(r, 700));
+    }
+  })();
+  return { stop() { aktiv = false; } };
 }
 
 function pinDialog(falsch) {
   dialog("pin-dialog", "Bank-PIN eingeben", (inhalt, d) => {
     const pin = h("input", { type: "password", tid: "pin-eingabe", autocomplete: "off", maxlength: "64", spellcheck: "false" });
     const senden = knopf("PIN senden und synchronisieren", { tid: "pin-senden", class: "knopf knopf-haupt" });
+    const abbrechen = knopf("Abbrechen", { tid: "pin-abbrechen", onclick: () => d.schliessen(null) });
+    const anzeige = h("p", { tid: "pin-dialog-status", class: "sync-status", role: "status", "aria-live": "polite", hidden: true });
+    const spinner = h("span", { class: "kreisel", "aria-hidden": "true", hidden: true });
+    const status = (art, text) => {
+      anzeige.hidden = !text;
+      anzeige.dataset.phase = art || "";
+      anzeige.textContent = text || "";
+      spinner.hidden = !(art === "pin" || art === "verbinden" || art === "abruf");
+    };
     if (falsch) d.fehler("Die Bank hat die PIN abgelehnt. Bitte erneut eingeben.");
-    const los = () => imDialog(d, senden, async () => {
+    let laeuft = false;
+    const los = async () => {
+      if (laeuft) return;
       const wert = pin.value;
       pin.value = "";
+      d.fehler("");
       if (!wert) { d.fehler("Bitte die PIN eingeben."); return; }
-      await api("PUT", "/api/sync/pin", { pin: wert });
-      const lauf = await api("POST", "/api/sync", {});
+      laeuft = true;
+      d.sperren(true);
+      status("pin", "Übergebe die PIN …");
+      let beobachter = null;
+      let lauf = null;
+      try {
+        await api("PUT", "/api/sync/pin", { pin: wert });
+        status("verbinden", "Verbinde mit der Bank …");
+        beobachter = laufBeobachten(status);
+        lauf = await api("POST", "/api/sync", {});
+      } catch (e) {
+        if (beobachter) beobachter.stop();
+        d.sperren(false);
+        laeuft = false;
+        status("fehler", "");
+        d.fehler(e.message || "Die Synchronisation konnte nicht gestartet werden.");
+        pin.focus();
+        return;
+      }
+      beobachter.stop();
       const code = lauf.fehler && lauf.fehler.code;
-      if (code === "bank_pin_fehlt" || code === "bank_pin_falsch") {
+      if (PIN_FEHLER.has(code)) {
+        d.sperren(false);
+        laeuft = false;
+        status("pin_falsch", "");
         d.fehler("Die Bank hat die PIN abgelehnt. Bitte erneut eingeben.");
         pin.focus();
         return;
       }
+      if (lauf.status === "wartet_auf_tan") status("tan", "Die Bank verlangt eine TAN-Freigabe.");
+      else status(lauf.status === "erfolgreich" ? "fertig" : "fehler", laufText(lauf));
+      await new Promise((r) => setTimeout(r, lauf.status === "erfolgreich" ? 900 : 1800));
+      d.sperren(false);
       d.schliessen(true);
       syncErgebnis(lauf, true);
       await zeigen({ behalten: true });
       await benachrichtigungenZaehlen();
-    });
+      await zuordnenNachLauf(lauf);
+    };
     senden.addEventListener("click", los);
     pin.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); los(); } });
     inhalt.append(h("p", null, "Die PIN wird nur im Arbeitsspeicher des Servers gehalten, nie gespeichert."), feld("PIN", pin),
-      knopfLeiste(senden, knopf("Abbrechen", { onclick: () => d.schliessen(null) })));
+      h("div", { class: "sync-status-zeile" }, spinner, anzeige), knopfLeiste(senden, abbrechen));
   });
 }
 
