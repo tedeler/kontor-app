@@ -37,6 +37,7 @@ SQL-Text eingesetzt werden.
 | 2026-11-09 | `12cadb0` | M7 (abgeschlossen), vor M8 | 13 823 | 2 922 | 334 | 43 | 37 | 119 | 361 | 0 |
 | 2026-11-09 | `a15f0f0` | M8 (abgeschlossen), vor M10 | 13 818 | 3 584² | 334 | 43 | 37 | 119 | 361 | 0 |
 | 2026-11-09 | `99c2c95` | M10 (abgeschlossen), vor M11 | 14 351 | 3 584² | 337 | 44 | 36 | 119 | 361 | 0 |
+| 2026-11-10 | `4487cff` | M11 (abgeschlossen), vor Versionierung | 14 612 | 3 744² | 349 | 44 | 36 | 125 | 367 | 0 |
 
 ¹ `--select E,F,W,B,C90,SIM,UP,PL --line-length 120`.
 ² Ab M8 Summe der ES-Module `src/kontor/web/oeffentlich/app/*.js` (R-07, `app.js` gibt es nicht mehr).
@@ -161,6 +162,10 @@ jedem Schritt muss die Testsuite aus kontor-tests unverändert grün bleiben
 - [x] **R-07 `app.js` in ES-Module** (M8, D-091) je Ansicht aufteilen (ohne Bundler,
   `<script type="module">`, weiterhin ohne externe Ressourcen).
 - [ ] **R-08 Magische Statuscodes** in `schutz.py`/`app.py` durch `http.HTTPStatus` ersetzen.
+- [ ] **R-09 Rückgabetyp `Umsatzliste` (M11):** mypy-Fehler stiegen von 119 auf 125, weil
+  `umsaetze()` in `plugins/fints.py` (und weiteren Plugins) Listen statt `Umsatzliste` zurückgibt bzw. so
+  annotiert ist; Annotationen angleichen (verhaltensneutral). Ruff-Funde und Parameter ohne Annotation stiegen
+  mit dem M11-Umfang (+261 Zeilen) leicht; keine neuen breiten `except`, keine echten SQL-Funde.
 
 Neue Funktionen sollen die Grenze C901 ≤ 15 einhalten; Überschreitungen nur
 mit Begründung im Code.
