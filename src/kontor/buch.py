@@ -647,6 +647,50 @@ def mehrfach_tags(con, ids: list[int], hinzufuegen: list[int], entfernen: list[i
     return {"geaendert": sorted(ids), "anzahl": len(ids)}
 
 
+def _aenderung_an_gesperrter(b: dict, d: dict) -> bool:
+    """E-026: nur tatsächliche Änderungen von Datum, Empfänger oder Verwendungszweck zählen."""
+    alt_empf = b["empfaenger"]["id"] if b["empfaenger"] else None
+    return (("datum" in d and d["datum"] != b["datum"])
+            or ("empfaenger_id" in d and d["empfaenger_id"] != alt_empf)
+            or ("verwendungszweck" in d and d["verwendungszweck"] != b["verwendungszweck"]))
+
+
+def mehrfach_aendern(con, d: dict) -> dict:
+    """M12 (datenmodell.md 17.2): Status, Datum, Empfänger und Verwendungszweck mehrerer Buchungen, atomar.
+
+    Freie Statusübergänge; das Verlassen von ``abgeglichen`` verlangt ``entsperren``. Prüfreihenfolge:
+    unbekannte Buchungen, unbekannter Empfänger, ``buchung_gesperrt``, ``bestaetigung_erforderlich``.
+    """
+    ids = sorted(d["buchung_ids"])
+    fehlend = sorted(set(ids) - _vorhandene_buchungen(con, ids))
+    if fehlend:
+        raise ApiFehler(422, "referenz_unbekannt", "Unbekannte Buchungen.", {"buchung_ids": fehlend})
+    if "empfaenger_id" in d:
+        _empfaenger_pruefen(con, d["empfaenger_id"])
+    buchungen = buchungen_laden(con, ids)
+    gesperrt = [b["id"] for b in buchungen if ist_gesperrt(b) and _aenderung_an_gesperrter(b, d)]
+    if gesperrt:
+        raise ApiFehler(409, "buchung_gesperrt", "Gesperrte Buchungen können nicht geändert werden.",
+                        {"buchung_ids": gesperrt})
+    status = d.get("status")
+    wechsel = [b for b in buchungen if status is not None and b["status"] != status]
+    if not d.get("entsperren"):
+        zu_bestaetigen = [b["id"] for b in wechsel if b["status"] == "abgeglichen"]
+        if zu_bestaetigen:
+            raise ApiFehler(409, "bestaetigung_erforderlich",
+                            "Abgeglichene Buchungen werden nur mit Bestätigung (entsperren) geändert.",
+                            {"buchung_ids": zu_bestaetigen})
+    felder = [f for f in ("datum", "empfaenger_id", "verwendungszweck", "status") if f in d]
+    zuweisung = ", ".join(f"{f} = ?" for f in felder)
+    werte = [d[f] for f in felder]
+    for teil in _stueckweise(ids):
+        con.execute(f"UPDATE buchung SET {zuweisung} WHERE id IN ({_platzhalter(len(teil))})",
+                    [*werte, *(sichere_id(x) for x in teil)])
+    if status in ("bestaetigt", "abgeglichen") and wechsel:
+        vorschlag_entfernen(con, [b["id"] for b in wechsel])  # Bestätigung erledigt den Vorschlag
+    return {"geaendert": ids, "anzahl": len(ids)}
+
+
 # ============================================================ Buchungsliste
 
 SORTIERUNGEN = ("datum", "-datum", "betrag", "-betrag", "empfaenger", "-empfaenger")

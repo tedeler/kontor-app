@@ -1257,3 +1257,24 @@ Weitere Abkürzungen: SY = `spec/api/synchronisation.md`, KA =
     Fokus zurück auf den Knopf). Mobil schließt der Klick zuerst das Menü.
 - **Begründung:** Eine Datei als Quelle verhindert abweichende Angaben; die CI ist der einzige Ort, der hochzählt,
   damit Feature-Branches keine Versionskonflikte erzeugen.
+
+## D-106 Bearbeiten und Massenänderungen (M12, Feature `buchungsbearbeitung`)
+
+- **Frage:** Offene Einzelheiten der Umsetzung von `datenmodell.md` 17 und `oberflaeche.md` 23.
+- **Entscheidung:**
+  - `buch.mehrfach_aendern` prüft in der Reihenfolge der Spezifikation (unbekannte Buchungen, unbekannter
+    Empfänger, `buchung_gesperrt`, `bestaetigung_erforderlich`) und schreibt dann stückweise (je 500 IDs) ein
+    `UPDATE` für alle genannten Buchungen. Buchungen ohne tatsächliche Änderung erscheinen nicht im Protokoll, weil
+    das Protokoll die Nettowirkung erfasst; ändert sich nichts, entsteht keine Änderung. Der Vorschlag wird nur bei
+    Buchungen entfernt, deren Status sich tatsächlich auf `bestaetigt`/`abgeglichen` ändert.
+  - „Mindestens ein Feld“ wird nach der Schemaprüfung im Endpunkt geprüft (422 `validierung`, Ort `body`).
+  - Oberfläche: Die Empfänger-Auswahl nutzt die Reihenfolge der Antwort von `GET /api/empfaenger`
+    (`stamm.empfaengerFolge`), nicht die nach Namen sortierte Liste. Ein ungültiger Betrag bleibt bei Enter im
+    Editor (`aria-invalid`); beim Verlassen des Feldes wird er verworfen, ohne Anfrage.
+  - Inline-Status und `km-status`/`mehrfach-status` laufen über dieselbe Funktion mit der Rückfrage
+    `bestaetigen-dialog`; der Bearbeiten-Dialog zeigt dafür `mehrfach-entsperren`.
+  - Fokus einer Zeile führt die Liste nur noch senkrecht nach: Bei schmaler Liste (beide Panels offen) ist die
+    Zeile breiter als die Liste; bisher sprang die waagerechte Scrolllage beim Fokussieren an den Zeilenanfang,
+    sodass der zweite Klick eines Doppelklicks auf Status oder Betrag neben der Zelle landete.
+- **Begründung:** Nah an `PATCH` und den übrigen Mehrfach-Endpunkten; eine Funktion je Oberflächenablauf hält
+  Rückfrage und Fehlermeldung einheitlich.

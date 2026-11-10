@@ -61,6 +61,7 @@ BESCHREIBUNG = {
     "splits_ersetzen": "Splits ersetzt", "kategorie_setzen": "Kategorie gesetzt",
     "mehrfach_kategorie": "Kategorie für mehrere Buchungen gesetzt",
     "mehrfach_tags": "Tags mehrerer Buchungen geändert",
+    "mehrfach_aendern": "Mehrere Buchungen geändert",
     "vorschlag_entscheiden": "Vorschlag entschieden", "mehrfach_vorschlag": "Vorschläge entschieden",
     "tag_anlegen": "Tag angelegt", "tag_umbenennen": "Tag umbenannt", "tag_loeschen": "Tag gelöscht",
     "empfaenger_anlegen": "Empfänger angelegt", "empfaenger_aendern": "Empfänger geändert",

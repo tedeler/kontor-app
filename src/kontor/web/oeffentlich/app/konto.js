@@ -5,8 +5,8 @@ import {
   kontoNach, kontoPfad, melde, neueId, oberflaeche, pfadVon, stamm, tid,
 } from "./kern.js";
 import {
-  bestaetigen, dialog, dubletteDialog, erfassenDialog, kategorieAuswahl, kontextmenue, knopf, menuePosition,
-  splitDialog, tagAuswahl,
+  bestaetigen, dialog, dubletteDialog, erfassenDialog, imDialog, kategorieAuswahl, kontextmenue, knopf, knopfLeiste,
+  menuePosition, splitDialog, tagAuswahl,
 } from "./ui.js";
 import { kategorienBaum, langeBeruehrung, ziehbar } from "./baum.js";
 
@@ -76,7 +76,7 @@ class Kontoansicht {
     this.zeilen = new Map();
     this.verdachte = [];
     this.layout = layoutLaden();
-    this.filterSichtbar = !oberflaeche.istMobil();
+    this.filterSichtbar = false;   // 23.1 (E-172): jede Kontoansicht beginnt eingeklappt, nicht gespeichert
   }
 
   // ---------------------------------------------------------------- Filter (7.1)
@@ -586,7 +586,13 @@ class Kontoansicht {
     this.fokusId = id;
     this.auswahlZeigen();
     const z = this.zeilen.get(id);
-    if (z && mitDom) { z.focus({ preventScroll: true }); z.scrollIntoView({ block: "nearest" }); }
+    if (z && mitDom) {
+      // nur senkrecht nachführen: eine Zeile ist breiter als die Liste, waagerecht bleibt die Lage (23.2)
+      const links = this.listenSpalte ? this.listenSpalte.scrollLeft : 0;
+      z.focus({ preventScroll: true });
+      z.scrollIntoView({ block: "nearest" });
+      if (this.listenSpalte) this.listenSpalte.scrollLeft = links;
+    }
     this.detailsZeichnen();
   }
 
@@ -683,7 +689,7 @@ class Kontoansicht {
       const zelle = e.target.closest("[data-feld]");
       const z = zeileVon(e.target);
       if (!z || !zelle || e.target.closest("button, input, select")) return;
-      if (["datum", "verwendungszweck", "kategorie"].includes(zelle.dataset.feld)) {
+      if (["datum", "verwendungszweck", "kategorie", "empfaenger", "status", "betrag"].includes(zelle.dataset.feld)) {
         this.bearbeiten(Number(z.dataset.id), zelle.dataset.feld);
       }
     });
@@ -769,6 +775,8 @@ class Kontoansicht {
       { tid: "km-vorschlag-annehmen", text: "Vorschlag annehmen", aktiv: mitVorschlag, tun: () => this.vorschlag(null, ids, "annehmen") },
       { tid: "km-vorschlag-ablehnen", text: "Vorschlag ablehnen", aktiv: mitVorschlag, tun: () => this.vorschlag(null, ids, "ablehnen") },
       { tid: "km-bearbeiten", text: "Verwendungszweck bearbeiten", aktiv: eine, tun: () => this.bearbeiten(ids[0], "verwendungszweck") },
+      { tid: "km-status", text: "Status setzen…", tun: () => this.statusWaehlen(ids, ausloeser) },
+      { tid: "km-mehrfach", text: "Bearbeiten…", tun: () => this.mehrfachDialog(ids, ausloeser) },
       { tid: "km-loeschen", text: "Löschen…", tun: () => this.loeschen(ausloeser) },
     ], ausloeser);
   }
@@ -780,6 +788,8 @@ class Kontoansicht {
       hidden: true },
     k("mehrfach-kategorie", "Kategorie…", (el) => this.kategorieWaehlen(this.auswahlIds(), el)),
     k("mehrfach-tags", "Tags…", (el) => tagAuswahl(this.auswahlIds(), el)),
+    k("mehrfach-status", "Status…", (el) => this.statusWaehlen(this.auswahlIds(), el)),
+    k("mehrfach-bearbeiten", "Bearbeiten…", (el) => this.mehrfachDialog(this.auswahlIds(), el)),
     k("mehrfach-vorschlag-annehmen", "Vorschläge annehmen", () => this.vorschlag(null, this.auswahlIds(), "annehmen")),
     k("mehrfach-vorschlag-ablehnen", "Vorschläge ablehnen", () => this.vorschlag(null, this.auswahlIds(), "ablehnen")),
     k("mehrfach-loeschen", "Löschen…", (el) => this.loeschen(el)),
@@ -815,6 +825,90 @@ class Kontoansicht {
     } catch (f) { /* gemeldet */ }
   }
 
+  // ---------------------------------------------------------------- Status und Bearbeiten-Dialog (23.3 bis 23.5)
+  abgeglichenUnter(ids, status) {
+    return this.eintraege.filter((b) => ids.includes(b.id) && b.status === "abgeglichen" && status !== "abgeglichen");
+  }
+
+  async statusWaehlen(ids, ausloeser) {
+    if (!ids.length) return;
+    const status = await statusAuswahl(ids.length, ausloeser);
+    if (status) await this.statusSetzen(ids, status, ausloeser);
+  }
+
+  /** Status über mehrfach/aendern; vor dem Verlassen von „abgeglichen“ eine Rückfrage (E-169). */
+  async statusSetzen(ids, status, ausloeser) {
+    const sortiert = ids.slice().sort((a, b) => a - b);
+    const abgeglichen = this.abgeglichenUnter(sortiert, status);
+    const koerper = { buchung_ids: sortiert, status };
+    if (abgeglichen.length) {
+      const n = abgeglichen.length;
+      const ok = await bestaetigen(n === 1 && sortiert.length === 1
+        ? "Die Buchung ist abgeglichen. Nach der Statusänderung kann sie bearbeitet werden. Fortfahren?"
+        : `${n === 1 ? "1 Buchung ist" : `${n} Buchungen sind`} abgeglichen. Nach der Statusänderung können sie `
+          + "bearbeitet werden. Fortfahren?", { ja: "Status ändern", ausloeser });
+      if (!ok) return;
+      koerper.entsperren = true;
+    }
+    try {
+      await aktion(() => api("POST", "/api/buchungen/mehrfach/aendern", koerper),
+        { erfolg: `Status „${STATUS_TEXT[status]}“ gesetzt.` });
+    } catch (e) { /* gemeldet; atomar, nichts geändert */ }
+  }
+
+  mehrfachDialog(ids, ausloeser) {
+    if (!ids.length) return;
+    const sortiert = ids.slice().sort((a, b) => a - b);
+    dialog("mehrfach-dialog", sortiert.length === 1 ? "Buchung bearbeiten" : `${sortiert.length} Buchungen bearbeiten`,
+      (inhalt, d) => {
+        const werte = {
+          status: statusSelect("Status", "mehrfach-wert-status"),
+          datum: h("input", { type: "date", tid: "mehrfach-wert-datum" }),
+          empfaenger: empfaengerSelect("Empfänger", "mehrfach-wert-empfaenger"),
+          verwendungszweck: h("input", { type: "text", tid: "mehrfach-wert-verwendungszweck", maxlength: "10000" }),
+        };
+        const titel = { status: "Status", datum: "Datum", empfaenger: "Empfänger", verwendungszweck: "Verwendungszweck" };
+        const entsperren = h("input", { type: "checkbox", tid: "mehrfach-entsperren" });
+        const entsperrenZeile = h("label", { class: "feld", hidden: true }, entsperren,
+          " Abgeglichene Buchungen entsperren (Status ändern)");
+        const uebernehmen = knopf("Übernehmen", { tid: "mehrfach-uebernehmen", class: "knopf knopf-haupt", disabled: true });
+        const pruefen = () => {
+          const zeigen = an.status.checked && this.abgeglichenUnter(sortiert, werte.status.value).length > 0;
+          entsperrenZeile.hidden = !zeigen;
+          const irgendeins = Object.values(an).some((x) => x.checked);
+          uebernehmen.disabled = !irgendeins || (an.datum.checked && !werte.datum.value)
+            || (zeigen && !entsperren.checked);
+        };
+        entsperren.addEventListener("change", pruefen);
+        const an = {};
+        const zeilen = Object.keys(werte).map((f) => {
+          an[f] = h("input", { type: "checkbox", tid: `mehrfach-an-${f}`, "aria-label": `${titel[f]} ändern` });
+          werte[f].id = neueId("mehrfach");
+          for (const t of ["input", "change"]) werte[f].addEventListener(t, () => { an[f].checked = true; pruefen(); });
+          an[f].addEventListener("change", pruefen);
+          return h("div", { class: "feld mehrfach-feld" }, h("label", { for: werte[f].id }, an[f], " ", titel[f]),
+            werte[f]);
+        });
+        uebernehmen.addEventListener("click", () => imDialog(d, uebernehmen, async () => {
+          pruefen();
+          if (uebernehmen.disabled) return;
+          const k = { buchung_ids: sortiert };
+          if (an.status.checked) k.status = werte.status.value;
+          if (an.datum.checked) k.datum = werte.datum.value;
+          if (an.empfaenger.checked) k.empfaenger_id = werte.empfaenger.value === "" ? null : Number(werte.empfaenger.value);
+          if (an.verwendungszweck.checked) k.verwendungszweck = werte.verwendungszweck.value;
+          if (!entsperrenZeile.hidden && entsperren.checked) k.entsperren = true;
+          await aktion(() => api("POST", "/api/buchungen/mehrfach/aendern", k), { stillBeiFehler: true,
+            danach: () => d.schliessen(true),
+            erfolg: sortiert.length === 1 ? "Buchung geändert." : `${sortiert.length} Buchungen geändert.` });
+        }));
+        inhalt.append(h("p", null, h("span", { tid: "mehrfach-dialog-anzahl", "data-anzahl": String(sortiert.length) },
+          sortiert.length === 1 ? "1 Buchung" : `${sortiert.length} Buchungen`), " ausgewählt. Angehakte Felder werden "
+          + "bei allen gesetzt."), ...zeilen, entsperrenZeile,
+        knopfLeiste(uebernehmen, knopf("Abbrechen", { tid: "mehrfach-abbrechen", onclick: () => d.schliessen(null) })));
+      }, { ausloeser });
+  }
+
   async loeschen(ausloeser) {
     const ids = this.auswahlIds().sort((a, b) => a - b);
     if (!ids.length) return;
@@ -833,8 +927,13 @@ class Kontoansicht {
     const b = this.eintraege.find((x) => x.id === id);
     const z = this.zeilen.get(id);
     if (!b || !z) return;
-    if (b.abgestimmt || b.status === "abgeglichen") {
+    // 23.2: der Status ist auch bei gesperrten Buchungen bearbeitbar
+    if (feld !== "status" && (b.abgestimmt || b.status === "abgeglichen")) {
       melde("hinweis", "Diese Buchung ist abgestimmt bzw. abgeglichen und kann nicht bearbeitet werden.");
+      return;
+    }
+    if (feld === "betrag" && !this.betragBearbeitbar(b)) {
+      melde("hinweis", "Den Betrag dieser Buchung über „Splitten…“ bearbeiten.");
       return;
     }
     const gegen = gegensplits(b);
@@ -851,6 +950,17 @@ class Kontoansicht {
     } else if (feld === "verwendungszweck") {
       alt = b.verwendungszweck;
       editor = h("input", { type: "text", value: b.verwendungszweck, "aria-label": "Verwendungszweck" });
+    } else if (feld === "status") {
+      alt = b.status;
+      editor = statusSelect("Status");
+      editor.value = alt;
+    } else if (feld === "empfaenger") {
+      alt = b.empfaenger ? String(b.empfaenger.id) : "";
+      editor = empfaengerSelect("Empfänger");
+      editor.value = alt;
+    } else if (feld === "betrag") {
+      alt = betragEingabeText(b.betrag);
+      editor = h("input", { type: "text", inputmode: "decimal", value: alt, "aria-label": "Betrag" });
     } else {
       alt = b.kategorie_id ? String(b.kategorie_id) : "";
       editor = h("select", { "aria-label": "Kategorie" }, h("option", { value: "" }, "– Kategorie wählen –"),
@@ -863,17 +973,31 @@ class Kontoansicht {
     const inhalt = [...zelle.childNodes];
     let fertig = false;
     const zurueck = () => { if (zelle.isConnected) zelle.replaceChildren(...inhalt); };
-    const uebernehmen = async (fokusZurueck) => {
+    const uebernehmen = async (fokusZurueck, beimVerlassen) => {
       if (fertig) return;
+      let cent = null;
+      if (feld === "betrag" && editor.value !== alt) {
+        cent = betragLesen(editor.value);
+        if (cent === null || cent === "") {
+          editor.setAttribute("aria-invalid", "true");   // ungültig: keine Anfrage (23.2)
+          if (!beimVerlassen) return;
+          cent = null;
+        }
+      }
       fertig = true;
       const wert = editor.value;
       zurueck();
       if (fokusZurueck) z.focus({ preventScroll: true });
       if (wert === alt || (feld === "datum" && !wert) || (feld === "kategorie" && !wert)) return;
+      if (feld === "status") { await this.statusSetzen([id], wert, z); return; }
+      if (feld === "betrag" && cent === null) return;
       try {
-        await aktion(() => (feld === "kategorie"
-          ? api("PUT", `/api/buchungen/${id}/kategorie`, { kategorie_id: Number(wert) })
-          : api("PATCH", `/api/buchungen/${id}`, { [feld]: wert })), { erfolg: "Buchung geändert." });
+        await aktion(() => {
+          if (feld === "kategorie") return api("PUT", `/api/buchungen/${id}/kategorie`, { kategorie_id: Number(wert) });
+          if (feld === "betrag") return api("PUT", `/api/buchungen/${id}/splits`, { splits: this.betragSplits(b, cent) });
+          if (feld === "empfaenger") return api("PATCH", `/api/buchungen/${id}`, { empfaenger_id: wert === "" ? null : Number(wert) });
+          return api("PATCH", `/api/buchungen/${id}`, { [feld]: wert });
+        }, { erfolg: "Buchung geändert." });
       } catch (e) { /* gemeldet; die Zelle zeigt wieder den Stand des Servers */ }
     };
     editor.addEventListener("keydown", (e) => {
@@ -882,13 +1006,45 @@ class Kontoansicht {
       else if (e.key === "Tab") { uebernehmen(false); }
       else if (e.key === "Escape") { e.preventDefault(); fertig = true; zurueck(); z.focus({ preventScroll: true }); }
     });
-    editor.addEventListener("blur", () => uebernehmen(false));
-    if (feld === "kategorie") editor.addEventListener("change", () => uebernehmen(true));
+    editor.addEventListener("blur", () => uebernehmen(false, true));
+    if (editor.tagName === "SELECT") editor.addEventListener("change", () => uebernehmen(true));
     for (const t of ["click", "dblclick", "pointerdown", "contextmenu"]) editor.addEventListener(t, (e) => e.stopPropagation());
     zelle.replaceChildren(editor);
     editor.focus();
-    if (feld === "verwendungszweck") editor.select();
+    if (feld === "verwendungszweck" || feld === "betrag") editor.select();
   }
+
+  /** 23.2: nicht gesperrt, genau zwei Splits, genau einer davon auf dem Konto der Ansicht. */
+  betragBearbeitbar(b) {
+    return !b.abgestimmt && b.status !== "abgeglichen" && b.splits.length === 2
+      && b.splits.filter((s) => s.konto_id === this.konto.id).length === 1;
+  }
+
+  /** Split auf dem Konto der Ansicht v, der andere −v; Reihenfolge, Konten und Memos bleiben. */
+  betragSplits(b, v) {
+    return b.splits.map((s) => ({ konto_id: s.konto_id, betrag: s.konto_id === this.konto.id ? v : -v, memo: s.memo }));
+  }
+}
+
+/** Auswahl der vier Status in fester Reihenfolge (23.2, 23.5). */
+function statusSelect(beschriftung, testid) {
+  return h("select", { "aria-label": beschriftung, tid: testid || null },
+    STATUS.map((st) => h("option", { value: st }, STATUS_TEXT[st])));
+}
+
+/** „ohne Empfänger“, dann die Empfänger in der Reihenfolge von GET /api/empfaenger (23.2). */
+function empfaengerSelect(beschriftung, testid) {
+  return h("select", { "aria-label": beschriftung, tid: testid || null }, h("option", { value: "" }, "– ohne Empfänger –"),
+    stamm.empfaengerFolge.map((e) => h("option", { value: String(e.id) }, e.name)));
+}
+
+/** Status-Auswahl (23.4): ein Knopf je Status; Esc schließt ohne Wirkung. */
+function statusAuswahl(anzahl, ausloeser) {
+  const d = dialog("status-auswahl", anzahl === 1 ? "Status setzen" : `Status für ${anzahl} Buchungen`, (inhalt, dd) => {
+    inhalt.append(knopfLeiste(...STATUS.map((st) => knopf(STATUS_TEXT[st], { tid: `status-waehlen-${st}`,
+      onclick: () => dd.schliessen(st) }))));
+  }, { ausloeser });
+  return d.ergebnis;
 }
 
 /** Gegensplits (datenmodell.md 3.2): Splits auf Konten, die keine Bestandskonten sind. */
