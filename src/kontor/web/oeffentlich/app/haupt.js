@@ -103,7 +103,7 @@ async function ueberOeffnen() {
         zeile("ueber-repository", "Quellcode", h("a", { href: info.repository, target: "_blank",
           rel: "noopener noreferrer" }, info.repository)))),
       knopfLeiste(knopf("Schließen", { tid: "ueber-schliessen", onclick: () => d.schliessen(null) })));
-  }, { ausloeser: versionKnopf, schliessenKnopf: "ueber-x", fokus: (box) => box.querySelector("[data-testid=ueber-schliessen]") });
+  }, { ausloeser: istMobil() ? menueKnopf : versionKnopf, schliessenKnopf: "ueber-x", fokus: (box) => box.querySelector("[data-testid=ueber-schliessen]") });
 }
 versionKnopf.addEventListener("click", ueberOeffnen);
 hintergrund.addEventListener("click", () => menueSchliessen(true));

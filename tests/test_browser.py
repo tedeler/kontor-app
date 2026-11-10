@@ -239,3 +239,4 @@ def test_ueber_fenster(tmp_path, browser):
         assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
         tid(page, "ueber-schliessen").click()
         expect(tid(page, "ueber-dialog")).to_have_count(0)
+        expect(tid(page, "menue-knopf")).to_be_focused()
