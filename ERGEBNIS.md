@@ -1,5 +1,16 @@
 # Ergebnis der Implementierung
 
+## Abnahme M13 (Versionierung) gegen kontor-tests `65bffb0`
+
+Stand: 2026-11-10, Implementierungs-Thread, Branch `feature/versionierung-abnahme`.
+
+- `-m m13 --voll`: zuerst 36/40; behoben: `datenbank` in `/api/version` war bei relativ konfiguriertem Pfad nicht
+  absolut (version.md 3.2), `ueber-repository` stand an der Tabellenzelle statt am Link. Danach **40/40**, ebenso
+  mit `KONTOR_TESTS_ANMELDUNG=1` und `KONTOR_TESTS_ZUSATZFELDER=1` (je 40/40).
+- Schnelllauf `-n auto`: 2249 bestanden, 54 rot – ausschließlich `tests/app/m12/` (M12 noch nicht umgesetzt).
+- Eigene Tests 103/103; `tests/test_browser.py::test_desktop_ablauf` schwankt gelegentlich unter Last im
+  Gesamtlauf (auch ohne diese Änderung, einzeln stets grün; in der Release-CI ohne Browser übersprungen).
+
 ## Feature Versionierung (Meilenstein-Definition M13, D-105)
 
 Stand: 2026-11-10, Implementierungs-Thread, Branch `feature/versionierung`. Definition vom Auftraggeber freigegeben;
