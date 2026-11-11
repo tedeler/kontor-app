@@ -1304,3 +1304,33 @@ Weitere Abkürzungen: SY = `spec/api/synchronisation.md`, KA =
 - **Begründung:** Die Rechtetrennung hält einen kompromittierten Webprozess davon ab, beliebigen Code als root zu
   installieren: Er kann nur das neueste offizielle Release mit passender Prüfsumme anstoßen. Die Sicherung vorher
   macht ein misslungenes Update rückholbar.
+
+## D-108 Zusätzliche Zahlungen brechen die Kette nicht (Feature `wiederkehrend-begruendung`)
+
+- **Frage:** Nach dem Import langer Altdaten (KMyMoney) verschwanden viele Serien, weil eine zweite Buchung am
+  selben Termin (Dublette mit abweichendem Datum, Einmalzahlung) die Kette nach wiederkehrend.md 2.2 sofort beendet.
+- **Entscheidung (mit dem Auftraggeber abgestimmt, ersetzt wiederkehrend.md 2.2):** Die Kette beginnt weiter beim
+  jüngsten Eintrag und läuft rückwärts. Vorgänger-Kandidaten eines Glieds `c` sind alle älteren Einträge `x` mit
+  `|c.datum − monat_plus(x.datum, m)| ≤ T`. Davon zählt der Kandidat mit gleichem Betrag wie `c`, dann mit der
+  kleinsten Abweichung, dann der jüngere. Einträge zwischen Vorgänger und `c` sind **zusätzliche Zahlungen**, wenn
+  sie höchstens `T` Tage von `c` oder vom Vorgänger entfernt sind oder selbst Kandidaten des vorigen Schritts
+  waren; jeder andere Eintrag dazwischen beendet die Kette („fremde Zahlung“). Gibt es keinen Kandidaten, endet
+  die Kette; Einträge höchstens `T` Tage vor dem ersten Glied gelten ebenfalls als zusätzlich. Zusätzliche Zahlungen
+  zählen nicht zur Mindestanzahl und stehen nicht in `buchung_ids`. Mindestanzahl, Rhythmen, Status, Betrag und
+  Ereignisse bleiben unverändert. Eine ausgelassene Zahlung beendet die Kette weiterhin.
+- **Begründung:** Dubletten und Einmalzahlungen am Termin sind im Alltag häufig; wöchentliche oder unregelmäßige
+  Zahlungen (Einkäufe) dürfen dadurch nicht zu Monatsserien werden, deshalb nur Einträge nahe an einem Termin.
+- **Folge:** Der M5-Test `test_doppelte_zahlung_unterbricht_die_kette` widerspricht dem neuen Verhalten; die
+  Anpassung von Spezifikation und Tests übernimmt ein Test-Thread über die Meilenstein-Definition.
+
+## D-109 Begründung je Buchung (Feature `wiederkehrend-begruendung`)
+
+- **Entscheidung:** `GET /api/buchungen/{id}/wiederkehrend?stichtag=` (Vorgabe heute; 404 unbekannt, 422 Datum)
+  liefert ohne Zustand, warum eine Buchung (nicht) wiederkehrend ist: `urteil` (`wiederkehrend`,
+  `nicht_wiederkehrend`, `ausgeschlossen`), `text`, ausgeschlossene Konten (Darlehenskonto, Summe 0) und je
+  betrachtetem Konto einen Eintrag mit `urteil` (`glied`, `zusaetzlich`, `vor_beginn`, `keine_serie`), `glied`,
+  der Serie und dem Kettenprotokoll je geprüftem Rhythmus (bis zum ersten erfüllten): Schritte mit `ergebnis`
+  (`verbunden`/`bruch`), `grund` (`kein_vorgaenger`, `abstand`, `fremde_zahlung`), Vorgänger, erwartetes Datum,
+  Abweichung, übersprungene Buchungen und einem deutschen Satz. Die Texte erzeugt der Server.
+- **Begründung:** Nachvollziehbarkeit war die wichtigste Anforderung; die Berechnung ist dieselbe wie in der
+  Übersicht, daher stimmen Begründung und Übersicht immer überein.
