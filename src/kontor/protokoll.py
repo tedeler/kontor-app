@@ -570,7 +570,7 @@ def bezuege_pruefen(con) -> None:
             e = eltern.get(e)
 
 
-def rueckgaengig(con, ids: list[int], zeitpunkt: str) -> dict:
+def rueckgaengig(con, ids: list[int], zeitpunkt: str, ohne_wirkung_fehler: bool = False) -> dict:
     """Macht die Änderungen ``ids`` (alle wirksam) als eine neue Änderung rückgängig (6.1, 6.2)."""
     try:
         with protokolliert(con, "rueckgaengig", "rueckgaengig", zeitpunkt) as k:
@@ -584,6 +584,9 @@ def rueckgaengig(con, ids: list[int], zeitpunkt: str) -> dict:
             k.rueckgaengig_von = sorted(ids)
 
             def pruefen(eintraege: list[dict]) -> None:
+                if ohne_wirkung_fehler and not eintraege:
+                    # Rückgängig bis ohne Nettowirkung (E-190): keine Änderung, Transaktion verworfen
+                    raise ApiFehler(409, "bereits_rueckgaengig", "Seit dieser Änderung ist nichts mehr wirksam.")
                 if any((e["objekt"], e["objekt_id"]) not in erlaubt for e in eintraege):
                     raise _konflikt("Rückgängig würde Objekte außerhalb der Änderung verändern.")
             k.pruefung = pruefen
@@ -733,7 +736,7 @@ def bis_rueckgaengig(con, bis_id: int, zeitpunkt: str) -> dict:
     menge = bis_menge(con, bis_id)
     if not menge:
         raise ApiFehler(409, "bereits_rueckgaengig", "Seit dieser Änderung ist nichts mehr wirksam.")
-    return rueckgaengig(con, menge, zeitpunkt)
+    return rueckgaengig(con, menge, zeitpunkt, ohne_wirkung_fehler=True)
 
 
 __all__: list[Any] = ["protokolliert", "ausfuehren", "rueckgaengig", "aenderungen_liste", "aenderung_lesen"]

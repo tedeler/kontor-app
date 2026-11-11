@@ -671,8 +671,11 @@ export async function kontoEinstellungen(konto, ausloeser) {
  * aufnimmt: ein vorhandenes Bestandskonto ohne Synchronisationskonto oder ein neues. Trägt die IBAN in den
  * Kontoeinstellungen ein. Ergebnis: true (zugeordnet), false (übersprungen), null (abgebrochen).
  */
-export function zuordnungDialog(bk, ausloeser, hinweis) {
-  const frei = baumFolge(stamm.konten.filter((k) => BESTAND.has(k.art) && !k.iban)).map((x) => x.konto);
+export async function zuordnungDialog(bk, ausloeser, hinweis) {
+  // frischer Stand vom Server: die vorige Zuordnung einer Reihe kann noch nicht in `stamm` angekommen sein
+  let konten = stamm.konten;
+  try { konten = await api("GET", "/api/konten"); } catch (e) { /* Stand der Oberfläche */ }
+  const frei = baumFolge(konten.filter((k) => BESTAND.has(k.art) && !k.iban)).map((x) => x.konto);
   const d = dialog("zuordnung-dialog", "Bankkonto zuordnen", (inhalt, dd) => {
     const name = neueId("zuordnung-wahl");
     const radio = (wert, text, attrs) => h("label", { class: "auswahl-zeile" },
@@ -696,7 +699,7 @@ export function zuordnungDialog(bk, ausloeser, hinweis) {
     const ok = knopf("Zuordnen", { tid: "zuordnung-ok", class: "knopf knopf-haupt" });
     ok.addEventListener("click", () => imDialog(dd, ok, async () => {
       if (wahl() === "vorhanden") {
-        const k = kontoNach(Number(vorhanden.value));
+        const k = frei.find((x) => x.id === Number(vorhanden.value));
         await aktion(() => api("PATCH", `/api/konten/${k.id}`, { iban: bk.iban }), { stillBeiFehler: true,
           danach: () => dd.schliessen(true), erfolg: `Bankkonto „${bk.name || bk.iban}“ → „${k.name}“ zugeordnet.` });
       } else {

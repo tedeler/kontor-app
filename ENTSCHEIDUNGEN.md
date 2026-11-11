@@ -1379,3 +1379,10 @@ Weitere Abkürzungen: SY = `spec/api/synchronisation.md`, KA =
   (offline) zeichnet die Seite das bisherige SVG. Der eigene Test „keine externen Ressourcen“ nimmt `vendor/` aus:
   Plotly enthält nur Vorgabe-URLs für nicht genutzte Funktionen (Chart Studio, Geo); die Optionen schalten sie ab,
   die CSP (`connect-src 'self'`) verhindert jeden Abruf.
+
+## D-114 Abnahme M15: Rückgängig bis ohne Nettowirkung, frische Kontenliste im Zuordnungsdialog
+
+- **Anlass:** Abnahmetests M15 (kontor-tests `8110ece`, E-190).
+- **Entscheidung:** Ergibt ein Rückgängig bis keine Nettowirkung (z. B. zweimal bis zur selben Änderung), wird die
+  Transaktion mit 409 `bereits_rueckgaengig` verworfen; es entsteht keine Änderung. Der Zuordnungsdialog liest die
+  Konten bei jedem Öffnen frisch vom Server, damit in einer Reihe das eben zugeordnete Konto nicht mehr angeboten wird.
