@@ -9,10 +9,8 @@ Stand: 2026-11-11, Implementierungs-Thread, Branch `feature/wiederkehrend-begrue
   pauschal als zusätzlich (Definition 1.2). Danach **53/53**; zusätzlich 3 × 20 000 Zufallsgruppen gegen die
   Referenzkette der Tests ohne Abweichung.
 - Widerspruch „leere Liste nur Hinweis“ als Text an den Test-Thread, dort gelöst (E-204); kein W-Eintrag.
-- Volllauf `--voll -n 6 -m "not m17"`: **2813 / 2816**; die drei Fehlschläge (`test_l7_suche_und_uebersicht`,
-  `test_l11_lernmodell`, `test_strg_z_und_wiederholen`) sind Zeit- bzw. Lastschwankungen und einzeln grün (3/3).
-  M17 (Tabs, Gegenbuchung) gehört zu einem anderen Feature und ist hier nicht umgesetzt. AqBanking-Tests liefen
-  (`aqbanking-tools` installiert), nichts übersprungen. Eigene Tests 158/158.
+- Nach Übernahme von main (M17, Version 0.07; D-120): Volllauf `--voll -n 4` **2851 / 2851** grün (inkl. M16, M17,
+  Browser, Leistung, AqBanking; nichts übersprungen). Eigene Tests 165/165.
 ## Abnahme M17 (Tabs der Ansichten, Gehe zur Gegenbuchung) gegen kontor-tests `f137465`
 
 Stand: 2026-11-11, Implementierungs-Thread, Branch `feature/tabs-gegenbuchung` (main mit M16 und Version 0.06
