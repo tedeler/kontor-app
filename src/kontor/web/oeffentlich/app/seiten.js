@@ -5,10 +5,11 @@ import {
   zeitText,
 } from "./kern.js";
 import {
-  abstimmungDialog, bestaetigen, dialog, feld, imDialog, knopf, knopfLeiste, kontoDialog, menuePosition, zuordnungDialog,
+  abstimmungDialog, bestaetigen, dialog, feld, imDialog, knopf, knopfLeiste, kontextmenue, kontoDialog, menuePosition,
+  zuordnungDialog,
 } from "./ui.js";
 import { kategorienBaum, kontoMenue, langeBeruehrung } from "./baum.js";
-import { layoutZuruecksetzen } from "./konto.js";
+import { begruendungZeigen, layoutZuruecksetzen } from "./konto.js";
 
 const kopf = (seite, titel, ...werkzeuge) => {
   seite.append(h("div", { class: "seiten-kopf" }, h("h1", null, titel),
@@ -172,14 +173,39 @@ export async function wiederkehrend(seite) {
     try { await api("POST", "/api/wiederkehrend/pruefen", {}); melde("erfolg", "Wiederkehrende Buchungen geprüft."); await oberflaeche.neuLaden(); }
     catch (e) { melde("fehler", e.message); }
   } }));
+  // Menü je Serie (D-118): Begründung zur jüngsten Buchung, Sprung ins Kontoblatt
+  const serienMenue = (s, x, y, ausloeser) => {
+    const letzte = s.buchung_ids[s.buchung_ids.length - 1];
+    kontextmenue(x, y, [
+      { tid: "km-serie-begruendung", text: "Warum wiederkehrend?", tun: () => begruendungZeigen(letzte, ausloeser) },
+      { tid: "km-serie-springen", text: "Letzte Buchung im Kontoblatt zeigen",
+        tun: () => oberflaeche.gehe(`/konten/${s.konto_id}?buchung=${letzte}`) },
+    ], ausloeser);
+  };
+  const zeile = (s) => {
+    const name = s.empfaenger ? s.empfaenger.name : "";
+    const mehr = knopf("…", { tid: `wk-menue-${s.schluessel}`, class: "knopf-flach", "aria-haspopup": "menu",
+      "aria-label": `Aktionen für ${name}`, title: "Aktionen",
+      onclick: (e) => { const [x, y] = menuePosition(null, e.currentTarget); serienMenue(s, x, y, e.currentTarget); } });
+    const tr = h("tr", { tid: `serie-${s.schluessel}`, "data-status": s.status, tabindex: "0" },
+      h("td", null, name), h("td", null, pfadVon(s.konto_id)),
+      h("td", null, RHYTHMUS[s.rhythmus] || s.rhythmus), betragEl("td", s.betrag, { class: "zahl" }),
+      betragEl("td", s.jahreskosten, { class: "zahl" }), datumEl("td", s.naechste_faelligkeit),
+      h("td", null, SERIENSTATUS[s.status] || s.status), h("td", { class: "aktionen" }, mehr));
+    tr.addEventListener("contextmenu", (e) => { e.preventDefault(); serienMenue(s, e.clientX, e.clientY, tr); });
+    tr.addEventListener("keydown", (e) => {
+      if (e.target === tr && ((e.key === "F10" && e.shiftKey) || e.key === "ContextMenu")) {
+        e.preventDefault(); const [x, y] = menuePosition(null, tr); serienMenue(s, x, y, tr);
+      }
+    });
+    return tr;
+  };
+  langeBeruehrung(seite, (t) => t.closest("tr[data-status]"), (tr, x, y) => tr.dispatchEvent(new MouseEvent("contextmenu",
+    { bubbles: true, cancelable: true, clientX: x, clientY: y })));
   seite.append(h("p", null, "Summe der Jahreskosten: ", betragEl("strong", u.summe_jahreskosten)),
-    tabelle({ tid: "wiederkehrend-tabelle" }, ["Empfänger", "Konto", "Rhythmus", "Betrag", "Jahreskosten", "Nächste Fälligkeit", "Status"],
-      u.serien.map((s) => h("tr", { tid: `serie-${s.schluessel}`, "data-status": s.status },
-        h("td", null, s.empfaenger ? s.empfaenger.name : ""), h("td", null, pfadVon(s.konto_id)),
-        h("td", null, RHYTHMUS[s.rhythmus] || s.rhythmus), betragEl("td", s.betrag, { class: "zahl" }),
-        betragEl("td", s.jahreskosten, { class: "zahl" }), datumEl("td", s.naechste_faelligkeit),
-        h("td", null, SERIENSTATUS[s.status] || s.status)))),
-    u.serien.length ? null : leer("Keine wiederkehrenden Buchungen erkannt."));
+    tabelle({ tid: "wiederkehrend-tabelle" }, ["Empfänger", "Konto", "Rhythmus", "Betrag", "Jahreskosten", "Nächste Fälligkeit",
+      "Status", h("span", { class: "nur-sr" }, "Aktionen")], u.serien.map(zeile)),
+    ...(u.serien.length ? [] : [leer("Keine wiederkehrenden Buchungen erkannt.")]));
   return { titel: "Wiederkehrende Buchungen" };
 }
 

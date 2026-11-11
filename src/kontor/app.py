@@ -1114,6 +1114,14 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
         q.pruefen()
         return await lesen(wiederkehrend.uebersicht, stichtag or sync.heute().isoformat())
 
+    @endpunkt("GET", "/api/buchungen/{buchung_id:int}/wiederkehrend")
+    async def wiederkehrend_begruendung(request: Request):
+        q = Query(request.query_params)
+        stichtag = q.datum("stichtag")
+        q.pruefen()
+        return await lesen(wiederkehrend.begruendung, pid(request, "buchung_id"),
+                           stichtag or sync.heute().isoformat())
+
     @endpunkt("POST", "/api/wiederkehrend/pruefen")
     async def wiederkehrend_pruefen(request: Request):
         roh = await request.body()

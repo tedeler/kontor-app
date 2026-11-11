@@ -78,7 +78,7 @@ html[data-thema="dunkel"] .zahl-marke { color: #15181c; }
 .navigation a[aria-current="page"] { background: var(--akzent-hell); font-weight: 600; border-left: 4px solid var(--akzent); padding-left: calc(.9rem - 4px); }
 .hauptbereich { flex: 1 1 auto; min-width: 0; overflow: auto; padding: .8rem 1rem 4rem; background: var(--hg); }
 .hauptbereich:focus { outline: none; }
-/* Tabs der Ansichten (D-115) */
+/* Tabs der Ansichten (D-119) */
 .inhalt { flex: 1 1 auto; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
 .tab-leiste { flex: none; display: flex; gap: 2px; overflow-x: auto; overflow-y: hidden; padding: .25rem .5rem 0;
   background: var(--hg-2); border-bottom: 1px solid var(--rand); scrollbar-width: thin; }
@@ -362,3 +362,27 @@ html.zieht, html.zieht * { cursor: grabbing !important; }
 .dialog[data-gesperrt="ja"] .dialog-inhalt { cursor: progress; }
 .umfang { border: 1px solid var(--rand); border-radius: var(--radius); padding: .5rem .75rem; margin: .5rem 0; display: grid; gap: .35rem; }
 .auswahl-zeile { display: flex; align-items: center; gap: .3rem; }
+
+/* Begründung „wiederkehrend“ (D-116) */
+.wk-urteil { font-size: 1.05rem; }
+.wk-urteil[data-urteil="wiederkehrend"] strong { color: var(--erfolg); }
+.wk-eintrag { border-top: 1px solid var(--rand); padding-top: .4rem; margin-top: .6rem; }
+.wk-eintrag h3 { font-size: .95rem; margin: .2rem 0; }
+.wk-hinweis { color: var(--text-2); font-size: .85rem; }
+.wk-rhythmus { margin: .4rem 0; }
+.wk-rhythmus summary { cursor: pointer; }
+.wk-schritte { margin: .3rem 0 .3rem 1.2rem; padding: 0; font-size: .88rem; }
+.wk-schritt { margin: .2rem 0; }
+.wk-bruch { color: var(--gefahr); }
+.wk-betroffen { background: var(--akzent-hell); border-radius: 4px; padding: 0 .25rem; }
+.wk-urteil[data-urteil="zusaetzlich"] strong, .wk-urteil[data-urteil="nicht_wiederkehrend"] strong,
+.wk-urteil[data-urteil="ausgeschlossen"] strong { color: var(--gefahr); }
+.wk-tabelle { border-collapse: collapse; font-size: .88rem; margin: .3rem 0; }
+.wk-tabelle th, .wk-tabelle td { padding: .1rem .6rem .1rem 0; text-align: left; }
+.wk-tabelle td.betrag { text-align: right; }
+.wk-rolle-zusaetzlich td, .wk-rolle-vor_beginn td, .wk-rolle-keine_serie td { color: var(--text-2); }
+.wk-schritt.wk-anker { color: var(--text-2); }
+.nur-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+td.aktionen { width: 2.5rem; text-align: right; }
+.sprung-ziel { animation: sprung 2s ease-out; }
+@keyframes sprung { from { background: var(--akzent-hell); } to { background: transparent; } }

@@ -1,4 +1,4 @@
-/* Kontor – Tabs der Ansichten (Feature „tabs-gegenbuchung“, D-115 in ENTSCHEIDUNGEN.md).
+/* Kontor – Tabs der Ansichten (Feature „tabs-gegenbuchung“, D-119 in ENTSCHEIDUNGEN.md).
  *
  * Jede Ansicht (Pfad ohne Abfrageteil) ist ein Tab. Ein offener Tab behält sein DOM und sein Seitenobjekt, solange
  * die Seite im Browser geöffnet ist; inaktive Tabs hängen nicht im Dokument (keine doppelten data-testid). Die

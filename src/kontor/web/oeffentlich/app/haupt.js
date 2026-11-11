@@ -7,7 +7,7 @@ import {
   stammLaden, stapelAnzeigen, tid, wiederholen,
 } from "./kern.js";
 import { bestaetigen, dialog, feld, fokusFalle, imDialog, knopf, knopfLeiste, zuordnungDialog } from "./ui.js";
-import { kontoSeite, layoutZuruecksetzen } from "./konto.js";
+import { begruendungZeigen, kontoSeite, layoutZuruecksetzen, markierteBuchung } from "./konto.js";
 import * as S from "./seiten.js";
 import { Tabs } from "./tabs.js";
 
@@ -261,7 +261,7 @@ function navMarkieren(ziel) {
 
 class NichtGefunden extends Error {}
 
-// ------------------------------------------------------------------ Tabs (D-115)
+// ------------------------------------------------------------------ Tabs (D-119)
 // Jede Ansicht ist ein Tab (Schlüssel: Pfad ohne Abfrageteil). Ein offener Tab behält DOM und Seitenobjekt; beim
 // Wechsel wird nur das DOM getauscht. Eine Änderung am Buchbestand markiert die übrigen Tabs als veraltet; sie laden
 // beim nächsten Zeigen mit dem Stand des Servers neu.
@@ -396,7 +396,7 @@ export function gehe(pfad, ersetzen, optionen) {
   menueSchliessen(false);
   // dieselbe Ansicht erneut aufrufen baut sie neu auf (wie bisher)
   if (pfad === location.pathname + location.search) return zeigen({ erneut: true });
-  // aktiver Tab mit Filtern ohne Abfrageteil angefordert: Zustand bleibt, Filterleiste eingeklappt (D-115)
+  // aktiver Tab mit Filtern ohne Abfrageteil angefordert: Zustand bleibt, Filterleiste eingeklappt (D-119)
   if (pfad === location.pathname && aktuell && aktuell.pfad === pfad && aktuell.geladen && aktuell.el.isConnected) {
     if (aktuell.seite && aktuell.seite.wiederAngefordert && !(optionen && optionen.vonTab)) aktuell.seite.wiederAngefordert();
     return Promise.resolve();
@@ -646,6 +646,8 @@ const BEFEHLE = [
   ["thema-dunkel", "Design: Dunkel", () => thema.setzen("dunkel")],
   ["layout-zuruecksetzen", "Layout zurücksetzen", () => { layoutZuruecksetzen(); melde("erfolg", "Layout zurückgesetzt."); zeigen(); }],
   ["abmelden", "Abmelden", () => abmelden(), () => anmeldung.aktiv],
+  ["wiederkehrend-warum", "Markierte Buchung: Warum (nicht) wiederkehrend?", () => begruendungZeigen(markierteBuchung()),
+    () => markierteBuchung() !== null],
 ];
 
 function palette(ausloeser) {
