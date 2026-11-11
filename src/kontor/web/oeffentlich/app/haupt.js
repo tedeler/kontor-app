@@ -266,7 +266,7 @@ class NichtGefunden extends Error {}
 // Wechsel wird nur das DOM getauscht. Eine Änderung am Buchbestand markiert die übrigen Tabs als veraltet; sie laden
 // beim nächsten Zeigen mit dem Stand des Servers neu.
 const tabs = new Tabs(tid("tab-leiste"), haupt, {
-  beiWahl: (t) => gehe(t.pfad + t.suche),
+  beiWahl: (t) => gehe(t.pfad + t.suche, false, { vonTab: true }),
   beiSchliessen: (t, naechster) => {
     if (naechster) gehe(naechster.pfad + naechster.suche, true);
     else gehe("/", true);
@@ -274,8 +274,9 @@ const tabs = new Tabs(tid("tab-leiste"), haupt, {
 });
 oberflaeche.urlGeaendert = () => tabs.urlGeaendert();
 
-/** Einen offenen, geladenen Tab wieder zeigen (ohne Neuaufbau). */
-async function tabZeigen(t, route) {
+/** Einen offenen, geladenen Tab wieder zeigen (ohne Neuaufbau). Über Navigation oder Link angefordert (nicht über
+ * den Tab selbst oder Zurück/Vor) beginnt die Filterleiste wieder eingeklappt (oberflaeche.md 23.1, E-172). */
+async function tabZeigen(t, route, o) {
   haupt.replaceChildren(t.el);
   aktuell = t;
   tabs.aktivieren(t);
@@ -284,6 +285,7 @@ async function tabZeigen(t, route) {
   tabs.scrollHerstellen(t);
   if (t.layout !== app.dataset.layout && t.seite && t.seite.layoutGeaendert) t.seite.layoutGeaendert();
   t.layout = app.dataset.layout;
+  if (o.inApp && !o.vonTab && t.seite && t.seite.wiederAngefordert) t.seite.wiederAngefordert();
   if (t.veraltet) {
     t.veraltet = false;
     if (t.seite && t.seite.aktualisieren) {
@@ -322,7 +324,7 @@ async function zeigen(optionen) {
   if (aktuell !== offen || !o.behalten) tabs.verlassen();
   // Wechsel zu einem offenen Tab: Zustand bleibt, solange der Abfrageteil passt
   if (!o.behalten && !o.erneut && offen && offen !== aktuell && offen.geladen && offen.el && offen.suche === suche && !offline) {
-    if (await tabZeigen(offen, route)) return;
+    if (await tabZeigen(offen, route, o)) return;
   }
   const tab = tabs.holen(pfad, suche);
   tab.suche = suche;
@@ -390,13 +392,18 @@ function behandeln(e) {
 
 oberflaeche.neuLaden = () => zeigen({ behalten: true });
 
-export function gehe(pfad, ersetzen) {
+export function gehe(pfad, ersetzen, optionen) {
   menueSchliessen(false);
   // dieselbe Ansicht erneut aufrufen baut sie neu auf (wie bisher)
   if (pfad === location.pathname + location.search) return zeigen({ erneut: true });
+  // aktiver Tab mit Filtern ohne Abfrageteil angefordert: Zustand bleibt, Filterleiste eingeklappt (D-115)
+  if (pfad === location.pathname && aktuell && aktuell.pfad === pfad && aktuell.geladen && aktuell.el.isConnected) {
+    if (aktuell.seite && aktuell.seite.wiederAngefordert && !(optionen && optionen.vonTab)) aktuell.seite.wiederAngefordert();
+    return Promise.resolve();
+  }
   tabs.verlassen();
   if (ersetzen) history.replaceState(null, "", pfad); else history.pushState(null, "", pfad);
-  return zeigen({ inApp: true });
+  return zeigen({ inApp: true, ...(optionen || {}) });
 }
 oberflaeche.gehe = gehe;
 

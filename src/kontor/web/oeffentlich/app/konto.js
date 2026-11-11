@@ -209,6 +209,11 @@ class Kontoansicht {
     this.listeZeichnen();
   }
 
+  /** Tab über Navigation oder Link erneut angefordert: Filterleiste eingeklappt (23.1, E-172), Rest bleibt (D-115). */
+  wiederAngefordert() {
+    if (this.filterSichtbar) this.filterUmschalten();
+  }
+
   filterUmschalten() {
     this.filterSichtbar = !this.filterSichtbar;
     this.filterLeiste.hidden = !this.filterSichtbar;

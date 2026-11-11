@@ -1414,3 +1414,7 @@ Weitere Abkürzungen: SY = `spec/api/synchronisation.md`, KA =
   Ziel ist der Tab der Kontoansicht des Gegenkontos; dort wird die Buchung allein ausgewählt und fokussiert. Ist sie
   nicht geladen, werden weitere Seiten geladen; verdecken die Filter des Tabs sie, werden sie (bis auf die
   Sortierung) zurückgesetzt mit Hinweis „Filter zurückgesetzt, damit die Buchung sichtbar ist.“.
+- **Filterleiste (mit dem Auftraggeber abgestimmt):** Klick auf den Tab und Zurück/Vor stellen die Ansicht
+  vollständig her. Wird ein offener Tab über Navigation oder Link angefordert (auch der aktive, auch beim Sprung
+  zur Gegenbuchung), bleiben Filter, Sortierung, Auswahl und Scrollstand, die Filterleiste beginnt aber wieder
+  eingeklappt (oberflaeche.md 23.1, E-172 bleibt gültig).
