@@ -1386,3 +1386,62 @@ Weitere Abkürzungen: SY = `spec/api/synchronisation.md`, KA =
 - **Entscheidung:** Ergibt ein Rückgängig bis keine Nettowirkung (z. B. zweimal bis zur selben Änderung), wird die
   Transaktion mit 409 `bereits_rueckgaengig` verworfen; es entsteht keine Änderung. Der Zuordnungsdialog liest die
   Konten bei jedem Öffnen frisch vom Server, damit in einer Reihe das eben zugeordnete Konto nicht mehr angeboten wird.
+
+## D-115 Zusätzliche Zahlungen brechen die Kette nicht (Feature `wiederkehrend-begruendung`)
+
+- **Frage:** Nach dem Import langer Altdaten (KMyMoney) verschwanden viele Serien, weil eine zweite Buchung am
+  selben Termin (Dublette mit abweichendem Datum, Einmalzahlung) die Kette nach wiederkehrend.md 2.2 sofort beendet.
+- **Entscheidung (mit dem Auftraggeber abgestimmt, ersetzt wiederkehrend.md 2.2):** Die Kette beginnt weiter beim
+  jüngsten Eintrag und läuft rückwärts. Vorgänger-Kandidaten eines Glieds `c` sind alle älteren Einträge `x` mit
+  `|c.datum − monat_plus(x.datum, m)| ≤ T`. Davon zählt der Kandidat mit gleichem Betrag wie `c`, dann mit der
+  kleinsten Abweichung, dann der jüngere. Einträge zwischen Vorgänger und `c` sind **zusätzliche Zahlungen**, wenn
+  sie höchstens `T` Tage von `c` oder vom Vorgänger entfernt sind oder selbst Kandidaten des vorigen Schritts
+  waren; jeder andere Eintrag dazwischen beendet die Kette („fremde Zahlung“). Gibt es keinen Kandidaten, endet
+  die Kette; Einträge höchstens `T` Tage vor dem ersten Glied gelten ebenfalls als zusätzlich. Zusätzliche Zahlungen
+  zählen nicht zur Mindestanzahl und stehen nicht in `buchung_ids`. Mindestanzahl, Rhythmen, Status, Betrag und
+  Ereignisse bleiben unverändert. Eine ausgelassene Zahlung beendet die Kette weiterhin.
+- **Begründung:** Dubletten und Einmalzahlungen am Termin sind im Alltag häufig; wöchentliche oder unregelmäßige
+  Zahlungen (Einkäufe) dürfen dadurch nicht zu Monatsserien werden, deshalb nur Einträge nahe an einem Termin.
+- **Folge:** Der M5-Test `test_doppelte_zahlung_unterbricht_die_kette` widerspricht dem neuen Verhalten; die
+  Anpassung von Spezifikation und Tests übernimmt ein Test-Thread über die Meilenstein-Definition.
+
+## D-116 Begründung je Buchung (Feature `wiederkehrend-begruendung`)
+
+- **Entscheidung:** `GET /api/buchungen/{id}/wiederkehrend?stichtag=` (Vorgabe heute; 404 unbekannt, 422 Datum)
+  liefert ohne Zustand, warum eine Buchung (nicht) wiederkehrend ist: `urteil` (`wiederkehrend`,
+  `nicht_wiederkehrend`, `ausgeschlossen`), `text`, ausgeschlossene Konten (Darlehenskonto, Summe 0) und je
+  betrachtetem Konto einen Eintrag mit `urteil` (`glied`, `zusaetzlich`, `vor_beginn`, `keine_serie`), `glied`,
+  der Serie und dem Kettenprotokoll je geprüftem Rhythmus (bis zum ersten erfüllten): Schritte mit `ergebnis`
+  (`verbunden`/`bruch`), `grund` (`kein_vorgaenger`, `abstand`, `fremde_zahlung`), Vorgänger, erwartetes Datum,
+  Abweichung, übersprungene Buchungen und einem deutschen Satz. Die Texte erzeugt der Server.
+- **Begründung:** Nachvollziehbarkeit war die wichtigste Anforderung; die Berechnung ist dieselbe wie in der
+  Übersicht, daher stimmen Begründung und Übersicht immer überein.
+
+## D-117 Anker am jüngsten Termin und eindeutiges Urteil (ergänzt D-115, D-116)
+
+- **Frage:** Der Anker der Kette war einfach die jüngste Buchung nach Datum und ID. Lagen am jüngsten Termin zwei
+  Buchungen (z. B. Rate und Einmalzahlung am selben Tag), entschied die Reihenfolge des Anlegens, welche zur Serie
+  gehört. Die Begründung nannte dabei eine Regel, die für den Anker gar nicht galt. Das Urteil
+  „Nicht wiederkehrend“ für eine zusätzliche Zahlung neben einer bestehenden Serie wirkte widersprüchlich.
+- **Entscheidung:** Anker-Kandidaten sind alle Einträge höchstens `T` Tage vor dem jüngsten Eintrag. Gewählt wird
+  der Kandidat mit der längsten Kette, dann der mit gleichem Betrag wie sein Vorgänger in der Kette, dann der
+  jüngere. Spätere Kandidaten sind zusätzliche Zahlungen. Bei mehreren Kandidaten beginnt das Kettenprotokoll mit
+  einem Schritt `ergebnis = "anker"` (mit `kandidaten`). Die Begründung hat das Gesamturteil `zusaetzlich` (neben
+  `wiederkehrend`, `nicht_wiederkehrend`, `ausgeschlossen`), nennt für zusätzliche Zahlungen den konkreten Grund
+  der Auswahl und listet je Eintrag alle Buchungen der Gruppe mit Rolle (`glied` mit Nummer, `zusaetzlich`,
+  `vor_beginn`, `keine_serie`). Die Oberfläche beantwortet oben „Wiederkehrend? Ja/Nein“ mit einem Zusatz.
+- **Begründung:** Rückmeldung des Auftraggebers: Das Urteil muss auf einen Blick eindeutig sein, und die Auswahl am
+  Termin darf nicht vom Zufall der Anlagereihenfolge abhängen.
+
+## D-118 Menü je Serie und Sprung ins Kontoblatt (Feature `wiederkehrend-begruendung`)
+
+- **Entscheidung:** Auf `/wiederkehrend` hat jede Zeile `serie-<schluessel>` eine letzte Spalte mit dem Knopf
+  `wk-menue-<schluessel>` („…“, `aria-haspopup="menu"`); dasselbe Menü öffnen Rechtsklick, Umschalt+F10/Menütaste
+  (Zeile ist fokussierbar) und lange Berührung. Einträge: `km-serie-begruendung` „Warum wiederkehrend?“ öffnet den
+  Begründungsdialog (D-116) zur jüngsten Buchung der Serie (letzte ID in `buchung_ids`); `km-serie-springen`
+  „Letzte Buchung im Kontoblatt zeigen“ navigiert zu `/konten/<konto_id>?buchung=<id>`. Der Parameter `buchung`
+  ist kein Filter: Die Kontoansicht lädt bei Bedarf weitere Seiten nach, markiert die Buchung allein, fokussiert und
+  rollt zu ihr, hebt sie kurz hervor und entfernt den Parameter aus der Adresse. Ist sie mit den Filtern nicht
+  sichtbar, erscheint ein Hinweis.
+- **Begründung:** Wunsch des Auftraggebers. Die Testkennung beginnt bewusst nicht mit `serie-`, weil Zeilen über
+  `[data-testid^="serie-"]` gezählt werden (oberflaeche.md 13.5).
