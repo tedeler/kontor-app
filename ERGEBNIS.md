@@ -1,5 +1,16 @@
 # Ergebnis der Implementierung
 
+## Abnahme M15 (Sammelpaket) gegen kontor-tests `8110ece`
+
+Stand: 2026-11-11, Implementierungs-Thread, Branch `feature/sammelpaket` (main mit `feature/update` übernommen).
+
+- `-m m15 --voll`: zuerst 75/78; behoben (D-114): Rückgängig bis ohne Nettowirkung antwortet 409
+  `bereits_rueckgaengig` ohne Änderung (E-190), der Zuordnungsdialog bietet in einer Reihe das eben zugeordnete Konto
+  nicht mehr an. Danach **78/78**.
+- Volllauf `--voll -n 2`: **2762 / 2762** grün (inkl. Browser, Leistung, AqBanking), eigene Tests 148/148
+  (`test_desktop_ablauf` schwankt wie bekannt gelegentlich im Gesamtlauf, einzeln grün).
+- Kein W-Eintrag.
+
 ## Feature Sammelpaket (Meilenstein-Definition M15, Entwurf) gegen kontor-tests `65bffb0`
 
 Stand: 2026-11-10, Implementierungs-Thread, Branch `feature/sammelpaket` (iterative Phase; Definition zur Freigabe im
