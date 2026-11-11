@@ -39,7 +39,7 @@ def test_doppelte_zahlung_wird_uebersprungen(bb):
     (s,) = serien(c, "2024-03-31")
     assert s["buchung_ids"] == ids and s["anzahl"] == 3
     w = warum(c, dup, "2024-03-31")
-    assert w["urteil"] == "nicht_wiederkehrend" and w["eintraege"][0]["urteil"] == "zusaetzlich"
+    assert w["urteil"] == "zusaetzlich" and w["eintraege"][0]["urteil"] == "zusaetzlich"
     w = warum(c, ids[1], "2024-03-31")
     assert w["urteil"] == "wiederkehrend" and w["eintraege"][0]["glied"] == 2
 
@@ -103,3 +103,29 @@ def test_dublette_am_ersten_glied(bb):
     w = warum(c, dup, "2024-03-31")["eintraege"][0]
     assert w["urteil"] == "zusaetzlich"
     assert w["rhythmen"][0]["schritte"][-1]["grund"] == "kein_vorgaenger"
+
+
+def test_anker_am_juengsten_termin_nach_betrag(bb):
+    c, buchen = bb
+    ids = [buchen(t, -32032) for t in ("2024-08-04", "2024-09-04", "2024-10-05", "2024-11-04")]
+    extra = buchen("2024-11-04", -5000)  # später angelegt, gleicher Tag, anderer Betrag
+    (s,) = serien(c, "2024-11-11")
+    assert s["buchung_ids"] == ids and s["betrag"] == -32032
+    w = warum(c, extra, "2024-11-11")
+    (e,) = w["eintraege"]
+    assert w["urteil"] == "zusaetzlich"
+    schritte = e["rhythmen"][0]["schritte"]
+    assert schritte[0]["ergebnis"] == "anker" and "Betrag" in schritte[0]["text"]
+    assert "Betrag" in e["text"]
+    rollen = {b["buchung_id"]: b["rolle"] for b in e["buchungen"]}
+    assert rollen[extra] == "zusaetzlich" and all(rollen[i] == "glied" for i in ids)
+    w = warum(c, ids[-1], "2024-11-11")
+    assert w["urteil"] == "wiederkehrend" and w["eintraege"][0]["glied"] == 4
+
+
+def test_anker_laengste_kette(bb):
+    c, buchen = bb
+    ids = [buchen(t) for t in ("2024-01-15", "2024-02-15", "2024-03-15")]
+    spaet = buchen("2024-03-19")  # jünger, aber nur 4 Tage später: Kette ab 15.03. ist nicht kürzer
+    (s,) = serien(c, "2024-03-31")
+    assert s["anzahl"] == 3 and spaet not in s["buchung_ids"] or s["buchung_ids"][-1] == spaet

@@ -1334,3 +1334,19 @@ Weitere Abkürzungen: SY = `spec/api/synchronisation.md`, KA =
   Abweichung, übersprungene Buchungen und einem deutschen Satz. Die Texte erzeugt der Server.
 - **Begründung:** Nachvollziehbarkeit war die wichtigste Anforderung; die Berechnung ist dieselbe wie in der
   Übersicht, daher stimmen Begründung und Übersicht immer überein.
+
+## D-110 Anker am jüngsten Termin und eindeutiges Urteil (ergänzt D-108, D-109)
+
+- **Frage:** Der Anker der Kette war einfach die jüngste Buchung nach Datum und ID. Lagen am jüngsten Termin zwei
+  Buchungen (z. B. Rate und Einmalzahlung am selben Tag), entschied die Reihenfolge des Anlegens, welche zur Serie
+  gehört. Die Begründung nannte dabei eine Regel, die für den Anker gar nicht galt. Das Urteil
+  „Nicht wiederkehrend“ für eine zusätzliche Zahlung neben einer bestehenden Serie wirkte widersprüchlich.
+- **Entscheidung:** Anker-Kandidaten sind alle Einträge höchstens `T` Tage vor dem jüngsten Eintrag. Gewählt wird
+  der Kandidat mit der längsten Kette, dann der mit gleichem Betrag wie sein Vorgänger in der Kette, dann der
+  jüngere. Spätere Kandidaten sind zusätzliche Zahlungen. Bei mehreren Kandidaten beginnt das Kettenprotokoll mit
+  einem Schritt `ergebnis = "anker"` (mit `kandidaten`). Die Begründung hat das Gesamturteil `zusaetzlich` (neben
+  `wiederkehrend`, `nicht_wiederkehrend`, `ausgeschlossen`), nennt für zusätzliche Zahlungen den konkreten Grund
+  der Auswahl und listet je Eintrag alle Buchungen der Gruppe mit Rolle (`glied` mit Nummer, `zusaetzlich`,
+  `vor_beginn`, `keine_serie`). Die Oberfläche beantwortet oben „Wiederkehrend? Ja/Nein“ mit einem Zusatz.
+- **Begründung:** Rückmeldung des Auftraggebers: Das Urteil muss auf einen Blick eindeutig sein, und die Auswahl am
+  Termin darf nicht vom Zufall der Anlagereihenfolge abhängen.

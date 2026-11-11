@@ -70,8 +70,13 @@ export function markierteBuchung() {
   return ids.length === 1 ? ids[0] : null;
 }
 
-const URTEIL_TEXT = { wiederkehrend: "Wiederkehrend", nicht_wiederkehrend: "Nicht wiederkehrend",
-  ausgeschlossen: "Nicht betrachtet" };
+const URTEIL_TEXT = {
+  wiederkehrend: ["Ja", "Teil einer wiederkehrenden Serie"],
+  zusaetzlich: ["Nein", "zusätzliche Zahlung neben einer wiederkehrenden Serie"],
+  nicht_wiederkehrend: ["Nein", "nicht wiederkehrend"],
+  ausgeschlossen: ["Nein", "wird bei der Erkennung nicht betrachtet"],
+};
+const ROLLE_TEXT = { glied: "Glied", zusaetzlich: "zusätzlich", vor_beginn: "vor Beginn", keine_serie: "–" };
 const RHYTHMUS = { monatlich: "Monatlich", vierteljaehrlich: "Vierteljährlich", jaehrlich: "Jährlich" };
 
 /** Dialog mit Urteil und Kettenprotokoll je Konto und Rhythmus. */
@@ -93,11 +98,23 @@ export async function begruendungZeigen(buchungId, ausloeser) {
     h("p", { tid: "wk-eintrag-text" }, e.text),
     h("p", { class: "wk-hinweis" }, `${e.gruppe_anzahl} Buchungen in dieser Gruppe; die Kette wird ab der jüngsten `
       + `Buchung vom ${datumText(e.juengste.datum)} rückwärts gebildet. Toleranz ±5 Tage.`),
+    h("details", { class: "wk-rhythmus", tid: "wk-buchungen" },
+      h("summary", null, `Alle ${e.gruppe_anzahl} Buchungen der Gruppe`),
+      h("table", { class: "wk-tabelle" },
+        h("thead", null, h("tr", null, h("th", null, "Datum"), h("th", null, "Betrag"), h("th", null, "Rolle"))),
+        h("tbody", null, e.buchungen.map((b) => h("tr", {
+          class: `wk-rolle-${b.rolle}${b.buchung_id === buchungId ? " wk-betroffen" : ""}`,
+          tid: "wk-buchung", "data-id": b.buchung_id, "data-rolle": b.rolle },
+        h("td", null, datumText(b.datum)), betragEl("td", b.betrag),
+        h("td", null, b.rolle === "glied" ? `Glied ${b.glied}` : ROLLE_TEXT[b.rolle],
+          b.buchung_id === buchungId ? " (diese Buchung)" : "")))))),
     e.rhythmen.map((r, i) => rhythmus(r, i === e.rhythmen.length - 1)));
   dialog("wiederkehrend-begruendung", "Warum (nicht) wiederkehrend?", (inhalt, d) => {
     anhaengen(inhalt, [
       h("p", { class: "wk-urteil", tid: "wk-urteil", "data-urteil": w.urteil },
-        h("strong", null, URTEIL_TEXT[w.urteil] || w.urteil), ` · Stand ${datumText(w.stichtag)}`),
+        h("strong", null, `Wiederkehrend? ${(URTEIL_TEXT[w.urteil] || [w.urteil])[0]}`),
+        ` – ${(URTEIL_TEXT[w.urteil] || ["", ""])[1]}`),
+      h("p", { class: "wk-hinweis" }, `Stand ${datumText(w.stichtag)}`),
       w.eintraege.length ? null : h("p", { tid: "wk-text" }, w.text),
       w.eintraege.map(eintrag),
       w.ausgeschlossen.map((a) => h("p", { class: "wk-hinweis", tid: "wk-ausgeschlossen" }, `${a.konto.name}: ${a.text}`)),

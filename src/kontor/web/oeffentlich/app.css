@@ -326,3 +326,10 @@ html.zieht, html.zieht * { cursor: grabbing !important; }
 .wk-schritt { margin: .2rem 0; }
 .wk-bruch { color: var(--gefahr); }
 .wk-betroffen { background: var(--akzent-hell); border-radius: 4px; padding: 0 .25rem; }
+.wk-urteil[data-urteil="zusaetzlich"] strong, .wk-urteil[data-urteil="nicht_wiederkehrend"] strong,
+.wk-urteil[data-urteil="ausgeschlossen"] strong { color: var(--gefahr); }
+.wk-tabelle { border-collapse: collapse; font-size: .88rem; margin: .3rem 0; }
+.wk-tabelle th, .wk-tabelle td { padding: .1rem .6rem .1rem 0; text-align: left; }
+.wk-tabelle td.betrag { text-align: right; }
+.wk-rolle-zusaetzlich td, .wk-rolle-vor_beginn td, .wk-rolle-keine_serie td { color: var(--text-2); }
+.wk-schritt.wk-anker { color: var(--text-2); }

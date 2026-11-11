@@ -92,8 +92,9 @@ def _passend(c: Eintrag, kandidaten: list[int], gruppe: list[Eintrag], m: int) -
                                            abs((cd - monat_plus(_d(gruppe[i].datum), m)).days), -i))
 
 
-def kette_bilden(gruppe: list[Eintrag], m: int) -> Kette:
-    """Kette vom jüngsten Eintrag rückwärts (D-108).
+def _kette_ab(gruppe: list[Eintrag], m: int, anker: int) -> Kette:
+    """Kette ab dem Anker rückwärts (D-108). Einträge nach dem Anker liegen am selben Termin (D-110) und sind
+    zusätzliche Zahlungen.
 
     Vorgänger eines Glieds ``c`` sind alle älteren Einträge ``x`` mit ``|c.datum − monat_plus(x.datum, m)| ≤ T``
     (Termin-Fenster); davon zählt der passendste (gleicher Betrag, dann Datumsnähe). Einträge zwischen Vorgänger und
@@ -101,8 +102,8 @@ def kette_bilden(gruppe: list[Eintrag], m: int) -> Kette:
     Vorgänger entfernt liegen oder selbst im Termin-Fenster lagen. Jeder andere Eintrag dazwischen und ein fehlender
     Vorgänger beenden die Kette.
     """
-    c = len(gruppe) - 1
-    glieder, zusaetzlich, schritte = [c], [], []
+    c = anker
+    glieder, zusaetzlich, schritte = [c], list(range(len(gruppe) - 1, anker, -1)), []
     fenster_vorher: set[int] = set()
     while True:
         cd = _d(gruppe[c].datum)
@@ -140,6 +141,34 @@ def kette_bilden(gruppe: list[Eintrag], m: int) -> Kette:
         glieder.append(p)
         c = p
     return Kette(glieder, zusaetzlich, schritte)
+
+
+def _anker_wert(gruppe: list[Eintrag], k: Kette) -> tuple:
+    """Rangfolge der Anker (D-110): längste Kette, dann gleicher Betrag wie das vorige Glied, dann jüngster."""
+    gleich = len(k.glieder) > 1 and gruppe[k.glieder[0]].betrag == gruppe[k.glieder[1]].betrag
+    return (len(k.glieder), gleich, k.glieder[0])
+
+
+def kette_bilden(gruppe: list[Eintrag], m: int) -> Kette:
+    """Kette einer Gruppe (D-108, D-110).
+
+    Anker-Kandidaten sind alle Einträge höchstens ``T`` Tage vor dem jüngsten Eintrag (jüngster Termin). Gewählt
+    wird der Anker mit der längsten Kette, bei Gleichstand der mit gleichem Betrag wie sein Vorgänger in der Kette,
+    dann der jüngere. Bei mehreren Kandidaten steht vorn im Kettenprotokoll ein Schritt ``anker``.
+    """
+    n = len(gruppe)
+    letzte = _d(gruppe[-1].datum)
+    kandidaten = [i for i in range(n - 1, -1, -1) if (letzte - _d(gruppe[i].datum)).days <= T]
+    ketten = {a: _kette_ab(gruppe, m, a) for a in kandidaten}
+    besten = max(kandidaten, key=lambda a: _anker_wert(gruppe, ketten[a]))
+    k = ketten[besten]
+    if len(kandidaten) > 1:
+        k.schritte.insert(0, {"ergebnis": "anker", "von": besten, "vorgaenger": None,
+                              "uebersprungen": [a for a in kandidaten if a != besten],
+                              "kandidaten": [{"index": a, "laenge": len(ketten[a].glieder),
+                                              "gleicher_betrag": _anker_wert(gruppe, ketten[a])[1]}
+                                             for a in sorted(kandidaten)]})
+    return k
 
 
 def serie(gruppe: list[Eintrag], stichtag: dt.date | None) -> dict | None:
@@ -207,6 +236,22 @@ def _schritt_text(sch: dict, gruppe: list[Eintrag], m: int) -> dict:
         aus["abweichung_tage"] = (cd - erw).days
         rechnung = (f"Vorgänger {_kurz_text(v)} + {MONATE_TEXT[m]} = {_de(erw.isoformat())}, "
                     f"Abweichung {abs((cd - erw).days)} Tage")
+    if sch["ergebnis"] == "anker":
+        aus["kandidaten"] = [dict(_kurz(gruppe[x["index"]]), laenge=x["laenge"], gleicher_betrag=x["gleicher_betrag"])
+                             for x in sch["kandidaten"]]
+        andere = [x for x in sch["kandidaten"] if x["index"] != sch["von"]]
+        gewaehlt = next(x for x in sch["kandidaten"] if x["index"] == sch["von"])
+        if all(x["laenge"] < gewaehlt["laenge"] for x in andere):
+            grund = "sie ergibt die längste Kette"
+        elif gewaehlt["gleicher_betrag"] and not all(x["gleicher_betrag"] for x in andere):
+            grund = "ihr Betrag stimmt mit dem vorigen Glied überein"
+        else:
+            grund = "sie ist die jüngere von gleichwertigen Buchungen"
+        t = (f"Jüngster Termin: {len(sch['kandidaten'])} Buchungen innerhalb von {T} Tagen ("
+             + ", ".join(_kurz_text(gruppe[x["index"]]) for x in sch["kandidaten"])
+             + f"). Die Kette beginnt mit {_kurz_text(c)}, weil {grund}. Die anderen sind zusätzliche Zahlungen.")
+        aus["text"] = t
+        return aus
     if sch["ergebnis"] == "verbunden":
         t = f"{_kurz_text(c)}: {rechnung} ≤ {T} – verbunden."
         if v is not None and v.betrag != c.betrag:
@@ -230,6 +275,49 @@ def _schritt_text(sch: dict, gruppe: list[Eintrag], m: int) -> dict:
     return aus
 
 
+def _abw(gruppe: list[Eintrag], nach: int, vor: int, m: int) -> int:
+    return abs((_d(gruppe[nach].datum) - monat_plus(_d(gruppe[vor].datum), m)).days)
+
+
+def _wahl_grund(gruppe: list[Eintrag], k: Kette, g: int, x: int, m: int) -> str:
+    """Warum am Termin des Glieds ``g`` das Glied zählt und nicht der Eintrag ``x`` (D-110)."""
+    pos = k.glieder.index(g)
+    if pos == 0:
+        anker = k.schritte[0] if k.schritte and k.schritte[0]["ergebnis"] == "anker" else None
+        werte = {c["index"]: c for c in anker["kandidaten"]} if anker else {}
+        gw, xw = werte.get(g), werte.get(x)
+        if gw and xw and gw["laenge"] > xw["laenge"]:
+            return (f"die Kette ab dem Glied hat {gw['laenge']} Glieder, ab dieser Buchung nur {xw['laenge']}")
+        if gw and xw and gw["gleicher_betrag"] and not xw["gleicher_betrag"]:
+            return "nur der Betrag des Glieds stimmt mit dem vorigen Glied überein"
+        return "bei sonst gleichwertigen Buchungen zählt die jüngere"
+    nach = k.glieder[pos - 1]
+    if _abw(gruppe, nach, x, m) > T:
+        return (f"nur das Glied passt zum nächsten Glied {_kurz_text(gruppe[nach])}; diese Buchung liegt "
+                f"{_abw(gruppe, nach, x, m)} Tage neben dem Rhythmus")
+    if gruppe[g].betrag == gruppe[nach].betrag != gruppe[x].betrag:
+        return f"nur das Glied hat denselben Betrag wie das nächste Glied {_kurz_text(gruppe[nach])}"
+    if _abw(gruppe, nach, g, m) < _abw(gruppe, nach, x, m):
+        return (f"das Glied liegt genauer im Rhythmus (Abweichung {_abw(gruppe, nach, g, m)} statt "
+                f"{_abw(gruppe, nach, x, m)} Tage)")
+    return "bei sonst gleichwertigen Buchungen zählt die jüngere"
+
+
+def _rollen(gruppe: list[Eintrag], k: Kette | None) -> list[dict]:
+    glieder = list(reversed(k.glieder)) if k else []
+    zus = set(k.zusaetzlich) if k else set()
+    aus = []
+    for i, x in enumerate(gruppe):
+        if i in glieder:
+            rolle, nr = "glied", glieder.index(i) + 1
+        elif i in zus:
+            rolle, nr = "zusaetzlich", None
+        else:
+            rolle, nr = ("vor_beginn" if k else "keine_serie"), None
+        aus.append(dict(_kurz(x), rolle=rolle, glied=nr))
+    return aus[::-1]  # jüngste zuerst
+
+
 def _gruppe_begruenden(gruppe: list[Eintrag], e: Eintrag, h: dt.date, konto_name: str) -> dict:
     idx = next(i for i, x in enumerate(gruppe) if x.buchung_id == e.buchung_id)
     rhythmen: list[dict] = []
@@ -240,39 +328,41 @@ def _gruppe_begruenden(gruppe: list[Eintrag], e: Eintrag, h: dt.date, konto_name
         rhythmen.append({"rhythmus": name, "monate": m, "mindestanzahl": mindest, "laenge": len(k.glieder),
                          "erfuellt": ok, "schritte": [_schritt_text(sch, gruppe, m) for sch in k.schritte]})
         if ok:
-            treffer = (name, k)
+            treffer = (name, m, k)
             break
     s = serie(gruppe, h)
     juengste = gruppe[-1]
-    kopf = f"Gruppe {konto_name} · {e.empfaenger_name} · {'Ausgabe' if e.richtung == 'ausgabe' else 'Einnahme'}"
+    diese = f"vom {_de(e.datum)} über {euro(e.betrag)}"
+    kopf = f"{konto_name} · {e.empfaenger_name} · {'Ausgabe' if e.richtung == 'ausgabe' else 'Einnahme'}"
     if treffer is not None:
-        name, k = treffer
+        name, m, k = treffer
         glieder = list(reversed(k.glieder))
         rt = RHYTHMUS_TEXT[name]
         if idx in glieder:
             urteil, glied = "glied", glieder.index(idx) + 1
-            text = f"Wiederkehrend: Glied {glied} von {len(glieder)} der {rt}en Serie ({s['status'] if s is not None else ''})."
+            text = (f"Diese Buchung {diese} ist Glied {glied} von {len(glieder)} der {rt}en Serie "
+                    f"(Status {s['status'] if s is not None else ''}).")
         elif idx in k.zusaetzlich:
             urteil, glied = "zusaetzlich", None
-            sch = next(x for x in k.schritte if idx in x["uebersprungen"])
-            nah = min((i for i in (sch["von"], sch["vorgaenger"]) if i is not None),
-                      key=lambda i: abs((_d(gruppe[i].datum) - _d(e.datum)).days))
-            text = (f"Nicht wiederkehrend: zusätzliche Zahlung neben dem Glied {_kurz_text(gruppe[nah])} der {rt}en "
-                    "Serie. Am selben Termin zählt nur eine Buchung: zuerst die mit gleichem Betrag wie das "
-                    "Nachfolgeglied, dann die mit dem genaueren Datum.")
+            g = min(k.glieder, key=lambda i: (abs((_d(gruppe[i].datum) - _d(e.datum)).days), -i))
+            text = (f"Diese Buchung {diese} gehört nicht zur Serie. Es gibt eine {rt}e Serie, und am selben "
+                    f"Termin liegt deren Glied {_kurz_text(gruppe[g])}. Je Termin zählt nur eine Buchung; gezählt "
+                    f"wird das Glied, weil {_wahl_grund(gruppe, k, g, idx, m)}.")
         else:
             urteil, glied = "vor_beginn", None
             erste = gruppe[glieder[0]]
-            text = (f"Nicht wiederkehrend: Die {rt}e Serie beginnt erst am {_de(erste.datum)}; ältere Buchungen gehören "
-                    "nicht dazu, weil die Kette dort reißt.")
+            text = (f"Diese Buchung {diese} gehört nicht zur Serie. Die {rt}e Serie beginnt erst am "
+                    f"{_de(erste.datum)}, weil die Kette davor reißt (siehe letzter Schritt des Protokolls).")
     else:
         urteil, glied = "keine_serie", None
-        teile = [f"{RHYTHMUS_TEXT[str(r['rhythmus'])]} {r['laenge']} von mindestens {r['mindestanzahl']}" for r in rhythmen]
-        text = ("Nicht wiederkehrend: Ab der jüngsten Buchung " + _kurz_text(juengste) +
-                " erreicht keine Kette die Mindestanzahl (" + "; ".join(teile) + ").")
+        teile = [f"{RHYTHMUS_TEXT[str(r['rhythmus'])]} {r['laenge']} von mindestens {r['mindestanzahl']}"
+                 for r in rhythmen]
+        text = (f"Diese Buchung {diese} ist nicht wiederkehrend: Ab der jüngsten Buchung {_kurz_text(juengste)} "
+                "erreicht keine Kette die Mindestanzahl (" + "; ".join(teile) + ").")
     return {"konto": {"id": e.konto_id, "name": konto_name}, "richtung": e.richtung, "betrag": e.betrag,
-            "gruppe": kopf, "gruppe_anzahl": len(gruppe), "juengste": _kurz(juengste), "urteil": urteil,
-            "glied": glied, "text": text, "serie": s, "rhythmen": rhythmen}
+            "datum": e.datum, "gruppe": kopf, "gruppe_anzahl": len(gruppe), "juengste": _kurz(juengste),
+            "urteil": urteil, "glied": glied, "text": text, "serie": s, "rhythmen": rhythmen,
+            "buchungen": _rollen(gruppe, treffer[2] if treffer else None)}
 
 
 def begruendung(con, buchung_id: int, stichtag: str) -> dict:
@@ -284,10 +374,10 @@ def begruendung(con, buchung_id: int, stichtag: str) -> dict:
     aus: dict = {"buchung_id": buchung_id, "stichtag": stichtag, "urteil": "ausgeschlossen", "text": "",
                  "eintraege": [], "ausgeschlossen": []}
     if b["empfaenger_id"] is None:
-        aus["text"] = "Nicht wiederkehrend: Die Buchung hat keinen Empfänger; nur Buchungen mit Empfänger zählen."
+        aus["text"] = "Die Buchung hat keinen Empfänger; nur Buchungen mit Empfänger zählen."
         return aus
     if b["datum"] > stichtag:
-        aus["text"] = f"Nicht berücksichtigt: Die Buchung liegt nach dem Stichtag {_de(stichtag)}."
+        aus["text"] = f"Die Buchung liegt nach dem Stichtag {_de(stichtag)}."
         return aus
     namen = {r["id"]: r["name"] for r in con.execute("SELECT id, name FROM konto")}
     for r in con.execute(
@@ -308,12 +398,11 @@ def begruendung(con, buchung_id: int, stichtag: str) -> dict:
         if e is not None:
             aus["eintraege"].append(_gruppe_begruenden(gr, e, h, namen[e.konto_id]))
     if not aus["eintraege"]:
-        aus["text"] = "Nicht wiederkehrend: Die Buchung berührt kein betrachtetes Bestandskonto (Giro, Spar, Karte)."
+        aus["text"] = "Die Buchung berührt kein betrachtetes Bestandskonto (Giro, Spar, Karte)."
         return aus
-    if any(x["urteil"] == "glied" for x in aus["eintraege"]):
-        aus["urteil"] = "wiederkehrend"
-    else:
-        aus["urteil"] = "nicht_wiederkehrend"
+    urteile = {x["urteil"] for x in aus["eintraege"]}
+    aus["urteil"] = ("wiederkehrend" if "glied" in urteile else "zusaetzlich" if "zusaetzlich" in urteile
+                     else "nicht_wiederkehrend")
     aus["text"] = " ".join(x["text"] for x in aus["eintraege"]) if len(aus["eintraege"]) == 1 else " ".join(
         f"{x['konto']['name']}: {x['text']}" for x in aus["eintraege"])
     return aus
