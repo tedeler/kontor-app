@@ -392,8 +392,10 @@ def html_als_text(h: str) -> str:
     return re.sub(r"\n{3,}", "\n\n", "\n".join(zeilen)).strip()
 
 
-_GEFAEHRLICH = re.compile(r"(?is)<(script|iframe|frame|frameset|object|embed|applet|form|base|meta|link|svg|math)"
-                          r"\b.*?(?:</\1\s*>|/?>)")
+# Behälter samt Inhalt entfernen (Skripttext darf nicht als Text stehen bleiben)
+_GEFAEHRLICH = re.compile(r"(?is)<(script|iframe|frameset|object|applet|svg|math|template|noscript)\b[^>]*>.*?</\1\s*>")
+_IMG = re.compile(r"(?is)<img\b[^>]*>")
+_IMG_SRC = re.compile(r"""(?is)\ssrc\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)""")
 _RESTTAG = re.compile(r"(?is)</?(script|iframe|frame|frameset|object|embed|applet|form|base|meta|link|svg|math)\b[^>]*>")
 _EREIGNIS = re.compile(r"""(?is)\s+on[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)""")
 _JS_URL = re.compile(r"""(?is)(\s(?:href|src|action|xlink:href|formaction|background)\s*=\s*["']?)\s*(?:javascript|vbscript|data:text/html)[^"'\s>]*""")
@@ -420,6 +422,7 @@ def mail_html(roh: bytes) -> str:
                 bilder[cid] = f"data:{t.get_content_type()};base64,{base64.b64encode(nutz).decode('ascii')}"
     h = _GEFAEHRLICH.sub("", h)
     h = _RESTTAG.sub("", h)
+    h = _IMG.sub(lambda x: _bild(x.group(0), bilder), h)
     h = _EREIGNIS.sub("", h)
     h = _JS_URL.sub(r"\1#", h)
     h = _EXTERN_ATTR.sub(lambda x: x.group(1) + _attr_wert(x.group(0)[len(x.group(1)):], bilder), h)
@@ -428,6 +431,17 @@ def mail_html(roh: bytes) -> str:
             '<style>body{font-family:system-ui,sans-serif;margin:12px;color:#111;background:#fff}'
             'img{max-width:100%;height:auto}</style></head><body>')
     return kopf + h + "</body></html>"
+
+
+def _bild(tag: str, bilder: dict[str, str]) -> str:
+    """<img>: eingebettete Bilder bleiben (cid: → data:-URL), externe entfallen ganz (kein kaputtes Bild)."""
+    m = _IMG_SRC.search(tag)
+    w = m.group(1).strip("\"'").strip() if m else ""
+    if w.lower().startswith("cid:") and w[4:] in bilder:
+        return tag[:m.start()] + f' src="{bilder[w[4:]]}"' + tag[m.end():]
+    if re.match(r"(?i)data:image/(png|jpeg|gif|webp);", w):
+        return tag
+    return ""
 
 
 def _attr_wert(wert: str, bilder: dict[str, str]) -> str:

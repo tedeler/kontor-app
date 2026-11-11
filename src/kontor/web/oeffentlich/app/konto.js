@@ -714,7 +714,12 @@ class Kontoansicht {
         onclick: (e) => { e.stopPropagation(); betrachter(b.belege, 0, e.currentTarget); } },
       "📎", b.belege.length > 1 ? String(b.belege.length) : "") : null;
     // mobil ist die Spalte Verwendungszweck ausgeblendet: Marke dann beim Empfänger
-    if (belegMarke) (kompakt ? empf : zweckZelle).append(belegMarke);
+    if (belegMarke) {
+      const zelle = kompakt ? empf : zweckZelle;
+      // Text kürzen, Marke bleibt am Zellenende sichtbar und anklickbar
+      zelle.replaceChildren(h("span", { class: "zelle-text" }, ...zelle.childNodes), belegMarke);
+      zelle.classList.add("mit-marke");
+    }
     const zeile = h("div", { role: "row", tid: `buchung-${b.id}`, class: "zeile", "aria-selected": "false",
       tabindex: "-1", "data-id": String(b.id), "data-status": b.status, "data-vorschlag": b.vorschlag ? "ja" : "nein" },
     datumEl("div", b.datum, { role: "gridcell", class: "zelle zelle-datum", "data-feld": "datum" }),

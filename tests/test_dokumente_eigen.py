@@ -131,7 +131,8 @@ def test_mail_anzeige_html_entschaerft_und_anhaenge(c):
     csp = h.headers["content-security-policy"]
     assert "sandbox" in csp and "img-src data:" in csp and "script-src" not in csp
     t = h.text
-    assert "<script" not in t and "onclick" not in t and "javascript:" not in t
+    assert "<script" not in t and "alert(2)" not in t and "onclick" not in t and "javascript:" not in t
+    assert "tracker.example.invalid" not in t
     assert "data:image/png;base64," in t and "cid:logo" not in t
     a = c.get(f"/api/dokumente/{d['id']}/mail/anhaenge/{pdfs[0]['nr']}")
     assert a.content == PDF and a.headers["content-type"] == "application/pdf"

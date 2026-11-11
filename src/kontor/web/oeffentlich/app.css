@@ -388,7 +388,9 @@ td.aktionen { width: 2.5rem; text-align: right; }
 @keyframes sprung { from { background: var(--akzent-hell); } to { background: transparent; } }
 
 /* Dokumente (D-123) */
-.beleg-marke { border: 0; background: none; cursor: pointer; padding: 0 .25rem; margin-left: .3rem; font-size: .9em;
+.zelle.mit-marke { display: flex; align-items: center; min-width: 0; }
+.zelle.mit-marke > .zelle-text { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.beleg-marke { flex: none; border: 0; background: none; cursor: pointer; padding: 0 .25rem; margin-left: .3rem; font-size: .9em;
   color: var(--text); border-radius: 3px; }
 .beleg-marke:hover, .beleg-marke:focus-visible { background: var(--hg-3); }
 .zeile[data-ablage="ja"] { outline: 2px dashed var(--akzent); outline-offset: -2px; background: var(--hg-3); }
