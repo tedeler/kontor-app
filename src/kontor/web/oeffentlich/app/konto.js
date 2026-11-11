@@ -142,6 +142,8 @@ class Kontoansicht {
     this.verdachte = [];
     this.layout = layoutLaden();
     this.filterSichtbar = false;   // 23.1 (E-172): jede Kontoansicht beginnt eingeklappt, nicht gespeichert
+    const ziel = new URLSearchParams(suche || "").get("buchung");   // Sprungziel (D-111), kein Filter
+    this.sprungId = ziel && /^\d+$/.test(ziel) ? Number(ziel) : null;
   }
 
   // ---------------------------------------------------------------- Filter (7.1)
@@ -189,6 +191,25 @@ class Kontoansicht {
   async start() {
     this.aufbauen();
     await this.laden();
+    if (this.sprungId !== null) await this.springen(this.sprungId);
+  }
+
+  /** Markiert eine Buchung und rollt zu ihr; lädt dafür bei Bedarf weitere Seiten nach (D-111). */
+  async springen(id) {
+    this.sprungId = null;
+    while (!this.zeilen.has(id) && this.eintraege.length < this.gesamt) {
+      this.seiten += 1;
+      await this.laden();
+    }
+    this.urlSchreiben();   // Sprungziel aus der Adresse entfernen
+    if (!this.zeilen.has(id)) { melde("hinweis", "Die Buchung ist mit den aktuellen Filtern nicht sichtbar."); return; }
+    this.auswahl = new Set([id]);
+    this.anker = id;
+    this.fokussieren(id);
+    const z = this.zeilen.get(id);
+    z.scrollIntoView({ block: "center" });
+    z.classList.add("sprung-ziel");
+    setTimeout(() => z.classList.remove("sprung-ziel"), 2000);
   }
 
   async laden() {

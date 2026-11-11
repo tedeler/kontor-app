@@ -52,3 +52,26 @@ def test_begruendung_ueber_alt_kontextmenue_und_palette(tmp_path, browser):  # n
         tid(page, "wk-buchungen").locator("summary").click()
         expect(page.locator('[data-testid="wk-buchung"][data-rolle="glied"]')).to_have_count(4)
         expect(page.locator('tr.wk-betroffen')).to_have_attribute("data-rolle", "zusaetzlich")
+
+
+def test_serienmenue_begruendung_und_sprung(tmp_path, browser):  # noqa: F811
+    with server(tmp_path, daten=False) as (url, _), seite(browser, url, **DESKTOP) as page:
+        g = _daten(url)
+        page.goto(f"{url}/wiederkehrend")
+        bereit(page, "wiederkehrend")
+        zeile = page.locator('[data-testid="wiederkehrend-tabelle"] tr[data-status]')
+        expect(zeile).to_have_count(1)
+        # „…“-Menü: Begründung zur jüngsten Buchung
+        zeile.locator('[data-testid^="wk-menue-"]').click()
+        tid(page, "km-serie-begruendung").click()
+        expect(tid(page, "wk-urteil")).to_have_attribute("data-urteil", "wiederkehrend")
+        expect(page.locator("tr.wk-betroffen")).to_contain_text("Glied 4")
+        tid(page, "wk-schliessen").click()
+        # Kontextmenü: Sprung ins Kontoblatt, jüngste Buchung markiert
+        zeile.click(button="right")
+        tid(page, "km-serie-springen").click()
+        expect(page).to_have_url(f"{url}/konten/{g}")
+        bereit(page, "konto")
+        markiert = page.locator('[data-testid="buchungsliste"] [role="row"][aria-selected="true"]')
+        expect(markiert).to_have_count(1)
+        expect(markiert).to_contain_text("15.06.2024")

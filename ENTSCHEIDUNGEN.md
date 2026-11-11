@@ -1350,3 +1350,16 @@ Weitere Abkürzungen: SY = `spec/api/synchronisation.md`, KA =
   `vor_beginn`, `keine_serie`). Die Oberfläche beantwortet oben „Wiederkehrend? Ja/Nein“ mit einem Zusatz.
 - **Begründung:** Rückmeldung des Auftraggebers: Das Urteil muss auf einen Blick eindeutig sein, und die Auswahl am
   Termin darf nicht vom Zufall der Anlagereihenfolge abhängen.
+
+## D-111 Menü je Serie und Sprung ins Kontoblatt (Feature `wiederkehrend-begruendung`)
+
+- **Entscheidung:** Auf `/wiederkehrend` hat jede Zeile `serie-<schluessel>` eine letzte Spalte mit dem Knopf
+  `wk-menue-<schluessel>` („…“, `aria-haspopup="menu"`); dasselbe Menü öffnen Rechtsklick, Umschalt+F10/Menütaste
+  (Zeile ist fokussierbar) und lange Berührung. Einträge: `km-serie-begruendung` „Warum wiederkehrend?“ öffnet den
+  Begründungsdialog (D-109) zur jüngsten Buchung der Serie (letzte ID in `buchung_ids`); `km-serie-springen`
+  „Letzte Buchung im Kontoblatt zeigen“ navigiert zu `/konten/<konto_id>?buchung=<id>`. Der Parameter `buchung`
+  ist kein Filter: Die Kontoansicht lädt bei Bedarf weitere Seiten nach, markiert die Buchung allein, fokussiert und
+  rollt zu ihr, hebt sie kurz hervor und entfernt den Parameter aus der Adresse. Ist sie mit den Filtern nicht
+  sichtbar, erscheint ein Hinweis.
+- **Begründung:** Wunsch des Auftraggebers. Die Testkennung beginnt bewusst nicht mit `serie-`, weil Zeilen über
+  `[data-testid^="serie-"]` gezählt werden (oberflaeche.md 13.5).

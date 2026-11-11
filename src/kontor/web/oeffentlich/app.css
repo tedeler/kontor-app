@@ -333,3 +333,7 @@ html.zieht, html.zieht * { cursor: grabbing !important; }
 .wk-tabelle td.betrag { text-align: right; }
 .wk-rolle-zusaetzlich td, .wk-rolle-vor_beginn td, .wk-rolle-keine_serie td { color: var(--text-2); }
 .wk-schritt.wk-anker { color: var(--text-2); }
+.nur-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+td.aktionen { width: 2.5rem; text-align: right; }
+.sprung-ziel { animation: sprung 2s ease-out; }
+@keyframes sprung { from { background: var(--akzent-hell); } to { background: transparent; } }
