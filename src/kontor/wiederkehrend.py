@@ -93,7 +93,7 @@ def _passend(c: Eintrag, kandidaten: list[int], gruppe: list[Eintrag], m: int) -
 
 
 def _kette_ab(gruppe: list[Eintrag], m: int, anker: int) -> Kette:
-    """Kette ab dem Anker rückwärts (D-119). Einträge nach dem Anker liegen am selben Termin (D-117) und sind
+    """Kette ab dem Anker rückwärts (D-115). Einträge nach dem Anker liegen am selben Termin (D-117) und sind
     zusätzliche Zahlungen.
 
     Vorgänger eines Glieds ``c`` sind alle älteren Einträge ``x`` mit ``|c.datum − monat_plus(x.datum, m)| ≤ T``
@@ -150,7 +150,7 @@ def _anker_wert(gruppe: list[Eintrag], k: Kette) -> tuple:
 
 
 def kette_bilden(gruppe: list[Eintrag], m: int) -> Kette:
-    """Kette einer Gruppe (D-119, D-117).
+    """Kette einer Gruppe (D-115, D-117).
 
     Anker-Kandidaten sind alle Einträge höchstens ``T`` Tage vor dem jüngsten Eintrag (jüngster Termin). Gewählt
     wird der Anker mit der längsten Kette, bei Gleichstand der mit gleichem Betrag wie sein Vorgänger in der Kette,
@@ -172,7 +172,7 @@ def kette_bilden(gruppe: list[Eintrag], m: int) -> Kette:
 
 
 def serie(gruppe: list[Eintrag], stichtag: dt.date | None) -> dict | None:
-    """wiederkehrend.md 2.2–2.4 mit D-119; ``None``, wenn die Gruppe keine Serie ist."""
+    """wiederkehrend.md 2.2–2.4 mit D-115; ``None``, wenn die Gruppe keine Serie ist."""
     for name, m, mindest in RHYTHMEN:
         k = kette_bilden(gruppe, m)
         if len(k.glieder) < mindest:

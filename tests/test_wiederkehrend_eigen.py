@@ -1,4 +1,4 @@
-"""Eigene Entwicklungstests zum Feature „wiederkehrend-begruendung“ (D-119, D-116): zusätzliche Zahlungen um einen
+"""Eigene Entwicklungstests zum Feature „wiederkehrend-begruendung“ (D-115, D-116): zusätzliche Zahlungen um einen
 Termin brechen die Kette nicht; Begründung je Buchung über ``GET /api/buchungen/{id}/wiederkehrend``."""
 
 from __future__ import annotations
