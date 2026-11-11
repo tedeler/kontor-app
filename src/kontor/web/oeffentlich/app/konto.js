@@ -1,7 +1,7 @@
 /* Kontor – Kontoansicht (oberflaeche.md 7): Filter, Buchungsliste, Auswahl und Fokus, Mehrfachbearbeitung,
  * Inline-Bearbeitung, Kontextmenü, Drag and Drop auf Kategorien, Panels (15) und Gesten (16.4). */
 import {
-  BESTAND, STATUS_TEXT, abfrage, aktion, api, baumFolge, betragEl, betragLesen, datumEl, datumText, h, kategorien, klasse,
+  BESTAND, STATUS_TEXT, abfrage, aktion, anhaengen, api, baumFolge, betragEl, betragLesen, datumEl, datumText, h, kategorien, klasse,
   kontoNach, kontoPfad, melde, neueId, oberflaeche, pfadVon, stamm, tid,
 } from "./kern.js";
 import {
@@ -55,7 +55,55 @@ export async function kontoSeite(seite, kontoId, suche) {
   seite.dataset.kontoklasse = klasse(konto);   // 22.2
   const s = new Kontoansicht(seite, konto, suche);
   await s.start();
+  aktiveAnsicht = s;
   return s;
+}
+
+// ------------------------------------------------------------------ Begründung „wiederkehrend“ (D-109)
+let aktiveAnsicht = null;
+
+/** Genau eine markierte Buchung der sichtbaren Kontoansicht oder null (für die Befehlspalette). */
+export function markierteBuchung() {
+  const s = aktiveAnsicht;
+  if (!s || !s.seite || !s.seite.isConnected) return null;
+  const ids = s.auswahlIds();
+  return ids.length === 1 ? ids[0] : null;
+}
+
+const URTEIL_TEXT = { wiederkehrend: "Wiederkehrend", nicht_wiederkehrend: "Nicht wiederkehrend",
+  ausgeschlossen: "Nicht betrachtet" };
+const RHYTHMUS = { monatlich: "Monatlich", vierteljaehrlich: "Vierteljährlich", jaehrlich: "Jährlich" };
+
+/** Dialog mit Urteil und Kettenprotokoll je Konto und Rhythmus. */
+export async function begruendungZeigen(buchungId, ausloeser) {
+  let w;
+  try { w = await api("GET", `/api/buchungen/${buchungId}/wiederkehrend`); } catch (e) { return; }
+  const schritt = (sc) => {
+    const betroffen = sc.von.buchung_id === buchungId || (sc.vorgaenger && sc.vorgaenger.buchung_id === buchungId)
+      || sc.uebersprungen.some((u) => u.buchung_id === buchungId) || (sc.fremd && sc.fremd.buchung_id === buchungId);
+    return h("li", { class: `wk-schritt wk-${sc.ergebnis}${betroffen ? " wk-betroffen" : ""}`, tid: "wk-schritt",
+      "data-ergebnis": sc.ergebnis, "data-grund": sc.grund || null }, sc.text);
+  };
+  const rhythmus = (r, offen) => h("details", { class: "wk-rhythmus", tid: `wk-rhythmus-${r.rhythmus}`, open: offen || null },
+    h("summary", null, `${RHYTHMUS[r.rhythmus]}: Kette mit ${r.laenge} ${r.laenge === 1 ? "Glied" : "Gliedern"}, `
+      + `mindestens ${r.mindestanzahl} nötig – ${r.erfuellt ? "erfüllt" : "nicht erfüllt"}`),
+    h("ol", { class: "wk-schritte" }, r.schritte.map(schritt)));
+  const eintrag = (e) => h("section", { class: "wk-eintrag", tid: "wk-eintrag", "data-urteil": e.urteil },
+    h("h3", null, e.gruppe),
+    h("p", { tid: "wk-eintrag-text" }, e.text),
+    h("p", { class: "wk-hinweis" }, `${e.gruppe_anzahl} Buchungen in dieser Gruppe; die Kette wird ab der jüngsten `
+      + `Buchung vom ${datumText(e.juengste.datum)} rückwärts gebildet. Toleranz ±5 Tage.`),
+    e.rhythmen.map((r, i) => rhythmus(r, i === e.rhythmen.length - 1)));
+  dialog("wiederkehrend-begruendung", "Warum (nicht) wiederkehrend?", (inhalt, d) => {
+    anhaengen(inhalt, [
+      h("p", { class: "wk-urteil", tid: "wk-urteil", "data-urteil": w.urteil },
+        h("strong", null, URTEIL_TEXT[w.urteil] || w.urteil), ` · Stand ${datumText(w.stichtag)}`),
+      w.eintraege.length ? null : h("p", { tid: "wk-text" }, w.text),
+      w.eintraege.map(eintrag),
+      w.ausgeschlossen.map((a) => h("p", { class: "wk-hinweis", tid: "wk-ausgeschlossen" }, `${a.konto.name}: ${a.text}`)),
+      knopfLeiste(knopf("Schließen", { tid: "wk-schliessen", onclick: () => d.schliessen(null) }))]);
+  }, { ausloeser, klasse: "dialog-breit", schliessenKnopf: "wk-x",
+    fokus: (box) => box.querySelector("[data-testid=wk-schliessen]") });
 }
 
 class Kontoansicht {
@@ -665,7 +713,7 @@ class Kontoansicht {
       if (!this.auswahl.has(id)) { this.auswahl = new Set([id]); this.anker = id; }
       this.fokussieren(id);
       const [x, y] = menuePosition(null, z);
-      this.menue(x, y, z);
+      this.menue(x, y, z, e.altKey);
     }
   }
 
@@ -701,7 +749,7 @@ class Kontoansicht {
       const id = Number(z.dataset.id);
       if (!this.auswahl.has(id)) { this.auswahl = new Set([id]); this.anker = id; }
       this.fokussieren(id);
-      this.menue(e.clientX, e.clientY, z);
+      this.menue(e.clientX, e.clientY, z, e.altKey);
     });
     // Drag and Drop auf eine Kategorie im Panel (10)
     ziehbar(this.liste, {
@@ -761,7 +809,7 @@ class Kontoansicht {
   // ---------------------------------------------------------------- Kontextmenü (8.2)
   auswahlIds() { return this.ids().filter((x) => this.auswahl.has(x)); }
 
-  menue(x, y, ausloeser) {
+  menue(x, y, ausloeser, alt = false) {
     const ids = this.auswahlIds();
     const eine = ids.length === 1;
     const mitVorschlag = this.eintraege.some((b) => this.auswahl.has(b.id) && b.vorschlag);
@@ -778,7 +826,10 @@ class Kontoansicht {
       { tid: "km-status", text: "Status setzen…", tun: () => this.statusWaehlen(ids, ausloeser) },
       { tid: "km-mehrfach", text: "Bearbeiten…", tun: () => this.mehrfachDialog(ids, ausloeser) },
       { tid: "km-loeschen", text: "Löschen…", tun: () => this.loeschen(ausloeser) },
-    ], ausloeser);
+      // Versteckt (D-109): nur mit gedrückter Alt-Taste
+      alt ? { tid: "km-wiederkehrend", text: "Warum (nicht) wiederkehrend?", aktiv: eine,
+        tun: () => begruendungZeigen(ids[0], ausloeser) } : null,
+    ].filter(Boolean), ausloeser);
   }
 
   // ---------------------------------------------------------------- Mehrfachbearbeitung (7.5)

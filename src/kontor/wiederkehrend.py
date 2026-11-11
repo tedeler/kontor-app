@@ -216,7 +216,7 @@ def _schritt_text(sch: dict, gruppe: list[Eintrag], m: int) -> dict:
                 _kurz_text(gruppe[i]) for i in sch["uebersprungen"]) + "."
     elif sch["grund"] == "kein_vorgaenger":
         t = f"{_kurz_text(c)}: Es gibt keine ältere Buchung in der Gruppe – die Kette beginnt hier."
-    elif sch["grund"] == "abstand":
+    elif sch["grund"] == "abstand" and v is not None:
         t = (f"{_kurz_text(c)}: Nächste ältere Buchung {_kurz_text(v)}; + {MONATE_TEXT[m]} = "
              f"{_de(aus['erwartet'])}, Abweichung {abs(aus['abweichung_tage'])} Tage > {T} – die Kette beginnt hier.")
     else:
@@ -232,7 +232,8 @@ def _schritt_text(sch: dict, gruppe: list[Eintrag], m: int) -> dict:
 
 def _gruppe_begruenden(gruppe: list[Eintrag], e: Eintrag, h: dt.date, konto_name: str) -> dict:
     idx = next(i for i, x in enumerate(gruppe) if x.buchung_id == e.buchung_id)
-    rhythmen, treffer = [], None
+    rhythmen: list[dict] = []
+    treffer = None
     for name, m, mindest in RHYTHMEN:
         k = kette_bilden(gruppe, m)
         ok = len(k.glieder) >= mindest
@@ -250,7 +251,7 @@ def _gruppe_begruenden(gruppe: list[Eintrag], e: Eintrag, h: dt.date, konto_name
         rt = RHYTHMUS_TEXT[name]
         if idx in glieder:
             urteil, glied = "glied", glieder.index(idx) + 1
-            text = f"Wiederkehrend: Glied {glied} von {len(glieder)} der {rt}en Serie ({s['status']})."
+            text = f"Wiederkehrend: Glied {glied} von {len(glieder)} der {rt}en Serie ({s['status'] if s is not None else ''})."
         elif idx in k.zusaetzlich:
             urteil, glied = "zusaetzlich", None
             sch = next(x for x in k.schritte if idx in x["uebersprungen"])
@@ -266,7 +267,7 @@ def _gruppe_begruenden(gruppe: list[Eintrag], e: Eintrag, h: dt.date, konto_name
                     "nicht dazu, weil die Kette dort reißt.")
     else:
         urteil, glied = "keine_serie", None
-        teile = [f"{RHYTHMUS_TEXT[r['rhythmus']]} {r['laenge']} von mindestens {r['mindestanzahl']}" for r in rhythmen]
+        teile = [f"{RHYTHMUS_TEXT[str(r['rhythmus'])]} {r['laenge']} von mindestens {r['mindestanzahl']}" for r in rhythmen]
         text = ("Nicht wiederkehrend: Ab der jüngsten Buchung " + _kurz_text(juengste) +
                 " erreicht keine Kette die Mindestanzahl (" + "; ".join(teile) + ").")
     return {"konto": {"id": e.konto_id, "name": konto_name}, "richtung": e.richtung, "betrag": e.betrag,
@@ -275,7 +276,7 @@ def _gruppe_begruenden(gruppe: list[Eintrag], e: Eintrag, h: dt.date, konto_name
 
 
 def begruendung(con, buchung_id: int, stichtag: str) -> dict:
-    """``GET /api/wiederkehrend/begruendung`` (D-109): warum eine Buchung (nicht) wiederkehrend ist."""
+    """``GET /api/buchungen/{id}/wiederkehrend`` (D-109): warum eine Buchung (nicht) wiederkehrend ist."""
     b = con.execute("SELECT b.id, b.datum, b.empfaenger_id, e.name AS ename FROM buchung b"
                     " LEFT JOIN empfaenger e ON e.id = b.empfaenger_id WHERE b.id = ?", (buchung_id,)).fetchone()
     if b is None:

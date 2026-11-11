@@ -313,3 +313,16 @@ html.zieht, html.zieht * { cursor: grabbing !important; }
 .buchungsliste.mit-konto[data-kompakt="ja"] .liste-kopf .zelle-konto { display: none; }
 .buchungsliste.mit-konto[data-kompakt="ja"] .zeile { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; grid-template-areas: "datum empf betrag" "kat konto tags"; }
 .buchungsliste.mit-konto[data-kompakt="ja"] .zelle-konto { grid-area: konto; font-size: .85rem; color: var(--text-2); }
+
+/* Begründung „wiederkehrend“ (D-109) */
+.wk-urteil { font-size: 1.05rem; }
+.wk-urteil[data-urteil="wiederkehrend"] strong { color: var(--erfolg); }
+.wk-eintrag { border-top: 1px solid var(--rand); padding-top: .4rem; margin-top: .6rem; }
+.wk-eintrag h3 { font-size: .95rem; margin: .2rem 0; }
+.wk-hinweis { color: var(--text-2); font-size: .85rem; }
+.wk-rhythmus { margin: .4rem 0; }
+.wk-rhythmus summary { cursor: pointer; }
+.wk-schritte { margin: .3rem 0 .3rem 1.2rem; padding: 0; font-size: .88rem; }
+.wk-schritt { margin: .2rem 0; }
+.wk-bruch { color: var(--gefahr); }
+.wk-betroffen { background: var(--akzent-hell); border-radius: 4px; padding: 0 .25rem; }

@@ -7,7 +7,7 @@ import {
   stammLaden, stapelAnzeigen, tid, wiederholen,
 } from "./kern.js";
 import { bestaetigen, dialog, feld, fokusFalle, imDialog, knopf, knopfLeiste } from "./ui.js";
-import { kontoSeite, layoutZuruecksetzen } from "./konto.js";
+import { begruendungZeigen, kontoSeite, layoutZuruecksetzen, markierteBuchung } from "./konto.js";
 import * as S from "./seiten.js";
 
 const app = tid("app");
@@ -483,6 +483,8 @@ const BEFEHLE = [
   ["thema-dunkel", "Design: Dunkel", () => thema.setzen("dunkel")],
   ["layout-zuruecksetzen", "Layout zurücksetzen", () => { layoutZuruecksetzen(); melde("erfolg", "Layout zurückgesetzt."); zeigen(); }],
   ["abmelden", "Abmelden", () => abmelden(), () => anmeldung.aktiv],
+  ["wiederkehrend-warum", "Markierte Buchung: Warum (nicht) wiederkehrend?", () => begruendungZeigen(markierteBuchung()),
+    () => markierteBuchung() !== null],
 ];
 
 function palette(ausloeser) {
