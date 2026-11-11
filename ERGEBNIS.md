@@ -1,5 +1,21 @@
 # Ergebnis der Implementierung
 
+## Abnahme M17 (Tabs der Ansichten, Gehe zur Gegenbuchung) gegen kontor-tests `f137465`
+
+Stand: 2026-11-11, Implementierungs-Thread, Branch `feature/tabs-gegenbuchung` (main mit M16 und Version 0.06
+übernommen; Entscheidung als D-119, da D-115…D-118 an M16 vergeben). Meilenstein-Definition vom Auftraggeber
+freigegeben; vom Test-Thread als **M17** übernommen (M16 war inzwischen an `wiederkehrend-begruendung` vergeben).
+
+- `-m m17`: zuerst 34/35; behoben: ohne verfügbaren Browser-Speicher (Zugriff auf `localStorage` wirft) startete die
+  Oberfläche nicht, weil Design und Layout ungeschützt lasen/schrieben. Danach **35/35**.
+- Schnelllauf `-n 8`: 2343 grün, 28 übersprungen (AqBanking-Werkzeuge fehlen in dieser Umgebung), **28 rot – alle in
+  `tests/app/m16/`** (REST, z. B. Schema verlangt `kandidaten` je Schritt). Identisch auf main ohne dieses Feature
+  (Python-Code unverändert gegenüber main) – betrifft das Feature `wiederkehrend-begruendung`, nicht M17.
+- Browsertests (`-m browser`): 313 grün; rot 12 M16-Oberflächentests (identisch auf main) und gelegentlich
+  `test_m8_bearbeiten.py::test_konto_loeschen_rueckgaengig` (schwankt auch auf main; in Wiederholungen grün).
+- Eigene Tests: **165 / 165** (neu `tests/test_browser_tabs.py`, 7 Fälle).
+- Kein W-Eintrag.
+
 ## Merge `feature/wiederkehrend-begruendung` (M16) auf main
 
 Stand: 2026-11-11, auf Anweisung des Auftraggebers vor den M16-Abnahmetests gemergt (`tests/app/m16/` gibt es in
