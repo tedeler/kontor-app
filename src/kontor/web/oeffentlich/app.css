@@ -174,7 +174,7 @@ fieldset { border: 1px solid var(--rand); border-radius: var(--radius); padding:
 .details-split { display: flex; justify-content: space-between; gap: .5rem; flex-wrap: wrap; padding: .2rem 0; border-bottom: 1px solid var(--hg-3); }
 
 .buchungsliste { min-width: 0; }
-.buchungsliste .liste-kopf, .buchungsliste .zeile { display: grid; grid-template-columns: 6.5rem minmax(7rem, 1.2fr) minmax(8rem, 2fr) minmax(7rem, 1.3fr) minmax(4rem, .8fr) 6.5rem 7.5rem;
+.buchungsliste .liste-kopf, .buchungsliste .zeile { display: grid; grid-template-columns: 6.5rem minmax(7rem, 1.2fr) minmax(8rem, 1.8fr) minmax(9rem, 1.6fr) minmax(4rem, .7fr) 6.5rem 7.5rem;
   align-items: center; min-height: var(--zeile); }
 .buchungsliste .liste-kopf { position: sticky; top: 0; z-index: 2; background: var(--hg-2); font-weight: 600; font-size: .9rem; border-bottom: 1px solid var(--rand); }
 .buchungsliste.treffer .liste-kopf, .buchungsliste.treffer .zeile { grid-template-columns: 6.5rem 1.2fr 2fr 1.3fr 7.5rem; }
@@ -284,9 +284,14 @@ html.zieht, html.zieht * { cursor: grabbing !important; }
 /* Berichte (13.6) */
 .diagramm { width: 100%; height: 240px; background: var(--hg-2); border-radius: var(--radius); }
 .diagramm .nulllinie { stroke: var(--rand); stroke-width: 1; }
+.plotly-diagramm { height: 340px; }
+.plotly-diagramm:has(> .leer) { height: auto; }
+.plotly-diagramm .leer { padding: 1rem; margin: 0; }
 .protokoll { padding-left: 1.2rem; }
 .aenderung { margin-bottom: .35rem; overflow-wrap: anywhere; }
 .aenderung.unwirksam { color: var(--text-2); }
+.aenderung.bis-markiert { background: var(--akzent-hell); border-radius: 4px; }
+.knopf-klein { font-size: .8rem; padding: .1rem .45rem; margin-left: .3rem; }
 .marke { font-size: .75rem; background: var(--hg-3); border-radius: 4px; padding: 0 .3em; }
 
 /* Bewegung (20) */
@@ -297,8 +302,22 @@ html.zieht, html.zieht * { cursor: grabbing !important; }
   .knopf, .zeile, .option, .menue-eintrag { transition: background-color .12s; }
 }
 .zelle-kategorie { display: flex; align-items: center; gap: .1rem; }
-.zelle-kategorie .kat-text { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.zelle-kategorie .mini-knopf, .zelle-kategorie .vorschlag-marke { flex: none; }
+.zelle-kategorie .kat-text { flex: 0 1 auto; min-width: 3.5em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.zelle-kategorie .kat-text.vorschlag-kategorie { font-style: italic; color: var(--akzent); }
+.zelle-kategorie { position: relative; }
+.zelle-kategorie .vorschlag-knoepfe { position: absolute; right: 0; top: 50%; transform: translateY(-50%); display: flex; gap: 2px;
+  background: var(--hg); padding-left: 3px; opacity: 0; transition: opacity .12s; }
+.zeile:hover .vorschlag-knoepfe, .zeile:focus-within .vorschlag-knoepfe, .zeile[aria-selected="true"] .vorschlag-knoepfe,
+.zeile:focus .vorschlag-knoepfe, .buchungsliste[data-kompakt="ja"] .vorschlag-knoepfe { opacity: 1; }
+.zeile[aria-selected="true"] .vorschlag-knoepfe { background: var(--auswahl); }
+.buchungsliste[data-kompakt="ja"] .vorschlag-knoepfe { position: static; transform: none; background: none; }
+.zelle-kategorie .mini-knopf { flex: none; }
+.zelle-kategorie .vorschlag-marke { flex: none; white-space: nowrap; }
+.vorschlag-marke[data-quelle="lernmodell"] { background: var(--hg-3); }
+.details-vorschlag { border-left: 3px solid var(--akzent); padding-left: .5rem; margin-bottom: .6rem; }
+.vorschlag-kandidaten { list-style: none; padding: 0; margin: .3rem 0; font-size: .85rem; }
+.vorschlag-kandidaten li { display: flex; align-items: center; gap: .3rem; }
+.vorschlag-kandidaten li.gewaehlt { font-weight: 600; }
 .zahl-marke[data-anzahl="0"] { display: none; }
 .buchungsliste[data-kompakt="ja"] .liste-kopf { gap: .2rem; }
 
@@ -314,7 +333,20 @@ html.zieht, html.zieht * { cursor: grabbing !important; }
 .buchungsliste.mit-konto[data-kompakt="ja"] .zeile { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; grid-template-areas: "datum empf betrag" "kat konto tags"; }
 .buchungsliste.mit-konto[data-kompakt="ja"] .zelle-konto { grid-area: konto; font-size: .85rem; color: var(--text-2); }
 
-/* Begründung „wiederkehrend“ (D-109) */
+/* Sammelpaket: Statusanzeige im PIN-Dialog, Verschieben, Zuordnung (D-109 bis D-111) */
+.sync-status-zeile { display: flex; align-items: center; gap: .5rem; min-height: 1.6rem; }
+.sync-status { margin: .3rem 0; font-weight: 500; }
+.sync-status[data-phase="pin_falsch"], .sync-status[data-phase="fehler"] { color: var(--gefahr); }
+.sync-status[data-phase="fertig"] { color: var(--erfolg); }
+.kreisel { width: 1rem; height: 1rem; border: 2px solid var(--akzent-hell); border-top-color: var(--akzent); border-radius: 50%;
+  animation: kreisel 0.8s linear infinite; flex: none; }
+@keyframes kreisel { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .kreisel { animation: none; } }
+.dialog[data-gesperrt="ja"] .dialog-inhalt { cursor: progress; }
+.umfang { border: 1px solid var(--rand); border-radius: var(--radius); padding: .5rem .75rem; margin: .5rem 0; display: grid; gap: .35rem; }
+.auswahl-zeile { display: flex; align-items: center; gap: .3rem; }
+
+/* Begründung „wiederkehrend“ (D-116) */
 .wk-urteil { font-size: 1.05rem; }
 .wk-urteil[data-urteil="wiederkehrend"] strong { color: var(--erfolg); }
 .wk-eintrag { border-top: 1px solid var(--rand); padding-top: .4rem; margin-top: .6rem; }

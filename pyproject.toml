@@ -32,7 +32,7 @@ version = { file = "src/kontor/VERSION" }
 where = ["src"]
 
 [tool.setuptools.package-data]
-kontor = ["VERSION", "build.json", "web/*.html", "web/*.js", "web/oeffentlich/*", "web/oeffentlich/app/*", "betrieb/*"]
+kontor = ["VERSION", "build.json", "web/*.html", "web/*.js", "web/oeffentlich/*", "web/oeffentlich/app/*", "web/oeffentlich/vendor/*", "betrieb/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

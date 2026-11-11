@@ -6,6 +6,7 @@ import {
 } from "./kern.js";
 import {
   abstimmungDialog, bestaetigen, dialog, feld, imDialog, knopf, knopfLeiste, kontextmenue, kontoDialog, menuePosition,
+  zuordnungDialog,
 } from "./ui.js";
 import { kategorienBaum, kontoMenue, langeBeruehrung } from "./baum.js";
 import { begruendungZeigen, layoutZuruecksetzen } from "./konto.js";
@@ -172,7 +173,7 @@ export async function wiederkehrend(seite) {
     try { await api("POST", "/api/wiederkehrend/pruefen", {}); melde("erfolg", "Wiederkehrende Buchungen geprüft."); await oberflaeche.neuLaden(); }
     catch (e) { melde("fehler", e.message); }
   } }));
-  // Menü je Serie (D-111): Begründung zur jüngsten Buchung, Sprung ins Kontoblatt
+  // Menü je Serie (D-118): Begründung zur jüngsten Buchung, Sprung ins Kontoblatt
   const serienMenue = (s, x, y, ausloeser) => {
     const letzte = s.buchung_ids[s.buchung_ids.length - 1];
     kontextmenue(x, y, [
@@ -228,7 +229,7 @@ export async function kredite(seite) {
     li.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); oeffnen(); } });
     return li;
   }));
-  seite.append(ul, ...(liste.length ? [] : [leer("Noch keine Kredite.")]));
+  seite.append(...[ul, liste.length ? null : leer("Noch keine Kredite.")].filter(Boolean));
   return { titel: "Kredite" };
 }
 
@@ -337,14 +338,15 @@ export async function berichte(seite) {
     const p = { konto_id: ids, von: von.value || null, bis: bis.value || null };
     csv.href = "/api/export/buchungen.csv" + abfrage({ konto_id: ids.length === 1 ? ids[0] : null, von: p.von, bis: p.bis });
     pdf.href = "/api/export/buchungen.pdf" + abfrage({ konto_id: ids.length === 1 ? ids[0] : null, von: p.von, bis: p.bis });
-    if (!ids.length) { diagramm.replaceChildren(svgDiagramm(null)); ausgabe.replaceChildren(leer("Bitte Konten wählen.")); return; }
+    if (!ids.length) { await diagrammZeichnen(diagramm, null); ausgabe.replaceChildren(leer("Bitte Konten wählen.")); return; }
     const n = ++lauf;
     seite.dataset.geladen = "nein";
     let b;
     try { b = await api("GET", "/api/berichte/kontostand" + abfrage({ ...p, intervall: intervall.value })); }
     catch (e) { if (n === lauf) { ausgabe.replaceChildren(h("p", { class: "fehler", role: "alert" }, e.message)); seite.dataset.geladen = "ja"; } return; }
     if (n !== lauf) return;
-    diagramm.replaceChildren(svgDiagramm(b));
+    await diagrammZeichnen(diagramm, b);
+    if (n !== lauf) return;
     ausgabe.replaceChildren(h("table", { class: "tabelle", tid: "bericht-tabelle" },
       h("thead", null, h("tr", null, h("th", { scope: "col" }, "Stichtag"), b.reihen.map((r) => h("th", { scope: "col" }, r.name)))),
       h("tbody", null, b.stichtage.map((tag, i) => h("tr", { tid: `bericht-zeile-${tag}` }, datumEl("th", tag, { scope: "row" }),
@@ -353,11 +355,14 @@ export async function berichte(seite) {
   }
   for (const el of [konten, von, bis, intervall]) el.addEventListener("change", laden);
   const ea = h("div", { "aria-live": "polite" });
+  const eaDiagramm = h("div", { class: "diagramm-rahmen", hidden: true });
   const eaLaden = knopf("Einnahmen und Ausgaben berechnen", { onclick: async () => {
     const ids = [...konten.selectedOptions].map((o) => Number(o.value));
     try {
       const b = await api("GET", "/api/berichte/einnahmen-ausgaben" + abfrage({ konto_id: ids, von: von.value || null,
         bis: bis.value || null, intervall: intervall.value }));
+      eaDiagramm.hidden = !b.perioden.length;
+      if (b.perioden.length) await eaZeichnen(eaDiagramm, b);
       ea.replaceChildren(tabelle(null, ["Zeitraum", "Einnahmen", "Ausgaben", "Saldo", "nicht kategorisiert"],
         b.perioden.map((p) => h("tr", null, h("td", null, `${datumText(p.von)} – ${datumText(p.bis)}`), betragEl("td", p.einnahmen, { class: "zahl" }),
           betragEl("td", p.ausgaben, { class: "zahl" }), betragEl("td", p.saldo, { class: "zahl" }),
@@ -366,11 +371,120 @@ export async function berichte(seite) {
   } });
   seite.append(abschnitt("Kontostandsverlauf", h("div", { class: "formular-zeile" }, feld("Konten", konten), feld("Von", von),
     feld("Bis", bis), feld("Intervall", intervall)), diagramm, ausgabe),
-  abschnitt("Einnahmen und Ausgaben", h("p", { class: "klein" }, "Ohne Umbuchungen; Konten, Zeitraum und Intervall wie oben."), eaLaden, ea),
+  abschnitt("Einnahmen und Ausgaben", h("p", { class: "klein" }, "Ohne Umbuchungen; Konten, Zeitraum und Intervall wie oben."), eaLaden, eaDiagramm, ea),
   abschnitt("Export", h("p", null, csv, " · ", pdf)));
-  diagramm.replaceChildren(svgDiagramm(null));
+  await diagrammZeichnen(diagramm, null);
   ausgabe.replaceChildren(leer("Bitte Konten wählen."));
   return { titel: "Berichte" };
+}
+
+// ------------------------------------------------------------------ Diagramme mit Plotly (D-113)
+// plotly.js (Basis-Paket, MIT) liegt unter /oeffentlich/vendor und wird erst auf der Berichtsseite geladen. Beträge
+// bleiben ganze Cent: Plotly bekommt Cent-Werte, die Achsenbeschriftung entsteht mit betragText (Ganzzahlarithmetik).
+let plotlyVersprechen = null;
+function plotlyLaden() {
+  if (window.Plotly) return Promise.resolve(window.Plotly);
+  if (!plotlyVersprechen) {
+    plotlyVersprechen = new Promise((ok, fehler) => {
+      const el = document.createElement("script");
+      el.src = "/oeffentlich/vendor/plotly-basic.min.js";
+      el.onload = () => (window.Plotly ? ok(window.Plotly) : fehler(new Error("Plotly fehlt")));
+      el.onerror = () => { plotlyVersprechen = null; fehler(new Error("Plotly nicht ladbar")); };
+      document.head.append(el);
+    });
+  }
+  return plotlyVersprechen;
+}
+
+/** Ganzzahlige, „runde“ Achsenteilung in Cent (1, 2, 5 · 10^k) mit höchstens etwa sechs Strichen. */
+function centAchse(werte) {
+  const min = Math.min(0, ...werte);
+  const max = Math.max(0, ...werte) === min ? min + 100 : Math.max(0, ...werte);
+  const striche = (st) => Math.ceil(max / st) - Math.floor(min / st);
+  let schritt = 1;
+  for (let basis = 1; schritt === 1 || striche(schritt) > 6; basis *= 10) {
+    schritt = [1, 2, 5].map((f) => f * basis).find((st) => striche(st) <= 6) || 10 * basis;
+    if (striche(schritt) <= 6) break;
+  }
+  const unten = Math.floor(min / schritt) * schritt;
+  const oben = Math.ceil(max / schritt) * schritt;
+  const vals = [];
+  for (let v = unten; v <= oben; v += schritt) vals.push(v);
+  return { tickvals: vals, ticktext: vals.map((v) => betragText(v)), range: [unten, oben] };
+}
+
+function farben() {
+  const cs = getComputedStyle(document.documentElement);
+  const v = (n, x) => (cs.getPropertyValue(n) || "").trim() || x;
+  return { text: v("--text", "#1a1d21"), text2: v("--text-2", "#4a525c"), rand: v("--rand", "#c9d0d9"),
+    hg: v("--hg", "#ffffff"), erfolg: v("--erfolg", "#1e6b34"), gefahr: v("--gefahr", "#a8231d"), akzent: v("--akzent", "#1f5f8b") };
+}
+
+function plotlyLayout(f, achse, extra) {
+  return {
+    margin: { l: 100, r: 16, t: 36, b: 40 }, height: 320, separators: ",.", paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
+    font: { color: f.text, family: "inherit" }, hovermode: "x unified", showlegend: true,
+    legend: { orientation: "h", x: 0, y: 1.02, yanchor: "bottom" },
+    xaxis: { type: "date", gridcolor: f.rand, linecolor: f.rand, tickformat: "%d.%m.%Y", hoverformat: "%d.%m.%Y" },
+    yaxis: { tickmode: "array", tickvals: achse.tickvals, ticktext: achse.ticktext, range: achse.range, gridcolor: f.rand,
+      zeroline: true, zerolinecolor: f.text2, fixedrange: true },
+    ...(extra || {}),
+  };
+}
+
+const PLOTLY_OPTIONEN = { displaylogo: false, responsive: true, showSendToCloud: false, showEditInChartStudio: false,
+  showLink: false, plotlyServerURL: "", topojsonURL: "/oeffentlich/vendor/",
+  modeBarButtonsToRemove: ["select2d", "lasso2d", "autoScale2d", "toggleSpikelines"] };
+
+async function diagrammZeichnen(rahmen, b) {
+  const beschr = b ? `Kontostandsverlauf ${b.reihen.map((r) => r.name).join(", ")} von ${datumText(b.von)} bis ${datumText(b.bis)}`
+    : "Kontostandsverlauf (keine Konten gewählt)";
+  const el = h("div", { tid: "bericht-diagramm", role: "img", "aria-label": beschr, class: "diagramm plotly-diagramm",
+    "data-reihen": b ? String(b.reihen.length) : "0" });
+  if (!b || !b.stichtage.length) {
+    rahmen.replaceChildren(el);
+    el.append(h("p", { class: "leer" }, b ? "Keine Daten im Zeitraum." : "Bitte Konten wählen."));
+    return;
+  }
+  let Plotly = null;
+  try { Plotly = await plotlyLaden(); } catch (e) { /* offline: einfaches SVG */ }
+  if (!Plotly) { rahmen.replaceChildren(svgDiagramm(b)); return; }
+  rahmen.replaceChildren(el);
+  const f = farben();
+  const spuren = b.reihen.map((r, j) => ({
+    type: "scatter", mode: b.stichtage.length > 60 ? "lines" : "lines+markers", name: r.name, x: b.stichtage, y: r.werte,
+    line: { color: FARBEN[j % FARBEN.length], width: 2, shape: "hv" }, marker: { size: 5 },
+    customdata: r.werte.map((v) => betragText(v)), hovertemplate: "%{customdata}<extra>%{fullData.name}</extra>",
+  }));
+  if (b.reihen.length > 1) {
+    const summe = b.stichtage.map((_, i) => b.reihen.reduce((s, r) => s + r.werte[i], 0));
+    spuren.push({ type: "scatter", mode: "lines", name: "Summe", x: b.stichtage, y: summe, line: { color: f.text2, width: 1.5, dash: "dot", shape: "hv" },
+      customdata: summe.map((v) => betragText(v)), hovertemplate: "%{customdata}<extra>Summe</extra>" });
+  }
+  const achse = centAchse(spuren.flatMap((s) => s.y));
+  await Plotly.newPlot(el, spuren, plotlyLayout(f, achse), PLOTLY_OPTIONEN);
+}
+
+async function eaZeichnen(rahmen, b) {
+  let Plotly = null;
+  try { Plotly = await plotlyLaden(); } catch (e) { rahmen.replaceChildren(); return; }
+  const el = h("div", { tid: "bericht-ea-diagramm", role: "img", class: "diagramm plotly-diagramm",
+    "aria-label": `Einnahmen und Ausgaben von ${datumText(b.von)} bis ${datumText(b.bis)}` });
+  rahmen.replaceChildren(el);
+  const f = farben();
+  const x = b.perioden.map((p) => p.von);
+  const text = (p) => `${datumText(p.von)} – ${datumText(p.bis)}`;
+  const ausgaben = b.perioden.map((p) => -Math.abs(p.ausgaben));
+  const spuren = [
+    { type: "bar", name: "Einnahmen", x, y: b.perioden.map((p) => p.einnahmen), marker: { color: f.erfolg },
+      customdata: b.perioden.map((p) => [betragText(p.einnahmen), text(p)]), hovertemplate: "%{customdata[1]}: %{customdata[0]}<extra>Einnahmen</extra>" },
+    { type: "bar", name: "Ausgaben", x, y: ausgaben, marker: { color: f.gefahr },
+      customdata: b.perioden.map((p) => [betragText(-Math.abs(p.ausgaben)), text(p)]), hovertemplate: "%{customdata[1]}: %{customdata[0]}<extra>Ausgaben</extra>" },
+    { type: "scatter", mode: "lines+markers", name: "Saldo", x, y: b.perioden.map((p) => p.saldo), line: { color: f.akzent, width: 2 },
+      customdata: b.perioden.map((p) => [betragText(p.saldo), text(p)]), hovertemplate: "%{customdata[1]}: %{customdata[0]}<extra>Saldo</extra>" },
+  ];
+  const achse = centAchse(spuren.flatMap((s) => s.y));
+  await Plotly.newPlot(el, spuren, plotlyLayout(f, achse, { barmode: "relative", hovermode: "closest" }), PLOTLY_OPTIONEN);
 }
 
 const SVGNS = "http://www.w3.org/2000/svg";
@@ -593,7 +707,7 @@ export async function protokoll(seite) {
   function zeichnen(gesamt) {
     liste.replaceChildren(...geladen.map((a) => {
       const wirksam = a.rueckgaengig_durch === null;       // protokoll.md 3
-      return h("li", { tid: `aenderung-${a.id}`, "data-quelle": a.quelle, "data-wirksam": wirksam ? "ja" : "nein",
+      return h("li", { tid: `aenderung-${a.id}`, "data-id": String(a.id), "data-quelle": a.quelle, "data-wirksam": wirksam ? "ja" : "nein",
         class: "aenderung" + (wirksam ? "" : " unwirksam") },
       zeitEl("span", a.zeitpunkt, { class: "zeit" }), " ", h("span", { class: "marke" }, QUELLEN[a.quelle] || a.quelle), " ",
       h("span", null, a.beschreibung),
@@ -602,9 +716,37 @@ export async function protokoll(seite) {
         "aria-label": `Änderung ${a.id} rückgängig machen`, onclick: async () => {
           try { await api("POST", `/api/aenderungen/${a.id}/rueckgaengig`); melde("erfolg", "Rückgängig gemacht."); await oberflaeche.neuLaden(); }
           catch (e) { melde("fehler", e.message); }
-        } }) : null);
+        } }) : null,
+      bisKnopf(a));
     }));
     mehr.hidden = geladen.length >= gesamt;
+  }
+  // Rückgängig bis hierher (D-108): alle Änderungen ab dieser (einschließlich) in einem Schritt
+  function markieren(id) {
+    for (const li of liste.children) li.classList.toggle("bis-markiert", id !== null && Number(li.dataset.id) >= id);
+  }
+  function bisKnopf(a) {
+    const neuer = geladen.filter((x) => x.id >= a.id && x.rueckgaengig_durch === null).length;
+    if (!neuer) return null;
+    const k = knopf("Bis hierher rückgängig", { tid: `aenderung-bis-${a.id}`, class: "knopf knopf-klein",
+      "aria-label": `Alle Änderungen bis einschließlich ${a.id} rückgängig machen`, onclick: async () => {
+        markieren(a.id);
+        const ok = await bestaetigen(`Alle Änderungen seit „${a.beschreibung}“ (${zeitText(a.zeitpunkt)}) einschließlich `
+          + "dieser rückgängig machen? Das ergibt eine einzige neue Änderung, die sich ebenfalls wieder rückgängig machen lässt.",
+        { ja: "Bis hierher rückgängig", ausloeser: k });
+        markieren(null);
+        if (!ok) return;
+        try {
+          const u = await api("POST", "/api/aenderungen/rueckgaengig", { bis_id: a.id });
+          melde("erfolg", `${u.rueckgaengig_von.length === 1 ? "1 Änderung" : `${u.rueckgaengig_von.length} Änderungen`} rückgängig gemacht.`);
+          await oberflaeche.neuLaden();
+        } catch (e) { melde("fehler", e.message); }
+      } });
+    k.addEventListener("mouseenter", () => markieren(a.id));
+    k.addEventListener("mouseleave", () => markieren(null));
+    k.addEventListener("focus", () => markieren(a.id));
+    k.addEventListener("blur", () => markieren(null));
+    return k;
   }
   mehr.addEventListener("click", async () => {
     const s = await laden(seiteNr + 1);
@@ -616,7 +758,7 @@ export async function protokoll(seite) {
   seiteNr = 1;
   geladen = s.eintraege;
   zeichnen(s.gesamt);
-  seite.append(liste, ...(geladen.length ? [] : [leer("Noch keine Änderungen.")]), mehr);
+  seite.append(...[liste, geladen.length ? null : leer("Noch keine Änderungen."), mehr].filter(Boolean));
   return { titel: "Änderungsprotokoll" };
 }
 
@@ -842,6 +984,17 @@ export async function syncSeite(seite, _p, _s, kontext) {
     }
     return li;
   })) : leer("Noch keine Bankkonten synchronisiert.")));
+  // D-111: Bankkonten, die der letzte Lauf übersprungen hat, weil sie noch keinem Konto zugeordnet sind
+  const letzter = laeufe.slice().sort((a, b) => b.id - a.id)[0];
+  const offen = ((letzter && letzter.uebersprungen) || []).filter((u) => u.status === "nicht_zugeordnet"
+    && !stamm.konten.some((k) => k.iban === u.iban));
+  if (offen.length) {
+    seite.append(abschnitt("Nicht zugeordnete Bankkonten", h("ul", { tid: "sync-nicht-zugeordnet" }, offen.map((u) =>
+      h("li", { tid: `nicht-zugeordnet-${u.iban}` }, `${u.name || ""} · ${u.iban} `,
+        knopf("Zuordnen…", { tid: `zuordnen-${u.iban}`, onclick: async (e) => {
+          if (await zuordnungDialog(u, e.currentTarget)) await kontext.synchronisieren();
+        } }))))));
+  }
   if (st.jetzt && document.querySelector('[data-testid="mock-hinweis"]')) {
     const zeit = h("input", { type: "datetime-local", step: "1" });
     seite.append(abschnitt("Mock-Uhr", h("p", null, "Simulierte Zeit des Servers: ", zeitEl("span", st.jetzt)),

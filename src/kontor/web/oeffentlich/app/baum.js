@@ -1,6 +1,6 @@
 /* Kontor – Kategorienbaum (oberflaeche.md 13.1), Kontextmenü für Konten (8.2), Ziehen (10) und Gesten (16.4). */
 import { aktion, api, baumFolge, h, kontoNach, melde, oberflaeche, stamm } from "./kern.js";
-import { kontextmenue, kontoDialog, kontoLoeschen, menuePosition, zielAuswahl } from "./ui.js";
+import { kontextmenue, kontoDialog, kontoEinstellungen, kontoLoeschen, menuePosition, zielAuswahl } from "./ui.js";
 
 // ------------------------------------------------------------------ Kontextmenü für Konten und Kategorien (8.2)
 export function kontoMenue(konto, x, y, ausloeser, optionen) {
@@ -8,6 +8,7 @@ export function kontoMenue(konto, x, y, ausloeser, optionen) {
   kontextmenue(x, y, [
     { tid: "km-konto-oeffnen", text: "Öffnen", tun: () => oberflaeche.gehe(`/konten/${konto.id}`) },
     { tid: "km-konto-umbenennen", text: "Umbenennen…", tun: () => umbenennen(konto, o.namensZelle ? o.namensZelle() : null) },
+    { tid: "km-konto-einstellungen", text: "Einstellungen…", tun: () => kontoEinstellungen(konto, ausloeser) },
     { tid: "km-konto-unterkonto", text: "Unterkonto anlegen…",
       tun: () => kontoDialog({ titel: `Unterkonto von „${konto.name}“`, art: konto.art, eltern_id: konto.id }, ausloeser) },
     { tid: "km-konto-verschieben", text: "Verschieben nach…", tun: () => verschieben(konto, ausloeser) },

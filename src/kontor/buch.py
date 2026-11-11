@@ -112,6 +112,7 @@ def konto_anlegen(con, d: dict, extern_id: str | None = None) -> dict:
         " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         (d["name"], art, eltern_id, iban, 1 if d.get("geschlossen") else 0, d.get("eroeffnet_am"),
          d.get("notiz", ""), extern_id))
+    _zuordnung_erledigt(con, iban)
     return konto_lesen(con, cur.lastrowid)
 
 
@@ -131,7 +132,15 @@ def konto_aendern(con, konto_id: int, d: dict) -> dict:
         " WHERE id = ?",
         (neu["name"], neu["eltern_id"], neu["iban"], 1 if neu["geschlossen"] else 0, neu["eroeffnet_am"],
          neu["notiz"], konto_id))
+    _zuordnung_erledigt(con, neu["iban"])
     return konto_lesen(con, konto_id)
+
+
+def _zuordnung_erledigt(con, iban: str | None) -> None:
+    """D-111: Trägt ein Konto die IBAN eines nicht zugeordneten Bankkontos, ist dessen Hinweis erledigt."""
+    if iban:
+        con.execute("UPDATE benachrichtigung SET gelesen = 1 WHERE schluessel = ? AND gelesen = 0",
+                    (f"konto_nicht_zugeordnet:{iban}",))
 
 
 def konto_loeschen(con, konto_id: int) -> None:
@@ -689,6 +698,22 @@ def mehrfach_aendern(con, d: dict) -> dict:
     if status in ("bestaetigt", "abgeglichen") and wechsel:
         vorschlag_entfernen(con, [b["id"] for b in wechsel])  # Bestätigung erledigt den Vorschlag
     return {"geaendert": ids, "anzahl": len(ids)}
+
+
+def mehrfach_loeschen(con, ids: list[int]) -> dict:
+    """Sammelpaket (D-109): mehrere Buchungen in einer Änderung löschen, atomar. Prüfreihenfolge wie beim
+    einzelnen Löschen: unbekannte Buchungen (422), gesperrte Buchungen (409, alle aufgezählt)."""
+    ids = sorted(ids)
+    fehlend = sorted(set(ids) - _vorhandene_buchungen(con, ids))
+    if fehlend:
+        raise ApiFehler(422, "referenz_unbekannt", "Unbekannte Buchungen.", {"buchung_ids": fehlend})
+    gesperrt = [b["id"] for b in buchungen_laden(con, ids) if ist_gesperrt(b)]
+    if gesperrt:
+        raise ApiFehler(409, "buchung_gesperrt", "Gesperrte Buchungen können nicht gelöscht werden.",
+                        {"buchung_ids": gesperrt})
+    for bid in ids:
+        buchung_entfernen(con, bid)
+    return {"geloescht": ids, "anzahl": len(ids)}
 
 
 # ============================================================ Buchungsliste

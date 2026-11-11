@@ -1305,7 +1305,89 @@ Weitere Abkürzungen: SY = `spec/api/synchronisation.md`, KA =
   installieren: Er kann nur das neueste offizielle Release mit passender Prüfsumme anstoßen. Die Sicherung vorher
   macht ein misslungenes Update rückholbar.
 
-## D-108 Zusätzliche Zahlungen brechen die Kette nicht (Feature `wiederkehrend-begruendung`)
+## D-108 Rückgängig bis zu einer Änderung (Feature `sammelpaket`)
+
+- **Frage:** Wie nimmt „bis hierher rückgängig“ alle Änderungen seit einer gewählten Änderung in einem Schritt
+  zurück, auch wenn dazwischen schon rückgängig gemacht oder wiederholt wurde?
+- **Entscheidung:** `POST /api/aenderungen/rueckgaengig` kennt als drittes, ausschließendes Feld `bis_id`
+  (einschließlich, mit dem Auftraggeber abgestimmt). Die Menge entsteht durch Simulation der Wirksamkeit
+  (`protokoll.md` 6.5) von der neuesten Änderung abwärts: Jede Änderung `k >= bis_id`, die im Zwischenstand wirksam
+  ist, wird gewählt; wird eine Rückgängig-Änderung gewählt, wirken ihre Ziele wieder (ältere bleiben so
+  wiederhergestellt, neuere werden danach ebenfalls gewählt). Ausgeführt wird wie 6.2 (absteigend, Zustands- und
+  Bezugsprüfung, eine neue Änderung). Sich aufhebende Paare stehen in `rueckgaengig_von`, ändern die Einträge aber
+  nicht. Damit die Wirksamkeit stimmt, setzt `protokolliert` `rueckgaengig_durch` absteigend und gibt Ziele
+  aufsteigend frei (eine freigegebene Rückgängig-Änderung bindet ihre eigenen Ziele wieder). Unbekannte `bis_id` →
+  404, nichts mehr wirksam → 409 `bereits_rueckgaengig`.
+- **Begründung:** Ergebnis ist immer exakt der Buchbestand unmittelbar vor der gewählten Änderung, und die neue
+  Änderung lässt sich wie jede andere wiederholen.
+
+## D-109 Mehrere Buchungen löschen (Feature `sammelpaket`)
+
+- **Frage:** Gleichartige Änderungen sollen einen Änderungssatz ergeben; die Oberfläche löschte bisher je Buchung.
+- **Entscheidung:** `POST /api/buchungen/mehrfach/loeschen` `{buchung_ids}` (≥ 1, ohne Doppelte), atomar, Aktion
+  `mehrfach_loeschen` (`quelle = "manuell"`). Prüfreihenfolge: 422 `referenz_unbekannt` (`details.buchung_ids`),
+  409 `buchung_gesperrt` (alle gesperrten). Antwort `{geloescht, anzahl}`. Die Oberfläche nutzt bei einer Buchung
+  weiter `DELETE`, sonst den neuen Endpunkt. Alle übrigen Mehrfachaktionen der Oberfläche waren schon eine Anfrage.
+
+## D-110 Buchungen auf ein anderes Konto verschieben (Feature `sammelpaket`)
+
+- **Frage:** Wie werden Buchungen massenweise auf ein anderes Konto übertragen, auch ein ganzer Import?
+- **Entscheidung:** `POST /api/buchungen/mehrfach/verschieben` `{von_konto_id, nach_konto_id, buchung_ids | gruppe}`
+  hängt je Buchung den Split auf dem Quellkonto auf das Zielkonto um (Betrag, Memo, Gegensplits, Status, Tags,
+  Herkunft bleiben). Beide Konten müssen Bestandskonten sein (422 `konto_ungueltig`, unbekannt 422
+  `referenz_unbekannt`, gleich 422 `validierung`). `gruppe` = Herkunft (`import:<id>`, `sync:<id>`): alle noch
+  vorhandenen Buchungen, die eine Änderung dieser Gruppe angelegt hat und die auf dem Quellkonto liegen.
+  Buchungen ohne Split auf dem Quellkonto oder schon mit Split auf dem Zielkonto → 422 `verschieben_unmoeglich`
+  (aus einer Umbuchung würde sonst eine Buchung auf sich selbst); gesperrte → 409 `buchung_gesperrt`. Aktion
+  `mehrfach_verschieben`. `GET /api/konten/{id}/herkunft` listet die Herkunftsgruppen mit Buchungen auf dem Konto
+  (`{gruppe, art, beschreibung, zeitpunkt, anzahl}`, neueste zuerst) für den Dialog.
+
+## D-111 Synchronisationskonto und Zuordnung unbekannter Bankkonten (Feature `sammelpaket`)
+
+- **Frage:** Die Synchronisation soll grundsätzlich ein vom Anwender bestimmtes Konto verlangen.
+- **Entscheidung:** Das Synchronisationskonto eines Kontos ist seine IBAN (genau eins je Konto, abgestimmt). Neue
+  Konfiguration `sync_konten_anlegen` / `KONTOR_SYNC_KONTEN_ANLEGEN` (Vorgabe wahr wie bisher, damit Verhalten und
+  Abnahmetests von M2–M13 gleich bleiben; die ausgelieferte `kontor.env` setzt 0). Ist sie aus, legt der Lauf für
+  ein Bankkonto ohne Konto und ohne gespeicherten Zustand kein Konto an, sondern überspringt es mit
+  `uebersprungen[] = {iban, name, status: "nicht_zugeordnet", art}` und einer Benachrichtigung
+  `konto_nicht_zugeordnet` (Link `/sync`). Bekannte, aber gelöschte Bankkonten bleiben bei `synchronisation.md` 16.
+  Die Oberfläche bietet nach dem Lauf je Bankkonto `zuordnung-dialog` an (vorhandenes Bestandskonto ohne IBAN oder
+  neues Konto) und trägt die IBAN über `PATCH`/`POST /api/konten` ein; danach startet sie den Abruf erneut. Trägt
+  ein Konto die IBAN, wird die Benachrichtigung als gelesen markiert. Neuer Dialog `konto-einstellungen` (Name,
+  Synchronisationskonto, eröffnet am, geschlossen, Notiz) aus dem Kontomenü und der Kontoansicht.
+
+## D-112 Gesperrter PIN-Dialog, Vorschläge je Zeile (Feature `sammelpaket`)
+
+- **Entscheidung PIN:** Nach „PIN senden“ ist der Dialog gesperrt (`data-gesperrt="ja"`, alle Eingaben und Knöpfe
+  inaktiv, Esc wirkungslos). `pin-dialog-status` zeigt die Phase (`data-phase`: `pin`, `verbinden`, `abruf` mit
+  „Rufe Umsätze ab … (n von m: Konto)“ aus `GET /api/sync/status`, `tan`, `fertig`, `fehler`). PIN falsch entsperrt
+  und meldet in `dialog-fehler`. Ein PIN-loser Lauf bleibt ohne Dialog.
+- **Entscheidung Vorschläge:** Die Kategoriezelle zeigt die vorgeschlagene Kategorie (kursiv) und in
+  `vorschlag-marke` die Sicherheit („87 %“) bzw. „Regel“/„Empf.“ mit Quelle und Regelname im Titel
+  (`data-quelle`, `data-sicherheit`); ✓/✗ liegen darüber und erscheinen bei Zeiger, Fokus oder Auswahl (mobil immer).
+  Die Einzelheiten zeigen `details-vorschlag` mit Quelle, vorherigem Konto, Annehmen/Ablehnen und den Kandidaten
+  des Lernmodells ab 1 % (`POST /api/lernmodell/vorhersage`, ohne Wirkung) zum Übernehmen.
+
+## D-113 Berichtsgrafiken mit Plotly (Feature `sammelpaket`)
+
+- **Entscheidung:** plotly.js Basis-Paket 4.2.0 (MIT, `plotly.js-basic-dist-min`) liegt unverändert unter
+  `web/oeffentlich/vendor/` (mit Lizenz) und wird erst auf der Berichtsseite per `<script>` geladen (CSP
+  `script-src 'self'` genügt, das Paket nutzt kein `eval`/`new Function`), im Service Worker zwischengespeichert.
+  Kontostandsverlauf als Stufenlinie je Konto plus Summe, Einnahmen/Ausgaben als Balken mit Saldolinie
+  (`bericht-ea-diagramm`). Beträge bleiben ganze Cent: Plotly erhält Cent-Werte, Achsenstriche
+  (1/2/5·10^k Cent) und Beschriftungen entstehen mit Ganzzahlarithmetik (`betragText`). Ohne ladbares Plotly
+  (offline) zeichnet die Seite das bisherige SVG. Der eigene Test „keine externen Ressourcen“ nimmt `vendor/` aus:
+  Plotly enthält nur Vorgabe-URLs für nicht genutzte Funktionen (Chart Studio, Geo); die Optionen schalten sie ab,
+  die CSP (`connect-src 'self'`) verhindert jeden Abruf.
+
+## D-114 Abnahme M15: Rückgängig bis ohne Nettowirkung, frische Kontenliste im Zuordnungsdialog
+
+- **Anlass:** Abnahmetests M15 (kontor-tests `8110ece`, E-190).
+- **Entscheidung:** Ergibt ein Rückgängig bis keine Nettowirkung (z. B. zweimal bis zur selben Änderung), wird die
+  Transaktion mit 409 `bereits_rueckgaengig` verworfen; es entsteht keine Änderung. Der Zuordnungsdialog liest die
+  Konten bei jedem Öffnen frisch vom Server, damit in einer Reihe das eben zugeordnete Konto nicht mehr angeboten wird.
+
+## D-115 Zusätzliche Zahlungen brechen die Kette nicht (Feature `wiederkehrend-begruendung`)
 
 - **Frage:** Nach dem Import langer Altdaten (KMyMoney) verschwanden viele Serien, weil eine zweite Buchung am
   selben Termin (Dublette mit abweichendem Datum, Einmalzahlung) die Kette nach wiederkehrend.md 2.2 sofort beendet.
@@ -1323,7 +1405,7 @@ Weitere Abkürzungen: SY = `spec/api/synchronisation.md`, KA =
 - **Folge:** Der M5-Test `test_doppelte_zahlung_unterbricht_die_kette` widerspricht dem neuen Verhalten; die
   Anpassung von Spezifikation und Tests übernimmt ein Test-Thread über die Meilenstein-Definition.
 
-## D-109 Begründung je Buchung (Feature `wiederkehrend-begruendung`)
+## D-116 Begründung je Buchung (Feature `wiederkehrend-begruendung`)
 
 - **Entscheidung:** `GET /api/buchungen/{id}/wiederkehrend?stichtag=` (Vorgabe heute; 404 unbekannt, 422 Datum)
   liefert ohne Zustand, warum eine Buchung (nicht) wiederkehrend ist: `urteil` (`wiederkehrend`,
@@ -1335,7 +1417,7 @@ Weitere Abkürzungen: SY = `spec/api/synchronisation.md`, KA =
 - **Begründung:** Nachvollziehbarkeit war die wichtigste Anforderung; die Berechnung ist dieselbe wie in der
   Übersicht, daher stimmen Begründung und Übersicht immer überein.
 
-## D-110 Anker am jüngsten Termin und eindeutiges Urteil (ergänzt D-108, D-109)
+## D-117 Anker am jüngsten Termin und eindeutiges Urteil (ergänzt D-115, D-116)
 
 - **Frage:** Der Anker der Kette war einfach die jüngste Buchung nach Datum und ID. Lagen am jüngsten Termin zwei
   Buchungen (z. B. Rate und Einmalzahlung am selben Tag), entschied die Reihenfolge des Anlegens, welche zur Serie
@@ -1351,12 +1433,12 @@ Weitere Abkürzungen: SY = `spec/api/synchronisation.md`, KA =
 - **Begründung:** Rückmeldung des Auftraggebers: Das Urteil muss auf einen Blick eindeutig sein, und die Auswahl am
   Termin darf nicht vom Zufall der Anlagereihenfolge abhängen.
 
-## D-111 Menü je Serie und Sprung ins Kontoblatt (Feature `wiederkehrend-begruendung`)
+## D-118 Menü je Serie und Sprung ins Kontoblatt (Feature `wiederkehrend-begruendung`)
 
 - **Entscheidung:** Auf `/wiederkehrend` hat jede Zeile `serie-<schluessel>` eine letzte Spalte mit dem Knopf
   `wk-menue-<schluessel>` („…“, `aria-haspopup="menu"`); dasselbe Menü öffnen Rechtsklick, Umschalt+F10/Menütaste
   (Zeile ist fokussierbar) und lange Berührung. Einträge: `km-serie-begruendung` „Warum wiederkehrend?“ öffnet den
-  Begründungsdialog (D-109) zur jüngsten Buchung der Serie (letzte ID in `buchung_ids`); `km-serie-springen`
+  Begründungsdialog (D-116) zur jüngsten Buchung der Serie (letzte ID in `buchung_ids`); `km-serie-springen`
   „Letzte Buchung im Kontoblatt zeigen“ navigiert zu `/konten/<konto_id>?buchung=<id>`. Der Parameter `buchung`
   ist kein Filter: Die Kontoansicht lädt bei Bedarf weitere Seiten nach, markiert die Buchung allein, fokussiert und
   rollt zu ihr, hebt sie kurz hervor und entfernt den Parameter aus der Adresse. Ist sie mit den Filtern nicht
