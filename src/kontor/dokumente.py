@@ -398,6 +398,9 @@ _RESTTAG = re.compile(r"(?is)</?(script|iframe|frame|frameset|object|embed|apple
 _EREIGNIS = re.compile(r"""(?is)\s+on[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)""")
 _JS_URL = re.compile(r"""(?is)(\s(?:href|src|action|xlink:href|formaction|background)\s*=\s*["']?)\s*(?:javascript|vbscript|data:text/html)[^"'\s>]*""")
 _CID = re.compile(r"""(?i)(["'(])cid:([^"')\s>]+)""")
+# externe Adressen in Bildern und Stilen (Zählpixel): gar nicht erst anfragen
+_EXTERN_ATTR = re.compile(r"""(?is)(\s(?:src|srcset|background|poster|lowsrc|dynsrc)\s*=\s*)(?:"[^"]*"|'[^']*'|[^\s>]+)""")
+_EXTERN_CSS = re.compile(r"""(?is)url\(\s*["']?\s*(?:https?:)?//[^)]*\)|@import[^;]*;?""")
 
 
 def mail_html(roh: bytes) -> str:
@@ -419,11 +422,22 @@ def mail_html(roh: bytes) -> str:
     h = _RESTTAG.sub("", h)
     h = _EREIGNIS.sub("", h)
     h = _JS_URL.sub(r"\1#", h)
-    h = _CID.sub(lambda x: x.group(1) + bilder.get(x.group(2), "#"), h)
+    h = _EXTERN_ATTR.sub(lambda x: x.group(1) + _attr_wert(x.group(0)[len(x.group(1)):], bilder), h)
+    h = _EXTERN_CSS.sub("none", h)
     kopf = ('<!DOCTYPE html><html><head><meta charset="utf-8"><base target="_blank">'
             '<style>body{font-family:system-ui,sans-serif;margin:12px;color:#111;background:#fff}'
             'img{max-width:100%;height:auto}</style></head><body>')
     return kopf + h + "</body></html>"
+
+
+def _attr_wert(wert: str, bilder: dict[str, str]) -> str:
+    """Bildquelle: cid: → eingebettetes Bild, data:image → bleibt, alles andere → leeres Bild."""
+    w = wert.strip().strip("\"'").strip()
+    if w.lower().startswith("cid:"):
+        return '"' + bilder.get(w[4:], "data:,") + '"'
+    if re.match(r"(?i)data:image/(png|jpeg|gif|webp);", w):
+        return '"' + w + '"'
+    return '"data:,"'
 
 
 def mail_anhang(roh: bytes, nr: int) -> tuple[str, str, bytes]:

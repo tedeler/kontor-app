@@ -9,6 +9,7 @@ import {
   kontoEinstellungen, menuePosition, splitDialog, tagAuswahl,
 } from "./ui.js";
 import { kategorienBaum, langeBeruehrung, ziehbar } from "./baum.js";
+import { ablageEinrichten, betrachter, dateiWaehlen, detailsAbschnitt, mailDialog } from "./dokumente.js";
 
 const PRO_SEITE = 200;
 const STATUS = ["importiert", "vorlaeufig", "bestaetigt", "abgeglichen"];
@@ -622,6 +623,7 @@ class Kontoansicht {
       b.tags.length ? h("p", null, "Tags: ", b.tags.map((t) => t.name).join(", ")) : null,
       b.extern_ids.length ? h("p", { class: "klein" }, "Herkunft: ", b.extern_ids.join(", ")) : null,
       h("p", { class: "klein" }, "Status: ", STATUS_TEXT[b.status] || b.status, b.abgestimmt ? " · abgestimmt" : ""),
+      detailsAbschnitt(b),
     ];
   }
 
@@ -704,11 +706,20 @@ class Kontoansicht {
     const empf = h("div", { role: "gridcell", class: "zelle zelle-empfaenger", "data-feld": "empfaenger",
       "data-empfaenger-id": b.empfaenger ? String(b.empfaenger.id) : "" },
     empfName || (kompakt ? h("span", { class: "ersatz" }, b.verwendungszweck) : ""));
+    const zweckZelle = h("div", { role: "gridcell", class: "zelle zelle-verwendungszweck", "data-feld": "verwendungszweck" },
+      b.verwendungszweck);
+    const belegMarke = b.belege && b.belege.length ? h("button", { type: "button", class: "beleg-marke", tid: `beleg-marke-${b.id}`,
+        "data-nicht-ziehen": "", "data-anzahl": String(b.belege.length), tabindex: "-1",
+        title: b.belege.map((d) => d.dateiname).join("\n"), "aria-label": `${b.belege.length} Dokument(e) ansehen`,
+        onclick: (e) => { e.stopPropagation(); betrachter(b.belege, 0, e.currentTarget); } },
+      "📎", b.belege.length > 1 ? String(b.belege.length) : "") : null;
+    // mobil ist die Spalte Verwendungszweck ausgeblendet: Marke dann beim Empfänger
+    if (belegMarke) (kompakt ? empf : zweckZelle).append(belegMarke);
     const zeile = h("div", { role: "row", tid: `buchung-${b.id}`, class: "zeile", "aria-selected": "false",
       tabindex: "-1", "data-id": String(b.id), "data-status": b.status, "data-vorschlag": b.vorschlag ? "ja" : "nein" },
     datumEl("div", b.datum, { role: "gridcell", class: "zelle zelle-datum", "data-feld": "datum" }),
     empf,
-    h("div", { role: "gridcell", class: "zelle zelle-verwendungszweck", "data-feld": "verwendungszweck" }, b.verwendungszweck),
+    zweckZelle,
     kat,
     this.istKategorie ? kontoZelle(b) : null,
     h("div", { role: "gridcell", class: "zelle zelle-tags", "data-feld": "tags" },
@@ -866,6 +877,11 @@ class Kontoansicht {
       this.fokussieren(id);
       this.menue(e.clientX, e.clientY, z, e.altKey);
     });
+    // Dateien aus dem Betriebssystem auf eine Zeile ziehen (D-123): gewählte Zeile → alle gewählten Buchungen
+    ablageEinrichten(this.liste, (z) => {
+      const id = Number(z.dataset.id);
+      return this.auswahl.has(id) && this.auswahl.size > 1 ? this.auswahlIds() : [id];
+    });
     // Drag and Drop auf eine Kategorie im Panel (10)
     ziehbar(this.liste, {
       quelle: (ev) => {
@@ -941,6 +957,12 @@ class Kontoansicht {
       { tid: "km-status", text: "Status setzen…", tun: () => this.statusWaehlen(ids, ausloeser) },
       { tid: "km-mehrfach", text: "Bearbeiten…", tun: () => this.mehrfachDialog(ids, ausloeser) },
       this.gegenbuchungEintrag(b, x, y, ausloeser),
+      // Dokumente (D-123): an alle gewählten Buchungen
+      { tid: "km-dokument-anhaengen", text: "Dokument anhängen…", tun: () => dateiWaehlen(ids) },
+      oberflaeche.istMobil() ? { tid: "km-dokument-foto", text: "Foto aufnehmen…", tun: () => dateiWaehlen(ids, { kamera: true }) } : null,
+      { tid: "km-dokument-mail", text: "E-Mail anhängen…", tun: () => mailDialog(ids, ausloeser) },
+      { tid: "km-dokumente-ansehen", text: "Dokumente ansehen", aktiv: !!(b && b.belege && b.belege.length),
+        tun: () => betrachter(b.belege, 0, ausloeser) },
       ...(this.istKategorie ? [] : [{ tid: "km-verschieben", text: "Auf anderes Konto verschieben…",
         tun: () => this.verschiebenDialog(ids, ausloeser) }]),
       { tid: "km-loeschen", text: "Löschen…", tun: () => this.loeschen(ausloeser) },

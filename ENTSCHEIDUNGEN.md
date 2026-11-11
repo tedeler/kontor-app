@@ -1509,3 +1509,35 @@ Weitere Abkürzungen: SY = `spec/api/synchronisation.md`, KA =
   genau ein Schritt. Das Neuladen der Ansicht danach läuft außerhalb dieser Reihe.
 - Ein Schritt wartet außerdem auf gerade laufende Aktionen, bis deren Änderungen auf dem Rückgängig-Stapel liegen:
   Strg+Z unmittelbar nach einer Änderung macht genau diese rückgängig, statt „nichts rückgängig zu machen“ zu melden.
+
+## D-123 Dokumente an Buchungen (Feature `dokumente`, iterativ)
+
+- **Anlass:** Auftrag 2026-11-11: PDF-Dateien, E-Mails (und Bilder) an Buchungen hängen und im Browser ansehen;
+  mobil per Kamera. Abgestimmt: Hochladen, Ziehen auf eine Buchung und E-Mail aus dem Postfach; PDF, E-Mail, JPEG,
+  PNG, WebP; E-Mail mit HTML, aber abgeschottet; ein Dokument an mehreren Buchungen.
+- **Datenmodell:** Objektart `dokument` (Dateiname, Typ, Größe, SHA-256, Quelle `upload`/`kamera`/`mail`,
+  angelegt). Verknüpfungen gehören zur Buchung (Protokollform `dokument_ids`, nur wenn vorhanden, damit Formen
+  ohne Dokumente gleich bleiben); `belege` der Buchung listet `{id, dateiname, mime_typ, groesse}`
+  (datenmodell.md 7). Ein Dokument ohne Buchung entfällt in derselben Änderung. Inhalte liegen inhaltsadressiert
+  in `dokument_inhalt`, werden nie protokolliert und nie gelöscht (Rückgängig braucht sie).
+- **Typ** am Inhalt erkannt, nicht an Dateiname oder Browserangabe; Dateinamen ohne Pfad und Steuerzeichen,
+  höchstens 200 Zeichen, mit passender Endung. Größe begrenzt wie andere Uploads (`upload_max_mib`).
+- **Auslieferung:** Inhalte mit eigener strenger Inhaltsrichtlinie (`sandbox`) und `X-Frame-Options: SAMEORIGIN`
+  nur für diese Antworten; E-Mails nie als Seite, sondern zerlegt (`/mail`) und als entschärftes HTML
+  (`/mail/html`: ohne Skripte, Ereignis-Attribute, Formulare, Rahmen; eingebettete `cid:`-Bilder als data:-URL;
+  externe Bildquellen und Stil-URLs entfernt, damit Zählpixel nie angefragt werden) im Rahmen mit
+  `sandbox="allow-popups allow-popups-to-escape-sandbox"`. Anhänge einer Mail einzeln ansehbar (PDF, Bilder) oder
+  zum Herunterladen.
+- **Mails aus dem Postfach:** Der Spiegel speichert zusätzlich die Rohfassung (Betriebszustand, Spalte `roh`, nur
+  bis `upload_max_mib`); das IMAP-Plugin liefert sie als Zusatzattribut `roh` außerhalb der Datenklassenfelder
+  (plugins.md legt die Felder von `MailNachricht` fest). Ohne Rohfassung (Mock) wird die Mail aus den Feldern
+  gebaut.
+- **Sicherung:** Schemaversion 4 mit `dokument_inhalt` (nur benötigte Inhalte), `dokument`, `dokument_buchung`;
+  `dokument` in `anzahl` nur bei Vorhandensein; Prüfung von Hash, Größe und Typ beim Einspielen.
+- **Oberfläche:** Abschnitt „Dokumente“ im Detailpanel (Liste, Ansehen, Lösen, „Datei anhängen…“, mobil
+  „📷 Foto aufnehmen“ mit `capture="environment"`, „E-Mail…“), Kontextmenü „Dokument anhängen…“, mobil
+  „Foto aufnehmen…“, „E-Mail anhängen…“, „Dokumente ansehen“ (für alle gewählten Buchungen), 📎-Marke je Zeile,
+  Dateien aus dem Betriebssystem auf eine Zeile ziehen (gewählte Zeile bei Mehrfachauswahl → alle gewählten).
+  Betrachter: PDF im Rahmen (mobil zusätzlich „PDF öffnen“), Bilder (Klick vergrößert), E-Mail mit Kopf,
+  HTML/Text umschaltbar, Anhänge; Blättern zwischen den Dokumenten einer Buchung. Kamerafotos werden im Browser auf
+  höchstens 2400 px Kantenlänge (JPEG) verkleinert.
