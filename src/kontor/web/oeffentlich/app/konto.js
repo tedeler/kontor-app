@@ -105,6 +105,7 @@ class Kontoansicht {
   urlSchreiben() {
     const f = { ...this.filter };   // nur gesetzte Filter und eine gewählte Sortierung (7.1)
     history.replaceState(history.state, "", `/konten/${this.konto.id}${abfrage(f)}`);
+    if (oberflaeche.urlGeaendert) oberflaeche.urlGeaendert();   // Tab merkt sich Filter und Sortierung
   }
 
   async filterSetzen(name, wert) {
@@ -843,10 +844,57 @@ class Kontoansicht {
       { tid: "km-bearbeiten", text: "Verwendungszweck bearbeiten", aktiv: eine, tun: () => this.bearbeiten(ids[0], "verwendungszweck") },
       { tid: "km-status", text: "Status setzen…", tun: () => this.statusWaehlen(ids, ausloeser) },
       { tid: "km-mehrfach", text: "Bearbeiten…", tun: () => this.mehrfachDialog(ids, ausloeser) },
+      this.gegenbuchungEintrag(b, x, y, ausloeser),
       ...(this.istKategorie ? [] : [{ tid: "km-verschieben", text: "Auf anderes Konto verschieben…",
         tun: () => this.verschiebenDialog(ids, ausloeser) }]),
       { tid: "km-loeschen", text: "Löschen…", tun: () => this.loeschen(ausloeser) },
     ], ausloeser);
+  }
+
+  // ---------------------------------------------------------------- Gehe zur Gegenbuchung (D-115)
+  /** Konten der übrigen Splits einer Buchung (ohne dieses Konto), in Split-Reihenfolge, ohne Doppelte. */
+  gegenkonten(b) {
+    const ids = [];
+    for (const sp of (b && b.splits) || []) {
+      if (sp.konto_id !== this.konto.id && !ids.includes(sp.konto_id)) ids.push(sp.konto_id);
+    }
+    return ids;
+  }
+
+  gegenbuchungEintrag(b, x, y, ausloeser) {
+    const ziele = this.gegenkonten(b);
+    const mehrere = ziele.length > 1;
+    return { tid: "km-gegenbuchung", text: mehrere ? "Gehe zur Gegenbuchung…" : "Gehe zur Gegenbuchung",
+      aktiv: ziele.length > 0, tun: () => {
+        if (!mehrere) return oberflaeche.zurBuchung(ziele[0], b.id);
+        // mehrere Gegenseiten: Auswahl als Untermenü an derselben Stelle
+        return kontextmenue(x, y, ziele.map((k) => ({ tid: `km-gegenbuchung-${k}`, text: pfadVon(k) || `Konto ${k}`,
+          tun: () => oberflaeche.zurBuchung(k, b.id) })), ausloeser);
+      } };
+  }
+
+  /** Buchung in dieser Ansicht zeigen: weitere Seiten laden, nötigenfalls Filter zurücksetzen, dann markieren. */
+  async buchungZeigen(id) {
+    const da = () => this.eintraege.some((b) => b.id === id);
+    const nachladen = async () => {
+      while (!da() && this.eintraege.length < this.gesamt) { this.seiten += 1; await this.laden(); }
+    };
+    await nachladen();
+    if (!da() && this.filterAnzahl() > 0) {
+      this.filter = this.filter.sortierung ? { sortierung: this.filter.sortierung } : {};
+      this.seiten = 1;
+      this.urlSchreiben();
+      const leiste = this.filterAufbauen();
+      this.filterLeiste.replaceWith(leiste);
+      this.filterLeiste = leiste;
+      await this.laden();
+      await nachladen();
+      if (da()) melde("hinweis", "Filter zurückgesetzt, damit die Buchung sichtbar ist.");
+    }
+    if (!da()) { melde("fehler", "Die Buchung ist in dieser Ansicht nicht enthalten."); return; }
+    this.auswahl = new Set([id]);
+    this.anker = id;
+    this.fokussieren(id);
   }
 
   // ---------------------------------------------------------------- Mehrfachbearbeitung (7.5)
