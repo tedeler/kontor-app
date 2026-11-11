@@ -369,7 +369,20 @@ async function aenderungenSeit(m) {
  * Gibt das Ergebnis von `ausfuehren` zurück oder wirft den Fehler (nach der Fehlermeldung) weiter.
  */
 export async function aktion(ausfuehren, optionen) {
-  const o = optionen || {};
+  let gestapelt;
+  const reif = new Promise((r) => { gestapelt = r; });   // erledigt, sobald der Stapel feststeht (D-122)
+  laufendeAktionen.add(reif);
+  try {
+    return await aktionAusfuehren(ausfuehren, optionen || {}, () => { gestapelt(); laufendeAktionen.delete(reif); });
+  } finally {
+    gestapelt();
+    laufendeAktionen.delete(reif);
+  }
+}
+
+const laufendeAktionen = new Set();
+
+async function aktionAusfuehren(ausfuehren, o, stapelFertig) {
   let m;
   try { m = await hoechsteAenderung(); } catch (e) { fehlerMelden(e); throw e; }
   let ergebnis;
@@ -384,6 +397,7 @@ export async function aktion(ausfuehren, optionen) {
     }
   } catch (e) { /* Stapel bleibt unverändert */ }
   stapelAnzeigen();
+  stapelFertig();
   if (fehler) {
     if (!o.stillBeiFehler) fehlerMelden(fehler);
   } else if (o.erfolg) {
@@ -410,6 +424,7 @@ function nacheinander(schritt) {
 }
 
 async function stapelSchritt(von, nach, text) {
+  if (laufendeAktionen.size) await Promise.all([...laufendeAktionen]);   // eben ausgelöste Änderung zuerst stapeln
   if (!von.length) {
     melde("hinweis", von === rueckStapel ? "Es gibt nichts rückgängig zu machen." : "Es gibt nichts zu wiederholen.");
     return false;

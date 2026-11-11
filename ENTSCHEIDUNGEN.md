@@ -1507,3 +1507,5 @@ Weitere Abkürzungen: SY = `spec/api/synchronisation.md`, KA =
 - **Entscheidung:** Rückgängig- und Wiederholen-Schritte der Oberfläche laufen strikt nacheinander; ein weiterer
   Tastendruck oder Klick während eines laufenden Schritts wartet auf ihn und wird dann ausgeführt. Jeder Druck ist
   genau ein Schritt. Das Neuladen der Ansicht danach läuft außerhalb dieser Reihe.
+- Ein Schritt wartet außerdem auf gerade laufende Aktionen, bis deren Änderungen auf dem Rückgängig-Stapel liegen:
+  Strg+Z unmittelbar nach einer Änderung macht genau diese rückgängig, statt „nichts rückgängig zu machen“ zu melden.
