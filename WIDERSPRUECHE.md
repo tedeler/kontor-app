@@ -189,3 +189,17 @@ widersprüchlich ist). Gelöst werden Widersprüche nur von einem Test-Thread.
 - **Status:** vom Test-Thread behoben (Commit `174b292`: `oberflaeche.md` 19 kodiert wie `sicherheit.md` 3.2, beide Tests erwarten `weiter=/…`); die Oberfläche kodiert nach einer 401-Antwort ebenso. Grün. Erledigt.
 
 Stand: Meilenstein 8 (getestet gegen kontor-tests `bf35445`); kein offener Eintrag.
+
+## W-010 Abstimmungsdialog: Test prüft das Schließen ohne Warten (erledigt)
+
+- **Test:** `tests/app/m8/test_m8_seiten.py::test_konten_anlegen_und_abstimmen` (Zeile mit
+  `assert d.count() == 0 or d.is_hidden()`).
+- **Erwartung des Tests:** Sobald der Server die Abstimmung gespeichert hat (Abfrage über REST), soll der Dialog
+  im selben Augenblick geschlossen sein; geprüft wird einmalig ohne Warten.
+- **Spezifikation:** `oberflaeche.md` (Abstimmungsdialog, Dialoge schließen nach erfolgreicher Operation) verlangt
+  das Schließen nach dem Erfolg, nennt aber keinen Zeitpunkt vor dem Eintreffen der Antwort im Browser.
+- **Warum widersprüchlich:** Der Server ist fertig, bevor seine Antwort im Browser ankommt; erst dann kann die
+  Oberfläche den Erfolg erkennen und schließen. Unter Last (parallele Browsertests) liegt dazwischen messbar Zeit,
+  der Test schlägt dann schwankend fehl (2 von 14 Läufen mit `-n 4`). Vorschlag: auf das Schließen warten
+  (Playwright-`expect(...).to_be_hidden()` bzw. `to_have_count(0)`), wie an anderen Stellen der M8-Tests.
+- **Erledigt:** kontor-tests `8ed01bc` (E-205) wartet auf das Schließen; 5 Läufe mit `-n 4` grün.

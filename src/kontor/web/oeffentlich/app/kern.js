@@ -369,7 +369,20 @@ async function aenderungenSeit(m) {
  * Gibt das Ergebnis von `ausfuehren` zurück oder wirft den Fehler (nach der Fehlermeldung) weiter.
  */
 export async function aktion(ausfuehren, optionen) {
-  const o = optionen || {};
+  let gestapelt;
+  const reif = new Promise((r) => { gestapelt = r; });   // erledigt, sobald der Stapel feststeht (D-122)
+  laufendeAktionen.add(reif);
+  try {
+    return await aktionAusfuehren(ausfuehren, optionen || {}, () => { gestapelt(); laufendeAktionen.delete(reif); });
+  } finally {
+    gestapelt();
+    laufendeAktionen.delete(reif);
+  }
+}
+
+const laufendeAktionen = new Set();
+
+async function aktionAusfuehren(ausfuehren, o, stapelFertig) {
   let m;
   try { m = await hoechsteAenderung(); } catch (e) { fehlerMelden(e); throw e; }
   let ergebnis;
@@ -384,6 +397,7 @@ export async function aktion(ausfuehren, optionen) {
     }
   } catch (e) { /* Stapel bleibt unverändert */ }
   stapelAnzeigen();
+  stapelFertig();
   if (fehler) {
     if (!o.stillBeiFehler) fehlerMelden(fehler);
   } else if (o.erfolg) {
@@ -399,41 +413,40 @@ async function neuLadenSicher() {
   try { await oberflaeche.benachrichtigungen(); } catch (e) { /* Zähler bleibt */ }
 }
 
-let stapelLaeuft = false;
+// Rückgängig/Wiederholen laufen nacheinander: ein Tastendruck während einer laufenden Anfrage wird eingereiht,
+// nicht verworfen (D-122). Das Neuladen danach gehört nicht zur Kette.
+let stapelKette = Promise.resolve();
 
-export async function rueckgaengig() {
-  if (stapelLaeuft) return;
-  if (!rueckStapel.length) { melde("hinweis", "Es gibt nichts rückgängig zu machen."); return; }
-  stapelLaeuft = true;
-  const e = rueckStapel.pop();
+function nacheinander(schritt) {
+  const p = stapelKette.then(schritt);
+  stapelKette = p.catch(() => {});
+  return p;
+}
+
+async function stapelSchritt(von, nach, text) {
+  if (laufendeAktionen.size) await Promise.all([...laufendeAktionen]);   // eben ausgelöste Änderung zuerst stapeln
+  if (!von.length) {
+    melde("hinweis", von === rueckStapel ? "Es gibt nichts rückgängig zu machen." : "Es gibt nichts zu wiederholen.");
+    return false;
+  }
+  const e = von.pop();
   try {
     const u = e.length === 1 ? await api("POST", `/api/aenderungen/${e[0]}/rueckgaengig`)
       : await api("POST", "/api/aenderungen/rueckgaengig", { aenderung_ids: e });
-    vorStapel.push([u.id]);
-    melde("erfolg", "Rückgängig: " + u.beschreibung);
+    nach.push([u.id]);
+    melde("erfolg", text + u.beschreibung);
   } catch (f) {
     fehlerMelden(f);                    // 409 rueckgaengig_konflikt / bereits_rueckgaengig: Eintrag verworfen
   } finally {
-    stapelLaeuft = false;
     stapelAnzeigen();
   }
-  await neuLadenSicher();
+  return true;
+}
+
+export async function rueckgaengig() {
+  if (await nacheinander(() => stapelSchritt(rueckStapel, vorStapel, "Rückgängig: "))) await neuLadenSicher();
 }
 
 export async function wiederholen() {
-  if (stapelLaeuft) return;
-  if (!vorStapel.length) { melde("hinweis", "Es gibt nichts zu wiederholen."); return; }
-  stapelLaeuft = true;
-  const [uid] = vorStapel.pop();
-  try {
-    const r = await api("POST", `/api/aenderungen/${uid}/rueckgaengig`);
-    rueckStapel.push([r.id]);
-    melde("erfolg", "Wiederholt: " + r.beschreibung);
-  } catch (f) {
-    fehlerMelden(f);
-  } finally {
-    stapelLaeuft = false;
-    stapelAnzeigen();
-  }
-  await neuLadenSicher();
+  if (await nacheinander(() => stapelSchritt(vorStapel, rueckStapel, "Wiederholt: "))) await neuLadenSicher();
 }

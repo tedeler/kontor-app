@@ -1488,3 +1488,24 @@ Weitere Abkürzungen: SY = `spec/api/synchronisation.md`, KA =
   ist außerhalb des Schritts `anker` eine leere Liste (E-195). (4) Unbekannte Query-Parameter der Begründung → 422.
 - **Hinweis:** Ein anderer Implementierungs-Thread hatte den Branch vor dem Abnahmelauf auf main gemergt
   (Version 0.06); die Korrekturen kommen mit dem erneuten Merge.
+
+## D-121 Inline-Editor übersteht das Neuzeichnen der Buchungsliste
+
+- **Anlass:** In den M8-Tests (`test_neue_aktion_leert_wiederholen`, `test_import_ueber_die_oberflaeche`) und im
+  Rauchtest schwankend rot: Wird ein Inline-Editor geöffnet, während die Liste nach einer vorigen Aktion (Ändern,
+  Rückgängig) noch neu lädt, ersetzte das Neuzeichnen die Zeilen; der Editor verlor den Fokus und schloss sich
+  (beim Verlassen wurde er sogar übernommen). Auch Anwender konnten das bei langsamer Verbindung erleben.
+- **Entscheidung:** Zeichnet die Kontoansicht die Liste neu, während ein Editor offen ist, wird er vorher ohne
+  Übernahme gelöst und in die gleiche Zelle der neuen Zeile mit Eingabe und Fokus eingesetzt; die Prüfungen beim
+  Übernehmen nutzen den neuen Stand der Buchung. Ist die Buchung nach dem Neuladen nicht mehr da, entfällt der
+  Editor ohne Änderung.
+
+## D-122 Rückgängig und Wiederholen werden eingereiht
+
+- **Anlass:** `test_strg_z_und_wiederholen` (M8) schwankend rot: Strg+Y direkt nach Strg+Z wurde verworfen, solange
+  die Antwort der Rückgängig-Anfrage noch nicht im Browser war (der Server hatte bereits geändert).
+- **Entscheidung:** Rückgängig- und Wiederholen-Schritte der Oberfläche laufen strikt nacheinander; ein weiterer
+  Tastendruck oder Klick während eines laufenden Schritts wartet auf ihn und wird dann ausgeführt. Jeder Druck ist
+  genau ein Schritt. Das Neuladen der Ansicht danach läuft außerhalb dieser Reihe.
+- Ein Schritt wartet außerdem auf gerade laufende Aktionen, bis deren Änderungen auf dem Rückgängig-Stapel liegen:
+  Strg+Z unmittelbar nach einer Änderung macht genau diese rückgängig, statt „nichts rückgängig zu machen“ zu melden.

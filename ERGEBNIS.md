@@ -1,5 +1,20 @@
 # Ergebnis der Implementierung
 
+## Nachzug: Abnahme vollständig grün (Branch `feature/editor-neuladen`) gegen kontor-tests `c1b2723`
+
+Stand: 2026-11-11, Implementierungs-Thread. Auf main (0.08) waren M16 und M17 bereits grün; rot blieben schwankende
+M8-Browsertests. Ursachen in der Oberfläche behoben:
+
+- D-121: Ein offener Inline-Editor wurde durch das Neuzeichnen der Liste (Neuladen nach einer vorigen Aktion)
+  geschlossen; er zieht jetzt mit Eingabe und Fokus in die neue Zeile um.
+- D-122: Rückgängig/Wiederholen verwarfen Tastendrücke während einer laufenden Anfrage und kannten eine eben
+  ausgelöste Änderung noch nicht; Schritte werden jetzt eingereiht und warten auf laufende Aktionen.
+- W-010 (Test prüfte das Schließen des Abstimmungsdialogs ohne Warten) vom Test-Thread behoben (E-205).
+
+Ergebnis: Volllauf `--voll -n 6` **2823 bestanden, 0 rot**, 28 übersprungen (M10 ohne `aqbanking-tools`); danach
+`aqbanking-tools` installiert und `-m m10 --voll` **46/46** – zusammen **2851 / 2851**; `-m browser` zweimal 327/327; M8-Bearbeiten und -Seiten je 14–25
+Wiederholungen unter Last ohne Fehlschlag nach den Korrekturen. Eigene Tests 165/165.
+
 ## Abnahme M16 (Wiederkehrend: robuste Kette und Begründung) gegen kontor-tests `590f096`
 
 Stand: 2026-11-11, Implementierungs-Thread, Branch `feature/wiederkehrend-begruendung` (main mit M15 übernommen).
