@@ -1118,6 +1118,8 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     async def wiederkehrend_begruendung(request: Request):
         q = Query(request.query_params)
         stichtag = q.datum("stichtag")
+        for name in sorted(set(request.query_params.keys()) - {"stichtag"}):
+            q.fehler_melden(name, "Unbekannter Parameter.")
         q.pruefen()
         return await lesen(wiederkehrend.begruendung, pid(request, "buchung_id"),
                            stichtag or sync.heute().isoformat())

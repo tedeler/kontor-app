@@ -132,8 +132,11 @@ def _kette_ab(gruppe: list[Eintrag], m: int, anker: int) -> Kette:
         fremd = [i for i in dazwischen if i not in fenster_vorher and i not in kand
                  and abs((_d(gruppe[i].datum) - cd).days) > T and abs((_d(gruppe[i].datum) - pd).days) > T]
         if fremd:
+            # Die Zusatzregel gilt auch hier (E-193): Einträge dazwischen, die nicht fremd sind, sind zusätzlich.
+            neben = [i for i in dazwischen[::-1] if i not in fremd]
+            zusaetzlich.extend(i for i in neben if i not in zusaetzlich)
             schritte.append({"ergebnis": "bruch", "grund": "fremde_zahlung", "von": c, "vorgaenger": p,
-                             "fremd": fremd[-1], "uebersprungen": []})
+                             "fremd": fremd[-1], "uebersprungen": neben})
             break
         schritte.append({"ergebnis": "verbunden", "von": c, "vorgaenger": p, "uebersprungen": dazwischen[::-1]})
         zusaetzlich.extend(dazwischen[::-1])
@@ -228,7 +231,7 @@ def _schritt_text(sch: dict, gruppe: list[Eintrag], m: int) -> dict:
     aus = {"ergebnis": sch["ergebnis"], "grund": sch.get("grund"), "von": _kurz(c),
            "vorgaenger": _kurz(v) if v else None, "erwartet": None, "abweichung_tage": None,
            "uebersprungen": [_kurz(gruppe[i]) for i in sch["uebersprungen"]],
-           "fremd": _kurz(gruppe[sch["fremd"]]) if "fremd" in sch else None}
+           "fremd": _kurz(gruppe[sch["fremd"]]) if "fremd" in sch else None, "kandidaten": []}
     rechnung = ""
     if v is not None:
         erw = monat_plus(_d(v.datum), m)
