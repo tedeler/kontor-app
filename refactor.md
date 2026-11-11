@@ -39,6 +39,7 @@ SQL-Text eingesetzt werden.
 | 2026-11-09 | `99c2c95` | M10 (abgeschlossen), vor M11 | 14 351 | 3 584² | 337 | 44 | 36 | 119 | 361 | 0 |
 | 2026-11-10 | `4487cff` | M11 (abgeschlossen), vor Versionierung | 14 612 | 3 744² | 349 | 44 | 36 | 125 | 367 | 0 |
 | 2026-11-10 | `d2246ca` | M13 (abgeschlossen), vor M12 | 14 740 | 3 770² | 352 | 44 | 36 | 125 | 367 | 0 |
+| 2026-11-10 | `d308b96` | M12 (abgeschlossen), vor M14 (Sammelpaket) | 14 801 | 3 927² | 352 | 44 | 37 | 125 | 368 | 0 |
 
 ¹ `--select E,F,W,B,C90,SIM,UP,PL --line-length 120`.
 ² Ab M8 Summe der ES-Module `src/kontor/web/oeffentlich/app/*.js` (R-07, `app.js` gibt es nicht mehr).
@@ -178,3 +179,13 @@ Gegenüber `4487cff` stiegen nur die ruff-Funde um 3 (`PLC0415`, Importe innerha
 radon D/E/F, mypy-Fehler und Parameter ohne Annotation unverändert; keine neuen breiten `except` (die zwei
 `BLE001` in `app.py` bestehen seit M6 und sind begründet), keine echten SQL-Funde. Keine neue Maßnahme; R-03
 (doppelter Name `abmelden`) bleibt offen.
+
+### Fortschreibung vor dem Sammelpaket (2026-11-10, Stand `d308b96`)
+
+Gegenüber `d2246ca` stieg radon D/E/F um 1: `buch.mehrfach_aendern` (M12) hat Note D (23), weil Validierung,
+die zwei Sperrprüfungen (17.2 Schritt 3–4) und die Wirkung je Feld in einer Funktion stehen; C901 bleibt bei 44,
+da ruff die Funktion knapp unter der Grenze sieht. Maßnahme **R-10**. Ein Parameter ohne Annotation mehr (M12);
+ruff-Funde, mypy-Fehler unverändert, keine neuen breiten `except`, keine echten SQL-Funde.
+
+- [ ] **R-10 `buch.mehrfach_aendern` zerlegen:** Sperrprüfungen (gesperrt / bestätigungspflichtig) als eigene
+  Funktionen, die auch künftige Mehrfach-Operationen nutzen.

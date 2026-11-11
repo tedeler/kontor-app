@@ -1,5 +1,36 @@
 # Ergebnis der Implementierung
 
+## Abnahme M15 (Sammelpaket) gegen kontor-tests `8110ece`
+
+Stand: 2026-11-11, Implementierungs-Thread, Branch `feature/sammelpaket` (main mit `feature/update` übernommen).
+
+- `-m m15 --voll`: zuerst 75/78; behoben (D-114): Rückgängig bis ohne Nettowirkung antwortet 409
+  `bereits_rueckgaengig` ohne Änderung (E-190), der Zuordnungsdialog bietet in einer Reihe das eben zugeordnete Konto
+  nicht mehr an. Danach **78/78**.
+- Volllauf `--voll -n 2`: **2762 / 2762** grün (inkl. Browser, Leistung, AqBanking), eigene Tests 148/148
+  (`test_desktop_ablauf` schwankt wie bekannt gelegentlich im Gesamtlauf, einzeln grün).
+- Kein W-Eintrag.
+
+## Feature Sammelpaket (Meilenstein-Definition M15, Entwurf) gegen kontor-tests `65bffb0`
+
+Stand: 2026-11-10, Implementierungs-Thread, Branch `feature/sammelpaket` (iterative Phase; Definition zur Freigabe im
+Projekt als `claude/feature-sammelpaket.md`, Abnahmetests für M15 gibt es noch nicht).
+
+| Auswahl | vorher (`d308b96`) | nachher |
+| --- | ---: | ---: |
+| Volllauf `--voll -n 2` (inkl. Browser, Leistung, AqBanking) | 2303 / 2303 (Schnelllauf) | **2683 / 2683**, 0 übersprungen |
+| eigene Tests (`tests/`) | 106 | **126 / 126** |
+
+- Umfang: Rückgängig bis einschließlich einer Änderung (`bis_id`, D-108), Mehrfach-Löschen als eine Änderung
+  (D-109), Verschieben von Buchungen bzw. eines ganzen Imports/Laufs auf ein anderes Konto (D-110),
+  Synchronisationskonto in den Kontoeinstellungen und Zuordnungsdialog für unbekannte Bankkonten
+  (`KONTOR_SYNC_KONTEN_ANLEGEN`, ausgeliefert `0`, D-111), gesperrter PIN-Dialog mit Statusanzeige und Vorschläge
+  je Zeile (D-112), Berichtsgrafiken mit Plotly (lokal ausgeliefert, D-113).
+- Kein neuer W-Eintrag. Die neuen Endpunkte stehen noch nicht in `openapi.yaml`; das übernimmt der Test-Thread mit
+  der Definition.
+- Das Feature `update` (D-107) ist inzwischen auf main und wurde in den Branch übernommen; Konflikte in
+  `ENTSCHEIDUNGEN.md`, `ERGEBNIS.md`, `app.py` und `haupt.js` (nur Importe) aufgelöst.
+
 ## Feature Update (Meilenstein-Definition M14 als Entwurf, D-107)
 
 Stand: 2026-11-10, Implementierungs-Thread, Branch `feature/update`. Auf Anweisung des Auftraggebers vor den

@@ -240,3 +240,55 @@ def test_ueber_fenster(tmp_path, browser):
         tid(page, "ueber-schliessen").click()
         expect(tid(page, "ueber-dialog")).to_have_count(0)
         expect(tid(page, "menue-knopf")).to_be_focused()
+
+
+# ------------------------------------------------------------------ Sammelpaket (D-108 bis D-113)
+def test_sammelpaket_loeschen_verschieben_bis(tmp_path, browser):
+    with server(tmp_path) as (url, _), seite(browser, url, **DESKTOP) as page:
+        page.goto(url + "/")
+        bereit(page, "uebersicht")
+        page.evaluate("""() => fetch('/api/konten', {method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({name: 'Zweitkonto', art: 'sparkonto'})})""")
+        page.locator('[data-testid^="uebersicht-konto-"] [data-feld="name"]', has_text="Giro").click()
+        bereit(page, "konto")
+        zeilen = page.locator('[data-testid="buchungsliste"] [role="row"][data-id]')
+        # drei Buchungen verschieben: eine Änderung
+        zeilen.nth(0).locator('[data-feld="datum"]').click()
+        zeilen.nth(2).locator('[data-feld="datum"]').click(modifiers=["Shift"])
+        tid(page, "mehrfach-verschieben").click()
+        tid(page, "verschieben-ziel").select_option(label="Zweitkonto")
+        tid(page, "verschieben-ok").click()
+        expect(zeilen).to_have_count(17)
+        # zwei Buchungen löschen: eine Änderung
+        zeilen.nth(0).locator('[data-feld="datum"]').click()
+        zeilen.nth(1).locator('[data-feld="datum"]').click(modifiers=["Shift"])
+        tid(page, "mehrfach-loeschen").dispatch_event("click")   # Erfolgsmeldung liegt über der Leiste
+        tid(page, "bestaetigen-ja").click()
+        expect(zeilen).to_have_count(15)
+        page.goto(url + "/protokoll")
+        bereit(page, "protokoll")
+        eintraege = tid(page, "protokoll-liste").locator("li")
+        expect(eintraege.nth(0)).to_contain_text("Mehrere Buchungen gelöscht")
+        expect(eintraege.nth(1)).to_contain_text("auf anderes Konto verschoben")
+        # Rückgängig bis einschließlich „verschieben“
+        eintraege.nth(1).locator('[data-testid^="aenderung-bis-"]').click()
+        tid(page, "bestaetigen-ja").click()
+        expect(eintraege.nth(0)).to_contain_text("Rückgängig")
+        page.goto(url + "/")
+        bereit(page, "uebersicht")
+        page.locator('[data-testid^="uebersicht-konto-"] [data-feld="name"]', has_text="Giro").click()
+        bereit(page, "konto")
+        expect(zeilen).to_have_count(20)
+
+
+def test_sammelpaket_berichte_plotly(tmp_path, browser):
+    with server(tmp_path) as (url, _), seite(browser, url, **DESKTOP) as page:
+        page.goto(url + "/berichte")
+        bereit(page, "berichte")
+        tid(page, "bericht-konten").select_option(label="Giro")
+        tid(page, "bericht-von").fill("2024-01-01")
+        tid(page, "bericht-von").dispatch_event("change")
+        diagramm = tid(page, "bericht-diagramm")
+        expect(diagramm).to_have_attribute("role", "img")
+        expect(diagramm.locator(".main-svg").first).to_be_visible()
+        expect(diagramm).to_have_attribute("data-reihen", "1")
