@@ -41,6 +41,7 @@ SQL-Text eingesetzt werden.
 | 2026-11-10 | `d2246ca` | M13 (abgeschlossen), vor M12 | 14 740 | 3 770² | 352 | 44 | 36 | 125 | 367 | 0 |
 | 2026-11-10 | `d308b96` | M12 (abgeschlossen), vor M14 (Sammelpaket) | 14 801 | 3 927² | 352 | 44 | 37 | 125 | 368 | 0 |
 | 2026-11-11 | `7e3719c` | M15 und Update (auf main), vor M16 (Tabs/Gegenbuchung) | 15 423 | 4 831² ³ | 360 | 45 | 37 | 127 | 378 | 0 |
+| 2026-11-11 | `698d2fa` | M16, M17 und Nachzug (0.09), vor Dokumente | 15 734 | 4 997² | 363 | 46 | 38 | 127 | 379 | 0 |
 
 ¹ `--select E,F,W,B,C90,SIM,UP,PL --line-length 120`.
 ² Ab M8 Summe der ES-Module `src/kontor/web/oeffentlich/app/*.js` (R-07, `app.js` gibt es nicht mehr).
@@ -205,3 +206,15 @@ und `konto.js`; neue Funktionen bleiben klein (größte: `zeigen` in `haupt.js`,
 
 - [ ] **R-11 Typen in `aktualisierung.py` angleichen** (mypy-Fehler bei `ausfuehren`, verhaltensneutral) und
   `ausfuehren` in Teilschritte zerlegen (C901 11).
+
+### Fortschreibung vor dem Feature „Dokumente“ (2026-11-11, Stand `698d2fa`)
+
+Gegenüber `7e3719c` kamen M16 (neue Kette wiederkehrender Buchungen mit Begründung, +311 Python-Zeilen), M17
+(Tabs, Gegenbuchung) und der Nachzug (D-121, D-122, nur Oberfläche) hinzu. C901 und radon D/E/F stiegen um je 1:
+`wiederkehrend._schritt_text` (radon D 29, C901 11) baut die Begründungstexte aller Schrittarten in einer
+Verzweigung; `_ereignisse` (D 22) war schon vorher gezählt. mypy unverändert, keine neuen breiten `except`, keine
+echten SQL-Funde. Maßnahme **R-12**.
+
+- [ ] **R-12 `wiederkehrend._schritt_text` in eine Tabelle je Schrittart zerlegen** (verhaltensneutral,
+  Maßstab die M16-Tests).
+
