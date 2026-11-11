@@ -1477,3 +1477,14 @@ Weitere Abkürzungen: SY = `spec/api/synchronisation.md`, KA =
   vollständig her. Wird ein offener Tab über Navigation oder Link angefordert (auch der aktive, auch beim Sprung
   zur Gegenbuchung), bleiben Filter, Sortierung, Auswahl und Scrollstand, die Filterleiste beginnt aber wieder
   eingeklappt (oberflaeche.md 23.1, E-172 bleibt gültig).
+
+## D-120 Abnahme M16: Feinheiten der Kette und der Begründung
+
+- **Frage:** Der Abnahmelauf M16 (kontor-tests `590f096`) zeigte Abweichungen von der freigegebenen Definition.
+- **Entscheidung:** (1) Einträge im aktuellen Termin-Fenster, die nicht als Vorgänger gewählt werden, sind nicht
+  pauschal zusätzlich; es gilt allein Definition 1.2 (höchstens `T` Tage von `c` oder vom Vorgänger oder Kandidat des
+  vorigen Schritts). D-115 wird insoweit präzisiert. (2) Beim Bruch durch eine fremde Zahlung gelten die übrigen
+  Einträge dazwischen nach derselben Regel als zusätzlich und stehen in `uebersprungen` (E-193). (3) `kandidaten`
+  ist außerhalb des Schritts `anker` eine leere Liste (E-195). (4) Unbekannte Query-Parameter der Begründung → 422.
+- **Hinweis:** Ein anderer Implementierungs-Thread hatte den Branch vor dem Abnahmelauf auf main gemergt
+  (Version 0.06); die Korrekturen kommen mit dem erneuten Merge.

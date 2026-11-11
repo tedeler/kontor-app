@@ -1,5 +1,16 @@
 # Ergebnis der Implementierung
 
+## Abnahme M16 (Wiederkehrend: robuste Kette und Begründung) gegen kontor-tests `590f096`
+
+Stand: 2026-11-11, Implementierungs-Thread, Branch `feature/wiederkehrend-begruendung` (main mit M15 übernommen).
+
+- `-m m16`: zuerst 13/53; behoben: `kandidaten` immer als Liste (E-195), unbekannte Query-Parameter → 422,
+  Zusatzregel auch beim Bruch durch eine fremde Zahlung (E-193), Kandidaten des aktuellen Termin-Fensters zählen nicht
+  pauschal als zusätzlich (Definition 1.2). Danach **53/53**; zusätzlich 3 × 20 000 Zufallsgruppen gegen die
+  Referenzkette der Tests ohne Abweichung.
+- Widerspruch „leere Liste nur Hinweis“ als Text an den Test-Thread, dort gelöst (E-204); kein W-Eintrag.
+- Nach Übernahme von main (M17, Version 0.07; D-120): Volllauf `--voll -n 4` **2851 / 2851** grün (inkl. M16, M17,
+  Browser, Leistung, AqBanking; nichts übersprungen). Eigene Tests 165/165.
 ## Abnahme M17 (Tabs der Ansichten, Gehe zur Gegenbuchung) gegen kontor-tests `f137465`
 
 Stand: 2026-11-11, Implementierungs-Thread, Branch `feature/tabs-gegenbuchung` (main mit M16 und Version 0.06

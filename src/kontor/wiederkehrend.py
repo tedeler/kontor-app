@@ -99,7 +99,7 @@ def _kette_ab(gruppe: list[Eintrag], m: int, anker: int) -> Kette:
     Vorgänger eines Glieds ``c`` sind alle älteren Einträge ``x`` mit ``|c.datum − monat_plus(x.datum, m)| ≤ T``
     (Termin-Fenster); davon zählt der passendste (gleicher Betrag, dann Datumsnähe). Einträge zwischen Vorgänger und
     ``c`` sind **zusätzliche Zahlungen** und brechen die Kette nicht, wenn sie höchstens ``T`` Tage von ``c`` oder vom
-    Vorgänger entfernt liegen oder selbst im Termin-Fenster lagen. Jeder andere Eintrag dazwischen und ein fehlender
+    Vorgänger entfernt liegen oder Vorgänger-Kandidaten des vorigen Schritts waren (M16-Definition 1.2). Jeder andere Eintrag dazwischen und ein fehlender
     Vorgänger beenden die Kette.
     """
     c = anker
@@ -129,11 +129,14 @@ def _kette_ab(gruppe: list[Eintrag], m: int, anker: int) -> Kette:
         p = _passend(gruppe[c], kand, gruppe, m)
         dazwischen = list(range(p + 1, c))
         pd = _d(gruppe[p].datum)
-        fremd = [i for i in dazwischen if i not in fenster_vorher and i not in kand
+        fremd = [i for i in dazwischen if i not in fenster_vorher
                  and abs((_d(gruppe[i].datum) - cd).days) > T and abs((_d(gruppe[i].datum) - pd).days) > T]
         if fremd:
+            # Die Zusatzregel gilt auch hier (E-193): Einträge dazwischen, die nicht fremd sind, sind zusätzlich.
+            neben = [i for i in dazwischen[::-1] if i not in fremd]
+            zusaetzlich.extend(i for i in neben if i not in zusaetzlich)
             schritte.append({"ergebnis": "bruch", "grund": "fremde_zahlung", "von": c, "vorgaenger": p,
-                             "fremd": fremd[-1], "uebersprungen": []})
+                             "fremd": fremd[-1], "uebersprungen": neben})
             break
         schritte.append({"ergebnis": "verbunden", "von": c, "vorgaenger": p, "uebersprungen": dazwischen[::-1]})
         zusaetzlich.extend(dazwischen[::-1])
@@ -228,7 +231,7 @@ def _schritt_text(sch: dict, gruppe: list[Eintrag], m: int) -> dict:
     aus = {"ergebnis": sch["ergebnis"], "grund": sch.get("grund"), "von": _kurz(c),
            "vorgaenger": _kurz(v) if v else None, "erwartet": None, "abweichung_tage": None,
            "uebersprungen": [_kurz(gruppe[i]) for i in sch["uebersprungen"]],
-           "fremd": _kurz(gruppe[sch["fremd"]]) if "fremd" in sch else None}
+           "fremd": _kurz(gruppe[sch["fremd"]]) if "fremd" in sch else None, "kandidaten": []}
     rechnung = ""
     if v is not None:
         erw = monat_plus(_d(v.datum), m)
