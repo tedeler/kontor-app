@@ -34,26 +34,28 @@ import zipfile
 import zlib
 from typing import Any
 
-from . import __version__, buch, db, kredite, mail, protokoll, regeln, vorlagen
+from . import __version__, buch, db, dokumente, kredite, mail, protokoll, regeln, vorlagen
 from .config import KontorConfig
 from .text import ekey
 from .validierung import ApiFehler, datum_gueltig
 
 FORMAT = "kontor-sicherung"
 FORMATVERSION = 1
-SCHEMAVERSION = 3
+SCHEMAVERSION = 4
 OBJEKTE = protokoll.OBJEKTE
 # Objektarten aus M9 (immer in ``anzahl``) und ab M5 nur bei Vorhandensein (sicherung.md 2.5, E-109)
 OBJEKTE_IMMER = ("konto", "empfaenger", "tag", "buchung", "regel", "verdacht", "abstimmung", "vorlage")
-OBJEKTE_OPTIONAL = ("kredit", "postfach")
+OBJEKTE_OPTIONAL = ("kredit", "postfach", "dokument")
 NAMEN = ("manifest.json", "kontor.sqlite")
 MAX_ENTPACKT = 4 * 1024 ** 3  # Schutz gegen ZIP-Bomben (sicherung.md 8: mindestens 1 GiB)
 MAX_MANIFEST = 1024 ** 2
 
 # Objektarten je Schemaversion der Sicherungsdatei (für spätere Meilensteine, sicherung.md 2.3, 3.4).
-OBJEKTE_JE_VERSION = {1: OBJEKTE_IMMER, 2: OBJEKTE_IMMER + ("kredit",), 3: OBJEKTE}
+OBJEKTE_JE_VERSION = {1: OBJEKTE_IMMER, 2: OBJEKTE_IMMER + ("kredit",), 3: OBJEKTE_IMMER + ("kredit", "postfach"),
+                      4: OBJEKTE}
 # Tabellen, die erst ab einer Schemaversion der Sicherungsdatei existieren (ältere Sicherungen: leer, 3.4)
-TABELLEN_AB = {"kredit": 2, "kredit_zuordnung": 2, "kredit_abgleich": 2, "postfach": 3}
+TABELLEN_AB = {"kredit": 2, "kredit_zuordnung": 2, "kredit_abgleich": 2, "postfach": 3,
+               "dokument_inhalt": 4, "dokument": 4, "dokument_buchung": 4}
 
 # Tabellen der Sicherungsdatei (Schemaversion 1): Name → [(Spalte, Typ, nullbar)]. Die Namen entsprechen den
 # Tabellen der App-Datenbank; ``id_zaehler`` hält die höchste je vergebene ID je Objektart (auch Splits).
@@ -100,6 +102,12 @@ SPALTEN: dict[str, list[tuple[str, str, bool]]] = {
     # Schemaversion 3 (M6): Postfächer ohne Anmeldung, Tokens, Spiegel und Betriebszustand (sicherung.md 2.6)
     "postfach": [("id", "int", False), ("adresse", "str", False), ("bezeichnung", "str", False),
                  ("ordner", "str", False), ("absender_filter", "str", False), ("aktiv", "bool", False)],
+    # Schemaversion 4 (Dokumente, D-123): nur Inhalte, die ein Dokument braucht
+    "dokument_inhalt": [("sha256", "str", False), ("inhalt", "bytes", False)],
+    "dokument": [("id", "int", False), ("dateiname", "str", False), ("mime_typ", "str", False),
+                 ("groesse", "int", False), ("sha256", "str", False), ("quelle", "str", False),
+                 ("erstellt_am", "str", False)],
+    "dokument_buchung": [("dokument_id", "int", False), ("buchung_id", "int", False)],
 }
 _ORDNUNG = {
     "split": "buchung_id, position, id", "empfaenger_alias": "empfaenger_id, alias",
@@ -107,21 +115,24 @@ _ORDNUNG = {
     "vorschlag": "buchung_id", "verdacht_kandidat": "verdacht_id, buchung_id", "sync_kennung": "kennung",
     "sync_konto_zustand": "iban", "id_zaehler": "objekt",
     "kredit_zuordnung": "kredit_id, faelligkeit", "kredit_abgleich": "kredit_id, jahr",
+    "dokument_inhalt": "sha256", "dokument_buchung": "dokument_id, buchung_id",
 }
 _SCHLUESSEL = {"empfaenger_alias": "PRIMARY KEY (empfaenger_id, alias)", "buchung_tag": "PRIMARY KEY (buchung_id, tag_id)",
                "buchung_extern": "PRIMARY KEY (extern_id)", "verdacht_kandidat": "PRIMARY KEY (verdacht_id, buchung_id)",
                "vorschlag": "PRIMARY KEY (buchung_id)", "sync_kennung": "PRIMARY KEY (kennung)",
                "sync_konto_zustand": "PRIMARY KEY (iban)", "id_zaehler": "PRIMARY KEY (objekt)",
                "kredit_zuordnung": "PRIMARY KEY (kredit_id, faelligkeit)",
-               "kredit_abgleich": "PRIMARY KEY (kredit_id, jahr)"}
+               "kredit_abgleich": "PRIMARY KEY (kredit_id, jahr)",
+               "dokument_inhalt": "PRIMARY KEY (sha256)", "dokument_buchung": "PRIMARY KEY (dokument_id, buchung_id)"}
 # Buchbestand (ohne Kennungen, Bankkonto-Zustand, Zähler) in Einfügereihenfolge.
 BUCH_TABELLEN = ("konto", "empfaenger", "empfaenger_alias", "tag", "regel", "abstimmung", "buchung", "split",
                  "buchung_tag", "buchung_extern", "vorschlag", "dublettenverdacht", "verdacht_kandidat", "vorlage",
-                 "kredit", "kredit_zuordnung", "kredit_abgleich", "postfach")
+                 "kredit", "kredit_zuordnung", "kredit_abgleich", "postfach", "dokument_inhalt", "dokument",
+                 "dokument_buchung")
 # Objektart (bzw. "split") → Tabelle der App-Datenbank mit AUTOINCREMENT-Zähler.
 ZAEHLER = {"konto": "konto", "empfaenger": "empfaenger", "tag": "tag", "buchung": "buchung", "split": "split",
            "regel": "regel", "verdacht": "dublettenverdacht", "abstimmung": "abstimmung", "vorlage": "vorlage",
-           "kredit": "kredit", "postfach": "postfach"}
+           "kredit": "kredit", "postfach": "postfach", "dokument": "dokument"}
 
 _SHA = re.compile(r"^[0-9a-f]{64}$")
 _ZEIT = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
@@ -134,7 +145,7 @@ def _ddl() -> str:
     for tabelle, spalten in SPALTEN.items():
         defs = []
         for name, typ, nullbar in spalten:
-            sql_typ = "TEXT" if typ == "str" else "INTEGER"
+            sql_typ = {"str": "TEXT", "bytes": "BLOB"}.get(typ, "INTEGER")
             if name == "id" and tabelle not in _SCHLUESSEL:
                 defs.append("id INTEGER PRIMARY KEY")
                 continue
@@ -165,7 +176,7 @@ def alle_formen(con) -> dict[str, dict[int, dict]]:
     """Protokollformen des gesamten Buchbestands (je Objektart: ID → Form)."""
     tabellen = {"konto": "konto", "empfaenger": "empfaenger", "tag": "tag", "buchung": "buchung", "regel": "regel",
                 "verdacht": "dublettenverdacht", "abstimmung": "abstimmung", "vorlage": "vorlage", "kredit": "kredit",
-                "postfach": "postfach"}
+                "postfach": "postfach", "dokument": "dokument"}
     aus = {}
     for o in OBJEKTE:
         ids = [r[0] for r in con.execute(f"SELECT id FROM {tabellen[o]} ORDER BY id")]
@@ -198,9 +209,11 @@ def _erstellen(pfad, modus: str, erstellt: dt.datetime) -> tuple[bytes, str]:
                     continue
                 namen = [s[0] for s in spalten]
                 ordnung = _ORDNUNG.get(tabelle, "id")
+                wo = (" WHERE sha256 IN (SELECT sha256 FROM dokument)" if tabelle == "dokument_inhalt" else "")
                 ziel.executemany(
                     f"INSERT INTO {tabelle} ({', '.join(namen)}) VALUES ({', '.join('?' * len(namen))})",
-                    (tuple(r) for r in con.execute(f"SELECT {', '.join(namen)} FROM {tabelle} ORDER BY {ordnung}")))
+                    (tuple(r) for r in con.execute(
+                        f"SELECT {', '.join(namen)} FROM {tabelle}{wo} ORDER BY {ordnung}")))
             ziel.executemany("INSERT INTO id_zaehler (objekt, hoechste_id) VALUES (?, ?)",
                              sorted(_zaehler_lesen(con).items()))
             formen = alle_formen(con)
@@ -443,6 +456,8 @@ def _zeilen_lesen(con: sqlite3.Connection, schemaversion: int) -> dict[str, list
                     ok = type(wert) is int
                 elif typ == "bool":
                     ok = type(wert) is int and wert in (0, 1)
+                elif typ == "bytes":
+                    ok = type(wert) is bytes
                 else:
                     ok = type(wert) is str
                 if not ok:
@@ -466,7 +481,8 @@ def laden(con, zeilen: dict[str, list[tuple]]) -> None:
         elif tabelle == "postfach":
             namen = namen + ["adresse_cf"]
             werte = [r + (r[1].casefold(),) for r in werte]
-        con.executemany(f"INSERT INTO {tabelle} ({', '.join(namen)}) VALUES ({', '.join('?' * len(namen))})",
+        oder = " OR IGNORE" if tabelle == "dokument_inhalt" else ""  # Inhalte bleiben, gleicher Hash = gleiche Bytes
+        con.executemany(f"INSERT{oder} INTO {tabelle} ({', '.join(namen)}) VALUES ({', '.join('?' * len(namen))})",
                         werte)
 
 
@@ -508,6 +524,21 @@ def _inhalt_pruefen(zeilen: dict[str, list[tuple]]) -> dict[str, dict[int, dict]
         schlecht("Umsatzkennung")
     if not mail.pruefe_inhalt(zeilen["postfach"]):
         schlecht("Postfach")
+    inhalte = {}
+    for sha, inhalt in zeilen["dokument_inhalt"]:
+        if not _SHA.match(sha) or hashlib.sha256(inhalt).hexdigest() != sha:
+            schlecht("Inhalt eines Dokuments")
+        inhalte[sha] = inhalt
+    for r in zeilen["dokument"]:
+        d = dict(zip([s[0] for s in SPALTEN["dokument"]], r))
+        inhalt = inhalte.get(d["sha256"])
+        if (inhalt is None or len(inhalt) != d["groesse"] or dokumente.typ_erkennen(inhalt) != d["mime_typ"]
+                or d["quelle"] not in dokumente.QUELLEN or not _ZEIT.match(d["erstellt_am"])
+                or dokumente.dateiname_saeubern(d["dateiname"], d["mime_typ"]) != d["dateiname"]):
+            schlecht("Dokument")
+    verknuepft = {r[0] for r in zeilen["dokument_buchung"]}
+    if any(r[0] not in verknuepft for r in zeilen["dokument"]):
+        schlecht("Dokument ohne Buchung")
 
     mem = db.verbinde(":memory:")  # type: ignore[arg-type]
     try:
@@ -665,7 +696,7 @@ def probelauf(con, s: Sicherung) -> dict:
     return _ergebnis(s, True, not _identisch(aktuell, s), None, unterschied, betroffen)
 
 
-_LOESCHEN = ("postfach", "kredit_abgleich", "kredit_zuordnung", "kredit", "vorschlag", "buchung_tag", "buchung_extern", "verdacht_kandidat", "dublettenverdacht", "split",
+_LOESCHEN = ("dokument_buchung", "dokument", "postfach", "kredit_abgleich", "kredit_zuordnung", "kredit", "vorschlag", "buchung_tag", "buchung_extern", "verdacht_kandidat", "dublettenverdacht", "split",
              "buchung", "abstimmung", "regel", "vorlage", "empfaenger_alias", "empfaenger", "tag", "konto")
 
 

@@ -15,7 +15,7 @@ from collections.abc import Iterator
 
 from .text import norm
 
-SCHEMA_VERSION = 9
+SCHEMA_VERSION = 10
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (
@@ -383,6 +383,30 @@ CREATE TABLE IF NOT EXISTS mail_nachricht (
 );
 CREATE INDEX IF NOT EXISTS mail_nachricht_sortierung ON mail_nachricht(empfangen, nachricht_id);
 
+-- ------------------------------------------------------------ Dokumente (D-123)
+-- Inhalte inhaltsadressiert; nie protokolliert und nie durch eine Operation gelöscht (Rückgängig braucht sie).
+CREATE TABLE IF NOT EXISTS dokument_inhalt (
+    sha256 TEXT PRIMARY KEY CHECK (length(sha256) = 64),
+    inhalt BLOB NOT NULL
+);
+CREATE TABLE IF NOT EXISTS dokument (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    dateiname TEXT NOT NULL CHECK (length(dateiname) BETWEEN 1 AND 200),
+    mime_typ TEXT NOT NULL CHECK (mime_typ IN ('application/pdf','image/jpeg','image/png','image/webp',
+                                               'message/rfc822')),
+    groesse INTEGER NOT NULL CHECK (groesse > 0),
+    sha256 TEXT NOT NULL REFERENCES dokument_inhalt(sha256),
+    quelle TEXT NOT NULL CHECK (quelle IN ('upload','kamera','mail')),
+    erstellt_am TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS dokument_buchung (
+    dokument_id INTEGER NOT NULL REFERENCES dokument(id) ON DELETE CASCADE,
+    buchung_id INTEGER NOT NULL REFERENCES buchung(id) ON DELETE CASCADE,
+    PRIMARY KEY (dokument_id, buchung_id)
+) WITHOUT ROWID;
+CREATE INDEX IF NOT EXISTS dokument_buchung_buchung ON dokument_buchung(buchung_id, dokument_id);
+CREATE INDEX IF NOT EXISTS dokument_sha256 ON dokument(sha256);
+
 -- ------------------------------------------------------------ Meilenstein 7
 -- Anmeldedaten (sicherheit.md 1): Betriebszustand, nie protokolliert, nie in der Sicherung.
 -- Zeiten in Sekunden seit der Epoche nach der Systemuhr (nie die Mock-Uhr, sicherheit.md 4.4).
@@ -426,6 +450,8 @@ _NEUE_SPALTEN = (
     ("tan_anforderung", "erinnerung_nr", "INTEGER NOT NULL DEFAULT 0"),
     # M11: Ergebnis des Saldoabgleichs je Konto und Lauf als JSON (kontostand.md 2.1); NULL = nicht verarbeitet
     ("sync_lauf_konto", "saldo_abgleich", "TEXT"),
+    # Dokumente (D-123): Rohfassung gespiegelter Mails (Betriebszustand), damit sie als Dokument übernommen werden
+    ("mail_nachricht", "roh", "BLOB"),
 )
 _NACH_MIGRATION = (
     "CREATE INDEX IF NOT EXISTS split_abstimmung ON split(abstimmung_id)",

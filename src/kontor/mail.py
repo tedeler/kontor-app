@@ -581,9 +581,12 @@ class MailDienst:
                     if filt and not any(f in n.absender.casefold() for f in filt):
                         aus["nachrichten_gefiltert"] += 1
                         continue
+                    roh = getattr(n, "roh", None)
+                    if not isinstance(roh, bytes) or len(roh) > self.config.upload_max_mib * 1024 * 1024:
+                        roh = None  # ohne Rohfassung wird die Mail beim Anhängen aus den Feldern gebaut (D-123)
                     con.execute("INSERT INTO mail_nachricht (adresse_cf, nachricht_id, empfangen, absender, betreff,"
-                                " text) VALUES (?, ?, ?, ?, ?, ?)",
-                                (cf, n.nachricht_id, zeit_text(n.empfangen), n.absender, n.betreff, n.text))
+                                " text, roh) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                                (cf, n.nachricht_id, zeit_text(n.empfangen), n.absender, n.betreff, n.text, roh))
                     aus["nachrichten_neu"] += 1
                 con.execute("UPDATE postfach_zustand SET letzter_erfolg_am = ?, fehler_code = NULL, fehler_meldung = NULL"
                             " WHERE adresse_cf = ?", (zeit_text(beginn), cf))

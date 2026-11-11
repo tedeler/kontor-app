@@ -25,10 +25,13 @@ from collections import defaultdict
 from collections.abc import Iterator
 from typing import Any, Callable
 
-from . import buch, db, geheimnisse, kredite, mail, regeln, vorlagen
+from . import buch, db, dokumente, geheimnisse, kredite, mail, regeln, vorlagen
 from .validierung import ApiFehler
 
-OBJEKTE = ("konto", "empfaenger", "tag", "buchung", "regel", "verdacht", "abstimmung", "vorlage", "kredit", "postfach")
+OBJEKTE = ("konto", "empfaenger", "tag", "buchung", "regel", "verdacht", "abstimmung", "vorlage", "kredit", "postfach",
+           "dokument")
+# Rückgängig fügt Dokumente vor Buchungen ein (Verknüpfungen gehören zur Buchung, D-123)
+_EINFUEGEN = ("dokument",) + tuple(o for o in OBJEKTE if o != "dokument")
 QUELLEN = ("manuell", "import", "sync", "regeln", "umbuchung", "rueckgaengig", "lernmodell", "vorlage", "sicherung", "kredit")
 
 # Tabelle → (Objektart, Spalte mit der Objekt-ID)
@@ -51,6 +54,8 @@ _TABELLEN = {
     "kredit_zuordnung": ("kredit", "kredit_id"),
     "kredit_abgleich": ("kredit", "kredit_id"),
     "postfach": ("postfach", "id"),
+    "dokument": ("dokument", "id"),
+    "dokument_buchung": ("buchung", "buchung_id"),
 }
 
 BESCHREIBUNG = {
@@ -82,6 +87,9 @@ BESCHREIBUNG = {
     "kredit_zuordnen": "Kreditraten aufgeteilt", "kredit_jahresabgleich": "Jahresabgleich eines Kredits",
     "postfach_anlegen": "Postfach angelegt", "postfach_aendern": "Postfach geändert",
     "postfach_loeschen": "Postfach gelöscht",
+    "dokument_anhaengen": "Dokument angehängt", "dokument_aus_mail": "E-Mail als Dokument angehängt",
+    "dokument_verknuepfen": "Dokument mit Buchung verknüpft", "dokument_loesen": "Dokument von Buchung gelöst",
+    "dokument_umbenennen": "Dokument umbenannt", "dokument_loeschen": "Dokument gelöscht",
 }
 
 
@@ -139,10 +147,13 @@ def _kennungen_netto(con) -> tuple[list[str], list[str]]:
 
 
 def _buchung_zustand(b: dict) -> dict:
-    return {"id": b["id"], "datum": b["datum"], "empfaenger_id": b["empfaenger"]["id"] if b["empfaenger"] else None,
-            "verwendungszweck": b["verwendungszweck"], "status": b["status"], "splits": b["splits"],
-            "tag_ids": [t["id"] for t in b["tags"]], "extern_ids": b["extern_ids"], "vorschlag": b["vorschlag"],
-            "gegen_iban": b["gegen_iban"]}
+    z = {"id": b["id"], "datum": b["datum"], "empfaenger_id": b["empfaenger"]["id"] if b["empfaenger"] else None,
+         "verwendungszweck": b["verwendungszweck"], "status": b["status"], "splits": b["splits"],
+         "tag_ids": [t["id"] for t in b["tags"]], "extern_ids": b["extern_ids"], "vorschlag": b["vorschlag"],
+         "gegen_iban": b["gegen_iban"]}
+    if b["belege"]:  # nur mit Dokumenten (D-123): Formen ohne Dokumente bleiben unverändert
+        z["dokument_ids"] = [d["id"] for d in b["belege"]]
+    return z
 
 
 def formen(con, objekt: str, ids: list[int]) -> dict[int, dict]:
@@ -163,6 +174,8 @@ def formen(con, objekt: str, ids: list[int]) -> dict[int, dict]:
         return kredite.formen(con, ids)
     if objekt == "postfach":
         return mail.formen(con, ids)
+    if objekt == "dokument":
+        return dokumente.formen(con, ids)
     for teil in buch._stueckweise(ids):
         ph = buch._platzhalter(len(teil))
         if objekt == "konto":
@@ -271,6 +284,7 @@ def protokolliert(con, quelle: str, aktion: str, zeitpunkt: str, gruppe: str | N
         yield k
         kredite.verwaiste_entfernen(con)  # M5: Zuordnungen gelöschter Buchungen entfallen (kredite.md 2.3)
         geheimnisse.verwaiste_entfernen(con)  # M6: Tokens/Spiegel/Zustand entfallen mit dem Postfach (mail.md 6.5)
+        dokumente.verwaiste_entfernen(con)  # D-123: Dokumente ohne Buchung entfallen
         eintraege = _nettowirkung(con)
         if k.pruefung is not None:
             k.pruefung(eintraege)
@@ -425,6 +439,12 @@ def _entfernen(con, objekt: str, oid: int, schritt: set[tuple[str, int]]) -> Non
         con.execute("DELETE FROM kredit WHERE id = ?", (oid,))
     elif objekt == "postfach":
         con.execute("DELETE FROM postfach WHERE id = ?", (oid,))
+    elif objekt == "dokument":
+        # Hängt das Dokument inzwischen an einer Buchung außerhalb dieser Änderung, darf es nicht verschwinden.
+        for r in con.execute("SELECT buchung_id FROM dokument_buchung WHERE dokument_id = ?", (oid,)).fetchall():
+            if ("buchung", r["buchung_id"]) not in schritt:
+                raise _konflikt("Ein Dokument hängt inzwischen an einer anderen Buchung.")
+        con.execute("DELETE FROM dokument WHERE id = ?", (oid,))
 
 
 def _einfuegen(con, objekt: str, f: dict) -> None:
@@ -453,6 +473,8 @@ def _einfuegen(con, objekt: str, f: dict) -> None:
                         [(f["id"], t) for t in f["tag_ids"]])
         con.executemany("INSERT INTO buchung_extern (buchung_id, extern_id) VALUES (?, ?)",
                         [(f["id"], e) for e in f["extern_ids"]])
+        con.executemany("INSERT INTO dokument_buchung (dokument_id, buchung_id) VALUES (?, ?)",
+                        [(d, f["id"]) for d in f.get("dokument_ids", [])])
         v = f["vorschlag"]
         if v is not None:
             con.execute("INSERT INTO vorschlag (buchung_id, kategorie_id, regel_id, quelle, vorher_konto_id,"
@@ -477,6 +499,8 @@ def _einfuegen(con, objekt: str, f: dict) -> None:
         kredite.einfuegen(con, f)
     elif objekt == "postfach":
         mail.einfuegen(con, f)
+    elif objekt == "dokument":
+        dokumente.einfuegen(con, f)
 
 
 def _eintraege_von(con, aid: int) -> list[dict]:
@@ -503,7 +527,7 @@ def _schritt(con, aid: int) -> set[tuple[str, int]]:
             con.execute("UPDATE tag SET name_cf = ? WHERE id = ?", (f"\x00{e['objekt_id']}", e["objekt_id"]))
             continue
         _entfernen(con, e["objekt"], e["objekt_id"], schritt)
-    for objekt in OBJEKTE:
+    for objekt in _EINFUEGEN:
         for e in je_objekt.get(objekt, []):
             v = e["vorher"]
             if v is None:
@@ -548,6 +572,7 @@ def bezuege_pruefen(con) -> None:
         " WHERE d.status = 'offen' AND NOT EXISTS (SELECT 1 FROM buchung b WHERE b.id = vk.buchung_id)",
     )
     pruefungen += kredite.BEZUG_SQL  # M5 (protokoll.md 11.1)
+    pruefungen += dokumente.BEZUG_SQL  # D-123
     for sql in pruefungen:
         if _fehlt(con, sql):
             raise _konflikt("Der wiederhergestellte Zustand verweist auf nicht mehr vorhandene Objekte.")

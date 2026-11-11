@@ -18,6 +18,13 @@ class MailNachricht:
     text: str
 
 
+def mit_roh(n: MailNachricht, roh: bytes) -> MailNachricht:
+    """Rohfassung (RFC 5322) als Zusatzattribut ``roh`` – kein Feld der Datenklasse (plugins.md legt die Felder
+    fest); Vergleich und Darstellung bleiben unverändert. Genutzt für Dokumente aus Mails (D-123)."""
+    object.__setattr__(n, "roh", roh)
+    return n
+
+
 class MailPlugin(abc.ABC):
     """Lesender Zugriff auf Postfächer. Kein Senden, Löschen oder Verschieben."""
 
@@ -34,4 +41,4 @@ class MailPlugin(abc.ABC):
         return None
 
 
-__all__ = ["MailPlugin", "MailNachricht"]
+__all__ = ["MailPlugin", "MailNachricht", "mit_roh"]

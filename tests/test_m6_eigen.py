@@ -55,8 +55,9 @@ def _als_version_2(roh: bytes) -> bytes:
         daten = z.read("kontor.sqlite")
     con = sqlite3.connect(":memory:")
     con.deserialize(daten)
-    con.execute("DROP TABLE postfach")
-    con.execute("DELETE FROM id_zaehler WHERE objekt = 'postfach'")
+    for t in [t for t, v in sicherung.TABELLEN_AB.items() if v > 2]:  # Tabellen ab Schemaversion 3
+        con.execute(f"DROP TABLE {t}")
+    con.execute("DELETE FROM id_zaehler WHERE objekt IN ('postfach', 'dokument')")
     con.commit()
     con.execute("VACUUM")
     daten = con.serialize()
@@ -79,7 +80,7 @@ def test_sicherung_der_schemaversion_2_einspielbar_und_postfach_bleibt_erhalten(
     assert r.status_code == 200, r.json()
     assert r.json()["unterschied"]["postfach"] == {"angelegt": 0, "geaendert": 0, "geloescht": 1}
     assert z.get("/api/mail/postfaecher").json() == []
-    assert sicherung.SCHEMAVERSION == 3
+    assert sicherung.SCHEMAVERSION == 4  # Dokumente (D-123)
 
 
 def test_spiegel_bleibt_bei_gleicher_adresse(tmp_path):
