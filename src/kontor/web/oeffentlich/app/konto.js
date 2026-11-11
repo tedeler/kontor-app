@@ -43,10 +43,12 @@ export function layoutLaden() {
   }
 }
 
-const layoutSpeichern = (l) => localStorage.setItem(LAYOUT_SCHLUESSEL, JSON.stringify(l));
+const layoutSpeichern = (l) => {
+  try { localStorage.setItem(LAYOUT_SCHLUESSEL, JSON.stringify(l)); } catch (e) { /* Speicher nicht verfügbar */ }
+};
 
 export function layoutZuruecksetzen() {
-  localStorage.removeItem(LAYOUT_SCHLUESSEL);
+  try { localStorage.removeItem(LAYOUT_SCHLUESSEL); } catch (e) { /* Speicher nicht verfügbar */ }
 }
 
 // ------------------------------------------------------------------ Seite

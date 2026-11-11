@@ -21,12 +21,15 @@ const THEMA_SCHLUESSEL = "kontor.thema";
 const dunkelAbfrage = window.matchMedia("(prefers-color-scheme: dark)");
 const thema = {
   lesen() {
-    const t = localStorage.getItem(THEMA_SCHLUESSEL);
+    let t = null;
+    try { t = localStorage.getItem(THEMA_SCHLUESSEL); } catch (e) { /* Speicher nicht verfügbar: Vorgabe */ }
     return ["system", "hell", "dunkel"].includes(t) ? t : "system";
   },
   setzen(t) {
-    if (t === "system") localStorage.removeItem(THEMA_SCHLUESSEL);
-    else localStorage.setItem(THEMA_SCHLUESSEL, t);
+    try {
+      if (t === "system") localStorage.removeItem(THEMA_SCHLUESSEL);
+      else localStorage.setItem(THEMA_SCHLUESSEL, t);
+    } catch (e) { /* Speicher nicht verfügbar: gilt nur in diesem Fenster */ }
     thema.anwenden();
     const sel = tid("einstellung-thema");
     if (sel) sel.value = t;
