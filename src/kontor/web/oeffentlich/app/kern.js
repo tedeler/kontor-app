@@ -399,41 +399,39 @@ async function neuLadenSicher() {
   try { await oberflaeche.benachrichtigungen(); } catch (e) { /* Zähler bleibt */ }
 }
 
-let stapelLaeuft = false;
+// Rückgängig/Wiederholen laufen nacheinander: ein Tastendruck während einer laufenden Anfrage wird eingereiht,
+// nicht verworfen (D-122). Das Neuladen danach gehört nicht zur Kette.
+let stapelKette = Promise.resolve();
 
-export async function rueckgaengig() {
-  if (stapelLaeuft) return;
-  if (!rueckStapel.length) { melde("hinweis", "Es gibt nichts rückgängig zu machen."); return; }
-  stapelLaeuft = true;
-  const e = rueckStapel.pop();
+function nacheinander(schritt) {
+  const p = stapelKette.then(schritt);
+  stapelKette = p.catch(() => {});
+  return p;
+}
+
+async function stapelSchritt(von, nach, text) {
+  if (!von.length) {
+    melde("hinweis", von === rueckStapel ? "Es gibt nichts rückgängig zu machen." : "Es gibt nichts zu wiederholen.");
+    return false;
+  }
+  const e = von.pop();
   try {
     const u = e.length === 1 ? await api("POST", `/api/aenderungen/${e[0]}/rueckgaengig`)
       : await api("POST", "/api/aenderungen/rueckgaengig", { aenderung_ids: e });
-    vorStapel.push([u.id]);
-    melde("erfolg", "Rückgängig: " + u.beschreibung);
+    nach.push([u.id]);
+    melde("erfolg", text + u.beschreibung);
   } catch (f) {
     fehlerMelden(f);                    // 409 rueckgaengig_konflikt / bereits_rueckgaengig: Eintrag verworfen
   } finally {
-    stapelLaeuft = false;
     stapelAnzeigen();
   }
-  await neuLadenSicher();
+  return true;
+}
+
+export async function rueckgaengig() {
+  if (await nacheinander(() => stapelSchritt(rueckStapel, vorStapel, "Rückgängig: "))) await neuLadenSicher();
 }
 
 export async function wiederholen() {
-  if (stapelLaeuft) return;
-  if (!vorStapel.length) { melde("hinweis", "Es gibt nichts zu wiederholen."); return; }
-  stapelLaeuft = true;
-  const [uid] = vorStapel.pop();
-  try {
-    const r = await api("POST", `/api/aenderungen/${uid}/rueckgaengig`);
-    rueckStapel.push([r.id]);
-    melde("erfolg", "Wiederholt: " + r.beschreibung);
-  } catch (f) {
-    fehlerMelden(f);
-  } finally {
-    stapelLaeuft = false;
-    stapelAnzeigen();
-  }
-  await neuLadenSicher();
+  if (await nacheinander(() => stapelSchritt(vorStapel, rueckStapel, "Wiederholt: "))) await neuLadenSicher();
 }

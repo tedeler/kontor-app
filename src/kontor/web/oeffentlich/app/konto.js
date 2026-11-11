@@ -663,8 +663,11 @@ class Kontoansicht {
     }));
     this.zeilen = new Map();
     const fokusImGrid = this.liste.contains(document.activeElement) && document.activeElement.getAttribute("role") === "row";
+    const editor = this.editorOffen;
+    const editorFokus = editor ? editor.loesen() : false;
     const zeilen = this.eintraege.map((b) => this.zeile(b, kompakt));
     this.liste.replaceChildren(kopf, ...zeilen);
+    if (editor && this.editorOffen === editor) editor.umziehen(editorFokus);
     this.anzahlEl.dataset.anzahl = String(this.gesamt);
     this.anzahlEl.textContent = this.gesamt === 1 ? "1 Buchung" : `${this.gesamt} Buchungen`;
     this.summeEl.dataset.betrag = String(this.summe);
@@ -1182,8 +1185,8 @@ class Kontoansicht {
 
   // ---------------------------------------------------------------- Inline-Bearbeitung (7.6)
   bearbeiten(id, feld) {
-    const b = this.eintraege.find((x) => x.id === id);
-    const z = this.zeilen.get(id);
+    let b = this.eintraege.find((x) => x.id === id);
+    let z = this.zeilen.get(id);
     if (!b || !z) return;
     // 23.2: der Status ist auch bei gesperrten Buchungen bearbeitbar
     if (feld !== "status" && (b.abgestimmt || b.status === "abgeglichen")) {
@@ -1199,7 +1202,7 @@ class Kontoansicht {
       melde("hinweis", "Gesplittete Buchungen über „Splitten…“ bearbeiten.");
       return;
     }
-    const zelle = z.querySelector(`[data-feld="${feld}"]`);
+    let zelle = z.querySelector(`[data-feld="${feld}"]`);
     let editor;
     let alt;
     if (feld === "datum") {
@@ -1228,11 +1231,35 @@ class Kontoansicht {
     editor.dataset.testid = "inline-editor";
     editor.dataset.feld = feld;
     editor.classList.add("inline-editor");
-    const inhalt = [...zelle.childNodes];
+    let inhalt = [...zelle.childNodes];
     let fertig = false;
+    let umzug = false;
     const zurueck = () => { if (zelle.isConnected) zelle.replaceChildren(...inhalt); };
+    // Neuzeichnen der Liste während der Bearbeitung (z. B. Neuladen nach einer vorigen Aktion): der Editor zieht mit
+    // Eingabe und Fokus in die neue Zeile um, statt geschlossen zu werden (D-121).
+    const offen = {
+      loesen: () => {
+        if (fertig || !editor.isConnected) return false;
+        const fokus = document.activeElement === editor;
+        umzug = true;
+        editor.remove();
+        umzug = false;
+        return fokus;
+      },
+      umziehen: (fokus) => {
+        const neu = this.zeilen.get(id);
+        const nb = this.eintraege.find((x) => x.id === id);
+        const nz = neu && neu.querySelector(`[data-feld="${feld}"]`);
+        if (!nz || !nb) { fertig = true; this.editorOffen = null; return; }
+        b = nb; z = neu; zelle = nz;
+        inhalt = [...zelle.childNodes];
+        zelle.replaceChildren(editor);
+        if (fokus) editor.focus({ preventScroll: true });
+      },
+    };
+    this.editorOffen = offen;
     const uebernehmen = async (fokusZurueck, beimVerlassen) => {
-      if (fertig) return;
+      if (fertig || umzug) return;
       let cent = null;
       if (feld === "betrag" && editor.value !== alt) {
         cent = betragLesen(editor.value);
@@ -1243,6 +1270,7 @@ class Kontoansicht {
         }
       }
       fertig = true;
+      if (this.editorOffen === offen) this.editorOffen = null;
       const wert = editor.value;
       zurueck();
       if (fokusZurueck) z.focus({ preventScroll: true });
@@ -1262,7 +1290,10 @@ class Kontoansicht {
       e.stopPropagation();
       if (e.key === "Enter") { e.preventDefault(); uebernehmen(true); }
       else if (e.key === "Tab") { uebernehmen(false); }
-      else if (e.key === "Escape") { e.preventDefault(); fertig = true; zurueck(); z.focus({ preventScroll: true }); }
+      else if (e.key === "Escape") {
+        e.preventDefault(); fertig = true; if (this.editorOffen === offen) this.editorOffen = null;
+        zurueck(); z.focus({ preventScroll: true });
+      }
     });
     editor.addEventListener("blur", () => uebernehmen(false, true));
     if (editor.tagName === "SELECT") editor.addEventListener("change", () => uebernehmen(true));
