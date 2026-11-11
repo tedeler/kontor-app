@@ -60,9 +60,13 @@
               title="Über Kontor">Version {{VERSION}}</button>
     </nav>
     <div class="menue-hintergrund" id="menue-hintergrund" data-testid="menue-hintergrund" hidden></div>
-    <main class="hauptbereich" id="hauptbereich" data-testid="hauptbereich" tabindex="-1">
-      <noscript><p>Kontor benötigt JavaScript.</p></noscript>
-    </main>
+    <div class="inhalt">
+      <div class="tab-leiste" id="tab-leiste" data-testid="tab-leiste" role="tablist" aria-label="Geöffnete Ansichten"
+           hidden></div>
+      <main class="hauptbereich" id="hauptbereich" data-testid="hauptbereich" tabindex="-1">
+        <noscript><p>Kontor benötigt JavaScript.</p></noscript>
+      </main>
+    </div>
   </div>
   <div class="offline-hinweis" id="offline-hinweis" data-testid="offline-hinweis" role="status" hidden>
     Keine Verbindung zum Server – Kontor ist offline. Daten werden geladen, sobald die Verbindung zurück ist.
