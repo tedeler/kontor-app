@@ -190,7 +190,7 @@ widersprüchlich ist). Gelöst werden Widersprüche nur von einem Test-Thread.
 
 Stand: Meilenstein 8 (getestet gegen kontor-tests `bf35445`); kein offener Eintrag.
 
-## W-010 Abstimmungsdialog: Test prüft das Schließen ohne Warten
+## W-010 Abstimmungsdialog: Test prüft das Schließen ohne Warten (erledigt)
 
 - **Test:** `tests/app/m8/test_m8_seiten.py::test_konten_anlegen_und_abstimmen` (Zeile mit
   `assert d.count() == 0 or d.is_hidden()`).
@@ -202,3 +202,4 @@ Stand: Meilenstein 8 (getestet gegen kontor-tests `bf35445`); kein offener Eintr
   Oberfläche den Erfolg erkennen und schließen. Unter Last (parallele Browsertests) liegt dazwischen messbar Zeit,
   der Test schlägt dann schwankend fehl (2 von 14 Läufen mit `-n 4`). Vorschlag: auf das Schließen warten
   (Playwright-`expect(...).to_be_hidden()` bzw. `to_have_count(0)`), wie an anderen Stellen der M8-Tests.
+- **Erledigt:** kontor-tests `8ed01bc` (E-205) wartet auf das Schließen; 5 Läufe mit `-n 4` grün.
