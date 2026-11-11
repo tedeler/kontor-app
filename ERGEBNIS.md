@@ -1,5 +1,17 @@
 # Ergebnis der Implementierung
 
+## Merge `feature/wiederkehrend-begruendung` (M16) auf main
+
+Stand: 2026-11-11, auf Anweisung des Auftraggebers vor den M16-Abnahmetests gemergt (`tests/app/m16/` gibt es in
+kontor-tests `2e8f8ea` noch nicht; Spezifikation M16 und M5-Anpassung liegen vor).
+
+- Der Merge `38f9b8a` (main in den Branch) hatte `src/kontor/wiederkehrend.py` auf 0 Zeilen geleert und
+  `tests/test_wiederkehrend_eigen.py`, `tests/test_browser_wiederkehrend.py` gelöscht (Folge: 500 bei
+  `/api/wiederkehrend`, 24 rote M5-Tests). Wiederhergestellt aus `5871330` mit den im Merge umnummerierten
+  Entscheidungen (D-108…D-111 → D-115…D-118); übrige Konfliktauflösung geprüft und übernommen.
+- Danach gegen kontor-tests `2e8f8ea`: Schnelllauf `-n auto` **2365 / 2365**; eigene Tests **158 / 158**.
+- Offen: Abnahme mit den M16-Tests, sobald der Test-Thread sie gepusht hat.
+
 ## Abnahme M15 (Sammelpaket) gegen kontor-tests `8110ece`
 
 Stand: 2026-11-11, Implementierungs-Thread, Branch `feature/sammelpaket` (main mit `feature/update` übernommen).
