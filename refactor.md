@@ -40,9 +40,11 @@ SQL-Text eingesetzt werden.
 | 2026-11-10 | `4487cff` | M11 (abgeschlossen), vor Versionierung | 14 612 | 3 744² | 349 | 44 | 36 | 125 | 367 | 0 |
 | 2026-11-10 | `d2246ca` | M13 (abgeschlossen), vor M12 | 14 740 | 3 770² | 352 | 44 | 36 | 125 | 367 | 0 |
 | 2026-11-10 | `d308b96` | M12 (abgeschlossen), vor M14 (Sammelpaket) | 14 801 | 3 927² | 352 | 44 | 37 | 125 | 368 | 0 |
+| 2026-11-11 | `7e3719c` | M15 und Update (auf main), vor M16 (Tabs/Gegenbuchung) | 15 423 | 4 831² ³ | 360 | 45 | 37 | 127 | 378 | 0 |
 
 ¹ `--select E,F,W,B,C90,SIM,UP,PL --line-length 120`.
 ² Ab M8 Summe der ES-Module `src/kontor/web/oeffentlich/app/*.js` (R-07, `app.js` gibt es nicht mehr).
+³ Gemessen auf `feature/tabs-gegenbuchung` (Python identisch mit `7e3719c`; JS einschließlich der rund 330 Zeilen von M16).
 
 ## Bewertung (2026-11-09)
 
@@ -189,3 +191,17 @@ ruff-Funde, mypy-Fehler unverändert, keine neuen breiten `except`, keine echten
 
 - [ ] **R-10 `buch.mehrfach_aendern` zerlegen:** Sperrprüfungen (gesperrt / bestätigungspflichtig) als eigene
   Funktionen, die auch künftige Mehrfach-Operationen nutzen.
+
+### Fortschreibung vor M16 (2026-11-11, Stand `7e3719c`)
+
+Nachgeholt auf dem Feature-Branch: die ersten M16-Commits (nur Oberfläche) entstanden in der iterativen Phase vor
+dieser Analyse; der Python-Code ist auf dem Branch unverändert gegenüber `7e3719c`. Gegenüber `d308b96` kamen
+M15 (`verschieben.py`, Rückgängig bis, Kontenanlage) und das Update-Feature (`aktualisierung.py`) hinzu
+(+622 Python-Zeilen). C901 stieg um 1 (`aktualisierung.ausfuehren`, 11), mypy um 2 (Argumenttyp in
+`aktualisierung.py` und bei der Konfiguration), ruff-Funde um 8 und Parameter ohne Annotation um 10 mit dem
+Umfang. radon D/E/F unverändert, keine neuen breiten `except` (weiter zwei begründete `BLE001`), keine echten
+SQL-Funde. Maßnahme **R-11**. M16 selbst bringt nur die ES-Module `tabs.js` (neu) und Ergänzungen in `haupt.js`
+und `konto.js`; neue Funktionen bleiben klein (größte: `zeigen` in `haupt.js`, als Router bewusst eine Funktion).
+
+- [ ] **R-11 Typen in `aktualisierung.py` angleichen** (mypy-Fehler bei `ausfuehren`, verhaltensneutral) und
+  `ausfuehren` in Teilschritte zerlegen (C901 11).
