@@ -125,6 +125,7 @@ def test_desktop_ablauf(tmp_path, browser):
         page.keyboard.press("Enter")
         erfolg = page.locator('[data-testid="meldung"][data-art="erfolg"]')
         expect(erfolg.first).to_contain_text("Lebensmittel")
+        page.wait_for_load_state("networkidle")   # Neuladen nach der Änderung abwarten (sonst schließt es den Editor)
         # Inline-Bearbeitung und Rückgängig über das Protokoll
         zweck = zeilen.nth(1).locator('[data-feld="verwendungszweck"]')
         alt = zweck.inner_text()

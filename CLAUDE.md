@@ -207,6 +207,14 @@ Commit-Nachrichten sind auf Deutsch.
   Merge daher `git pull` (die CI committet „Version x.yy veröffentlicht“ auf main).
 - Neue Angaben im About-Fenster über `GET /api/version` (`app.py`) und `ueberOeffnen` (`haupt.js`).
 
+## Hinweise ab Meilenstein 17 (Tabs, Gegenbuchung)
+
+- Jede Ansicht ist ein Tab (`app/tabs.js`, Router `zeigen` in `haupt.js`): inaktive Tabs hängen nicht im Dokument,
+  behalten aber DOM und Seitenobjekt. Seiten können `aktualisieren()` (Neuladen nach Änderung, auch für veraltete
+  Tabs), `layoutGeaendert()`, `wiederAngefordert()` (Anfordern über Navigation) und `buchungZeigen(id)` anbieten.
+- Filter der Kontoansicht über `urlSchreiben` melden sich mit `oberflaeche.urlGeaendert()` beim Tab.
+- Browser-Speicher nur in `try` lesen/schreiben (M17 1.6). Maßstab: alle Tests einschließlich `m17`.
+
 ## Codequalität vor jedem Meilenstein
 
 - **Vor Beginn jedes neuen Meilensteins** die Codequalitätsanalyse nach

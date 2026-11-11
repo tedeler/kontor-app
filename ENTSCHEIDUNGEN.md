@@ -1445,3 +1445,46 @@ Weitere Abkürzungen: SY = `spec/api/synchronisation.md`, KA =
   sichtbar, erscheint ein Hinweis.
 - **Begründung:** Wunsch des Auftraggebers. Die Testkennung beginnt bewusst nicht mit `serie-`, weil Zeilen über
   `[data-testid^="serie-"]` gezählt werden (oberflaeche.md 13.5).
+
+## D-119 Tabs der Ansichten und „Gehe zur Gegenbuchung“ (Feature `tabs-gegenbuchung`, iterativ)
+
+- **Anlass:** Auftrag 2026-11-11; abgestimmt mit dem Auftraggeber: alle Seiten als Tabs, Tabs über Neuladen
+  hinweg gespeichert, Gegenbuchung auch in Kategorien, bei mehreren Gegenseiten ein Untermenü.
+- **Tabs:** Schlüssel eines Tabs ist der Pfad ohne Abfrageteil; dieselbe Ansicht erneut anfordern aktiviert ihren
+  Tab, ein neuer Tab entsteht rechts neben dem aktiven. Ein offener Tab behält DOM und Seitenobjekt (Auswahl, Fokus,
+  geladene Seiten, Scrollstand von Hauptbereich, Liste und Panels); inaktive Tabs hängen nicht im Dokument, damit
+  jede `data-testid` nur einmal vorkommt. Gespeichert werden im `localStorage` unter `kontor.tabs` nur Pfad,
+  Abfrageteil (Filter, Sortierung) und Titel (`{"version": 1, "tabs": [...], "aktiv": pfad}`, höchstens 40);
+  gespeicherte Tabs laden erst beim Aktivieren.
+- **URL gilt:** Ein direkter Aufruf (Adresszeile, Neuladen, Zurück/Vor) zeigt genau den Abfrageteil der URL. Nur
+  Navigation innerhalb der Oberfläche ohne Abfrageteil (Navigation, Links, Tab-Klick) übernimmt den des offenen
+  Tabs. Ein Link mit anderem Abfrageteil baut den Tab damit neu auf. Dieselbe aktive Ansicht erneut aufrufen baut
+  sie wie bisher neu auf.
+- **Aktualität:** Eine Änderung am Buchbestand (`aktion()` → Neuladen) markiert alle anderen geladenen Tabs als
+  veraltet; sie laden beim nächsten Zeigen mit dem Stand des Servers (`aktualisieren()`, sonst Neuaufbau). Offline
+  werden alle Tabs verworfen (keine veralteten Daten, oberflaeche.md 18).
+- **Schließen:** `tab-schliessen`, Mittelklick oder Entf auf dem fokussierten Tab. Wird der aktive geschlossen,
+  wird der rechte Nachbar aktiv, sonst der linke, sonst die Finanzübersicht. Tastatur in der Leiste: Pfeile, Pos1,
+  Ende, Leertaste.
+- **Gegenbuchung:** Kontextmenüeintrag `km-gegenbuchung` (nach „Bearbeiten…“, vor „Verschieben…“), aktiv bei genau
+  einer gewählten Buchung mit mindestens einem Split auf einem anderen Konto. Gegenseiten sind die Konten der übrigen
+  Splits (Bestandskonten und Kategorien), in Split-Reihenfolge ohne Doppelte. Bei genau einer wird direkt
+  gesprungen, bei mehreren öffnet an derselben Stelle ein Untermenü mit `km-gegenbuchung-<konto_id>` (Text: Pfad).
+  Ziel ist der Tab der Kontoansicht des Gegenkontos; dort wird die Buchung allein ausgewählt und fokussiert. Ist sie
+  nicht geladen, werden weitere Seiten geladen; verdecken die Filter des Tabs sie, werden sie (bis auf die
+  Sortierung) zurückgesetzt mit Hinweis „Filter zurückgesetzt, damit die Buchung sichtbar ist.“.
+- **Filterleiste (mit dem Auftraggeber abgestimmt):** Klick auf den Tab und Zurück/Vor stellen die Ansicht
+  vollständig her. Wird ein offener Tab über Navigation oder Link angefordert (auch der aktive, auch beim Sprung
+  zur Gegenbuchung), bleiben Filter, Sortierung, Auswahl und Scrollstand, die Filterleiste beginnt aber wieder
+  eingeklappt (oberflaeche.md 23.1, E-172 bleibt gültig).
+
+## D-120 Abnahme M16: Feinheiten der Kette und der Begründung
+
+- **Frage:** Der Abnahmelauf M16 (kontor-tests `590f096`) zeigte Abweichungen von der freigegebenen Definition.
+- **Entscheidung:** (1) Einträge im aktuellen Termin-Fenster, die nicht als Vorgänger gewählt werden, sind nicht
+  pauschal zusätzlich; es gilt allein Definition 1.2 (höchstens `T` Tage von `c` oder vom Vorgänger oder Kandidat des
+  vorigen Schritts). D-115 wird insoweit präzisiert. (2) Beim Bruch durch eine fremde Zahlung gelten die übrigen
+  Einträge dazwischen nach derselben Regel als zusätzlich und stehen in `uebersprungen` (E-193). (3) `kandidaten`
+  ist außerhalb des Schritts `anker` eine leere Liste (E-195). (4) Unbekannte Query-Parameter der Begründung → 422.
+- **Hinweis:** Ein anderer Implementierungs-Thread hatte den Branch vor dem Abnahmelauf auf main gemergt
+  (Version 0.06); die Korrekturen kommen mit dem erneuten Merge.

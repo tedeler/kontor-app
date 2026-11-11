@@ -9,6 +9,7 @@ import {
 import { bestaetigen, dialog, feld, fokusFalle, imDialog, knopf, knopfLeiste, zuordnungDialog } from "./ui.js";
 import { begruendungZeigen, kontoSeite, layoutZuruecksetzen, markierteBuchung } from "./konto.js";
 import * as S from "./seiten.js";
+import { Tabs } from "./tabs.js";
 
 const app = tid("app");
 const haupt = tid("hauptbereich");
@@ -20,12 +21,15 @@ const THEMA_SCHLUESSEL = "kontor.thema";
 const dunkelAbfrage = window.matchMedia("(prefers-color-scheme: dark)");
 const thema = {
   lesen() {
-    const t = localStorage.getItem(THEMA_SCHLUESSEL);
+    let t = null;
+    try { t = localStorage.getItem(THEMA_SCHLUESSEL); } catch (e) { /* Speicher nicht verfügbar: Vorgabe */ }
     return ["system", "hell", "dunkel"].includes(t) ? t : "system";
   },
   setzen(t) {
-    if (t === "system") localStorage.removeItem(THEMA_SCHLUESSEL);
-    else localStorage.setItem(THEMA_SCHLUESSEL, t);
+    try {
+      if (t === "system") localStorage.removeItem(THEMA_SCHLUESSEL);
+      else localStorage.setItem(THEMA_SCHLUESSEL, t);
+    } catch (e) { /* Speicher nicht verfügbar: gilt nur in diesem Fenster */ }
     thema.anwenden();
     const sel = tid("einstellung-thema");
     if (sel) sel.value = t;
@@ -260,11 +264,47 @@ function navMarkieren(ziel) {
 
 class NichtGefunden extends Error {}
 
+// ------------------------------------------------------------------ Tabs (D-119)
+// Jede Ansicht ist ein Tab (Schlüssel: Pfad ohne Abfrageteil). Ein offener Tab behält DOM und Seitenobjekt; beim
+// Wechsel wird nur das DOM getauscht. Eine Änderung am Buchbestand markiert die übrigen Tabs als veraltet; sie laden
+// beim nächsten Zeigen mit dem Stand des Servers neu.
+const tabs = new Tabs(tid("tab-leiste"), haupt, {
+  beiWahl: (t) => gehe(t.pfad + t.suche, false, { vonTab: true }),
+  beiSchliessen: (t, naechster) => {
+    if (naechster) gehe(naechster.pfad + naechster.suche, true);
+    else gehe("/", true);
+  },
+});
+oberflaeche.urlGeaendert = () => tabs.urlGeaendert();
+
+/** Einen offenen, geladenen Tab wieder zeigen (ohne Neuaufbau). Über Navigation oder Link angefordert (nicht über
+ * den Tab selbst oder Zurück/Vor) beginnt die Filterleiste wieder eingeklappt (oberflaeche.md 23.1, E-172). */
+async function tabZeigen(t, route, o) {
+  haupt.replaceChildren(t.el);
+  aktuell = t;
+  tabs.aktivieren(t);
+  navMarkieren(route ? route[2] : null);
+  titelSetzen(t.titel);
+  tabs.scrollHerstellen(t);
+  if (t.layout !== app.dataset.layout && t.seite && t.seite.layoutGeaendert) t.seite.layoutGeaendert();
+  t.layout = app.dataset.layout;
+  if (o.inApp && !o.vonTab && t.seite && t.seite.wiederAngefordert) t.seite.wiederAngefordert();
+  if (t.veraltet) {
+    t.veraltet = false;
+    if (t.seite && t.seite.aktualisieren) {
+      try { await stammLaden(); await t.seite.aktualisieren(); } catch (e) { behandeln(e); }
+    } else {
+      return false;   // Seite ohne eigenes Aktualisieren: neu aufbauen
+    }
+  }
+  app.dataset.bereit = "ja";
+  return true;
+}
+
 async function zeigen(optionen) {
   const o = optionen || {};
   const nr = ++renderNr;
   const pfad = location.pathname;
-  const suche = location.search;
   let route = null;
   let parameter = null;
   for (const r of ROUTEN) {
@@ -272,15 +312,33 @@ async function zeigen(optionen) {
     if (m) { route = r; parameter = m[1]; break; }
   }
   const name = route ? route[1] : "nicht-gefunden";
+  const offen = tabs.finden(pfad);
+  // Navigation innerhalb der Oberfläche ohne Abfrageteil: der offene Tab behält Filter und Sortierung
+  if (o.inApp && offen && location.search === "" && offen.suche) history.replaceState(null, "", pfad + offen.suche);
+  const suche = location.search;
   // Kontoansicht bei einem Neuladen nach einer Änderung: Auswahl und Fokus bleiben (7.4)
   if (o.behalten && aktuell && aktuell.name === name && aktuell.pfad === pfad && aktuell.seite && aktuell.seite.aktualisieren
       && aktuell.el.isConnected) {
+    tabs.andereVeraltet(aktuell);
     try { await stammLaden(); await aktuell.seite.aktualisieren(); } catch (e) { behandeln(e); }
     return;
   }
+  if (o.behalten) tabs.andereVeraltet(aktuell);
+  if (aktuell !== offen || !o.behalten) tabs.verlassen();
+  // Wechsel zu einem offenen Tab: Zustand bleibt, solange der Abfrageteil passt
+  if (!o.behalten && !o.erneut && offen && offen !== aktuell && offen.geladen && offen.el && offen.suche === suche && !offline) {
+    if (await tabZeigen(offen, route, o)) return;
+  }
+  const tab = tabs.holen(pfad, suche);
+  tab.suche = suche;
   const el = h("section", { class: `seite seite-${name}`, tid: `seite-${name}`, "data-geladen": "nein" });
   const scrollVorher = o.behalten ? haupt.scrollTop : 0;
-  if (!o.behalten || !aktuell || aktuell.name !== name) haupt.replaceChildren(el);
+  const gleich = aktuell === tab && aktuell.name === name;
+  if (!o.behalten || !gleich) haupt.replaceChildren(el);
+  if (!o.behalten) haupt.scrollTop = 0;
+  aktuell = tab;
+  Object.assign(tab, { name, el, seite: null, geladen: false, veraltet: false, scroll: null, layout: app.dataset.layout });
+  tabs.aktivieren(tab);
   navMarkieren(route ? route[2] : null);
   try {
     if (!route) throw new NichtGefunden();
@@ -290,7 +348,9 @@ async function zeigen(optionen) {
     const seite = await route[3](el, parameter, suche, kontext);
     if (nr !== renderNr) return;
     if (o.behalten) haupt.replaceChildren(el);
-    aktuell = { name, pfad, el, seite };
+    Object.assign(tab, { seite: seite || null, geladen: true });
+    const titel = (seite && seite.titel) || titelVon(name);
+    tabs.titelSetzen(tab, titel);
     titelSetzen(seite && seite.titel);
     el.dataset.geladen = "ja";
     if (o.behalten) haupt.scrollTop = scrollVorher;
@@ -302,11 +362,13 @@ async function zeigen(optionen) {
         h("p", null, h("a", { href: "/" }, "Zur Finanzübersicht")));
       haupt.replaceChildren(nf);
       navMarkieren(route && name === "konto" ? "konten" : null);
-      aktuell = { name: "nicht-gefunden", pfad, el: nf, seite: null };
+      Object.assign(tab, { name: "nicht-gefunden", el: nf, seite: null, geladen: false });
+      tabs.titelSetzen(tab, "Nicht gefunden");
       titelSetzen("Nicht gefunden");
     } else {
-      aktuell = { name, pfad, el, seite: null };
+      Object.assign(tab, { el, seite: null, geladen: false });
       if (!el.querySelector("h1")) el.prepend(h("h1", null, titelVon(name)));
+      tabs.titelSetzen(tab, tab.titel || titelVon(name));
       titelSetzen(titelVon(name));
       behandeln(e);
     }
@@ -333,16 +395,29 @@ function behandeln(e) {
 
 oberflaeche.neuLaden = () => zeigen({ behalten: true });
 
-export function gehe(pfad, ersetzen) {
+export function gehe(pfad, ersetzen, optionen) {
   menueSchliessen(false);
-  if (pfad === location.pathname + location.search) { zeigen(); return; }
+  // dieselbe Ansicht erneut aufrufen baut sie neu auf (wie bisher)
+  if (pfad === location.pathname + location.search) return zeigen({ erneut: true });
+  // aktiver Tab mit Filtern ohne Abfrageteil angefordert: Zustand bleibt, Filterleiste eingeklappt (D-119)
+  if (pfad === location.pathname && aktuell && aktuell.pfad === pfad && aktuell.geladen && aktuell.el.isConnected) {
+    if (aktuell.seite && aktuell.seite.wiederAngefordert && !(optionen && optionen.vonTab)) aktuell.seite.wiederAngefordert();
+    return Promise.resolve();
+  }
+  tabs.verlassen();
   if (ersetzen) history.replaceState(null, "", pfad); else history.pushState(null, "", pfad);
-  haupt.scrollTop = 0;
-  zeigen();
+  return zeigen({ inApp: true, ...(optionen || {}) });
 }
 oberflaeche.gehe = gehe;
 
-window.addEventListener("popstate", () => zeigen());
+/** Gehe zur Gegenbuchung: Kontoansicht des Kontos (Tab) zeigen und dort die Buchung markieren. */
+oberflaeche.zurBuchung = async (kontoId, buchungId) => {
+  const ziel = `/konten/${kontoId}`;
+  if (location.pathname !== ziel) await gehe(ziel);
+  if (aktuell && aktuell.pfad === ziel && aktuell.seite && aktuell.seite.buchungZeigen) await aktuell.seite.buchungZeigen(buchungId);
+};
+
+window.addEventListener("popstate", () => { tabs.verlassen(); zeigen(); });
 
 document.addEventListener("click", (e) => {
   if (e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
@@ -687,7 +762,8 @@ function offlineSetzen(ja) {
       const leer = h("section", { class: `seite seite-${aktuell.name}`, tid: `seite-${aktuell.name}`, "data-geladen": "nein" },
         h("h1", null, titelVon(aktuell.name)));
       haupt.replaceChildren(leer);
-      aktuell = { name: aktuell.name, pfad: aktuell.pfad, el: leer, seite: null };
+      tabs.alleVerwerfen();
+      Object.assign(aktuell, { el: leer, seite: null, geladen: false });
     }
   }
 }
