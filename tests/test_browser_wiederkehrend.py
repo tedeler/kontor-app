@@ -75,3 +75,6 @@ def test_serienmenue_begruendung_und_sprung(tmp_path, browser):  # noqa: F811
         markiert = page.locator('[data-testid="buchungsliste"] [role="row"][aria-selected="true"]')
         expect(markiert).to_have_count(1)
         expect(markiert).to_contain_text("15.06.2024")
+        page.go_back()
+        bereit(page, "wiederkehrend")
+        expect(tid(page, "seite-wiederkehrend")).not_to_contain_text("null")

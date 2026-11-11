@@ -204,7 +204,7 @@ export async function wiederkehrend(seite) {
   seite.append(h("p", null, "Summe der Jahreskosten: ", betragEl("strong", u.summe_jahreskosten)),
     tabelle({ tid: "wiederkehrend-tabelle" }, ["Empfänger", "Konto", "Rhythmus", "Betrag", "Jahreskosten", "Nächste Fälligkeit",
       "Status", h("span", { class: "nur-sr" }, "Aktionen")], u.serien.map(zeile)),
-    u.serien.length ? null : leer("Keine wiederkehrenden Buchungen erkannt."));
+    ...(u.serien.length ? [] : [leer("Keine wiederkehrenden Buchungen erkannt.")]));
   return { titel: "Wiederkehrende Buchungen" };
 }
 
@@ -228,7 +228,7 @@ export async function kredite(seite) {
     li.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); oeffnen(); } });
     return li;
   }));
-  seite.append(ul, liste.length ? null : leer("Noch keine Kredite."));
+  seite.append(ul, ...(liste.length ? [] : [leer("Noch keine Kredite.")]));
   return { titel: "Kredite" };
 }
 
@@ -616,7 +616,7 @@ export async function protokoll(seite) {
   seiteNr = 1;
   geladen = s.eintraege;
   zeichnen(s.gesamt);
-  seite.append(liste, geladen.length ? null : leer("Noch keine Änderungen."), mehr);
+  seite.append(liste, ...(geladen.length ? [] : [leer("Noch keine Änderungen.")]), mehr);
   return { titel: "Änderungsprotokoll" };
 }
 
