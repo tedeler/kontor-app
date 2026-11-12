@@ -24,7 +24,8 @@ REST = ["/api/status", "/api/konten", "/api/kontenuebersicht", "/api/buchungen",
         "/api/benachrichtigungen", "/api/aenderungen", "/api/abstimmungen", "/api/suche", "/api/umbuchungen/erkennen",
         "/api/lernmodell", "/api/vorlagen", "/api/sicherung", "/api/kredite", "/api/wiederkehrend", "/api/berichte/kontostand",
         "/api/export/buchungen.csv", "/api/export/buchungen.pdf", "/api/berichte/einnahmen-ausgaben", "/api/mock/zeit", "/api/geheimnisse", "/api/mail/postfaecher",
-        "/api/mail/anmeldung/abschluss", "/api/mail/abruf", "/api/anmeldung", "/api/update"]  # update: D-107
+        "/api/mail/anmeldung/abschluss", "/api/mail/abruf", "/api/anmeldung", "/api/update",  # update: D-107
+        "/api/import/alfbanco", "/api/kategorien/zusammenfuehren"]  # D-123, D-126
 
 
 def test_startseite_echt(client):

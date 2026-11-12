@@ -173,6 +173,13 @@ KONTO_LOESCHEN = {
     "gesperrte_einbeziehen": S("bool"),
     "trocken": S("bool"),
 }
+KATEGORIEN_ZUSAMMEN = {
+    "quelle_ids": S("int_liste", pflicht=True, min_items=1, max_items=1000, eindeutig=True),
+    "ziel_id": S("int", pflicht=True),
+    "quellen_loeschen": S("bool"),
+    "gesperrte_einbeziehen": S("bool"),
+    "trocken": S("bool"),
+}
 MEHRFACH_LOESCHEN = {"buchung_ids": S("int_liste", pflicht=True, min_items=1, eindeutig=True)}
 MEHRFACH_VERSCHIEBEN = {
     "von_konto_id": S("int", pflicht=True),
@@ -933,6 +940,15 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
             return protokoll.mit_aenderung_id(pflege.konto_loeschen_mit_buchungen(con, kid, d))
         return await aendern("konto_loeschen_mit_buchungen", f, pid(request, "konto_id"), d)
 
+    @endpunkt("POST", "/api/kategorien/zusammenfuehren")
+    async def kategorien_zusammenfuehren(request: Request):
+        """Buchungen mehrerer Kategorien auf eine Zielkategorie umbuchen, Quellen auf Wunsch löschen (D-126)."""
+        d = await koerper(request, KATEGORIEN_ZUSAMMEN)
+
+        def f(con, d):
+            return protokoll.mit_aenderung_id(pflege.kategorien_zusammenfuehren(con, d))
+        return await aendern("kategorien_zusammenfuehren", f, d)
+
     @endpunkt("POST", "/api/buchungen/erfassen", 201)
     async def buchung_erfassen(request: Request):
         d = await koerper(request, BUCHUNG_ERFASSEN)
@@ -1253,7 +1269,7 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
         try:
             form = await request.form()
         except Exception:
-            raise Validierungsfehler([fehler_eintrag(["body"], "multipart/form-data mit Feld 'datei' erwartet.")])
+            raise Validierungsfehler([fehler_eintrag(["body"], "multipart/form-data mit Feld 'datei' erwartet.")]) from None
         roh_id = form.get("konto_id")
         if not isinstance(roh_id, str) or not re.fullmatch(r"[1-9][0-9]{0,17}", roh_id.strip()):
             raise Validierungsfehler([fehler_eintrag(["body", "konto_id"], "Die Konto-ID fehlt oder ist ungültig.")])

@@ -1,11 +1,19 @@
 /* Kontor – Kategorienbaum (oberflaeche.md 13.1), Kontextmenü für Konten (8.2), Ziehen (10) und Gesten (16.4). */
 import { aktion, api, baumFolge, h, kontoNach, melde, oberflaeche, stamm } from "./kern.js";
-import { kontextmenue, kontoDialog, kontoEinstellungen, kontoLoeschen, menuePosition, zielAuswahl } from "./ui.js";
+import { kategorienZusammenfuehren, kontextmenue, kontoDialog, kontoEinstellungen, kontoLoeschen, menuePosition,
+  zielAuswahl } from "./ui.js";
 
 // ------------------------------------------------------------------ Kontextmenü für Konten und Kategorien (8.2)
 export function kontoMenue(konto, x, y, ausloeser, optionen) {
   const o = optionen || {};
+  const istKategorie = konto.art === "aufwand" || konto.art === "ertrag";
+  // Mehrfachauswahl im Kategorienbaum: Zusammenführen wirkt auf alle markierten, wenn der Eintrag dazugehört (D-126)
+  const markierte = o.markierte ? o.markierte() : [];
+  const quellen = markierte.some((k) => k.id === konto.id) ? markierte : [konto];
   kontextmenue(x, y, [
+    istKategorie ? { tid: "km-kategorie-zusammenfuehren",
+      text: quellen.length > 1 ? `${quellen.length} Kategorien zusammenführen in…` : "Zusammenführen in…",
+      tun: () => kategorienZusammenfuehren(quellen, ausloeser) } : null,
     { tid: "km-konto-oeffnen", text: "Öffnen", tun: () => oberflaeche.gehe(`/konten/${konto.id}`) },
     { tid: "km-konto-umbenennen", text: "Umbenennen…", tun: () => umbenennen(konto, o.namensZelle ? o.namensZelle() : null) },
     { tid: "km-konto-einstellungen", text: "Einstellungen…", tun: () => kontoEinstellungen(konto, ausloeser) },
@@ -13,7 +21,7 @@ export function kontoMenue(konto, x, y, ausloeser, optionen) {
       tun: () => kontoDialog({ titel: `Unterkonto von „${konto.name}“`, art: konto.art, eltern_id: konto.id }, ausloeser) },
     { tid: "km-konto-verschieben", text: "Verschieben nach…", tun: () => verschieben(konto, ausloeser) },
     { tid: "km-konto-loeschen", text: "Löschen…", tun: () => kontoLoeschen(konto, ausloeser) },
-  ], ausloeser);
+  ].filter(Boolean), ausloeser);
 }
 
 async function verschieben(konto, ausloeser) {
@@ -148,6 +156,7 @@ export function langeBeruehrung(wurzel, finden, wirkung) {
 
 // ------------------------------------------------------------------ Kategorienbaum (13.1)
 const zugeklappt = new Set();
+const markiert = new Set(); // Mehrfachauswahl im Kategorienbaum (D-126), bleibt beim Neuzeichnen erhalten
 
 /**
  * Baut den Kategorienbaum (`kategorienbaum`, Rolle `tree`) aus stamm.konten. Jeder Eintrag ist genau eine Zeile
@@ -158,7 +167,8 @@ const zugeklappt = new Set();
  */
 export function kategorienBaum(optionen) {
   const o = optionen || {};
-  const baum = h("div", { role: "tree", tid: "kategorienbaum", class: "baum", "aria-label": "Kategorien" });
+  const baum = h("div", { role: "tree", tid: "kategorienbaum", class: "baum", "aria-label": "Kategorien",
+    "aria-multiselectable": "true" });
   const eintraege = new Map();
   for (const [art, titel] of [["aufwand", "Ausgaben"], ["ertrag", "Einnahmen"]]) {
     const konten = stamm.konten.filter((k) => k.art === art);
@@ -182,7 +192,7 @@ export function kategorienBaum(optionen) {
         h("span", { class: "baum-name" }, k.name));
       const el = h("div", { role: "treeitem", tid: `kategorie-${k.id}`, class: "baum-eintrag", "aria-level": String(f.ebene),
         "aria-label": k.name, "aria-expanded": kinder.length ? String(offen) : null, tabindex: "-1",
-        "data-konto-id": String(k.id), "data-klasse": art }, zeile);
+        "data-konto-id": String(k.id), "data-klasse": art, "aria-selected": markiert.has(k.id) ? "true" : "false" }, zeile);
       let unter = 0;
       if (kinder.length) {
         const grp = h("div", { role: "group", class: "baum-kinder", hidden: !offen });
@@ -219,7 +229,40 @@ export function kategorienBaum(optionen) {
     el.tabIndex = 0;
     el.focus();
   }
-  baum.addEventListener("click", (e) => { const el = eintragVon(e.target); if (el) fokus(el); });
+  // Mehrfachauswahl wie im Dateimanager: Strg/⌘ schaltet um, Umschalt markiert einen Bereich (D-126)
+  let anker = null;
+  const auswahlZeigen = () => {
+    for (const el of baum.querySelectorAll('[role="treeitem"]')) {
+      el.setAttribute("aria-selected", markiert.has(Number(el.dataset.kontoId)) ? "true" : "false");
+    }
+  };
+  const markieren = (el, e) => {
+    const id = Number(el.dataset.kontoId);
+    if (e.shiftKey && anker !== null) {
+      const s = sichtbare();
+      const a = s.findIndex((x) => Number(x.dataset.kontoId) === anker);
+      const b = s.indexOf(el);
+      if (a >= 0 && b >= 0) {
+        if (!e.ctrlKey && !e.metaKey) markiert.clear();
+        for (const x of s.slice(Math.min(a, b), Math.max(a, b) + 1)) markiert.add(Number(x.dataset.kontoId));
+      }
+    } else if (e.ctrlKey || e.metaKey || e.key === " ") {
+      if (markiert.has(id)) markiert.delete(id); else markiert.add(id);
+      anker = id;
+    } else {
+      markiert.clear();
+      markiert.add(id);
+      anker = id;
+    }
+    auswahlZeigen();
+  };
+  const markierte = () => [...markiert].map((id) => kontoNach(id)).filter(Boolean);
+  baum.addEventListener("click", (e) => {
+    const el = eintragVon(e.target);
+    if (!el || e.target.closest(".baum-schalter")) return;
+    fokus(el);
+    markieren(el, e);
+  });
   baum.addEventListener("dblclick", (e) => {
     const el = eintragVon(e.target);
     if (el && !e.target.closest(".baum-schalter")) oberflaeche.gehe(`/konten/${el.dataset.kontoId}`);
@@ -238,11 +281,13 @@ export function kategorienBaum(optionen) {
     } else if (e.key === "ArrowLeft" && el.getAttribute("aria-expanded") === "true") {
       e.preventDefault(); zugeklappt.add(Number(el.dataset.kontoId)); if (o.neuZeichnen) o.neuZeichnen();
     } else if (e.key === "Enter") { e.preventDefault(); oberflaeche.gehe(`/konten/${el.dataset.kontoId}`); }
+    else if (e.key === " ") { e.preventDefault(); markieren(el, e); }
+    else if (e.key === "Escape" && markiert.size) { e.preventDefault(); markiert.clear(); auswahlZeigen(); }
     else if (e.key === "F2") { e.preventDefault(); umbenennen(kontoVon(el), el.querySelector(".baum-name")); }
     else if ((e.key === "F10" && e.shiftKey) || e.key === "ContextMenu") {
       e.preventDefault();
       const [x, y] = menuePosition(null, el.querySelector(".baum-zeile"));
-      kontoMenue(kontoVon(el), x, y, el, { namensZelle: () => el.querySelector(".baum-name") });
+      kontoMenue(kontoVon(el), x, y, el, { namensZelle: () => el.querySelector(".baum-name"), markierte });
     }
   });
   baum.addEventListener("contextmenu", (e) => {
@@ -250,11 +295,11 @@ export function kategorienBaum(optionen) {
     if (!el) return;
     e.preventDefault();
     fokus(el);
-    kontoMenue(kontoVon(el), e.clientX, e.clientY, el, { namensZelle: () => el.querySelector(".baum-name") });
+    kontoMenue(kontoVon(el), e.clientX, e.clientY, el, { namensZelle: () => el.querySelector(".baum-name"), markierte });
   });
   langeBeruehrung(baum, eintragVon, (el, x, y) => {
     fokus(el);
-    kontoMenue(kontoVon(el), x, y, el, { namensZelle: () => el.querySelector(".baum-name") });
+    kontoMenue(kontoVon(el), x, y, el, { namensZelle: () => el.querySelector(".baum-name"), markierte });
   });
 
   // Umsortieren per Drag and Drop (10, E-144)

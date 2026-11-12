@@ -243,6 +243,7 @@ html.zieht, html.zieht * { cursor: grabbing !important; }
 .baum-zeile { display: flex; align-items: center; gap: .2rem; height: var(--zeile-baum); padding-left: calc(.2rem + var(--stufe, 0) * 1.1rem);
   border-radius: 4px; cursor: default; white-space: nowrap; overflow: hidden; }
 .baum-zeile:hover { background: var(--hg-2); }
+.baum-eintrag[aria-selected="true"] > .baum-zeile { background: var(--auswahl); }
 .baum-name { overflow: hidden; text-overflow: ellipsis; }
 .baum-schalter { width: 1.2rem; text-align: center; cursor: pointer; flex: none; color: var(--text-2); }
 .baum-kinder { position: absolute; top: var(--zeile-baum); left: 0; right: 0; }

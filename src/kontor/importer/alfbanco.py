@@ -97,74 +97,77 @@ def dekodieren(roh: bytes) -> str:
         return roh.decode("latin-1")
 
 
+class _Zerleger:
+    """Zerlegt den QIF-Text zeilenweise in Abschnitte (``!Type:…``, ``!Account``) und Sätze (Ende ``^``)."""
+
+    def __init__(self) -> None:
+        self.datei = _Datei()
+        self.abschnitt = ""
+        self.konto: str | None = None
+        self.felder: dict[str, str] = {}
+        self.teile: list[_Teil] = []
+        self.nr = 0
+
+    def kopf(self, zeile: str) -> None:
+        self.satz_ende()
+        kopf = zeile[1:].strip().lower()
+        if kopf.startswith("type:"):
+            self.abschnitt = kopf[5:].strip()
+        elif kopf == "account":
+            self.abschnitt = "account"
+        elif not kopf.startswith(("option:", "clear:")):
+            self.abschnitt = "unbekannt"
+
+    def feld(self, code: str, wert: str) -> None:
+        if code == "^":
+            self.satz_ende()
+        elif code == "S":
+            self.teile.append(_Teil(wert.strip(), "", ""))
+        elif code == "E" and self.teile:
+            self.teile[-1].memo = wert
+        elif code == "$" and self.teile:
+            self.teile[-1].betrag_text = wert.strip()
+        elif code not in self.felder:
+            self.felder[code] = wert
+
+    def satz_ende(self) -> None:
+        f, self.felder, teile, self.teile = self.felder, {}, self.teile, []
+        if not f and not teile:
+            return
+        if self.abschnitt == "account":
+            self.konto = f.get("N", "").strip() or self.konto
+        elif self.abschnitt == "cat":
+            name = f.get("N", "").strip()
+            if name and ("I" in f or "E" in f):
+                self.datei.kategorie_art[name] = "ertrag" if "I" in f else "aufwand"
+        elif self.abschnitt in _BUCHUNGSTYPEN or self.abschnitt in _UEBERSPRINGEN:
+            self.nr += 1
+            self.datei.saetze.append(_Satz(self.nr, self.abschnitt, f, teile))
+            if self.abschnitt in _BUCHUNGSTYPEN:
+                self.datei.konten_mit_buchungen.add(self.konto or "")
+
+
 def _zerlegen(text: str) -> _Datei:
     """Zerlegt den QIF-Text in Buchungssätze; Format- und Strukturfehler als ``_Abbruch``."""
     zeilen = [z.rstrip() for z in text.splitlines()]
     erste = next((z.strip() for z in zeilen if z.strip()), "")
     if not erste.startswith("!"):
         raise _Abbruch("import_format_ungueltig", "Die Datei ist keine QIF-Datei (Kopfzeile „!Type:…“ fehlt).", None)
-    datei = _Datei()
-    abschnitt = ""
-    konto: str | None = None
-    feld_satz: dict[str, str] = {}
-    teile: list[_Teil] = []
-    nr = 0
-
-    def satz_ende() -> None:
-        nonlocal feld_satz, teile, nr, konto
-        if not feld_satz and not teile:
-            return
-        if abschnitt == "account":
-            konto = feld_satz.get("N", "").strip() or konto
-        elif abschnitt == "cat":
-            name = feld_satz.get("N", "").strip()
-            if name:
-                if "I" in feld_satz:
-                    datei.kategorie_art[name] = "ertrag"
-                elif "E" in feld_satz:
-                    datei.kategorie_art[name] = "aufwand"
-        elif abschnitt in _BUCHUNGSTYPEN or abschnitt in _UEBERSPRINGEN:
-            nr += 1
-            datei.saetze.append(_Satz(nr, abschnitt, feld_satz, teile))
-            if abschnitt in _BUCHUNGSTYPEN:
-                datei.konten_mit_buchungen.add(konto or "")
-        feld_satz, teile = {}, []
-
+    z = _Zerleger()
     for zeile in zeilen:
         if not zeile.strip():
             continue
         if zeile.startswith("!"):
-            satz_ende()
-            kopf = zeile[1:].strip().lower()
-            if kopf.startswith("type:"):
-                abschnitt = kopf[5:].strip()
-            elif kopf == "account":
-                abschnitt = "account"
-            elif kopf.startswith(("option:", "clear:")):
-                continue
-            else:
-                abschnitt = "unbekannt"
-            continue
-        code, wert = zeile[0], zeile[1:]
-        if code == "^":
-            satz_ende()
-        elif code == "S":
-            teile.append(_Teil(wert.strip(), "", ""))
-        elif code == "E" and teile:
-            teile[-1].memo = wert
-        elif code == "$" and teile:
-            teile[-1].betrag_text = wert.strip()
-        elif code in ("E", "I") and abschnitt == "cat":
-            feld_satz[code] = wert
-        elif code not in feld_satz:
-            feld_satz[code] = wert
-    satz_ende()
-    if not datei.saetze and abschnitt == "" and not datei.kategorie_art:
+            z.kopf(zeile)
+        else:
+            z.feld(zeile[0], zeile[1:])
+    z.satz_ende()
+    if not z.datei.saetze and z.abschnitt == "" and not z.datei.kategorie_art:
         raise _Abbruch("import_format_ungueltig", "Die QIF-Datei enthält keinen bekannten Abschnitt.", FORMAT)
-    if len(datei.konten_mit_buchungen) > 1:
+    if len(z.datei.konten_mit_buchungen) > 1:
         raise _Abbruch("import_format_ungueltig",
                        "Die Datei enthält Buchungen mehrerer Konten; bitte je Konto eine Datei exportieren.", FORMAT)
-    return datei
+    return z.datei
 
 
 _ZAHL = re.compile(r"^[+-]?[0-9.,]+$")
@@ -558,7 +561,8 @@ def _anwenden(con: sqlite3.Connection, datei: _Datei, konto: dict, lauf: _Lauf, 
     exakt_zaehler = _bewerten(con, neue, konto["id"], max_buchung, belegt)
     for n in neue:
         if len(n.exakt) == 1 and exakt_zaehler[next(iter(n.exakt))] == 1:
-            con.execute("INSERT INTO buchung_extern (buchung_id, extern_id) VALUES (?, ?)", (next(iter(n.exakt)), n.ext))
+            con.execute("INSERT INTO buchung_extern (buchung_id, extern_id) VALUES (?, ?)",
+                        (next(iter(n.exakt)), n.ext))
             lauf.z["buchungen_zusammengefuehrt"] += 1
             continue
         bid = buch.buchung_einfuegen(con, n.satz.datum, n.empfaenger_id, n.satz.felder.get("M", ""), "importiert",

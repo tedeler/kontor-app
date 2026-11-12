@@ -1509,3 +1509,86 @@ Weitere Abkürzungen: SY = `spec/api/synchronisation.md`, KA =
   genau ein Schritt. Das Neuladen der Ansicht danach läuft außerhalb dieser Reihe.
 - Ein Schritt wartet außerdem auf gerade laufende Aktionen, bis deren Änderungen auf dem Rückgängig-Stapel liegen:
   Strg+Z unmittelbar nach einer Änderung macht genau diese rückgängig, statt „nichts rückgängig zu machen“ zu melden.
+
+## D-123 ALF-BanCo-Import über den QIF-Export (Feature `alfbanco-import`)
+
+- **Frage:** ALF-BanCo 9 speichert seine Daten verschlüsselt (`HbDat001.dat`), das Format ist nicht dokumentiert.
+  Welches Format wird importiert?
+- **Entscheidung:** Der QIF-Export (Profi-Edition, „Datei > Export > Umsätze > QIF-Format“), eine Datei je Konto
+  (Auftrag des Anwenders 2026-11-12). Neuer Endpunkt `POST /api/import/alfbanco` (multipart: `datei`, `konto_id`)
+  und `kontor.importer.alfbanco.importiere_alfbanco(config, quelle, *, konto_id, dateiname=None)`. Das Zielkonto
+  muss ein Bestandskonto sein (422 `referenz_unbekannt` bzw. `konto_ungueltig`, Python: `ValueError`); fehlt
+  `konto_id` oder ist es keine positive Ganzzahl → 422 `validierung`. Ergebnis wie beim KMyMoney-Import
+  (`ImportErgebnis`, `format = "qif"`), Importvorgang `art = "alfbanco"`, Änderung `import_alfbanco` mit Gruppe
+  `import:<id>`; kein Teilimport. Fehler: leere Datei → `import_datei_leer`; erste nicht leere Zeile beginnt nicht
+  mit `!` → `import_format_ungueltig` (`format = null`); Buchungen mehrerer `!Account`-Konten in einer Datei →
+  `import_format_ungueltig`; fehlendes/ungültiges Datum oder fehlender/ungültiger Betrag eines Satzes oder einer
+  Aufteilung → `import_inhalt_ungueltig` mit `referenz = "Satz <n>"` (n = laufende Nummer der Buchungssätze).
+- **Lesen:** Kodierung UTF-8 (mit/ohne BOM), sonst Windows-1252, sonst Latin-1. Abschnitte `!Type:Bank`, `CCard`,
+  `Cash`, `Oth A`, `Oth L` sind Buchungen; `!Type:Invst` wird gezählt und übersprungen (`buchung_uebersprungen`);
+  `!Type:Cat` liefert die Art der Kategorien (`I` Einnahme, `E` Ausgabe); alles andere wird ignoriert. Felder:
+  `D` Datum, `T` (sonst `U`) Betrag, `P` Empfänger, `M` Verwendungszweck, `L` Kategorie, `S`/`E`/`$` Aufteilung.
+  Datum: `T.M.JJJJ`/`T.M.JJ`, `JJJJ-MM-TT`, `M/T/JJJJ`, `M/T'JJ` (Apostroph = 20JJ); bei `/` Tag zuerst, wenn ein
+  Datum der Datei an erster Stelle > 12 hat; zweistellige Jahre < 70 → 20JJ, sonst 19JJ. Betrag: Dezimalkomma, wenn
+  ein Betrag der Datei mit Komma und ein bis zwei Ziffern endet, sonst Dezimalpunkt; der andere Trenner gilt als
+  Tausendertrenner; mehr als zwei Nachkommastellen nur, wenn sie 0 sind.
+
+## D-124 Kennung und Dubletten beim ALF-BanCo-Import
+
+- **Frage:** QIF hat keine Transaktions-IDs. Wie bleibt der Import idempotent, ohne zwei gleiche Kaffees zu
+  verschmelzen?
+- **Entscheidung:** Herkunftskennung `alf:<konto_id>:<32 Hex>` aus SHA-256 über Datum, Betrag, `P`, `M`, `L`, `N`,
+  die Aufteilungen und die laufende Nummer gleicher Sätze in der Datei. Ein zweiter Import derselben Datei ordnet
+  alles über die Kennung zu; eine erweiterte Fassung fügt genau die neuen Sätze hinzu. Dublettenprüfung wie
+  `datenmodell.md` 10.4, aber nur über das Zielkonto und gegen alle vorher vorhandenen Buchungen auch derselben
+  Quelle (ein nachträglich in ALF-BanCo geänderter Satz bekommt eine neue Kennung und soll trotzdem erkannt werden),
+  ausgenommen Buchungen, die im selben Lauf schon über ihre Kennung zugeordnet wurden.
+
+## D-125 Kategorien, Klassen und Umbuchungen beim ALF-BanCo-Import
+
+- **Kategorien:** `L` bzw. `S` mit `:` ergibt die Hierarchie; je Pfad eine Kategorie mit
+  `extern_id = "alf:kat:<Pfad>"`. Zuordnung: gleiche Kennung; sonst vorhandene Kategorie gleicher Art mit exakt
+  gleichem Namen und gleichem (zugeordnetem) Elternkonto, deren Kennung nicht mit `alf:` oder `kontor:` beginnt
+  (sie erhält die Kennung nur, wenn sie noch keine hat; Kategorien aus KMyMoney/GnuCash werden so jedes Mal über
+  den Namen wiedererkannt); sonst neu. Gezählt wird jeder Pfad der Datei genau einmal, auch bei schon vorhandenen
+  Buchungen.
+- **Art:** je Wurzel aus `!Type:Cat` (Wurzel, sonst erste gekennzeichnete Unterkategorie), sonst aus der Summe der
+  Gegenbeträge (≥ 0 Ausgabe, < 0 Einnahme) mit Warnung `kategorieart_abgeleitet` beim Neuanlegen. Unterkategorien
+  erben die Art ihres Elternkontos.
+- **Leere Kategorie** → „Unkategorisiert“. **Klasse** (`Kategorie/Klasse`) → Tag (Vergleich mit `casefold`).
+  **Umbuchung** `[Name]` → Bestandskonto mit genau diesem Namen (kleinste ID, nicht das Zielkonto); unbekannt →
+  „Unkategorisiert“ mit Warnung `umbuchung_konto_unbekannt`; `[eigener Kontoname]` (Anfangssaldo) → technisches
+  Eigenkapitalkonto „Anfangssalden“ (`extern_id = "alf:anfangssalden"`). Ergeben die Aufteilungen nicht den
+  Gesamtbetrag, geht der Rest auf „Unkategorisiert“ (Warnung `split_differenz`).
+
+## D-126 Kategorien zusammenführen
+
+- **Anlass:** Nach dem Import sollen ALF-BanCo-Kategorien in schon vorhandene gleichwertige Kategorien überführt
+  werden können: mehrere markieren, Ziel wählen.
+- **Entscheidung:** `POST /api/kategorien/zusammenfuehren` mit `{quelle_ids (1–1000, eindeutig), ziel_id,
+  quellen_loeschen (Vorgabe true), gesperrte_einbeziehen (false), trocken (false)}`. Prüfreihenfolge: Körper → 422
+  `validierung`; Ziel unter den Quellen → 422 `ziel_ungueltig`; unbekannte IDs → 422 `referenz_unbekannt`
+  (`details.konto_ids`); Quelle oder Ziel keine Kategorie → 422 `konto_ungueltig`; zu löschende Quelle mit
+  Kreditbezug → wie beim Löschen; gesperrte Buchungen ohne Bestätigung (nicht im Probelauf) → 409
+  `buchung_gesperrt`. Wirkung je Quelle in der angegebenen Reihenfolge wie `loeschen.md` mit Variante
+  `elternkonto`, aber mit dem gewählten Ziel: Splits umbuchen und auf dem Ziel zusammenfassen, Konfliktbuchungen
+  behalten, Regeln, Split-Vorlagen und Standardkategorien auf das Ziel umstellen, Abstimmungen der Quelle
+  entfernen, Quelle löschen. Unterkategorien einer Quelle wandern unter das Ziel, wenn es dieselbe Klasse hat und
+  dabei kein Zyklus entsteht, sonst eine Ebene nach oben. Ohne `quellen_loeschen` werden nur die Buchungen
+  umgebucht (samt Zusammenfassen und Entfernen der Abstimmungen der Quelle). Hat das Ziel keine `extern_id`, erhält
+  es die der ersten gelöschten Quelle, damit ein späterer Import die gelöschte Kategorie nicht neu anlegt.
+  Einnahme- und Ausgabekategorien dürfen gemischt werden (die abgeleitete Art kann falsch sein). Eine Änderung
+  `kategorien_zusammenfuehren` (`quelle = "manuell"`), rückgängig machbar. Antwort: `ziel_id`, `quelle_ids`,
+  `quellen_geloescht`, `buchungen_umgebucht`, `konfliktbuchungen`, `gesperrt`, `unterkategorien_verschoben`,
+  `regeln_geaendert`, `empfaenger_geaendert`, `extern_id_uebernommen`, `trocken`, `aenderung_id`.
+- **Oberfläche:** Kategorienbaum mit Mehrfachauswahl (Strg/⌘-Klick, Umschalt-Klick, Leertaste, Esc hebt auf;
+  `aria-selected`), Kontextmenüeintrag `km-kategorie-zusammenfuehren` („Zusammenführen in…“, bei Auswahl „n
+  Kategorien zusammenführen in…“), Dialog `zusammenfuehren-dialog` mit Suche, Zielliste, Schalter
+  „Quellkategorien danach löschen“, Vorschau über den Probelauf und Bestätigung gesperrter Buchungen.
+  Import-Seite: Format „ALF-BanCo“ mit Kontoauswahl `import-konto`.
+
+## D-127 `_loeschen_ausfuehren` mit frei wählbarem Ziel
+
+- Für D-126 ist das Umbuchen aus `_loeschen_ausfuehren` in `_umbuchen` und `_abstimmungen_entfernen` ausgelagert;
+  die interne Variante `konto` wirkt wie `elternkonto` mit einem übergebenen Ziel. Das Verhalten von
+  `POST /api/konten/{id}/loeschen` ist unverändert (Abnahmetests M3/M4/M5 grün).

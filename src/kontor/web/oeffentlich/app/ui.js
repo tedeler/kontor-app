@@ -496,6 +496,85 @@ export async function kontoLoeschen(konto, ausloeser) {
   }, { ausloeser, fokus: (b) => b.querySelector("input:not([disabled])") });
 }
 
+// ------------------------------------------------------------------ Kategorien zusammenführen (D-126)
+/** Dialog `zusammenfuehren-dialog`: Buchungen der markierten Kategorien auf eine Zielkategorie umbuchen. */
+export function kategorienZusammenfuehren(quellen, ausloeser) {
+  const ids = new Set(quellen.map((k) => k.id));
+  const ziele = baumFolge(stamm.konten.filter((k) => (k.art === "aufwand" || k.art === "ertrag") && !ids.has(k.id)));
+  const titel = quellen.length === 1 ? `„${quellen[0].name}“ zusammenführen` : `${quellen.length} Kategorien zusammenführen`;
+  dialog("zusammenfuehren-dialog", titel, (inhalt, d) => {
+    inhalt.append(h("p", null, "Quellen: ", h("span", { tid: "zusammenfuehren-quellen" },
+      quellen.map((k) => kontoPfad(k)).join(", "))));
+    const suche = h("input", { type: "search", tid: "zusammenfuehren-suche", placeholder: "Zielkategorie suchen …",
+      "aria-label": "Zielkategorie suchen" });
+    const liste = h("div", { role: "listbox", class: "auswahl-liste", tid: "zusammenfuehren-ziele",
+      "aria-label": "Zielkategorie", tabindex: "0" });
+    let ziel = null;
+    const kontoVon = new Map();
+    const els = ziele.map(({ konto: k }) => {
+      const el = h("div", { role: "option", tid: `zusammenfuehren-ziel-${k.id}`, id: neueId("zz"), class: "option",
+        "aria-selected": "false", "data-text": kontoPfad(k).toLowerCase() },
+      kontoPfad(k), k.art === "ertrag" ? " (Einnahme)" : "");
+      el.addEventListener("click", () => waehlen(k, el));
+      kontoVon.set(el, k);
+      return el;
+    });
+    anhaengen(liste, els);
+    suche.addEventListener("input", () => {
+      const t = suche.value.trim().toLowerCase();
+      for (const el of els) el.hidden = !!t && !el.dataset.text.includes(t);
+    });
+    const loeschen = h("input", { type: "checkbox", tid: "zusammenfuehren-loeschen", checked: true });
+    const gesperrt = h("label", { class: "wahl", hidden: true }, h("input", { type: "checkbox",
+      tid: "zusammenfuehren-gesperrte-bestaetigen" }), " Auch abgestimmte/abgeglichene Buchungen einbeziehen");
+    const info = h("p", { tid: "zusammenfuehren-vorschau", "aria-live": "polite", class: "klein" });
+    const ausfuehren = knopf("Zusammenführen", { tid: "zusammenfuehren-ausfuehren", class: "knopf knopf-haupt", disabled: true });
+    inhalt.append(suche, liste, h("label", { class: "wahl" }, loeschen, " Quellkategorien danach löschen"
+      + " (Unterkategorien, Regeln und Standardkategorien gehen an das Ziel)"), info, gesperrt,
+    knopfLeiste(ausfuehren, knopf("Abbrechen", { tid: "zusammenfuehren-abbrechen", onclick: () => d.schliessen(null) })));
+    let probe = null;
+    const koerper = () => ({ quelle_ids: [...ids], ziel_id: ziel.id, quellen_loeschen: loeschen.checked });
+    async function vorschau() {
+      probe = null;
+      pruefen();
+      if (!ziel) return;
+      await imDialog(d, null, async () => { probe = await api("POST", "/api/kategorien/zusammenfuehren",
+        { ...koerper(), trocken: true }); });
+      if (!probe) return;
+      info.textContent = `${probe.buchungen_umgebucht.length} Buchungen werden auf „${kontoPfad(ziel)}“ umgebucht`
+        + (probe.unterkategorien_verschoben.length ? `, ${probe.unterkategorien_verschoben.length} Unterkategorien wandern mit` : "")
+        + (probe.regeln_geaendert.length ? `, ${probe.regeln_geaendert.length} Regeln werden umgestellt` : "") + ".";
+      info.dataset.anzahl = String(probe.buchungen_umgebucht.length);
+      gesperrt.hidden = !probe.gesperrt.length;
+      pruefen();
+    }
+    function waehlen(k, el) {
+      ziel = k;
+      els.forEach((e) => e.setAttribute("aria-selected", e === el ? "true" : "false"));
+      liste.setAttribute("aria-activedescendant", el.id);
+      vorschau();
+    }
+    loeschen.addEventListener("change", vorschau);
+    gesperrt.querySelector("input").addEventListener("change", pruefen);
+    function pruefen() {
+      ausfuehren.disabled = !(ziel && probe && (!probe.gesperrt.length || gesperrt.querySelector("input").checked));
+    }
+    liste.addEventListener("keydown", (e) => {
+      const sichtbar = els.filter((x) => !x.hidden);
+      const i = sichtbar.findIndex((x) => x.getAttribute("aria-selected") === "true");
+      const neu = e.key === "ArrowDown" ? sichtbar[Math.min(i + 1, sichtbar.length - 1)]
+        : e.key === "ArrowUp" ? sichtbar[Math.max(i - 1, 0)] : null;
+      if (neu) { e.preventDefault(); neu.scrollIntoView({ block: "nearest" }); waehlen(kontoVon.get(neu), neu); }
+    });
+    ausfuehren.addEventListener("click", () => imDialog(d, ausfuehren, async () => {
+      const body = koerper();
+      if (probe.gesperrt.length) body.gesperrte_einbeziehen = true;
+      await aktion(() => api("POST", "/api/kategorien/zusammenfuehren", body), { stillBeiFehler: true,
+        danach: () => d.schliessen(true), erfolg: `Zusammengeführt in „${ziel.name}“.` });
+    }));
+  }, { ausloeser, fokus: (b) => b.querySelector('[data-testid="zusammenfuehren-suche"]') });
+}
+
 // ------------------------------------------------------------------ Dubletten-Dialog (9.6)
 export async function dubletteDialog(verdacht, ausloeser) {
   const ids = [verdacht.buchung_id, ...verdacht.kandidat_ids];

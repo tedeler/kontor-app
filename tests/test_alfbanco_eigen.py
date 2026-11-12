@@ -206,3 +206,85 @@ def test_wiedererkennung_vorhandener_kategorie(client, giro, spar):
     assert e["kategorien_vorhanden"] == 1 and e["kategorien_neu"] == 3
     k = next(x for x in client.get("/api/konten").json() if x["id"] == haus["id"])
     assert k["extern_id"] == "alf:kat:Haushalt"
+
+
+# ------------------------------------------------------------ Kategorien zusammenführen
+
+def _konten(client) -> dict[str, dict]:
+    return {k["name"]: k for k in client.get("/api/konten").json()}
+
+
+def _saldo(client, kid: int) -> int:
+    return client.get(f"/api/konten/{kid}").json().get("saldo", 0)
+
+
+def test_zusammenfuehren_mit_loeschen(client, giro, spar):
+    wohnen = client.post("/api/konten", json={"name": "Wohnen & Leben", "art": "aufwand"}).json()
+    hochladen(client, giro["id"], roh())
+    k = _konten(client)
+    regel = client.post("/api/regeln", json={"name": "Kaufhaus", "kategorie_id": k["Kleidung"]["id"],
+                                            "bedingungen": [{"feld": "empfaenger", "operator": "enthaelt",
+                                                             "wert": "Kaufhaus"}]})
+    r = client.post("/api/kategorien/zusammenfuehren",
+                    json={"quelle_ids": [k["Haushalt"]["id"], k["Kleidung"]["id"]], "ziel_id": wohnen["id"]})
+    assert r.status_code == 200, r.text
+    e = r.json()
+    assert e["quellen_geloescht"] and e["aenderung_id"] and e["unterkategorien_verschoben"] == [k["Lebensmittel"]["id"]]
+    assert e["extern_id_uebernommen"] == "alf:kat:Haushalt"
+    neu = _konten(client)
+    assert "Haushalt" not in neu and "Kleidung" not in neu
+    assert neu["Lebensmittel"]["eltern_id"] == wohnen["id"]
+    assert regel.status_code == 201, regel.text
+    assert client.get(f"/api/regeln/{regel.json()['id']}").json()["kategorie_id"] == wohnen["id"]
+    # Splitbuchung: Kleidung 20 wurde zu Wohnen, Lebensmittel bleibt eigener Split
+    liste = client.get("/api/buchungen", params={"konto_id": giro["id"]}).json()["eintraege"]
+    split_b = next(b for b in liste if b["verwendungszweck"] == "Gemischter Einkauf")
+    assert {s["konto_id"]: s["betrag"] for s in split_b["splits"] if s["betrag"] > 0} == {
+        neu["Lebensmittel"]["id"]: 3000, wohnen["id"]: 2000}
+    assert client.get("/api/kontenuebersicht").json()["summe_gesamt"] == 0
+    # erneuter Import legt die gelöschte Wurzel nicht wieder an (Kennung übernommen), Kleidung schon
+    e2 = hochladen(client, giro["id"], roh()).json()
+    assert e2["buchungen_neu"] == 0 and e2["kategorien_neu"] == 1
+    # Rückgängig stellt alles wieder her
+    rg = client.post(f"/api/aenderungen/{e['aenderung_id']}/rueckgaengig")
+    assert rg.status_code == 409  # der spätere Import baut auf dem Zusammenführen auf
+
+
+def test_zusammenfuehren_rueckgaengig(client, giro, spar):
+    ziel = client.post("/api/konten", json={"name": "Ziel", "art": "aufwand"}).json()
+    hochladen(client, giro["id"], roh())
+    vorher = client.get("/api/konten").json()
+    k = _konten(client)
+    e = client.post("/api/kategorien/zusammenfuehren",
+                    json={"quelle_ids": [k["Haushalt"]["id"]], "ziel_id": ziel["id"]}).json()
+    assert client.post(f"/api/aenderungen/{e['aenderung_id']}/rueckgaengig").status_code == 200
+    assert client.get("/api/konten").json() == vorher
+
+
+def test_zusammenfuehren_ohne_loeschen_und_probelauf(client, giro, spar):
+    ziel = client.post("/api/konten", json={"name": "Ziel", "art": "aufwand"}).json()
+    hochladen(client, giro["id"], roh())
+    k = _konten(client)
+    vorher = client.get("/api/konten").json()
+    p = client.post("/api/kategorien/zusammenfuehren",
+                    json={"quelle_ids": [k["Kleidung"]["id"]], "ziel_id": ziel["id"], "trocken": True}).json()
+    assert p["trocken"] and p["buchungen_umgebucht"] and p["aenderung_id"] is None
+    assert client.get("/api/konten").json() == vorher
+    e = client.post("/api/kategorien/zusammenfuehren",
+                    json={"quelle_ids": [k["Kleidung"]["id"]], "ziel_id": ziel["id"],
+                          "quellen_loeschen": False}).json()
+    assert not e["quellen_geloescht"] and "Kleidung" in _konten(client)
+    leer = client.get("/api/buchungen", params={"konto_id": k["Kleidung"]["id"]}).json()
+    assert leer["gesamt"] == 0
+
+
+def test_zusammenfuehren_fehler(client, giro):
+    kat = client.post("/api/konten", json={"name": "A", "art": "aufwand"}).json()
+    ziel = client.post("/api/konten", json={"name": "B", "art": "aufwand"}).json()
+    def z(**d):
+        return client.post("/api/kategorien/zusammenfuehren", json=d)
+    assert z(quelle_ids=[kat["id"]], ziel_id=kat["id"]).json()["fehler"]["code"] == "ziel_ungueltig"
+    assert z(quelle_ids=[999], ziel_id=ziel["id"]).json()["fehler"]["code"] == "referenz_unbekannt"
+    assert z(quelle_ids=[giro["id"]], ziel_id=ziel["id"]).json()["fehler"]["code"] == "konto_ungueltig"
+    assert z(quelle_ids=[], ziel_id=ziel["id"]).json()["fehler"]["code"] == "validierung"
+    assert z(quelle_ids=[kat["id"]]).json()["fehler"]["code"] == "validierung"
