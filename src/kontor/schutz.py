@@ -29,7 +29,8 @@ KOEPFE = [(b"x-content-type-options", b"nosniff"), (b"x-frame-options", b"DENY")
           (b"cross-origin-opener-policy", b"same-origin")]
 OEFFENTLICH = {("GET", "/api/anmeldung"), ("POST", "/api/anmeldung"), ("POST", "/api/anmeldung/einrichten"),
                ("GET", "/api/gesundheit"), ("GET", "/anmelden")}
-UPLOADS = {"/api/import/kmymoney", "/api/import/gnucash", "/api/sicherung/einspielen", "/api/dokumente"}
+UPLOADS = {"/api/import/kmymoney", "/api/import/gnucash", "/api/import/alfbanco", "/api/sicherung/einspielen",
+           "/api/dokumente"}
 # Antworten mit diesem Kopf (nur Dokumentinhalte, D-123) behalten ihre eigene, strengere Inhaltsrichtlinie und
 # dürfen von der eigenen Seite eingebettet werden; der Kopf selbst geht nie nach außen.
 EINBETTBAR = b"x-kontor-einbettbar"

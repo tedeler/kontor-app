@@ -43,6 +43,7 @@ SQL-Text eingesetzt werden.
 | 2026-11-11 | `7e3719c` | M15 und Update (auf main), vor M16 (Tabs/Gegenbuchung) | 15 423 | 4 831² ³ | 360 | 45 | 37 | 127 | 378 | 0 |
 | 2026-11-11 | `698d2fa` | M16, M17 und Nachzug (0.09), vor Dokumente | 15 734 | 4 997² | 363 | 46 | 38 | 127 | 379 | 0 |
 | 2026-11-12 | `5191417` | Dokumente (Branch, noch nicht gemergt), vor Mail-Abgleich | 16 425 | 5 420² | 380 | 46 | 40 | 134 | 399 | 0 |
+| 2026-11-12 | `698d2fa` | M16, M17 (auf main, Version 0.09), vor ALF-BanCo-Import | 15 734 | 4 997² | 363 | 46 | 38 | 127 | 379 | 0 |
 
 ¹ `--select E,F,W,B,C90,SIM,UP,PL --line-length 120`.
 ² Ab M8 Summe der ES-Module `src/kontor/web/oeffentlich/app/*.js` (R-07, `app.js` gibt es nicht mehr).
@@ -229,3 +230,14 @@ Begründung, keine echten SQL-Funde. Maßnahme **R-13**; R-03 (doppelter Name `a
 
 - [ ] **R-13 `dokumente.py` annotieren** (Mailzerlegung mit `EmailMessage`/`Message`-Typen, verhaltensneutral) und
   die mypy-Fehler dort beheben.
+### Fortschreibung vor dem ALF-BanCo-Import (2026-11-12, Stand `698d2fa`)
+
+Gegenüber `7e3719c` kam die neue Erkennungskette wiederkehrender Buchungen mit Begründung (M16) hinzu
+(+311 Python-Zeilen, fast alle in `wiederkehrend.py`). C901 und radon D/E/F stiegen je um 1:
+`wiederkehrend._schritt_text` (radon D, 29) baut den deutschen Satz je Schritt der Kette in einer langen
+Fallunterscheidung. ruff-Funde +3 und Parameter ohne Annotation +1 mit dem Umfang; mypy unverändert, keine neuen
+breiten `except`, keine echten SQL-Funde. Maßnahme **R-12**. Der Import selbst kommt als eigenes Modul
+`importer/alfbanco.py`; Lesen (QIF-Zerlegung) und Anwenden werden in kleine Funktionen getrennt (Ziel C901 ≤ 15).
+
+- [ ] **R-12 `wiederkehrend._schritt_text` als Tabelle je Schrittart** (Textbausteine je `art`, verhaltensneutral;
+  Maßstab die M16-Tests).

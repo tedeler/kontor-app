@@ -48,7 +48,7 @@ def _gruppe_text(con, gruppe: str) -> tuple[str, str | None]:
         r = con.execute("SELECT art, dateiname, importiert_am FROM importvorgang WHERE id = ?", (nr,)).fetchone()
         if r is None:
             return f"Import {nr}", None
-        name = {"kmymoney": "KMyMoney", "gnucash": "GnuCash"}.get(r["art"], r["art"])
+        name = {"kmymoney": "KMyMoney", "gnucash": "GnuCash", "alfbanco": "ALF-BanCo"}.get(r["art"], r["art"])
         return f"{name}-Import {r['dateiname'] or ''}".strip(), r["importiert_am"]
     r = con.execute("SELECT gestartet_am FROM sync_lauf WHERE id = ?", (nr,)).fetchone()
     return f"Synchronisation #{nr}", (r["gestartet_am"] if r else None)

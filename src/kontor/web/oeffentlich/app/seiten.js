@@ -159,7 +159,9 @@ export async function kategorienSeite(seite) {
   const zeichnen = () => ort.replaceChildren(kategorienBaum({ neuZeichnen: zeichnen }));
   zeichnen();
   seite.append(h("p", { class: "klein" }, "Kategorien per Drag and Drop auf eine andere Kategorie ziehen (wird Unterkategorie) "
-    + "oder auf die Gruppenüberschrift (oberste Ebene); ohne Maus über das Kontextmenü „Verschieben nach…“."), ort);
+    + "oder auf die Gruppenüberschrift (oberste Ebene); ohne Maus über das Kontextmenü „Verschieben nach…“. "
+    + "Mit Strg/Umschalt (oder Leertaste) mehrere markieren und über das Kontextmenü „Zusammenführen in…“ "
+    + "ihre Buchungen in eine andere Kategorie überführen."), ort);
   return { titel: "Kategorien" };
 }
 
@@ -526,14 +528,30 @@ function svgDiagramm(b) {
 export async function importSeite(seite) {
   kopf(seite, "Import");
   const format = h("select", { tid: "import-format" }, h("option", { value: "kmymoney" }, "KMyMoney (.kmy)"),
-    h("option", { value: "gnucash" }, "GnuCash (.gnucash, XML oder SQLite)"));
+    h("option", { value: "gnucash" }, "GnuCash (.gnucash, XML oder SQLite)"),
+    h("option", { value: "alfbanco" }, "ALF-BanCo (QIF-Export, eine Datei je Konto)"));
   const datei = h("input", { type: "file", tid: "import-datei" });
+  // ALF-BanCo (D-123): Zielkonto wählen, die QIF-Datei enthält nur die Umsätze eines Kontos
+  const konto = h("select", { tid: "import-konto" }, h("option", { value: "" }, "– Konto wählen –"),
+    baumFolge(stamm.konten.filter((k) => BESTAND.has(k.art))).map(({ konto: k }) => h("option", { value: String(k.id) },
+      kontoPfad(k))));
+  const kontoFeld = feld("Konto", konto);
+  const hinweis = h("p", { class: "klein", tid: "import-hinweis-alfbanco" }, "In ALF-BanCo je Konto „Datei > Export > "
+    + "Umsätze > QIF-Format“ wählen. Kategorien werden übernommen (gleichnamige vorhandene Kategorien wiederverwendet); "
+    + "doppelte Kategorien lassen sich danach unter „Kategorien“ markieren und zusammenführen.");
+  const formatZeigen = () => { kontoFeld.hidden = hinweis.hidden = format.value !== "alfbanco"; };
+  format.addEventListener("change", formatZeigen);
+  formatZeigen();
   const ausgabe = h("div", { "aria-live": "polite" });
   const starten = knopf("Import starten", { tid: "import-starten", class: "knopf knopf-haupt" });
   starten.addEventListener("click", async () => {
     if (!datei.files.length) { melde("fehler", "Bitte zuerst eine Datei wählen."); return; }
     const fd = new FormData();
     fd.append("datei", datei.files[0], datei.files[0].name);
+    if (format.value === "alfbanco") {
+      if (!konto.value) { melde("fehler", "Bitte das Konto wählen, zu dem die Datei gehört."); return; }
+      fd.append("konto_id", konto.value);
+    }
     starten.disabled = true;
     try {
       const e = await aktion(() => api("POST", `/api/import/${format.value}`, undefined, { formular: fd }),
@@ -544,7 +562,7 @@ export async function importSeite(seite) {
         h("ul", null, h("li", { tid: "import-meldung" }, `${e.code}: ${e.message}`))));
     } finally { starten.disabled = false; }
   });
-  seite.append(abschnitt("Datei importieren", feld("Format", format), feld("Datei", datei), starten,
+  seite.append(abschnitt("Datei importieren", feld("Format", format), kontoFeld, hinweis, feld("Datei", datei), starten,
     h("p", { class: "klein" }, "Der Import ist wie jede Änderung rückgängig zu machen (Strg+Z).")), ausgabe);
   return { titel: "Import", aktualisieren: async () => {} };      // Ergebnis bleibt stehen
 }
@@ -632,6 +650,10 @@ export async function einstellungen(seite, _p, _s, kontext) {
   const senden = (params) => {
     const fd = new FormData();
     fd.append("datei", datei.files[0], datei.files[0].name);
+    if (format.value === "alfbanco") {
+      if (!konto.value) { melde("fehler", "Bitte das Konto wählen, zu dem die Datei gehört."); return; }
+      fd.append("konto_id", konto.value);
+    }
     return api("POST", "/api/sicherung/einspielen" + abfrage(params), undefined, { formular: fd });
   };
   const einspielen = knopf("Einspielen …", { tid: "sicherung-einspielen", class: "knopf knopf-gefahr", disabled: true,

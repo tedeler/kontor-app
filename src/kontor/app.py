@@ -41,6 +41,7 @@ from .sync import SyncDienst
 from .config import KontorConfig
 from .importer.kmymoney import importiere_bytes
 from .importer import gnucash as gnucash_import
+from .importer import alfbanco as alfbanco_import
 from .validierung import (BETRAG_MAX, STATUS, ApiFehler, Feld, Query, Validierungsfehler, fehler_eintrag,
                           json_koerper, pruefe_koerper, pruefe_objekt)
 from .validierung import KONTOARTEN
@@ -171,6 +172,13 @@ ABSTIMMUNG_EINGABE = {"konto_id": S("int", pflicht=True), "stichtag": S("datum",
 KONTO_LOESCHEN = {
     "buchungen": S("enum", pflicht=True, werte=("loeschen", "elternkonto", "unkategorisiert")),
     "konflikte": S("enum", pflicht=True, werte=("loeschen", "behalten")),
+    "gesperrte_einbeziehen": S("bool"),
+    "trocken": S("bool"),
+}
+KATEGORIEN_ZUSAMMEN = {
+    "quelle_ids": S("int_liste", pflicht=True, min_items=1, max_items=1000, eindeutig=True),
+    "ziel_id": S("int", pflicht=True),
+    "quellen_loeschen": S("bool"),
     "gesperrte_einbeziehen": S("bool"),
     "trocken": S("bool"),
 }
@@ -934,6 +942,15 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
             return protokoll.mit_aenderung_id(pflege.konto_loeschen_mit_buchungen(con, kid, d))
         return await aendern("konto_loeschen_mit_buchungen", f, pid(request, "konto_id"), d)
 
+    @endpunkt("POST", "/api/kategorien/zusammenfuehren")
+    async def kategorien_zusammenfuehren(request: Request):
+        """Buchungen mehrerer Kategorien auf eine Zielkategorie umbuchen, Quellen auf Wunsch löschen (D-126)."""
+        d = await koerper(request, KATEGORIEN_ZUSAMMEN)
+
+        def f(con, d):
+            return protokoll.mit_aenderung_id(pflege.kategorien_zusammenfuehren(con, d))
+        return await aendern("kategorien_zusammenfuehren", f, d)
+
     @endpunkt("POST", "/api/buchungen/erfassen", 201)
     async def buchung_erfassen(request: Request):
         d = await koerper(request, BUCHUNG_ERFASSEN)
@@ -1247,6 +1264,22 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     @endpunkt("POST", "/api/import/gnucash")
     async def import_gnucash(request: Request):
         return await datei_importieren(request, gnucash_import.importiere_bytes)
+
+    @endpunkt("POST", "/api/import/alfbanco")
+    async def import_alfbanco(request: Request):
+        """QIF-Export aus ALF-BanCo in ein Bestandskonto (multipart: ``datei``, ``konto_id``; D-123)."""
+        try:
+            form = await request.form()
+        except Exception:
+            raise Validierungsfehler([fehler_eintrag(["body"], "multipart/form-data mit Feld 'datei' erwartet.")]) from None
+        roh_id = form.get("konto_id")
+        if not isinstance(roh_id, str) or not re.fullmatch(r"[1-9][0-9]{0,17}", roh_id.strip()):
+            raise Validierungsfehler([fehler_eintrag(["body", "konto_id"], "Die Konto-ID fehlt oder ist ungültig.")])
+        konto_id = int(roh_id.strip())
+
+        def importieren(con, roh, dateiname, zeitpunkt=None):
+            return alfbanco_import.importiere_bytes(con, roh, dateiname, konto_id, zeitpunkt)
+        return await datei_importieren(request, importieren)
 
     @endpunkt("GET", "/api/importe")
     async def importe(request: Request):
