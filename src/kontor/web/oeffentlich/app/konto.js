@@ -207,13 +207,7 @@ class Kontoansicht {
     }
     this.urlSchreiben();   // Sprungziel aus der Adresse entfernen
     if (!this.zeilen.has(id)) { melde("hinweis", "Die Buchung ist mit den aktuellen Filtern nicht sichtbar."); return; }
-    this.auswahl = new Set([id]);
-    this.anker = id;
-    this.fokussieren(id);
-    const z = this.zeilen.get(id);
-    z.scrollIntoView({ block: "center" });
-    z.classList.add("sprung-ziel");
-    setTimeout(() => z.classList.remove("sprung-ziel"), 2000);
+    this.sprungMarkieren(id);
   }
 
   async laden() {
@@ -1018,9 +1012,24 @@ class Kontoansicht {
       if (da()) melde("hinweis", "Filter zurückgesetzt, damit die Buchung sichtbar ist.");
     }
     if (!da()) { melde("fehler", "Die Buchung ist in dieser Ansicht nicht enthalten."); return; }
+    this.sprungMarkieren(id);
+  }
+
+  /**
+   * Sprungziel (D-118, Gegenbuchung, Berichte): wählen, fokussieren, in die Mitte rollen und kurz hervorheben. Mitte
+   * statt „nearest“, weil am Rand sonst die Mehrfachleiste (mobil unten fest) die Zeile verdecken kann (D-129).
+   */
+  sprungMarkieren(id) {
     this.auswahl = new Set([id]);
     this.anker = id;
     this.fokussieren(id);
+    const z = this.zeilen.get(id);
+    if (!z) return;
+    const links = this.listenSpalte ? this.listenSpalte.scrollLeft : 0;
+    z.scrollIntoView({ block: "center" });
+    if (this.listenSpalte) this.listenSpalte.scrollLeft = links;
+    z.classList.add("sprung-ziel");
+    setTimeout(() => z.classList.remove("sprung-ziel"), 2000);
   }
 
   // ---------------------------------------------------------------- Mehrfachbearbeitung (7.5)
