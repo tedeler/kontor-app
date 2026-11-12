@@ -32,7 +32,7 @@ from starlette.staticfiles import StaticFiles
 from . import (__version__, berichte, buch, db, export, kredite, lernmodell, mail, pflege, protokoll, regeln,
                sicherung, verschieben, vorlagen, wiederkehrend)
 from . import aktualisierung
-from . import dokumente
+from . import abgleich, dokumente, erwartung
 from . import anmeldung as anm
 from . import version as versionsinfo
 from .geheimnisse import REST_NAMEN
@@ -49,7 +49,7 @@ log = logging.getLogger("kontor")
 
 WEB = pathlib.Path(__file__).parent / "web"
 #: Routen der Oberfläche (oberflaeche.md 3) und Links aus Benachrichtigungen (/buchungen/<id>, /sync/konten)
-SPA_ROUTEN = ["/", "/konten", "/konten/{konto_id:int}", "/kategorien", "/wiederkehrend", "/kredite",
+SPA_ROUTEN = ["/", "/konten", "/konten/{konto_id:int}", "/kategorien", "/wiederkehrend", "/erwartet", "/kredite",
               "/kredite/{kredit_id:int}", "/berichte", "/import", "/einstellungen", "/protokoll", "/empfaenger", "/regeln",
               "/vorlagen", "/dubletten", "/sync", "/sync/konten", "/benachrichtigungen", "/suche", "/tan/{tan_id:int}",
               "/mail/postfaecher/{postfach_id:int}", "/buchungen/{buchung_id:int}"]
@@ -1359,6 +1359,73 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
             aus = "text/plain; charset=utf-8"
         return _inhalt_antwort(inhalt, aus, name, dokumente.CSP_INHALT,
                                laden or aus == "application/octet-stream")
+
+    # ------------------------------------------------- Mail-Abgleich: erwartete Zahlungen (D-128)
+    def _heute() -> str:
+        return sync.heute().isoformat()
+
+    @endpunkt("GET", "/api/erwartungen")
+    async def erwartungen(request: Request):
+        q = Query(request.query_params)
+        gruende = q.auswahlen("grund", erwartung.GRUENDE)
+        zustaende = q.auswahlen("zustand", erwartung.ZUSTAENDE + ("ueberfaellig",))
+        bis = q.datum("faellig_bis")
+        suche = q.text("suche")
+        richtung = q.auswahl("richtung", erwartung.RICHTUNGEN)
+        q.pruefen()
+        erg = await lesen(erwartung.liste, _heute(), gruende, zustaende, bis, suche, richtung)
+        erg["aktiv"] = config.mail_abgleich
+        return erg
+
+    @endpunkt("POST", "/api/erwartungen", 201)
+    async def erwartung_anlegen(request: Request):
+        d = json_koerper(await request.body())
+        return await aendern("erwartung_anlegen", mit_uhr(
+            lambda con, z: erwartung.anlegen(con, d, _heute(), config.mail_abgleich_frist_tage, z)))
+
+    @endpunkt("POST", "/api/erwartungen/abgleich")
+    async def erwartungen_abgleich(request: Request):
+        """Sofort abgleichen (sonst nach jedem Mail-Abruf, Synchronisationslauf und Planer-Takt)."""
+        if not config.mail_abgleich:
+            raise ApiFehler(409, "mail_abgleich_aus", "Der Mail-Abgleich ist ausgeschaltet (KONTOR_MAIL_ABGLEICH).")
+        return await run_in_threadpool(abgleich.laufen, config, sync.jetzt()) or {}
+
+    @endpunkt("GET", "/api/erwartungen/{erwartung_id:int}")
+    async def erwartung_lesen(request: Request):
+        return await lesen(erwartung.lesen, pid(request, "erwartung_id"), _heute())
+
+    @endpunkt("PATCH", "/api/erwartungen/{erwartung_id:int}")
+    async def erwartung_aendern(request: Request):
+        d = json_koerper(await request.body())
+        eid = pid(request, "erwartung_id")
+        return await aendern("erwartung_aendern", lambda con: erwartung.aendern(con, eid, d, _heute()))
+
+    @endpunkt("DELETE", "/api/erwartungen/{erwartung_id:int}", 204)
+    async def erwartung_loeschen(request: Request):
+        eid = pid(request, "erwartung_id")
+        await aendern("erwartung_loeschen", lambda con: erwartung.loeschen(con, eid))
+
+    @endpunkt("POST", "/api/erwartungen/{erwartung_id:int}/zustand")
+    async def erwartung_zustand(request: Request):
+        d = json_koerper(await request.body())
+        eid = pid(request, "erwartung_id")
+        return await aendern("erwartung_zustand", lambda con: erwartung.zustand_setzen(con, eid, d, _heute()))
+
+    @endpunkt("GET", "/api/erwartungen/{erwartung_id:int}/kandidaten")
+    async def erwartung_kandidaten(request: Request):
+        return await lesen(erwartung.kandidaten, pid(request, "erwartung_id"))
+
+    @endpunkt("POST", "/api/erwartungen/{erwartung_id:int}/buchungen")
+    async def erwartung_zuordnen(request: Request):
+        d = json_koerper(await request.body())
+        eid = pid(request, "erwartung_id")
+        return await aendern("erwartung_zuordnen", mit_uhr(
+            lambda con, z: erwartung.zuordnen(con, eid, d, z, _heute())))
+
+    @endpunkt("DELETE", "/api/erwartungen/{erwartung_id:int}/buchungen/{buchung_id:int}")
+    async def erwartung_loesen(request: Request):
+        eid, bid = pid(request, "erwartung_id"), pid(request, "buchung_id")
+        return await aendern("erwartung_loesen", lambda con: erwartung.loesen(con, eid, bid, _heute()))
 
     # ------------------------------------------------- M9: Datensicherung
     @endpunkt("GET", "/api/sicherung")

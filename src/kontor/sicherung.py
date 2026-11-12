@@ -34,28 +34,28 @@ import zipfile
 import zlib
 from typing import Any
 
-from . import __version__, buch, db, dokumente, kredite, mail, protokoll, regeln, vorlagen
+from . import __version__, buch, db, dokumente, erwartung, kredite, mail, protokoll, regeln, vorlagen
 from .config import KontorConfig
 from .text import ekey
 from .validierung import ApiFehler, datum_gueltig
 
 FORMAT = "kontor-sicherung"
 FORMATVERSION = 1
-SCHEMAVERSION = 4
+SCHEMAVERSION = 5
 OBJEKTE = protokoll.OBJEKTE
 # Objektarten aus M9 (immer in ``anzahl``) und ab M5 nur bei Vorhandensein (sicherung.md 2.5, E-109)
 OBJEKTE_IMMER = ("konto", "empfaenger", "tag", "buchung", "regel", "verdacht", "abstimmung", "vorlage")
-OBJEKTE_OPTIONAL = ("kredit", "postfach", "dokument")
+OBJEKTE_OPTIONAL = ("kredit", "postfach", "dokument", "erwartung")
 NAMEN = ("manifest.json", "kontor.sqlite")
 MAX_ENTPACKT = 4 * 1024 ** 3  # Schutz gegen ZIP-Bomben (sicherung.md 8: mindestens 1 GiB)
 MAX_MANIFEST = 1024 ** 2
 
 # Objektarten je Schemaversion der Sicherungsdatei (für spätere Meilensteine, sicherung.md 2.3, 3.4).
 OBJEKTE_JE_VERSION = {1: OBJEKTE_IMMER, 2: OBJEKTE_IMMER + ("kredit",), 3: OBJEKTE_IMMER + ("kredit", "postfach"),
-                      4: OBJEKTE}
+                      4: OBJEKTE_IMMER + ("kredit", "postfach", "dokument"), 5: OBJEKTE}
 # Tabellen, die erst ab einer Schemaversion der Sicherungsdatei existieren (ältere Sicherungen: leer, 3.4)
 TABELLEN_AB = {"kredit": 2, "kredit_zuordnung": 2, "kredit_abgleich": 2, "postfach": 3,
-               "dokument_inhalt": 4, "dokument": 4, "dokument_buchung": 4}
+               "dokument_inhalt": 4, "dokument": 4, "dokument_buchung": 4, "erwartung": 5}
 
 # Tabellen der Sicherungsdatei (Schemaversion 1): Name → [(Spalte, Typ, nullbar)]. Die Namen entsprechen den
 # Tabellen der App-Datenbank; ``id_zaehler`` hält die höchste je vergebene ID je Objektart (auch Splits).
@@ -108,6 +108,14 @@ SPALTEN: dict[str, list[tuple[str, str, bool]]] = {
                  ("groesse", "int", False), ("sha256", "str", False), ("quelle", "str", False),
                  ("erstellt_am", "str", False)],
     "dokument_buchung": [("dokument_id", "int", False), ("buchung_id", "int", False)],
+    # Schemaversion 5 (Mail-Abgleich, D-128): erwartete Zahlungen; Mails selbst bleiben Betriebszustand
+    "erwartung": [("id", "int", False), ("grund", "str", False), ("richtung", "str", False),
+                  ("anbieter", "str", True), ("schluessel", "str", True), ("kennung", "str", False),
+                  ("referenz", "str", False), ("haendler", "str", False), ("beschreibung", "str", False),
+                  ("betrag", "int", False), ("gesamt", "int", False), ("guthaben", "int", False),
+                  ("datum", "str", False), ("frist", "str", False), ("zustand", "str", False),
+                  ("bezug_id", "int", True), ("buchung_ids", "str", False), ("mails", "str", False),
+                  ("dokument_ids", "str", False), ("erstellt_am", "str", False)],
 }
 _ORDNUNG = {
     "split": "buchung_id, position, id", "empfaenger_alias": "empfaenger_id, alias",
@@ -128,11 +136,11 @@ _SCHLUESSEL = {"empfaenger_alias": "PRIMARY KEY (empfaenger_id, alias)", "buchun
 BUCH_TABELLEN = ("konto", "empfaenger", "empfaenger_alias", "tag", "regel", "abstimmung", "buchung", "split",
                  "buchung_tag", "buchung_extern", "vorschlag", "dublettenverdacht", "verdacht_kandidat", "vorlage",
                  "kredit", "kredit_zuordnung", "kredit_abgleich", "postfach", "dokument_inhalt", "dokument",
-                 "dokument_buchung")
+                 "dokument_buchung", "erwartung")
 # Objektart (bzw. "split") → Tabelle der App-Datenbank mit AUTOINCREMENT-Zähler.
 ZAEHLER = {"konto": "konto", "empfaenger": "empfaenger", "tag": "tag", "buchung": "buchung", "split": "split",
            "regel": "regel", "verdacht": "dublettenverdacht", "abstimmung": "abstimmung", "vorlage": "vorlage",
-           "kredit": "kredit", "postfach": "postfach", "dokument": "dokument"}
+           "kredit": "kredit", "postfach": "postfach", "dokument": "dokument", "erwartung": "erwartung"}
 
 _SHA = re.compile(r"^[0-9a-f]{64}$")
 _ZEIT = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
@@ -176,7 +184,7 @@ def alle_formen(con) -> dict[str, dict[int, dict]]:
     """Protokollformen des gesamten Buchbestands (je Objektart: ID → Form)."""
     tabellen = {"konto": "konto", "empfaenger": "empfaenger", "tag": "tag", "buchung": "buchung", "regel": "regel",
                 "verdacht": "dublettenverdacht", "abstimmung": "abstimmung", "vorlage": "vorlage", "kredit": "kredit",
-                "postfach": "postfach", "dokument": "dokument"}
+                "postfach": "postfach", "dokument": "dokument", "erwartung": "erwartung"}
     aus = {}
     for o in OBJEKTE:
         ids = [r[0] for r in con.execute(f"SELECT id FROM {tabellen[o]} ORDER BY id")]
@@ -524,6 +532,8 @@ def _inhalt_pruefen(zeilen: dict[str, list[tuple]]) -> dict[str, dict[int, dict]
         schlecht("Umsatzkennung")
     if not mail.pruefe_inhalt(zeilen["postfach"]):
         schlecht("Postfach")
+    if not erwartung.pruefe_inhalt(zeilen["erwartung"]):
+        schlecht("Erwartete Zahlung")
     inhalte = {}
     for sha, inhalt in zeilen["dokument_inhalt"]:
         if not _SHA.match(sha) or hashlib.sha256(inhalt).hexdigest() != sha:
@@ -696,7 +706,7 @@ def probelauf(con, s: Sicherung) -> dict:
     return _ergebnis(s, True, not _identisch(aktuell, s), None, unterschied, betroffen)
 
 
-_LOESCHEN = ("dokument_buchung", "dokument", "postfach", "kredit_abgleich", "kredit_zuordnung", "kredit", "vorschlag", "buchung_tag", "buchung_extern", "verdacht_kandidat", "dublettenverdacht", "split",
+_LOESCHEN = ("erwartung", "dokument_buchung", "dokument", "postfach", "kredit_abgleich", "kredit_zuordnung", "kredit", "vorschlag", "buchung_tag", "buchung_extern", "verdacht_kandidat", "dublettenverdacht", "split",
              "buchung", "abstimmung", "regel", "vorlage", "empfaenger_alias", "empfaenger", "tag", "konto")
 
 

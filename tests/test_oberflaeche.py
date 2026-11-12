@@ -25,7 +25,8 @@ REST = ["/api/status", "/api/konten", "/api/kontenuebersicht", "/api/buchungen",
         "/api/lernmodell", "/api/vorlagen", "/api/sicherung", "/api/kredite", "/api/wiederkehrend", "/api/berichte/kontostand",
         "/api/export/buchungen.csv", "/api/export/buchungen.pdf", "/api/berichte/einnahmen-ausgaben", "/api/mock/zeit", "/api/geheimnisse", "/api/mail/postfaecher",
         "/api/mail/anmeldung/abschluss", "/api/mail/abruf", "/api/anmeldung", "/api/update",  # update: D-107
-        "/api/dokumente", "/api/mail/nachrichten"]  # Dokumente: D-123
+        "/api/dokumente", "/api/mail/nachrichten",  # Dokumente: D-123
+        "/api/erwartungen"]  # Mail-Abgleich: D-128
 
 
 def test_startseite_echt(client):

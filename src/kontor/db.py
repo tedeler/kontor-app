@@ -15,7 +15,7 @@ from collections.abc import Iterator
 
 from .text import norm
 
-SCHEMA_VERSION = 10
+SCHEMA_VERSION = 11
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (
@@ -406,6 +406,34 @@ CREATE TABLE IF NOT EXISTS dokument_buchung (
 ) WITHOUT ROWID;
 CREATE INDEX IF NOT EXISTS dokument_buchung_buchung ON dokument_buchung(buchung_id, dokument_id);
 CREATE INDEX IF NOT EXISTS dokument_sha256 ON dokument(sha256);
+
+-- ------------------------------------------------------------ Mail-Abgleich (D-128)
+-- Erwartete Zahlungen (Buchbestand, Objektart ``erwartung``). Beträge in Cent, immer >= 0; die Richtung sagt,
+-- ob Geld abgeht oder eingeht. Zuordnungen (``buchung_ids``), Mails (``mails``: Postfach + Nachrichten-ID im
+-- Spiegel) und Dokumente (``dokument_ids``) als JSON-Listen. „überfällig“ wird abgeleitet (offen, Frist vorbei).
+CREATE TABLE IF NOT EXISTS erwartung (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    grund TEXT NOT NULL CHECK (grund IN ('bestellung','paypal','rueckerstattung','manuell')),
+    richtung TEXT NOT NULL CHECK (richtung IN ('ausgabe','eingang')),
+    anbieter TEXT CHECK (anbieter IS NULL OR anbieter IN ('amazon','paypal')),
+    schluessel TEXT UNIQUE,
+    kennung TEXT NOT NULL DEFAULT '',
+    referenz TEXT NOT NULL DEFAULT '',
+    haendler TEXT NOT NULL,
+    beschreibung TEXT NOT NULL DEFAULT '',
+    betrag INTEGER NOT NULL CHECK (typeof(betrag) = 'integer' AND betrag BETWEEN 0 AND 999999999999),
+    gesamt INTEGER NOT NULL CHECK (typeof(gesamt) = 'integer' AND gesamt BETWEEN 0 AND 999999999999),
+    guthaben INTEGER NOT NULL CHECK (typeof(guthaben) = 'integer' AND guthaben BETWEEN 0 AND 999999999999),
+    datum TEXT NOT NULL,
+    frist TEXT NOT NULL,
+    zustand TEXT NOT NULL CHECK (zustand IN ('offen','erfuellt','guthaben','storniert','erledigt')),
+    bezug_id INTEGER,
+    buchung_ids TEXT NOT NULL DEFAULT '[]',
+    mails TEXT NOT NULL DEFAULT '[]',
+    dokument_ids TEXT NOT NULL DEFAULT '[]',
+    erstellt_am TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS erwartung_zustand ON erwartung(zustand, frist);
 
 -- ------------------------------------------------------------ Meilenstein 7
 -- Anmeldedaten (sicherheit.md 1): Betriebszustand, nie protokolliert, nie in der Sicherung.

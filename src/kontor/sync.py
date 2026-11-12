@@ -18,7 +18,7 @@ from dataclasses import dataclass
 
 import json
 
-from . import buch, db, kredite, lernmodell, pflege, protokoll, regeln, vorlagen, wiederkehrend
+from . import abgleich, buch, db, kredite, lernmodell, pflege, protokoll, regeln, vorlagen, wiederkehrend
 from .buch import BESTAND, ApiFehler
 from .config import KontorConfig
 from .fehler import (BankPinFalsch, BankZugangGesperrt, KontorFehler, TanAbgelaufen, TanErforderlich, TanUngueltig)
@@ -86,6 +86,7 @@ class SyncDienst:
         self._pin_gesperrt = False
         self.geheimnisse = Geheimnisspeicher(config, self.jetzt_text)
         self.mail = MailDienst(config, self.jetzt, self.geheimnisse)
+        self.mail.nach_abruf = lambda: abgleich.laufen(self.config, self.jetzt())
         self.zustellung = Zustelldienst(config, self.jetzt, self._ntfy_token)
 
     def __repr__(self) -> str:
@@ -439,6 +440,7 @@ class SyncDienst:
                         " fehler_meldung = ? WHERE id = ?", (self.jetzt_text(), code, meldung, lid))
             self._fehler_melden(con, [code])
         self._wiederkehrend_nach_lauf(con, lid)
+        abgleich.laufen(self.config, self.jetzt())  # D-128: neue Bankbuchungen erwarteten Zahlungen zuordnen
 
     def _fehler_melden(self, con, codes: list[str]) -> None:
         for code in dict.fromkeys(codes):
@@ -960,6 +962,7 @@ class SyncDienst:
                     self.mail.abruf()
                 except ApiFehler:
                     pass
+            abgleich.laufen(self.config, self.jetzt())  # D-128: Fristen prüfen (nur mit mail_abgleich)
             return lauf
         finally:
             if not self._abbruch:

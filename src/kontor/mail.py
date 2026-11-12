@@ -185,6 +185,7 @@ class MailDienst:
         self._abruf = threading.Lock()
         self._token_sperre = threading.Lock()
         self._mock_plugin = None
+        self.nach_abruf: Callable[[], object] | None = None  # D-128: Mail-Abgleich nach jedem Abruf
 
     def __repr__(self) -> str:
         return "MailDienst()"
@@ -525,6 +526,8 @@ class MailDienst:
                 with concurrent.futures.ThreadPoolExecutor(max_workers=len(aktive),
                                                            thread_name_prefix="kontor-mail") as pool:
                     ergebnisse = list(pool.map(lambda p: self._postfach_abrufen(plugin, p, beginn), aktive))
+                if self.nach_abruf is not None:
+                    self.nach_abruf()
             return {"gestartet_am": zeit_text(beginn), "beendet_am": self.jetzt_text(), "postfaecher": ergebnisse}
         finally:
             self._abruf.release()

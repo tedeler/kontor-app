@@ -25,14 +25,15 @@ from collections import defaultdict
 from collections.abc import Iterator
 from typing import Any, Callable
 
-from . import buch, db, dokumente, geheimnisse, kredite, mail, regeln, vorlagen
+from . import buch, db, dokumente, erwartung, geheimnisse, kredite, mail, regeln, vorlagen
 from .validierung import ApiFehler
 
 OBJEKTE = ("konto", "empfaenger", "tag", "buchung", "regel", "verdacht", "abstimmung", "vorlage", "kredit", "postfach",
-           "dokument")
+           "dokument", "erwartung")
 # Rückgängig fügt Dokumente vor Buchungen ein (Verknüpfungen gehören zur Buchung, D-123)
 _EINFUEGEN = ("dokument",) + tuple(o for o in OBJEKTE if o != "dokument")
-QUELLEN = ("manuell", "import", "sync", "regeln", "umbuchung", "rueckgaengig", "lernmodell", "vorlage", "sicherung", "kredit")
+QUELLEN = ("manuell", "import", "sync", "regeln", "umbuchung", "rueckgaengig", "lernmodell", "vorlage", "sicherung", "kredit",
+           "mail")
 
 # Tabelle → (Objektart, Spalte mit der Objekt-ID)
 _TABELLEN = {
@@ -56,6 +57,7 @@ _TABELLEN = {
     "postfach": ("postfach", "id"),
     "dokument": ("dokument", "id"),
     "dokument_buchung": ("buchung", "buchung_id"),
+    "erwartung": ("erwartung", "id"),
 }
 
 BESCHREIBUNG = {
@@ -90,6 +92,10 @@ BESCHREIBUNG = {
     "dokument_anhaengen": "Dokument angehängt", "dokument_aus_mail": "E-Mail als Dokument angehängt",
     "dokument_verknuepfen": "Dokument mit Buchung verknüpft", "dokument_loesen": "Dokument von Buchung gelöst",
     "dokument_umbenennen": "Dokument umbenannt", "dokument_loeschen": "Dokument gelöscht",
+    "erwartung_erkennen": "Bestell- und Zahlungsmails erkannt", "erwartung_zuordnen": "Erwartete Zahlung zugeordnet",
+    "erwartung_loesen": "Zuordnung einer erwarteten Zahlung gelöst", "erwartung_anlegen": "Erwartete Zahlung angelegt",
+    "erwartung_aendern": "Erwartete Zahlung geändert", "erwartung_zustand": "Erwartete Zahlung geschlossen/geöffnet",
+    "erwartung_loeschen": "Erwartete Zahlung gelöscht",
 }
 
 
@@ -176,6 +182,8 @@ def formen(con, objekt: str, ids: list[int]) -> dict[int, dict]:
         return mail.formen(con, ids)
     if objekt == "dokument":
         return dokumente.formen(con, ids)
+    if objekt == "erwartung":
+        return erwartung.formen(con, ids)
     for teil in buch._stueckweise(ids):
         ph = buch._platzhalter(len(teil))
         if objekt == "konto":
@@ -285,6 +293,7 @@ def protokolliert(con, quelle: str, aktion: str, zeitpunkt: str, gruppe: str | N
         kredite.verwaiste_entfernen(con)  # M5: Zuordnungen gelöschter Buchungen entfallen (kredite.md 2.3)
         geheimnisse.verwaiste_entfernen(con)  # M6: Tokens/Spiegel/Zustand entfallen mit dem Postfach (mail.md 6.5)
         dokumente.verwaiste_entfernen(con)  # D-123: Dokumente ohne Buchung entfallen
+        erwartung.verwaiste_entfernen(con)  # D-128: Zuordnungen gelöschter Buchungen/Dokumente entfallen
         eintraege = _nettowirkung(con)
         if k.pruefung is not None:
             k.pruefung(eintraege)
@@ -445,6 +454,8 @@ def _entfernen(con, objekt: str, oid: int, schritt: set[tuple[str, int]]) -> Non
             if ("buchung", r["buchung_id"]) not in schritt:
                 raise _konflikt("Ein Dokument hängt inzwischen an einer anderen Buchung.")
         con.execute("DELETE FROM dokument WHERE id = ?", (oid,))
+    elif objekt == "erwartung":
+        con.execute("DELETE FROM erwartung WHERE id = ?", (oid,))
 
 
 def _einfuegen(con, objekt: str, f: dict) -> None:
@@ -501,6 +512,8 @@ def _einfuegen(con, objekt: str, f: dict) -> None:
         mail.einfuegen(con, f)
     elif objekt == "dokument":
         dokumente.einfuegen(con, f)
+    elif objekt == "erwartung":
+        erwartung.einfuegen(con, f)
 
 
 def _eintraege_von(con, aid: int) -> list[dict]:

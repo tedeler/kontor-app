@@ -434,3 +434,33 @@ td.aktionen { width: 2.5rem; text-align: right; }
 .verknuepfen-liste { list-style: none; padding: 0; margin: .5rem 0; max-height: 55vh; overflow: auto; border: 1px solid var(--rand); }
 .verknuepfen-eintrag { display: flex; align-items: center; gap: .3rem; padding: .35rem .5rem; border-bottom: 1px solid var(--rand); cursor: pointer; }
 [data-testid="verknuepfen-suche"], [data-testid="mail-auswahl-suche"] { width: 100%; box-sizing: border-box; }
+
+/* Mail-Abgleich (D-128): Schnellfilter als Chips, überfällige Zeilen */
+.chip-leiste { display: flex; flex-wrap: wrap; gap: .4rem 1rem; align-items: center; margin: .3rem 0 .6rem; }
+.chip-gruppe { display: inline-flex; flex-wrap: wrap; gap: .3rem; align-items: center; }
+.chip-titel { font-size: .8rem; color: var(--text-2); margin-right: .1rem; }
+.chip { border: 1px solid var(--rand); background: var(--hg); color: var(--text); border-radius: 999px;
+  padding: .15rem .7rem; font-size: .85rem; cursor: pointer; }
+.chip.an { background: var(--akzent); color: var(--akzent-text); border-color: var(--akzent); }
+.chip:focus-visible { outline: 2px solid var(--akzent); outline-offset: 2px; }
+.chip-gruppe input[type=search] { min-width: 14rem; }
+tr.ueberfaellig td { color: var(--gefahr); }
+.warnung { color: var(--gefahr); font-weight: 600; }
+.angaben { display: grid; grid-template-columns: max-content 1fr; gap: .2rem .8rem; }
+.angaben dt { color: var(--text-2); }
+[data-layout="mobil"] .seite-erwartet thead { display: none; }
+[data-layout="mobil"] .seite-erwartet tbody tr { display: grid; grid-template-columns: auto 1fr auto auto;
+  grid-template-areas: "h h b a" "f g z a"; gap: 0 .5rem; border-bottom: 1px solid var(--rand); padding: .35rem 0; }
+[data-layout="mobil"] .seite-erwartet tbody td { display: block; border: 0; padding: 0; }
+[data-layout="mobil"] .seite-erwartet .e-haendler { grid-area: h; }
+[data-layout="mobil"] .seite-erwartet .e-betrag { grid-area: b; }
+[data-layout="mobil"] .seite-erwartet .e-aktionen { grid-area: a; align-self: center; }
+[data-layout="mobil"] .seite-erwartet .e-frist, [data-layout="mobil"] .seite-erwartet .e-grund,
+[data-layout="mobil"] .seite-erwartet .e-zustand { font-size: .85rem; color: var(--text-2); }
+[data-layout="mobil"] .seite-erwartet .e-frist { grid-area: f; }
+[data-layout="mobil"] .seite-erwartet .e-grund { grid-area: g; }
+[data-layout="mobil"] .seite-erwartet .e-zustand { grid-area: z; justify-self: end; }
+[data-layout="mobil"] .seite-erwartet .e-kennung { display: none; }
+[data-layout="mobil"] .seite-erwartet .werkzeuge { flex-wrap: wrap; }
+[data-layout="mobil"] .seite-erwartet .grund-marke { display: inline; font-size: .75rem; background: var(--hg-3);
+  border-radius: 4px; padding: 0 .3em; margin-left: .4rem; }

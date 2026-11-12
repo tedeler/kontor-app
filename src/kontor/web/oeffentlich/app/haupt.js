@@ -9,6 +9,7 @@ import {
 import { bestaetigen, dialog, feld, fokusFalle, imDialog, knopf, knopfLeiste, zuordnungDialog } from "./ui.js";
 import { begruendungZeigen, kontoSeite, layoutZuruecksetzen, markierteBuchung } from "./konto.js";
 import * as S from "./seiten.js";
+import { erwartetSeite } from "./erwartet.js";
 import { Tabs } from "./tabs.js";
 
 const app = tid("app");
@@ -226,6 +227,7 @@ const ROUTEN = [
   [/^\/konten\/(\d+)$/, "konto", "konten", (seite, id, suche) => kontoSeite(seite, id, suche)],
   [/^\/kategorien$/, "kategorien", "kategorien", S.kategorienSeite],
   [/^\/wiederkehrend$/, "wiederkehrend", "wiederkehrend", S.wiederkehrend],
+  [/^\/erwartet$/, "erwartet", null, erwartetSeite],
   [/^\/kredite$/, "kredite", "kredite", S.kredite],
   [/^\/kredite\/(\d+)$/, "kredit", "kredite", S.kredit],
   [/^\/berichte$/, "berichte", "berichte", S.berichte],
@@ -380,7 +382,7 @@ const TITEL = { uebersicht: "Finanzübersicht", konten: "Konten", konto: "Konto"
   wiederkehrend: "Wiederkehrende Buchungen", kredite: "Kredite", kredit: "Kredit", berichte: "Berichte", import: "Import",
   einstellungen: "Einstellungen", protokoll: "Änderungsprotokoll", empfaenger: "Empfänger", regeln: "Regeln",
   vorlagen: "Split-Vorlagen", dubletten: "Dubletten", sync: "Synchronisation", benachrichtigungen: "Benachrichtigungen",
-  suche: "Suche", tan: "TAN-Freigabe", postfach: "Postfach", buchung: "Buchung" };
+  suche: "Suche", tan: "TAN-Freigabe", postfach: "Postfach", buchung: "Buchung", erwartet: "Was kommt noch?" };
 const titelVon = (n) => TITEL[n] || "Kontor";
 
 function titelSetzen(t) {
@@ -630,6 +632,7 @@ const BEFEHLE = [
   ["gehe-konten", "Gehe zu: Konten", () => gehe("/konten")],
   ["gehe-kategorien", "Gehe zu: Kategorien", () => gehe("/kategorien")],
   ["gehe-wiederkehrend", "Gehe zu: Wiederkehrende Buchungen", () => gehe("/wiederkehrend")],
+  ["gehe-erwartet", "Gehe zu: Was kommt noch? (erwartete Zahlungen)", () => gehe("/erwartet")],
   ["gehe-kredite", "Gehe zu: Kredite", () => gehe("/kredite")],
   ["gehe-berichte", "Gehe zu: Berichte", () => gehe("/berichte")],
   ["gehe-import", "Gehe zu: Import", () => gehe("/import")],
