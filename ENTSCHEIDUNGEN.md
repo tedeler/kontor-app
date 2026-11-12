@@ -1509,3 +1509,23 @@ Weitere Abkürzungen: SY = `spec/api/synchronisation.md`, KA =
   genau ein Schritt. Das Neuladen der Ansicht danach läuft außerhalb dieser Reihe.
 - Ein Schritt wartet außerdem auf gerade laufende Aktionen, bis deren Änderungen auf dem Rückgängig-Stapel liegen:
   Strg+Z unmittelbar nach einer Änderung macht genau diese rückgängig, statt „nichts rückgängig zu machen“ zu melden.
+
+## D-130 Spaltenbreiten und Markierung der Buchungsliste (Feature `spalten-markierung`, iterativ)
+
+- **Anlass:** Auftrag 2026-11-12: Spalten der Kontolisten in der Breite veränderbar, Doppelklick auf den
+  Spaltentrenner passt die Spalte an (wie in Excel); Buchungen dezent nach Bearbeitungsstand markieren, dazu eine
+  Zusatzmarke für wiederkehrende Buchungen. (Nummer D-130, weil D-123 bis D-129 auf offenen Branches vergeben sind.)
+- **Spaltenbreiten:** Trenner am rechten Rand jeder Kopfzelle (`spalte-trenner-<feld>`, Rolle `separator`), nur
+  in der Desktop-Liste. Ziehen ändert die Breite (40–1200 px); das erste Ziehen legt alle Spalten auf ihre
+  gezeichnete Breite fest, damit die übrigen nicht springen. Doppelklick: Breite des breitesten Inhalts aus Kopf und
+  geladenen Zeilen (gemessen an Kopien der Zellen ohne Abschneiden). Ist die Summe breiter als die Liste, wird
+  waagerecht geblättert. Kontextmenü des Kopfes: „Alle Spalten an den Inhalt anpassen“
+  (`km-spalten-anpassen`), „Spaltenbreiten zurücksetzen“ (`km-spalten-zuruecksetzen`). Gemerkt im Browser
+  (`kontor.spalten`, je Liste `konto`/`kategorie`, gilt für alle Konten), Lesen/Schreiben nur in `try`.
+- **Markierung** (`data-markierung` der Zeile, Streifen links und leichte Tönung, helles und dunkles Thema):
+  `abgeglichen` (Status „Abgeglichen“ oder abgestimmt) grün-grau; sonst `kategorisiert` (kein Split auf
+  „Unkategorisiert“, Umbuchungen und Splitbuchungen eingeschlossen) grün; sonst `importiert` (Status „Importiert“)
+  grau; sonst keine Markierung. Hover und Auswahl überdecken die Tönung, der Streifen bleibt.
+- **Wiederkehrend:** Zeilen, deren Buchung zu einer Serie aus `GET /api/wiederkehrend` gehört (auch ausbleibende
+  und beendete), tragen `data-wiederkehrend="ja"` und ein „↻“ vor dem Empfänger (nur Gestaltung, der Text der
+  Zelle bleibt unverändert). Keine Änderung an REST, Datenmodell oder Protokoll.
