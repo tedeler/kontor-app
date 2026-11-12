@@ -29,7 +29,7 @@ KOEPFE = [(b"x-content-type-options", b"nosniff"), (b"x-frame-options", b"DENY")
           (b"cross-origin-opener-policy", b"same-origin")]
 OEFFENTLICH = {("GET", "/api/anmeldung"), ("POST", "/api/anmeldung"), ("POST", "/api/anmeldung/einrichten"),
                ("GET", "/api/gesundheit"), ("GET", "/anmelden")}
-UPLOADS = {"/api/import/kmymoney", "/api/import/gnucash", "/api/sicherung/einspielen"}
+UPLOADS = {"/api/import/kmymoney", "/api/import/gnucash", "/api/import/alfbanco", "/api/sicherung/einspielen"}
 SCHREIBEND = {"POST", "PUT", "PATCH", "DELETE"}
 _STANDARDPORT = {"http": 80, "https": 443}
 

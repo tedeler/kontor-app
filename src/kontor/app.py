@@ -39,6 +39,7 @@ from .sync import SyncDienst
 from .config import KontorConfig
 from .importer.kmymoney import importiere_bytes
 from .importer import gnucash as gnucash_import
+from .importer import alfbanco as alfbanco_import
 from .validierung import (BETRAG_MAX, STATUS, ApiFehler, Feld, Query, Validierungsfehler, fehler_eintrag,
                           json_koerper, pruefe_koerper, pruefe_objekt)
 from .validierung import KONTOARTEN
@@ -1245,6 +1246,22 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     @endpunkt("POST", "/api/import/gnucash")
     async def import_gnucash(request: Request):
         return await datei_importieren(request, gnucash_import.importiere_bytes)
+
+    @endpunkt("POST", "/api/import/alfbanco")
+    async def import_alfbanco(request: Request):
+        """QIF-Export aus ALF-BanCo in ein Bestandskonto (multipart: ``datei``, ``konto_id``; D-123)."""
+        try:
+            form = await request.form()
+        except Exception:
+            raise Validierungsfehler([fehler_eintrag(["body"], "multipart/form-data mit Feld 'datei' erwartet.")])
+        roh_id = form.get("konto_id")
+        if not isinstance(roh_id, str) or not re.fullmatch(r"[1-9][0-9]{0,17}", roh_id.strip()):
+            raise Validierungsfehler([fehler_eintrag(["body", "konto_id"], "Die Konto-ID fehlt oder ist ungültig.")])
+        konto_id = int(roh_id.strip())
+
+        def importieren(con, roh, dateiname, zeitpunkt=None):
+            return alfbanco_import.importiere_bytes(con, roh, dateiname, konto_id, zeitpunkt)
+        return await datei_importieren(request, importieren)
 
     @endpunkt("GET", "/api/importe")
     async def importe(request: Request):
