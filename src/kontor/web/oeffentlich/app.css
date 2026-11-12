@@ -433,3 +433,4 @@ td.aktionen { width: 2.5rem; text-align: right; }
 .betrachter-buchungen-liste li { display: flex; align-items: center; gap: .4rem; padding: .1rem 0; }
 .verknuepfen-liste { list-style: none; padding: 0; margin: .5rem 0; max-height: 55vh; overflow: auto; border: 1px solid var(--rand); }
 .verknuepfen-eintrag { display: flex; align-items: center; gap: .3rem; padding: .35rem .5rem; border-bottom: 1px solid var(--rand); cursor: pointer; }
+[data-testid="verknuepfen-suche"], [data-testid="mail-auswahl-suche"] { width: 100%; box-sizing: border-box; }
