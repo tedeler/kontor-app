@@ -190,3 +190,26 @@ def test_mobil_kamera_knopf(tmp_path, browser):  # noqa: F811
         expect(tid(page, f"beleg-marke-{bid}")).to_be_visible()
         d = _get(url + f"/api/buchungen/{bid}")["belege"][0]
         assert _get(url + f"/api/dokumente/{d['id']}")["quelle"] == "kamera"
+
+
+def test_nachtraeglich_verknuepfen_und_zur_buchung(umgebung):
+    url, page, konten, zweck = umgebung
+    a, b = zweck["Einkauf 10"], zweck["Einkauf 11"]
+    d = _post(url + "/api/dokumente", params={"buchung_id": a}, files={"datei": ("r.pdf", PDF, "application/pdf")}).json()
+    _oeffnen(page, url, konten["Giro"], a)
+    tid(page, f"dokument-ansehen-{d['id']}").click()
+    abschnitt = tid(page, "betrachter-buchungen")
+    expect(abschnitt).to_have_attribute("data-anzahl", "1")
+    tid(page, "betrachter-verknuepfen").click()
+    tid(page, "verknuepfen-suche").fill("Einkauf 11")
+    expect(tid(page, f"verknuepfen-buchung-{a}")).to_have_count(0)
+    tid(page, f"verknuepfen-buchung-{b}").check()
+    tid(page, "verknuepfen-ok").click()
+    expect(tid(page, "verknuepfen-dialog")).to_have_count(0)
+    expect(abschnitt).to_have_attribute("data-anzahl", "2")
+    assert _get(url + f"/api/dokumente/{d['id']}")["buchung_ids"] == sorted([a, b])
+    expect(tid(page, f"beleg-marke-{b}")).to_be_visible()
+    # zur anderen Buchung springen: Betrachter schließt, Buchung ist gewählt
+    tid(page, f"betrachter-zur-buchung-{b}").click()
+    expect(tid(page, "dokument-betrachter")).to_have_count(0)
+    expect(tid(page, f"buchung-{b}")).to_have_attribute("aria-selected", "true")

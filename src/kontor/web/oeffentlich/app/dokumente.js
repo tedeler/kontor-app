@@ -3,7 +3,7 @@
  * Anhängen per Dateiauswahl, Kamera (mobil), Ziehen auf eine Buchung und aus einem Postfach; Betrachter für PDF,
  * Bilder und E-Mails. Jede Änderung läuft über aktion() (Rückgängig, Neuladen). HTML von E-Mails wird nur im
  * abgeschotteten Rahmen des Servers gezeigt (sandbox, eigene Inhaltsrichtlinie, keine externen Inhalte). */
-import { aktion, api, h, melde, oberflaeche, zeitText } from "./kern.js";
+import { BESTAND, aktion, api, betragEl, datumText, h, kontoNach, melde, oberflaeche, zeitText } from "./kern.js";
 import { dialog, knopf, knopfLeiste } from "./ui.js";
 
 export const ANNAHME = "application/pdf,.pdf,message/rfc822,.eml,image/jpeg,image/png,image/webp";
@@ -203,6 +203,92 @@ async function mailAnsicht(dok, betrachten) {
   return flaeche;
 }
 
+// ---------------------------------------------------------------- Verknüpfte Buchungen
+
+function buchungKurz(b) {
+  return [datumText(b.datum), " · ", b.empfaenger ? b.empfaenger.name : (b.verwendungszweck || "ohne Empfänger"), " · "];
+}
+
+/** Konto für den Sprung zur Buchung: erstes Bestandskonto ihrer Splits, sonst das erste Konto. */
+function sprungKonto(b) {
+  const best = b.splits.find((s) => { const k = kontoNach(s.konto_id); return k && BESTAND.has(k.art); });
+  return (best || b.splits[0]).konto_id;
+}
+
+/** Abschnitt „Hängt an“ im Betrachter: Buchungen des Dokuments, Lösen, weitere verknüpfen. */
+async function buchungenAbschnitt(dok, d) {
+  const el = h("div", { class: "betrachter-buchungen", tid: "betrachter-buchungen" }, h("span", { class: "klein" }, "Lade …"));
+  const laden = async () => {
+    try {
+      const info = await api("GET", `/api/dokumente/${dok.id}`);
+      const buchungen = await Promise.all(info.buchung_ids.map((id) => api("GET", `/api/buchungen/${id}`)));
+      el.dataset.anzahl = String(buchungen.length);
+      el.replaceChildren(h("h3", { class: "klein" }, buchungen.length === 1 ? "Hängt an 1 Buchung" : `Hängt an ${buchungen.length} Buchungen`),
+        h("ul", { class: "betrachter-buchungen-liste" }, buchungen.map((b) => h("li", { tid: `betrachter-buchung-${b.id}` },
+          h("button", { type: "button", class: "knopf-link", tid: `betrachter-zur-buchung-${b.id}`, title: "Zur Buchung",
+            onclick: () => { d.schliessen(null); oberflaeche.zurBuchung(sprungKonto(b), b.id); } }, ...buchungKurz(b), betragEl("span", b.betrag)),
+          h("button", { type: "button", class: "mini-knopf", tid: `betrachter-loesen-${b.id}`, title: "Von dieser Buchung lösen",
+            "aria-label": `Dokument von der Buchung vom ${datumText(b.datum)} lösen`, onclick: async () => {
+              await loesen(dok, b.id);
+              if (buchungen.length > 1) laden(); else d.schliessen(null);
+            } }, "×")))),
+        knopf("Mit weiteren Buchungen verknüpfen…", { class: "knopf knopf-klein", tid: "betrachter-verknuepfen",
+          onclick: (e) => verknuepfenDialog(dok, info.buchung_ids, e.currentTarget).then((ok) => { if (ok) laden(); }) }));
+    } catch (e) {
+      el.replaceChildren(h("p", { class: "fehler" }, e.message || String(e)));
+    }
+  };
+  await laden();
+  return el;
+}
+
+/** Buchungen suchen und markieren; Ergebnis true, wenn verknüpft wurde. */
+export function verknuepfenDialog(dok, schonIds, ausloeser) {
+  const schon = new Set(schonIds);
+  const gewaehlt = new Set();
+  const d = dialog("verknuepfen-dialog", `„${dok.dateiname}“ verknüpfen`, (inhalt, dd) => {
+    const suche = h("input", { type: "search", tid: "verknuepfen-suche", placeholder: "Empfänger, Verwendungszweck, Betrag …",
+      "aria-label": "Buchungen suchen" });
+    const liste = h("ul", { class: "verknuepfen-liste", tid: "verknuepfen-liste" });
+    const ok = knopf("Verknüpfen", { class: "knopf knopf-haupt", tid: "verknuepfen-ok", disabled: true });
+    let nr = 0;
+    const suchen = async () => {
+      const meine = ++nr;
+      const q = suche.value.trim();
+      try {
+        const r = await api("GET", `/api/buchungen?pro_seite=50&sortierung=-datum${q ? `&suche=${encodeURIComponent(q)}` : ""}`);
+        if (meine !== nr) return;
+        liste.replaceChildren(...(r.eintraege.length ? r.eintraege.map((b) => {
+          const box = h("input", { type: "checkbox", tid: `verknuepfen-buchung-${b.id}`, checked: schon.has(b.id) || gewaehlt.has(b.id),
+            disabled: schon.has(b.id) });
+          box.addEventListener("change", () => {
+            if (box.checked) gewaehlt.add(b.id); else gewaehlt.delete(b.id);
+            ok.disabled = !gewaehlt.size;
+            ok.textContent = gewaehlt.size > 1 ? `Mit ${gewaehlt.size} Buchungen verknüpfen` : "Verknüpfen";
+          });
+          return h("li", null, h("label", { class: "verknuepfen-eintrag" }, box, " ", ...buchungKurz(b), betragEl("span", b.betrag),
+            schon.has(b.id) ? h("small", null, " (schon verknüpft)") : null));
+        }) : [h("li", { class: "leer" }, "Keine Buchung gefunden.")]));
+      } catch (e) { dd.fehler(e.message || String(e)); }
+    };
+    let warten;
+    suche.addEventListener("input", () => { clearTimeout(warten); warten = setTimeout(suchen, 250); });
+    ok.addEventListener("click", async () => {
+      dd.sperren(true);
+      try {
+        await aktion(() => api("POST", `/api/dokumente/${dok.id}/buchungen`, { buchung_ids: [...gewaehlt] }), {
+          erfolg: `„${dok.dateiname}“ verknüpft.`, danach: () => dd.schliessen(true) });
+      } catch (e) {
+        dd.sperren(false);
+        if (dd.offen) dd.fehler(e.message || String(e));
+      }
+    });
+    inhalt.append(suche, liste, knopfLeiste(ok, knopf("Abbrechen", { tid: "verknuepfen-abbrechen", onclick: () => dd.schliessen(null) })));
+    suchen();
+  }, { schliessenKnopf: "verknuepfen-schliessen", klasse: "dialog-breit", ausloeser });
+  return d.ergebnis.then((w) => w === true);
+}
+
 /** Betrachter für die Dokumente einer Buchung (Liste), beginnend bei index. */
 export function betrachter(dokumente, index, ausloeser) {
   let i = index || 0;
@@ -230,6 +316,8 @@ export function betrachter(dokumente, index, ausloeser) {
       else if (dok.mime_typ === "message/rfc822") ansicht = await mailAnsicht(dok, (anhang) => { stapel.push(dok); zeigen(anhang); });
       else ansicht = bildAnsicht(url, dok.dateiname);
       flaeche.replaceChildren(ansicht);
+      // Anhänge einer Mail sind keine eigenen Dokumente: ohne Abschnitt „Hängt an“
+      if (!dok.url) flaeche.append(await buchungenAbschnitt(dok, d));
     };
     zurueck.addEventListener("click", () => { i = (i - 1 + dokumente.length) % dokumente.length; zeigen(dokumente[i]); });
     vor.addEventListener("click", () => { i = (i + 1) % dokumente.length; zeigen(dokumente[i]); });

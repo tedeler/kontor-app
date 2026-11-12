@@ -1541,3 +1541,7 @@ Weitere Abkürzungen: SY = `spec/api/synchronisation.md`, KA =
   Betrachter: PDF im Rahmen (mobil zusätzlich „PDF öffnen“), Bilder (Klick vergrößert), E-Mail mit Kopf,
   HTML/Text umschaltbar, Anhänge; Blättern zwischen den Dokumenten einer Buchung. Kamerafotos werden im Browser auf
   höchstens 2400 px Kantenlänge (JPEG) verkleinert.
+- **Nachträglich verknüpfen (abgestimmt 2026-11-12):** Der Betrachter zeigt unter jedem Dokument die Buchungen,
+  an denen es hängt (Sprung zur Buchung über das erste Bestandskonto ihrer Splits, Lösen je Buchung), und bietet
+  „Mit weiteren Buchungen verknüpfen…“ (Suche über `suche` der Buchungsliste, Mehrfachauswahl). PDFs auf dem Handy
+  bleiben beim Knopf „PDF öffnen“ (PDF-App des Geräts); jedes Kamerafoto ist ein eigenes Dokument.

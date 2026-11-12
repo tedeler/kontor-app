@@ -428,3 +428,8 @@ td.aktionen { width: 2.5rem; text-align: right; }
 .mail-betreff { font-weight: 600; }
 @media (max-width: 760px) { .dialog-betrachter { width: 100vw; height: 100vh; max-height: none; border-radius: 0; } }
 
+.betrachter-buchungen { flex: none; border-top: 1px solid var(--rand); margin-top: .5rem; padding-top: .3rem; max-height: 30vh; overflow: auto; }
+.betrachter-buchungen-liste { list-style: none; padding: 0; margin: .2rem 0 .4rem; }
+.betrachter-buchungen-liste li { display: flex; align-items: center; gap: .4rem; padding: .1rem 0; }
+.verknuepfen-liste { list-style: none; padding: 0; margin: .5rem 0; max-height: 55vh; overflow: auto; border: 1px solid var(--rand); }
+.verknuepfen-eintrag { display: flex; align-items: center; gap: .3rem; padding: .35rem .5rem; border-bottom: 1px solid var(--rand); cursor: pointer; }
