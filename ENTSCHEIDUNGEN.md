@@ -1509,3 +1509,86 @@ Weitere Abkürzungen: SY = `spec/api/synchronisation.md`, KA =
   genau ein Schritt. Das Neuladen der Ansicht danach läuft außerhalb dieser Reihe.
 - Ein Schritt wartet außerdem auf gerade laufende Aktionen, bis deren Änderungen auf dem Rückgängig-Stapel liegen:
   Strg+Z unmittelbar nach einer Änderung macht genau diese rückgängig, statt „nichts rückgängig zu machen“ zu melden.
+
+## D-123 Dokumente an Buchungen (Feature `dokumente`, iterativ)
+
+- **Anlass:** Auftrag 2026-11-11: PDF-Dateien, E-Mails (und Bilder) an Buchungen hängen und im Browser ansehen;
+  mobil per Kamera. Abgestimmt: Hochladen, Ziehen auf eine Buchung und E-Mail aus dem Postfach; PDF, E-Mail, JPEG,
+  PNG, WebP; E-Mail mit HTML, aber abgeschottet; ein Dokument an mehreren Buchungen.
+- **Datenmodell:** Objektart `dokument` (Dateiname, Typ, Größe, SHA-256, Quelle `upload`/`kamera`/`mail`,
+  angelegt). Verknüpfungen gehören zur Buchung (Protokollform `dokument_ids`, nur wenn vorhanden, damit Formen
+  ohne Dokumente gleich bleiben); `belege` der Buchung listet `{id, dateiname, mime_typ, groesse}`
+  (datenmodell.md 7). Ein Dokument ohne Buchung entfällt in derselben Änderung. Inhalte liegen inhaltsadressiert
+  in `dokument_inhalt`, werden nie protokolliert und nie gelöscht (Rückgängig braucht sie).
+- **Typ** am Inhalt erkannt, nicht an Dateiname oder Browserangabe; Dateinamen ohne Pfad und Steuerzeichen,
+  höchstens 200 Zeichen, mit passender Endung. Größe begrenzt wie andere Uploads (`upload_max_mib`).
+- **Auslieferung:** Inhalte mit eigener strenger Inhaltsrichtlinie (`sandbox`) und `X-Frame-Options: SAMEORIGIN`
+  nur für diese Antworten; E-Mails nie als Seite, sondern zerlegt (`/mail`) und als entschärftes HTML
+  (`/mail/html`: ohne Skripte, Ereignis-Attribute, Formulare, Rahmen; eingebettete `cid:`-Bilder als data:-URL;
+  externe Bildquellen und Stil-URLs entfernt, damit Zählpixel nie angefragt werden) im Rahmen mit
+  `sandbox="allow-popups allow-popups-to-escape-sandbox"`. Anhänge einer Mail einzeln ansehbar (PDF, Bilder) oder
+  zum Herunterladen.
+- **Mails aus dem Postfach:** Der Spiegel speichert zusätzlich die Rohfassung (Betriebszustand, Spalte `roh`, nur
+  bis `upload_max_mib`); das IMAP-Plugin liefert sie als Zusatzattribut `roh` außerhalb der Datenklassenfelder
+  (plugins.md legt die Felder von `MailNachricht` fest). Ohne Rohfassung (Mock) wird die Mail aus den Feldern
+  gebaut.
+- **Sicherung:** Schemaversion 4 mit `dokument_inhalt` (nur benötigte Inhalte), `dokument`, `dokument_buchung`;
+  `dokument` in `anzahl` nur bei Vorhandensein; Prüfung von Hash, Größe und Typ beim Einspielen.
+- **Oberfläche:** Abschnitt „Dokumente“ im Detailpanel (Liste, Ansehen, Lösen, „Datei anhängen…“, mobil
+  „📷 Foto aufnehmen“ mit `capture="environment"`, „E-Mail…“), Kontextmenü „Dokument anhängen…“, mobil
+  „Foto aufnehmen…“, „E-Mail anhängen…“, „Dokumente ansehen“ (für alle gewählten Buchungen), 📎-Marke je Zeile,
+  Dateien aus dem Betriebssystem auf eine Zeile ziehen (gewählte Zeile bei Mehrfachauswahl → alle gewählten).
+  Betrachter: PDF im Rahmen (mobil zusätzlich „PDF öffnen“), Bilder (Klick vergrößert), E-Mail mit Kopf,
+  HTML/Text umschaltbar, Anhänge; Blättern zwischen den Dokumenten einer Buchung. Kamerafotos werden im Browser auf
+  höchstens 2400 px Kantenlänge (JPEG) verkleinert.
+- **Nachträglich verknüpfen (abgestimmt 2026-11-12):** Der Betrachter zeigt unter jedem Dokument die Buchungen,
+  an denen es hängt (Sprung zur Buchung über das erste Bestandskonto ihrer Splits, Lösen je Buchung), und bietet
+  „Mit weiteren Buchungen verknüpfen…“ (Suche über `suche` der Buchungsliste, Mehrfachauswahl). PDFs auf dem Handy
+  bleiben beim Knopf „PDF öffnen“ (PDF-App des Geräts); jedes Kamerafoto ist ein eigenes Dokument.
+
+## D-128 Mail-Abgleich: erwartete Zahlungen aus Bestell- und Zahlungsmails (Feature `mail-abgleich`, iterativ)
+
+- **Anlass:** Auftrag 2026-11-12. Abgestimmt: Mails sind die einzige Quelle (kein Scraping, keine Amazon-/PayPal-
+  Zugangsdaten); „Vorgang statt Kaskade“ (kein PayPal-Konto, keine Zwischenstufen); je Vorgang höchstens eine
+  erwartete Bankbewegung mit **Grund** (Bestellung, PayPal, Rückerstattung, manuell; Serien folgen);
+  Guthaben bleibt außerhalb der Buchhaltung (Variante A: erwartet wird nur der Bankanteil); Belege gehören zum
+  Buchbestand; keine Splits nach Artikeln; ganze Mail und PDF-Anhänge als Dokumente; Frist 5 Tage.
+- **Basis:** Branch `feature/dokumente` (D-123) – die Mails werden mit dessen Dokumenten an die Buchung gehängt;
+  `dokumente` muss vor diesem Feature gemergt werden.
+- **Schalter:** `mail_abgleich` (`KONTOR_MAIL_ABGLEICH`, Vorgabe aus, damit Abläufe und Protokoll bestehender
+  Meilensteine unverändert bleiben; ausgelieferte Umgebungsdatei: an) und `mail_abgleich_frist_tage`
+  (`KONTOR_MAIL_ABGLEICH_FRIST_TAGE`, Vorgabe 5).
+- **Erkennung** (`mailerkennung.py`, reine Funktionen): Anbieter am Absender-Domänennamen (`amazon.…`, `paypal.…`),
+  Pflicht sind Kennung (Amazon-Bestellnummer `ddd-ddddddd-ddddddd`, PayPal-Transaktionscode, 17 Zeichen) und
+  Betrag. Amazon: Bestellung (Gesamtsumme, Geschenkgutschein/Guthaben, Artikel), Stornierung, Erstattung. PayPal:
+  Zahlung (Händler aus dem Betreff, PayPal-Guthaben-Anteil, Bestell-/Rechnungsnummer des Händlers als Referenz),
+  Rückzahlung (ursprünglicher Transaktionscode; „gutgeschrieben auf PayPal-Guthaben“ → nichts zu erwarten).
+  Unklare Mails werden nicht erkannt und bleiben nur im Spiegel.
+- **Datenmodell:** Objektart `erwartung` (Tabelle `erwartung`, protokolliert, rückgängig machbar, in der Sicherung
+  ab Schemaversion 5, nur bei Vorhandensein in `anzahl`). Beträge in Cent ≥ 0 mit `richtung`
+  (`ausgabe`/`eingang`); `betrag` = Bankanteil, `gesamt`, `guthaben`. Zustände `offen`, `erfuellt`, `guthaben`,
+  `storniert`, `erledigt`; „überfällig“ wird abgeleitet (offen, Frist vorbei). `schluessel` (Anbieter:Art:Kennung)
+  macht die Erkennung idempotent; dieselbe Mail aus zwei Postfächern ergänzt nur die Mail-Liste. Zuordnungen
+  (`buchung_ids`) und angehängte Dokumente (`dokument_ids`) als JSON in der Zeile, ohne Fremdschlüssel;
+  `erwartung.verwaiste_entfernen` am Ende jeder protokollierten Operation (gelöschte Buchung → wieder offen).
+  Mails selbst bleiben Betriebszustand; die Erwartung merkt sich Postfach, Nachrichten-ID und Betreff.
+- **Ablauf** (`abgleich.laufen`, eine Änderung mit Quelle `mail`, Aktion `erwartung_erkennen`, nur wenn sich etwas
+  ändert): nach jedem Mail-Abruf, nach jedem Synchronisationslauf und in jedem Planer-Takt sowie per
+  `POST /api/erwartungen/abgleich`. Danach je überfälliger Erwartung höchstens eine Benachrichtigung
+  (`erwartung_ueberfaellig`, Entprellung „einmal“).
+- **Zuordnung:** Kandidaten sind Buchungen mit genau einem Split auf einem Bestandskonto, passender Richtung,
+  Betrag ≤ offener Betrag, Datum von 3 Tagen vor bis 45 Tage nach dem Datum der Erwartung, noch keiner Erwartung
+  zugeordnet, und entweder mit Kennung/Referenz im Verwendungszweck oder Empfänger (ohne Leerzeichen, ab 6 Zeichen)
+  oder genau dem offenen Betrag. **Automatisch** nur bei Kennung oder wenn die Buchung der einzige Kandidat mit
+  vollem Betrag ist, den Anbieter-/Händlernamen enthält und für keine andere offene Erwartung infrage kommt; sonst
+  bestätigt der Anwender. Teillieferungen: mehrere Buchungen, erfüllt bei vollem Betrag. Beim Zuordnen hängen die
+  Mails (je Nachrichten-ID einmal) und ihre PDF-Anhänge als Dokumente (Quelle `mail`) an der Buchung; weitere
+  Buchungen derselben Erwartung werden mit denselben Dokumenten verknüpft. Lösen entfernt auch diese Verknüpfung.
+- **REST:** `GET/POST /api/erwartungen` (Filter `grund`, `zustand` inkl. `ueberfaellig`, `faellig_bis`, `suche`,
+  `richtung`; Vorgabe `zustand=offen`), `POST /api/erwartungen/abgleich`, `GET/PATCH/DELETE
+  /api/erwartungen/{id}` (Löschen nur manuelle; aus Mails erkannte werden geschlossen, sonst kämen sie wieder),
+  `POST /api/erwartungen/{id}/zustand`, `GET …/kandidaten`, `POST …/buchungen`, `DELETE …/buchungen/{bid}`.
+- **Oberfläche:** Seite `/erwartet` „Was kommt noch?“ (Link in der Navigation mit `data-testid="navlink-erwartet"`,
+  damit die festgelegte Liste `nav-…` aus M8 unverändert bleibt; Befehlspalette „Gehe zu: Was kommt noch?“).
+  Schnellfilter als Chips (Grund, Zustand mit Vorgabe „Offen“, Fällig bis, Suche) im Abfrageteil der Adresse (je
+  Tab), eine Zeile je Vorgang, Details mit Mails, Zuordnungen, Belegen und Kandidaten; mobil als Karten.

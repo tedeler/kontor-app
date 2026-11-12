@@ -422,6 +422,8 @@ def buchungen_laden(con, ids: list[int], konto_id: int | None = None,
             if r["quelle"] == "lernmodell":  # M4: Sicherheit nur bei Vorschlägen des Lernmodells
                 v["sicherheit"] = r["sicherheit"]
             vorschlaege[r["buchung_id"]] = v
+    from . import dokumente  # spät: dokumente importiert buch
+    belege = dokumente.belege_je_buchung(con, [bid for bid in ids if bid in kopf])
     aus = []
     for bid in ids:
         r = kopf.get(bid)
@@ -443,7 +445,7 @@ def buchungen_laden(con, ids: list[int], konto_id: int | None = None,
             "kategorie_id": kategorie_aus_splits(sp, art_von),
             "betrag": betrag,
             "extern_ids": sorted(extern[bid]),
-            "belege": [],
+            "belege": belege.get(bid, []),
             "vorschlag": vorschlaege.get(bid),
             "gegen_iban": r["gegen_iban"],
             "ist_umbuchung": all(art_von[s["konto_id"]] in BESTAND for s in sp) and len({s["konto_id"] for s in sp}) >= 2,

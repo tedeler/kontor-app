@@ -109,6 +109,10 @@ class KontorConfig:
     # Sammelpaket (D-111): unbekannte Bankkonten automatisch als Konto anlegen (synchronisation.md 3) oder
     # überspringen und den Anwender zuordnen lassen. Vorgabe wie bisher; die ausgelieferte Umgebungsdatei schaltet ab.
     sync_konten_anlegen: bool = True
+    # Mail-Abgleich (D-128): Bestell- und Zahlungsmails erkennen, erwartete Zahlungen anlegen und zuordnen.
+    # Vorgabe aus (bestehende Abläufe bleiben unverändert); die ausgelieferte Umgebungsdatei schaltet ein.
+    mail_abgleich: bool = False
+    mail_abgleich_frist_tage: int = 5
     # Meilenstein 6: echte Anbindungen und Benachrichtigungen (python-api.md 13.1). Keine Geheimnisse.
     bank_pin_quelle: str = "eingabe"
     credentials_verzeichnis: pathlib.Path | None = None
@@ -182,6 +186,12 @@ class KontorConfig:
         if not isinstance(self.wiederkehrend_automatisch, bool):
             raise KonfigurationsFehler("wiederkehrend_automatisch muss wahr oder falsch sein.",
                                        feld="wiederkehrend_automatisch")
+        if not isinstance(self.mail_abgleich, bool):
+            raise KonfigurationsFehler("mail_abgleich muss wahr oder falsch sein.", feld="mail_abgleich")
+        f = self.mail_abgleich_frist_tage
+        if type(f) is not int or not 0 <= f <= 366:
+            raise KonfigurationsFehler("mail_abgleich_frist_tage muss eine Ganzzahl von 0 bis 366 sein.",
+                                       feld="mail_abgleich_frist_tage")
         if not isinstance(self.sync_konten_anlegen, bool):
             raise KonfigurationsFehler("sync_konten_anlegen muss wahr oder falsch sein.", feld="sync_konten_anlegen")
         if not isinstance(self.lernmodell_automatisch, bool):
@@ -397,6 +407,13 @@ class KontorConfig:
         sync_konten_anlegen = _wahrheitswert(wert("KONTOR_SYNC_KONTEN_ANLEGEN"), "KONTOR_SYNC_KONTEN_ANLEGEN", True)
         wiederkehrend_automatisch = _wahrheitswert(wert("KONTOR_WIEDERKEHREND_AUTOMATISCH"),
                                                    "KONTOR_WIEDERKEHREND_AUTOMATISCH", False)
+        mail_abgleich = _wahrheitswert(wert("KONTOR_MAIL_ABGLEICH"), "KONTOR_MAIL_ABGLEICH", False)
+        text = wert("KONTOR_MAIL_ABGLEICH_FRIST_TAGE")
+        if text:
+            if not text.isascii() or not text.isdigit() or int(text) > 366:
+                raise KonfigurationsFehler("KONTOR_MAIL_ABGLEICH_FRIST_TAGE muss eine Ganzzahl von 0 bis 366 sein.",
+                                           variable="KONTOR_MAIL_ABGLEICH_FRIST_TAGE")
+            ganz["mail_abgleich_frist_tage"] = int(text)
         text = wert("KONTOR_UMBUCHUNG_FENSTER_TAGE")
         if text:
             if not text.isascii() or not text.isdigit() or int(text) > 366:
@@ -431,6 +448,7 @@ class KontorConfig:
             lernmodell_automatisch=lernmodell_automatisch,
             wiederkehrend_automatisch=wiederkehrend_automatisch,
             sync_konten_anlegen=sync_konten_anlegen,
+            mail_abgleich=mail_abgleich,
             **ganz,
             **m6,
             **m7,
