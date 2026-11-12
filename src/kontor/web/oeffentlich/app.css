@@ -491,5 +491,9 @@ html[data-thema="dunkel"] { --mark-gruen: #5fb878; --mark-grau: #6f7884; --mark-
   background-image: linear-gradient(var(--mark-gruen) 50%, var(--mark-grau) 50%); }
 .buchungsliste .zeile:hover { background-color: var(--hg-2); }
 .buchungsliste .zeile[aria-selected="true"] { background-color: var(--auswahl); }
-/* Zusatzmarken: wiederkehrende Buchung */
-.zeile[data-wiederkehrend="ja"] .zelle-empfaenger::before { content: "↻"; color: var(--akzent); margin-right: .3em; font-weight: 600; }
+/* Zusatzmarken vor dem Empfänger: wiederkehrende Buchung ↻, durch Mail bestätigt ✉ (nur Gestaltung) */
+.zeile[data-wiederkehrend="ja"] .zelle-empfaenger::before, .zeile[data-mail="ja"] .zelle-empfaenger::before {
+  color: var(--akzent); margin-right: .3em; font-weight: 600; flex: none; }
+.zeile[data-wiederkehrend="ja"] .zelle-empfaenger::before { content: "↻"; }
+.zeile[data-mail="ja"] .zelle-empfaenger::before { content: "✉"; }
+.zeile[data-wiederkehrend="ja"][data-mail="ja"] .zelle-empfaenger::before { content: "↻ ✉"; }

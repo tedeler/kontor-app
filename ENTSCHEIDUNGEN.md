@@ -1611,4 +1611,11 @@ Weitere Abkürzungen: SY = `spec/api/synchronisation.md`, KA =
   grau; sonst keine Markierung. Hover und Auswahl überdecken die Tönung, der Streifen bleibt.
 - **Wiederkehrend:** Zeilen, deren Buchung zu einer Serie aus `GET /api/wiederkehrend` gehört (auch ausbleibende
   und beendete), tragen `data-wiederkehrend="ja"` und ein „↻“ vor dem Empfänger (nur Gestaltung, der Text der
-  Zelle bleibt unverändert). Keine Änderung an REST, Datenmodell oder Protokoll.
+  Zelle bleibt unverändert).
+- **Durch Mail bestätigt** (abgestimmt 2026-11-12): Zeilen, deren Buchung einer aus Mails erkannten Erwartung
+  (Grund Bestellung, PayPal oder Rückerstattung, beliebiger Zustand) zugeordnet ist, tragen `data-mail="ja"` und
+  ein „✉“ vor dem Empfänger; der Titel der Zelle nennt Grund, Händler und Kennung. Quelle ist
+  `GET /api/erwartungen`. Der Branch enthält deshalb `feature/mail-abgleich` und kann erst nach diesem gemergt
+  werden.
+- **Vorrang** (abgestimmt): Eine importierte Buchung mit Kategorie ist grün; vorläufige oder bestätigte Buchungen
+  ohne Kategorie bleiben unmarkiert. Keine Änderung an REST, Datenmodell oder Protokoll.

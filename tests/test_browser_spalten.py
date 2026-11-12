@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import httpx
 
-from kontor import buch, db
+from kontor import buch, db, erwartung
 
 from .test_browser import DESKTOP, bereit, browser, expect, seite, server, tid  # noqa: F401
 
@@ -37,6 +37,16 @@ def _daten(url, config):
     ids["abgeglichen"] = buchen("2024-06-03", laden, kat)
     r = c.patch(f"/api/buchungen/{ids['abgeglichen']}", json={"status": "abgeglichen"})
     assert r.status_code == 200, r.text
+    # aus einer Mail erkannte Bestellung (synthetisch), zugeordnet über die REST-Schnittstelle
+    con = db.verbinde(config.aktive_datenbank)
+    with db.transaktion(con):
+        eid = erwartung._neu(con, grund="bestellung", richtung="ausgabe", anbieter="amazon", schluessel="amazon:bestellung:1",
+                             kennung="000-0000000-0000001", referenz="", haendler="Amazon (fiktiv)", beschreibung="",
+                             gesamt=1000, guthaben=0, datum="2024-06-01", frist="2024-06-06", bezug_id=None, mails=[],
+                             zeitpunkt="2024-06-01T10:00:00Z")
+    con.close()
+    r = c.post(f"/api/erwartungen/{eid}/buchungen", json={"buchung_ids": [ids["serie"][-1]]})
+    assert r.status_code == 200, r.text
     return g, ids
 
 
@@ -53,6 +63,11 @@ def test_markierung_der_zeilen(tmp_path, browser):  # noqa: F811
             expect(zeile(i)).to_have_attribute("data-markierung", "kategorisiert")
             expect(zeile(i)).to_have_attribute("data-wiederkehrend", "ja")
         assert zeile(ids["importiert"]).get_attribute("data-wiederkehrend") is None
+        # durch Mail bestätigt: nur die zugeordnete Buchung
+        expect(zeile(ids["serie"][-1])).to_have_attribute("data-mail", "ja")
+        assert zeile(ids["serie"][-1]).locator('[data-feld="empfaenger"]').get_attribute("title").endswith(
+            "durch Mail bestätigt: Bestellung Amazon (fiktiv) 000-0000000-0000001")
+        assert zeile(ids["serie"][0]).get_attribute("data-mail") is None
         # Zusatzmarke nur als Gestaltung: der Text der Zelle bleibt der Empfängername
         expect(zeile(ids["serie"][0]).locator('[data-feld="empfaenger"]')).to_have_text("Abo AG (fiktiv)")
 

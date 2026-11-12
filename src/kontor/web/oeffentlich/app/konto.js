@@ -66,6 +66,14 @@ function markierung(b) {
   return null;
 }
 
+const MAIL_GRUENDE = ["bestellung", "paypal", "rueckerstattung"];
+const ERWARTUNG_ZUSTAENDE = ["offen", "erfuellt", "guthaben", "storniert", "erledigt"];
+const GRUND_TEXT = { bestellung: "Bestellung", paypal: "PayPal-Zahlung", rueckerstattung: "Rückerstattung" };
+
+function erwartungText(e) {
+  return [GRUND_TEXT[e.grund] || e.grund, e.haendler, e.kennung].filter(Boolean).join(" ");
+}
+
 // ------------------------------------------------------------------ Layout der Panels (15, E-141)
 const LAYOUT_SCHLUESSEL = "kontor.layout";
 const VORGABE = () => ({ version: 1, panels: {
@@ -181,6 +189,7 @@ class Kontoansicht {
     this.spaltenVariante = this.istKategorie ? "kategorie" : "konto";
     this.breiten = spaltenLaden(this.spaltenVariante);
     this.wiederkehrend = new Set();
+    this.mailBestaetigt = new Map();
     this.titel = konto.name;
     this.filter = this.filterAusUrl(suche);
     this.eintraege = [];
@@ -271,6 +280,9 @@ class Kontoansicht {
     const basis = { konto_id: this.konto.id, ...this.filter, sortierung: this.sortierung, pro_seite: PRO_SEITE };
     // D-130: Buchungen wiederkehrender Serien (wiederkehrend.md 2.5) für die Markierung der Zeilen
     const serien = api("GET", "/api/wiederkehrend").then((w) => w.serien, () => []);
+    // D-130: Buchungen, die einer aus Mails erkannten Erwartung zugeordnet sind (Mail-Abgleich, D-128)
+    const erwartungen = api("GET", "/api/erwartungen" + abfrage({ grund: MAIL_GRUENDE, zustand: ERWARTUNG_ZUSTAENDE }))
+      .then((e) => e.eintraege, () => []);
     const eintraege = [];
     let gesamt = 0;
     let summe = 0;
@@ -285,8 +297,11 @@ class Kontoansicht {
     try { verdachte = await api("GET", "/api/dubletten?status=offen"); } catch (e) { verdachte = []; }
     await this.regelnLaden(eintraege);
     const wk = new Set((await serien).flatMap((x) => x.buchung_ids));
+    const mail = new Map();
+    for (const e of await erwartungen) for (const id of e.buchung_ids) if (!mail.has(id)) mail.set(id, erwartungText(e));
     if (nr !== this.ladeNr) return;
     this.wiederkehrend = wk;
+    this.mailBestaetigt = mail;
     this.kandidatenCache = new Map();
     this.verdachte = verdachte;
     this.eintraege = eintraege;
@@ -789,10 +804,16 @@ class Kontoansicht {
     if (b.abgestimmt || b.status === "abgeglichen") zeile.dataset.gesperrt = "ja";
     const mark = markierung(b);
     if (mark) zeile.dataset.markierung = mark;
+    const hinweise = [];
     if (this.wiederkehrend.has(b.id)) {
       zeile.dataset.wiederkehrend = "ja";
-      empf.title = empfName ? `${empfName} – wiederkehrende Buchung` : "Wiederkehrende Buchung";
+      hinweise.push("wiederkehrende Buchung");
     }
+    if (this.mailBestaetigt.has(b.id)) {
+      zeile.dataset.mail = "ja";
+      hinweise.push(`durch Mail bestätigt: ${this.mailBestaetigt.get(b.id)}`);
+    }
+    if (hinweise.length) empf.title = [empfName, ...hinweise].filter(Boolean).join(" – ");
     this.zeilen.set(b.id, zeile);
     return zeile;
   }
