@@ -304,6 +304,14 @@ html.zieht, html.zieht * { cursor: grabbing !important; }
 .plotly-diagramm { height: 340px; }
 .plotly-diagramm:has(> .leer) { height: auto; }
 .plotly-diagramm .leer { padding: 1rem; margin: 0; }
+.aufklapp-knopf { border: 0; background: none; color: inherit; cursor: pointer; padding: 0 .35em 0 0; font: inherit; }
+.aufklapp-knopf::before { content: "▸"; display: inline-block; width: 1em; }
+.aufklapp-knopf[aria-expanded="true"]::before { content: "▾"; }
+.aufklapp-knopf:focus-visible { outline: 2px solid var(--akzent); border-radius: 3px; }
+.bericht-details > td { background: var(--hg-2); padding: .4rem .6rem .6rem 1.6rem; }
+.tabelle.einzelbuchungen { font-size: .92em; margin: 0; }
+.konto-knoepfe { display: flex; flex-wrap: wrap; gap: .25rem; }
+.konto-knoepfe .knopf { padding: .1rem .45rem; }
 .protokoll { padding-left: 1.2rem; }
 .aenderung { margin-bottom: .35rem; overflow-wrap: anywhere; }
 .aenderung.unwirksam { color: var(--text-2); }

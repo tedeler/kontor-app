@@ -293,3 +293,98 @@ def test_sammelpaket_berichte_plotly(tmp_path, browser):
         expect(diagramm).to_have_attribute("role", "img")
         expect(diagramm.locator(".main-svg").first).to_be_visible()
         expect(diagramm).to_have_attribute("data-reihen", "1")
+
+
+def test_plotly_tooltip_im_dunklen_thema(tmp_path, browser):
+    """Tooltip-Hintergrund und -Schrift folgen dem Thema (sonst helle Schrift auf hellem Grund)."""
+    with server(tmp_path) as (url, _), seite(browser, url, **DESKTOP) as page:
+        page.goto(url + "/berichte")
+        page.evaluate("localStorage.setItem('kontor.thema', 'dunkel')")
+        page.reload()
+        bereit(page, "berichte")
+        assert page.evaluate("document.documentElement.dataset.thema") == "dunkel"
+        tid(page, "bericht-konten").select_option(label="Giro")
+        tid(page, "bericht-von").fill("2024-01-01")
+        tid(page, "bericht-von").dispatch_event("change")
+        diagramm = tid(page, "bericht-diagramm")
+        expect(diagramm.locator(".main-svg").first).to_be_visible()
+        farben = diagramm.evaluate("""(el) => {
+            const p = el.querySelector('.js-plotly-plot') || el;
+            const cs = getComputedStyle(document.documentElement);
+            const h = p._fullLayout.hoverlabel;
+            return { bg: h.bgcolor, schrift: h.font.color,
+                     hg: cs.getPropertyValue('--hg').trim(), text: cs.getPropertyValue('--text').trim() };
+        }""")
+        assert farben["bg"].lower() == farben["hg"].lower() == "#15181c"
+        assert farben["schrift"].lower() == farben["text"].lower()
+
+
+def _bericht_giro(page, url):
+    page.goto(url + "/berichte")
+    bereit(page, "berichte")
+    tid(page, "bericht-konten").select_option(label="Giro")
+    tid(page, "bericht-von").fill("2024-01-01")
+    tid(page, "bericht-von").dispatch_event("change")
+    expect(tid(page, "bericht-diagramm").locator(".main-svg").first).to_be_visible()
+    # monatlich bis zum Mock-Heute 30.06.2024: 01.01., 31.01., 29.02., …, 30.06.
+    expect(tid(page, "bericht-tabelle").locator("tbody tr")).to_have_count(7)
+
+
+def test_bericht_tabelle_folgt_dem_zoom(tmp_path, browser):
+    with server(tmp_path) as (url, _), seite(browser, url, **DESKTOP) as page:
+        _bericht_giro(page, url)
+        zeilen = tid(page, "bericht-tabelle").locator("tbody tr")
+        hinweis = tid(page, "bericht-zoom-hinweis")
+        expect(hinweis).to_be_hidden()
+        tid(page, "bericht-diagramm").evaluate(
+            "(el) => Plotly.relayout(el, {'xaxis.range': ['2024-02-15', '2024-04-15']})")
+        expect(zeilen.locator("visible=true")).to_have_count(2)
+        expect(tid(page, "bericht-zeile-2024-02-29")).to_be_visible()
+        expect(tid(page, "bericht-zeile-2024-03-31")).to_be_visible()
+        expect(tid(page, "bericht-zeile-2024-01-31")).to_be_hidden()
+        expect(hinweis).to_be_visible()
+        expect(hinweis).to_contain_text("15.02.2024 – 15.04.2024 (2 von 7 Zeilen)")
+        # Doppelklick ins Diagramm = Autorange: wieder alles
+        tid(page, "bericht-diagramm").evaluate("(el) => Plotly.relayout(el, {'xaxis.autorange': true})")
+        expect(zeilen.locator("visible=true")).to_have_count(7)
+        expect(hinweis).to_be_hidden()
+
+
+def test_bericht_zeile_aufklappen_und_zur_buchung_springen(tmp_path, browser):
+    with server(tmp_path) as (url, _), seite(browser, url, **DESKTOP) as page:
+        _bericht_giro(page, url)
+        zeile = tid(page, "bericht-zeile-2024-01-31")
+        expect(zeile.locator("th")).to_have_text("31.01.2024")          # Text der Zelle unverändert
+        knopf = tid(page, "bericht-aufklappen-1")
+        expect(knopf).to_have_attribute("aria-expanded", "false")
+        knopf.click()
+        expect(knopf).to_have_attribute("aria-expanded", "true")
+        details = tid(page, "bericht-details-1")
+        buchungen = details.locator('[data-testid^="bericht-buchung-"][data-id]')
+        expect(buchungen).to_have_count(19)                              # 02.01. bis 20.01.; 01.01. gehört zu Zeile 0
+        erste = buchungen.first
+        expect(erste).to_contain_text("02.01.2024")
+        expect(erste).to_contain_text("-2,00 €")
+        bid = erste.get_attribute("data-id")
+        sprung = erste.locator('a[data-testid^="bericht-buchung-"]').first
+        expect(sprung).to_have_text("Giro")                              # gewähltes Konto zuerst
+        # Zuklappen und wieder aufklappen ohne neue Anfrage
+        knopf.click()
+        expect(details).to_be_hidden()
+        knopf.click()
+        expect(details).to_be_visible()
+        sprung.click()
+        bereit(page, "konto")
+        markiert = page.locator('[data-testid="buchungsliste"] [role="row"][aria-selected="true"]')
+        expect(markiert).to_have_count(1)
+        expect(markiert).to_have_attribute("data-id", bid)
+
+
+def test_bericht_ea_zeile_aufklappen(tmp_path, browser):
+    with server(tmp_path) as (url, _), seite(browser, url, **DESKTOP) as page:
+        _bericht_giro(page, url)
+        page.get_by_role("button", name="Einnahmen und Ausgaben berechnen").click()
+        expect(tid(page, "bericht-ea-diagramm")).to_be_visible()
+        tid(page, "bericht-ea-aufklappen-0").click()
+        details = tid(page, "bericht-ea-details-0")
+        expect(details.locator('[data-testid^="bericht-ea-buchung-"][data-id]')).to_have_count(20)

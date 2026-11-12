@@ -1509,3 +1509,23 @@ Weitere Abkürzungen: SY = `spec/api/synchronisation.md`, KA =
   genau ein Schritt. Das Neuladen der Ansicht danach läuft außerhalb dieser Reihe.
 - Ein Schritt wartet außerdem auf gerade laufende Aktionen, bis deren Änderungen auf dem Rückgängig-Stapel liegen:
   Strg+Z unmittelbar nach einer Änderung macht genau diese rückgängig, statt „nichts rückgängig zu machen“ zu melden.
+
+## D-128 Berichtsdiagramme: Tooltip im Thema, Tabellen folgen dem Zoom, Einzelbuchungen (Feature `diagramm-dunkel`, iterativ)
+
+D-123 bis D-127 sind auf den offenen Branches `dokumente` und `alfbanco-import` vergeben; daher D-128.
+
+- **Tooltip:** Die Plotly-Diagramme setzen `hoverlabel` ausdrücklich auf die Farben des Themas (`--hg`, `--rand`,
+  `--text`). Ohne Angabe zeichnete Plotly einen hellen Kasten, auf dem die helle Schrift des dunklen Themas nicht
+  lesbar war. Der Reihenname steht im Text des Tooltips (`<extra></extra>` leer), weil Plotly das Namensfeld sonst
+  hell hinterlegt.
+- **Zoom:** Die Tabelle unter einem Diagramm zeigt nur die Zeilen, deren x-Wert (Stichtag bzw. Beginn des Zeitraums)
+  im sichtbaren Bereich der x-Achse liegt; ein Hinweis nennt Ausschnitt und Zeilenzahl. Autorange (Doppelklick)
+  zeigt wieder alle. Kein neuer Abruf, nur Ausblenden; die Zeilen bleiben im Dokument.
+- **Einzelbuchungen:** Jede Tabellenzeile hat einen Aufklappknopf (Text der ersten Zelle unverändert, Symbol über
+  CSS). Aufgeklappt folgt eine Zeile mit den Buchungen des Zeitraums: Kontostand Zeile i = nach dem vorigen Stichtag
+  bis einschließlich Stichtag i (Zeile 0 = nur der erste Stichtag); Einnahmen/Ausgaben = der Zeitraum der Zeile ohne
+  Umbuchungen. Quelle ist `GET /api/buchungen` je gewähltem Konto (ohne Auswahl: alle), höchstens 500 je Konto mit
+  Hinweis. Betrag = Summe der Splits auf den gewählten Konten (ohne Auswahl: auf Bestandskonten). Je beteiligtem
+  Konto ein Knopf (gewählte Konten zuerst), der `/konten/<id>?buchung=<id>` öffnet (Sprungziel nach M16 3.4).
+  Die Detailzeile entsteht erst beim Aufklappen, damit die Zeilenzahl der Tabelle unverändert bleibt.
+- Keine neuen Endpunkte, kein fachlicher Zustand.
