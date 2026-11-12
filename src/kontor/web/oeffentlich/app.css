@@ -387,6 +387,86 @@ td.aktionen { width: 2.5rem; text-align: right; }
 .sprung-ziel { animation: sprung 2s ease-out; }
 @keyframes sprung { from { background: var(--akzent-hell); } to { background: transparent; } }
 
+/* Dokumente (D-123) */
+.zelle.mit-marke { display: flex; align-items: center; min-width: 0; }
+.zelle.mit-marke > .zelle-text { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.beleg-marke { flex: none; border: 0; background: none; cursor: pointer; padding: 0 .25rem; margin-left: .3rem; font-size: .9em;
+  color: var(--text); border-radius: 3px; }
+.beleg-marke:hover, .beleg-marke:focus-visible { background: var(--hg-3); }
+.zeile[data-ablage="ja"] { outline: 2px dashed var(--akzent); outline-offset: -2px; background: var(--hg-3); }
+.details-dokumente { margin-top: .75rem; border-top: 1px solid var(--rand); padding-top: .5rem; }
+.details-dokumente-liste { list-style: none; padding: 0; margin: .25rem 0; }
+.details-dokument { display: flex; align-items: center; gap: .3rem; padding: .15rem 0; }
+.details-dokument .knopf-link { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  text-align: left; }
+.knopf-link { border: 0; background: none; padding: 0; color: var(--akzent); cursor: pointer; text-decoration: underline;
+  font: inherit; }
+.dialog-betrachter { width: min(1100px, 96vw); max-width: none; height: min(92vh, 1000px); display: flex; flex-direction: column; }
+.dialog-betrachter .dialog-inhalt { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.betrachter-leiste { display: flex; align-items: center; gap: .4rem; margin-bottom: .4rem; flex-wrap: wrap; }
+.betrachter-leiste .abstand { flex: 1 1 auto; }
+.betrachter-inhalt { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.betrachter-flaeche { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: auto; }
+.betrachter-pdf { flex: 1 1 auto; width: 100%; min-height: 60vh; border: 1px solid var(--rand); background: #fff; }
+.betrachter-flaeche-bild { align-items: center; justify-content: flex-start; }
+.betrachter-bild { max-width: 100%; max-height: 100%; object-fit: contain; cursor: zoom-in; background: #fff; }
+.betrachter-bild.gross { max-width: none; max-height: none; cursor: zoom-out; }
+.betrachter-hinweis { margin: .25rem 0 .5rem; }
+.betrachter-mail { gap: .4rem; }
+.mail-kopf { display: grid; grid-template-columns: max-content 1fr; gap: .1rem .6rem; margin: 0; font-size: .92em; }
+.mail-kopf dt { color: var(--text-2, inherit); opacity: .75; }
+.mail-kopf dd { margin: 0; overflow-wrap: anywhere; }
+.mail-koerper { flex: 1 1 auto; min-height: 40vh; display: flex; flex-direction: column; }
+.mail-html { flex: 1 1 auto; width: 100%; min-height: 40vh; border: 1px solid var(--rand); background: #fff; }
+.mail-text { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; padding: .5rem; border: 1px solid var(--rand);
+  background: var(--hg); font-family: inherit; flex: 1 1 auto; overflow: auto; }
+.mail-anhaenge { list-style: none; padding: 0; margin: 0; }
+.mail-anhaenge li { padding: .15rem 0; }
+.mail-auswahl { list-style: none; padding: 0; margin: .5rem 0; max-height: 55vh; overflow: auto; border: 1px solid var(--rand); }
+.mail-eintrag { padding: .4rem .6rem; border-bottom: 1px solid var(--rand); cursor: pointer; }
+.mail-eintrag:hover, .mail-eintrag:focus { background: var(--hg-3); outline: none; }
+.mail-betreff { font-weight: 600; }
+@media (max-width: 760px) { .dialog-betrachter { width: 100vw; height: 100vh; max-height: none; border-radius: 0; } }
+
+.betrachter-buchungen { flex: none; border-top: 1px solid var(--rand); margin-top: .5rem; padding-top: .3rem; max-height: 30vh; overflow: auto; }
+.betrachter-buchungen-liste { list-style: none; padding: 0; margin: .2rem 0 .4rem; }
+.betrachter-buchungen-liste li { display: flex; align-items: center; gap: .4rem; padding: .1rem 0; }
+.verknuepfen-liste { list-style: none; padding: 0; margin: .5rem 0; max-height: 55vh; overflow: auto; border: 1px solid var(--rand); }
+.verknuepfen-eintrag { display: flex; align-items: center; gap: .3rem; padding: .35rem .5rem; border-bottom: 1px solid var(--rand); cursor: pointer; }
+[data-testid="verknuepfen-suche"], [data-testid="mail-auswahl-suche"] { width: 100%; box-sizing: border-box; }
+
+/* Mail-Abgleich (D-128): Schnellfilter als Chips, überfällige Zeilen */
+.chip-leiste { display: flex; flex-wrap: wrap; gap: .4rem 1rem; align-items: center; margin: .3rem 0 .6rem; }
+.chip-gruppe { display: inline-flex; flex-wrap: wrap; gap: .3rem; align-items: center; }
+.chip-titel { font-size: .8rem; color: var(--text-2); margin-right: .1rem; }
+.chip { border: 1px solid var(--rand); background: var(--hg); color: var(--text); border-radius: 999px;
+  padding: .15rem .7rem; font-size: .85rem; cursor: pointer; }
+.chip.an { background: var(--akzent); color: var(--akzent-text); border-color: var(--akzent); }
+.chip:focus-visible { outline: 2px solid var(--akzent); outline-offset: 2px; }
+.chip-gruppe input[type=search] { min-width: 14rem; }
+tr.ueberfaellig td { color: var(--gefahr); }
+.warnung { color: var(--gefahr); font-weight: 600; }
+.angaben { display: grid; grid-template-columns: max-content 1fr; gap: .2rem .8rem; }
+.angaben dt { color: var(--text-2); }
+[data-layout="mobil"] .seite-erwartet thead { display: none; }
+[data-layout="mobil"] .seite-erwartet tbody tr { display: grid; grid-template-columns: auto 1fr auto auto;
+  grid-template-areas: "h h b a" "f g z a"; gap: 0 .5rem; border-bottom: 1px solid var(--rand); padding: .35rem 0; }
+[data-layout="mobil"] .seite-erwartet tbody td { display: block; border: 0; padding: 0; }
+[data-layout="mobil"] .seite-erwartet .e-haendler { grid-area: h; }
+[data-layout="mobil"] .seite-erwartet .e-betrag { grid-area: b; }
+[data-layout="mobil"] .seite-erwartet .e-aktionen { grid-area: a; align-self: center; }
+[data-layout="mobil"] .seite-erwartet .e-frist, [data-layout="mobil"] .seite-erwartet .e-grund,
+[data-layout="mobil"] .seite-erwartet .e-zustand { font-size: .85rem; color: var(--text-2); }
+[data-layout="mobil"] .seite-erwartet .e-frist { grid-area: f; }
+[data-layout="mobil"] .seite-erwartet .e-grund { grid-area: g; }
+[data-layout="mobil"] .seite-erwartet .e-zustand { grid-area: z; justify-self: end; }
+[data-layout="mobil"] .seite-erwartet .e-kennung { display: none; }
+[data-layout="mobil"] .seite-erwartet .werkzeuge { flex-wrap: wrap; }
+[data-layout="mobil"] .seite-erwartet .grund-marke { display: inline; font-size: .75rem; background: var(--hg-3);
+  border-radius: 4px; padding: 0 .3em; margin-left: .4rem; }
+/* Mobil passt die Navigation genau auf den Bildschirm (Versionsknopf, M13 24.1): dort über die Befehlspalette */
+[data-layout="mobil"] .navigation .nav-zusatz { display: none; }
+
 /* D-130: Spaltenbreiten der Buchungsliste (Ziehen am Trenner, Doppelklick passt an) */
 .buchungsliste .liste-kopf .zelle { position: relative; }
 .spalten-trenner { position: absolute; top: 0; right: 0; width: 7px; height: 100%; cursor: col-resize; touch-action: none;
