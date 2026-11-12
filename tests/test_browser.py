@@ -388,3 +388,65 @@ def test_bericht_ea_zeile_aufklappen(tmp_path, browser):
         tid(page, "bericht-ea-aufklappen-0").click()
         details = tid(page, "bericht-ea-details-0")
         expect(details.locator('[data-testid^="bericht-ea-buchung-"][data-id]')).to_have_count(20)
+
+
+def test_bericht_sprung_in_schon_offenen_kontotab(tmp_path, browser):
+    """Ist das Konto schon als Tab offen (mit anderer Auswahl), steht der Cursor danach auf der Berichtsbuchung."""
+    with server(tmp_path) as (url, _), seite(browser, url, **DESKTOP) as page:
+        page.goto(url + "/konten/1")
+        bereit(page, "konto")
+        liste = tid(page, "buchungsliste")
+        andere = liste.locator('[role="row"][data-id]').first
+        andere.click()
+        expect(andere).to_have_attribute("aria-selected", "true")
+        andere_id = andere.get_attribute("data-id")
+        page.get_by_role("link", name="Berichte").first.click()
+        bereit(page, "berichte")
+        tid(page, "bericht-konten").select_option(label="Giro")
+        tid(page, "bericht-von").fill("2024-01-01")
+        tid(page, "bericht-von").dispatch_event("change")
+        tid(page, "bericht-aufklappen-1").click()
+        ziel = tid(page, "bericht-details-1").locator('[data-testid^="bericht-buchung-"][data-id]').nth(5)
+        bid = ziel.get_attribute("data-id")
+        assert bid != andere_id
+        ziel.locator('a[data-testid$="-konto-1"]').click()
+        bereit(page, "konto")
+        markiert = liste.locator('[role="row"][aria-selected="true"]')
+        expect(markiert).to_have_count(1)
+        expect(markiert).to_have_attribute("data-id", bid)
+        expect(markiert).to_be_focused()
+        assert page.evaluate("location.pathname") == "/konten/1"
+
+
+def test_bericht_sprung_mobil_mit_nachladen_nicht_verdeckt(tmp_path, browser):
+    """Mobil, Ziel erst nach dem Nachladen in der Liste: Zeile gewählt, fokussiert und nicht von der Mehrfachleiste
+    verdeckt (D-129)."""
+    with server(tmp_path) as (url, _), seite(browser, url, **HANDY) as page:
+        import httpx
+        with httpx.Client(base_url=url) as c:
+            for i in range(450):   # neuere Buchungen davor, damit die Kontoansicht nachladen muss
+                d = dt.date(2024, 3, 1) + dt.timedelta(days=i % 28)
+                r = c.post("/api/buchungen", json={"datum": d.isoformat(), "verwendungszweck": f"Massen {i}",
+                                                   "splits": [{"konto_id": 1, "betrag": -(i + 1)}, {"konto_id": 2, "betrag": i + 1}]})
+                assert r.status_code in (200, 201), r.text
+        page.goto(url + "/berichte")
+        bereit(page, "berichte")
+        tid(page, "bericht-konten").select_option(label="Giro")
+        tid(page, "bericht-von").fill("2024-01-01")
+        tid(page, "bericht-von").dispatch_event("change")
+        tid(page, "bericht-aufklappen-1").click()
+        ziel = tid(page, "bericht-details-1").locator('[data-testid^="bericht-buchung-"][data-id]').nth(12)
+        bid = ziel.get_attribute("data-id")
+        ziel.locator('a[data-testid$="-konto-1"]').click()
+        bereit(page, "konto")
+        markiert = tid(page, "buchungsliste").locator('[role="row"][aria-selected="true"]')
+        expect(markiert).to_have_attribute("data-id", bid)
+        expect(markiert).to_be_focused()
+        page.wait_for_timeout(300)
+        assert markiert.evaluate("""(r) => {
+            const b = r.getBoundingClientRect();
+            const m = document.querySelector('[data-testid=mehrfach-leiste]');
+            const unten = m && !m.hidden ? m.getBoundingClientRect().top : innerHeight;
+            const oben = document.elementFromPoint(b.left + 5, b.top + b.height / 2);
+            return b.top >= 0 && b.bottom <= unten && !!oben && oben.closest('[data-id]') === r;
+        }""")

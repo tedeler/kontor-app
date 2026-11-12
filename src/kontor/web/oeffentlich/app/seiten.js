@@ -179,7 +179,7 @@ export async function wiederkehrend(seite) {
     kontextmenue(x, y, [
       { tid: "km-serie-begruendung", text: "Warum wiederkehrend?", tun: () => begruendungZeigen(letzte, ausloeser) },
       { tid: "km-serie-springen", text: "Letzte Buchung im Kontoblatt zeigen",
-        tun: () => oberflaeche.gehe(`/konten/${s.konto_id}?buchung=${letzte}`) },
+        tun: () => oberflaeche.zurBuchung(s.konto_id, letzte) },
     ], ausloeser);
   };
   const zeile = (s) => {
@@ -569,9 +569,17 @@ function buchungsTabelle(liste, gewaehlt, praefix) {
         betragEl("td", e.splits.filter(zaehlt).reduce((n, s) => n + s.betrag, 0), { class: "zahl" }),
         h("td", { class: "konto-knoepfe" }, konten.map((kid) => {
           const k = kontoNach(kid);
-          return h("a", { class: "knopf knopf-flach klein", href: `/konten/${kid}?buchung=${e.id}`,
+          const a = h("a", { class: "knopf knopf-flach klein", href: `/konten/${kid}?buchung=${e.id}`,
             tid: `${praefix}-buchung-${e.id}-konto-${kid}`, title: `Buchung im Konto ${k ? kontoPfad(k) : kid} zeigen` },
           k ? k.name : `Konto ${kid}`);
+          // Wie „Gehe zur Gegenbuchung“: auch in einem schon offenen Tab des Kontos die Buchung wählen und fokussieren
+          // (der Abfrageteil wirkt nur beim ersten Laden). Mit Strg/Mittelklick bleibt es ein normaler Link.
+          a.addEventListener("click", (ev) => {
+            if (ev.button !== 0 || ev.ctrlKey || ev.metaKey || ev.shiftKey || ev.altKey) return;
+            ev.preventDefault();
+            oberflaeche.zurBuchung(kid, e.id);
+          });
+          return a;
         })));
     }));
 }

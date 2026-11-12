@@ -1529,3 +1529,13 @@ D-123 bis D-127 sind auf den offenen Branches `dokumente` und `alfbanco-import` 
   Konto ein Knopf (gewählte Konten zuerst), der `/konten/<id>?buchung=<id>` öffnet (Sprungziel nach M16 3.4).
   Die Detailzeile entsteht erst beim Aufklappen, damit die Zeilenzahl der Tabelle unverändert bleibt.
 - Keine neuen Endpunkte, kein fachlicher Zustand.
+
+## D-129 Sprungziel in der Kontoansicht immer mittig (ergänzt D-118, D-128)
+
+- Alle Sprünge zu einer Buchung (Abfrageteil `?buchung=`, „Gehe zur Gegenbuchung“, Knöpfe der Einzelbuchungen in
+  den Berichten, „Letzte Buchung im Kontoblatt zeigen“) wählen und fokussieren die Buchung, rollen sie in die
+  **Mitte** der Liste und heben sie kurz hervor. Bisher rollte „Gehe zur Gegenbuchung“ nur bis an den Rand; mobil
+  lag die Zeile dann unter der fest unten stehenden Mehrfachleiste.
+- Die Knöpfe der Einzelbuchungen (D-128) und `km-serie-springen` springen über denselben Weg wie „Gehe zur
+  Gegenbuchung“ (offener Tab des Kontos wird verwendet, Filter werden bei Bedarf mit Hinweis zurückgesetzt). Die
+  Knöpfe bleiben Links auf `/konten/<id>?buchung=<id>`, damit Strg-/Mittelklick einen neuen Browser-Tab öffnet.
