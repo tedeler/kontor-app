@@ -793,6 +793,88 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
         name = geheimnis_name(request)
         await schreiben(lambda con: sync.geheimnisse.loeschen(con, name))
 
+    # ----------------------------------- D-129: Schutz der Geheimnisse mit dem Login-Passwort
+    def _haushaltspasswort(request: Request, passwort: str) -> None:
+        """Prüft das Login-Passwort mit der Bremse der Anmeldung (sicherheit.md); 403 bei falschem Passwort."""
+        def ausfuehren(con):
+            jetzt = time.time()
+            if not anmeldedienst.eingerichtet(con):
+                raise ApiFehler(409, "nicht_eingerichtet", "Für den Schutz der Geheimnisse muss zuerst ein "
+                                "Login-Passwort gesetzt sein (Einrichtung oder „passwort-setzen“).")
+            _gesperrt(con, jetzt)
+            ok = anm.passwort_pruefen(passwort, anmeldedienst.passwort_hash_lesen(con) or "")
+            with db.transaktion(con):
+                if not ok:
+                    anmeldedienst.fehlversuch(con, jetzt, _client(request))
+                else:
+                    anmeldedienst.erfolg(con)
+            return ok
+        return ausfuehren
+
+    async def _mit_passwort(request: Request, nach):
+        d = await koerper(request, {"passwort": PW})
+        pruefen = _haushaltspasswort(request, d["passwort"])
+
+        def ausfuehren(con):
+            if not pruefen(con):
+                return None
+            return nach(con, d["passwort"])
+
+        ergebnis = await _mit_antwort(ausfuehren)
+        if isinstance(ergebnis, Response):
+            return ergebnis
+        if ergebnis is None:
+            return fehler_antwort(403, "anmeldung_fehlgeschlagen", "Das Passwort ist falsch.", {})
+        return ergebnis
+
+    @endpunkt("GET", "/api/geheimnisse/schutz")
+    async def schutz_status(request: Request):
+        return await lesen(sync.geheimnisse.schutz_status)
+
+    @endpunkt("POST", "/api/geheimnisse/schutz")
+    async def schutz_einschalten(request: Request):
+        def nach(con, pw):
+            with db.transaktion(con):
+                sync.geheimnisse.schutz_einschalten(con, pw)
+            return sync.geheimnisse.schutz_status(con)
+        return await _mit_passwort(request, nach)
+
+    @endpunkt("POST", "/api/geheimnisse/schutz/ausschalten")
+    async def schutz_ausschalten(request: Request):
+        def nach(con, pw):
+            if sync.geheimnisse.gesperrt(con):
+                sync.geheimnisse.entsperren(con, pw)
+            with db.transaktion(con):
+                sync.geheimnisse.schutz_ausschalten(con)
+            return sync.geheimnisse.schutz_status(con)
+        return await _mit_passwort(request, nach)
+
+    @endpunkt("POST", "/api/geheimnisse/entsperren")
+    async def geheimnisse_entsperren(request: Request):
+        def nach(con, pw):
+            if not sync.geheimnisse.schutz_aktiv(con):
+                raise ApiFehler(409, "schutz_nicht_aktiv", "Der Schutz der Geheimnisse ist nicht eingeschaltet.")
+            if not sync.geheimnisse.entsperren(con, pw):
+                raise ApiFehler(409, "huelle_unlesbar", "Das Passwort stimmt, öffnet die Geheimnisse aber nicht "
+                                "(z. B. nach einem Zurücksetzen). Bitte den Schutz neu einschalten.")
+            return sync.geheimnisse.schutz_status(con)
+        return await _mit_passwort(request, nach)
+
+    @endpunkt("POST", "/api/geheimnisse/sperren")
+    async def geheimnisse_sperren(request: Request):
+        sync.geheimnisse.sperren()
+        return await lesen(sync.geheimnisse.schutz_status)
+
+    @endpunkt("PUT", "/api/sync/pin/gemerkt", 204)
+    async def pin_merken(request: Request):
+        sync.pin_eingabe_pruefen()
+        d = await koerper(request, PIN_EINGABE)  # Fehlermeldungen enthalten den Wert nie
+        await run_in_threadpool(sync.pin_merken, d["pin"])
+
+    @endpunkt("DELETE", "/api/sync/pin/gemerkt", 204)
+    async def pin_vergessen(request: Request):
+        await run_in_threadpool(sync._pin_gemerkt_loeschen)
+
     # ------------------------------------------------------- M6: Postfächer
     @endpunkt("GET", "/api/mail/postfaecher")
     async def postfaecher(request: Request):
@@ -828,6 +910,16 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     @endpunkt("DELETE", "/api/mail/postfaecher/{postfach_id:int}/anmeldung", 204)
     async def abmelden(request: Request):
         await run_in_threadpool(maildienst.abmelden, pid(request, "postfach_id"))
+
+    # D-130: Anmeldung mit App-Passwort (z. B. Gmail ohne eigenes Google-Cloud-Projekt)
+    @endpunkt("PUT", "/api/mail/postfaecher/{postfach_id:int}/app-passwort")
+    async def app_passwort_setzen(request: Request):
+        d = await koerper(request, {"passwort": S("str", pflicht=True, min_len=1, max_len=256)})
+        return await run_in_threadpool(maildienst.app_passwort_setzen, pid(request, "postfach_id"), d["passwort"])
+
+    @endpunkt("DELETE", "/api/mail/postfaecher/{postfach_id:int}/app-passwort", 204)
+    async def app_passwort_loeschen(request: Request):
+        await run_in_threadpool(maildienst.app_passwort_loeschen, pid(request, "postfach_id"))
 
     @endpunkt("POST", "/api/mail/anmeldung/abschluss")
     async def anmeldung_abschluss(request: Request):
@@ -1426,15 +1518,18 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     @endpunkt("GET", "/api/erwartungen")
     async def erwartungen(request: Request):
         q = Query(request.query_params)
-        gruende = q.auswahlen("grund", erwartung.GRUENDE)
+        gruende = q.auswahlen("grund", erwartung.GRUENDE + ("serie",))
         zustaende = q.auswahlen("zustand", erwartung.ZUSTAENDE + ("ueberfaellig",))
         bis = q.datum("faellig_bis")
         suche = q.text("suche")
         richtung = q.auswahl("richtung", erwartung.RICHTUNGEN)
-        for name in sorted(set(request.query_params) - {"grund", "zustand", "faellig_bis", "suche", "richtung"}):
+        serien = q.auswahl("serien", ("ja", "nein")) == "ja"
+        for name in sorted(set(request.query_params) - {"grund", "zustand", "faellig_bis", "suche", "richtung",
+                                                         "serien"}):
             q.fehler.append(fehler_eintrag(["query", name], "Unbekannter Parameter."))
         q.pruefen()
-        erg = await lesen(erwartung.liste, _heute(), gruende, zustaende, bis, suche, richtung)
+        erg = await lesen(erwartung.liste, _heute(), gruende, zustaende, bis, suche, richtung,
+                          config.mail_abgleich_frist_tage, serien)
         erg["aktiv"] = config.mail_abgleich
         return erg
 
@@ -1619,7 +1714,10 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
                     anmeldedienst.fehlversuch(con, jetzt, _client(request))
                     return None
                 anmeldedienst.erfolg(con)
-                return _neue_sitzung(con, jetzt)
+                ergebnis = _neue_sitzung(con, jetzt)
+            if sync.geheimnisse.gesperrt(con):
+                sync.geheimnisse.entsperren(con, d["passwort"])  # D-129: Login entsperrt die Geheimnisse
+            return ergebnis
 
         ergebnis = await _mit_antwort(ausfuehren)
         if isinstance(ergebnis, Response):
@@ -1681,11 +1779,14 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
             _gesperrt(con, jetzt)
             ok = anm.passwort_pruefen(d["altes_passwort"], anmeldedienst.passwort_hash_lesen(con) or "")
             neu = anm.passwort_hash(d["neues_passwort"]) if ok else None
+            if ok and sync.geheimnisse.gesperrt(con):
+                sync.geheimnisse.entsperren(con, d["altes_passwort"])
             with db.transaktion(con):
                 if not ok:
                     anmeldedienst.fehlversuch(con, jetzt, _client(request))
                     return None
                 anmeldedienst.neues_passwort(con, neu, token)
+                sync.geheimnisse.neu_verpacken(con, d["neues_passwort"])  # D-129
             return _status(con, zeiten, token)
 
         ergebnis = await _mit_antwort(ausfuehren)

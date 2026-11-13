@@ -5,7 +5,8 @@ import {
 import { bestaetigen, dialog, feld, imDialog, knopf, knopfLeiste, kontextmenue, menuePosition } from "./ui.js";
 import { betrachter } from "./dokumente.js";
 
-const GRUND = { bestellung: "Bestellung", paypal: "PayPal", rueckerstattung: "Rückerstattung", manuell: "Manuell" };
+const GRUND = { bestellung: "Bestellung", paypal: "PayPal", rueckerstattung: "Rückerstattung", serie: "Serie",
+  manuell: "Manuell" };
 const ZUSTAND = { offen: "offen", erfuellt: "erfüllt", guthaben: "aus Guthaben", storniert: "storniert",
   erledigt: "erledigt" };
 // Schnellfilter „Zustand“: Vorgabe ist „Offen“ (enthält die überfälligen); „Erledigt“ fasst die Abschlüsse zusammen
@@ -40,6 +41,7 @@ function zustandSchreiben(f) {
 
 function apiParameter(f) {
   const p = new URLSearchParams();
+  if (!f.gruende.length) p.set("serien", "ja");  // D-139: Serien nur auf Anfrage
   for (const g of f.gruende) p.append("grund", g);
   for (const c of ZUSTAND_CHIPS) if (f.zustaende.includes(c[0])) for (const z of c[2]) p.append("zustand", z);
   if (f.faellig !== "") p.set("faellig_bis", plusTage(Number(f.faellig)));
@@ -111,17 +113,17 @@ export async function erwartetSeite(seite, _param, suche) {
       onclick: (ev) => { const [x, y] = menuePosition(null, ev.currentTarget); menue(e, x, y, ev.currentTarget); } });
     const zustandText = e.ueberfaellig ? "überfällig" : (ZUSTAND[e.zustand] || e.zustand)
       + (e.zustand === "offen" && e.zugeordnet ? ` (Rest ${betragText(e.offen_betrag)})` : "");
-    const tr = h("tr", { tid: `erwartung-${e.id}`, tabindex: "0", class: "klickbar" + (e.ueberfaellig ? " ueberfaellig" : ""),
+    const tr = h("tr", { tid: `erwartung-${String(e.id).replace(/[^a-z0-9-]/gi, "-")}`, tabindex: "0", class: "klickbar" + (e.ueberfaellig ? " ueberfaellig" : ""),
       "data-zustand": e.ueberfaellig ? "ueberfaellig" : e.zustand, "data-grund": e.grund },
     datumEl("td", e.frist, { class: "e-frist" }), h("td", { class: "e-grund" }, h("span", { class: "marke grund-marke" }, GRUND[e.grund] || e.grund)),
     h("td", { class: "e-haendler" }, h("div", null, e.haendler), e.beschreibung ? h("small", { class: "klein" }, e.beschreibung) : null),
     h("td", { class: "e-kennung" }, e.kennung || e.referenz || ""),
     betragEl("td", e.vorzeichen_betrag, { class: "zahl e-betrag" }), h("td", { class: "e-zustand" }, zustandText),
     h("td", { class: "aktionen e-aktionen" }, mehr));
-    tr.addEventListener("dblclick", () => details(e.id, tr));
+    tr.addEventListener("dblclick", () => (e.grund === "serie" ? oberflaeche.gehe("/wiederkehrend") : details(e.id, tr)));
     tr.addEventListener("keydown", (ev) => {
       if (ev.target !== tr) return;
-      if (ev.key === "Enter") { ev.preventDefault(); details(e.id, tr); }
+      if (ev.key === "Enter") { ev.preventDefault(); if (e.grund === "serie") oberflaeche.gehe("/wiederkehrend"); else details(e.id, tr); }
       if ((ev.key === "F10" && ev.shiftKey) || ev.key === "ContextMenu") {
         ev.preventDefault(); const [x, y] = menuePosition(null, tr); menue(e, x, y, tr);
       }
@@ -131,6 +133,11 @@ export async function erwartetSeite(seite, _param, suche) {
   }
 
   function menue(e, x, y, ausloeser) {
+    if (e.grund === "serie") {  // abgeleitet aus den wiederkehrenden Buchungen: dort ansehen
+      kontextmenue(x, y, [{ tid: "km-erwartung-serie", text: "Serie ansehen", tun: () => oberflaeche.gehe("/wiederkehrend") },
+        { tid: "km-erwartung-konto", text: "Konto öffnen", tun: () => oberflaeche.gehe(`/konten/${e.konto_id}`) }], ausloeser);
+      return;
+    }
     const offen = e.zustand === "offen";
     kontextmenue(x, y, [
       { tid: "km-erwartung-details", text: "Details und Zuordnung…", tun: () => details(e.id, ausloeser) },

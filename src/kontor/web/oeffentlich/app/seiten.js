@@ -127,6 +127,16 @@ export async function uebersicht(seite) {
       h("div", { class: "seiten-kopf" }, h("h2", null, "Kategorien"), umschalten),
       kategorienInhalt,
       h("p", { class: "klein" }, "Ausgaben, Einnahmen und Sonstige über alle Buchungen; Einnahmen positiv angezeigt.")));
+  // D-128: Kachel „Was kommt noch?“ (nur mit eingeschaltetem Mail-Abgleich), auch der Zugang auf dem Handy
+  try {
+    const e = await api("GET", "/api/erwartungen?grund=bestellung&grund=paypal&grund=rueckerstattung&grund=manuell");
+    if (e.aktiv) {
+      seite.append(h("a", { href: "/erwartet", class: "karte kachel-erwartet", tid: "kachel-erwartet" },
+        h("strong", null, "Was kommt noch?"), " ",
+        `${e.anzahl} offen`, e.ueberfaellig ? h("span", { class: "warnung" }, ` · ${e.ueberfaellig} überfällig`) : "",
+        " · ", betragEl("span", e.summe_offen)));
+    }
+  } catch { /* ohne Kachel */ }
   return { titel: "Finanzübersicht" };
 }
 
@@ -743,8 +753,16 @@ function wkFilterAbschnitt(wk) {
   sichtbar();
   const speichern = knopf("Speichern", { tid: "wk-vorgabe-speichern", onclick: async () => {
     const k = modus.value === "toleranz" ? { modus: "toleranz", toleranz_prozent: Number(prozent.value) } : { modus: "aus" };
-    try { await api("PUT", "/api/wiederkehrend/einstellungen/vorgabe", k); melde("erfolg", "Vorgabe gespeichert."); await oberflaeche.neuLaden(); }
-    catch (e) { melde("fehler", e.message); }
+    // D-143: kein Neuzeichnen der Einstellungsseite (Instanz-Einstellung, kein Buchbestand); die Felder zeigen schon
+    // den gespeicherten Stand, andere Tabs (Begründungen, Übersicht) laden beim nächsten Zeigen neu
+    try {
+      const v = await api("PUT", "/api/wiederkehrend/einstellungen/vorgabe", k);
+      modus.value = v.modus;
+      if (v.toleranz_prozent != null) prozent.value = String(v.toleranz_prozent);
+      sichtbar();
+      oberflaeche.andereVeraltet();
+      melde("erfolg", "Vorgabe gespeichert.");
+    } catch (e) { melde("fehler", e.message); }
   } });
   const zeilen = wk.empfaenger.map((x) => h("tr", { tid: `wk-filter-${x.empfaenger.id}`, "data-modus": x.modus },
     h("td", null, x.empfaenger.name), h("td", null, filterText(x)),
@@ -813,6 +831,8 @@ export async function einstellungen(seite, _p, _s, kontext) {
     try { await api("DELETE", "/api/sync/pin"); melde("erfolg", "PIN verworfen."); await oberflaeche.neuLaden(); }
     catch (e) { melde("fehler", e.message); }
   } })));
+  // D-129: Schutz der Geheimnisse mit dem Login-Passwort
+  seite.append(await schutzAbschnitt());
   // Geheimnisse
   const gesetzt = new Set(geheim.eintraege.map((e) => e.name));
   seite.append(abschnitt("Geheimnisse", ...[["ntfy_token", "ntfy-Token"], ["oauth_client_secret", "OAuth-Client-Secret"]].map(([n, t]) => {
@@ -1364,7 +1384,8 @@ export async function postfach(seite, id) {
   seite.append(abschnitt("Status", h("p", { tid: "postfach-status", "data-anmeldung": st.anmeldung }, ANMELDESTATUS[st.anmeldung] || st.anmeldung,
     st.laeuft_ab_am ? ` · läuft ab am ${zeitText(st.laeuft_ab_am)}` : "", ` · ${st.nachrichten} Nachrichten`,
     st.letzter_fehler ? ` · letzter Fehler: ${st.letzter_fehler.meldung || st.letzter_fehler.code}` : "")),
-  abschnitt("Anmeldung (OAuth2)", knopf("Anmeldung starten", { tid: "postfach-anmelden", onclick: async () => {
+  appPasswortAbschnitt(id, p),
+  abschnitt("Anmeldung (OAuth2)", h("p", { class: "klein" }, "Alternative zum App-Passwort; braucht ein eigenes Google-Cloud-Projekt."), knopf("Anmeldung starten", { tid: "postfach-anmelden", onclick: async () => {
     try {
       const s = await api("POST", `/api/mail/postfaecher/${id}/anmeldung`);
       ort.replaceChildren(h("p", null, h("a", { tid: "postfach-autorisierung-link", href: s.autorisierung_url, target: "_blank",
@@ -1376,6 +1397,43 @@ export async function postfach(seite, id) {
     catch (e) { melde("fehler", e.message); }
   } })));
   return { titel: p.adresse };
+}
+
+// D-130: Zugang mit App-Passwort und Ordner (Gmail-Label), nur lesend
+function appPasswortAbschnitt(id, p) {
+  const ordner = h("input", { tid: "postfach-ordner", value: p.ordner, maxlength: "200" });
+  const pw = h("input", { type: "password", tid: "postfach-app-passwort", autocomplete: "off", spellcheck: "false" });
+  const ergebnis = h("p", { tid: "postfach-app-ergebnis", role: "status", "aria-live": "polite" });
+  const speichern = knopf("Speichern und Verbindung testen", { tid: "postfach-app-speichern", class: "knopf knopf-haupt",
+    onclick: async (e) => {
+      const knopfEl = e.currentTarget;   // nach dem ersten await ist currentTarget null (D-141)
+      const wert = pw.value;
+      pw.value = "";
+      if (!wert) { melde("fehler", "Bitte das App-Passwort eingeben."); return; }
+      knopfEl.disabled = true;
+      ergebnis.textContent = "Verbinde mit dem Mailserver …";
+      try {
+        if (ordner.value.trim() && ordner.value.trim() !== p.ordner) {
+          await api("PATCH", `/api/mail/postfaecher/${id}`, { ordner: ordner.value.trim() });
+        }
+        const r = await api("PUT", `/api/mail/postfaecher/${id}/app-passwort`, { passwort: wert });
+        melde("erfolg", `Verbunden: ${r.nachrichten_im_ordner} Nachricht(en) im Ordner „${r.ordner}“.`);
+        await oberflaeche.neuLaden();
+      } catch (f) { ergebnis.textContent = `Fehler: ${f.message}`; }
+      finally { knopfEl.disabled = false; }
+    } });
+  const entfernen = knopf("App-Passwort entfernen", { tid: "postfach-app-entfernen", onclick: async () => {
+    try { await api("DELETE", `/api/mail/postfaecher/${id}/app-passwort`); melde("erfolg", "App-Passwort entfernt."); await oberflaeche.neuLaden(); }
+    catch (f) { melde("fehler", f.message); }
+  } });
+  return abschnitt("Zugang mit App-Passwort (empfohlen für Gmail)",
+    h("ol", { class: "klein" },
+      h("li", null, "Im Google-Konto die Bestätigung in zwei Schritten einschalten."),
+      h("li", null, "Google-Konto → Sicherheit → App-Passwörter: ein Passwort „Kontor“ erzeugen."),
+      h("li", null, "In Gmail einen Filter anlegen, der Mails von Amazon und PayPal mit dem Label „Kontor“ versieht."),
+      h("li", null, "Hier Label und App-Passwort eintragen. Kontor öffnet nur diesen Ordner und nur lesend.")),
+    feld("Ordner bzw. Gmail-Label", ordner), feld("App-Passwort (16 Zeichen, Leerzeichen egal)", pw),
+    h("div", { class: "knopf-leiste" }, speichern, entfernen), ergebnis);
 }
 
 // ------------------------------------------------------------------ Buchung (Link aus split_abweichung)
@@ -1390,3 +1448,40 @@ export async function buchung(seite, id) {
 }
 
 export const _intern = { nachName, neueId };
+
+// ------------------------------------------------------------------ D-129: Schutz der Geheimnisse
+async function schutzAbschnitt() {
+  let st;
+  try { st = await api("GET", "/api/geheimnisse/schutz"); } catch { return h("div"); }
+  const pw = h("input", { type: "password", tid: "schutz-passwort", autocomplete: "current-password" });
+  const mitPasswort = (pfad, erfolg) => async () => {
+    const wert = pw.value;
+    pw.value = "";
+    if (!wert) { melde("fehler", "Bitte das Login-Passwort eingeben."); return; }
+    try { await api("POST", pfad, { passwort: wert }); melde("erfolg", erfolg); window.dispatchEvent(new Event("kontor-sperre")); await oberflaeche.neuLaden(); }
+    catch (e) { melde("fehler", e.message); }
+  };
+  const text = !st.aktiv
+    ? "Aus: Geheimnisse sind nur mit dem Systemschlüssel verschlüsselt. Eingeschaltet schützt das Login-Passwort Bank-PIN und Mail-Zugänge zusätzlich – auch in Snapshots der Festplatte. Nach jedem Neustart muss Kontor dann einmal entsperrt werden (beim Login automatisch)."
+    : st.entsperrt ? `Ein und entsperrt: ${st.geschuetzt} Geheimnis(se) mit dem Login-Passwort geschützt${st.pin_gemerkt ? ", Bank-PIN gemerkt" : ""}.`
+      : "Ein, aber gesperrt: Bankabruf und Mail-Abgleich warten auf das Entsperren.";
+  const knoepfe = !st.aktiv
+    ? [knopf("Schutz einschalten", { tid: "schutz-einschalten", class: "knopf knopf-haupt",
+      onclick: mitPasswort("/api/geheimnisse/schutz", "Die Geheimnisse sind jetzt mit dem Login-Passwort geschützt.") })]
+    : [st.entsperrt
+      ? knopf("Jetzt sperren", { tid: "schutz-sperren", onclick: async () => {
+        try { await api("POST", "/api/geheimnisse/sperren", {}); melde("erfolg", "Gesperrt."); window.dispatchEvent(new Event("kontor-sperre")); await oberflaeche.neuLaden(); }
+        catch (e) { melde("fehler", e.message); }
+      } })
+      : knopf("Entsperren", { tid: "schutz-entsperren", class: "knopf knopf-haupt",
+        onclick: mitPasswort("/api/geheimnisse/entsperren", "Entsperrt.") }),
+    st.pin_gemerkt ? knopf("Gemerkte PIN vergessen", { tid: "schutz-pin-vergessen", onclick: async () => {
+      try { await api("DELETE", "/api/sync/pin/gemerkt"); melde("erfolg", "Gemerkte PIN gelöscht."); await oberflaeche.neuLaden(); }
+      catch (e) { melde("fehler", e.message); }
+    } }) : null,
+    knopf("Schutz ausschalten", { tid: "schutz-ausschalten", class: "knopf knopf-gefahr",
+      onclick: mitPasswort("/api/geheimnisse/schutz/ausschalten", "Der Schutz ist ausgeschaltet.") })];
+  return abschnitt("Schutz der Geheimnisse", h("p", { tid: "schutz-status", "data-aktiv": st.aktiv ? "ja" : "nein",
+    "data-gesperrt": st.gesperrt ? "ja" : "nein" }, text),
+  feld("Login-Passwort", pw), h("div", { class: "knopf-leiste" }, ...knoepfe.filter(Boolean)));
+}

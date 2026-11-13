@@ -105,6 +105,10 @@ def einrichtungsdatei(config: KontorConfig) -> pathlib.Path:
 
 def passwort_setzen(config: KontorConfig, passwort: str) -> None:
     """python-api.md 14.2: setzt/ersetzt das Haushaltspasswort, beendet alle Sitzungen, hebt die Sperre auf."""
+    _passwort_setzen(config, passwort)
+
+
+def _passwort_setzen(config: KontorConfig, passwort: str) -> int:
     neu = passwort_hash(passwort)  # ValueError/TypeError vor jeder Wirkung
     if not _schema_aktuell(config):
         db.schema_anlegen(pathlib.Path(config.aktive_datenbank))
@@ -112,9 +116,24 @@ def passwort_setzen(config: KontorConfig, passwort: str) -> None:
     try:
         with db.transaktion(con):
             _hash_speichern(con, neu)
+            verloren = huelle_verwerfen(con)
     finally:
         con.close()
     einrichtungsdatei(config).unlink(missing_ok=True)
+    return verloren
+
+
+def huelle_verwerfen(con) -> int:
+    """D-129: Ohne das alte Passwort lässt sich der Datenschlüssel nicht neu verpacken – die mit dem Login-Passwort
+    geschützten Geheimnisse sind verloren und werden gelöscht. Liefert ihre Anzahl."""
+    from .geheimnisse import geschuetzt
+    if con.execute("SELECT 1 FROM geheimnis_huelle").fetchone() is None:
+        return 0
+    weg = [r[0] for r in con.execute("SELECT name FROM geheimnis") if geschuetzt(r[0])]
+    con.execute("PRAGMA secure_delete = ON")
+    con.executemany("DELETE FROM geheimnis WHERE name = ?", [(n,) for n in weg])
+    con.execute("DELETE FROM geheimnis_huelle")
+    return len(weg)
 
 
 def _schema_aktuell(config: KontorConfig) -> bool:
@@ -326,11 +345,14 @@ def main(argv: list[str] | None = None) -> int:
     else:
         passwort = sys.stdin.readline().rstrip("\r\n")
     try:
-        passwort_setzen(config, passwort)
+        verloren = _passwort_setzen(config, passwort)
     except ValueError:
         print("Das Passwort ist ungültig (12 bis 1024 Zeichen).", file=sys.stderr)
         return 1
     print(f"Passwort für {config.aktive_datenbank} gesetzt; alle Sitzungen beendet.")
+    if verloren:
+        print(f"Hinweis: {verloren} mit dem bisherigen Passwort geschützte Geheimnisse (z. B. Bank-PIN, "
+              "Mail-Zugänge) wurden gelöscht und müssen neu eingegeben werden; der Schutz ist ausgeschaltet.")
     return 0
 
 

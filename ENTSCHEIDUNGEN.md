@@ -1510,6 +1510,60 @@ Weitere Abkürzungen: SY = `spec/api/synchronisation.md`, KA =
 - Ein Schritt wartet außerdem auf gerade laufende Aktionen, bis deren Änderungen auf dem Rückgängig-Stapel liegen:
   Strg+Z unmittelbar nach einer Änderung macht genau diese rückgängig, statt „nichts rückgängig zu machen“ zu melden.
 
+## D-129 Schutz der Geheimnisse mit dem Login-Passwort (Feature `geheimnisse`, iterativ)
+
+- **Anlass:** Auftrag 2026-11-13. Abgestimmt: Geheimnisse (Bank-PIN, Mail-Zugänge, Tokens) liegen verschlüsselt in
+  der Datenbank, ein starker Datenschlüssel ist mit einem aus dem **Login-Passwort** abgeleiteten Schlüssel
+  verpackt; das Masterpasswort ist das Login-Passwort; die Bank-PIN kann darunter gemerkt werden; **kein**
+  automatisches Entsperren, **keine** Leerlaufsperre.
+- **Aufbau (Schlüsselhülle):** Die bestehende äußere Schicht (Systemschlüssel aus systemd-creds bzw. Schlüsseldatei,
+  geheimnisse.md) bleibt unverändert. Ist der Schutz eingeschaltet, trägt jedes Geheimnis außer `ntfy_token`
+  (damit Benachrichtigungen wie „Bitte entsperren“ zugestellt werden) eine innere Schicht: AES-256-GCM mit einem
+  zufälligen 256-Bit-Datenschlüssel, zusätzliche Daten `innen:<name>`, Kennung `M1:` im äußeren Klartext. Der
+  Datenschlüssel liegt verpackt in `geheimnis_huelle` (eine Zeile; AES-256-GCM mit scrypt(Passwort, 16 Byte Salz,
+  N=2^15, r=8, p=1), eigenes Salz unabhängig vom Login-Hash). Betriebszustand: nie protokolliert, nie gesichert.
+- **Opt-in:** Der Schutz wird ausdrücklich eingeschaltet (`POST /api/geheimnisse/schutz` mit dem Login-Passwort,
+  Bremse der Anmeldung); ohne ihn verhält sich alles wie bisher (alle bestehenden Meilensteine unverändert).
+  Voraussetzung ist ein gesetztes Login-Passwort (409 `nicht_eingerichtet`), die Anmeldung selbst darf
+  abgeschaltet sein.
+- **Entsperren:** Jeder erfolgreiche Login entsperrt; sonst `POST /api/geheimnisse/entsperren` (Dialog aus dem
+  roten Hinweis `sperr-leiste` oder in den Einstellungen). Das Passwort wird nach dem Ableiten verworfen; nur der
+  Datenschlüssel bleibt bis zum Neustart oder `POST /api/geheimnisse/sperren` im Arbeitsspeicher. Gesperrt: geschützte
+  Geheimnisse gelten als nicht lesbar, Schreiben → 409 `geheimnisse_gesperrt`, kein Mail-Abruf (Planer überspringt,
+  manuell 409), Bankabruf nur mit eingegebener PIN.
+- **Passwort:** Ändern (`PUT /api/anmeldung/passwort`) verpackt nur den Datenschlüssel neu. Zurücksetzen ohne altes
+  Passwort (`passwort-setzen`) verwirft Hülle und geschützte Geheimnisse (die Kommandozeile nennt die Anzahl).
+  `POST /api/geheimnisse/schutz/ausschalten` entfernt die innere Schicht wieder.
+- **Gemerkte PIN:** `PUT /api/sync/pin/gemerkt` (nur mit eingeschaltetem, entsperrtem Schutz; Geheimnis `bank_pin`),
+  `DELETE /api/sync/pin/gemerkt`; „PIN verwerfen“ löscht sie mit. Sie wird gelesen, wenn keine PIN im Arbeitsspeicher
+  liegt; lehnt die Bank sie ab (`BankPinFalsch`/`BankZugangGesperrt`), wird sie sofort gelöscht (Schutz vor
+  Kontosperre). Im PIN-Dialog erscheint dafür „PIN merken“.
+- **Härtung:** systemd `LimitCORE=0` (zusätzlich zu `ProtectProc=invisible`); `python -m kontor` setzt
+  `RLIMIT_CORE=0` und `PR_SET_DUMPABLE=0`. Grenze: Wer Root auf VM oder Hypervisor hat, kann den Arbeitsspeicher
+  lesen – dagegen hilft keine Software (Betriebshinweis: Proxmox-Snapshots ohne RAM, kein Swap/Ruhezustand).
+
+## D-130 Gmail ohne Google-Cloud-Projekt: IMAP mit App-Passwort und Ordner (Feature `gmail-app-passwort`)
+
+- **Anlass:** Auftrag 2026-11-13: kein eigenes Google-Cloud-Projekt/keine API in der Konsole. Abgestimmt: Anmeldung
+  per **App-Passwort** (Google-Konto mit Bestätigung in zwei Schritten), Kontor liest nur einen **Ordner bzw. ein
+  Gmail-Label** (empfohlen „Kontor“, per Gmail-Filter für Amazon/PayPal gesetzt) und nur lesend. OAuth2 bleibt als
+  Alternative unverändert (mail.md). Baut auf D-129 auf: Das App-Passwort ist ein geschütztes Geheimnis.
+- **REST:** `PUT /api/mail/postfaecher/{id}/app-passwort` (`{passwort}`; Leerzeichen werden entfernt, wie Google es
+  in Vierergruppen anzeigt) prüft zuerst `LOGIN` und `EXAMINE` des Ordners gegen den konfigurierten IMAP-Server und
+  speichert erst danach (Geheimnis `mail_passwort:<adresse>`; ein OAuth2-Token des Postfachs entfällt). Antwort
+  `{postfach_id, ordner, nachrichten_im_ordner}`; Fehler 422 mit dem Code des Mailfehlers
+  (`mail_anmeldung_abgelehnt`, `mail_ordner_unbekannt`, `mail_verbindungsfehler` …), 409 im Mock-Modus bzw. bei
+  gesperrten Geheimnissen. Das Postfach gilt danach als `angemeldet` ohne Ablauf (`laeuft_ab_am` null).
+  `DELETE …/app-passwort` (und das bestehende Abmelden) entfernt es wieder (`fehlt`).
+- **Plugin:** die Unterklasse `ImapPasswortPostfach` (Feld `passwort`, Aufrufbares, nie in `repr`/Vergleichen; `ImapPostfach` selbst bleibt nach plugins.md unverändert); damit
+  meldet sich `ImapMailPlugin` mit `LOGIN` an (nicht bei `LOGINDISABLED`), sonst wie bisher mit XOAUTH2. Der Wert
+  wird erst unmittelbar vor der Anmeldung gelesen und danach verworfen. `ImapMailPlugin._pruefen(adresse)` (nicht öffentlich, die Liste der Plugin-Methoden bleibt gleich) dient nur
+  dem Verbindungstest. Antwortschemas bestehender Endpunkte bleiben unverändert (die Anmeldeart ist am Geheimnis
+  erkennbar).
+- **Oberfläche:** Auf der Postfachseite der Abschnitt „Zugang mit App-Passwort (empfohlen für Gmail)“ mit Anleitung,
+  Ordner/Label, App-Passwort und „Speichern und Verbindung testen“; OAuth2 als Alternative darunter.
+- **Konzept:** K 13 („ausschließlich OAuth2, keine Passwörter“) wird mit der Meilenstein-Definition angepasst.
+
 ## D-123 Dokumente an Buchungen (Feature `dokumente`, iterativ)
 
 - **Anlass:** Auftrag 2026-11-11: PDF-Dateien, E-Mails (und Bilder) an Buchungen hängen und im Browser ansehen;
@@ -1592,6 +1646,26 @@ Weitere Abkürzungen: SY = `spec/api/synchronisation.md`, KA =
   damit die festgelegte Liste `nav-…` aus M8 unverändert bleibt; Befehlspalette „Gehe zu: Was kommt noch?“).
   Schnellfilter als Chips (Grund, Zustand mit Vorgabe „Offen“, Fällig bis, Suche) im Abfrageteil der Adresse (je
   Tab), eine Zeile je Vorgang, Details mit Mails, Zuordnungen, Belegen und Kandidaten; mobil als Karten.
+
+## D-131 Mail-Abgleich, Fortsetzung: Serien, Kachel, Mock-Daten, Kategorie bei Erstattungen (ergänzt D-128)
+
+- **Serien als Grund:** `GET /api/erwartungen` liefert bei offenen bzw. überfälligen Einträgen zusätzlich die nächste
+  Zahlung jeder aktiven oder ausbleibenden wiederkehrenden Serie (wiederkehrend.md 2) als Eintrag mit
+  `grund = "serie"`, `id = "serie:<schluessel>"`, Datum = nächste Fälligkeit, Frist = Datum +
+  `mail_abgleich_frist_tage`, `konto_id`. Abgeleitet, nicht gespeichert; keine eigene Benachrichtigung (die
+  Meldung „ausbleibend“ der Serien bleibt maßgeblich). Ausgelassen werden Serien, deren letzte Buchung schon
+  einer erwarteten Zahlung aus einer Mail zugeordnet ist (regelmäßige Einkäufe, sonst doppelt). Filter `grund=serie`. In der Oberfläche führt die Zeile zu
+  den wiederkehrenden Buchungen.
+- **Kachel:** Die Finanzübersicht zeigt mit eingeschaltetem Mail-Abgleich unten die Kachel `kachel-erwartet`
+  („Was kommt noch?“: offen, überfällig, Summe) für Bestellungen, PayPal, Rückerstattungen und manuelle Einträge
+  (ohne Serien, damit Gehalt und Miete die Zahl nicht dominieren). Damit ist die Seite auch auf dem Handy erreichbar.
+- **Mock-Daten:** Der eingebaute Datensatz enthält je Monat eine Amazon-Bestellung (Postfach eins), jedes dritte
+  Monat eine Amazon-Erstattung, eine PayPal-Zahlung (Postfach zwei) und die passenden Umsätze im Girokonto
+  (Bestellnummer bzw. Händlername im Verwendungszweck). Absender unter `example.invalid`.
+- **Erstattung:** Wird eine Rückerstattung einer Gutschrift zugeordnet, deren Gegenbuchung (genau zwei Splits, kein
+  offener Vorschlag) noch auf „Unkategorisiert“ steht, wird sie in derselben Änderung auf die Kategorie der
+  ursprünglichen Buchung umgebucht (rückgängig machbar). Ein Vorschlag im Sinne von kategorisierung.md ist das
+  nicht, weil dessen Quellen festgelegt sind.
 
 ## D-123 ALF-BanCo-Import über den QIF-Export (Feature `alfbanco-import`)
 
@@ -1818,6 +1892,48 @@ D-123 bis D-127 sind auf den offenen Branches `dokumente` und `alfbanco-import` 
   Zufallsgruppen rechnet ohne Filter. Mit Vorgabe `aus` sind M5, M16 und Leistung grün. Klärung über die
   Meilenstein-Definition.
 
+## D-138 Weitere doppelte Nummern aus parallelen Branches (ergänzt D-132)
+
+- Auf `feature/geheimnisse`/`feature/gmail-app-passwort` wurden D-129 und D-130 erneut vergeben. Verweise gelten aus
+  dem Zusammenhang: **D-129** = Schutz der Geheimnisse mit dem Login-Passwort bzw. Sprungziel mittig, **D-130** =
+  Gmail mit App-Passwort bzw. Spaltenbreiten und Markierung. Abnahme als M23 (Geheimnisse und Gmail) und M24
+  (Serien im Mail-Abgleich, D-131); neue Einträge ab D-139.
+
+## D-139 Serien in der Liste der Erwartungen nur auf Anfrage (ergänzt D-131)
+
+- **Anlass:** Vorbereitung der Abnahme (M24). Mit D-131 lieferte `GET /api/erwartungen` ohne Grundfilter auch
+  Einträge mit `grund = "serie"`; das änderte die Antwort früherer Aufrufe (M20) rückwärtsinkompatibel.
+- **Entscheidung:** Serien erscheinen nur mit `grund=serie` oder mit dem neuen Abfrageparameter `serien=ja` (ohne
+  Grundfilter). Die Seite `/erwartet` setzt `serien=ja`, solange kein Grund gewählt ist; sichtbares Verhalten
+  unverändert.
+
+## D-140 Vorbereitung der Abnahme M23/M24: Korrekturen
+
+- **Schutz ausschalten** löscht die gemerkte Bank-PIN (sie war danach nur noch mit dem Systemschlüssel gespeichert
+  und wurde weiter benutzt, obwohl `pin_gemerkt` `false` meldete). Andere geschützte Geheimnisse bleiben.
+- **Serien (D-131):** ausgelassen werden nur Serien, deren letzte Buchung einer Erwartung aus einer Mail (nicht
+  `manuell`) zugeordnet ist; Sortierung bei gleicher Frist: gespeicherte Erwartungen nach Nummer, dann Serien.
+  `serien=ja` steht nur in der REST-Abfrage, nicht in der Adresse der Seite `/erwartet` (berichtigt D-139).
+- **Erstattung:** „Unkategorisiert“ wird an `extern_id = "kontor:unkategorisiert"` erkannt, nicht am Namen.
+
+## D-141 Abnahme M23: Knopf „Speichern und Verbindung testen“ nach einem Fehler wieder bedienbar
+
+- Nach einer fehlgeschlagenen Verbindung blieb der Knopf gesperrt (das Ereignisziel war nach der Anfrage nicht mehr
+  gesetzt). Der Knopf wird jetzt vor der Anfrage gemerkt und danach immer wieder freigegeben.
+
+## D-142 Serien: Auslassen bei Zuordnung zu jeder Erwartung (ersetzt den Serien-Teil von D-140)
+
+- Die freigegebene Meilenstein-Definition M24 (1.2) lässt eine Serie aus, wenn ihre letzte Buchung irgendeiner
+  gespeicherten Erwartung zugeordnet ist, auch einer manuellen (sonst erschiene dieselbe Zahlung doppelt). Die
+  Einschränkung auf Mail-Erwartungen aus D-140 ist zurückgenommen.
+
+## D-143 Abnahme M25: Vorgabe des Betragsfilters ohne Neuzeichnen speichern
+
+- Nach „Speichern“ der Vorgabe wurde die Einstellungsseite neu gezeichnet; eine sofort folgende zweite Eingabe
+  landete in den alten Feldern und ging verloren (zweites Speichern schickte den alten Stand). Die Vorgabe ist eine
+  Instanz-Einstellung ohne Rückgängig: Die Felder übernehmen die Antwort des Servers, die Seite bleibt stehen, andere
+  Tabs laden beim nächsten Zeigen neu.
+
 ## D-141 Bedienung auf dem Handy (Feature `UXMobile`, iterativ, Branch `feature/UXMobile`)
 
 - **Anlass:** Auftrag 2026-11-13: Die Bedienung auf dem Handy (Pixel 7, 412 × 915 CSS-Pixel) ist an vielen Stellen
@@ -1883,3 +1999,12 @@ D-123 bis D-127 sind auf den offenen Branches `dokumente` und `alfbanco-import` 
   (höchstens zwei Zeilen) und Betrag; Rhythmus · Konto (gekürzt) und „x € / Jahr“ rechtsbündig unter dem Betrag;
   Status-Marke und „Nächste TT.MM.JJJJ“. Farbiger linker Rand nach Status (aktiv grün, ausbleibend gelb), Summe der
   Jahreskosten als Kasten. Tippen auf die Karte öffnet die Aktionen der Serie (wie der Knopf „…“). Desktop unverändert.
+
+## D-144 Doppelte Nummern durch `feature/UXMobile` (ergänzt D-132, D-138)
+
+- `feature/UXMobile` wurde parallel ohne Abnahme auf main gemergt und vergibt D-131, D-141 und D-142 ein zweites Mal.
+  Verweise gelten aus dem Zusammenhang: **D-131** = Serien im Mail-Abgleich bzw. Bedienung auf dem Handy (UXMobile),
+  **D-141** = Knopf nach Fehler (M23) bzw. Bedienung auf dem Handy, **D-142** = Serien auslassen (M24) bzw.
+  statische Dateien mit no-cache und mobile Karte der wiederkehrenden Buchungen. Neue Einträge ab D-145.
+- UXMobile hat keine eigene Meilenstein-Definition und keine eigenen Abnahmetests; geprüft ist nur, dass die
+  bestehende Abnahmesuite (einschließlich aller Browsertests) mit ihm grün bleibt.

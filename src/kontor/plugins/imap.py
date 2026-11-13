@@ -1,8 +1,9 @@
 """IMAP-Mail-Plugin mit OAuth2/XOAUTH2, nur lesend (mail.md 3, Meilenstein 6).
 
 Je Aufruf von ``nachrichten`` eine eigene Verbindung (Postfächer lassen sich parallel aus mehreren Threads
-abrufen). Anmeldung ausschließlich über ``AUTHENTICATE XOAUTH2`` mit einem Access-Token aus ``zugang``; ``LOGIN``
-oder Passwörter gibt es nicht. Ordner werden nur mit ``EXAMINE`` geöffnet, Inhalte nur mit ``BODY.PEEK[]``
+abrufen). Anmeldung über ``AUTHENTICATE XOAUTH2`` mit einem Access-Token aus ``zugang`` oder – für Postfächer mit
+App-Passwort (D-130, z. B. Gmail ohne eigenes Google-Cloud-Projekt) – über ``LOGIN`` mit dem App-Passwort, das
+``ImapPostfach.passwort`` erst unmittelbar vor der Anmeldung liefert. Ordner werden nur mit ``EXAMINE`` geöffnet, Inhalte nur mit ``BODY.PEEK[]``
 gelesen – der Abruf ändert weder Inhalt noch Markierungen. Tokens erscheinen nie in Meldungen, ``details``,
 ``repr()`` oder Protokollen.
 """
@@ -21,11 +22,11 @@ import imaplib
 import re
 import ssl
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from ..config import KontorConfig
-from ..fehler import (MailAnmeldungAbgelehnt, MailFehler, MailOrdnerUnbekannt, MailVerbindungsFehler,
-                      PluginNichtVerfuegbar, PostfachUnbekannt)
+from ..fehler import (MailAnmeldungAbgelehnt, MailAnmeldungFehlt, MailFehler, MailOrdnerUnbekannt,
+                      MailVerbindungsFehler, PluginNichtVerfuegbar, PostfachUnbekannt)
 from ..netz import tls_kontext
 from .mail import MailNachricht, MailPlugin, mit_roh
 
@@ -40,6 +41,13 @@ _TEIL = 200  # UIDs je FETCH
 class ImapPostfach:
     adresse: str
     ordner: str = "INBOX"
+
+
+@dataclass(frozen=True)
+class ImapPasswortPostfach(ImapPostfach):
+    """D-130: Postfach mit App-Passwort; ``passwort`` liefert es (oder None) erst unmittelbar vor der Anmeldung.
+    Nie in repr oder Vergleichen. Eigene Klasse, damit ``ImapPostfach`` (plugins.md) unverändert bleibt."""
+    passwort: Callable[[], str | None] | None = field(default=None, repr=False, compare=False)
 
 
 def utf7_imap(name: str) -> str:
@@ -153,6 +161,8 @@ class ImapMailPlugin(MailPlugin):
         p = next((x for x in self._postfaecher if x.adresse.casefold() == ziel), None)
         if p is None:
             raise PostfachUnbekannt("Das Postfach ist unbekannt.")
+        if getattr(p, "passwort", None) is not None and self._config is not None:
+            return self._abrufen(p, seit, None)
         if self._zugang is None or self._config is None:
             raise PluginNichtVerfuegbar("Für das Postfach ist kein OAuth2-Zugang eingerichtet.")
         token = self._zugang(p.adresse, False)
@@ -187,16 +197,71 @@ class ImapMailPlugin(MailPlugin):
         except imaplib.IMAP4.error:
             return False
 
-    def _abrufen(self, p: ImapPostfach, seit: dt.datetime, token: str) -> list[MailNachricht]:
+    @staticmethod
+    def _mit_passwort(v: imaplib.IMAP4, p: ImapPostfach) -> None:
+        """D-130: LOGIN mit dem App-Passwort; der Wert lebt nur in dieser Funktion."""
+        if "LOGINDISABLED" in {str(x).upper() for x in (v.capabilities or ())}:
+            raise MailFehler("Der Mailserver erlaubt keine Anmeldung mit Passwort.")
+        quelle = getattr(p, "passwort", None)
+        pw = quelle() if quelle is not None else None
+        if not pw:
+            raise MailAnmeldungFehlt("Für das Postfach ist kein lesbares App-Passwort gespeichert.")
+        try:
+            v.login(p.adresse, pw)
+        except imaplib.IMAP4.abort:
+            raise
+        except imaplib.IMAP4.error:
+            raise MailAnmeldungAbgelehnt("Der Mailserver hat das App-Passwort abgelehnt.") from None
+        finally:
+            del pw
+
+    def _pruefen(self, postfach: str) -> int:
+        """D-130: Anmeldung und Ordner prüfen (für „Verbindung testen“); liefert die Zahl der Nachrichten im Ordner."""
+        ziel = str(postfach).casefold()
+        p = next((x for x in self._postfaecher if x.adresse.casefold() == ziel), None)
+        if p is None or getattr(p, "passwort", None) is None or self._config is None:
+            raise PostfachUnbekannt("Das Postfach ist unbekannt.")
         v = self._verbinden()
         try:
             try:
-                if "AUTH=XOAUTH2" not in {str(x).upper() for x in (v.capabilities or ())}:
-                    raise MailFehler("Der Mailserver bietet keine Anmeldung über XOAUTH2 an.")
-                if not self._anmelden(v, p.adresse, token):
-                    token = self._zugang(p.adresse, True)
+                self._mit_passwort(v, p)
+                typ, daten = v.select(_quoten(utf7_imap(p.ordner)), readonly=True)  # EXAMINE
+                if typ != "OK":
+                    raise MailOrdnerUnbekannt("Der IMAP-Ordner bzw. das Gmail-Label ist im Postfach unbekannt.")
+                try:
+                    anzahl = int(daten[0]) if daten and daten[0] else 0
+                except ValueError:
+                    anzahl = 0
+                try:
+                    v.logout()
+                except (OSError, imaplib.IMAP4.error, EOFError):
+                    pass
+                v = None
+                return anzahl
+            except (OSError, imaplib.IMAP4.abort, ssl.SSLError, EOFError):
+                raise MailVerbindungsFehler("Die Verbindung zum Mailserver wurde unterbrochen.") from None
+            except imaplib.IMAP4.error:
+                raise MailVerbindungsFehler("Unerwartete Antwort des Mailservers.") from None
+        finally:
+            if v is not None:
+                try:
+                    v.shutdown()
+                except Exception:  # noqa: BLE001
+                    pass
+
+    def _abrufen(self, p: ImapPostfach, seit: dt.datetime, token: str | None) -> list[MailNachricht]:
+        v = self._verbinden()
+        try:
+            try:
+                if token is None:
+                    self._mit_passwort(v, p)
+                else:
+                    if "AUTH=XOAUTH2" not in {str(x).upper() for x in (v.capabilities or ())}:
+                        raise MailFehler("Der Mailserver bietet keine Anmeldung über XOAUTH2 an.")
                     if not self._anmelden(v, p.adresse, token):
-                        raise MailAnmeldungAbgelehnt("Der Mailserver hat die Anmeldung mit OAuth2 abgelehnt.")
+                        token = self._zugang(p.adresse, True)
+                        if not self._anmelden(v, p.adresse, token):
+                            raise MailAnmeldungAbgelehnt("Der Mailserver hat die Anmeldung mit OAuth2 abgelehnt.")
                 del token
                 typ, _ = v.select(_quoten(utf7_imap(p.ordner)), readonly=True)  # EXAMINE
                 if typ != "OK":
@@ -249,4 +314,4 @@ class ImapMailPlugin(MailPlugin):
         return aus
 
 
-__all__ = ["ImapMailPlugin", "ImapPostfach", "utf7_imap", "abbilden"]
+__all__ = ["ImapMailPlugin", "ImapPostfach", "ImapPasswortPostfach", "utf7_imap", "abbilden"]

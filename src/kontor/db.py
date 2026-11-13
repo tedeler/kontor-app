@@ -346,6 +346,19 @@ CREATE TABLE IF NOT EXISTS geheimnis (
     gesetzt_am TEXT NOT NULL
 );
 
+-- Schutz der Geheimnisse mit dem Login-Passwort (D-129): verpackter Datenschlüssel, Betriebszustand,
+-- nie protokolliert, nie gesichert. Höchstens eine Zeile.
+CREATE TABLE IF NOT EXISTS geheimnis_huelle (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    salz BLOB NOT NULL,
+    n INTEGER NOT NULL,
+    r INTEGER NOT NULL,
+    p INTEGER NOT NULL,
+    nonce BLOB NOT NULL,
+    chiffre BLOB NOT NULL,
+    gesetzt_am TEXT NOT NULL
+);
+
 -- Postfächer (mail.md 2.1): Buchbestand, protokolliert und gesichert.
 CREATE TABLE IF NOT EXISTS postfach (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
