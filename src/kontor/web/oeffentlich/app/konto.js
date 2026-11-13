@@ -13,6 +13,8 @@ import { kategorienBaum, langeBeruehrung, ziehbar } from "./baum.js";
 import { ablageEinrichten, betrachter, dateiWaehlen, detailsAbschnitt, mailDialog } from "./dokumente.js";
 
 const PRO_SEITE = 200;
+const WISCH_WEG = 80;     // Mindestweg einer Wischgeste (16.4)
+const WISCH_QUER = 40;    // höchstens so weit senkrecht
 const STATUS = ["importiert", "vorlaeufig", "bestaetigt", "abgeglichen"];
 const PARAMETER = ["von", "bis", "betrag_min", "betrag_max", "empfaenger_id", "ohne_empfaenger", "verwendungszweck",
   "suche", "kategorie_id", "unterkategorien", "unterkonten", "tag_id", "status", "sortierung"];
@@ -409,7 +411,8 @@ class Kontoansicht {
         this.istKategorie ? null : knopf("Verschieben…", { tid: "konto-verschieben",
           title: "Buchungen dieses Kontos auf ein anderes Konto verschieben",
           onclick: (e) => this.verschiebenDialog(this.auswahlIds(), e.currentTarget) }))),
-    h("div", { class: "listen-info" }, this.anzahlEl, " · Summe ", this.summeEl, " · ", this.auswahlEl));
+    h("div", { class: "listen-info" }, this.anzahlEl, " · Summe ", this.summeEl, h("span", { class: "auswahl-trenner" }, " · "),
+      this.auswahlEl));
     this.filterLeiste = this.filterAufbauen();
     s.append(this.filterLeiste);
     this.liste = h("div", { role: "grid", tid: "buchungsliste", "aria-multiselectable": "true", "aria-label": "Buchungen",
@@ -421,6 +424,8 @@ class Kontoansicht {
       await this.laden();
     } });
     this.listenSpalte = h("div", { class: "listen-spalte" }, this.liste, this.leerEl, this.mehrEl);
+    this.auswahlKopf = this.auswahlKopfAufbauen();
+    s.append(this.auswahlKopf);
     this.arbeit = h("div", { class: "arbeitsbereich" });
     s.append(this.arbeit);
     this.mehrfach = this.mehrfachAufbauen();
@@ -995,6 +1000,7 @@ class Kontoansicht {
     this.auswahlEl.dataset.anzahl = String(n);
     this.auswahlEl.textContent = n ? `${n} ausgewählt` : "keine Auswahl";
     this.mehrfach.hidden = n === 0;
+    this.auswahlModusZeigen(n);
     const mitVorschlag = this.eintraege.some((b) => this.auswahl.has(b.id) && b.vorschlag);
     for (const t of ["mehrfach-vorschlag-annehmen", "mehrfach-vorschlag-ablehnen"]) tid(t, this.mehrfach).disabled = !mitVorschlag;
   }
@@ -1127,6 +1133,8 @@ class Kontoansicht {
       const z = zeileVon(e.target);
       if (!z || e.target.closest("input, textarea")) return;
       e.preventDefault();
+      // mobil (D-141): das vom Browser zur langen Berührung gemeldete Kontextmenü entfällt; sie startet die Auswahl
+      if (oberflaeche.istMobil() && performance.now() - this.letzteBeruehrung < 2500) return;
       const id = Number(z.dataset.id);
       if (!this.auswahl.has(id)) { this.auswahl = new Set([id]); this.anker = id; }
       this.fokussieren(id);
@@ -1154,12 +1162,15 @@ class Kontoansicht {
     // Gesten (16.4)
     langeBeruehrung(this.liste, (t) => zeileVon(t), (z, x, y) => {
       const id = Number(z.dataset.id);
+      if (oberflaeche.istMobil()) { this.auswahlStarten(id); return; }
       if (!this.auswahl.has(id)) { this.auswahl = new Set([id]); this.anker = id; }
       this.fokussieren(id, false);
       this.menue(x, y, z);
     });
     let w = null;
+    this.letzteBeruehrung = -Infinity;
     this.liste.addEventListener("touchstart", (e) => {
+      this.letzteBeruehrung = performance.now();
       if (e.touches.length !== 1) { w = null; return; }
       const z = zeileVon(e.target);
       w = z ? { z, x: e.touches[0].clientX, y: e.touches[0].clientY, t: performance.now() } : null;
@@ -1170,8 +1181,13 @@ class Kontoansicht {
       w.ey = e.touches[0].clientY;
       // waagerechtes Wischen ist eine Geste, kein Scrollen (sonst verschluckt ein Nachlauf das nächste Tippen)
       const dx = Math.abs(w.ex - w.x);
-      if (dx > 10 && dx > Math.abs(w.ey - w.y) && e.cancelable) e.preventDefault();
+      const dy = Math.abs(w.ey - w.y);
+      if (w.richtung === undefined && (dx > 10 || dy > 10)) w.richtung = dx > dy ? "waagerecht" : "senkrecht";
+      if (dx > 10 && dx > dy && e.cancelable) e.preventDefault();
+      // mobil (D-141): die Zeile folgt dem Finger und zeigt, was beim Loslassen geschieht
+      if (w.richtung === "waagerecht" && oberflaeche.istMobil()) this.wischZeigen(w.z, w.ex - w.x, dy);
     }, { passive: false });
+    this.liste.addEventListener("touchcancel", () => { if (w) this.wischEnde(w.z); w = null; });
     this.liste.addEventListener("touchend", (e) => {
       if (!w || w.ex === undefined) { w = null; return; }
       const dx = w.ex - w.x;
@@ -1179,7 +1195,9 @@ class Kontoansicht {
       const dt = performance.now() - w.t;
       const z = w.z;
       w = null;
-      if (Math.abs(dx) < 80 || dy > 40 || dt > 1000) return;
+      this.wischEnde(z);
+      // mobil zeigt die Zeile den Zustand an: dort zählt nur der Weg, nicht die Dauer (D-141)
+      if (Math.abs(dx) < WISCH_WEG || dy > WISCH_QUER || (dt > 1000 && !oberflaeche.istMobil())) return;
       const id = Number(z.dataset.id);
       if (dx > 0) {
         if (this.auswahl.has(id)) this.auswahl.delete(id); else this.auswahl.add(id);
@@ -1190,6 +1208,34 @@ class Kontoansicht {
         this.kategorieWaehlen(ids, z);
       }
     });
+  }
+
+  // ---------------------------------------------------------------- Rückmeldung beim Wischen (D-141)
+  wischZeigen(z, dx, dy) {
+    if (dy > WISCH_QUER) { this.wischEnde(z); return; }
+    if (!this.wischHinweis) {
+      this.wischHinweis = h("div", { class: "wisch-hinweis", "aria-hidden": "true" },
+        h("span", { class: "wisch-links" }), h("span", { class: "wisch-rechts" }, "Kategorie …"));
+    }
+    const hw = this.wischHinweis;
+    if (hw.parentNode !== this.listenSpalte) this.listenSpalte.append(hw);
+    const id = Number(z.dataset.id);
+    hw.firstChild.textContent = this.auswahl.has(id) ? "✕ Abwählen" : "✓ Auswählen";
+    hw.style.top = z.offsetTop + "px";
+    hw.style.height = z.offsetHeight + "px";
+    hw.dataset.richtung = dx > 0 ? "rechts" : "links";
+    hw.dataset.bereit = Math.abs(dx) >= WISCH_WEG ? "ja" : "nein";
+    hw.hidden = false;
+    z.classList.add("wischt");
+    const weg = Math.sign(dx) * Math.min(Math.abs(dx), 160);
+    z.style.transform = `translateX(${weg}px)`;
+  }
+
+  wischEnde(z) {
+    if (this.wischHinweis) this.wischHinweis.hidden = true;
+    if (!z || !z.classList.contains("wischt")) return;
+    z.classList.remove("wischt");
+    z.style.transform = "";
   }
 
   // ---------------------------------------------------------------- Kontextmenü (8.2)
@@ -1301,7 +1347,59 @@ class Kontoansicht {
     k("mehrfach-vorschlag-ablehnen", "Vorschläge ablehnen", () => this.vorschlag(null, this.auswahlIds(), "ablehnen")),
     this.istKategorie ? null : k("mehrfach-verschieben", "Verschieben…", (el) => this.verschiebenDialog(this.auswahlIds(), el)),
     k("mehrfach-loeschen", "Löschen…", (el) => this.loeschen(el)),
-    k("auswahl-aufheben", "Auswahl aufheben", () => { this.auswahl.clear(); this.auswahlZeigen(); }));
+    k("auswahl-aufheben", "Auswahl aufheben", () => { this.auswahl.clear(); this.auswahlZeigen(); }),
+    // mobil (D-141): alle übrigen Aktionen über das Kontextmenü der Auswahl
+    knopf("Mehr", { tid: "mehrfach-mehr", class: "knopf nur-mobil", "aria-haspopup": "menu",
+      onclick: (e) => { const el = e.currentTarget; const [x, y] = menuePosition(null, el); this.menue(x, y, el); } }));
+  }
+
+  // ---------------------------------------------------------------- Auswahlmodus mobil (D-141)
+  auswahlKopfAufbauen() {
+    this.auswahlKopfText = h("span", { class: "auswahl-kopf-text", tid: "auswahl-kopf-anzahl", "aria-live": "polite" });
+    return h("div", { class: "auswahl-kopf", tid: "auswahl-kopf", role: "toolbar", "aria-label": "Auswahlmodus", hidden: true },
+      h("button", { type: "button", class: "knopf-flach auswahl-beenden", tid: "auswahl-beenden", "aria-label": "Auswahl beenden",
+        onclick: () => { this.auswahl.clear(); this.auswahlZeigen(); } }, "✕"),
+      this.auswahlKopfText,
+      knopf("Alle", { tid: "auswahl-alle", class: "knopf knopf-flach", "aria-label": "Alle geladenen Buchungen auswählen",
+        onclick: () => { this.auswahl = new Set(this.ids()); this.auswahlZeigen(); } }));
+  }
+
+  /** Lange Berührung (mobil): Auswahlmodus mit dieser Zeile beginnen bzw. die Zeile hinzunehmen. */
+  auswahlStarten(id) {
+    this.auswahl.add(id);
+    this.anker = id;
+    try { if (navigator.vibrate) navigator.vibrate(12); } catch (e) { /* ohne Vibration */ }
+    this.fokussieren(id, false);
+  }
+
+  /** Mobil sichtbarer Auswahlmodus: Häkchen an den Zeilen, Kopfleiste mit Anzahl; Zurück-Taste beendet ihn. */
+  auswahlModusZeigen(n) {
+    const an = oberflaeche.istMobil() && n > 0;
+    if (this.liste.dataset.auswahlmodus !== undefined || an) this.liste.dataset.auswahlmodus = an ? "ja" : "nein";
+    if (this.auswahlKopf) {
+      if (an) {
+        // direkt unter der Kopfzeile der App (Rückgängig bleibt erreichbar), über dem Seitenkopf
+        this.auswahlKopf.style.top = Math.max(0, tid("app-kopf").getBoundingClientRect().bottom) + "px";
+      }
+      this.auswahlKopf.hidden = !an;
+      this.auswahlKopfText.textContent = n === 1 ? "1 ausgewählt" : `${n} ausgewählt`;
+    }
+    if (an && !this.zurueckEintrag) {
+      try { history.pushState({ kontorAuswahl: true }, "", location.href); this.zurueckEintrag = true; } catch (e) { /* ohne */ }
+    } else if (!an && this.zurueckEintrag) {
+      this.zurueckEintrag = false;
+      if (history.state && history.state.kontorAuswahl) { this.zurueckIgnorieren = true; history.back(); }
+    }
+  }
+
+  /** Zurück-Taste (popstate): true, wenn sie hier verbraucht wurde (Auswahl beendet). */
+  zurueck() {
+    if (this.zurueckIgnorieren) { this.zurueckIgnorieren = false; return true; }
+    if (!this.zurueckEintrag) return false;
+    this.zurueckEintrag = false;
+    this.auswahl.clear();
+    this.auswahlZeigen();
+    return true;
   }
 
   async kategorieWaehlen(ids, ausloeser) {

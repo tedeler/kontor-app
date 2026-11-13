@@ -129,6 +129,7 @@ export class Tabs {
       ? (document.activeElement.closest("[data-pfad]") || {}).dataset?.pfad : null;
     this.leiste.replaceChildren(...this.liste.map((t) => this.reiter(t)));
     this.leiste.hidden = this.liste.length === 0;
+    if (this.beiZeichnen) this.beiZeichnen(this.liste.length);
     if (fokusPfad) {
       const el = this.leiste.querySelector(`[data-pfad="${CSS.escape(fokusPfad)}"] a`);
       if (el) el.focus();
