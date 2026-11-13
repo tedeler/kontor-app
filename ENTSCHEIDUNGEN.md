@@ -1599,7 +1599,8 @@ Weitere Abkürzungen: SY = `spec/api/synchronisation.md`, KA =
   Zahlung jeder aktiven oder ausbleibenden wiederkehrenden Serie (wiederkehrend.md 2) als Eintrag mit
   `grund = "serie"`, `id = "serie:<schluessel>"`, Datum = nächste Fälligkeit, Frist = Datum +
   `mail_abgleich_frist_tage`, `konto_id`. Abgeleitet, nicht gespeichert; keine eigene Benachrichtigung (die
-  Meldung „ausbleibend“ der Serien bleibt maßgeblich). Filter `grund=serie`. In der Oberfläche führt die Zeile zu
+  Meldung „ausbleibend“ der Serien bleibt maßgeblich). Ausgelassen werden Serien, deren letzte Buchung schon
+  einer erwarteten Zahlung aus einer Mail zugeordnet ist (regelmäßige Einkäufe, sonst doppelt). Filter `grund=serie`. In der Oberfläche führt die Zeile zu
   den wiederkehrenden Buchungen.
 - **Kachel:** Die Finanzübersicht zeigt mit eingeschaltetem Mail-Abgleich unten die Kachel `kachel-erwartet`
   („Was kommt noch?“: offen, überfällig, Summe) für Bestellungen, PayPal, Rückerstattungen und manuelle Einträge

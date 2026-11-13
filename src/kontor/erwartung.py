@@ -155,9 +155,12 @@ def _serien(con, heute: str, frist_tage: int) -> list[dict]:
     """D-128: nächste Zahlung jeder aktiven oder ausbleibenden wiederkehrenden Serie als erwartete Zahlung mit
     Grund ``serie`` (abgeleitet, nicht gespeichert; Schließen/Zuordnen geschieht über die Buchungen selbst)."""
     aus = []
+    belegt = _alle_zugeordneten(con)
     for s in wiederkehrend.uebersicht(con, heute)["serien"]:
         if s["status"] not in ("aktiv", "ausbleibend"):
             continue
+        if s["buchung_ids"] and s["buchung_ids"][-1] in belegt:
+            continue  # regelmäßige Einkäufe, die schon über Bestell-/Zahlungsmails erwartet werden: nicht doppelt
         betrag = abs(s["betrag"])
         frist = _plus(s["naechste_faelligkeit"], frist_tage)
         aus.append({"id": f"serie:{s['schluessel']}", "grund": "serie",
