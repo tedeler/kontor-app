@@ -214,3 +214,15 @@ Stand: Meilenstein 8 (getestet gegen kontor-tests `bf35445`); kein offener Eintr
   enthält“), E-109: optionale Objektarten ab M5 stehen bei Vorhandensein in `anzahl` und Inhaltsprüfsumme.
 - **Widerspruch:** Die Protokollformen stimmen überein; der Unterschied liegt allein in der fehlenden Objektart
   `postfach`. Dem Test-Thread am 2026-11-13 als Text gemeldet.
+
+## W-012 M22: Ziehen an einem nicht sichtbaren Spaltentrenner
+
+- **Test:** `tests/app/m22/test_m22_oberflaeche.py::test_jede_spalte_laesst_sich_ziehen` (Spalte `kategorie`,
+  Zurückziehen um −30 px).
+- **Erwartung des Tests:** Jeder Trenner lässt sich nacheinander verbreitern und verschmälern, ohne die Liste zu
+  rollen.
+- **Spezifikation:** `oberflaeche.md` (M22 1): ist die Summe der Breiten größer als die Liste, wird waagerecht
+  geblättert; dass alle Trenner ohne Blättern sichtbar sind, ist nicht verlangt.
+- **Widerspruch:** Bei 1280 px mit Detailpanel ist die Liste schon im Vorgaberaster waagerecht blätterbar; nach dem
+  Verbreitern liegt der Trenner außerhalb des sichtbaren Bereichs, unter dem Größengriff des Detailpanels. Dem
+  Test-Thread am 2026-11-13 als Text gemeldet.
