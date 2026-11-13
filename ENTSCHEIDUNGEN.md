@@ -1838,8 +1838,9 @@ D-123 bis D-127 sind auf den offenen Branches `dokumente` und `alfbanco-import` 
     Browser zur langen Berührung gemeldete `contextmenu` wird in der Liste ignoriert. Auf dem Desktop (auch mit
     Touch) bleibt lange Berührung = Kontextmenü.
   - Im Auswahlmodus (`buchungsliste` mit `data-auswahlmodus="ja"`) zeigt jede Zeile links einen Kreis bzw. ein
-    Häkchen; Tippen schaltet um. Über der App-Kopfzeile liegt die Leiste `auswahl-kopf` mit `auswahl-beenden` (✕),
-    `auswahl-kopf-anzahl` („3 ausgewählt“) und `auswahl-alle`. Die Zurück-Taste des Handys beendet den Auswahlmodus
+    Häkchen; Tippen schaltet um. Direkt unter der App-Kopfzeile (über dem Seitenkopf, Rückgängig bleibt erreichbar)
+    liegt die Leiste `auswahl-kopf` mit `auswahl-beenden` (✕), `auswahl-kopf-anzahl` („3 ausgewählt“) und
+    `auswahl-alle`. Die Zurück-Taste des Handys beendet den Auswahlmodus
     (eigener History-Eintrag beim Start).
   - `mehrfach-leiste` zeigt mobil nur Kategorie, Tags, Löschen und `mehrfach-mehr` („⋮ Mehr“ = Kontextmenü der
     Auswahl); die übrigen Knöpfe bleiben im DOM, sind aber ausgeblendet. Der schwebende Knopf „+“ (= `buchung-erfassen`)

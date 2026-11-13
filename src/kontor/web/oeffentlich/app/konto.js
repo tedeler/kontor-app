@@ -1378,10 +1378,8 @@ class Kontoansicht {
     if (this.liste.dataset.auswahlmodus !== undefined || an) this.liste.dataset.auswahlmodus = an ? "ja" : "nein";
     if (this.auswahlKopf) {
       if (an) {
-        // deckt die Kopfzeile der App ab (der Mock-Hinweis darüber bleibt sichtbar)
-        const r = tid("app-kopf").getBoundingClientRect();
-        this.auswahlKopf.style.top = Math.max(0, r.top) + "px";
-        this.auswahlKopf.style.minHeight = r.height + "px";
+        // direkt unter der Kopfzeile der App (Rückgängig bleibt erreichbar), über dem Seitenkopf
+        this.auswahlKopf.style.top = Math.max(0, tid("app-kopf").getBoundingClientRect().bottom) + "px";
       }
       this.auswahlKopf.hidden = !an;
       this.auswahlKopfText.textContent = n === 1 ? "1 ausgewählt" : `${n} ausgewählt`;

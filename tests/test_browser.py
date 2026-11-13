@@ -6,6 +6,7 @@ Daten) und beendet ihn wieder. Ergänzen die Oberflächentests aus kontor-tests 
 from __future__ import annotations
 
 import contextlib
+import re
 import datetime as dt
 import os
 import shutil
@@ -168,7 +169,7 @@ def test_mobil(tmp_path, browser):
         expect(tid(page, "app")).to_have_attribute("data-layout", "mobil")
         expect(tid(page, "buchungsliste")).to_have_attribute("data-kompakt", "ja")
         assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
-        # lange Berührung öffnet das Kontextmenü
+        # D-141: lange Berührung startet den Auswahlmodus (kein Kontextmenü), sichtbar mit Häkchen und Kopfleiste
         zeile = page.locator('[data-testid="buchungsliste"] [role="row"][data-id]').nth(1)
         box = zeile.bounding_box()
         cdp = page.context.new_cdp_session(page)
@@ -176,9 +177,15 @@ def test_mobil(tmp_path, browser):
         cdp.send("Input.dispatchTouchEvent", {"type": "touchStart", "touchPoints": [{"x": x, "y": y}]})
         page.wait_for_timeout(700)
         cdp.send("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []})
-        expect(tid(page, "kontextmenue")).to_be_visible()
-        page.keyboard.press("Escape")
-        expect(zeile).to_have_attribute("aria-selected", "true")      # wie Rechtsklick: Auswahl = diese Zeile
+        expect(zeile).to_have_attribute("aria-selected", "true")
+        expect(tid(page, "kontextmenue")).to_have_count(0)
+        expect(tid(page, "panel-details")).to_have_count(0)
+        expect(tid(page, "buchungsliste")).to_have_attribute("data-auswahlmodus", "ja")
+        expect(tid(page, "auswahl-kopf")).to_be_visible()
+        expect(tid(page, "auswahl-kopf-anzahl")).to_have_text("1 ausgewählt")
+        # Rückgängig bleibt im Auswahlmodus erreichbar (Kopfleiste liegt darunter)
+        kopf = tid(page, "app-kopf").bounding_box()
+        assert tid(page, "auswahl-kopf").bounding_box()["y"] >= kopf["y"] + kopf["height"] - 1
         # Wischen nach rechts schaltet die Auswahl einer weiteren Zeile um
         zeile = page.locator('[data-testid="buchungsliste"] [role="row"][data-id]').nth(3)
         box = zeile.bounding_box()
@@ -190,11 +197,85 @@ def test_mobil(tmp_path, browser):
         expect(zeile).to_have_attribute("aria-selected", "true")
         expect(tid(page, "auswahl-anzahl")).to_have_attribute("data-anzahl", "2")
         expect(tid(page, "mehrfach-leiste")).to_be_visible()
+        expect(tid(page, "auswahl-kopf-anzahl")).to_have_text("2 ausgewählt")
+        expect(tid(page, "buchung-erfassen")).to_be_hidden()           # schwebender Knopf im Auswahlmodus weg
+        # „Mehr“ öffnet das Kontextmenü der Auswahl als Blatt am unteren Rand
+        tid(page, "mehrfach-mehr").click()
+        m = tid(page, "kontextmenue")
+        expect(m).to_be_visible()
+        mb = m.bounding_box()
+        assert abs(mb["y"] + mb["height"] - 844) <= 1 and mb["width"] >= 389
+        page.keyboard.press("Escape")
+        # „Alle“ und die Zurück-Taste beenden bzw. erweitern den Auswahlmodus
+        tid(page, "auswahl-alle").click()
+        expect(tid(page, "auswahl-anzahl")).to_have_attribute("data-anzahl", "20")
+        page.go_back()
+        expect(tid(page, "auswahl-kopf")).to_be_hidden()
+        expect(tid(page, "auswahl-anzahl")).to_have_attribute("data-anzahl", "0")
+        expect(tid(page, "buchungsliste")).to_have_attribute("data-auswahlmodus", "nein")
+        assert page.url.endswith("/konten/1")
+        # ohne Auswahl öffnet Tippen die Einzelheiten
+        page.locator('[data-testid="buchungsliste"] [role="row"][data-id]').nth(2).tap()
+        expect(tid(page, "panel-details")).to_be_visible()
+        tid(page, "details-schliessen").click()
+        # Suche als Lupe
+        expect(tid(page, "suche-feld")).to_be_hidden()
+        tid(page, "suche-knopf").click()
+        expect(tid(page, "suche-feld")).to_be_visible()
+        expect(tid(page, "suche-feld")).to_be_focused()
         # Menü
         tid(page, "menue-knopf").click()
         tid(page, "nav-einstellungen").click()
         bereit(page, "einstellungen")
         expect(tid(page, "navigation")).to_be_hidden()
+
+
+def test_mobil_karten_und_wischhinweis(tmp_path, browser):
+    """D-141: Tabellen mobil als Karten, Desktop unverändert; beim Wischen zeigt die Zeile die Wirkung an."""
+    with server(tmp_path) as (url, _):
+        with seite(browser, url, **DESKTOP) as page:
+            page.goto(url + "/konten")
+            bereit(page, "konten")
+            t = tid(page, "kontenbaum")
+            expect(t.locator("thead")).to_be_visible()
+            assert t.locator("tbody tr").first.evaluate("e => getComputedStyle(e).display") == "table-row"
+            expect(tid(page, "tabs-knopf")).to_be_hidden()
+            expect(tid(page, "suche-knopf")).to_be_hidden()
+        with seite(browser, url, **HANDY) as page:
+            page.goto(url + "/konten")
+            bereit(page, "konten")
+            t = tid(page, "kontenbaum")
+            expect(t.locator("thead")).to_be_hidden()
+            tr = t.locator("tbody tr").first
+            assert tr.evaluate("e => getComputedStyle(e).display") == "flex"
+            expect(tr.locator('[data-mk="titel"]')).to_have_count(1)
+            expect(tr.locator('[data-mk="betrag"]')).to_have_count(1)
+            assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
+            page.goto(url + "/konten/1")
+            bereit(page, "konto")
+            zeile = page.locator('[data-testid="buchungsliste"] [role="row"][data-id]').nth(2)
+            box = zeile.bounding_box()
+            cdp = page.context.new_cdp_session(page)
+            x, y = box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
+            cdp.send("Input.dispatchTouchEvent", {"type": "touchStart", "touchPoints": [{"x": x, "y": y}]})
+            for i in range(1, 6):
+                cdp.send("Input.dispatchTouchEvent", {"type": "touchMove", "touchPoints": [{"x": x - 10 * i, "y": y}]})
+            h = page.locator(".wisch-hinweis")
+            expect(h).to_be_visible()
+            expect(h).to_have_attribute("data-richtung", "links")
+            expect(h).to_have_attribute("data-bereit", "nein")
+            for i in range(6, 11):
+                cdp.send("Input.dispatchTouchEvent", {"type": "touchMove", "touchPoints": [{"x": x - 10 * i, "y": y}]})
+            expect(h).to_have_attribute("data-bereit", "ja")
+            expect(zeile).to_have_class(re.compile(r"\bwischt\b"))
+            # langsam (> 1 s) gewischt wirkt mobil trotzdem, weil die Zeile den Zustand angezeigt hat
+            page.wait_for_timeout(1100)
+            cdp.send("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []})
+            expect(tid(page, "kategorie-auswahl")).to_be_visible()
+            expect(h).to_be_hidden()
+            expect(zeile).not_to_have_class(re.compile(r"\bwischt\b"))
+            # mobil kein Fokus im Textfeld des Blatts (Tastatur erst auf Tippen)
+            expect(tid(page, "kategorie-auswahl-suche")).not_to_be_focused()
 
 
 def test_service_worker_und_offline(tmp_path, browser):
