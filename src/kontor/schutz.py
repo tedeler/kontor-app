@@ -163,6 +163,10 @@ class Schutz:
             # Dokumentinhalte (D-123): „private, no-store“, alle anderen Antworten „no-store“
             wert = b"private, no-store" if EINBETTBAR in namen and ist_api(pfad) else b"no-store"
             aus = [(k, v) for k, v in aus if k.lower() != b"cache-control"] + [(b"cache-control", wert)]
+        elif statisch and b"cache-control" not in namen:
+            # D-142: statische Dateien bei jedem Abruf prüfen lassen (ETag, 304) – ohne diese Angabe hält der Browser
+            # sie nach eigener Schätzung für frisch und zeigt nach einem Update noch stunden- bis tagelang alte Stände
+            aus.append((b"cache-control", b"no-cache"))
         if ist_api(pfad) and b"x-kontor-modus" not in namen:
             aus.append((b"x-kontor-modus", self.modus))
         return aus
