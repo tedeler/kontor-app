@@ -466,3 +466,4 @@ tr.ueberfaellig td { color: var(--gefahr); }
   border-radius: 4px; padding: 0 .3em; margin-left: .4rem; }
 /* Mobil passt die Navigation genau auf den Bildschirm (Versionsknopf, M13 24.1): dort über die Befehlspalette */
 [data-layout="mobil"] .navigation .nav-zusatz { display: none; }
+.kachel-erwartet { display: block; margin-top: 1rem; text-decoration: none; color: inherit; }

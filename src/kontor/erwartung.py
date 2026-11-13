@@ -22,7 +22,7 @@ import datetime as dt
 import json
 import re
 
-from . import buch, dokumente, mailerkennung
+from . import buch, dokumente, mailerkennung, wiederkehrend
 from .validierung import ApiFehler, Feld, Validierungsfehler, datum_gueltig, fehler_eintrag, pruefe_objekt
 
 GRUENDE = ("bestellung", "paypal", "rueckerstattung", "manuell")
@@ -151,10 +151,35 @@ def _mails_lesen(con, mails: list[dict]) -> list[dict]:
     return aus
 
 
+def _serien(con, heute: str, frist_tage: int) -> list[dict]:
+    """D-128: nächste Zahlung jeder aktiven oder ausbleibenden wiederkehrenden Serie als erwartete Zahlung mit
+    Grund ``serie`` (abgeleitet, nicht gespeichert; Schließen/Zuordnen geschieht über die Buchungen selbst)."""
+    aus = []
+    for s in wiederkehrend.uebersicht(con, heute)["serien"]:
+        if s["status"] not in ("aktiv", "ausbleibend"):
+            continue
+        betrag = abs(s["betrag"])
+        frist = _plus(s["naechste_faelligkeit"], frist_tage)
+        aus.append({"id": f"serie:{s['schluessel']}", "grund": "serie",
+                    "richtung": "ausgabe" if s["richtung"] == "ausgabe" else "eingang", "anbieter": None,
+                    "kennung": "", "referenz": "", "haendler": (s["empfaenger"] or {}).get("name") or "",
+                    "beschreibung": f"{s['rhythmus']}, zuletzt {s['letzte']}", "betrag": betrag, "gesamt": betrag,
+                    "guthaben": 0, "datum": s["naechste_faelligkeit"], "frist": frist, "zustand": "offen",
+                    "bezug_id": None, "buchung_ids": [], "mails": [], "dokument_ids": [], "erstellt_am": None,
+                    "zugeordnet": 0, "offen_betrag": betrag, "ueberfaellig": frist < heute,
+                    "vorzeichen_betrag": -betrag if s["richtung"] == "ausgabe" else betrag,
+                    "konto_id": s["konto_id"], "serie": s["schluessel"]})
+    return aus
+
+
 def liste(con, heute: str, gruende: list[str] | None = None, zustaende: list[str] | None = None,
-          faellig_bis: str | None = None, suche: str | None = None, richtung: str | None = None) -> dict:
-    """„Was kommt noch?“ (D-128). ``zustaende`` kennt zusätzlich ``ueberfaellig``; ohne Angabe: offen."""
+          faellig_bis: str | None = None, suche: str | None = None, richtung: str | None = None,
+          frist_tage: int = 5) -> dict:
+    """„Was kommt noch?“ (D-128). ``zustaende`` kennt zusätzlich ``ueberfaellig``; ohne Angabe: offen. Serien
+    (Grund ``serie``) erscheinen bei offenen bzw. überfälligen Einträgen."""
     zustaende = zustaende or ["offen"]
+    mit_serien = (not gruende or "serie" in gruende) and ("offen" in zustaende or "ueberfaellig" in zustaende)
+    gruende = [g for g in (gruende or []) if g != "serie"] or (None if not gruende else ["-"])
     wo, par = [], []
     if gruende:
         wo.append(f"grund IN ({', '.join('?' * len(gruende))})")
@@ -176,6 +201,16 @@ def liste(con, heute: str, gruende: list[str] | None = None, zustaende: list[str
     wo.append("(" + " OR ".join(teile) + ")")
     zeilen = con.execute("SELECT * FROM erwartung WHERE " + " AND ".join(wo) + " ORDER BY frist, id", par).fetchall()
     eintraege = [erwartung_dict(con, r, heute) for r in zeilen]
+    if mit_serien:
+        for e in _serien(con, heute, frist_tage):
+            if richtung and e["richtung"] != richtung:
+                continue
+            if faellig_bis and e["frist"] > faellig_bis:
+                continue
+            if "offen" not in zustaende and not e["ueberfaellig"]:
+                continue
+            eintraege.append(e)
+        eintraege.sort(key=lambda e: (e["frist"], str(e["id"])))
     if suche:
         s = suche.casefold()
         eintraege = [e for e in eintraege if any(s in (e[k] or "").casefold()
@@ -361,12 +396,46 @@ def _dokumente_anhaengen(con, z, buchung_id: int, zeitpunkt: str) -> list[int]:
     return ids
 
 
+def _kategorie_der_ursprungsbuchung(con, z) -> int | None:
+    """D-128: Kategorie (einziges Nicht-Bestandskonto) der ersten Buchung der ursprünglichen Bestellung/Zahlung."""
+    if z["bezug_id"] is None:
+        return None
+    u = con.execute("SELECT buchung_ids FROM erwartung WHERE id = ?", (z["bezug_id"],)).fetchone()
+    if u is None or u["buchung_ids"] == "[]":
+        return None
+    ph = ", ".join("?" * len(buch.BESTAND))
+    r = con.execute("SELECT s.konto_id FROM split s JOIN konto k ON k.id = s.konto_id"
+                    f" WHERE s.buchung_id = ? AND k.art NOT IN ({ph}) ORDER BY s.id",
+                    (json.loads(u["buchung_ids"])[0], *buch.BESTAND)).fetchall()
+    return r[0]["konto_id"] if len(r) == 1 else None
+
+
+def _erstattung_kategorisieren(con, z, buchung_id: int) -> None:
+    """D-128: Eine Erstattung mindert die Kategorie der ursprünglichen Buchung. Steht die Gutschrift (zwei
+    Splits) noch auf „Unkategorisiert“ und ohne Vorschlag, wird die Gegenbuchung auf diese Kategorie gesetzt."""
+    if z["grund"] != "rueckerstattung":
+        return
+    kat = _kategorie_der_ursprungsbuchung(con, z)
+    if kat is None:
+        return
+    splits = con.execute("SELECT s.id, s.konto_id, k.art, k.name FROM split s JOIN konto k ON k.id = s.konto_id"
+                         " WHERE s.buchung_id = ?", (buchung_id,)).fetchall()
+    if len(splits) != 2 or con.execute("SELECT 1 FROM vorschlag WHERE buchung_id = ?", (buchung_id,)).fetchone():
+        return
+    gegen = [s for s in splits if s["art"] not in buch.BESTAND]
+    unkat = con.execute("SELECT id FROM konto WHERE name = 'Unkategorisiert' AND art = 'eigenkapital'"
+                        " AND eltern_id IS NULL").fetchone()
+    if len(gegen) == 1 and unkat is not None and gegen[0]["konto_id"] == unkat["id"]:
+        con.execute("UPDATE split SET konto_id = ? WHERE id = ?", (kat, gegen[0]["id"]))
+
+
 def _zuordnen(con, z, buchung_ids: list[int], zeitpunkt: str) -> None:
     vorher = json.loads(z["buchung_ids"])
     neu = sorted(set(vorher) | set(buchung_ids))
     dok = json.loads(z["dokument_ids"])
     for b in buchung_ids:
         if b not in vorher:
+            _erstattung_kategorisieren(con, z, b)
             dok = sorted(set(dok) | set(_dokumente_anhaengen(con, {**dict(z), "dokument_ids": json.dumps(dok)}, b,
                                                              zeitpunkt)))
     zustand = "erfuellt" if _zugeordnet(con, neu) >= z["betrag"] else "offen"

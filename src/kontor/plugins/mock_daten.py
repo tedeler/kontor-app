@@ -252,6 +252,13 @@ def _monatsumsaetze(j: int, m: int) -> list[BankUmsatz]:
       f"Abschlag Strom {m:02d}/{j}")
     u(8, GIRO, 28, -20000, "Erika Mustermann (fiktiv)", TAGESGELD, "Sparen")
     u(9, TAGESGELD, 28, 20000, "Erika Mustermann (fiktiv)", GIRO, "Sparen")
+    # D-128: Gegenstücke zu den eingebauten Amazon- und PayPal-Mails (Mail-Abgleich im Mock-Modus ausprobieren)
+    a_nr, a_cent, p_cent = _amazon_bestellung(j, m)
+    u(11, GIRO, 11, -a_cent, "AMAZON PAYMENTS EUROPE S.C.A. (fiktiv)", None, f"{a_nr} AMZN Mktp DE (Testdaten)")
+    u(12, GIRO, 22, -p_cent, "PayPal Europe S.a.r.l. (fiktiv)", None,
+      "PP.4711.PP . Buchhandlung Seitenweise (fiktiv), Ihr Einkauf bei Buchhandlung Seitenweise (fiktiv)")
+    if m % 3 == 0:
+        u(13, GIRO, 27, 999, "AMAZON PAYMENTS EUROPE S.C.A. (fiktiv)", None, f"Erstattung {a_nr} (Testdaten)")
     if m in (3, 6, 9, 12):
         u(10, TAGESGELD, _tag(j, m, 31).day, 100 + _zufall("zins", k) % 900, "Testbank (fiktiv)", None,
           "Zinsen")
@@ -265,10 +272,58 @@ def eingebaute_umsaetze(iban: str, von: dt.date, bis: dt.date) -> list[BankUmsat
     return aus
 
 
+def _amazon_bestellung(j: int, m: int) -> tuple[str, int, int]:
+    """Deterministische Amazon-Bestellnummer und Beträge (Cent) des Monats (D-128, Testdaten)."""
+    z = _zufall("amazon", j, m)
+    return (f"302-{z % 10_000_000:07d}-{(z // 10_000_000) % 10_000_000:07d}", 1999 + z % 6000,
+            1200 + _zufall("paypal", j, m) % 3000)
+
+
+def _paypal_code(j: int, m: int, art: str) -> str:
+    alphabet = "0123456789ABCDEFGHJKLMNPRSTUVWXY"
+    z = _zufall("paypal-code", art, j, m)
+    return "".join(alphabet[(z >> (5 * i)) & 31] for i in range(17))[:17]
+
+
+def _euro(cent: int) -> str:
+    return f"{cent // 100},{cent % 100:02d} €"
+
+
+def _abgleich_nachrichten(postfach: str, j: int, m: int) -> list[MailNachricht]:
+    """D-128: synthetische Bestell- und Zahlungsmails im Format von Amazon und PayPal (Absender unter
+    example.invalid); die passenden Abbuchungen stehen im eingebauten Girokonto."""
+    a_nr, a_cent, p_cent = _amazon_bestellung(j, m)
+    aus = []
+    if postfach == POSTFAECHER[0]:
+        aus.append(MailNachricht(
+            nachricht_id=f"A-{j:04d}{m:02d}-1", postfach=postfach,
+            empfangen=dt.datetime(j, m, 9, 18, 5, tzinfo=UTC), absender="bestellbestaetigung@amazon.example.invalid",
+            betreff=f"Ihre Amazon.de Bestellung von „Ladekabel USB-C (Testdaten)“",
+            text=(f"Hallo Erika,\nvielen Dank für Ihre Bestellung.\nBestellnr. {a_nr}\n"
+                  f"1 x Ladekabel USB-C (Testdaten) {_euro(a_cent - 999)}\n1 x Schutzhülle (Testdaten) {_euro(999)}\n"
+                  f"Gesamtsumme: {_euro(a_cent)}\n")))
+        if m % 3 == 0:
+            aus.append(MailNachricht(
+                nachricht_id=f"A-{j:04d}{m:02d}-2", postfach=postfach,
+                empfangen=dt.datetime(j, m, 24, 9, 30, tzinfo=UTC), absender="rueckgabe@amazon.example.invalid",
+                betreff="Ihre Erstattung (Testdaten)",
+                text=f"Hallo Erika,\nfür Ihre Rücksendung zur Bestellnr. {a_nr}\nErstattungsbetrag: {_euro(999)}\n"))
+    else:
+        aus.append(MailNachricht(
+            nachricht_id=f"P-{j:04d}{m:02d}-1", postfach=postfach,
+            empfangen=dt.datetime(j, m, 20, 12, 40, tzinfo=UTC), absender="service@paypal.example.invalid",
+            betreff="Sie haben eine Zahlung an Buchhandlung Seitenweise (fiktiv) gesendet",
+            text=(f"Sie haben {_euro(p_cent)} an Buchhandlung Seitenweise (fiktiv) gesendet.\n"
+                  f"Transaktionscode: {_paypal_code(j, m, 'zahlung')}\nGesendeter Betrag: -{_euro(p_cent)}\n"
+                  "Bezahlt mit\nLastschrift Testbank (fiktiv)\n")))
+    return aus
+
+
 def eingebaute_nachrichten(postfach: str, seit_datum: dt.date, bis: dt.date) -> list[MailNachricht]:
     aus = []
     nr = POSTFAECHER.index(postfach) + 1
     for j, m in _monate(seit_datum, bis):
+        aus.extend(_abgleich_nachrichten(postfach, j, m))
         tag = 8 + nr * 5
         stunde = 7 + _zufall("mail", postfach, j, m) % 12
         bestellnr = 1000 + _zufall("bestellung", postfach, j, m) % 9000
