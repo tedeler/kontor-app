@@ -177,11 +177,14 @@ def _serien(con, heute: str, frist_tage: int) -> list[dict]:
 
 def liste(con, heute: str, gruende: list[str] | None = None, zustaende: list[str] | None = None,
           faellig_bis: str | None = None, suche: str | None = None, richtung: str | None = None,
-          frist_tage: int = 5) -> dict:
+          frist_tage: int = 5, serien: bool = False) -> dict:
     """„Was kommt noch?“ (D-128). ``zustaende`` kennt zusätzlich ``ueberfaellig``; ohne Angabe: offen. Serien
     (Grund ``serie``) erscheinen bei offenen bzw. überfälligen Einträgen."""
     zustaende = zustaende or ["offen"]
-    mit_serien = (not gruende or "serie" in gruende) and ("offen" in zustaende or "ueberfaellig" in zustaende)
+    # Serien nur auf Anfrage (`grund=serie` oder `serien=ja` ohne Grundfilter), damit die Liste ohne diese Angaben
+    # unverändert bleibt (D-139)
+    mit_serien = (("serie" in (gruende or [])) or (serien and not gruende)) and (
+        "offen" in zustaende or "ueberfaellig" in zustaende)
     gruende = [g for g in (gruende or []) if g != "serie"] or (None if not gruende else ["-"])
     wo, par = [], []
     if gruende:

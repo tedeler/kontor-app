@@ -254,7 +254,8 @@ def test_serien_erscheinen_als_grund(app_c):
         c.post("/api/buchungen", json={"datum": d.isoformat(), "empfaenger_id": eid,
                                        "verwendungszweck": "Abo", "splits": [
                                            {"konto_id": giro, "betrag": -1299}, {"konto_id": kat, "betrag": 1299}]})
-    alle = c.get("/api/erwartungen").json()["eintraege"]
+    assert not [e for e in c.get("/api/erwartungen").json()["eintraege"] if e["grund"] == "serie"]  # D-139
+    alle = c.get("/api/erwartungen", params={"serien": "ja"}).json()["eintraege"]
     serien = [e for e in alle if e["grund"] == "serie"]
     assert len(serien) == 1 and serien[0]["betrag"] == 1299 and serien[0]["haendler"] == "Streamingdienst (fiktiv)"
     assert c.get("/api/erwartungen", params={"grund": "bestellung"}).json()["anzahl"] == 0

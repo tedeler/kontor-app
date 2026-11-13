@@ -1837,3 +1837,11 @@ D-123 bis D-127 sind auf den offenen Branches `dokumente` und `alfbanco-import` 
   abweichendem Betrag (−50,00 € neben −320,32 € ist jetzt `anderer_betrag` statt `zusaetzlich`); die Referenz der
   Zufallsgruppen rechnet ohne Filter. Mit Vorgabe `aus` sind M5, M16 und Leistung grün. Klärung über die
   Meilenstein-Definition.
+
+## D-139 Serien in der Liste der Erwartungen nur auf Anfrage (ergänzt D-131)
+
+- **Anlass:** Vorbereitung der Abnahme (M24). Mit D-131 lieferte `GET /api/erwartungen` ohne Grundfilter auch
+  Einträge mit `grund = "serie"`; das änderte die Antwort früherer Aufrufe (M20) rückwärtsinkompatibel.
+- **Entscheidung:** Serien erscheinen nur mit `grund=serie` oder mit dem neuen Abfrageparameter `serien=ja` (ohne
+  Grundfilter). Die Seite `/erwartet` setzt `serien=ja`, solange kein Grund gewählt ist; sichtbares Verhalten
+  unverändert.
