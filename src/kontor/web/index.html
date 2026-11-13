@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#1f5f8b">
 <meta name="referrer" content="no-referrer">
@@ -26,6 +26,8 @@
              autocomplete="off">
     </form>
     <div class="kopf-knoepfe">
+      <button type="button" class="kopf-knopf nur-mobil" id="suche-knopf" data-testid="suche-knopf"
+              aria-label="Suche einblenden" aria-controls="suche-form" aria-expanded="false">&#128269;</button>
       <button type="button" class="kopf-knopf" id="sync-starten" data-testid="sync-starten"
               aria-label="Bankkonten jetzt synchronisieren" title="Bankkonten jetzt synchronisieren">&#8635;</button>
       <button type="button" class="kopf-knopf" id="rueckgaengig-knopf" data-testid="rueckgaengig-knopf" disabled
@@ -38,6 +40,9 @@
          href="/benachrichtigungen" aria-label="Benachrichtigungen" title="Benachrichtigungen">&#128276;<span
          class="zahl-marke" id="benachrichtigungen-anzahl" data-testid="benachrichtigungen-anzahl"
          data-anzahl="0"></span></a>
+      <button type="button" class="kopf-knopf nur-mobil tabs-knopf" id="tabs-knopf" data-testid="tabs-knopf"
+              aria-label="Geöffnete Ansichten" aria-controls="tab-leiste" aria-expanded="false"><span
+              class="tabs-zahl" id="tabs-zahl" data-testid="tabs-zahl">0</span></button>
     </div>
   </header>
   <div class="koerper">

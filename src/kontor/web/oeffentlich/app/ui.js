@@ -1,7 +1,7 @@
 /* Kontor – Dialoge (oberflaeche.md 9) und Kontextmenüs (8). */
 import {
   ApiFehler, BESTAND, aktion, anhaengen, api, betragEingabe, betragEl, betragLesen, betragText, datumText, ebeneOeffnen,
-  ebeneSchliessen, h, kategorien, klasse, kontoNach, kontoPfad, baumFolge, melde, neueId, passt, stamm, tid,
+  ebeneSchliessen, h, kategorien, klasse, kontoNach, kontoPfad, baumFolge, melde, neueId, oberflaeche, passt, stamm, tid,
 } from "./kern.js";
 
 // ------------------------------------------------------------------ Dialog-Grundgerüst (9)
@@ -66,8 +66,16 @@ export function dialog(testid, titel, aufbau, optionen) {
   aufbau(inhalt, d);
   document.body.append(huelle);
   ebeneOeffnen(d);
-  const ziel = o.fokus ? o.fokus(box) : (box.querySelector("input:not([type=hidden]):not([disabled]), select, textarea")
+  let ziel = o.fokus ? o.fokus(box) : (box.querySelector("input:not([type=hidden]):not([disabled]), select, textarea")
     || box.querySelector("button:not([disabled])"));
+  if (oberflaeche.istMobil && oberflaeche.istMobil()) {
+    // mobil (D-131): die Bildschirmtastatur erst auf Tippen ins Feld öffnen; Tippen neben das Blatt schließt es
+    if (!o.fokus && ziel && ziel.matches("input:not([type=checkbox]):not([type=radio]):not([type=date]), textarea")) {
+      box.tabIndex = -1;
+      ziel = box;
+    }
+    huelle.addEventListener("click", (e) => { if (e.target === huelle) d.escape(); });
+  }
   if (ziel) ziel.focus();
   return d;
 }
