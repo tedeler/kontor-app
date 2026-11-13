@@ -1782,3 +1782,38 @@ D-123 bis D-127 sind auf den offenen Branches `dokumente` und `alfbanco-import` 
 - `GET /api/erwartungen`: unbekannte Abfrageparameter → 422 `validierung`.
 - Lösen der letzten Buchung: Dokumente, die dadurch an keiner Buchung mehr hängen, entfallen schon vor der Antwort,
   damit `dokument_ids` den Stand nach der Änderung zeigt.
+
+## D-137 Betragsfilter für wiederkehrende Buchungen (Feature `betragsfilter-wiederkehrend`, in Arbeit)
+
+- **Anlass:** Gehalt und unregelmäßige Auslagenerstattungen kommen vom selben Empfänger. Eine Erstattung zwischen
+  zwei Gehältern war eine „fremde Zahlung“ und brach die Kette; eine Erstattung als jüngste Buchung wurde Anker.
+- **Modi:** `aus` (Verhalten M16), `toleranz` (Prozent, Ganzzahl 0–100, bezogen auf das aktuelle Glied),
+  `mindestschwelle` (Betrag in Cent ohne Vorzeichen; nur je Empfänger). Mit dem Auftraggeber abgestimmt: Vorgabe für
+  alle Empfänger ist Toleranz ±10 %, je Empfänger überschreibbar.
+- **Kette mit Toleranz:**
+  - Anker-Kandidaten sind die jüngsten Termine je Betragsklasse (kein passender Eintrag mehr als `T` Tage später),
+    gesucht in den letzten `2·m` Monaten + `T`; Auswahl wie M16 (längste Kette, gleicher Betrag, jünger).
+  - Vorgänger: gleicher Betrag, dann innerhalb der Toleranz, dann Datumsnähe, dann jünger. Ein Vorgänger außerhalb
+    der Toleranz bleibt möglich (Preisänderung am Termin) – aber nur, solange die Kette seit dem Anker nichts
+    übergangen hat und in diesem Schritt nichts übergeht; sonst Bruch mit neuem Grund `betrag`.
+  - Einträge zwischen Vorgänger und Glied, deren Betrag weder zum Glied noch zum Vorgänger passt, werden übergangen
+    (Rolle `anderer_betrag`), statt die Kette zu brechen.
+  - **Mehrheitsregel nur für die Vorgabe:** Übergeht die Kette (ab dem ersten Glied bis zur jüngsten Buchung) mehr
+    Einträge, als sie Glieder hat, gilt der Rhythmus als nicht erfüllt. Auf dem großen Zufallsdatensatz (gross.kmy)
+    lieferte die Toleranz ohne diese Regeln 160 zusätzliche Zufallsserien, mit ihnen 4 (aus: 34, ±10 %: 31 Serien).
+- **Mindestschwelle:** Einträge unter der Schwelle werden vollständig übergangen; keine Mehrheitsregel (bewusste
+  Einstellung). Eine Zahlung unter der Schwelle meldet keinen geänderten Betrag; mit Toleranz wird eine Abweichung am
+  Termin weiterhin gemeldet (Preisänderung).
+- **Speicherort:** Vorgabe in `meta` (`wk_filter_modus`, `wk_filter_toleranz`) als Einstellung der Instanz – nicht
+  im Protokoll, nicht in der Sicherung (wie `KontorConfig`, E-096). Je Empfänger Tabelle `empfaenger_wiederkehrend`
+  (Buchbestand, Objektart `empfaenger`, Protokollform-Feld `wiederkehrend` nur bei eigener Einstellung, damit
+  bestehende Formen und Prüfsummen gleich bleiben), Sicherungsdatei Schemaversion 6.
+- **REST:** `GET /api/wiederkehrend/einstellungen`, `PUT /api/wiederkehrend/einstellungen/vorgabe`,
+  `PUT`/`DELETE /api/empfaenger/{id}/wiederkehrend` (Aktion `wiederkehrend_filter_setzen`). Begründung: neue Felder
+  `empfaenger` (oben), `betragsfilter`, `betragsfilter_text` (je Eintrag), Rolle/Urteil `anderer_betrag`, Grund
+  `betrag`. Oberfläche: Abschnitt „Wiederkehrende Buchungen“ in den Einstellungen, Dialog `wk-filter-dialog`, Knopf
+  `wk-filter-oeffnen` im Begründungsdialog.
+- **Auswirkung auf Abnahmetests:** Schema der Begründung (zusätzliche Felder und Werte) und die M16-Beispiele mit
+  abweichendem Betrag (−50,00 € neben −320,32 € ist jetzt `anderer_betrag` statt `zusaetzlich`); die Referenz der
+  Zufallsgruppen rechnet ohne Filter. Mit Vorgabe `aus` sind M5, M16 und Leistung grün. Klärung über die
+  Meilenstein-Definition.

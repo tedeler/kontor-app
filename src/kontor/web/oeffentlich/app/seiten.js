@@ -9,7 +9,7 @@ import {
   zuordnungDialog,
 } from "./ui.js";
 import { kategorienBaum, kontoMenue, langeBeruehrung } from "./baum.js";
-import { begruendungZeigen, layoutZuruecksetzen } from "./konto.js";
+import { begruendungZeigen, filterText, layoutZuruecksetzen, wkFilterDialog } from "./konto.js";
 
 const kopf = (seite, titel, ...werkzeuge) => {
   seite.append(h("div", { class: "seiten-kopf" }, h("h1", null, titel),
@@ -712,10 +712,46 @@ function importErgebnis(e) {
         + (m.referenz ? ` (${m.referenz})` : "")))) : null);
 }
 
+// Betragsfilter wiederkehrender Buchungen (D-137): Vorgabe der Instanz und eigene Einstellungen je Empfänger
+function wkFilterAbschnitt(wk) {
+  const modus = h("select", { tid: "wk-vorgabe-modus" }, [["toleranz", "Toleranz in Prozent"], ["aus", "aus (jeder Betrag zählt)"]]
+    .map(([w, t]) => h("option", { value: w }, t)));
+  modus.value = wk.vorgabe.modus;
+  const prozent = h("input", { type: "number", min: "0", max: "100", step: "1", tid: "wk-vorgabe-toleranz", inputmode: "numeric",
+    value: String(wk.vorgabe.toleranz_prozent ?? 10) });
+  const fProzent = feld("Toleranz (%)", prozent);
+  const sichtbar = () => { fProzent.hidden = modus.value !== "toleranz"; };
+  modus.addEventListener("change", sichtbar);
+  sichtbar();
+  const speichern = knopf("Speichern", { tid: "wk-vorgabe-speichern", onclick: async () => {
+    const k = modus.value === "toleranz" ? { modus: "toleranz", toleranz_prozent: Number(prozent.value) } : { modus: "aus" };
+    try { await api("PUT", "/api/wiederkehrend/einstellungen/vorgabe", k); melde("erfolg", "Vorgabe gespeichert."); await oberflaeche.neuLaden(); }
+    catch (e) { melde("fehler", e.message); }
+  } });
+  const zeilen = wk.empfaenger.map((x) => h("tr", { tid: `wk-filter-${x.empfaenger.id}`, "data-modus": x.modus },
+    h("td", null, x.empfaenger.name), h("td", null, filterText(x)),
+    h("td", null, knopf("Ändern …", { "aria-label": `Betragsfilter für ${x.empfaenger.name} ändern`,
+      onclick: (e) => wkFilterDialog(x.empfaenger, e.currentTarget) }),
+    knopf("Entfernen", { tid: `wk-filter-entfernen-${x.empfaenger.id}`, "aria-label": `Betragsfilter für ${x.empfaenger.name} entfernen`,
+      onclick: async () => {
+        try { await aktion(() => api("DELETE", `/api/empfaenger/${x.empfaenger.id}/wiederkehrend`), { erfolg: "Betragsfilter entfernt." }); }
+        catch (f) { /* gemeldet */ }
+      } }))));
+  return abschnitt("Wiederkehrende Buchungen",
+    h("p", { class: "klein" }, "Zahlungen eines Empfängers, deren Betrag nicht passt (z. B. Auslagenerstattungen neben dem Gehalt), "
+      + "werden bei der Erkennung übergangen und unterbrechen eine Serie nicht."),
+    h("div", { class: "formular-zeile" }, feld("Vorgabe für alle Empfänger", modus), fProzent, speichern),
+    h("h3", null, "Eigene Einstellungen je Empfänger"),
+    zeilen.length ? tabelle({ tid: "wk-filter-liste" }, ["Empfänger", "Betragsfilter", h("span", { class: "nur-sr" }, "Aktionen")], zeilen)
+      : leer("Alle Empfänger verwenden die Vorgabe."),
+    knopf("Empfänger hinzufügen …", { tid: "wk-filter-neu", onclick: (e) => wkFilterDialog(null, e.currentTarget) }));
+}
+
 // ------------------------------------------------------------------ Einstellungen (13.2)
 export async function einstellungen(seite, _p, _s, kontext) {
-  const [status, sync, geheim, zust, postfaecher] = await Promise.all([api("GET", "/api/status"), api("GET", "/api/sync/status"),
-    api("GET", "/api/geheimnisse"), api("GET", "/api/benachrichtigungen/zustellung"), api("GET", "/api/mail/postfaecher")]);
+  const [status, sync, geheim, zust, postfaecher, wk] = await Promise.all([api("GET", "/api/status"), api("GET", "/api/sync/status"),
+    api("GET", "/api/geheimnisse"), api("GET", "/api/benachrichtigungen/zustellung"), api("GET", "/api/mail/postfaecher"),
+    api("GET", "/api/wiederkehrend/einstellungen")]);
   kopf(seite, "Einstellungen");
   // Darstellung
   const thema = h("select", { tid: "einstellung-thema" }, [["system", "wie System"], ["hell", "Hell"], ["dunkel", "Dunkel"]]
@@ -724,6 +760,7 @@ export async function einstellungen(seite, _p, _s, kontext) {
   thema.addEventListener("change", () => kontext.thema.setzen(thema.value));
   seite.append(abschnitt("Darstellung", feld("Design", thema),
     knopf("Layout zurücksetzen", { tid: "layout-zuruecksetzen", onclick: () => { layoutZuruecksetzen(); melde("erfolg", "Layout zurückgesetzt."); } })));
+  seite.append(wkFilterAbschnitt(wk));
   // Betrieb
   seite.append(abschnitt("Betrieb", h("p", { tid: "status-modus", "data-modus": status.modus },
     status.modus === "mock" ? "Mock-Modus" : "Echtbetrieb", ` · Version ${status.version}`,

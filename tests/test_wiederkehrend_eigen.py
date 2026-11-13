@@ -107,6 +107,8 @@ def test_dublette_am_ersten_glied(bb):
 
 def test_anker_am_juengsten_termin_nach_betrag(bb):
     c, buchen = bb
+    # M16-Verhalten ohne Betragsfilter; mit Toleranz wäre die −50,00 € „anderer_betrag“ (D-137)
+    c.put("/api/wiederkehrend/einstellungen/vorgabe", json={"modus": "aus"})
     ids = [buchen(t, -32032) for t in ("2024-08-04", "2024-09-04", "2024-10-05", "2024-11-04")]
     extra = buchen("2024-11-04", -5000)  # später angelegt, gleicher Tag, anderer Betrag
     (s,) = serien(c, "2024-11-11")

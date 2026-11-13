@@ -224,6 +224,9 @@ KREDIT_ZUORDNEN = {"buchung_ids": S("int_liste", max_items=10000, eindeutig=True
 KREDIT_ABGLEICH = {"jahr": S("int", pflicht=True), "restschuld": S("int", pflicht=True),
                    "zinsen": S("int", pflicht=True), "trocken": S("bool")}
 WIEDERKEHREND_PRUEFEN = {"buchung_ids": S("int_liste", max_items=10000, eindeutig=True)}
+# D-137: Betragsfilter (fachliche Prüfung in wiederkehrend._filter_pruefen)
+WIEDERKEHREND_FILTER = {"modus": S("enum", pflicht=True, werte=wiederkehrend.MODI),
+                        "toleranz_prozent": S("int", nullbar=True), "mindestbetrag": S("int", nullbar=True)}
 DUBLETTE_AUFLOESEN = {
     "entscheidung": S("enum", pflicht=True, werte=("zusammenfuehren", "keine_dublette")),
     "behalten_id": S("int"),
@@ -1142,6 +1145,26 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
         q.pruefen()
         return await lesen(wiederkehrend.begruendung, pid(request, "buchung_id"),
                            stichtag or sync.heute().isoformat())
+
+    @endpunkt("GET", "/api/wiederkehrend/einstellungen")
+    async def wiederkehrend_einstellungen(request: Request):
+        return await lesen(wiederkehrend.einstellungen)
+
+    @endpunkt("PUT", "/api/wiederkehrend/einstellungen/vorgabe")
+    async def wiederkehrend_vorgabe(request: Request):
+        d = await koerper(request, WIEDERKEHREND_FILTER)
+        return await schreiben(wiederkehrend.vorgabe_setzen, d)
+
+    @endpunkt("PUT", "/api/empfaenger/{empfaenger_id:int}/wiederkehrend")
+    async def wiederkehrend_filter_setzen(request: Request):
+        d = await koerper(request, WIEDERKEHREND_FILTER)
+        return await aendern("wiederkehrend_filter_setzen", wiederkehrend.empfaenger_filter_setzen,
+                             pid(request, "empfaenger_id"), d)
+
+    @endpunkt("DELETE", "/api/empfaenger/{empfaenger_id:int}/wiederkehrend", 204)
+    async def wiederkehrend_filter_loeschen(request: Request):
+        return await aendern("wiederkehrend_filter_setzen", wiederkehrend.empfaenger_filter_loeschen,
+                             pid(request, "empfaenger_id"))
 
     @endpunkt("POST", "/api/wiederkehrend/pruefen")
     async def wiederkehrend_pruefen(request: Request):
