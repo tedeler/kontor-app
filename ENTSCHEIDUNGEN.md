@@ -1745,3 +1745,17 @@ D-123 bis D-127 sind auf den offenen Branches `dokumente` und `alfbanco-import` 
   Stand von `dokumente` und `mail-abgleich`), damit die Marke „durch Mail bestätigt“ (D-130) mit abgenommen wird;
   abgenommen und gemergt wird `feature/sammeltest`. Die beiden jüngeren Commits auf `feature/mail-abgleich`
   (Serien, D-131) sind nicht enthalten und bleiben auf ihrem Branch.
+
+## D-133 Mail-Abgleich nach jedem Synchronisationslauf (berichtigt D-128)
+
+- **Befund:** Bei der Vorbereitung der Abnahme (Meilenstein-Definition M20) fiel auf, dass der Abgleich nur nach
+  fehlgeschlagenen Läufen lief; nach erfolgreichen Läufen ordnete erst der nächste Planer-Takt zu.
+- **Entscheidung:** Wie in D-128 vorgesehen läuft der Abgleich nach **jedem** Lauf mit Endstatus (erfolgreich,
+  fehlgeschlagen, abgebrochen, TAN abgelaufen), direkt nach der Prüfung auf unerwartete wiederkehrende Buchungen.
+  Ohne `mail_abgleich` geschieht nichts (bestehende Abläufe und Protokolle unverändert).
+
+## D-134 Sicherung einspielen in den Einstellungen ohne Importfelder
+
+- **Befund:** Beim Übernehmen der Import-Seite für ALF-BanCo (D-126) war die Abfrage des Importformats und des Kontos
+  versehentlich auch in das Senden der Sicherung in den Einstellungen geraten; „Prüfen“ und „Einspielen“ brachen dort
+  mit einem Skriptfehler ab. Entfernt; die Sicherung sendet wieder nur die Datei.

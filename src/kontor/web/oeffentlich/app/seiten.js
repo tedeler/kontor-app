@@ -781,10 +781,6 @@ export async function einstellungen(seite, _p, _s, kontext) {
   const senden = (params) => {
     const fd = new FormData();
     fd.append("datei", datei.files[0], datei.files[0].name);
-    if (format.value === "alfbanco") {
-      if (!konto.value) { melde("fehler", "Bitte das Konto wählen, zu dem die Datei gehört."); return; }
-      fd.append("konto_id", konto.value);
-    }
     return api("POST", "/api/sicherung/einspielen" + abfrage(params), undefined, { formular: fd });
   };
   const einspielen = knopf("Einspielen …", { tid: "sicherung-einspielen", class: "knopf knopf-gefahr", disabled: true,
