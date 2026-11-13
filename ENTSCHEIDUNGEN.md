@@ -1926,3 +1926,10 @@ D-123 bis D-127 sind auf den offenen Branches `dokumente` und `alfbanco-import` 
 - Die freigegebene Meilenstein-Definition M24 (1.2) lässt eine Serie aus, wenn ihre letzte Buchung irgendeiner
   gespeicherten Erwartung zugeordnet ist, auch einer manuellen (sonst erschiene dieselbe Zahlung doppelt). Die
   Einschränkung auf Mail-Erwartungen aus D-140 ist zurückgenommen.
+
+## D-143 Abnahme M25: Vorgabe des Betragsfilters ohne Neuzeichnen speichern
+
+- Nach „Speichern“ der Vorgabe wurde die Einstellungsseite neu gezeichnet; eine sofort folgende zweite Eingabe
+  landete in den alten Feldern und ging verloren (zweites Speichern schickte den alten Stand). Die Vorgabe ist eine
+  Instanz-Einstellung ohne Rückgängig: Die Felder übernehmen die Antwort des Servers, die Seite bleibt stehen, andere
+  Tabs laden beim nächsten Zeigen neu.

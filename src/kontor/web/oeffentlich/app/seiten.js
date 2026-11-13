@@ -735,8 +735,16 @@ function wkFilterAbschnitt(wk) {
   sichtbar();
   const speichern = knopf("Speichern", { tid: "wk-vorgabe-speichern", onclick: async () => {
     const k = modus.value === "toleranz" ? { modus: "toleranz", toleranz_prozent: Number(prozent.value) } : { modus: "aus" };
-    try { await api("PUT", "/api/wiederkehrend/einstellungen/vorgabe", k); melde("erfolg", "Vorgabe gespeichert."); await oberflaeche.neuLaden(); }
-    catch (e) { melde("fehler", e.message); }
+    // D-143: kein Neuzeichnen der Einstellungsseite (Instanz-Einstellung, kein Buchbestand); die Felder zeigen schon
+    // den gespeicherten Stand, andere Tabs (Begründungen, Übersicht) laden beim nächsten Zeigen neu
+    try {
+      const v = await api("PUT", "/api/wiederkehrend/einstellungen/vorgabe", k);
+      modus.value = v.modus;
+      if (v.toleranz_prozent != null) prozent.value = String(v.toleranz_prozent);
+      sichtbar();
+      oberflaeche.andereVeraltet();
+      melde("erfolg", "Vorgabe gespeichert.");
+    } catch (e) { melde("fehler", e.message); }
   } });
   const zeilen = wk.empfaenger.map((x) => h("tr", { tid: `wk-filter-${x.empfaenger.id}`, "data-modus": x.modus },
     h("td", null, x.empfaenger.name), h("td", null, filterText(x)),

@@ -396,6 +396,8 @@ function behandeln(e) {
 }
 
 oberflaeche.neuLaden = () => zeigen({ behalten: true });
+/** Einstellung ohne Neuzeichnen der aktuellen Seite geändert: andere Tabs beim nächsten Zeigen neu laden (D-143). */
+oberflaeche.andereVeraltet = () => tabs.andereVeraltet(aktuell);
 
 export function gehe(pfad, ersetzen, optionen) {
   menueSchliessen(false);
