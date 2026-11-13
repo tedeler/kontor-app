@@ -200,8 +200,8 @@ fieldset { border: 1px solid var(--rand); border-radius: var(--radius); padding:
 .liste-kopf .zelle-betrag { text-align: right; }
 .spalten-knopf { border: none; background: none; font: inherit; font-weight: 600; color: var(--text); cursor: pointer; padding: 0; }
 .zeile { border-bottom: 1px solid var(--hg-3); cursor: default; user-select: none; touch-action: pan-y; }
-.zeile:hover { background: var(--hg-2); }
-.zeile[aria-selected="true"] { background: var(--auswahl); }
+.zeile:hover { background-color: var(--hg-2); }
+.zeile[aria-selected="true"] { background-color: var(--auswahl); }
 .zeile[data-gesperrt="ja"] .zelle-datum::after { content: " 🔒"; font-size: .75rem; }
 .tag { display: inline-block; font-size: .78rem; background: var(--hg-3); border-radius: 9px; padding: 0 .45em; margin-right: .2em; }
 .vorschlag-marke { font-size: .72rem; background: var(--akzent-hell); color: var(--text); border-radius: 4px; padding: 0 .3em; margin-left: .3em; }
@@ -243,6 +243,7 @@ html.zieht, html.zieht * { cursor: grabbing !important; }
 .baum-zeile { display: flex; align-items: center; gap: .2rem; height: var(--zeile-baum); padding-left: calc(.2rem + var(--stufe, 0) * 1.1rem);
   border-radius: 4px; cursor: default; white-space: nowrap; overflow: hidden; }
 .baum-zeile:hover { background: var(--hg-2); }
+.baum-eintrag[aria-selected="true"] > .baum-zeile { background: var(--auswahl); }
 .baum-name { overflow: hidden; text-overflow: ellipsis; }
 .baum-schalter { width: 1.2rem; text-align: center; cursor: pointer; flex: none; color: var(--text-2); }
 .baum-kinder { position: absolute; top: var(--zeile-baum); left: 0; right: 0; }
@@ -304,6 +305,14 @@ html.zieht, html.zieht * { cursor: grabbing !important; }
 .plotly-diagramm { height: 340px; }
 .plotly-diagramm:has(> .leer) { height: auto; }
 .plotly-diagramm .leer { padding: 1rem; margin: 0; }
+.aufklapp-knopf { border: 0; background: none; color: inherit; cursor: pointer; padding: 0 .35em 0 0; font: inherit; }
+.aufklapp-knopf::before { content: "▸"; display: inline-block; width: 1em; }
+.aufklapp-knopf[aria-expanded="true"]::before { content: "▾"; }
+.aufklapp-knopf:focus-visible { outline: 2px solid var(--akzent); border-radius: 3px; }
+.bericht-details > td { background: var(--hg-2); padding: .4rem .6rem .6rem 1.6rem; }
+.tabelle.einzelbuchungen { font-size: .92em; margin: 0; }
+.konto-knoepfe { display: flex; flex-wrap: wrap; gap: .25rem; }
+.konto-knoepfe .knopf { padding: .1rem .45rem; }
 .protokoll { padding-left: 1.2rem; }
 .aenderung { margin-bottom: .35rem; overflow-wrap: anywhere; }
 .aenderung.unwirksam { color: var(--text-2); }
@@ -467,3 +476,35 @@ tr.ueberfaellig td { color: var(--gefahr); }
 /* Mobil passt die Navigation genau auf den Bildschirm (Versionsknopf, M13 24.1): dort über die Befehlspalette */
 [data-layout="mobil"] .navigation .nav-zusatz { display: none; }
 .kachel-erwartet { display: block; margin-top: 1rem; text-decoration: none; color: inherit; }
+
+
+/* D-130: Spaltenbreiten der Buchungsliste (Ziehen am Trenner, Doppelklick passt an) */
+.buchungsliste .liste-kopf .zelle { position: relative; }
+.spalten-trenner { position: absolute; top: 0; right: 0; width: 7px; height: 100%; cursor: col-resize; touch-action: none;
+  background: linear-gradient(var(--rand), var(--rand)) center / 1px 60% no-repeat; z-index: 1; }
+.spalten-trenner:hover, .spalten-trenner.aktiv { background: linear-gradient(var(--akzent), var(--akzent)) center / 2px 100% no-repeat; }
+.buchungsliste.spalten-eigen { width: max-content; min-width: 100%; }
+.buchungsliste.spalten-eigen .liste-kopf, .buchungsliste.spalten-eigen .zeile { grid-template-columns: var(--spalten); }
+.spalten-messer { position: absolute; left: 0; top: 0; visibility: hidden; pointer-events: none; height: 0; overflow: hidden; }
+.spalten-messer > .zelle { width: max-content; max-width: none; overflow: visible; }
+
+/* D-130: dezente Markierung des Bearbeitungsstands (Streifen links und leichte Tönung) */
+:root { --mark-gruen: #4a9e62; --mark-grau: #a3abb5; --mark-gruen-hg: rgba(74, 158, 98, .07);
+  --mark-grau-hg: rgba(120, 130, 142, .07); --mark-gruengrau-hg: rgba(98, 128, 106, .10); }
+html[data-thema="dunkel"] { --mark-gruen: #5fb878; --mark-grau: #6f7884; --mark-gruen-hg: rgba(95, 184, 120, .08);
+  --mark-grau-hg: rgba(160, 170, 182, .06); --mark-gruengrau-hg: rgba(130, 165, 140, .10); }
+.buchungsliste .zeile[data-markierung] { background-repeat: no-repeat; background-size: 4px 100%; }
+.buchungsliste .zeile[data-markierung="kategorisiert"] { background-color: var(--mark-gruen-hg);
+  background-image: linear-gradient(var(--mark-gruen), var(--mark-gruen)); }
+.buchungsliste .zeile[data-markierung="importiert"] { background-color: var(--mark-grau-hg);
+  background-image: linear-gradient(var(--mark-grau), var(--mark-grau)); }
+.buchungsliste .zeile[data-markierung="abgeglichen"] { background-color: var(--mark-gruengrau-hg);
+  background-image: linear-gradient(var(--mark-gruen) 50%, var(--mark-grau) 50%); }
+.buchungsliste .zeile:hover { background-color: var(--hg-2); }
+.buchungsliste .zeile[aria-selected="true"] { background-color: var(--auswahl); }
+/* Zusatzmarken vor dem Empfänger: wiederkehrende Buchung ↻, durch Mail bestätigt ✉ (nur Gestaltung) */
+.zeile[data-wiederkehrend="ja"] .zelle-empfaenger::before, .zeile[data-mail="ja"] .zelle-empfaenger::before {
+  color: var(--akzent); margin-right: .3em; font-weight: 600; flex: none; }
+.zeile[data-wiederkehrend="ja"] .zelle-empfaenger::before { content: "↻"; }
+.zeile[data-mail="ja"] .zelle-empfaenger::before { content: "✉"; }
+.zeile[data-wiederkehrend="ja"][data-mail="ja"] .zelle-empfaenger::before { content: "↻ ✉"; }

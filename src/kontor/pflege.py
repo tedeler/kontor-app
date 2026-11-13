@@ -479,29 +479,82 @@ def konto_loeschen_mit_buchungen(con, kid: int, d: dict) -> dict:
     return erg
 
 
-def _loeschen_ausfuehren(con, k: dict, variante: str, konflikte: str, betroffen: list[int],
-                         gesperrt: list[int]) -> dict:
-    kid = k["id"]
-    ziel = None
-    if variante == "elternkonto":
-        ziel = k["eltern_id"]
-    elif variante == "unkategorisiert":
-        ziel = buch.unkategorisiert_id(con)
-    # 3.6 Abstimmungen von K (vor dem Umbuchen)
+def _abstimmungen_entfernen(con, kid: int) -> list[int]:
+    """loeschen.md 3.6: alle Abstimmungen des Kontos samt Splitmarken entfernen."""
     abst = [r["id"] for r in con.execute("SELECT id FROM abstimmung WHERE konto_id = ? ORDER BY id", (kid,))]
     for a in abst:
         con.execute("UPDATE split SET abstimmung_id = NULL WHERE abstimmung_id = ?", (a,))
         con.execute("DELETE FROM abstimmung WHERE id = ?", (a,))
+    return abst
+
+
+def _loeschen_ausfuehren(con, k: dict, variante: str, konflikte: str, betroffen: list[int],
+                         gesperrt: list[int], ziel_id: int | None = None) -> dict:
+    """Variante ``konto`` (nur intern, Kategorien zusammenführen, D-126) wirkt wie ``elternkonto`` mit dem Ziel
+    ``ziel_id``."""
+    kid = k["id"]
+    ziel = None
+    umleiten = variante in ("elternkonto", "konto")
+    if variante == "elternkonto":
+        ziel = k["eltern_id"]
+    elif variante == "konto":
+        ziel = ziel_id
+    elif variante == "unkategorisiert":
+        ziel = buch.unkategorisiert_id(con)
+    # 3.6 Abstimmungen von K (vor dem Umbuchen)
+    abst = _abstimmungen_entfernen(con, kid)
     # 3.1 Unterkonten
     unter = [r["id"] for r in con.execute("SELECT id FROM konto WHERE eltern_id = ? ORDER BY id", (kid,))]
     con.execute("UPDATE konto SET eltern_id = ? WHERE eltern_id = ?", (k["eltern_id"], kid))
     # 3.2/3.3 Buchungen
-    geloescht, konfliktb = [], []
-    for b in buch.buchungen_laden(con, betroffen):
-        if variante == "loeschen":
+    if variante == "loeschen":
+        geloescht, konfliktb = [], []
+        for b in buch.buchungen_laden(con, betroffen):
             buch.buchung_entfernen(con, b["id"])
             geloescht.append(b["id"])
+    else:
+        geloescht, konfliktb = _umbuchen(con, kid, ziel, betroffen, konflikte)
+    # 3.4 Regeln
+    r_geaendert, r_geloescht = [], []
+    for r in regeln.regeln_liste(con):
+        if not _regel_bezieht(r, kid):
             continue
+        if umleiten:
+            neu_b = [{**b, "wert": ziel} if b["feld"] == "konto_id" and b["wert"] == kid else b
+                     for b in r["bedingungen"]]
+            con.execute("UPDATE regel SET kategorie_id = ?, bedingungen = ? WHERE id = ?",
+                        (ziel if r["kategorie_id"] == kid else r["kategorie_id"],
+                         json.dumps(neu_b, ensure_ascii=False), r["id"]))
+            r_geaendert.append(r["id"])
+        else:
+            regeln.regel_loeschen(con, r["id"])
+            r_geloescht.append(r["id"])
+    # M4 (loeschen.md 6): Split-Vorlagen wie Regeln
+    from . import vorlagen
+    vorlagen.konto_loeschen(con, kid, ziel if umleiten else None)
+    # 3.5 Standardkategorien
+    empf = [r["id"] for r in con.execute("SELECT id FROM empfaenger WHERE standardkategorie_id = ? ORDER BY id",
+                                         (kid,))]
+    con.execute("UPDATE empfaenger SET standardkategorie_id = ? WHERE standardkategorie_id = ?",
+                (ziel if umleiten else None, kid))
+    # 3.7 Konto
+    con.execute("DELETE FROM konto WHERE id = ?", (kid,))
+    return {
+        "konto_id": kid, "buchungen": variante, "konflikte": konflikte, "ziel_konto_id": ziel,
+        "buchungen_betroffen": betroffen, "buchungen_geloescht": sorted(geloescht),
+        "buchungen_umgebucht": sorted(set(betroffen) - set(geloescht)), "konfliktbuchungen": sorted(konfliktb),
+        "gesperrt": gesperrt, "unterkonten": unter, "regeln_geaendert": sorted(r_geaendert),
+        "regeln_geloescht": sorted(r_geloescht), "empfaenger_geaendert": empf, "abstimmungen_geloescht": abst,
+        "aenderung_id": None,
+    }
+
+
+def _umbuchen(con, kid: int, ziel: int, betroffen: list[int], konflikte: str) -> tuple[list[int], list[int]]:
+    """loeschen.md 3.2/3.3: Splits von ``kid`` auf ``ziel``, Splits auf dem Ziel zusammenfassen, Konfliktbuchungen
+    nach ``konflikte``. Rückgabe: gelöschte Buchungen und Konfliktbuchungen."""
+    geloescht: list[int] = []
+    konfliktb: list[int] = []
+    for b in buch.buchungen_laden(con, betroffen):
         splits = [{**s, "konto_id": ziel if s["konto_id"] == kid else s["konto_id"]} for s in b["splits"]]
         if all(s["konto_id"] == ziel for s in splits):
             konfliktb.append(b["id"])
@@ -525,38 +578,108 @@ def _loeschen_ausfuehren(con, k: dict, variante: str, konflikte: str, betroffen:
             con.execute("UPDATE split SET konto_id = ?, betrag = ?, memo = ?, position = ? WHERE id = ?",
                         (s["konto_id"], s["betrag"], s["memo"], pos, s["id"]))
         con.execute("DELETE FROM vorschlag WHERE buchung_id = ?", (b["id"],))
-    # 3.4 Regeln
-    r_geaendert, r_geloescht = [], []
-    for r in regeln.regeln_liste(con):
-        if not _regel_bezieht(r, kid):
+    return geloescht, konfliktb
+
+
+# ------------------------------------------------- Kategorien zusammenführen (Feature alfbanco-import, D-126)
+
+def _nachfahren(con, kid: int) -> set[int]:
+    ids, offen = set(), [kid]
+    while offen:
+        k = offen.pop()
+        for r in con.execute("SELECT id FROM konto WHERE eltern_id = ?", (k,)):
+            if r["id"] not in ids:
+                ids.add(r["id"])
+                offen.append(r["id"])
+    return ids
+
+
+def _zusammenfuehren_pruefen(con, quelle_ids: list[int], ziel_id: int) -> dict[int, dict]:
+    if ziel_id in quelle_ids:
+        raise ApiFehler(422, "ziel_ungueltig", "Die Zielkategorie darf nicht unter den Quellen sein.")
+    konten: dict[int, dict] = {}
+    for kid in [ziel_id, *quelle_ids]:
+        r = buch.konto_zeile(con, kid)
+        if r is not None:
+            konten[kid] = buch.konto_dict(r)
+    fehlend = sorted({ziel_id, *quelle_ids} - set(konten))
+    if fehlend:
+        raise ApiFehler(422, "referenz_unbekannt", "Unbekannte Kategorien.", {"konto_ids": fehlend})
+    keine = sorted(k for k, v in konten.items() if v["art"] not in buch.KATEGORIEARTEN)
+    if keine:
+        raise ApiFehler(422, "konto_ungueltig", "Zusammenführen ist nur zwischen Kategorien möglich.",
+                        {"konto_ids": keine})
+    return konten
+
+
+def kategorien_zusammenfuehren(con, d: dict) -> dict:
+    """``POST /api/kategorien/zusammenfuehren``: Buchungen der Quellkategorien auf die Zielkategorie umbuchen und
+    die Quellen auf Wunsch löschen (wie ``loeschen.md`` mit Variante ``elternkonto``, aber mit frei gewähltem Ziel).
+
+    Prüfreihenfolge: Ziel unter den Quellen (422 ``ziel_ungueltig``), unbekannte IDs (422 ``referenz_unbekannt``),
+    keine Kategorie (422 ``konto_ungueltig``), Kreditbezug einer zu löschenden Quelle (409 wie beim Löschen),
+    gesperrte Buchungen ohne Bestätigung (409 ``buchung_gesperrt``)."""
+    quelle_ids, ziel_id = list(d["quelle_ids"]), d["ziel_id"]
+    loeschen = d.get("quellen_loeschen", True)
+    trocken = d.get("trocken", False)
+    konten = _zusammenfuehren_pruefen(con, quelle_ids, ziel_id)
+    if loeschen:
+        from . import kredite
+        for q in quelle_ids:
+            kredite.konto_pruefen(con, q)
+    betroffen = sorted({r["buchung_id"] for q in quelle_ids for r in con.execute(
+        "SELECT DISTINCT buchung_id FROM split WHERE konto_id = ?", (q,))})
+    gesperrt = [b["id"] for b in buch.buchungen_laden(con, betroffen) if buch.ist_gesperrt(b)] if betroffen else []
+    if not trocken and not d.get("gesperrte_einbeziehen", False) and gesperrt:
+        raise ApiFehler(409, "buchung_gesperrt", "Betroffene Buchungen sind gesperrt (abgeglichen oder abgestimmt).",
+                        {"buchung_ids": gesperrt})
+    if not trocken:
+        return _zusammenfuehren_ausfuehren(con, konten, quelle_ids, ziel_id, loeschen, betroffen, gesperrt)
+    con.execute("SAVEPOINT probelauf")
+    try:
+        erg = _zusammenfuehren_ausfuehren(con, konten, quelle_ids, ziel_id, loeschen, betroffen, gesperrt)
+    finally:
+        con.execute("ROLLBACK TO probelauf")
+        con.execute("RELEASE probelauf")
+    erg["trocken"] = True
+    return erg
+
+
+def _zusammenfuehren_ausfuehren(con, konten: dict[int, dict], quelle_ids: list[int], ziel_id: int, loeschen: bool,
+                                betroffen: list[int], gesperrt: list[int]) -> dict:
+    ziel = konten[ziel_id]
+    konflikte: set[int] = set()
+    unter_ziel: list[int] = []
+    regeln_geaendert: set[int] = set()
+    empf: set[int] = set()
+    for q in quelle_ids:
+        k = buch.konto_dict(buch.konto_zeile(con, q))  # aktueller Stand (Eltern können sich geändert haben)
+        b_q = [r["buchung_id"] for r in con.execute(
+            "SELECT DISTINCT buchung_id FROM split WHERE konto_id = ? ORDER BY buchung_id", (q,))]
+        if not loeschen:
+            _abstimmungen_entfernen(con, q)
+            konflikte |= set(_umbuchen(con, q, ziel_id, b_q, "behalten")[1])
             continue
-        if variante == "elternkonto":
-            neu_b = [{**b, "wert": ziel} if b["feld"] == "konto_id" and b["wert"] == kid else b
-                     for b in r["bedingungen"]]
-            con.execute("UPDATE regel SET kategorie_id = ?, bedingungen = ? WHERE id = ?",
-                        (ziel if r["kategorie_id"] == kid else r["kategorie_id"],
-                         json.dumps(neu_b, ensure_ascii=False), r["id"]))
-            r_geaendert.append(r["id"])
-        else:
-            regeln.regel_loeschen(con, r["id"])
-            r_geloescht.append(r["id"])
-    # M4 (loeschen.md 6): Split-Vorlagen wie Regeln
-    from . import vorlagen
-    vorlagen.konto_loeschen(con, kid, ziel if variante == "elternkonto" else None)
-    # 3.5 Standardkategorien
-    empf = [r["id"] for r in con.execute("SELECT id FROM empfaenger WHERE standardkategorie_id = ? ORDER BY id",
-                                         (kid,))]
-    con.execute("UPDATE empfaenger SET standardkategorie_id = ? WHERE standardkategorie_id = ?",
-                (ziel if variante == "elternkonto" else None, kid))
-    # 3.7 Konto
-    con.execute("DELETE FROM konto WHERE id = ?", (kid,))
+        # Unterkategorien gleicher Klasse wandern unter das Ziel, sofern das keinen Zyklus ergibt (D-126)
+        if buch.KLASSE[k["art"]] == buch.KLASSE[ziel["art"]] and ziel_id not in _nachfahren(con, q):
+            for r in con.execute("SELECT id FROM konto WHERE eltern_id = ? ORDER BY id", (q,)).fetchall():
+                con.execute("UPDATE konto SET eltern_id = ? WHERE id = ?", (ziel_id, r["id"]))
+                unter_ziel.append(r["id"])
+        e = _loeschen_ausfuehren(con, k, "konto", "behalten", b_q, [], ziel_id=ziel_id)
+        konflikte |= set(e["konfliktbuchungen"])
+        regeln_geaendert |= set(e["regeln_geaendert"])
+        empf |= set(e["empfaenger_geaendert"])
+    uebernommen = None
+    if loeschen and ziel["extern_id"] is None:
+        uebernommen = next((konten[q]["extern_id"] for q in quelle_ids if konten[q]["extern_id"]), None)
+        if uebernommen is not None:
+            con.execute("UPDATE konto SET extern_id = ? WHERE id = ?", (uebernommen, ziel_id))
     return {
-        "konto_id": kid, "buchungen": variante, "konflikte": konflikte, "ziel_konto_id": ziel,
-        "buchungen_betroffen": betroffen, "buchungen_geloescht": sorted(geloescht),
-        "buchungen_umgebucht": sorted(set(betroffen) - set(geloescht)), "konfliktbuchungen": sorted(konfliktb),
-        "gesperrt": gesperrt, "unterkonten": unter, "regeln_geaendert": sorted(r_geaendert),
-        "regeln_geloescht": sorted(r_geloescht), "empfaenger_geaendert": empf, "abstimmungen_geloescht": abst,
-        "aenderung_id": None,
+        "ziel_id": ziel_id, "quelle_ids": quelle_ids, "quellen_geloescht": loeschen,
+        "buchungen_umgebucht": betroffen, "konfliktbuchungen": sorted(konflikte), "gesperrt": gesperrt,
+        "unterkategorien_verschoben": sorted(unter_ziel), "regeln_geaendert": sorted(regeln_geaendert),
+        "empfaenger_geaendert": sorted(empf), "extern_id_uebernommen": uebernommen,
+        "trocken": False, "aenderung_id": None,
     }
 
 

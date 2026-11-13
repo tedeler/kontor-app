@@ -29,7 +29,8 @@ KOEPFE = [(b"x-content-type-options", b"nosniff"), (b"x-frame-options", b"DENY")
           (b"cross-origin-opener-policy", b"same-origin")]
 OEFFENTLICH = {("GET", "/api/anmeldung"), ("POST", "/api/anmeldung"), ("POST", "/api/anmeldung/einrichten"),
                ("GET", "/api/gesundheit"), ("GET", "/anmelden")}
-UPLOADS = {"/api/import/kmymoney", "/api/import/gnucash", "/api/sicherung/einspielen", "/api/dokumente"}
+UPLOADS = {"/api/import/kmymoney", "/api/import/gnucash", "/api/import/alfbanco", "/api/sicherung/einspielen",
+           "/api/dokumente"}
 # Antworten mit diesem Kopf (nur Dokumentinhalte, D-123) behalten ihre eigene, strengere Inhaltsrichtlinie und
 # dürfen von der eigenen Seite eingebettet werden; der Kopf selbst geht nie nach außen.
 EINBETTBAR = b"x-kontor-einbettbar"
@@ -159,7 +160,9 @@ class Schutz:
         erzwingen = ist_api(pfad) or typ.lower().startswith(b"text/html")
         statisch = pfad.startswith(("/oeffentlich/", "/static/"))
         if erzwingen or (not statisch and b"cache-control" not in namen):
-            aus = [(k, v) for k, v in aus if k.lower() != b"cache-control"] + [(b"cache-control", b"no-store")]
+            # Dokumentinhalte (D-123): „private, no-store“, alle anderen Antworten „no-store“
+            wert = b"private, no-store" if EINBETTBAR in namen and ist_api(pfad) else b"no-store"
+            aus = [(k, v) for k, v in aus if k.lower() != b"cache-control"] + [(b"cache-control", wert)]
         if ist_api(pfad) and b"x-kontor-modus" not in namen:
             aus.append((b"x-kontor-modus", self.modus))
         return aus

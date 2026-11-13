@@ -1612,3 +1612,228 @@ Weitere Abkürzungen: SY = `spec/api/synchronisation.md`, KA =
   offener Vorschlag) noch auf „Unkategorisiert“ steht, wird sie in derselben Änderung auf die Kategorie der
   ursprünglichen Buchung umgebucht (rückgängig machbar). Ein Vorschlag im Sinne von kategorisierung.md ist das
   nicht, weil dessen Quellen festgelegt sind.
+
+## D-123 ALF-BanCo-Import über den QIF-Export (Feature `alfbanco-import`)
+
+- **Frage:** ALF-BanCo 9 speichert seine Daten verschlüsselt (`HbDat001.dat`), das Format ist nicht dokumentiert.
+  Welches Format wird importiert?
+- **Entscheidung:** Der QIF-Export (Profi-Edition, „Datei > Export > Umsätze > QIF-Format“), eine Datei je Konto
+  (Auftrag des Anwenders 2026-11-12). Neuer Endpunkt `POST /api/import/alfbanco` (multipart: `datei`, `konto_id`)
+  und `kontor.importer.alfbanco.importiere_alfbanco(config, quelle, *, konto_id, dateiname=None)`. Das Zielkonto
+  muss ein Bestandskonto sein (422 `referenz_unbekannt` bzw. `konto_ungueltig`, Python: `ValueError`); fehlt
+  `konto_id` oder ist es keine positive Ganzzahl → 422 `validierung`. Ergebnis wie beim KMyMoney-Import
+  (`ImportErgebnis`, `format = "qif"`), Importvorgang `art = "alfbanco"`, Änderung `import_alfbanco` mit Gruppe
+  `import:<id>`; kein Teilimport. Fehler: leere Datei → `import_datei_leer`; erste nicht leere Zeile beginnt nicht
+  mit `!` → `import_format_ungueltig` (`format = null`); Buchungen mehrerer `!Account`-Konten in einer Datei →
+  `import_format_ungueltig`; fehlendes/ungültiges Datum oder fehlender/ungültiger Betrag eines Satzes oder einer
+  Aufteilung → `import_inhalt_ungueltig` mit `referenz = "Satz <n>"` (n = laufende Nummer der Buchungssätze).
+- **Lesen:** Kodierung UTF-8 (mit/ohne BOM), sonst Windows-1252, sonst Latin-1. Abschnitte `!Type:Bank`, `CCard`,
+  `Cash`, `Oth A`, `Oth L` sind Buchungen; `!Type:Invst` wird gezählt und übersprungen (`buchung_uebersprungen`);
+  `!Type:Cat` liefert die Art der Kategorien (`I` Einnahme, `E` Ausgabe); alles andere wird ignoriert. Felder:
+  `D` Datum, `T` (sonst `U`) Betrag, `P` Empfänger, `M` Verwendungszweck, `L` Kategorie, `S`/`E`/`$` Aufteilung.
+  Datum: `T.M.JJJJ`/`T.M.JJ`, `JJJJ-MM-TT`, `M/T/JJJJ`, `M/T'JJ` (Apostroph = 20JJ); bei `/` Tag zuerst, wenn ein
+  Datum der Datei an erster Stelle > 12 hat; zweistellige Jahre < 70 → 20JJ, sonst 19JJ. Betrag: Dezimalkomma, wenn
+  ein Betrag der Datei mit Komma und ein bis zwei Ziffern endet, sonst Dezimalpunkt; der andere Trenner gilt als
+  Tausendertrenner; mehr als zwei Nachkommastellen nur, wenn sie 0 sind.
+
+## D-124 Kennung und Dubletten beim ALF-BanCo-Import
+
+- **Frage:** QIF hat keine Transaktions-IDs. Wie bleibt der Import idempotent, ohne zwei gleiche Kaffees zu
+  verschmelzen?
+- **Entscheidung:** Herkunftskennung `alf:<konto_id>:<32 Hex>` aus SHA-256 über Datum, Betrag, `P`, `M`, `L`, `N`,
+  die Aufteilungen und die laufende Nummer gleicher Sätze in der Datei. Ein zweiter Import derselben Datei ordnet
+  alles über die Kennung zu; eine erweiterte Fassung fügt genau die neuen Sätze hinzu. Dublettenprüfung wie
+  `datenmodell.md` 10.4, aber nur über das Zielkonto und gegen alle vorher vorhandenen Buchungen auch derselben
+  Quelle (ein nachträglich in ALF-BanCo geänderter Satz bekommt eine neue Kennung und soll trotzdem erkannt werden),
+  ausgenommen Buchungen, die im selben Lauf schon über ihre Kennung zugeordnet wurden.
+
+## D-125 Kategorien, Klassen und Umbuchungen beim ALF-BanCo-Import
+
+- **Kategorien:** `L` bzw. `S` mit `:` ergibt die Hierarchie; je Pfad eine Kategorie mit
+  `extern_id = "alf:kat:<Pfad>"`. Zuordnung: gleiche Kennung; sonst vorhandene Kategorie gleicher Art mit exakt
+  gleichem Namen und gleichem (zugeordnetem) Elternkonto, deren Kennung nicht mit `alf:` oder `kontor:` beginnt
+  (sie erhält die Kennung nur, wenn sie noch keine hat; Kategorien aus KMyMoney/GnuCash werden so jedes Mal über
+  den Namen wiedererkannt); sonst neu. Gezählt wird jeder Pfad der Datei genau einmal, auch bei schon vorhandenen
+  Buchungen.
+- **Art:** je Wurzel aus `!Type:Cat` (Wurzel, sonst erste gekennzeichnete Unterkategorie), sonst aus der Summe der
+  Gegenbeträge (≥ 0 Ausgabe, < 0 Einnahme) mit Warnung `kategorieart_abgeleitet` beim Neuanlegen. Unterkategorien
+  erben die Art ihres Elternkontos.
+- **Leere Kategorie** → „Unkategorisiert“. **Klasse** (`Kategorie/Klasse`) → Tag (Vergleich mit `casefold`).
+  **Umbuchung** `[Name]` → Bestandskonto mit genau diesem Namen (kleinste ID, nicht das Zielkonto); unbekannt →
+  „Unkategorisiert“ mit Warnung `umbuchung_konto_unbekannt`; `[eigener Kontoname]` (Anfangssaldo) → technisches
+  Eigenkapitalkonto „Anfangssalden“ (`extern_id = "alf:anfangssalden"`). Ergeben die Aufteilungen nicht den
+  Gesamtbetrag, geht der Rest auf „Unkategorisiert“ (Warnung `split_differenz`).
+
+## D-126 Kategorien zusammenführen
+
+- **Anlass:** Nach dem Import sollen ALF-BanCo-Kategorien in schon vorhandene gleichwertige Kategorien überführt
+  werden können: mehrere markieren, Ziel wählen.
+- **Entscheidung:** `POST /api/kategorien/zusammenfuehren` mit `{quelle_ids (1–1000, eindeutig), ziel_id,
+  quellen_loeschen (Vorgabe true), gesperrte_einbeziehen (false), trocken (false)}`. Prüfreihenfolge: Körper → 422
+  `validierung`; Ziel unter den Quellen → 422 `ziel_ungueltig`; unbekannte IDs → 422 `referenz_unbekannt`
+  (`details.konto_ids`); Quelle oder Ziel keine Kategorie → 422 `konto_ungueltig`; zu löschende Quelle mit
+  Kreditbezug → wie beim Löschen; gesperrte Buchungen ohne Bestätigung (nicht im Probelauf) → 409
+  `buchung_gesperrt`. Wirkung je Quelle in der angegebenen Reihenfolge wie `loeschen.md` mit Variante
+  `elternkonto`, aber mit dem gewählten Ziel: Splits umbuchen und auf dem Ziel zusammenfassen, Konfliktbuchungen
+  behalten, Regeln, Split-Vorlagen und Standardkategorien auf das Ziel umstellen, Abstimmungen der Quelle
+  entfernen, Quelle löschen. Unterkategorien einer Quelle wandern unter das Ziel, wenn es dieselbe Klasse hat und
+  dabei kein Zyklus entsteht, sonst eine Ebene nach oben. Ohne `quellen_loeschen` werden nur die Buchungen
+  umgebucht (samt Zusammenfassen und Entfernen der Abstimmungen der Quelle). Hat das Ziel keine `extern_id`, erhält
+  es die der ersten gelöschten Quelle, damit ein späterer Import die gelöschte Kategorie nicht neu anlegt.
+  Einnahme- und Ausgabekategorien dürfen gemischt werden (die abgeleitete Art kann falsch sein). Eine Änderung
+  `kategorien_zusammenfuehren` (`quelle = "manuell"`), rückgängig machbar. Antwort: `ziel_id`, `quelle_ids`,
+  `quellen_geloescht`, `buchungen_umgebucht`, `konfliktbuchungen`, `gesperrt`, `unterkategorien_verschoben`,
+  `regeln_geaendert`, `empfaenger_geaendert`, `extern_id_uebernommen`, `trocken`, `aenderung_id`.
+- **Oberfläche:** Kategorienbaum mit Mehrfachauswahl (Strg/⌘-Klick, Umschalt-Klick, Leertaste, Esc hebt auf;
+  `aria-selected`), Kontextmenüeintrag `km-kategorie-zusammenfuehren` („Zusammenführen in…“, bei Auswahl „n
+  Kategorien zusammenführen in…“), Dialog `zusammenfuehren-dialog` mit Suche, Zielliste, Schalter
+  „Quellkategorien danach löschen“, Vorschau über den Probelauf und Bestätigung gesperrter Buchungen.
+  Import-Seite: Format „ALF-BanCo“ mit Kontoauswahl `import-konto`.
+
+## D-127 `_loeschen_ausfuehren` mit frei wählbarem Ziel
+
+- Für D-126 ist das Umbuchen aus `_loeschen_ausfuehren` in `_umbuchen` und `_abstimmungen_entfernen` ausgelagert;
+  die interne Variante `konto` wirkt wie `elternkonto` mit einem übergebenen Ziel. Das Verhalten von
+  `POST /api/konten/{id}/loeschen` ist unverändert (Abnahmetests M3/M4/M5 grün).
+
+## D-128 Berichtsdiagramme: Tooltip im Thema, Tabellen folgen dem Zoom, Einzelbuchungen (Feature `diagramm-dunkel`, iterativ)
+
+D-123 bis D-127 sind auf den offenen Branches `dokumente` und `alfbanco-import` vergeben; daher D-128.
+
+- **Tooltip:** Die Plotly-Diagramme setzen `hoverlabel` ausdrücklich auf die Farben des Themas (`--hg`, `--rand`,
+  `--text`). Ohne Angabe zeichnete Plotly einen hellen Kasten, auf dem die helle Schrift des dunklen Themas nicht
+  lesbar war. Der Reihenname steht im Text des Tooltips (`<extra></extra>` leer), weil Plotly das Namensfeld sonst
+  hell hinterlegt.
+- **Zoom:** Die Tabelle unter einem Diagramm zeigt nur die Zeilen, deren x-Wert (Stichtag bzw. Beginn des Zeitraums)
+  im sichtbaren Bereich der x-Achse liegt; ein Hinweis nennt Ausschnitt und Zeilenzahl. Autorange (Doppelklick)
+  zeigt wieder alle. Kein neuer Abruf, nur Ausblenden; die Zeilen bleiben im Dokument.
+- **Einzelbuchungen:** Jede Tabellenzeile hat einen Aufklappknopf (Text der ersten Zelle unverändert, Symbol über
+  CSS). Aufgeklappt folgt eine Zeile mit den Buchungen des Zeitraums: Kontostand Zeile i = nach dem vorigen Stichtag
+  bis einschließlich Stichtag i (Zeile 0 = nur der erste Stichtag); Einnahmen/Ausgaben = der Zeitraum der Zeile ohne
+  Umbuchungen. Quelle ist `GET /api/buchungen` je gewähltem Konto (ohne Auswahl: alle), höchstens 500 je Konto mit
+  Hinweis. Betrag = Summe der Splits auf den gewählten Konten (ohne Auswahl: auf Bestandskonten). Je beteiligtem
+  Konto ein Knopf (gewählte Konten zuerst), der `/konten/<id>?buchung=<id>` öffnet (Sprungziel nach M16 3.4).
+  Die Detailzeile entsteht erst beim Aufklappen, damit die Zeilenzahl der Tabelle unverändert bleibt.
+- Keine neuen Endpunkte, kein fachlicher Zustand.
+
+## D-129 Sprungziel in der Kontoansicht immer mittig (ergänzt D-118, D-128)
+
+- Alle Sprünge zu einer Buchung (Abfrageteil `?buchung=`, „Gehe zur Gegenbuchung“, Knöpfe der Einzelbuchungen in
+  den Berichten, „Letzte Buchung im Kontoblatt zeigen“) wählen und fokussieren die Buchung, rollen sie in die
+  **Mitte** der Liste und heben sie kurz hervor. Bisher rollte „Gehe zur Gegenbuchung“ nur bis an den Rand; mobil
+  lag die Zeile dann unter der fest unten stehenden Mehrfachleiste.
+- Die Knöpfe der Einzelbuchungen (D-128) und `km-serie-springen` springen über denselben Weg wie „Gehe zur
+  Gegenbuchung“ (offener Tab des Kontos wird verwendet, Filter werden bei Bedarf mit Hinweis zurückgesetzt). Die
+  Knöpfe bleiben Links auf `/konten/<id>?buchung=<id>`, damit Strg-/Mittelklick einen neuen Browser-Tab öffnet.
+
+## D-130 Spaltenbreiten und Markierung der Buchungsliste (Feature `spalten-markierung`, iterativ)
+
+- **Anlass:** Auftrag 2026-11-12: Spalten der Kontolisten in der Breite veränderbar, Doppelklick auf den
+  Spaltentrenner passt die Spalte an (wie in Excel); Buchungen dezent nach Bearbeitungsstand markieren, dazu eine
+  Zusatzmarke für wiederkehrende Buchungen. (Nummer D-130, weil D-123 bis D-129 auf offenen Branches vergeben sind.)
+- **Spaltenbreiten:** Trenner am rechten Rand jeder Kopfzelle (`spalte-trenner-<feld>`, Rolle `separator`), nur
+  in der Desktop-Liste. Ziehen ändert die Breite (40–1200 px); das erste Ziehen legt alle Spalten auf ihre
+  gezeichnete Breite fest, damit die übrigen nicht springen. Doppelklick: Breite des breitesten Inhalts aus Kopf und
+  geladenen Zeilen (gemessen an Kopien der Zellen ohne Abschneiden). Ist die Summe breiter als die Liste, wird
+  waagerecht geblättert. Kontextmenü des Kopfes: „Alle Spalten an den Inhalt anpassen“
+  (`km-spalten-anpassen`), „Spaltenbreiten zurücksetzen“ (`km-spalten-zuruecksetzen`). Gemerkt im Browser
+  (`kontor.spalten`, je Liste `konto`/`kategorie`, gilt für alle Konten), Lesen/Schreiben nur in `try`.
+- **Markierung** (`data-markierung` der Zeile, Streifen links und leichte Tönung, helles und dunkles Thema):
+  `abgeglichen` (Status „Abgeglichen“ oder abgestimmt) grün-grau; sonst `kategorisiert` (kein Split auf
+  „Unkategorisiert“, Umbuchungen und Splitbuchungen eingeschlossen) grün; sonst `importiert` (Status „Importiert“)
+  grau; sonst keine Markierung. Hover und Auswahl überdecken die Tönung, der Streifen bleibt.
+- **Wiederkehrend:** Zeilen, deren Buchung zu einer Serie aus `GET /api/wiederkehrend` gehört (auch ausbleibende
+  und beendete), tragen `data-wiederkehrend="ja"` und ein „↻“ vor dem Empfänger (nur Gestaltung, der Text der
+  Zelle bleibt unverändert).
+- **Durch Mail bestätigt** (abgestimmt 2026-11-12): Zeilen, deren Buchung einer aus Mails erkannten Erwartung
+  (Grund Bestellung, PayPal oder Rückerstattung, beliebiger Zustand) zugeordnet ist, tragen `data-mail="ja"` und
+  ein „✉“ vor dem Empfänger; der Titel der Zelle nennt Grund, Händler und Kennung. Quelle ist
+  `GET /api/erwartungen`. Der Branch enthält deshalb `feature/mail-abgleich` und kann erst nach diesem gemergt
+  werden.
+- **Vorrang** (abgestimmt): Eine importierte Buchung mit Kategorie ist grün; vorläufige oder bestätigte Buchungen
+  ohne Kategorie bleiben unmarkiert. Keine Änderung an REST, Datenmodell oder Protokoll.
+
+## D-132 Doppelte Nummern aus parallelen Branches; Reihenfolge des Merges
+
+- **Anlass:** Auftrag 2026-11-13: `feature/sammeltest` (Dokumente, Mail-Abgleich, ALF-BanCo-Import,
+  Diagramm-dunkel) und `feature/spalten-markierung` gemeinsam abnehmen und auf main mergen.
+- **Doppelte Nummern:** Auf den parallelen Branches wurden D-123 und D-128 je zweimal vergeben. Bestehende Einträge
+  werden nicht umgeschrieben; Verweise gelten wie folgt: **D-123** = Dokumente bzw. ALF-BanCo-Import (aus dem
+  Zusammenhang), **D-128** = Mail-Abgleich bzw. Berichtsdiagramme (Feature `diagramm-dunkel`). D-129 (Sprungziel)
+  bezieht sich auf D-128 Berichtsdiagramme. Neue Einträge ab D-132.
+- **Reihenfolge:** `feature/spalten-markierung` wird in `feature/sammeltest` übernommen (beide enthalten denselben
+  Stand von `dokumente` und `mail-abgleich`), damit die Marke „durch Mail bestätigt“ (D-130) mit abgenommen wird;
+  abgenommen und gemergt wird `feature/sammeltest`. Die beiden jüngeren Commits auf `feature/mail-abgleich`
+  (Serien, D-131) sind nicht enthalten und bleiben auf ihrem Branch.
+
+## D-133 Mail-Abgleich nach jedem Synchronisationslauf (berichtigt D-128)
+
+- **Befund:** Bei der Vorbereitung der Abnahme (Meilenstein-Definition M20) fiel auf, dass der Abgleich nur nach
+  fehlgeschlagenen Läufen lief; nach erfolgreichen Läufen ordnete erst der nächste Planer-Takt zu.
+- **Entscheidung:** Wie in D-128 vorgesehen läuft der Abgleich nach **jedem** Lauf mit Endstatus (erfolgreich,
+  fehlgeschlagen, abgebrochen, TAN abgelaufen), direkt nach der Prüfung auf unerwartete wiederkehrende Buchungen.
+  Ohne `mail_abgleich` geschieht nichts (bestehende Abläufe und Protokolle unverändert).
+
+## D-134 Sicherung einspielen in den Einstellungen ohne Importfelder
+
+- **Befund:** Beim Übernehmen der Import-Seite für ALF-BanCo (D-126) war die Abfrage des Importformats und des Kontos
+  versehentlich auch in das Senden der Sicherung in den Einstellungen geraten; „Prüfen“ und „Einspielen“ brachen dort
+  mit einem Skriptfehler ab. Entfernt; die Sicherung sendet wieder nur die Datei.
+
+## D-135 Abnahme M18 (Dokumente): Feinheiten
+
+- Typerkennung: führende Leerzeilen und eine mbox-Trennzeile werden auch beim Lesen der Kopfzeilen übergangen.
+- `POST /api/dokumente`: unbekannte Abfrageparameter → 422 `validierung`; `POST /api/dokumente/aus-mail`: Felder
+  außer `nachricht_id` und `buchung_ids` → 422 `validierung`.
+- Inhaltsantworten: `Cache-Control: private, no-store`; `filename*` trägt den unveränderten Dateinamen (nur
+  `filename` ersetzt `"` durch `'`).
+- Eingebettete Nachrichten (`message/rfc822`) sind ein Anhang und werden als ganze Nachricht ausgeliefert; ihre
+  Unterteile erscheinen nicht als eigene Anhänge.
+- Rückgängig/Wiederholen von „Umbenennen“ ändert nur den Dateinamen; die Verknüpfungen bleiben (vorher Konflikt
+  „Dokument hängt an einer anderen Buchung“).
+
+## D-136 Abnahme M20 (Mail-Abgleich): Schlüssel intern, Feinheiten
+
+- Der Schlüssel einer Erwartung (Idempotenz der Erkennung) bleibt intern: Er steht in der Sicherungsdatei und in
+  den gespeicherten Protokolleinträgen (damit Rückgängig/Wiederholen ihn wiederherstellen), erscheint aber weder in
+  Antworten von `/api/aenderungen` noch in der Inhaltsprüfsumme der Sicherung (erwartungen.md 12, E-217).
+  Sicherungen der Version 5, die vor dieser Änderung erstellt wurden (nur auf Feature-Branches möglich), haben
+  eine andere Inhaltsprüfsumme.
+- `GET /api/erwartungen`: unbekannte Abfrageparameter → 422 `validierung`.
+- Lösen der letzten Buchung: Dokumente, die dadurch an keiner Buchung mehr hängen, entfallen schon vor der Antwort,
+  damit `dokument_ids` den Stand nach der Änderung zeigt.
+
+## D-137 Betragsfilter für wiederkehrende Buchungen (Feature `betragsfilter-wiederkehrend`, in Arbeit)
+
+- **Anlass:** Gehalt und unregelmäßige Auslagenerstattungen kommen vom selben Empfänger. Eine Erstattung zwischen
+  zwei Gehältern war eine „fremde Zahlung“ und brach die Kette; eine Erstattung als jüngste Buchung wurde Anker.
+- **Modi:** `aus` (Verhalten M16), `toleranz` (Prozent, Ganzzahl 0–100, bezogen auf das aktuelle Glied),
+  `mindestschwelle` (Betrag in Cent ohne Vorzeichen; nur je Empfänger). Mit dem Auftraggeber abgestimmt: Vorgabe für
+  alle Empfänger ist Toleranz ±10 %, je Empfänger überschreibbar.
+- **Kette mit Toleranz:**
+  - Anker-Kandidaten sind die jüngsten Termine je Betragsklasse (kein passender Eintrag mehr als `T` Tage später),
+    gesucht in den letzten `2·m` Monaten + `T`; Auswahl wie M16 (längste Kette, gleicher Betrag, jünger).
+  - Vorgänger: gleicher Betrag, dann innerhalb der Toleranz, dann Datumsnähe, dann jünger. Ein Vorgänger außerhalb
+    der Toleranz bleibt möglich (Preisänderung am Termin) – aber nur, solange die Kette seit dem Anker nichts
+    übergangen hat und in diesem Schritt nichts übergeht; sonst Bruch mit neuem Grund `betrag`.
+  - Einträge zwischen Vorgänger und Glied, deren Betrag weder zum Glied noch zum Vorgänger passt, werden übergangen
+    (Rolle `anderer_betrag`), statt die Kette zu brechen.
+  - **Mehrheitsregel nur für die Vorgabe:** Übergeht die Kette (ab dem ersten Glied bis zur jüngsten Buchung) mehr
+    Einträge, als sie Glieder hat, gilt der Rhythmus als nicht erfüllt. Auf dem großen Zufallsdatensatz (gross.kmy)
+    lieferte die Toleranz ohne diese Regeln 160 zusätzliche Zufallsserien, mit ihnen 4 (aus: 34, ±10 %: 31 Serien).
+- **Mindestschwelle:** Einträge unter der Schwelle werden vollständig übergangen; keine Mehrheitsregel (bewusste
+  Einstellung). Eine Zahlung unter der Schwelle meldet keinen geänderten Betrag; mit Toleranz wird eine Abweichung am
+  Termin weiterhin gemeldet (Preisänderung).
+- **Speicherort:** Vorgabe in `meta` (`wk_filter_modus`, `wk_filter_toleranz`) als Einstellung der Instanz – nicht
+  im Protokoll, nicht in der Sicherung (wie `KontorConfig`, E-096). Je Empfänger Tabelle `empfaenger_wiederkehrend`
+  (Buchbestand, Objektart `empfaenger`, Protokollform-Feld `wiederkehrend` nur bei eigener Einstellung, damit
+  bestehende Formen und Prüfsummen gleich bleiben), Sicherungsdatei Schemaversion 6.
+- **REST:** `GET /api/wiederkehrend/einstellungen`, `PUT /api/wiederkehrend/einstellungen/vorgabe`,
+  `PUT`/`DELETE /api/empfaenger/{id}/wiederkehrend` (Aktion `wiederkehrend_filter_setzen`). Begründung: neue Felder
+  `empfaenger` (oben), `betragsfilter`, `betragsfilter_text` (je Eintrag), Rolle/Urteil `anderer_betrag`, Grund
+  `betrag`. Oberfläche: Abschnitt „Wiederkehrende Buchungen“ in den Einstellungen, Dialog `wk-filter-dialog`, Knopf
+  `wk-filter-oeffnen` im Begründungsdialog.
+- **Auswirkung auf Abnahmetests:** Schema der Begründung (zusätzliche Felder und Werte) und die M16-Beispiele mit
+  abweichendem Betrag (−50,00 € neben −320,32 € ist jetzt `anderer_betrag` statt `zusaetzlich`); die Referenz der
+  Zufallsgruppen rechnet ohne Filter. Mit Vorgabe `aus` sind M5, M16 und Leistung grün. Klärung über die
+  Meilenstein-Definition.

@@ -40,6 +40,7 @@ _TABELLEN = {
     "konto": ("konto", "id"),
     "empfaenger": ("empfaenger", "id"),
     "empfaenger_alias": ("empfaenger", "empfaenger_id"),
+    "empfaenger_wiederkehrend": ("empfaenger", "empfaenger_id"),
     "tag": ("tag", "id"),
     "buchung": ("buchung", "id"),
     "split": ("buchung", "buchung_id"),
@@ -73,12 +74,14 @@ BESCHREIBUNG = {
     "vorschlag_entscheiden": "Vorschlag entschieden", "mehrfach_vorschlag": "Vorschläge entschieden",
     "tag_anlegen": "Tag angelegt", "tag_umbenennen": "Tag umbenannt", "tag_loeschen": "Tag gelöscht",
     "empfaenger_anlegen": "Empfänger angelegt", "empfaenger_aendern": "Empfänger geändert",
-    "empfaenger_loeschen": "Empfänger gelöscht", "empfaenger_zusammenfuehren": "Empfänger zusammengeführt",
+    "empfaenger_loeschen": "Empfänger gelöscht",
+    "wiederkehrend_filter_setzen": "Betragsfilter wiederkehrender Buchungen geändert", "empfaenger_zusammenfuehren": "Empfänger zusammengeführt",
     "dublette_aufloesen": "Dublettenverdacht aufgelöst",
     "regel_anlegen": "Regel angelegt", "regel_aendern": "Regel geändert", "regel_loeschen": "Regel gelöscht",
     "abstimmung_anlegen": "Konto abgestimmt", "abstimmung_aufheben": "Abstimmung aufgehoben",
     "umbuchung_zusammenfuehren": "Umbuchung zusammengeführt", "umbuchung_erkennen": "Umbuchungen erkannt",
-    "import_kmymoney": "KMyMoney-Import", "import_gnucash": "GnuCash-Import", "sync_kontozuordnung": "Synchronisation: Konten zugeordnet",
+    "import_kmymoney": "KMyMoney-Import", "import_gnucash": "GnuCash-Import", "import_alfbanco": "ALF-BanCo-Import",
+    "kategorien_zusammenfuehren": "Kategorien zusammengeführt", "sync_kontozuordnung": "Synchronisation: Konten zugeordnet",
     "sync_konto": "Synchronisation: Umsätze eines Kontos übernommen", "regeln_anwenden": "Regeln angewendet",
     "rueckgaengig": "Rückgängig gemacht",
     "vorlage_anlegen": "Split-Vorlage angelegt", "vorlage_aendern": "Split-Vorlage geändert",
@@ -175,7 +178,17 @@ def formen(con, objekt: str, ids: list[int]) -> dict[int, dict]:
                 aus[b["id"]] = _buchung_zustand(b)
         return aus
     if objekt == "empfaenger":
-        return {e["id"]: e for e in buch.empfaenger_laden(con, ids)}
+        aus = {e["id"]: e for e in buch.empfaenger_laden(con, ids)}
+        # Betragsfilter wiederkehrender Buchungen (D-137): nur in Formen von Empfängern mit eigener Einstellung
+        for teil in buch._stueckweise(ids):
+            for r in con.execute("SELECT empfaenger_id, modus, toleranz_prozent, mindestbetrag FROM"
+                                 f" empfaenger_wiederkehrend WHERE empfaenger_id IN ({buch._platzhalter(len(teil))})",
+                                 teil):
+                if r["empfaenger_id"] in aus:
+                    aus[r["empfaenger_id"]] = dict(aus[r["empfaenger_id"]], wiederkehrend={
+                        "modus": r["modus"], "toleranz_prozent": r["toleranz_prozent"],
+                        "mindestbetrag": r["mindestbetrag"]})
+        return aus
     if objekt == "kredit":
         return kredite.formen(con, ids)
     if objekt == "postfach":
@@ -358,6 +371,18 @@ def _durch_setzen(con, aid: int, wert: int | None) -> None:
 # ================================================================== Lesen
 
 
+# Interne Felder einer Protokollform, die nie nach außen gehen (Antworten, Inhaltsprüfsumme der Sicherung): der
+# Schlüssel einer Erwartung macht die Erkennung idempotent und muss Rückgängig/Wiederholen überstehen (D-136).
+_INTERN = {"erwartung": ("schluessel",)}
+
+
+def aussen(objekt: str, form: dict | None) -> dict | None:
+    """Protokollform ohne interne Felder (erwartungen.md 12)."""
+    if form is None or objekt not in _INTERN:
+        return form
+    return {k: v for k, v in form.items() if k not in _INTERN[objekt]}
+
+
 def _aenderungen_dicts(con, zeilen: list) -> list[dict]:
     if not zeilen:
         return []
@@ -368,8 +393,8 @@ def _aenderungen_dicts(con, zeilen: list) -> list[dict]:
                              " ORDER BY aenderung_id, position", teil):
             eintraege[e["aenderung_id"]].append({
                 "objekt": e["objekt"], "objekt_id": e["objekt_id"], "art": e["art"],
-                "vorher": None if e["vorher"] is None else json.loads(e["vorher"]),
-                "nachher": None if e["nachher"] is None else json.loads(e["nachher"])})
+                "vorher": aussen(e["objekt"], None if e["vorher"] is None else json.loads(e["vorher"])),
+                "nachher": aussen(e["objekt"], None if e["nachher"] is None else json.loads(e["nachher"]))})
     return [{"id": z["id"], "zeitpunkt": z["zeitpunkt"], "quelle": z["quelle"], "aktion": z["aktion"],
              "beschreibung": z["beschreibung"], "gruppe": z["gruppe"], "eintraege": eintraege[z["id"]],
              "rueckgaengig_von": json.loads(z["rueckgaengig_von"]), "rueckgaengig_durch": z["rueckgaengig_durch"]}
@@ -469,6 +494,10 @@ def _einfuegen(con, objekt: str, f: dict) -> None:
                     (f["id"], f["name"], f["extern_id"], f["standardkategorie_id"]))
         con.executemany("INSERT INTO empfaenger_alias (empfaenger_id, alias, ekey) VALUES (?, ?, ?)",
                         [(f["id"], a, buch.ekey(a)) for a in f["aliase"]])
+        if f.get("wiederkehrend"):
+            w = f["wiederkehrend"]
+            con.execute("INSERT INTO empfaenger_wiederkehrend (empfaenger_id, modus, toleranz_prozent, mindestbetrag)"
+                        " VALUES (?, ?, ?, ?)", (f["id"], w["modus"], w["toleranz_prozent"], w["mindestbetrag"]))
     elif objekt == "tag":
         con.execute("INSERT INTO tag (id, name, name_cf, extern_id) VALUES (?, ?, ?, ?)",
                     (f["id"], f["name"], f["name"].casefold(), f["extern_id"]))
@@ -517,7 +546,12 @@ def _einfuegen(con, objekt: str, f: dict) -> None:
 
 
 def _eintraege_von(con, aid: int) -> list[dict]:
-    return aenderung_lesen(con, aid)["eintraege"]
+    """Einträge einer Änderung mit vollständigen (internen) Formen für Rückgängig/Wiederholen."""
+    aenderung_lesen(con, aid)  # 404
+    return [{"objekt": e["objekt"], "objekt_id": e["objekt_id"], "art": e["art"],
+             "vorher": None if e["vorher"] is None else json.loads(e["vorher"]),
+             "nachher": None if e["nachher"] is None else json.loads(e["nachher"])}
+            for e in con.execute("SELECT * FROM aenderung_eintrag WHERE aenderung_id = ? ORDER BY position", (aid,))]
 
 
 def _schritt(con, aid: int) -> set[tuple[str, int]]:
@@ -539,6 +573,8 @@ def _schritt(con, aid: int) -> set[tuple[str, int]]:
             # Umbenennen zurücknehmen: Zeile bleibt (Zuordnungen zu Buchungen), Name erst vorläufig freigeben.
             con.execute("UPDATE tag SET name_cf = ? WHERE id = ?", (f"\x00{e['objekt_id']}", e["objekt_id"]))
             continue
+        if e["objekt"] == "dokument" and e["vorher"] is not None:
+            continue  # Umbenennen zurücknehmen: Zeile und Verknüpfungen bleiben (D-135)
         _entfernen(con, e["objekt"], e["objekt_id"], schritt)
     for objekt in _EINFUEGEN:
         for e in je_objekt.get(objekt, []):
@@ -548,6 +584,9 @@ def _schritt(con, aid: int) -> set[tuple[str, int]]:
             if objekt == "tag" and e["nachher"] is not None:
                 con.execute("UPDATE tag SET name = ?, name_cf = ?, extern_id = ? WHERE id = ?",
                             (v["name"], v["name"].casefold(), v["extern_id"], v["id"]))
+                continue
+            if objekt == "dokument" and e["nachher"] is not None:
+                con.execute("UPDATE dokument SET dateiname = ? WHERE id = ?", (v["dateiname"], v["id"]))
                 continue
             _einfuegen(con, objekt, v)
     r = con.execute("SELECT kennungen_neu, kennungen_weg FROM aenderung WHERE id = ?", (aid,)).fetchone()

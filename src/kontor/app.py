@@ -41,6 +41,7 @@ from .sync import SyncDienst
 from .config import KontorConfig
 from .importer.kmymoney import importiere_bytes
 from .importer import gnucash as gnucash_import
+from .importer import alfbanco as alfbanco_import
 from .validierung import (BETRAG_MAX, STATUS, ApiFehler, Feld, Query, Validierungsfehler, fehler_eintrag,
                           json_koerper, pruefe_koerper, pruefe_objekt)
 from .validierung import KONTOARTEN
@@ -174,6 +175,13 @@ KONTO_LOESCHEN = {
     "gesperrte_einbeziehen": S("bool"),
     "trocken": S("bool"),
 }
+KATEGORIEN_ZUSAMMEN = {
+    "quelle_ids": S("int_liste", pflicht=True, min_items=1, max_items=1000, eindeutig=True),
+    "ziel_id": S("int", pflicht=True),
+    "quellen_loeschen": S("bool"),
+    "gesperrte_einbeziehen": S("bool"),
+    "trocken": S("bool"),
+}
 MEHRFACH_LOESCHEN = {"buchung_ids": S("int_liste", pflicht=True, min_items=1, eindeutig=True)}
 MEHRFACH_VERSCHIEBEN = {
     "von_konto_id": S("int", pflicht=True),
@@ -216,6 +224,9 @@ KREDIT_ZUORDNEN = {"buchung_ids": S("int_liste", max_items=10000, eindeutig=True
 KREDIT_ABGLEICH = {"jahr": S("int", pflicht=True), "restschuld": S("int", pflicht=True),
                    "zinsen": S("int", pflicht=True), "trocken": S("bool")}
 WIEDERKEHREND_PRUEFEN = {"buchung_ids": S("int_liste", max_items=10000, eindeutig=True)}
+# D-137: Betragsfilter (fachliche Prüfung in wiederkehrend._filter_pruefen)
+WIEDERKEHREND_FILTER = {"modus": S("enum", pflicht=True, werte=wiederkehrend.MODI),
+                        "toleranz_prozent": S("int", nullbar=True), "mindestbetrag": S("int", nullbar=True)}
 DUBLETTE_AUFLOESEN = {
     "entscheidung": S("enum", pflicht=True, werte=("zusammenfuehren", "keine_dublette")),
     "behalten_id": S("int"),
@@ -934,6 +945,15 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
             return protokoll.mit_aenderung_id(pflege.konto_loeschen_mit_buchungen(con, kid, d))
         return await aendern("konto_loeschen_mit_buchungen", f, pid(request, "konto_id"), d)
 
+    @endpunkt("POST", "/api/kategorien/zusammenfuehren")
+    async def kategorien_zusammenfuehren(request: Request):
+        """Buchungen mehrerer Kategorien auf eine Zielkategorie umbuchen, Quellen auf Wunsch löschen (D-126)."""
+        d = await koerper(request, KATEGORIEN_ZUSAMMEN)
+
+        def f(con, d):
+            return protokoll.mit_aenderung_id(pflege.kategorien_zusammenfuehren(con, d))
+        return await aendern("kategorien_zusammenfuehren", f, d)
+
     @endpunkt("POST", "/api/buchungen/erfassen", 201)
     async def buchung_erfassen(request: Request):
         d = await koerper(request, BUCHUNG_ERFASSEN)
@@ -1126,6 +1146,26 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
         return await lesen(wiederkehrend.begruendung, pid(request, "buchung_id"),
                            stichtag or sync.heute().isoformat())
 
+    @endpunkt("GET", "/api/wiederkehrend/einstellungen")
+    async def wiederkehrend_einstellungen(request: Request):
+        return await lesen(wiederkehrend.einstellungen)
+
+    @endpunkt("PUT", "/api/wiederkehrend/einstellungen/vorgabe")
+    async def wiederkehrend_vorgabe(request: Request):
+        d = await koerper(request, WIEDERKEHREND_FILTER)
+        return await schreiben(wiederkehrend.vorgabe_setzen, d)
+
+    @endpunkt("PUT", "/api/empfaenger/{empfaenger_id:int}/wiederkehrend")
+    async def wiederkehrend_filter_setzen(request: Request):
+        d = await koerper(request, WIEDERKEHREND_FILTER)
+        return await aendern("wiederkehrend_filter_setzen", wiederkehrend.empfaenger_filter_setzen,
+                             pid(request, "empfaenger_id"), d)
+
+    @endpunkt("DELETE", "/api/empfaenger/{empfaenger_id:int}/wiederkehrend", 204)
+    async def wiederkehrend_filter_loeschen(request: Request):
+        return await aendern("wiederkehrend_filter_setzen", wiederkehrend.empfaenger_filter_loeschen,
+                             pid(request, "empfaenger_id"))
+
     @endpunkt("POST", "/api/wiederkehrend/pruefen")
     async def wiederkehrend_pruefen(request: Request):
         roh = await request.body()
@@ -1248,17 +1288,32 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     async def import_gnucash(request: Request):
         return await datei_importieren(request, gnucash_import.importiere_bytes)
 
+    @endpunkt("POST", "/api/import/alfbanco")
+    async def import_alfbanco(request: Request):
+        """QIF-Export aus ALF-BanCo in ein Bestandskonto (multipart: ``datei``, ``konto_id``; D-123)."""
+        try:
+            form = await request.form()
+        except Exception:
+            raise Validierungsfehler([fehler_eintrag(["body"], "multipart/form-data mit Feld 'datei' erwartet.")]) from None
+        roh_id = form.get("konto_id")
+        if not isinstance(roh_id, str) or not re.fullmatch(r"[1-9][0-9]{0,17}", roh_id.strip()):
+            raise Validierungsfehler([fehler_eintrag(["body", "konto_id"], "Die Konto-ID fehlt oder ist ungültig.")])
+        konto_id = int(roh_id.strip())
+
+        def importieren(con, roh, dateiname, zeitpunkt=None):
+            return alfbanco_import.importiere_bytes(con, roh, dateiname, konto_id, zeitpunkt)
+        return await datei_importieren(request, importieren)
+
     @endpunkt("GET", "/api/importe")
     async def importe(request: Request):
         return await lesen(buch.importe_liste)
 
     # ------------------------------------------------- Dokumente (D-123)
     def _inhalt_antwort(daten: bytes, typ: str, dateiname: str, csp: str, herunterladen: bool = False) -> Response:
-        name = dateiname.replace('"', "'")
-        ascii_name = name.encode("ascii", "replace").decode("ascii").replace("?", "_")
+        ascii_name = dateiname.replace('"', "'").encode("ascii", "replace").decode("ascii").replace("?", "_")
         art = "attachment" if herunterladen else "inline"
         return Response(daten, media_type=typ, headers={
-            "Content-Disposition": f"{art}; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(name)}",
+            "Content-Disposition": f"{art}; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(dateiname, safe='')}",
             "Content-Security-Policy": csp, "X-Kontor-Einbettbar": "1", "Cache-Control": "private, no-store"})
 
     @endpunkt("POST", "/api/dokumente", 201)
@@ -1266,6 +1321,8 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
         q = Query(request.query_params)
         ids = q.ganzzahlen("buchung_id")
         quelle = q.auswahl("quelle", dokumente.QUELLEN) or "upload"
+        for name in sorted(set(request.query_params) - {"buchung_id", "quelle"}):
+            q.fehler.append(fehler_eintrag(["query", name], "Unbekannter Parameter."))
         q.pruefen()
         try:
             form = await request.form()
@@ -1283,6 +1340,8 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
         d = json_koerper(await request.body())
         if not isinstance(d, dict) or type(d.get("nachricht_id")) is not int:
             raise Validierungsfehler([fehler_eintrag(["body", "nachricht_id"], "Ganze Zahl erwartet.")])
+        if set(d) - {"nachricht_id", "buchung_ids"}:
+            raise Validierungsfehler([fehler_eintrag(["body"], "Nur die Felder 'nachricht_id' und 'buchung_ids'.")])
         return await aendern("dokument_aus_mail", mit_uhr(
             lambda con, z: dokumente.aus_mail(con, d["nachricht_id"], d.get("buchung_ids"), z)))
 
@@ -1372,6 +1431,8 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
         bis = q.datum("faellig_bis")
         suche = q.text("suche")
         richtung = q.auswahl("richtung", erwartung.RICHTUNGEN)
+        for name in sorted(set(request.query_params) - {"grund", "zustand", "faellig_bis", "suche", "richtung"}):
+            q.fehler.append(fehler_eintrag(["query", name], "Unbekannter Parameter."))
         q.pruefen()
         erg = await lesen(erwartung.liste, _heute(), gruende, zustaende, bis, suche, richtung,
                           config.mail_abgleich_frist_tage)

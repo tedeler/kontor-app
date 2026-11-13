@@ -68,13 +68,13 @@ _MAILKOEPFE = {"from", "to", "subject", "date", "message-id", "received", "mime-
 def _ist_mail(roh: bytes) -> bool:
     if not roh or b"\x00" in roh[:65536]:
         return False
-    kopf = roh.lstrip(b"\r\n")[:65536]
-    if kopf.startswith(b"From ") and b"\n" in kopf:   # mbox-Trennzeile
-        kopf = kopf.split(b"\n", 1)[1]
-    erste = kopf.split(b"\n", 1)[0]
+    rest = roh.lstrip(b"\r\n")
+    if rest.startswith(b"From ") and b"\n" in rest[:65536]:   # mbox-Trennzeile
+        rest = rest.split(b"\n", 1)[1]
+    erste = rest[:65536].split(b"\n", 1)[0]
     if not _KOPFZEILE.match(erste):
         return False
-    m = email.message_from_bytes(roh, policy=email.policy.compat32)
+    m = email.message_from_bytes(rest, policy=email.policy.compat32)
     namen = {k.lower() for k in m.keys()}
     return len(namen & _MAILKOEPFE) >= 2 and bool(namen & {"from", "subject", "date"})
 
@@ -340,7 +340,14 @@ def _teile(m: EmailMessage) -> tuple[Message | None, Message | None, list[tuple[
     except (KeyError, ValueError, TypeError):
         text = htm = None
     anhaenge = []
+    innen: set[int] = set()   # Teile eingebetteter Nachrichten: gehören zum Anhang message/rfc822
     for nr, teil in enumerate(m.walk()):
+        if id(teil) in innen:
+            continue
+        if teil is not m and teil.get_content_type() == MAIL:
+            innen.update(id(x) for x in teil.walk() if x is not teil)
+            anhaenge.append((nr, teil))
+            continue
         if teil.is_multipart() or teil is text or teil is htm:
             continue
         if nr == 0 and teil is m and text is None and htm is None:
@@ -352,9 +359,18 @@ def _teile(m: EmailMessage) -> tuple[Message | None, Message | None, list[tuple[
     return text, htm, anhaenge
 
 
-def _anhang_dict(nr: int, teil: Message) -> dict:
+def _anhang_bytes(teil: Message) -> bytes:
+    """Dekodierter Inhalt eines Anhangs; eine eingebettete Nachricht als ganze Nachricht (RFC 5322)."""
+    if teil.get_content_type() == MAIL and teil.is_multipart():
+        innen = teil.get_payload(0)
+        return innen.as_bytes() if isinstance(innen, Message) else b""
     nutz = teil.get_payload(decode=True)
-    groesse = len(nutz) if isinstance(nutz, bytes) else 0
+    return nutz if isinstance(nutz, bytes) else b""
+
+
+def _anhang_dict(nr: int, teil: Message) -> dict:
+    nutz = _anhang_bytes(teil)
+    groesse = len(nutz)
     name = teil.get_filename() or ""
     typ = teil.get_content_type()
     cid = (teil.get("Content-ID") or "").strip().strip("<>")
@@ -460,11 +476,8 @@ def mail_anhang(roh: bytes, nr: int) -> tuple[str, str, bytes]:
     _, _, anhaenge = _teile(m)
     for n, t in anhaenge:
         if n == nr:
-            nutz = t.get_payload(decode=True)
-            if not isinstance(nutz, bytes):
-                nutz = t.as_bytes() if t.get_content_type() == MAIL else b""
             d = _anhang_dict(n, t)
-            return d["dateiname"], d["mime_typ"], nutz
+            return d["dateiname"], d["mime_typ"], _anhang_bytes(t)
     raise buch.nicht_gefunden("Der Anhang")
 
 
