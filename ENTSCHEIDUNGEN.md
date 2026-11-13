@@ -1555,9 +1555,9 @@ Weitere Abkürzungen: SY = `spec/api/synchronisation.md`, KA =
   (`mail_anmeldung_abgelehnt`, `mail_ordner_unbekannt`, `mail_verbindungsfehler` …), 409 im Mock-Modus bzw. bei
   gesperrten Geheimnissen. Das Postfach gilt danach als `angemeldet` ohne Ablauf (`laeuft_ab_am` null).
   `DELETE …/app-passwort` (und das bestehende Abmelden) entfernt es wieder (`fehlt`).
-- **Plugin:** `ImapPostfach` hat ein optionales Feld `passwort` (Aufrufbares, nie in `repr`/Vergleichen); damit
+- **Plugin:** die Unterklasse `ImapPasswortPostfach` (Feld `passwort`, Aufrufbares, nie in `repr`/Vergleichen; `ImapPostfach` selbst bleibt nach plugins.md unverändert); damit
   meldet sich `ImapMailPlugin` mit `LOGIN` an (nicht bei `LOGINDISABLED`), sonst wie bisher mit XOAUTH2. Der Wert
-  wird erst unmittelbar vor der Anmeldung gelesen und danach verworfen. `ImapMailPlugin.pruefen(adresse)` dient nur
+  wird erst unmittelbar vor der Anmeldung gelesen und danach verworfen. `ImapMailPlugin._pruefen(adresse)` (nicht öffentlich, die Liste der Plugin-Methoden bleibt gleich) dient nur
   dem Verbindungstest. Antwortschemas bestehender Endpunkte bleiben unverändert (die Anmeldeart ist am Geheimnis
   erkennbar).
 - **Oberfläche:** Auf der Postfachseite der Abschnitt „Zugang mit App-Passwort (empfohlen für Gmail)“ mit Anleitung,

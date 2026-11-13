@@ -502,7 +502,7 @@ class MailDienst:
     # ------------------------------------------------------------ Abruf (mail.md 6)
     def _plugin(self, postfaecher: list[dict]):
         from .plugins import erzeuge_mail_plugin
-        from .plugins.imap import ImapPostfach
+        from .plugins.imap import ImapPasswortPostfach, ImapPostfach
         if self.config.mock_modus:
             if self._mock_plugin is None:
                 self._mock_plugin = erzeuge_mail_plugin(self.config)
@@ -515,9 +515,8 @@ class MailDienst:
         finally:
             con.close()
         return erzeuge_mail_plugin(self.config, postfaecher=[
-            ImapPostfach(p["adresse"], p["ordner"],
-                         passwort=(lambda a=p["adresse"]: self._app_passwort(a))
-                         if passwort_name(p["adresse"]) in mit_pw else None)
+            ImapPasswortPostfach(p["adresse"], p["ordner"], passwort=lambda a=p["adresse"]: self._app_passwort(a))
+            if passwort_name(p["adresse"]) in mit_pw else ImapPostfach(p["adresse"], p["ordner"])
             for p in postfaecher], zugang=self.zugang)
 
     # ------------------------------------------------------------ D-130: App-Passwort statt OAuth2
@@ -532,7 +531,7 @@ class MailDienst:
         """Prüft Anmeldung und Ordner mit dem App-Passwort und speichert es erst danach (geschützt, wenn der Schutz
         der Geheimnisse eingeschaltet ist). Das Postfach gilt dann ohne Ablauf als angemeldet."""
         from .plugins import erzeuge_mail_plugin
-        from .plugins.imap import ImapPostfach
+        from .plugins.imap import ImapPasswortPostfach
         self._nur_echt()
         passwort = "".join(passwort.split())  # Google zeigt das App-Passwort in Vierergruppen mit Leerzeichen
         if not passwort:
@@ -545,9 +544,9 @@ class MailDienst:
         finally:
             con.close()
         plugin = erzeuge_mail_plugin(self.config, postfaecher=[
-            ImapPostfach(p["adresse"], p["ordner"], passwort=lambda: passwort)], zugang=None)
+            ImapPasswortPostfach(p["adresse"], p["ordner"], passwort=lambda: passwort)], zugang=None)
         try:
-            anzahl = plugin.pruefen(p["adresse"])
+            anzahl = plugin._pruefen(p["adresse"])
         except KontorFehler as e:
             code, meldung = _fehler_von(e)
             raise ApiFehler(422, code, meldung) from None

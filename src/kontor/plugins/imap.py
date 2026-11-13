@@ -41,7 +41,12 @@ _TEIL = 200  # UIDs je FETCH
 class ImapPostfach:
     adresse: str
     ordner: str = "INBOX"
-    # D-130: liefert das App-Passwort (oder None); ohne Wert gilt OAuth2/XOAUTH2. Nie in repr oder Vergleichen.
+
+
+@dataclass(frozen=True)
+class ImapPasswortPostfach(ImapPostfach):
+    """D-130: Postfach mit App-Passwort; ``passwort`` liefert es (oder None) erst unmittelbar vor der Anmeldung.
+    Nie in repr oder Vergleichen. Eigene Klasse, damit ``ImapPostfach`` (plugins.md) unverändert bleibt."""
     passwort: Callable[[], str | None] | None = field(default=None, repr=False, compare=False)
 
 
@@ -156,7 +161,7 @@ class ImapMailPlugin(MailPlugin):
         p = next((x for x in self._postfaecher if x.adresse.casefold() == ziel), None)
         if p is None:
             raise PostfachUnbekannt("Das Postfach ist unbekannt.")
-        if p.passwort is not None and self._config is not None:
+        if getattr(p, "passwort", None) is not None and self._config is not None:
             return self._abrufen(p, seit, None)
         if self._zugang is None or self._config is None:
             raise PluginNichtVerfuegbar("Für das Postfach ist kein OAuth2-Zugang eingerichtet.")
@@ -197,7 +202,8 @@ class ImapMailPlugin(MailPlugin):
         """D-130: LOGIN mit dem App-Passwort; der Wert lebt nur in dieser Funktion."""
         if "LOGINDISABLED" in {str(x).upper() for x in (v.capabilities or ())}:
             raise MailFehler("Der Mailserver erlaubt keine Anmeldung mit Passwort.")
-        pw = p.passwort() if p.passwort is not None else None
+        quelle = getattr(p, "passwort", None)
+        pw = quelle() if quelle is not None else None
         if not pw:
             raise MailAnmeldungFehlt("Für das Postfach ist kein lesbares App-Passwort gespeichert.")
         try:
@@ -209,11 +215,11 @@ class ImapMailPlugin(MailPlugin):
         finally:
             del pw
 
-    def pruefen(self, postfach: str) -> int:
+    def _pruefen(self, postfach: str) -> int:
         """D-130: Anmeldung und Ordner prüfen (für „Verbindung testen“); liefert die Zahl der Nachrichten im Ordner."""
         ziel = str(postfach).casefold()
         p = next((x for x in self._postfaecher if x.adresse.casefold() == ziel), None)
-        if p is None or p.passwort is None or self._config is None:
+        if p is None or getattr(p, "passwort", None) is None or self._config is None:
             raise PostfachUnbekannt("Das Postfach ist unbekannt.")
         v = self._verbinden()
         try:
@@ -308,4 +314,4 @@ class ImapMailPlugin(MailPlugin):
         return aus
 
 
-__all__ = ["ImapMailPlugin", "ImapPostfach", "utf7_imap", "abbilden"]
+__all__ = ["ImapMailPlugin", "ImapPostfach", "ImapPasswortPostfach", "utf7_imap", "abbilden"]
