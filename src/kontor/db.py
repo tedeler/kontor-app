@@ -15,7 +15,7 @@ from collections.abc import Iterator
 
 from .text import norm
 
-SCHEMA_VERSION = 11
+SCHEMA_VERSION = 12
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (
@@ -434,6 +434,18 @@ CREATE TABLE IF NOT EXISTS erwartung (
     erstellt_am TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS erwartung_zustand ON erwartung(zustand, frist);
+
+-- ------------------------------------------------------------ Betragsfilter wiederkehrender Buchungen (D-137)
+-- Eigene Einstellung je Empfänger (Buchbestand, gehört zur Objektart ``empfaenger``); ohne Zeile gilt die Vorgabe
+-- aus ``meta`` (wk_filter_modus, wk_filter_toleranz). ``mindestbetrag`` in Cent ohne Vorzeichen.
+CREATE TABLE IF NOT EXISTS empfaenger_wiederkehrend (
+    empfaenger_id INTEGER PRIMARY KEY REFERENCES empfaenger(id) ON DELETE CASCADE,
+    modus TEXT NOT NULL CHECK (modus IN ('aus','toleranz','mindestschwelle')),
+    toleranz_prozent INTEGER CHECK (toleranz_prozent IS NULL OR toleranz_prozent BETWEEN 0 AND 100),
+    mindestbetrag INTEGER CHECK (mindestbetrag IS NULL OR mindestbetrag > 0),
+    CHECK ((modus = 'toleranz') = (toleranz_prozent IS NOT NULL)),
+    CHECK ((modus = 'mindestschwelle') = (mindestbetrag IS NOT NULL))
+);
 
 -- ------------------------------------------------------------ Meilenstein 7
 -- Anmeldedaten (sicherheit.md 1): Betriebszustand, nie protokolliert, nie in der Sicherung.

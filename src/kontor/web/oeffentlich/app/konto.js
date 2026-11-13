@@ -1,7 +1,8 @@
 /* Kontor – Kontoansicht (oberflaeche.md 7): Filter, Buchungsliste, Auswahl und Fokus, Mehrfachbearbeitung,
  * Inline-Bearbeitung, Kontextmenü, Drag and Drop auf Kategorien, Panels (15) und Gesten (16.4). */
 import {
-  BESTAND, STATUS_TEXT, abfrage, aktion, anhaengen, api, baumFolge, betragEl, betragLesen, datumEl, datumText, h, kategorien, klasse,
+  BESTAND, STATUS_TEXT, abfrage, aktion, anhaengen, api, baumFolge, betragEingabe, betragEl, betragLesen, betragText, datumEl,
+  datumText, h, kategorien, klasse,
   kontoNach, kontoPfad, melde, neueId, oberflaeche, pfadVon, stamm, tid,
 } from "./kern.js";
 import {
@@ -133,7 +134,74 @@ const URTEIL_TEXT = {
   nicht_wiederkehrend: ["Nein", "nicht wiederkehrend"],
   ausgeschlossen: ["Nein", "wird bei der Erkennung nicht betrachtet"],
 };
-const ROLLE_TEXT = { glied: "Glied", zusaetzlich: "zusätzlich", vor_beginn: "vor Beginn", keine_serie: "–" };
+const ROLLE_TEXT = { glied: "Glied", zusaetzlich: "zusätzlich", vor_beginn: "vor Beginn", keine_serie: "–",
+  anderer_betrag: "anderer Betrag" };
+const FILTER_MODI = [["vorgabe", "wie Vorgabe"], ["toleranz", "Toleranz in Prozent"], ["mindestschwelle", "Mindestbetrag"],
+  ["aus", "aus (jeder Betrag zählt)"]];
+
+/** Kurzer Text zu einem Betragsfilter {modus, toleranz_prozent, mindestbetrag} (D-137). */
+export function filterText(f) {
+  if (f.modus === "toleranz") return `Toleranz ±${f.toleranz_prozent} %`;
+  if (f.modus === "mindestschwelle") return `nur Beträge ab ${betragText(f.mindestbetrag)}`;
+  return "aus (jeder Betrag zählt)";
+}
+
+/** Dialog: Betragsfilter eines Empfängers für wiederkehrende Buchungen (D-137). ``empfaenger`` = {id, name} oder
+ * null (dann mit Auswahl des Empfängers). Speichern/Entfernen sind Änderungen am Buchbestand (Rückgängig). */
+export async function wkFilterDialog(empfaenger, ausloeser) {
+  const einst = await api("GET", "/api/wiederkehrend/einstellungen");
+  const vorhanden = (id) => einst.empfaenger.find((x) => x.empfaenger.id === id) || null;
+  const v = einst.vorgabe;
+  dialog("wk-filter-dialog", empfaenger ? `Betragsfilter für „${empfaenger.name}“` : "Betragsfilter für einen Empfänger",
+    (inhalt, d) => {
+      const wahl = h("select", { tid: "wk-filter-empfaenger" }, stamm.empfaenger.map((e) => h("option", { value: String(e.id) }, e.name)));
+      const modus = h("select", { tid: "wk-filter-modus" }, FILTER_MODI.map(([w, t]) => h("option", { value: w }, t)));
+      const prozent = h("input", { type: "number", min: "0", max: "100", step: "1", tid: "wk-filter-toleranz", inputmode: "numeric" });
+      const betrag = h("input", { type: "text", tid: "wk-filter-betrag", inputmode: "decimal", placeholder: "z. B. 2.500,00" });
+      const fProzent = feld("Toleranz (%)", prozent);
+      const fBetrag = feld("Mindestbetrag (€, ohne Vorzeichen)", betrag);
+      const hinweis = h("p", { class: "wk-hinweis" });
+      const laden = () => {
+        const x = vorhanden(Number(wahl.value));
+        modus.value = x ? x.modus : "vorgabe";
+        prozent.value = x && x.toleranz_prozent !== null ? String(x.toleranz_prozent) : String(v.toleranz_prozent ?? 10);
+        betrag.value = x && x.mindestbetrag !== null ? betragEingabe(x.mindestbetrag) : "";
+        sichtbar();
+      };
+      const sichtbar = () => {
+        fProzent.hidden = modus.value !== "toleranz";
+        fBetrag.hidden = modus.value !== "mindestschwelle";
+        hinweis.textContent = modus.value === "vorgabe" ? `Es gilt die Vorgabe aus den Einstellungen: ${filterText(v)}.`
+          : modus.value === "mindestschwelle" ? "Kleinere Zahlungen dieses Empfängers (z. B. Erstattungen) werden übergangen."
+          : modus.value === "toleranz" ? "Zahlungen, deren Betrag stärker vom vorigen Glied abweicht, werden übergangen." : "";
+      };
+      modus.addEventListener("change", sichtbar);
+      wahl.addEventListener("change", laden);
+      if (empfaenger) wahl.value = String(empfaenger.id);
+      const ok = knopf("Speichern", { class: "knopf knopf-haupt", tid: "wk-filter-speichern" });
+      ok.addEventListener("click", () => {
+        const id = Number(wahl.value);
+        let anfrage;
+        if (modus.value === "vorgabe") {
+          if (!vorhanden(id)) { d.schliessen(null); return; }
+          anfrage = () => api("DELETE", `/api/empfaenger/${id}/wiederkehrend`);
+        } else {
+          const k = { modus: modus.value };
+          if (modus.value === "toleranz") k.toleranz_prozent = Number(prozent.value);
+          if (modus.value === "mindestschwelle") {
+            const c = betragLesen(betrag.value);
+            k.mindestbetrag = c === null || c === "" ? 0 : Math.abs(c);
+          }
+          anfrage = () => api("PUT", `/api/empfaenger/${id}/wiederkehrend`, k);
+        }
+        imDialog(d, ok, () => aktion(anfrage, { stillBeiFehler: true, danach: () => d.schliessen(true),
+          erfolg: "Betragsfilter gespeichert." }));
+      });
+      inhalt.append(empfaenger ? null : feld("Empfänger", wahl), feld("Betragsfilter", modus), fProzent, fBetrag, hinweis,
+        knopfLeiste(ok, knopf("Abbrechen", { onclick: () => d.schliessen(null) })));
+      laden();
+    }, { ausloeser });
+}
 const RHYTHMUS = { monatlich: "Monatlich", vierteljaehrlich: "Vierteljährlich", jaehrlich: "Jährlich" };
 
 /** Dialog mit Urteil und Kettenprotokoll je Konto und Rhythmus. */
@@ -155,6 +223,8 @@ export async function begruendungZeigen(buchungId, ausloeser) {
     h("p", { tid: "wk-eintrag-text" }, e.text),
     h("p", { class: "wk-hinweis" }, `${e.gruppe_anzahl} Buchungen in dieser Gruppe; die Kette wird ab der jüngsten `
       + `Buchung vom ${datumText(e.juengste.datum)} rückwärts gebildet. Toleranz ±5 Tage.`),
+    e.betragsfilter ? h("p", { class: "wk-hinweis", tid: "wk-betragsfilter", "data-modus": e.betragsfilter.modus,
+      "data-quelle": e.betragsfilter.quelle }, e.betragsfilter_text) : null,
     h("details", { class: "wk-rhythmus", tid: "wk-buchungen" },
       h("summary", null, `Alle ${e.gruppe_anzahl} Buchungen der Gruppe`),
       h("table", { class: "wk-tabelle" },
@@ -175,7 +245,13 @@ export async function begruendungZeigen(buchungId, ausloeser) {
       w.eintraege.length ? null : h("p", { tid: "wk-text" }, w.text),
       w.eintraege.map(eintrag),
       w.ausgeschlossen.map((a) => h("p", { class: "wk-hinweis", tid: "wk-ausgeschlossen" }, `${a.konto.name}: ${a.text}`)),
-      knopfLeiste(knopf("Schließen", { tid: "wk-schliessen", onclick: () => d.schliessen(null) }))]);
+      knopfLeiste(knopf("Schließen", { tid: "wk-schliessen", onclick: () => d.schliessen(null) }),
+        w.empfaenger ? knopf("Betragsfilter …", { tid: "wk-filter-oeffnen",
+          "aria-label": `Betragsfilter für ${w.empfaenger.name}`, onclick: (ev) => {
+            const knopfEl = ev.currentTarget;
+            d.schliessen(null);
+            wkFilterDialog(w.empfaenger, knopfEl.isConnected ? knopfEl : ausloeser);
+          } }) : null)]);
   }, { ausloeser, klasse: "dialog-breit", schliessenKnopf: "wk-x",
     fokus: (box) => box.querySelector("[data-testid=wk-schliessen]") });
 }

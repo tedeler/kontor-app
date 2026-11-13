@@ -40,6 +40,7 @@ _TABELLEN = {
     "konto": ("konto", "id"),
     "empfaenger": ("empfaenger", "id"),
     "empfaenger_alias": ("empfaenger", "empfaenger_id"),
+    "empfaenger_wiederkehrend": ("empfaenger", "empfaenger_id"),
     "tag": ("tag", "id"),
     "buchung": ("buchung", "id"),
     "split": ("buchung", "buchung_id"),
@@ -73,7 +74,8 @@ BESCHREIBUNG = {
     "vorschlag_entscheiden": "Vorschlag entschieden", "mehrfach_vorschlag": "Vorschläge entschieden",
     "tag_anlegen": "Tag angelegt", "tag_umbenennen": "Tag umbenannt", "tag_loeschen": "Tag gelöscht",
     "empfaenger_anlegen": "Empfänger angelegt", "empfaenger_aendern": "Empfänger geändert",
-    "empfaenger_loeschen": "Empfänger gelöscht", "empfaenger_zusammenfuehren": "Empfänger zusammengeführt",
+    "empfaenger_loeschen": "Empfänger gelöscht",
+    "wiederkehrend_filter_setzen": "Betragsfilter wiederkehrender Buchungen geändert", "empfaenger_zusammenfuehren": "Empfänger zusammengeführt",
     "dublette_aufloesen": "Dublettenverdacht aufgelöst",
     "regel_anlegen": "Regel angelegt", "regel_aendern": "Regel geändert", "regel_loeschen": "Regel gelöscht",
     "abstimmung_anlegen": "Konto abgestimmt", "abstimmung_aufheben": "Abstimmung aufgehoben",
@@ -176,7 +178,17 @@ def formen(con, objekt: str, ids: list[int]) -> dict[int, dict]:
                 aus[b["id"]] = _buchung_zustand(b)
         return aus
     if objekt == "empfaenger":
-        return {e["id"]: e for e in buch.empfaenger_laden(con, ids)}
+        aus = {e["id"]: e for e in buch.empfaenger_laden(con, ids)}
+        # Betragsfilter wiederkehrender Buchungen (D-137): nur in Formen von Empfängern mit eigener Einstellung
+        for teil in buch._stueckweise(ids):
+            for r in con.execute("SELECT empfaenger_id, modus, toleranz_prozent, mindestbetrag FROM"
+                                 f" empfaenger_wiederkehrend WHERE empfaenger_id IN ({buch._platzhalter(len(teil))})",
+                                 teil):
+                if r["empfaenger_id"] in aus:
+                    aus[r["empfaenger_id"]] = dict(aus[r["empfaenger_id"]], wiederkehrend={
+                        "modus": r["modus"], "toleranz_prozent": r["toleranz_prozent"],
+                        "mindestbetrag": r["mindestbetrag"]})
+        return aus
     if objekt == "kredit":
         return kredite.formen(con, ids)
     if objekt == "postfach":
@@ -482,6 +494,10 @@ def _einfuegen(con, objekt: str, f: dict) -> None:
                     (f["id"], f["name"], f["extern_id"], f["standardkategorie_id"]))
         con.executemany("INSERT INTO empfaenger_alias (empfaenger_id, alias, ekey) VALUES (?, ?, ?)",
                         [(f["id"], a, buch.ekey(a)) for a in f["aliase"]])
+        if f.get("wiederkehrend"):
+            w = f["wiederkehrend"]
+            con.execute("INSERT INTO empfaenger_wiederkehrend (empfaenger_id, modus, toleranz_prozent, mindestbetrag)"
+                        " VALUES (?, ?, ?, ?)", (f["id"], w["modus"], w["toleranz_prozent"], w["mindestbetrag"]))
     elif objekt == "tag":
         con.execute("INSERT INTO tag (id, name, name_cf, extern_id) VALUES (?, ?, ?, ?)",
                     (f["id"], f["name"], f["name"].casefold(), f["extern_id"]))
