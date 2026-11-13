@@ -278,6 +278,42 @@ def test_mobil_karten_und_wischhinweis(tmp_path, browser):
             expect(tid(page, "kategorie-auswahl-suche")).not_to_be_focused()
 
 
+def test_mobil_wiederkehrend_karten(tmp_path, browser):
+    """D-142: wiederkehrende Buchungen mobil als feste Karte; Tippen auf die Karte öffnet die Aktionen."""
+    import httpx
+
+    with server(tmp_path, daten=False) as (url, _):
+        with httpx.Client(base_url=url, trust_env=False) as c:
+            giro = c.post("/api/konten", json={"name": "Giro", "art": "girokonto"}).json()["id"]
+            kat = c.post("/api/konten", json={"name": "Telefon", "art": "aufwand"}).json()["id"]
+            e = c.post("/api/empfaenger", json={"name": "Netzfunk Internet und Telefon GmbH (fiktiv)"}).json()["id"]
+            for monat in range(1, 7):
+                r = c.post("/api/buchungen", json={"datum": f"2024-{monat:02d}-15", "empfaenger_id": e, "splits": [
+                    {"konto_id": giro, "betrag": -4539}, {"konto_id": kat, "betrag": 4539}]})
+                assert r.status_code == 201, r.text
+        with seite(browser, url, **DESKTOP) as page:      # Desktop bleibt eine Tabelle
+            page.goto(url + "/wiederkehrend")
+            bereit(page, "wiederkehrend")
+            t = tid(page, "wiederkehrend-tabelle")
+            expect(t.locator("thead")).to_be_visible()
+            assert t.locator("tbody tr").first.evaluate("e => getComputedStyle(e).display") == "table-row"
+        with seite(browser, url, **HANDY) as page:
+            page.goto(url + "/wiederkehrend")
+            bereit(page, "wiederkehrend")
+            t = tid(page, "wiederkehrend-tabelle")
+            expect(t.locator("thead")).to_be_hidden()
+            tr = t.locator("tbody tr").first
+            titel, betrag, jahr = (tr.locator(f'[data-mk="{m}"]').bounding_box() for m in ("titel", "betrag", "wk-jahr"))
+            karte = tr.bounding_box()
+            assert abs(titel["y"] - betrag["y"]) < 8, "Empfänger und Betrag in einer Zeile"
+            assert jahr["y"] > betrag["y"] + 10, "Jahreskosten darunter"
+            assert abs((betrag["x"] + betrag["width"]) - (jahr["x"] + jahr["width"])) < 2, "Beträge rechtsbündig untereinander"
+            assert karte["x"] + karte["width"] - (betrag["x"] + betrag["width"]) < 24, "Betrag am rechten Rand"
+            assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
+            tr.locator('[data-mk="titel"]').tap()
+            expect(tid(page, "km-serie-begruendung")).to_be_visible()
+
+
 def test_service_worker_und_offline(tmp_path, browser):
     with server(tmp_path) as (url, _), seite(browser, url, **DESKTOP) as page:
         page.goto(url + "/kategorien")

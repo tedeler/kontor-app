@@ -711,3 +711,38 @@ html[data-thema="dunkel"] .wisch-hinweis[data-bereit="ja"][data-richtung="links"
 [data-layout="mobil"] .filter-leiste > :is(fieldset, .status-filter, button, .knopf) { grid-column: 1 / -1; }
 [data-layout="mobil"] .filter-leiste fieldset .wahl { min-height: 40px; }
 [data-layout="mobil"] .filter-leiste fieldset { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: .6rem; }
+
+/* Wiederkehrende Buchungen mobil (D-142): feste Karte in drei Zeilen
+ *   Empfänger ...................... Betrag
+ *   Konto · Rhythmus ........... x € / Jahr
+ *   [Status] Nächste TT.MM.JJJJ ......... ⋯  */
+[data-layout="mobil"] .wk-summe { display: flex; justify-content: space-between; align-items: baseline; margin: .2rem 0 .6rem;
+  padding: .6rem .8rem; background: var(--hg-2); border: 1px solid var(--rand); border-radius: 10px; color: var(--text-2); }
+[data-layout="mobil"] .wk-summe strong { font-size: 1.15rem; color: var(--text); }
+[data-layout="mobil"] .tabelle.mobil-karten[data-testid="wiederkehrend-tabelle"] > tbody > tr { position: relative; column-gap: .4rem; row-gap: .2rem;
+  padding: .7rem .2rem .7rem .7rem; border-left: 4px solid var(--rand); margin-bottom: .5rem; border: 1px solid var(--rand);
+  border-left-width: 4px; border-radius: 10px; cursor: pointer; }
+[data-layout="mobil"] .tabelle.mobil-karten[data-testid="wiederkehrend-tabelle"] > tbody > tr:active { background: var(--hg-2); }
+[data-layout="mobil"] .tabelle.mobil-karten[data-testid="wiederkehrend-tabelle"] > tbody > tr[data-status="aktiv"] { border-left-color: var(--erfolg); }
+[data-layout="mobil"] .tabelle.mobil-karten[data-testid="wiederkehrend-tabelle"] > tbody > tr[data-status="ausbleibend"] { border-left-color: var(--hinweis); }
+[data-layout="mobil"] .tabelle.mobil-karten[data-testid="wiederkehrend-tabelle"] > tbody > tr::after { content: ""; order: 5; flex-basis: 100%; height: 0; }
+[data-layout="mobil"] .tabelle.mobil-karten[data-testid="wiederkehrend-tabelle"] [data-mk="titel"] { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+  overflow: hidden; line-height: 1.25; }
+[data-layout="mobil"] .tabelle.mobil-karten[data-testid="wiederkehrend-tabelle"] [data-mk="titel"]:empty::before { content: "ohne Empfänger"; font-weight: 400;
+  font-style: italic; color: var(--text-2); }
+[data-layout="mobil"] .tabelle.mobil-karten[data-testid="wiederkehrend-tabelle"] [data-mk="betrag"] { font-size: 1.05rem; padding-right: .6rem; }
+[data-layout="mobil"] .tabelle.mobil-karten[data-testid="wiederkehrend-tabelle"] :is([data-mk="wk-konto"], [data-mk="wk-rhythmus"], [data-mk="wk-jahr"], [data-mk="wk-faellig"]) {
+  order: 3; font-size: .85rem; color: var(--text-2); white-space: nowrap; }
+[data-layout="mobil"] .tabelle.mobil-karten[data-testid="wiederkehrend-tabelle"] [data-mk="wk-konto"] { order: 4; flex: 1 1 0; overflow: hidden; text-overflow: ellipsis; }
+[data-layout="mobil"] .tabelle.mobil-karten[data-testid="wiederkehrend-tabelle"] [data-mk="wk-rhythmus"] { flex: none; }
+[data-layout="mobil"] .tabelle.mobil-karten[data-testid="wiederkehrend-tabelle"] [data-mk="wk-konto"]::before { content: "· "; margin-left: -.15rem; }
+[data-layout="mobil"] .tabelle.mobil-karten[data-testid="wiederkehrend-tabelle"] [data-mk="wk-jahr"] { order: 4; flex: none; padding-right: .6rem;
+  color: var(--text-2) !important; font-variant-numeric: tabular-nums; }
+[data-layout="mobil"] .tabelle.mobil-karten[data-testid="wiederkehrend-tabelle"] [data-mk="wk-jahr"]::after { content: " / Jahr"; }
+[data-layout="mobil"] .tabelle.mobil-karten[data-testid="wiederkehrend-tabelle"] [data-mk="status"] { order: 6; align-self: center; font-weight: 600; margin: .15rem 0; }
+[data-layout="mobil"] .tabelle.mobil-karten[data-testid="wiederkehrend-tabelle"] [data-mk="wk-faellig"] { order: 7; align-self: center; margin-right: 3rem; }
+[data-layout="mobil"] .tabelle.mobil-karten[data-testid="wiederkehrend-tabelle"] [data-mk="wk-faellig"]::before { content: "Nächste "; }
+[data-layout="mobil"] .tabelle.mobil-karten[data-testid="wiederkehrend-tabelle"] [data-mk="wk-faellig"]:empty { display: none; }
+[data-layout="mobil"] .tabelle.mobil-karten[data-testid="wiederkehrend-tabelle"] [data-mk="wk-aktion"] { position: absolute; right: .15rem; bottom: 0; }
+[data-layout="mobil"] .tabelle.mobil-karten[data-testid="wiederkehrend-tabelle"] [data-mk="wk-aktion"] .knopf { min-width: 44px; min-height: 40px; padding: 0; font-size: 1.3rem;
+  color: var(--text-2); }

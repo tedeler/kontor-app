@@ -204,6 +204,11 @@ export async function wiederkehrend(seite) {
       betragEl("td", s.jahreskosten, { class: "zahl" }), datumEl("td", s.naechste_faelligkeit),
       h("td", null, SERIENSTATUS[s.status] || s.status), h("td", { class: "aktionen" }, mehr));
     tr.addEventListener("contextmenu", (e) => { e.preventDefault(); serienMenue(s, e.clientX, e.clientY, tr); });
+    // mobil (D-142): Tippen auf die Karte öffnet die Aktionen
+    tr.addEventListener("click", (e) => {
+      if (!oberflaeche.istMobil() || e.target.closest("button, a")) return;
+      const [x, y] = menuePosition(null, tr); serienMenue(s, x, y, tr);
+    });
     tr.addEventListener("keydown", (e) => {
       if (e.target === tr && ((e.key === "F10" && e.shiftKey) || e.key === "ContextMenu")) {
         e.preventDefault(); const [x, y] = menuePosition(null, tr); serienMenue(s, x, y, tr);
@@ -213,10 +218,10 @@ export async function wiederkehrend(seite) {
   };
   langeBeruehrung(seite, (t) => t.closest("tr[data-status]"), (tr, x, y) => tr.dispatchEvent(new MouseEvent("contextmenu",
     { bubbles: true, cancelable: true, clientX: x, clientY: y })));
-  seite.append(h("p", null, "Summe der Jahreskosten: ", betragEl("strong", u.summe_jahreskosten)),
+  seite.append(h("p", { class: "wk-summe" }, "Summe der Jahreskosten: ", betragEl("strong", u.summe_jahreskosten)),
     tabelle({ tid: "wiederkehrend-tabelle" }, ["Empfänger", "Konto", "Rhythmus", "Betrag", "Jahreskosten", "Nächste Fälligkeit",
       "Status", h("span", { class: "nur-sr" }, "Aktionen")], u.serien.map(zeile),
-    ["titel", "info-", "info-", "betrag", "info:Jahreskosten", "info:Nächste", "status", "aktion"]),
+    ["titel", "wk-konto", "wk-rhythmus", "betrag", "wk-jahr", "wk-faellig", "status", "wk-aktion"]),
     ...(u.serien.length ? [] : [leer("Keine wiederkehrenden Buchungen erkannt.")]));
   return { titel: "Wiederkehrende Buchungen" };
 }

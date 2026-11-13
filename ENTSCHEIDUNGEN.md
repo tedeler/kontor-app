@@ -1867,3 +1867,19 @@ D-123 bis D-127 sind auf den offenen Branches `dokumente` und `alfbanco-import` 
   16.4 (lange Berührung auf einer Buchungszeile = Kontextmenü; Wischen ≤ 1 000 ms) und 27.1.2 (Tab-Leiste sichtbar)
   gelten mobil nicht mehr; betroffen sind die Handy-Tests zur langen Berührung im Kontoblatt (M8, M16, M17) und die
   Sichtbarkeit der Tab-Leiste auf dem Handy (M17).
+
+## D-142 Statische Dateien immer prüfen; wiederkehrende Buchungen mobil als feste Karte (Nachtrag zu D-141)
+
+- **Anlass:** Nach dem Update auf 0.12 zeigte das Handy des Auftraggebers weiter die alte Oberfläche (alte Tabelle der
+  wiederkehrenden Buchungen). Ursache: Dateien unter `/oeffentlich/` wurden ohne `Cache-Control` ausgeliefert; der
+  Browser hält sie dann nach eigener Schätzung (Alter der Datei) für frisch und fragt nicht nach – auch der Service
+  Worker holte sie über diesen Zwischenspeicher.
+- **Entscheidung:** Antworten unter `/oeffentlich/` und `/static/` tragen `Cache-Control: no-cache`, sofern sie keine
+  eigene Angabe haben (bedingte Anfrage mit ETag, in der Regel 304). Der Service Worker (Cache `kontor-huelle-6`) ruft
+  statische Dateien mit `cache: "no-cache"` ab. Nach einem Update genügt damit ein Neuladen; bereits betroffene Geräte
+  bekommen den neuen Service Worker beim nächsten Aufruf und ab dem darauffolgenden Laden den aktuellen Stand.
+  Die Spezifikation regelt nur `/sw.js` und die Hülle (oberflaeche.md 18); für die übrigen Dateien ist nichts festgelegt.
+- **Wiederkehrende Buchungen mobil:** statt der allgemeinen Kartenansicht eine feste Karte in drei Zeilen: Empfänger
+  (höchstens zwei Zeilen) und Betrag; Rhythmus · Konto (gekürzt) und „x € / Jahr“ rechtsbündig unter dem Betrag;
+  Status-Marke und „Nächste TT.MM.JJJJ“. Farbiger linker Rand nach Status (aktiv grün, ausbleibend gelb), Summe der
+  Jahreskosten als Kasten. Tippen auf die Karte öffnet die Aktionen der Serie (wie der Knopf „…“). Desktop unverändert.
