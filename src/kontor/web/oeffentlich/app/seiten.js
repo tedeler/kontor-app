@@ -608,6 +608,8 @@ export async function einstellungen(seite, _p, _s, kontext) {
     try { await api("DELETE", "/api/sync/pin"); melde("erfolg", "PIN verworfen."); await oberflaeche.neuLaden(); }
     catch (e) { melde("fehler", e.message); }
   } })));
+  // D-129: Schutz der Geheimnisse mit dem Login-Passwort
+  seite.append(await schutzAbschnitt());
   // Geheimnisse
   const gesetzt = new Set(geheim.eintraege.map((e) => e.name));
   seite.append(abschnitt("Geheimnisse", ...[["ntfy_token", "ntfy-Token"], ["oauth_client_secret", "OAuth-Client-Secret"]].map(([n, t]) => {
@@ -1183,3 +1185,40 @@ export async function buchung(seite, id) {
 }
 
 export const _intern = { nachName, neueId };
+
+// ------------------------------------------------------------------ D-129: Schutz der Geheimnisse
+async function schutzAbschnitt() {
+  let st;
+  try { st = await api("GET", "/api/geheimnisse/schutz"); } catch { return h("div"); }
+  const pw = h("input", { type: "password", tid: "schutz-passwort", autocomplete: "current-password" });
+  const mitPasswort = (pfad, erfolg) => async () => {
+    const wert = pw.value;
+    pw.value = "";
+    if (!wert) { melde("fehler", "Bitte das Login-Passwort eingeben."); return; }
+    try { await api("POST", pfad, { passwort: wert }); melde("erfolg", erfolg); window.dispatchEvent(new Event("kontor-sperre")); await oberflaeche.neuLaden(); }
+    catch (e) { melde("fehler", e.message); }
+  };
+  const text = !st.aktiv
+    ? "Aus: Geheimnisse sind nur mit dem Systemschlüssel verschlüsselt. Eingeschaltet schützt das Login-Passwort Bank-PIN und Mail-Zugänge zusätzlich – auch in Snapshots der Festplatte. Nach jedem Neustart muss Kontor dann einmal entsperrt werden (beim Login automatisch)."
+    : st.entsperrt ? `Ein und entsperrt: ${st.geschuetzt} Geheimnis(se) mit dem Login-Passwort geschützt${st.pin_gemerkt ? ", Bank-PIN gemerkt" : ""}.`
+      : "Ein, aber gesperrt: Bankabruf und Mail-Abgleich warten auf das Entsperren.";
+  const knoepfe = !st.aktiv
+    ? [knopf("Schutz einschalten", { tid: "schutz-einschalten", class: "knopf knopf-haupt",
+      onclick: mitPasswort("/api/geheimnisse/schutz", "Die Geheimnisse sind jetzt mit dem Login-Passwort geschützt.") })]
+    : [st.entsperrt
+      ? knopf("Jetzt sperren", { tid: "schutz-sperren", onclick: async () => {
+        try { await api("POST", "/api/geheimnisse/sperren", {}); melde("erfolg", "Gesperrt."); window.dispatchEvent(new Event("kontor-sperre")); await oberflaeche.neuLaden(); }
+        catch (e) { melde("fehler", e.message); }
+      } })
+      : knopf("Entsperren", { tid: "schutz-entsperren", class: "knopf knopf-haupt",
+        onclick: mitPasswort("/api/geheimnisse/entsperren", "Entsperrt.") }),
+    st.pin_gemerkt ? knopf("Gemerkte PIN vergessen", { tid: "schutz-pin-vergessen", onclick: async () => {
+      try { await api("DELETE", "/api/sync/pin/gemerkt"); melde("erfolg", "Gemerkte PIN gelöscht."); await oberflaeche.neuLaden(); }
+      catch (e) { melde("fehler", e.message); }
+    } }) : null,
+    knopf("Schutz ausschalten", { tid: "schutz-ausschalten", class: "knopf knopf-gefahr",
+      onclick: mitPasswort("/api/geheimnisse/schutz/ausschalten", "Der Schutz ist ausgeschaltet.") })];
+  return abschnitt("Schutz der Geheimnisse", h("p", { tid: "schutz-status", "data-aktiv": st.aktiv ? "ja" : "nein",
+    "data-gesperrt": st.gesperrt ? "ja" : "nein" }, text),
+  feld("Login-Passwort", pw), h("div", { class: "knopf-leiste" }, ...knoepfe.filter(Boolean)));
+}

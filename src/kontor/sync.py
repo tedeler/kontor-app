@@ -147,6 +147,38 @@ class SyncDienst:
         self.pin_eingabe_pruefen()
         with self._zustand:
             self._pin = None
+        self._pin_gemerkt_loeschen()
+
+    # D-129: PIN unter dem Login-Passwort merken (nur mit eingeschaltetem, entsperrtem Schutz der Geheimnisse)
+    def pin_merken(self, pin: str) -> None:
+        self.pin_eingabe_pruefen()
+        con = self._con()
+        try:
+            if not self.geheimnisse.schutz_aktiv(con):
+                raise ApiFehler(409, "schutz_nicht_aktiv", "Die PIN lässt sich nur merken, wenn die Geheimnisse mit "
+                                "dem Login-Passwort geschützt sind.")
+            with db.transaktion(con):
+                self.geheimnisse.setzen(con, "bank_pin", pin)  # gesperrt: 409 geheimnisse_gesperrt
+        finally:
+            con.close()
+        with self._zustand:
+            self._pin = pin
+
+    def _pin_gemerkt_loeschen(self) -> None:
+        con = self._con()
+        try:
+            if con.execute("SELECT 1 FROM geheimnis WHERE name = 'bank_pin'").fetchone():
+                with db.transaktion(con):
+                    self.geheimnisse.loeschen(con, "bank_pin")
+        finally:
+            con.close()
+
+    def _pin_gemerkt(self) -> str | None:
+        con = self._con()
+        try:
+            return self.geheimnisse.lesen(con, "bank_pin")
+        finally:
+            con.close()
 
     def _pin_systemd(self) -> str | None:
         """fints.md 5: Datei ``kontor-bank-pin`` bei jedem Aufruf neu lesen; genau ein Zeilenumbruch fällt weg."""
@@ -165,7 +197,7 @@ class SyncDienst:
     def _pin_quelle(self) -> str | None:
         if self.pin_aus_systemd:
             return self._pin_systemd()
-        return self._pin
+        return self._pin if self._pin is not None else self._pin_gemerkt()
 
     def _pin_vorhanden(self) -> bool:
         return self._pin_quelle() is not None
@@ -190,6 +222,7 @@ class SyncDienst:
             else:
                 with self._zustand:
                     self._pin = None
+                self._pin_gemerkt_loeschen()  # D-129: eine falsche gemerkte PIN nie wiederverwenden
         if not isinstance(e, KontorFehler):
             log.warning("Unerwarteter Fehler im Bank-Plugin: %s", type(e).__name__)
         return _fehler_von(e)

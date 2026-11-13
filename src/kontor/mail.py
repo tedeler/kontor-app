@@ -516,6 +516,9 @@ class MailDienst:
             beginn = self._jetzt()
             con = self._con()
             try:
+                if self._geheim.gesperrt(con):  # D-129: ohne Datenschlüssel keine Zugangsdaten
+                    raise ApiFehler(409, "geheimnisse_gesperrt", "Die Geheimnisse sind gesperrt; bitte mit dem "
+                                    "Login-Passwort entsperren, dann ist der Abruf wieder möglich.")
                 aktive = [postfach_dict(r) for r in con.execute("SELECT * FROM postfach WHERE aktiv = 1 ORDER BY id")]
             finally:
                 con.close()
@@ -598,6 +601,8 @@ class MailDienst:
         con = self._con()
         try:
             if con.execute("SELECT 1 FROM postfach WHERE aktiv = 1").fetchone() is None:
+                return False
+            if self._geheim.gesperrt(con):
                 return False
             r = con.execute("SELECT MAX(z.letzter_abruf_am) FROM postfach p JOIN postfach_zustand z"
                             " ON z.adresse_cf = p.adresse_cf").fetchone()[0]

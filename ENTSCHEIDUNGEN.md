@@ -1509,3 +1509,35 @@ Weitere Abkürzungen: SY = `spec/api/synchronisation.md`, KA =
   genau ein Schritt. Das Neuladen der Ansicht danach läuft außerhalb dieser Reihe.
 - Ein Schritt wartet außerdem auf gerade laufende Aktionen, bis deren Änderungen auf dem Rückgängig-Stapel liegen:
   Strg+Z unmittelbar nach einer Änderung macht genau diese rückgängig, statt „nichts rückgängig zu machen“ zu melden.
+
+## D-129 Schutz der Geheimnisse mit dem Login-Passwort (Feature `geheimnisse`, iterativ)
+
+- **Anlass:** Auftrag 2026-11-13. Abgestimmt: Geheimnisse (Bank-PIN, Mail-Zugänge, Tokens) liegen verschlüsselt in
+  der Datenbank, ein starker Datenschlüssel ist mit einem aus dem **Login-Passwort** abgeleiteten Schlüssel
+  verpackt; das Masterpasswort ist das Login-Passwort; die Bank-PIN kann darunter gemerkt werden; **kein**
+  automatisches Entsperren, **keine** Leerlaufsperre.
+- **Aufbau (Schlüsselhülle):** Die bestehende äußere Schicht (Systemschlüssel aus systemd-creds bzw. Schlüsseldatei,
+  geheimnisse.md) bleibt unverändert. Ist der Schutz eingeschaltet, trägt jedes Geheimnis außer `ntfy_token`
+  (damit Benachrichtigungen wie „Bitte entsperren“ zugestellt werden) eine innere Schicht: AES-256-GCM mit einem
+  zufälligen 256-Bit-Datenschlüssel, zusätzliche Daten `innen:<name>`, Kennung `M1:` im äußeren Klartext. Der
+  Datenschlüssel liegt verpackt in `geheimnis_huelle` (eine Zeile; AES-256-GCM mit scrypt(Passwort, 16 Byte Salz,
+  N=2^15, r=8, p=1), eigenes Salz unabhängig vom Login-Hash). Betriebszustand: nie protokolliert, nie gesichert.
+- **Opt-in:** Der Schutz wird ausdrücklich eingeschaltet (`POST /api/geheimnisse/schutz` mit dem Login-Passwort,
+  Bremse der Anmeldung); ohne ihn verhält sich alles wie bisher (alle bestehenden Meilensteine unverändert).
+  Voraussetzung ist ein gesetztes Login-Passwort (409 `nicht_eingerichtet`), die Anmeldung selbst darf
+  abgeschaltet sein.
+- **Entsperren:** Jeder erfolgreiche Login entsperrt; sonst `POST /api/geheimnisse/entsperren` (Dialog aus dem
+  roten Hinweis `sperr-leiste` oder in den Einstellungen). Das Passwort wird nach dem Ableiten verworfen; nur der
+  Datenschlüssel bleibt bis zum Neustart oder `POST /api/geheimnisse/sperren` im Arbeitsspeicher. Gesperrt: geschützte
+  Geheimnisse gelten als nicht lesbar, Schreiben → 409 `geheimnisse_gesperrt`, kein Mail-Abruf (Planer überspringt,
+  manuell 409), Bankabruf nur mit eingegebener PIN.
+- **Passwort:** Ändern (`PUT /api/anmeldung/passwort`) verpackt nur den Datenschlüssel neu. Zurücksetzen ohne altes
+  Passwort (`passwort-setzen`) verwirft Hülle und geschützte Geheimnisse (die Kommandozeile nennt die Anzahl).
+  `POST /api/geheimnisse/schutz/ausschalten` entfernt die innere Schicht wieder.
+- **Gemerkte PIN:** `PUT /api/sync/pin/gemerkt` (nur mit eingeschaltetem, entsperrtem Schutz; Geheimnis `bank_pin`),
+  `DELETE /api/sync/pin/gemerkt`; „PIN verwerfen“ löscht sie mit. Sie wird gelesen, wenn keine PIN im Arbeitsspeicher
+  liegt; lehnt die Bank sie ab (`BankPinFalsch`/`BankZugangGesperrt`), wird sie sofort gelöscht (Schutz vor
+  Kontosperre). Im PIN-Dialog erscheint dafür „PIN merken“.
+- **Härtung:** systemd `LimitCORE=0` (zusätzlich zu `ProtectProc=invisible`); `python -m kontor` setzt
+  `RLIMIT_CORE=0` und `PR_SET_DUMPABLE=0`. Grenze: Wer Root auf VM oder Hypervisor hat, kann den Arbeitsspeicher
+  lesen – dagegen hilft keine Software (Betriebshinweis: Proxmox-Snapshots ohne RAM, kein Swap/Ruhezustand).

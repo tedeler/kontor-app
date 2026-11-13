@@ -557,6 +557,11 @@ function pinDialog(falsch) {
     const abbrechen = knopf("Abbrechen", { tid: "pin-abbrechen", onclick: () => d.schliessen(null) });
     const anzeige = h("p", { tid: "pin-dialog-status", class: "sync-status", role: "status", "aria-live": "polite", hidden: true });
     const spinner = h("span", { class: "kreisel", "aria-hidden": "true", hidden: true });
+    // D-129: mit eingeschaltetem, entsperrtem Schutz lässt sich die PIN unter dem Login-Passwort merken
+    const merken = h("input", { type: "checkbox", tid: "pin-merken" });
+    const merkenZeile = h("label", { class: "pin-merken", hidden: true }, merken,
+      " PIN merken (verschlüsselt mit dem Login-Passwort; nach einem Neustart genügt das Anmelden)");
+    api("GET", "/api/geheimnisse/schutz").then((st) => { merkenZeile.hidden = !(st.aktiv && st.entsperrt); }).catch(() => {});
     const status = (art, text) => {
       anzeige.hidden = !text;
       anzeige.dataset.phase = art || "";
@@ -577,7 +582,7 @@ function pinDialog(falsch) {
       let beobachter = null;
       let lauf = null;
       try {
-        await api("PUT", "/api/sync/pin", { pin: wert });
+        await api("PUT", merken.checked && !merkenZeile.hidden ? "/api/sync/pin/gemerkt" : "/api/sync/pin", { pin: wert });
         status("verbinden", "Verbinde mit der Bank …");
         beobachter = laufBeobachten(status);
         lauf = await api("POST", "/api/sync", {});
@@ -612,7 +617,8 @@ function pinDialog(falsch) {
     };
     senden.addEventListener("click", los);
     pin.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); los(); } });
-    inhalt.append(h("p", null, "Die PIN wird nur im Arbeitsspeicher des Servers gehalten, nie gespeichert."), feld("PIN", pin),
+    inhalt.append(h("p", null, "Ohne „PIN merken“ wird die PIN nur im Arbeitsspeicher des Servers gehalten, nie gespeichert."),
+      feld("PIN", pin), merkenZeile,
       h("div", { class: "sync-status-zeile" }, spinner, anzeige), knopfLeiste(senden, abbrechen));
   });
 }
@@ -777,14 +783,52 @@ window.addEventListener("online", async () => {
 });
 
 // ------------------------------------------------------------------ Start
+// ------------------------------------------------------------------ D-129: gesperrte Geheimnisse
+let sperrLeiste = null;
+export async function sperrStatusPruefen() {
+  let st;
+  try { st = await api("GET", "/api/geheimnisse/schutz"); } catch { return; }
+  if (!st.gesperrt) { if (sperrLeiste) sperrLeiste.hidden = true; return; }
+  if (!sperrLeiste) {
+    sperrLeiste = h("div", { class: "sperr-leiste", tid: "sperr-leiste", role: "status" },
+      h("span", null, "Kontor ist gesperrt: Bankabruf und Mail-Abgleich laufen erst nach dem Entsperren mit dem Login-Passwort."),
+      knopf("Entsperren …", { tid: "sperr-entsperren", class: "knopf knopf-haupt", onclick: (e) => entsperrDialog(e.currentTarget) }));
+    const ziel = document.getElementById("tab-leiste");
+    ziel.parentNode.insertBefore(sperrLeiste, ziel);
+  }
+  sperrLeiste.hidden = false;
+}
+export function entsperrDialog(ausloeser) {
+  dialog("entsperren-dialog", "Kontor entsperren", (inhalt, d) => {
+    const pw = h("input", { type: "password", tid: "entsperren-passwort", autocomplete: "current-password" });
+    const ok = knopf("Entsperren", { tid: "entsperren-ok", class: "knopf knopf-haupt" });
+    const los = async () => {
+      const wert = pw.value;
+      pw.value = "";
+      if (!wert) { d.fehler("Bitte das Login-Passwort eingeben."); return; }
+      try { await api("POST", "/api/geheimnisse/entsperren", { passwort: wert }); }
+      catch (e) { d.fehler(e.message); pw.focus(); return; }
+      d.schliessen(true);
+      melde("erfolg", "Entsperrt.");
+      await sperrStatusPruefen();
+    };
+    ok.addEventListener("click", los);
+    pw.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); los(); } });
+    inhalt.append(h("p", null, "Nach einem Neustart liegen Bank-PIN und Mail-Zugänge verschlüsselt vor. Das Login-Passwort öffnet sie bis zum nächsten Neustart."),
+      feld("Login-Passwort", pw), knopfLeiste(ok, knopf("Abbrechen", { onclick: () => d.schliessen(null) })));
+  }, { ausloeser });
+}
+
 async function start() {
   stapelAnzeigen();
   if (!navigator.onLine) offlineSetzen(true);
   try { await anmeldungLaden(); } catch (e) { behandeln(e); }
   await zeigen();
+  sperrStatusPruefen();
+  window.addEventListener("kontor-sperre", sperrStatusPruefen);
   app.dataset.bereit = "ja";
   benachrichtigungenZaehlen();
-  setInterval(benachrichtigungenZaehlen, 60000);
+  setInterval(() => { benachrichtigungenZaehlen(); sperrStatusPruefen(); }, 60000);
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => { /* ohne Service Worker weiter */ });
   }

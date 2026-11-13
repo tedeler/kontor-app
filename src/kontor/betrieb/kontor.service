@@ -35,6 +35,8 @@ ProtectControlGroups=yes
 ProtectClock=yes
 ProtectHostname=yes
 ProtectProc=invisible
+# D-129: keine Speicherabbilder (entsperrter Datenschlüssel, PIN) auf der Platte
+LimitCORE=0
 ProcSubset=pid
 RestrictSUIDSGID=yes
 RestrictRealtime=yes

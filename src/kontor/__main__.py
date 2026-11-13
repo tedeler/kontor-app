@@ -32,6 +32,21 @@ def logging_einrichten(stufe: str) -> None:
         lg.propagate = True
 
 
+def _speicherabbild_verbieten() -> None:
+    """D-129: kein Core-Dump und kein ptrace-Anhängen anderer Prozesse desselben Benutzers (PR_SET_DUMPABLE 0)."""
+    try:
+        import resource
+        resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
+    except (ImportError, ValueError, OSError):
+        pass
+    if sys.platform.startswith("linux"):
+        try:
+            import ctypes
+            ctypes.CDLL(None, use_errno=True).prctl(4, 0, 0, 0, 0)  # PR_SET_DUMPABLE = 4
+        except (OSError, AttributeError):
+            pass
+
+
 def main(argv: list[str] | None = None) -> int:
     args = sys.argv[1:] if argv is None else argv
     if args:
@@ -58,6 +73,7 @@ def main(argv: list[str] | None = None) -> int:
              config.port, config.aktive_datenbank, "an" if config.anmeldung else "aus")
     protokolle_absichern()
     try:
+        _speicherabbild_verbieten()
         uvicorn.run(app, host=config.host, port=config.port, proxy_headers=False, lifespan="on",
                     server_header=False, workers=1, log_config=None, log_level=config.log_stufe.lower())
     except KeyboardInterrupt:  # pragma: no cover

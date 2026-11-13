@@ -386,3 +386,8 @@ html.zieht, html.zieht * { cursor: grabbing !important; }
 td.aktionen { width: 2.5rem; text-align: right; }
 .sprung-ziel { animation: sprung 2s ease-out; }
 @keyframes sprung { from { background: var(--akzent-hell); } to { background: transparent; } }
+
+/* D-129: gesperrte Geheimnisse */
+.sperr-leiste { display: flex; flex-wrap: wrap; gap: .5rem 1rem; align-items: center; padding: .5rem .8rem;
+  background: var(--gefahr); color: #fff; }
+.pin-merken { display: block; margin: .4rem 0; }
