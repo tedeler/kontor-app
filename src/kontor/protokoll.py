@@ -540,6 +540,8 @@ def _schritt(con, aid: int) -> set[tuple[str, int]]:
             # Umbenennen zurücknehmen: Zeile bleibt (Zuordnungen zu Buchungen), Name erst vorläufig freigeben.
             con.execute("UPDATE tag SET name_cf = ? WHERE id = ?", (f"\x00{e['objekt_id']}", e["objekt_id"]))
             continue
+        if e["objekt"] == "dokument" and e["vorher"] is not None:
+            continue  # Umbenennen zurücknehmen: Zeile und Verknüpfungen bleiben (D-135)
         _entfernen(con, e["objekt"], e["objekt_id"], schritt)
     for objekt in _EINFUEGEN:
         for e in je_objekt.get(objekt, []):
@@ -549,6 +551,9 @@ def _schritt(con, aid: int) -> set[tuple[str, int]]:
             if objekt == "tag" and e["nachher"] is not None:
                 con.execute("UPDATE tag SET name = ?, name_cf = ?, extern_id = ? WHERE id = ?",
                             (v["name"], v["name"].casefold(), v["extern_id"], v["id"]))
+                continue
+            if objekt == "dokument" and e["nachher"] is not None:
+                con.execute("UPDATE dokument SET dateiname = ? WHERE id = ?", (v["dateiname"], v["id"]))
                 continue
             _einfuegen(con, objekt, v)
     r = con.execute("SELECT kennungen_neu, kennungen_weg FROM aenderung WHERE id = ?", (aid,)).fetchone()

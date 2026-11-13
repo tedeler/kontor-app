@@ -160,7 +160,9 @@ class Schutz:
         erzwingen = ist_api(pfad) or typ.lower().startswith(b"text/html")
         statisch = pfad.startswith(("/oeffentlich/", "/static/"))
         if erzwingen or (not statisch and b"cache-control" not in namen):
-            aus = [(k, v) for k, v in aus if k.lower() != b"cache-control"] + [(b"cache-control", b"no-store")]
+            # Dokumentinhalte (D-123): „private, no-store“, alle anderen Antworten „no-store“
+            wert = b"private, no-store" if EINBETTBAR in namen and ist_api(pfad) else b"no-store"
+            aus = [(k, v) for k, v in aus if k.lower() != b"cache-control"] + [(b"cache-control", wert)]
         if ist_api(pfad) and b"x-kontor-modus" not in namen:
             aus.append((b"x-kontor-modus", self.modus))
         return aus

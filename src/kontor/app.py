@@ -1287,11 +1287,10 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
 
     # ------------------------------------------------- Dokumente (D-123)
     def _inhalt_antwort(daten: bytes, typ: str, dateiname: str, csp: str, herunterladen: bool = False) -> Response:
-        name = dateiname.replace('"', "'")
-        ascii_name = name.encode("ascii", "replace").decode("ascii").replace("?", "_")
+        ascii_name = dateiname.replace('"', "'").encode("ascii", "replace").decode("ascii").replace("?", "_")
         art = "attachment" if herunterladen else "inline"
         return Response(daten, media_type=typ, headers={
-            "Content-Disposition": f"{art}; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(name)}",
+            "Content-Disposition": f"{art}; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(dateiname, safe='')}",
             "Content-Security-Policy": csp, "X-Kontor-Einbettbar": "1", "Cache-Control": "private, no-store"})
 
     @endpunkt("POST", "/api/dokumente", 201)
@@ -1299,6 +1298,8 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
         q = Query(request.query_params)
         ids = q.ganzzahlen("buchung_id")
         quelle = q.auswahl("quelle", dokumente.QUELLEN) or "upload"
+        for name in sorted(set(request.query_params) - {"buchung_id", "quelle"}):
+            q.fehler.append(fehler_eintrag(["query", name], "Unbekannter Parameter."))
         q.pruefen()
         try:
             form = await request.form()
@@ -1316,6 +1317,8 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
         d = json_koerper(await request.body())
         if not isinstance(d, dict) or type(d.get("nachricht_id")) is not int:
             raise Validierungsfehler([fehler_eintrag(["body", "nachricht_id"], "Ganze Zahl erwartet.")])
+        if set(d) - {"nachricht_id", "buchung_ids"}:
+            raise Validierungsfehler([fehler_eintrag(["body"], "Nur die Felder 'nachricht_id' und 'buchung_ids'.")])
         return await aendern("dokument_aus_mail", mit_uhr(
             lambda con, z: dokumente.aus_mail(con, d["nachricht_id"], d.get("buchung_ids"), z)))
 

@@ -1759,3 +1759,15 @@ D-123 bis D-127 sind auf den offenen Branches `dokumente` und `alfbanco-import` 
 - **Befund:** Beim Übernehmen der Import-Seite für ALF-BanCo (D-126) war die Abfrage des Importformats und des Kontos
   versehentlich auch in das Senden der Sicherung in den Einstellungen geraten; „Prüfen“ und „Einspielen“ brachen dort
   mit einem Skriptfehler ab. Entfernt; die Sicherung sendet wieder nur die Datei.
+
+## D-135 Abnahme M18 (Dokumente): Feinheiten
+
+- Typerkennung: führende Leerzeilen und eine mbox-Trennzeile werden auch beim Lesen der Kopfzeilen übergangen.
+- `POST /api/dokumente`: unbekannte Abfrageparameter → 422 `validierung`; `POST /api/dokumente/aus-mail`: Felder
+  außer `nachricht_id` und `buchung_ids` → 422 `validierung`.
+- Inhaltsantworten: `Cache-Control: private, no-store`; `filename*` trägt den unveränderten Dateinamen (nur
+  `filename` ersetzt `"` durch `'`).
+- Eingebettete Nachrichten (`message/rfc822`) sind ein Anhang und werden als ganze Nachricht ausgeliefert; ihre
+  Unterteile erscheinen nicht als eigene Anhänge.
+- Rückgängig/Wiederholen von „Umbenennen“ ändert nur den Dateinamen; die Verknüpfungen bleiben (vorher Konflikt
+  „Dokument hängt an einer anderen Buchung“).
