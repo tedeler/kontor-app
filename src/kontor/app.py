@@ -1408,6 +1408,8 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
         bis = q.datum("faellig_bis")
         suche = q.text("suche")
         richtung = q.auswahl("richtung", erwartung.RICHTUNGEN)
+        for name in sorted(set(request.query_params) - {"grund", "zustand", "faellig_bis", "suche", "richtung"}):
+            q.fehler.append(fehler_eintrag(["query", name], "Unbekannter Parameter."))
         q.pruefen()
         erg = await lesen(erwartung.liste, _heute(), gruende, zustaende, bis, suche, richtung)
         erg["aktiv"] = config.mail_abgleich

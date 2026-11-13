@@ -188,7 +188,7 @@ def alle_formen(con) -> dict[str, dict[int, dict]]:
     aus = {}
     for o in OBJEKTE:
         ids = [r[0] for r in con.execute(f"SELECT id FROM {tabellen[o]} ORDER BY id")]
-        aus[o] = protokoll.formen(con, o, ids)
+        aus[o] = {i: protokoll.aussen(o, f) for i, f in protokoll.formen(con, o, ids).items()}
     return aus
 
 

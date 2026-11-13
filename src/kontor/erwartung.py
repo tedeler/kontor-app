@@ -412,6 +412,9 @@ def loesen(con, eid: int, buchung_id: int, heute: str) -> dict:
         con.execute("DELETE FROM dokument_buchung WHERE dokument_id = ? AND buchung_id = ?", (d, buchung_id))
     zustand = "offen" if z["zustand"] == "erfuellt" else z["zustand"]
     con.execute("UPDATE erwartung SET buchung_ids = ?, zustand = ? WHERE id = ?", (json.dumps(ids), zustand, z["id"]))
+    # Dokumente ohne Buchung entfallen schon hier, damit die Antwort den Stand nach der Änderung zeigt (D-136)
+    dokumente.verwaiste_entfernen(con)
+    verwaiste_entfernen(con)
     return lesen(con, z["id"], heute)
 
 

@@ -203,3 +203,14 @@ Stand: Meilenstein 8 (getestet gegen kontor-tests `bf35445`); kein offener Eintr
   der Test schlägt dann schwankend fehl (2 von 14 Läufen mit `-n 4`). Vorschlag: auf das Schließen warten
   (Playwright-`expect(...).to_be_hidden()` bzw. `to_have_count(0)`), wie an anderen Stellen der M8-Tests.
 - **Erledigt:** kontor-tests `8ed01bc` (E-205) wartet auf das Schließen; 5 Läufe mit `-n 4` grün.
+
+## W-011 M20: Inhaltsprüfsumme im Rundreise-Test ohne `postfach`
+
+- **Test:** `tests/app/m20/test_m20_rest.py::test_sicherung_rundreise`, letzte Prüfung (Inhaltsprüfsumme
+  unabhängig aus den Protokollformen).
+- **Erwartung des Tests:** Prüfsumme über die Objektarten aus M9 sowie `dokument` und `erwartung` – ohne
+  `postfach`, obwohl der Test ein Postfach anlegt.
+- **Spezifikation:** `sicherung.md` (Objekt `postfach`, „genau dann, wenn die Sicherung mindestens ein Postfach
+  enthält“), E-109: optionale Objektarten ab M5 stehen bei Vorhandensein in `anzahl` und Inhaltsprüfsumme.
+- **Widerspruch:** Die Protokollformen stimmen überein; der Unterschied liegt allein in der fehlenden Objektart
+  `postfach`. Dem Test-Thread am 2026-11-13 als Text gemeldet.

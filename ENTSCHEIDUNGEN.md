@@ -1771,3 +1771,14 @@ D-123 bis D-127 sind auf den offenen Branches `dokumente` und `alfbanco-import` 
   Unterteile erscheinen nicht als eigene Anhänge.
 - Rückgängig/Wiederholen von „Umbenennen“ ändert nur den Dateinamen; die Verknüpfungen bleiben (vorher Konflikt
   „Dokument hängt an einer anderen Buchung“).
+
+## D-136 Abnahme M20 (Mail-Abgleich): Schlüssel intern, Feinheiten
+
+- Der Schlüssel einer Erwartung (Idempotenz der Erkennung) bleibt intern: Er steht in der Sicherungsdatei und in
+  den gespeicherten Protokolleinträgen (damit Rückgängig/Wiederholen ihn wiederherstellen), erscheint aber weder in
+  Antworten von `/api/aenderungen` noch in der Inhaltsprüfsumme der Sicherung (erwartungen.md 12, E-217).
+  Sicherungen der Version 5, die vor dieser Änderung erstellt wurden (nur auf Feature-Branches möglich), haben
+  eine andere Inhaltsprüfsumme.
+- `GET /api/erwartungen`: unbekannte Abfrageparameter → 422 `validierung`.
+- Lösen der letzten Buchung: Dokumente, die dadurch an keiner Buchung mehr hängen, entfallen schon vor der Antwort,
+  damit `dokument_ids` den Stand nach der Änderung zeigt.

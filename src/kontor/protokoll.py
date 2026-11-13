@@ -359,6 +359,18 @@ def _durch_setzen(con, aid: int, wert: int | None) -> None:
 # ================================================================== Lesen
 
 
+# Interne Felder einer Protokollform, die nie nach außen gehen (Antworten, Inhaltsprüfsumme der Sicherung): der
+# Schlüssel einer Erwartung macht die Erkennung idempotent und muss Rückgängig/Wiederholen überstehen (D-136).
+_INTERN = {"erwartung": ("schluessel",)}
+
+
+def aussen(objekt: str, form: dict | None) -> dict | None:
+    """Protokollform ohne interne Felder (erwartungen.md 12)."""
+    if form is None or objekt not in _INTERN:
+        return form
+    return {k: v for k, v in form.items() if k not in _INTERN[objekt]}
+
+
 def _aenderungen_dicts(con, zeilen: list) -> list[dict]:
     if not zeilen:
         return []
@@ -369,8 +381,8 @@ def _aenderungen_dicts(con, zeilen: list) -> list[dict]:
                              " ORDER BY aenderung_id, position", teil):
             eintraege[e["aenderung_id"]].append({
                 "objekt": e["objekt"], "objekt_id": e["objekt_id"], "art": e["art"],
-                "vorher": None if e["vorher"] is None else json.loads(e["vorher"]),
-                "nachher": None if e["nachher"] is None else json.loads(e["nachher"])})
+                "vorher": aussen(e["objekt"], None if e["vorher"] is None else json.loads(e["vorher"])),
+                "nachher": aussen(e["objekt"], None if e["nachher"] is None else json.loads(e["nachher"]))})
     return [{"id": z["id"], "zeitpunkt": z["zeitpunkt"], "quelle": z["quelle"], "aktion": z["aktion"],
              "beschreibung": z["beschreibung"], "gruppe": z["gruppe"], "eintraege": eintraege[z["id"]],
              "rueckgaengig_von": json.loads(z["rueckgaengig_von"]), "rueckgaengig_durch": z["rueckgaengig_durch"]}
@@ -518,7 +530,12 @@ def _einfuegen(con, objekt: str, f: dict) -> None:
 
 
 def _eintraege_von(con, aid: int) -> list[dict]:
-    return aenderung_lesen(con, aid)["eintraege"]
+    """Einträge einer Änderung mit vollständigen (internen) Formen für Rückgängig/Wiederholen."""
+    aenderung_lesen(con, aid)  # 404
+    return [{"objekt": e["objekt"], "objekt_id": e["objekt_id"], "art": e["art"],
+             "vorher": None if e["vorher"] is None else json.loads(e["vorher"]),
+             "nachher": None if e["nachher"] is None else json.loads(e["nachher"])}
+            for e in con.execute("SELECT * FROM aenderung_eintrag WHERE aenderung_id = ? ORDER BY position", (aid,))]
 
 
 def _schritt(con, aid: int) -> set[tuple[str, int]]:
