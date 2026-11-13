@@ -30,7 +30,6 @@ function zustandLesen(suche) {
 
 function zustandSchreiben(f) {
   const p = new URLSearchParams();
-  if (!f.gruende.length) p.set("serien", "ja");  // D-139: Serien nur auf Anfrage
   for (const g of f.gruende) p.append("grund", g);
   if (!(f.zustaende.length === 1 && f.zustaende[0] === "offen")) for (const z of f.zustaende) p.append("zustand", z);
   if (f.faellig) p.set("faellig", f.faellig);

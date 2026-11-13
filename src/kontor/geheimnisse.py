@@ -258,7 +258,7 @@ class Geheimnisspeicher:
         with self._sperre:
             self._datenschluessel = ds
         for n, w in werte.items():
-            if w is None:
+            if w is None or n == "bank_pin":   # die gemerkte PIN gibt es nur mit Schutz (D-140)
                 self.loeschen(con, n)  # nicht lesbar: unbrauchbar, wird ohnehin neu angelegt
             else:
                 self.setzen(con, n, w)
@@ -274,7 +274,7 @@ class Geheimnisspeicher:
         con.execute("DELETE FROM geheimnis_huelle")
         self.sperren()
         for n, w in werte.items():
-            if w is None:
+            if w is None or n == "bank_pin":   # die gemerkte PIN gibt es nur mit Schutz (D-140)
                 self.loeschen(con, n)
             else:
                 self.setzen(con, n, w)

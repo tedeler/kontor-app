@@ -1906,3 +1906,12 @@ D-123 bis D-127 sind auf den offenen Branches `dokumente` und `alfbanco-import` 
 - **Entscheidung:** Serien erscheinen nur mit `grund=serie` oder mit dem neuen Abfrageparameter `serien=ja` (ohne
   Grundfilter). Die Seite `/erwartet` setzt `serien=ja`, solange kein Grund gewählt ist; sichtbares Verhalten
   unverändert.
+
+## D-140 Vorbereitung der Abnahme M23/M24: Korrekturen
+
+- **Schutz ausschalten** löscht die gemerkte Bank-PIN (sie war danach nur noch mit dem Systemschlüssel gespeichert
+  und wurde weiter benutzt, obwohl `pin_gemerkt` `false` meldete). Andere geschützte Geheimnisse bleiben.
+- **Serien (D-131):** ausgelassen werden nur Serien, deren letzte Buchung einer Erwartung aus einer Mail (nicht
+  `manuell`) zugeordnet ist; Sortierung bei gleicher Frist: gespeicherte Erwartungen nach Nummer, dann Serien.
+  `serien=ja` steht nur in der REST-Abfrage, nicht in der Adresse der Seite `/erwartet` (berichtigt D-139).
+- **Erstattung:** „Unkategorisiert“ wird an `extern_id = "kontor:unkategorisiert"` erkannt, nicht am Namen.

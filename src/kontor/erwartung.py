@@ -155,7 +155,8 @@ def _serien(con, heute: str, frist_tage: int) -> list[dict]:
     """D-128: nächste Zahlung jeder aktiven oder ausbleibenden wiederkehrenden Serie als erwartete Zahlung mit
     Grund ``serie`` (abgeleitet, nicht gespeichert; Schließen/Zuordnen geschieht über die Buchungen selbst)."""
     aus = []
-    belegt = _alle_zugeordneten(con)
+    belegt = {r[0] for r in con.execute(  # nur Erwartungen aus Mails (D-131), nicht manuelle
+        "SELECT j.value FROM erwartung e, json_each(e.buchung_ids) j WHERE e.grund != 'manuell'")}
     for s in wiederkehrend.uebersicht(con, heute)["serien"]:
         if s["status"] not in ("aktiv", "ausbleibend"):
             continue
@@ -216,7 +217,8 @@ def liste(con, heute: str, gruende: list[str] | None = None, zustaende: list[str
             if "offen" not in zustaende and not e["ueberfaellig"]:
                 continue
             eintraege.append(e)
-        eintraege.sort(key=lambda e: (e["frist"], str(e["id"])))
+        eintraege.sort(key=lambda e: (e["frist"], isinstance(e["id"], str),
+                                      e["id"] if isinstance(e["id"], int) else 0, str(e["id"])))
     if suche:
         s = suche.casefold()
         eintraege = [e for e in eintraege if any(s in (e[k] or "").casefold()
@@ -429,8 +431,7 @@ def _erstattung_kategorisieren(con, z, buchung_id: int) -> None:
     if len(splits) != 2 or con.execute("SELECT 1 FROM vorschlag WHERE buchung_id = ?", (buchung_id,)).fetchone():
         return
     gegen = [s for s in splits if s["art"] not in buch.BESTAND]
-    unkat = con.execute("SELECT id FROM konto WHERE name = 'Unkategorisiert' AND art = 'eigenkapital'"
-                        " AND eltern_id IS NULL").fetchone()
+    unkat = con.execute("SELECT id FROM konto WHERE extern_id = 'kontor:unkategorisiert'").fetchone()
     if len(gegen) == 1 and unkat is not None and gegen[0]["konto_id"] == unkat["id"]:
         con.execute("UPDATE split SET konto_id = ? WHERE id = ?", (kat, gegen[0]["id"]))
 
