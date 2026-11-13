@@ -898,6 +898,16 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     async def abmelden(request: Request):
         await run_in_threadpool(maildienst.abmelden, pid(request, "postfach_id"))
 
+    # D-130: Anmeldung mit App-Passwort (z. B. Gmail ohne eigenes Google-Cloud-Projekt)
+    @endpunkt("PUT", "/api/mail/postfaecher/{postfach_id:int}/app-passwort")
+    async def app_passwort_setzen(request: Request):
+        d = await koerper(request, {"passwort": S("str", pflicht=True, min_len=1, max_len=256)})
+        return await run_in_threadpool(maildienst.app_passwort_setzen, pid(request, "postfach_id"), d["passwort"])
+
+    @endpunkt("DELETE", "/api/mail/postfaecher/{postfach_id:int}/app-passwort", 204)
+    async def app_passwort_loeschen(request: Request):
+        await run_in_threadpool(maildienst.app_passwort_loeschen, pid(request, "postfach_id"))
+
     @endpunkt("POST", "/api/mail/anmeldung/abschluss")
     async def anmeldung_abschluss(request: Request):
         d = await koerper(request, mail.ABSCHLUSS)

@@ -1159,7 +1159,8 @@ export async function postfach(seite, id) {
   seite.append(abschnitt("Status", h("p", { tid: "postfach-status", "data-anmeldung": st.anmeldung }, ANMELDESTATUS[st.anmeldung] || st.anmeldung,
     st.laeuft_ab_am ? ` · läuft ab am ${zeitText(st.laeuft_ab_am)}` : "", ` · ${st.nachrichten} Nachrichten`,
     st.letzter_fehler ? ` · letzter Fehler: ${st.letzter_fehler.meldung || st.letzter_fehler.code}` : "")),
-  abschnitt("Anmeldung (OAuth2)", knopf("Anmeldung starten", { tid: "postfach-anmelden", onclick: async () => {
+  appPasswortAbschnitt(id, p),
+  abschnitt("Anmeldung (OAuth2)", h("p", { class: "klein" }, "Alternative zum App-Passwort; braucht ein eigenes Google-Cloud-Projekt."), knopf("Anmeldung starten", { tid: "postfach-anmelden", onclick: async () => {
     try {
       const s = await api("POST", `/api/mail/postfaecher/${id}/anmeldung`);
       ort.replaceChildren(h("p", null, h("a", { tid: "postfach-autorisierung-link", href: s.autorisierung_url, target: "_blank",
@@ -1171,6 +1172,42 @@ export async function postfach(seite, id) {
     catch (e) { melde("fehler", e.message); }
   } })));
   return { titel: p.adresse };
+}
+
+// D-130: Zugang mit App-Passwort und Ordner (Gmail-Label), nur lesend
+function appPasswortAbschnitt(id, p) {
+  const ordner = h("input", { tid: "postfach-ordner", value: p.ordner, maxlength: "200" });
+  const pw = h("input", { type: "password", tid: "postfach-app-passwort", autocomplete: "off", spellcheck: "false" });
+  const ergebnis = h("p", { tid: "postfach-app-ergebnis", role: "status", "aria-live": "polite" });
+  const speichern = knopf("Speichern und Verbindung testen", { tid: "postfach-app-speichern", class: "knopf knopf-haupt",
+    onclick: async (e) => {
+      const wert = pw.value;
+      pw.value = "";
+      if (!wert) { melde("fehler", "Bitte das App-Passwort eingeben."); return; }
+      e.currentTarget.disabled = true;
+      ergebnis.textContent = "Verbinde mit dem Mailserver …";
+      try {
+        if (ordner.value.trim() && ordner.value.trim() !== p.ordner) {
+          await api("PATCH", `/api/mail/postfaecher/${id}`, { ordner: ordner.value.trim() });
+        }
+        const r = await api("PUT", `/api/mail/postfaecher/${id}/app-passwort`, { passwort: wert });
+        melde("erfolg", `Verbunden: ${r.nachrichten_im_ordner} Nachricht(en) im Ordner „${r.ordner}“.`);
+        await oberflaeche.neuLaden();
+      } catch (f) { ergebnis.textContent = `Fehler: ${f.message}`; }
+      finally { e.currentTarget.disabled = false; }
+    } });
+  const entfernen = knopf("App-Passwort entfernen", { tid: "postfach-app-entfernen", onclick: async () => {
+    try { await api("DELETE", `/api/mail/postfaecher/${id}/app-passwort`); melde("erfolg", "App-Passwort entfernt."); await oberflaeche.neuLaden(); }
+    catch (f) { melde("fehler", f.message); }
+  } });
+  return abschnitt("Zugang mit App-Passwort (empfohlen für Gmail)",
+    h("ol", { class: "klein" },
+      h("li", null, "Im Google-Konto die Bestätigung in zwei Schritten einschalten."),
+      h("li", null, "Google-Konto → Sicherheit → App-Passwörter: ein Passwort „Kontor“ erzeugen."),
+      h("li", null, "In Gmail einen Filter anlegen, der Mails von Amazon und PayPal mit dem Label „Kontor“ versieht."),
+      h("li", null, "Hier Label und App-Passwort eintragen. Kontor öffnet nur diesen Ordner und nur lesend.")),
+    feld("Ordner bzw. Gmail-Label", ordner), feld("App-Passwort (16 Zeichen, Leerzeichen egal)", pw),
+    h("div", { class: "knopf-leiste" }, speichern, entfernen), ergebnis);
 }
 
 // ------------------------------------------------------------------ Buchung (Link aus split_abweichung)

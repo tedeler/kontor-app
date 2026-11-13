@@ -1541,3 +1541,25 @@ Weitere Abkürzungen: SY = `spec/api/synchronisation.md`, KA =
 - **Härtung:** systemd `LimitCORE=0` (zusätzlich zu `ProtectProc=invisible`); `python -m kontor` setzt
   `RLIMIT_CORE=0` und `PR_SET_DUMPABLE=0`. Grenze: Wer Root auf VM oder Hypervisor hat, kann den Arbeitsspeicher
   lesen – dagegen hilft keine Software (Betriebshinweis: Proxmox-Snapshots ohne RAM, kein Swap/Ruhezustand).
+
+## D-130 Gmail ohne Google-Cloud-Projekt: IMAP mit App-Passwort und Ordner (Feature `gmail-app-passwort`)
+
+- **Anlass:** Auftrag 2026-11-13: kein eigenes Google-Cloud-Projekt/keine API in der Konsole. Abgestimmt: Anmeldung
+  per **App-Passwort** (Google-Konto mit Bestätigung in zwei Schritten), Kontor liest nur einen **Ordner bzw. ein
+  Gmail-Label** (empfohlen „Kontor“, per Gmail-Filter für Amazon/PayPal gesetzt) und nur lesend. OAuth2 bleibt als
+  Alternative unverändert (mail.md). Baut auf D-129 auf: Das App-Passwort ist ein geschütztes Geheimnis.
+- **REST:** `PUT /api/mail/postfaecher/{id}/app-passwort` (`{passwort}`; Leerzeichen werden entfernt, wie Google es
+  in Vierergruppen anzeigt) prüft zuerst `LOGIN` und `EXAMINE` des Ordners gegen den konfigurierten IMAP-Server und
+  speichert erst danach (Geheimnis `mail_passwort:<adresse>`; ein OAuth2-Token des Postfachs entfällt). Antwort
+  `{postfach_id, ordner, nachrichten_im_ordner}`; Fehler 422 mit dem Code des Mailfehlers
+  (`mail_anmeldung_abgelehnt`, `mail_ordner_unbekannt`, `mail_verbindungsfehler` …), 409 im Mock-Modus bzw. bei
+  gesperrten Geheimnissen. Das Postfach gilt danach als `angemeldet` ohne Ablauf (`laeuft_ab_am` null).
+  `DELETE …/app-passwort` (und das bestehende Abmelden) entfernt es wieder (`fehlt`).
+- **Plugin:** `ImapPostfach` hat ein optionales Feld `passwort` (Aufrufbares, nie in `repr`/Vergleichen); damit
+  meldet sich `ImapMailPlugin` mit `LOGIN` an (nicht bei `LOGINDISABLED`), sonst wie bisher mit XOAUTH2. Der Wert
+  wird erst unmittelbar vor der Anmeldung gelesen und danach verworfen. `ImapMailPlugin.pruefen(adresse)` dient nur
+  dem Verbindungstest. Antwortschemas bestehender Endpunkte bleiben unverändert (die Anmeldeart ist am Geheimnis
+  erkennbar).
+- **Oberfläche:** Auf der Postfachseite der Abschnitt „Zugang mit App-Passwort (empfohlen für Gmail)“ mit Anleitung,
+  Ordner/Label, App-Passwort und „Speichern und Verbindung testen“; OAuth2 als Alternative darunter.
+- **Konzept:** K 13 („ausschließlich OAuth2, keine Passwörter“) wird mit der Meilenstein-Definition angepasst.

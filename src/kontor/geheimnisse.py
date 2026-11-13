@@ -37,6 +37,7 @@ from .validierung import ApiFehler
 REST_NAMEN = ("ntfy_token", "oauth_client_secret")
 SYSTEMD_NAME = "kontor-geheimnisschluessel"
 MAIL_PRAEFIX = "mail_token:"
+PASSWORT_PRAEFIX = "mail_passwort:"  # D-130: App-Passwort je Postfach (geschützt)
 UNGESCHUETZT = ("ntfy_token",)
 INNEN = "M1:"                      # Kennung der inneren Schicht im (außen verschlüsselten) Wert
 HUELLE_N, HUELLE_R, HUELLE_P = 2 ** 15, 8, 1   # scrypt für den Hüllenschlüssel (32 MiB)
@@ -318,12 +319,16 @@ def mail_name(adresse: str) -> str:
     return MAIL_PRAEFIX + adresse.casefold()
 
 
+def passwort_name(adresse: str) -> str:
+    return PASSWORT_PRAEFIX + adresse.casefold()
+
+
 def verwaiste_entfernen(con: sqlite3.Connection) -> None:
     """Tokens, Spiegel und Betriebszustand von Postfächern, deren Adresse es nicht mehr gibt (mail.md 2.2, 6.5)."""
     vorhanden = {r[0] for r in con.execute("SELECT adresse_cf FROM postfach")}
-    namen = [r[0] for r in con.execute("SELECT name FROM geheimnis WHERE substr(name, 1, ?) = ?",
-                                       (len(MAIL_PRAEFIX), MAIL_PRAEFIX))
-             if r[0][len(MAIL_PRAEFIX):] not in vorhanden]
+    namen = [r[0] for praefix in (MAIL_PRAEFIX, PASSWORT_PRAEFIX)
+             for r in con.execute("SELECT name FROM geheimnis WHERE substr(name, 1, ?) = ?", (len(praefix), praefix))
+             if r[0][len(praefix):] not in vorhanden]
     if namen:
         con.execute("PRAGMA secure_delete = ON")
         con.executemany("DELETE FROM geheimnis WHERE name = ?", [(n,) for n in namen])
@@ -332,4 +337,4 @@ def verwaiste_entfernen(con: sqlite3.Connection) -> None:
         con.executemany(f"DELETE FROM {tabelle} WHERE adresse_cf = ?", [(a,) for a in weg])
 
 
-__all__ = ["Geheimnisspeicher", "REST_NAMEN", "UNGESCHUETZT", "geschuetzt", "mail_name", "verwaiste_entfernen"]
+__all__ = ["Geheimnisspeicher", "REST_NAMEN", "UNGESCHUETZT", "geschuetzt", "mail_name", "passwort_name", "verwaiste_entfernen"]

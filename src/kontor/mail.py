@@ -25,7 +25,7 @@ from dataclasses import dataclass
 from . import buch, db
 from .config import KontorConfig
 from .fehler import (KontorFehler, MailAnmeldungFehlt, MailOAuthFehler, MailTokenAbgelaufen, MailTokenWiderrufen)
-from .geheimnisse import Geheimnisspeicher, mail_name
+from .geheimnisse import Geheimnisspeicher, mail_name, passwort_name
 from .netz import http_anfrage
 from .validierung import ApiFehler, Feld, Validierungsfehler, fehler_eintrag, pruefe_objekt
 
@@ -349,6 +349,9 @@ class MailDienst:
         try:
             p = postfach_lesen(con, pid)
             self._nur_echt()
+            if con.execute("SELECT 1 FROM geheimnis WHERE name = ?", (passwort_name(p["adresse"]),)).fetchone():
+                self.app_passwort_loeschen(pid)  # D-130: Abmelden entfernt auch das App-Passwort
+                return
             name = mail_name(p["adresse"])
             roh = self._geheim.lesen(con, name)
             if roh is not None:
@@ -506,8 +509,74 @@ class MailDienst:
             if hasattr(self._mock_plugin, "setze_heute"):
                 self._mock_plugin.setze_heute(self._jetzt().date())
             return self._mock_plugin
-        return erzeuge_mail_plugin(self.config, postfaecher=[ImapPostfach(p["adresse"], p["ordner"])
-                                                               for p in postfaecher], zugang=self.zugang)
+        con = self._con()
+        try:
+            mit_pw = {r[0] for r in con.execute("SELECT name FROM geheimnis WHERE name LIKE 'mail_passwort:%'")}
+        finally:
+            con.close()
+        return erzeuge_mail_plugin(self.config, postfaecher=[
+            ImapPostfach(p["adresse"], p["ordner"],
+                         passwort=(lambda a=p["adresse"]: self._app_passwort(a))
+                         if passwort_name(p["adresse"]) in mit_pw else None)
+            for p in postfaecher], zugang=self.zugang)
+
+    # ------------------------------------------------------------ D-130: App-Passwort statt OAuth2
+    def _app_passwort(self, adresse: str) -> str | None:
+        con = self._con()
+        try:
+            return self._geheim.lesen(con, passwort_name(adresse))
+        finally:
+            con.close()
+
+    def app_passwort_setzen(self, pid: int, passwort: str) -> dict:
+        """Prüft Anmeldung und Ordner mit dem App-Passwort und speichert es erst danach (geschützt, wenn der Schutz
+        der Geheimnisse eingeschaltet ist). Das Postfach gilt dann ohne Ablauf als angemeldet."""
+        from .plugins import erzeuge_mail_plugin
+        from .plugins.imap import ImapPostfach
+        self._nur_echt()
+        passwort = "".join(passwort.split())  # Google zeigt das App-Passwort in Vierergruppen mit Leerzeichen
+        if not passwort:
+            raise ApiFehler(422, "validierung", "Bitte das App-Passwort eingeben.")
+        con = self._con()
+        try:
+            p = postfach_lesen(con, pid)
+            if self._geheim.gesperrt(con):
+                raise ApiFehler(409, "geheimnisse_gesperrt", "Die Geheimnisse sind gesperrt; bitte zuerst entsperren.")
+        finally:
+            con.close()
+        plugin = erzeuge_mail_plugin(self.config, postfaecher=[
+            ImapPostfach(p["adresse"], p["ordner"], passwort=lambda: passwort)], zugang=None)
+        try:
+            anzahl = plugin.pruefen(p["adresse"])
+        except KontorFehler as e:
+            code, meldung = _fehler_von(e)
+            raise ApiFehler(422, code, meldung) from None
+        cf = p["adresse"].casefold()
+        con = self._con()
+        try:
+            with db.transaktion(con):
+                self._geheim.setzen(con, passwort_name(p["adresse"]), passwort)
+                self._geheim.loeschen(con, mail_name(p["adresse"]))  # kein OAuth2-Token daneben
+                self._zustand_sichern(con, cf)
+                con.execute("UPDATE postfach_zustand SET anmeldung = 'angemeldet', anmeldung_nr = anmeldung_nr + 1,"
+                            " angemeldet_am = ?, laeuft_ab_am = NULL, fehler_code = NULL, fehler_meldung = NULL"
+                            " WHERE adresse_cf = ?", (self.jetzt_text(), cf))
+        finally:
+            con.close()
+        return {"postfach_id": p["id"], "ordner": p["ordner"], "nachrichten_im_ordner": anzahl}
+
+    def app_passwort_loeschen(self, pid: int) -> None:
+        con = self._con()
+        try:
+            p = postfach_lesen(con, pid)
+            cf = p["adresse"].casefold()
+            with db.transaktion(con):
+                if con.execute("SELECT 1 FROM geheimnis WHERE name = ?", (passwort_name(p["adresse"]),)).fetchone():
+                    self._geheim.loeschen(con, passwort_name(p["adresse"]))
+                    con.execute("UPDATE postfach_zustand SET anmeldung = 'fehlt', laeuft_ab_am = NULL"
+                                " WHERE adresse_cf = ?", (cf,))
+        finally:
+            con.close()
 
     def abruf(self) -> dict:
         if not self._abruf.acquire(blocking=False):
