@@ -1,5 +1,19 @@
 # Ergebnis der Implementierung
 
+## Abnahme M23–M25 (Branch `feature/sammeltest2`) gegen kontor-tests `e301131`
+
+Stand: 2026-11-13, Implementierungs-Thread. Der Branch enthält `feature/geheimnisse` und `feature/gmail-app-passwort`
+(M23), `feature/mail-abgleich` mit Serien (M24, D-131) und – schon vorher ohne Abnahme auf main – den Betragsfilter
+für wiederkehrende Buchungen (M25, D-137). Definitionen vom Auftraggeber freigegeben, Tests vom Test-Thread
+(E-228 bis E-245; M16-Tests setzen die Vorgabe `aus`, E-244).
+
+- Behoben: Serien nur auf Anfrage in `GET /api/erwartungen` (D-139), gemerkte PIN beim Ausschalten des Schutzes
+  gelöscht und Serien-Feinheiten (D-140, D-142), Knopf „Speichern und Verbindung testen“ nach Fehler (D-141),
+  Vorgabe des Betragsfilters ohne Neuzeichnen (D-143).
+- Volllauf `--voll`: ohne Browser/Leistung **2955 / 2955**, Browser und Leistung **411 / 411** – zusammen
+  **3366 / 3366**, nichts übersprungen. Anmeldelauf M16/M23–M25 199/199. Eigene Tests 265/265.
+- Einschränkung: M23 und M24 ohne Referenz/Mutanten in der Selbstprüfung (E-243).
+
 ## Abnahme M18–M22 (Branch `feature/sammeltest` mit `spalten-markierung`) gegen kontor-tests `a373040`
 
 Stand: 2026-11-13, Implementierungs-Thread. Der Branch enthält die Features `dokumente` (M18), `alfbanco-import`
