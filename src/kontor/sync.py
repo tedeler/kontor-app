@@ -18,7 +18,7 @@ from dataclasses import dataclass
 
 import json
 
-from . import buch, db, kredite, lernmodell, pflege, protokoll, regeln, vorlagen, wiederkehrend
+from . import abgleich, buch, db, kredite, lernmodell, pflege, protokoll, regeln, vorlagen, wiederkehrend
 from .buch import BESTAND, ApiFehler
 from .config import KontorConfig
 from .fehler import (BankPinFalsch, BankZugangGesperrt, KontorFehler, TanAbgelaufen, TanErforderlich, TanUngueltig)
@@ -86,6 +86,7 @@ class SyncDienst:
         self._pin_gesperrt = False
         self.geheimnisse = Geheimnisspeicher(config, self.jetzt_text)
         self.mail = MailDienst(config, self.jetzt, self.geheimnisse)
+        self.mail.nach_abruf = lambda: abgleich.laufen(self.config, self.jetzt())
         self.zustellung = Zustelldienst(config, self.jetzt, self._ntfy_token)
 
     def __repr__(self) -> str:
@@ -243,7 +244,7 @@ class SyncDienst:
                 for r in faellig:
                     self._tan_ablaufen(con, r["id"], r["lauf_id"])
             for r in faellig:
-                self._wiederkehrend_nach_lauf(con, r["lauf_id"])
+                self._nach_lauf(con, r["lauf_id"])
         finally:
             con.close()
 
@@ -438,7 +439,7 @@ class SyncDienst:
             con.execute("UPDATE sync_lauf SET status = 'fehlgeschlagen', beendet_am = ?, fehler_code = ?,"
                         " fehler_meldung = ? WHERE id = ?", (self.jetzt_text(), code, meldung, lid))
             self._fehler_melden(con, [code])
-        self._wiederkehrend_nach_lauf(con, lid)
+        self._nach_lauf(con, lid)
 
     def _fehler_melden(self, con, codes: list[str]) -> None:
         for code in dict.fromkeys(codes):
@@ -604,7 +605,13 @@ class SyncDienst:
             else:
                 con.execute("UPDATE sync_lauf SET status = 'erfolgreich', beendet_am = ? WHERE id = ?",
                             (self.jetzt_text(), lid))
+        self._nach_lauf(con, lid)
+
+    def _nach_lauf(self, con, lid: int) -> None:
+        """Nach jedem Lauf mit Endstatus (erfolgreich, fehlgeschlagen, abgebrochen, TAN abgelaufen): unerwartete
+        wiederkehrende Buchungen prüfen, danach neue Bankbuchungen erwarteten Zahlungen zuordnen (D-128, D-133)."""
         self._wiederkehrend_nach_lauf(con, lid)
+        abgleich.laufen(self.config, self.jetzt())
 
     def _wiederkehrend_nach_lauf(self, con, lid: int) -> None:
         """wiederkehrend.md 5 / synchronisation.md 17.3: nach einem Lauf mit Endstatus auf unerwartete Buchungen
@@ -728,7 +735,7 @@ class SyncDienst:
                     raise ApiFehler(409, "tan_nicht_offen", "Die TAN-Anforderung ist nicht mehr offen.")
                 self._tan_beenden(con, tid, "abgebrochen")
                 self._lauf_abbrechen(con, t["lauf_id"], self.jetzt_text())
-            self._wiederkehrend_nach_lauf(con, t["lauf_id"])
+            self._nach_lauf(con, t["lauf_id"])
             return self.tan_lesen(con, tid)
         finally:
             con.close()
@@ -960,6 +967,7 @@ class SyncDienst:
                     self.mail.abruf()
                 except ApiFehler:
                     pass
+            abgleich.laufen(self.config, self.jetzt())  # D-128: Fristen prüfen (nur mit mail_abgleich)
             return lauf
         finally:
             if not self._abbruch:

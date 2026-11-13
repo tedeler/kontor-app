@@ -1,5 +1,21 @@
 # Ergebnis der Implementierung
 
+## Abnahme M18–M22 (Branch `feature/sammeltest` mit `spalten-markierung`) gegen kontor-tests `a373040`
+
+Stand: 2026-11-13, Implementierungs-Thread. Der Branch enthält die Features `dokumente` (M18), `alfbanco-import`
+(M19), `mail-abgleich` im Stand ohne Serien/D-131 (M20), `diagramm-dunkel` mit Sprungziel (M21) und
+`spalten-markierung` (M22, D-132). Meilenstein-Definitionen vom Auftraggeber am 2026-11-13 freigegeben, Tests vom
+Test-Thread (E-206 bis E-227).
+
+- Behoben im Anwendungscode: Mail-Abgleich nach jedem Synchronisationslauf (D-133), Sicherung in den Einstellungen
+  (D-134), M18-Feinheiten (D-135), M20-Feinheiten mit internem Schlüssel (D-136).
+- Widersprüche W-011 (M20-Prüfsumme ohne `postfach`) und W-012 (M22-Ziehen an unsichtbarem Trenner) vom
+  Test-Thread als Testfehler behoben (E-226, E-227).
+- Volllauf `--voll`: ohne Browser/Leistung **2786 / 2786**, `-m browser` **368 / 368**, `-m leistung`
+  **22 / 22** – zusammen **3176 / 3176**, nichts übersprungen (AqBanking installiert). Anmeldelauf M18–M20 281/281.
+  Eigene Tests 240/240.
+- Einschränkung: Für die Kern-Tests von M18–M20 gibt es keine Referenz/Mutanten in der Selbstprüfung (E-225).
+
 ## Nachzug: Abnahme vollständig grün (Branch `feature/editor-neuladen`) gegen kontor-tests `c1b2723`
 
 Stand: 2026-11-11, Implementierungs-Thread. Auf main (0.08) waren M16 und M17 bereits grün; rot blieben schwankende

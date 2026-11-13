@@ -52,9 +52,9 @@ def _als_version_1(roh: bytes) -> bytes:
         daten = z.read("kontor.sqlite")
     con = sqlite3.connect(":memory:")
     con.deserialize(daten)
-    for t in ("kredit", "kredit_zuordnung", "kredit_abgleich", "postfach"):
+    for t in sicherung.TABELLEN_AB:  # alle Tabellen späterer Schemaversionen
         con.execute(f"DROP TABLE {t}")
-    con.execute("DELETE FROM id_zaehler WHERE objekt IN ('kredit', 'postfach')")
+    con.execute("DELETE FROM id_zaehler WHERE objekt IN ('kredit', 'postfach', 'dokument')")
     con.commit()
     con.execute("VACUUM")
     daten = con.serialize()

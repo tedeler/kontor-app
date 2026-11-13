@@ -9,6 +9,7 @@ import {
   kontoEinstellungen, menuePosition, splitDialog, tagAuswahl,
 } from "./ui.js";
 import { kategorienBaum, langeBeruehrung, ziehbar } from "./baum.js";
+import { ablageEinrichten, betrachter, dateiWaehlen, detailsAbschnitt, mailDialog } from "./dokumente.js";
 
 const PRO_SEITE = 200;
 const STATUS = ["importiert", "vorlaeufig", "bestaetigt", "abgeglichen"];
@@ -18,6 +19,60 @@ const SPALTEN = [["datum", "Datum", true], ["empfaenger", "Empfänger", true], [
   ["kategorie", "Kategorie"], ["tags", "Tags"], ["status", "Status"], ["betrag", "Betrag", true]];
 // M11 (oberflaeche.md 22.2): Kontoansicht einer Kategorie mit zusätzlicher Spalte „Konto“ nach „Kategorie“
 const SPALTEN_KATEGORIE = [...SPALTEN.slice(0, 4), ["konto", "Konto"], ...SPALTEN.slice(4)];
+
+// ------------------------------------------------------------------ Spaltenbreiten (D-130)
+// Je Liste (Bestandskonto „konto“, Kategorie „kategorie“) die Breite jeder Spalte in Pixeln, im Browser gemerkt.
+// Ohne gemerkte Breiten gilt das Raster aus app.css; das erste Ziehen legt alle Spalten auf ihre aktuelle Breite fest.
+const SPALTEN_SCHLUESSEL = "kontor.spalten";
+const SPALTE_MIN = 40;
+const SPALTE_MAX = 1200;
+const SPALTE_ERSATZ = 120;
+
+function spaltenAlle() {
+  try {
+    const s = JSON.parse(localStorage.getItem(SPALTEN_SCHLUESSEL));
+    return s && s.version === 1 && s.listen && typeof s.listen === "object" ? s : { version: 1, listen: {} };
+  } catch (e) {
+    return { version: 1, listen: {} };
+  }
+}
+
+function spaltenLaden(variante) {
+  const roh = spaltenAlle().listen[variante];
+  const aus = {};
+  if (roh && typeof roh === "object") {
+    for (const [f, w] of Object.entries(roh)) if (Number.isInteger(w) && w >= SPALTE_MIN && w <= SPALTE_MAX) aus[f] = w;
+  }
+  return aus;
+}
+
+function spaltenSpeichern(variante, breiten) {
+  const s = spaltenAlle();
+  if (Object.keys(breiten).length) s.listen[variante] = { ...breiten }; else delete s.listen[variante];
+  try { localStorage.setItem(SPALTEN_SCHLUESSEL, JSON.stringify(s)); } catch (e) { /* Speicher nicht verfügbar */ }
+}
+
+const spalteBegrenzen = (w) => Math.min(SPALTE_MAX, Math.max(SPALTE_MIN, Math.round(w)));
+
+// ------------------------------------------------------------------ Markierung der Zeilen (D-130)
+const UNKATEGORISIERT = "kontor:unkategorisiert";
+
+/** Bearbeitungsstand einer Buchung: abgeglichen (grün-grau), Kategorie zugewiesen (grün), importiert (grau). */
+function markierung(b) {
+  if (b.status === "abgeglichen" || b.abgestimmt) return "abgeglichen";
+  const unk = stamm.konten.find((k) => k.extern_id === UNKATEGORISIERT);
+  if (!b.splits.some((s) => unk && s.konto_id === unk.id)) return "kategorisiert";
+  if (b.status === "importiert") return "importiert";
+  return null;
+}
+
+const MAIL_GRUENDE = ["bestellung", "paypal", "rueckerstattung"];
+const ERWARTUNG_ZUSTAENDE = ["offen", "erfuellt", "guthaben", "storniert", "erledigt"];
+const GRUND_TEXT = { bestellung: "Bestellung", paypal: "PayPal-Zahlung", rueckerstattung: "Rückerstattung" };
+
+function erwartungText(e) {
+  return [GRUND_TEXT[e.grund] || e.grund, e.haendler, e.kennung].filter(Boolean).join(" ");
+}
 
 // ------------------------------------------------------------------ Layout der Panels (15, E-141)
 const LAYOUT_SCHLUESSEL = "kontor.layout";
@@ -131,6 +186,10 @@ class Kontoansicht {
     this.konto = konto;
     this.istKategorie = klasse(konto) !== "bestand";   // 22.2: Kategorie oder technisches Konto
     this.spalten = this.istKategorie ? SPALTEN_KATEGORIE : SPALTEN;
+    this.spaltenVariante = this.istKategorie ? "kategorie" : "konto";
+    this.breiten = spaltenLaden(this.spaltenVariante);
+    this.wiederkehrend = new Set();
+    this.mailBestaetigt = new Map();
     this.titel = konto.name;
     this.filter = this.filterAusUrl(suche);
     this.eintraege = [];
@@ -206,19 +265,18 @@ class Kontoansicht {
     }
     this.urlSchreiben();   // Sprungziel aus der Adresse entfernen
     if (!this.zeilen.has(id)) { melde("hinweis", "Die Buchung ist mit den aktuellen Filtern nicht sichtbar."); return; }
-    this.auswahl = new Set([id]);
-    this.anker = id;
-    this.fokussieren(id);
-    const z = this.zeilen.get(id);
-    z.scrollIntoView({ block: "center" });
-    z.classList.add("sprung-ziel");
-    setTimeout(() => z.classList.remove("sprung-ziel"), 2000);
+    this.sprungMarkieren(id);
   }
 
   async laden() {
     const nr = (this.ladeNr = (this.ladeNr || 0) + 1);   // nur die jüngste Antwort zählt
     this.seite.dataset.geladen = "nein";
     const basis = { konto_id: this.konto.id, ...this.filter, sortierung: this.sortierung, pro_seite: PRO_SEITE };
+    // D-130: Buchungen wiederkehrender Serien (wiederkehrend.md 2.5) für die Markierung der Zeilen
+    const serien = api("GET", "/api/wiederkehrend").then((w) => w.serien, () => []);
+    // D-130: Buchungen, die einer aus Mails erkannten Erwartung zugeordnet sind (Mail-Abgleich, D-128)
+    const erwartungen = api("GET", "/api/erwartungen" + abfrage({ grund: MAIL_GRUENDE, zustand: ERWARTUNG_ZUSTAENDE }))
+      .then((e) => e.eintraege, () => []);
     const eintraege = [];
     let gesamt = 0;
     let summe = 0;
@@ -232,7 +290,12 @@ class Kontoansicht {
     let verdachte = [];
     try { verdachte = await api("GET", "/api/dubletten?status=offen"); } catch (e) { verdachte = []; }
     await this.regelnLaden(eintraege);
+    const wk = new Set((await serien).flatMap((x) => x.buchung_ids));
+    const mail = new Map();
+    for (const e of await erwartungen) for (const id of e.buchung_ids) if (!mail.has(id)) mail.set(id, erwartungText(e));
     if (nr !== this.ladeNr) return;
+    this.wiederkehrend = wk;
+    this.mailBestaetigt = mail;
     this.kandidatenCache = new Map();
     this.verdachte = verdachte;
     this.eintraege = eintraege;
@@ -622,6 +685,7 @@ class Kontoansicht {
       b.tags.length ? h("p", null, "Tags: ", b.tags.map((t) => t.name).join(", ")) : null,
       b.extern_ids.length ? h("p", { class: "klein" }, "Herkunft: ", b.extern_ids.join(", ")) : null,
       h("p", { class: "klein" }, "Status: ", STATUS_TEXT[b.status] || b.status, b.abgestimmt ? " · abgestimmt" : ""),
+      detailsAbschnitt(b),
     ];
   }
 
@@ -659,6 +723,7 @@ class Kontoansicht {
           onclick: () => this.filterSetzen("sortierung", aktiv ? (sort.startsWith("-") ? feld : "-" + feld) : feld) },
         text, aktiv ? (sort.startsWith("-") ? " ↓" : " ↑") : ""));
       } else zelle.append(text);
+      if (!kompakt) zelle.append(this.spaltenTrenner(feld, text));
       return zelle;
     }));
     this.zeilen = new Map();
@@ -667,6 +732,7 @@ class Kontoansicht {
     const editorFokus = editor ? editor.loesen() : false;
     const zeilen = this.eintraege.map((b) => this.zeile(b, kompakt));
     this.liste.replaceChildren(kopf, ...zeilen);
+    this.breitenAnwenden();
     if (editor && this.editorOffen === editor) editor.umziehen(editorFokus);
     this.anzahlEl.dataset.anzahl = String(this.gesamt);
     this.anzahlEl.textContent = this.gesamt === 1 ? "1 Buchung" : `${this.gesamt} Buchungen`;
@@ -704,11 +770,25 @@ class Kontoansicht {
     const empf = h("div", { role: "gridcell", class: "zelle zelle-empfaenger", "data-feld": "empfaenger",
       "data-empfaenger-id": b.empfaenger ? String(b.empfaenger.id) : "" },
     empfName || (kompakt ? h("span", { class: "ersatz" }, b.verwendungszweck) : ""));
+    const zweckZelle = h("div", { role: "gridcell", class: "zelle zelle-verwendungszweck", "data-feld": "verwendungszweck" },
+      b.verwendungszweck);
+    const belegMarke = b.belege && b.belege.length ? h("button", { type: "button", class: "beleg-marke", tid: `beleg-marke-${b.id}`,
+        "data-nicht-ziehen": "", "data-anzahl": String(b.belege.length), tabindex: "-1",
+        title: b.belege.map((d) => d.dateiname).join("\n"), "aria-label": `${b.belege.length} Dokument(e) ansehen`,
+        onclick: (e) => { e.stopPropagation(); betrachter(b.belege, 0, e.currentTarget); } },
+      "📎", b.belege.length > 1 ? String(b.belege.length) : "") : null;
+    // mobil ist die Spalte Verwendungszweck ausgeblendet: Marke dann beim Empfänger
+    if (belegMarke) {
+      const zelle = kompakt ? empf : zweckZelle;
+      // Text kürzen, Marke bleibt am Zellenende sichtbar und anklickbar
+      zelle.replaceChildren(h("span", { class: "zelle-text" }, ...zelle.childNodes), belegMarke);
+      zelle.classList.add("mit-marke");
+    }
     const zeile = h("div", { role: "row", tid: `buchung-${b.id}`, class: "zeile", "aria-selected": "false",
       tabindex: "-1", "data-id": String(b.id), "data-status": b.status, "data-vorschlag": b.vorschlag ? "ja" : "nein" },
     datumEl("div", b.datum, { role: "gridcell", class: "zelle zelle-datum", "data-feld": "datum" }),
     empf,
-    h("div", { role: "gridcell", class: "zelle zelle-verwendungszweck", "data-feld": "verwendungszweck" }, b.verwendungszweck),
+    zweckZelle,
     kat,
     this.istKategorie ? kontoZelle(b) : null,
     h("div", { role: "gridcell", class: "zelle zelle-tags", "data-feld": "tags" },
@@ -716,8 +796,117 @@ class Kontoansicht {
     h("div", { role: "gridcell", class: "zelle zelle-status", "data-feld": "status" }, STATUS_TEXT[b.status] || b.status),
     betragEl("div", b.betrag, { role: "gridcell", class: "zelle zelle-betrag", "data-feld": "betrag" }));
     if (b.abgestimmt || b.status === "abgeglichen") zeile.dataset.gesperrt = "ja";
+    const mark = markierung(b);
+    if (mark) zeile.dataset.markierung = mark;
+    const hinweise = [];
+    if (this.wiederkehrend.has(b.id)) {
+      zeile.dataset.wiederkehrend = "ja";
+      hinweise.push("wiederkehrende Buchung");
+    }
+    if (this.mailBestaetigt.has(b.id)) {
+      zeile.dataset.mail = "ja";
+      hinweise.push(`durch Mail bestätigt: ${this.mailBestaetigt.get(b.id)}`);
+    }
+    if (hinweise.length) empf.title = [empfName, ...hinweise].filter(Boolean).join(" – ");
     this.zeilen.set(b.id, zeile);
     return zeile;
+  }
+
+  // ---------------------------------------------------------------- Spaltenbreiten (D-130)
+  spaltenTrenner(feld, text) {
+    const t = h("span", { class: "spalten-trenner", tid: `spalte-trenner-${feld}`, role: "separator",
+      "aria-orientation": "vertical", "aria-label": `Breite der Spalte ${text}`, "data-nicht-ziehen": "",
+      title: "Ziehen ändert die Breite, Doppelklick passt sie an den Inhalt an" });
+    t.addEventListener("click", (e) => e.stopPropagation());
+    t.addEventListener("dblclick", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.spalteAnpassen([feld]);
+    });
+    t.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      e.stopPropagation();
+      this.breitenFestlegen();
+      const start = this.breiten[feld];
+      const x0 = e.clientX;
+      t.setPointerCapture(e.pointerId);
+      t.classList.add("aktiv");
+      const bewegen = (ev) => {
+        this.breiten[feld] = spalteBegrenzen(start + ev.clientX - x0);
+        this.breitenAnwenden();
+      };
+      const ende = () => {
+        t.removeEventListener("pointermove", bewegen);
+        t.removeEventListener("pointerup", ende);
+        t.removeEventListener("pointercancel", ende);
+        t.classList.remove("aktiv");
+        spaltenSpeichern(this.spaltenVariante, this.breiten);
+      };
+      t.addEventListener("pointermove", bewegen);
+      t.addEventListener("pointerup", ende);
+      t.addEventListener("pointercancel", ende);
+    });
+    return t;
+  }
+
+  /** Alle Spalten auf ihre aktuell gezeichnete Breite festlegen (vor dem ersten Ziehen oder Anpassen). */
+  breitenFestlegen() {
+    const kopf = this.liste.querySelector(".liste-kopf");
+    for (const [feld] of this.spalten) {
+      if (this.breiten[feld]) continue;
+      const z = kopf && kopf.querySelector(`.zelle-${feld}`);
+      this.breiten[feld] = spalteBegrenzen(z ? z.getBoundingClientRect().width : SPALTE_ERSATZ);
+    }
+  }
+
+  breitenAnwenden() {
+    const eigen = this.liste.dataset.kompakt !== "ja" && this.spalten.some(([f]) => this.breiten[f]);
+    this.liste.classList.toggle("spalten-eigen", eigen);
+    if (eigen) {
+      this.liste.style.setProperty("--spalten",
+        this.spalten.map(([f]) => `${this.breiten[f] || SPALTE_ERSATZ}px`).join(" "));
+    } else this.liste.style.removeProperty("--spalten");
+  }
+
+  /** Doppelklick auf den Trenner (wie in Excel): Spalte so breit wie ihr breitester Inhalt (Kopf und geladene Zeilen). */
+  spalteAnpassen(felder) {
+    this.breitenFestlegen();
+    const messer = h("div", { class: "spalten-messer", "aria-hidden": "true" });
+    const klone = new Map();
+    for (const feld of felder) {
+      klone.set(feld, [...this.liste.querySelectorAll(`[role="row"] > .zelle-${feld}`)].map((z) => {
+        const k = z.cloneNode(true);
+        k.removeAttribute("data-testid");
+        for (const x of k.querySelectorAll("[data-testid]")) x.removeAttribute("data-testid");
+        messer.append(k);
+        return k;
+      }));
+    }
+    this.liste.append(messer);
+    for (const [feld, liste] of klone) {
+      const w = Math.max(0, ...liste.map((k) => k.getBoundingClientRect().width));
+      if (w > 0) this.breiten[feld] = spalteBegrenzen(Math.ceil(w) + 2);
+    }
+    messer.remove();
+    this.breitenAnwenden();
+    spaltenSpeichern(this.spaltenVariante, this.breiten);
+  }
+
+  spaltenZuruecksetzen() {
+    this.breiten = {};
+    this.breitenAnwenden();
+    spaltenSpeichern(this.spaltenVariante, this.breiten);
+  }
+
+  kopfMenue(e) {
+    e.preventDefault();
+    kontextmenue(e.clientX, e.clientY, [
+      { tid: "km-spalten-anpassen", text: "Alle Spalten an den Inhalt anpassen",
+        tun: () => this.spalteAnpassen(this.spalten.map(([f]) => f)) },
+      { tid: "km-spalten-zuruecksetzen", text: "Spaltenbreiten zurücksetzen", aktiv: this.spalten.some(([f]) => this.breiten[f]),
+        tun: () => this.spaltenZuruecksetzen() },
+    ], null);
   }
 
   auswahlZeigen() {
@@ -858,6 +1047,7 @@ class Kontoansicht {
     });
     this.liste.addEventListener("keydown", (e) => this.taste(e));
     this.liste.addEventListener("contextmenu", (e) => {
+      if (e.target.closest(".liste-kopf") && !oberflaeche.istMobil()) { this.kopfMenue(e); return; }
       const z = zeileVon(e.target);
       if (!z || e.target.closest("input, textarea")) return;
       e.preventDefault();
@@ -865,6 +1055,11 @@ class Kontoansicht {
       if (!this.auswahl.has(id)) { this.auswahl = new Set([id]); this.anker = id; }
       this.fokussieren(id);
       this.menue(e.clientX, e.clientY, z, e.altKey);
+    });
+    // Dateien aus dem Betriebssystem auf eine Zeile ziehen (D-123): gewählte Zeile → alle gewählten Buchungen
+    ablageEinrichten(this.liste, (z) => {
+      const id = Number(z.dataset.id);
+      return this.auswahl.has(id) && this.auswahl.size > 1 ? this.auswahlIds() : [id];
     });
     // Drag and Drop auf eine Kategorie im Panel (10)
     ziehbar(this.liste, {
@@ -941,6 +1136,12 @@ class Kontoansicht {
       { tid: "km-status", text: "Status setzen…", tun: () => this.statusWaehlen(ids, ausloeser) },
       { tid: "km-mehrfach", text: "Bearbeiten…", tun: () => this.mehrfachDialog(ids, ausloeser) },
       this.gegenbuchungEintrag(b, x, y, ausloeser),
+      // Dokumente (D-123): an alle gewählten Buchungen
+      { tid: "km-dokument-anhaengen", text: "Dokument anhängen…", tun: () => dateiWaehlen(ids) },
+      oberflaeche.istMobil() ? { tid: "km-dokument-foto", text: "Foto aufnehmen…", tun: () => dateiWaehlen(ids, { kamera: true }) } : null,
+      { tid: "km-dokument-mail", text: "E-Mail anhängen…", tun: () => mailDialog(ids, ausloeser) },
+      { tid: "km-dokumente-ansehen", text: "Dokumente ansehen", aktiv: !!(b && b.belege && b.belege.length),
+        tun: () => betrachter(b.belege, 0, ausloeser) },
       ...(this.istKategorie ? [] : [{ tid: "km-verschieben", text: "Auf anderes Konto verschieben…",
         tun: () => this.verschiebenDialog(ids, ausloeser) }]),
       { tid: "km-loeschen", text: "Löschen…", tun: () => this.loeschen(ausloeser) },
@@ -991,9 +1192,24 @@ class Kontoansicht {
       if (da()) melde("hinweis", "Filter zurückgesetzt, damit die Buchung sichtbar ist.");
     }
     if (!da()) { melde("fehler", "Die Buchung ist in dieser Ansicht nicht enthalten."); return; }
+    this.sprungMarkieren(id);
+  }
+
+  /**
+   * Sprungziel (D-118, Gegenbuchung, Berichte): wählen, fokussieren, in die Mitte rollen und kurz hervorheben. Mitte
+   * statt „nearest“, weil am Rand sonst die Mehrfachleiste (mobil unten fest) die Zeile verdecken kann (D-129).
+   */
+  sprungMarkieren(id) {
     this.auswahl = new Set([id]);
     this.anker = id;
     this.fokussieren(id);
+    const z = this.zeilen.get(id);
+    if (!z) return;
+    const links = this.listenSpalte ? this.listenSpalte.scrollLeft : 0;
+    z.scrollIntoView({ block: "center" });
+    if (this.listenSpalte) this.listenSpalte.scrollLeft = links;
+    z.classList.add("sprung-ziel");
+    setTimeout(() => z.classList.remove("sprung-ziel"), 2000);
   }
 
   // ---------------------------------------------------------------- Mehrfachbearbeitung (7.5)

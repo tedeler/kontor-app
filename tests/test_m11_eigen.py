@@ -98,5 +98,5 @@ def test_migration_von_schemaversion_8(tmp_path):
     con = sqlite3.connect(pfad)
     spalten = {r[1] for r in con.execute("PRAGMA table_info(sync_lauf_konto)")}
     assert "saldo_abgleich" in spalten
-    assert con.execute("SELECT wert FROM meta WHERE schluessel = 'schema_version'").fetchone()[0] == "9"
+    assert con.execute("SELECT wert FROM meta WHERE schluessel = 'schema_version'").fetchone()[0] == str(db.SCHEMA_VERSION)
     con.close()

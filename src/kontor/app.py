@@ -10,6 +10,7 @@ from __future__ import annotations
 import contextlib
 import datetime as dt
 import functools
+from urllib.parse import quote
 import html
 import logging
 import math
@@ -31,6 +32,7 @@ from starlette.staticfiles import StaticFiles
 from . import (__version__, berichte, buch, db, export, kredite, lernmodell, mail, pflege, protokoll, regeln,
                sicherung, verschieben, vorlagen, wiederkehrend)
 from . import aktualisierung
+from . import abgleich, dokumente, erwartung
 from . import anmeldung as anm
 from . import version as versionsinfo
 from .geheimnisse import REST_NAMEN
@@ -39,6 +41,7 @@ from .sync import SyncDienst
 from .config import KontorConfig
 from .importer.kmymoney import importiere_bytes
 from .importer import gnucash as gnucash_import
+from .importer import alfbanco as alfbanco_import
 from .validierung import (BETRAG_MAX, STATUS, ApiFehler, Feld, Query, Validierungsfehler, fehler_eintrag,
                           json_koerper, pruefe_koerper, pruefe_objekt)
 from .validierung import KONTOARTEN
@@ -47,7 +50,7 @@ log = logging.getLogger("kontor")
 
 WEB = pathlib.Path(__file__).parent / "web"
 #: Routen der Oberfläche (oberflaeche.md 3) und Links aus Benachrichtigungen (/buchungen/<id>, /sync/konten)
-SPA_ROUTEN = ["/", "/konten", "/konten/{konto_id:int}", "/kategorien", "/wiederkehrend", "/kredite",
+SPA_ROUTEN = ["/", "/konten", "/konten/{konto_id:int}", "/kategorien", "/wiederkehrend", "/erwartet", "/kredite",
               "/kredite/{kredit_id:int}", "/berichte", "/import", "/einstellungen", "/protokoll", "/empfaenger", "/regeln",
               "/vorlagen", "/dubletten", "/sync", "/sync/konten", "/benachrichtigungen", "/suche", "/tan/{tan_id:int}",
               "/mail/postfaecher/{postfach_id:int}", "/buchungen/{buchung_id:int}"]
@@ -169,6 +172,13 @@ ABSTIMMUNG_EINGABE = {"konto_id": S("int", pflicht=True), "stichtag": S("datum",
 KONTO_LOESCHEN = {
     "buchungen": S("enum", pflicht=True, werte=("loeschen", "elternkonto", "unkategorisiert")),
     "konflikte": S("enum", pflicht=True, werte=("loeschen", "behalten")),
+    "gesperrte_einbeziehen": S("bool"),
+    "trocken": S("bool"),
+}
+KATEGORIEN_ZUSAMMEN = {
+    "quelle_ids": S("int_liste", pflicht=True, min_items=1, max_items=1000, eindeutig=True),
+    "ziel_id": S("int", pflicht=True),
+    "quellen_loeschen": S("bool"),
     "gesperrte_einbeziehen": S("bool"),
     "trocken": S("bool"),
 }
@@ -932,6 +942,15 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
             return protokoll.mit_aenderung_id(pflege.konto_loeschen_mit_buchungen(con, kid, d))
         return await aendern("konto_loeschen_mit_buchungen", f, pid(request, "konto_id"), d)
 
+    @endpunkt("POST", "/api/kategorien/zusammenfuehren")
+    async def kategorien_zusammenfuehren(request: Request):
+        """Buchungen mehrerer Kategorien auf eine Zielkategorie umbuchen, Quellen auf Wunsch löschen (D-126)."""
+        d = await koerper(request, KATEGORIEN_ZUSAMMEN)
+
+        def f(con, d):
+            return protokoll.mit_aenderung_id(pflege.kategorien_zusammenfuehren(con, d))
+        return await aendern("kategorien_zusammenfuehren", f, d)
+
     @endpunkt("POST", "/api/buchungen/erfassen", 201)
     async def buchung_erfassen(request: Request):
         d = await koerper(request, BUCHUNG_ERFASSEN)
@@ -1246,9 +1265,205 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     async def import_gnucash(request: Request):
         return await datei_importieren(request, gnucash_import.importiere_bytes)
 
+    @endpunkt("POST", "/api/import/alfbanco")
+    async def import_alfbanco(request: Request):
+        """QIF-Export aus ALF-BanCo in ein Bestandskonto (multipart: ``datei``, ``konto_id``; D-123)."""
+        try:
+            form = await request.form()
+        except Exception:
+            raise Validierungsfehler([fehler_eintrag(["body"], "multipart/form-data mit Feld 'datei' erwartet.")]) from None
+        roh_id = form.get("konto_id")
+        if not isinstance(roh_id, str) or not re.fullmatch(r"[1-9][0-9]{0,17}", roh_id.strip()):
+            raise Validierungsfehler([fehler_eintrag(["body", "konto_id"], "Die Konto-ID fehlt oder ist ungültig.")])
+        konto_id = int(roh_id.strip())
+
+        def importieren(con, roh, dateiname, zeitpunkt=None):
+            return alfbanco_import.importiere_bytes(con, roh, dateiname, konto_id, zeitpunkt)
+        return await datei_importieren(request, importieren)
+
     @endpunkt("GET", "/api/importe")
     async def importe(request: Request):
         return await lesen(buch.importe_liste)
+
+    # ------------------------------------------------- Dokumente (D-123)
+    def _inhalt_antwort(daten: bytes, typ: str, dateiname: str, csp: str, herunterladen: bool = False) -> Response:
+        ascii_name = dateiname.replace('"', "'").encode("ascii", "replace").decode("ascii").replace("?", "_")
+        art = "attachment" if herunterladen else "inline"
+        return Response(daten, media_type=typ, headers={
+            "Content-Disposition": f"{art}; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(dateiname, safe='')}",
+            "Content-Security-Policy": csp, "X-Kontor-Einbettbar": "1", "Cache-Control": "private, no-store"})
+
+    @endpunkt("POST", "/api/dokumente", 201)
+    async def dokument_hochladen(request: Request):
+        q = Query(request.query_params)
+        ids = q.ganzzahlen("buchung_id")
+        quelle = q.auswahl("quelle", dokumente.QUELLEN) or "upload"
+        for name in sorted(set(request.query_params) - {"buchung_id", "quelle"}):
+            q.fehler.append(fehler_eintrag(["query", name], "Unbekannter Parameter."))
+        q.pruefen()
+        try:
+            form = await request.form()
+        except Exception:
+            raise Validierungsfehler([fehler_eintrag(["body"], "multipart/form-data mit Feld 'datei' erwartet.")])
+        datei = form.get("datei")
+        if datei is None or isinstance(datei, str) or not hasattr(datei, "read"):
+            raise Validierungsfehler([fehler_eintrag(["body", "datei"], "Die Datei fehlt (Feld 'datei').")])
+        roh = await datei.read()
+        return await aendern("dokument_anhaengen", mit_uhr(
+            lambda con, z: dokumente.anlegen(con, roh, datei.filename or None, ids, quelle, z)))
+
+    @endpunkt("POST", "/api/dokumente/aus-mail", 201)
+    async def dokument_aus_mail(request: Request):
+        d = json_koerper(await request.body())
+        if not isinstance(d, dict) or type(d.get("nachricht_id")) is not int:
+            raise Validierungsfehler([fehler_eintrag(["body", "nachricht_id"], "Ganze Zahl erwartet.")])
+        if set(d) - {"nachricht_id", "buchung_ids"}:
+            raise Validierungsfehler([fehler_eintrag(["body"], "Nur die Felder 'nachricht_id' und 'buchung_ids'.")])
+        return await aendern("dokument_aus_mail", mit_uhr(
+            lambda con, z: dokumente.aus_mail(con, d["nachricht_id"], d.get("buchung_ids"), z)))
+
+    @endpunkt("GET", "/api/dokumente/{dokument_id:int}")
+    async def dokument_lesen(request: Request):
+        return await lesen(dokumente.dokument_lesen, pid(request, "dokument_id"))
+
+    @endpunkt("PATCH", "/api/dokumente/{dokument_id:int}")
+    async def dokument_umbenennen(request: Request):
+        d = json_koerper(await request.body())
+        if not isinstance(d, dict) or set(d) != {"dateiname"}:
+            raise Validierungsfehler([fehler_eintrag(["body"], "Genau das Feld 'dateiname' erwartet.")])
+        did = pid(request, "dokument_id")
+        return await aendern("dokument_umbenennen", lambda con: dokumente.umbenennen(con, did, d["dateiname"]))
+
+    @endpunkt("DELETE", "/api/dokumente/{dokument_id:int}", 204)
+    async def dokument_loeschen(request: Request):
+        did = pid(request, "dokument_id")
+        await aendern("dokument_loeschen", lambda con: dokumente.loeschen(con, did))
+
+    @endpunkt("POST", "/api/dokumente/{dokument_id:int}/buchungen")
+    async def dokument_verknuepfen(request: Request):
+        d = json_koerper(await request.body())
+        did = pid(request, "dokument_id")
+        ids = d.get("buchung_ids") if isinstance(d, dict) else None
+        return await aendern("dokument_verknuepfen", lambda con: dokumente.verknuepfen(con, did, ids))
+
+    @endpunkt("DELETE", "/api/dokumente/{dokument_id:int}/buchungen/{buchung_id:int}")
+    async def dokument_loesen(request: Request):
+        did, bid = pid(request, "dokument_id"), pid(request, "buchung_id")
+        return await aendern("dokument_loesen", lambda con: dokumente.loesen(con, did, bid))
+
+    @endpunkt("GET", "/api/buchungen/{buchung_id:int}/dokumente")
+    async def buchung_dokumente(request: Request):
+        return {"eintraege": await lesen(dokumente.dokumente_liste, pid(request, "buchung_id"))}
+
+    @endpunkt("GET", "/api/dokumente/{dokument_id:int}/inhalt")
+    async def dokument_inhalt(request: Request):
+        q = Query(request.query_params)
+        laden = bool(q.wahrheitswert("herunterladen"))
+        q.pruefen()
+        meta, daten = await lesen(dokumente.inhalt_lesen, pid(request, "dokument_id"))
+        # E-Mails nie als Seite ausliefern (Anzeige über /mail); Bilder und PDF eingebettet
+        typ = meta["mime_typ"] if meta["mime_typ"] != dokumente.MAIL else "application/octet-stream"
+        return _inhalt_antwort(daten, typ, meta["dateiname"], dokumente.CSP_INHALT,
+                               laden or meta["mime_typ"] == dokumente.MAIL)
+
+    async def _mail_roh(request: Request) -> tuple[dict, bytes]:
+        meta, daten = await lesen(dokumente.inhalt_lesen, pid(request, "dokument_id"))
+        if meta["mime_typ"] != dokumente.MAIL:
+            raise ApiFehler(409, "keine_mail", "Das Dokument ist keine E-Mail.")
+        return meta, daten
+
+    @endpunkt("GET", "/api/dokumente/{dokument_id:int}/mail")
+    async def dokument_mail(request: Request):
+        _, daten = await _mail_roh(request)
+        return await run_in_threadpool(dokumente.mail_lesen, daten)
+
+    @endpunkt("GET", "/api/dokumente/{dokument_id:int}/mail/html")
+    async def dokument_mail_html(request: Request):
+        _, daten = await _mail_roh(request)
+        text = await run_in_threadpool(dokumente.mail_html, daten)
+        return _inhalt_antwort(text.encode("utf-8"), "text/html; charset=utf-8", "mail.html", dokumente.CSP_MAIL)
+
+    @endpunkt("GET", "/api/dokumente/{dokument_id:int}/mail/anhaenge/{nr:int}")
+    async def dokument_mail_anhang(request: Request):
+        q = Query(request.query_params)
+        laden = bool(q.wahrheitswert("herunterladen"))
+        q.pruefen()
+        _, daten = await _mail_roh(request)
+        name, typ, inhalt = await run_in_threadpool(dokumente.mail_anhang, daten, pid(request, "nr"))
+        aus = dokumente.anzeige_typ(typ)
+        if aus == "text/plain":
+            aus = "text/plain; charset=utf-8"
+        return _inhalt_antwort(inhalt, aus, name, dokumente.CSP_INHALT,
+                               laden or aus == "application/octet-stream")
+
+    # ------------------------------------------------- Mail-Abgleich: erwartete Zahlungen (D-128)
+    def _heute() -> str:
+        return sync.heute().isoformat()
+
+    @endpunkt("GET", "/api/erwartungen")
+    async def erwartungen(request: Request):
+        q = Query(request.query_params)
+        gruende = q.auswahlen("grund", erwartung.GRUENDE)
+        zustaende = q.auswahlen("zustand", erwartung.ZUSTAENDE + ("ueberfaellig",))
+        bis = q.datum("faellig_bis")
+        suche = q.text("suche")
+        richtung = q.auswahl("richtung", erwartung.RICHTUNGEN)
+        for name in sorted(set(request.query_params) - {"grund", "zustand", "faellig_bis", "suche", "richtung"}):
+            q.fehler.append(fehler_eintrag(["query", name], "Unbekannter Parameter."))
+        q.pruefen()
+        erg = await lesen(erwartung.liste, _heute(), gruende, zustaende, bis, suche, richtung)
+        erg["aktiv"] = config.mail_abgleich
+        return erg
+
+    @endpunkt("POST", "/api/erwartungen", 201)
+    async def erwartung_anlegen(request: Request):
+        d = json_koerper(await request.body())
+        return await aendern("erwartung_anlegen", mit_uhr(
+            lambda con, z: erwartung.anlegen(con, d, _heute(), config.mail_abgleich_frist_tage, z)))
+
+    @endpunkt("POST", "/api/erwartungen/abgleich")
+    async def erwartungen_abgleich(request: Request):
+        """Sofort abgleichen (sonst nach jedem Mail-Abruf, Synchronisationslauf und Planer-Takt)."""
+        if not config.mail_abgleich:
+            raise ApiFehler(409, "mail_abgleich_aus", "Der Mail-Abgleich ist ausgeschaltet (KONTOR_MAIL_ABGLEICH).")
+        return await run_in_threadpool(abgleich.laufen, config, sync.jetzt()) or {}
+
+    @endpunkt("GET", "/api/erwartungen/{erwartung_id:int}")
+    async def erwartung_lesen(request: Request):
+        return await lesen(erwartung.lesen, pid(request, "erwartung_id"), _heute())
+
+    @endpunkt("PATCH", "/api/erwartungen/{erwartung_id:int}")
+    async def erwartung_aendern(request: Request):
+        d = json_koerper(await request.body())
+        eid = pid(request, "erwartung_id")
+        return await aendern("erwartung_aendern", lambda con: erwartung.aendern(con, eid, d, _heute()))
+
+    @endpunkt("DELETE", "/api/erwartungen/{erwartung_id:int}", 204)
+    async def erwartung_loeschen(request: Request):
+        eid = pid(request, "erwartung_id")
+        await aendern("erwartung_loeschen", lambda con: erwartung.loeschen(con, eid))
+
+    @endpunkt("POST", "/api/erwartungen/{erwartung_id:int}/zustand")
+    async def erwartung_zustand(request: Request):
+        d = json_koerper(await request.body())
+        eid = pid(request, "erwartung_id")
+        return await aendern("erwartung_zustand", lambda con: erwartung.zustand_setzen(con, eid, d, _heute()))
+
+    @endpunkt("GET", "/api/erwartungen/{erwartung_id:int}/kandidaten")
+    async def erwartung_kandidaten(request: Request):
+        return await lesen(erwartung.kandidaten, pid(request, "erwartung_id"))
+
+    @endpunkt("POST", "/api/erwartungen/{erwartung_id:int}/buchungen")
+    async def erwartung_zuordnen(request: Request):
+        d = json_koerper(await request.body())
+        eid = pid(request, "erwartung_id")
+        return await aendern("erwartung_zuordnen", mit_uhr(
+            lambda con, z: erwartung.zuordnen(con, eid, d, z, _heute())))
+
+    @endpunkt("DELETE", "/api/erwartungen/{erwartung_id:int}/buchungen/{buchung_id:int}")
+    async def erwartung_loesen(request: Request):
+        eid, bid = pid(request, "erwartung_id"), pid(request, "buchung_id")
+        return await aendern("erwartung_loesen", lambda con: erwartung.loesen(con, eid, bid, _heute()))
 
     # ------------------------------------------------- M9: Datensicherung
     @endpunkt("GET", "/api/sicherung")
