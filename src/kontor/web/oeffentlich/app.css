@@ -508,7 +508,7 @@ html[data-thema="dunkel"] { --mark-gruen: #5fb878; --mark-grau: #6f7884; --mark-
 .zeile[data-wiederkehrend="ja"][data-mail="ja"] .zelle-empfaenger::before { content: "↻ ✉"; }
 
 /* ==================================================================================================================
- * UXMobile (D-131): Bedienung auf dem Handy. Alle Regeln gelten nur im mobilen Layout ([data-layout="mobil"] bzw.
+ * UXMobile (D-141): Bedienung auf dem Handy. Alle Regeln gelten nur im mobilen Layout ([data-layout="mobil"] bzw.
  * dieselbe Breitenabfrage) oder für Elemente, die es nur mobil gibt (.nur-mobil); das Desktop-Layout bleibt gleich.
  * ================================================================================================================== */
 .nur-mobil { display: none; }

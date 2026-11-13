@@ -1273,7 +1273,7 @@ export async function suche(seite, _p, suchtext) {
         betragEl("div", b.betrag, { role: "gridcell", class: "zelle zahl", "data-feld": "betrag" }));
       const konto = b.splits.map((s) => kontoNach(s.konto_id)).find((k) => k && BESTAND.has(k.art));
       z.addEventListener("dblclick", () => { if (konto) oberflaeche.gehe(`/konten/${konto.id}`); });
-      // mobil (D-131): Tippen zeigt die Buchung im Konto (Doppeltippen ist auf dem Handy unüblich)
+      // mobil (D-141): Tippen zeigt die Buchung im Konto (Doppeltippen ist auf dem Handy unüblich)
       z.addEventListener("click", () => { if (konto && oberflaeche.istMobil()) oberflaeche.zurBuchung(konto.id, b.id); });
       z.addEventListener("keydown", (ev) => { if (ev.key === "Enter" && konto) oberflaeche.gehe(`/konten/${konto.id}`); });
       return z;

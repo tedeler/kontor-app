@@ -421,7 +421,7 @@ oberflaeche.zurBuchung = async (kontoId, buchungId) => {
 };
 
 window.addEventListener("popstate", () => {
-  // mobil (D-131): die Zurück-Taste beendet zuerst den Auswahlmodus der Kontoansicht
+  // mobil (D-141): die Zurück-Taste beendet zuerst den Auswahlmodus der Kontoansicht
   if (aktuell && aktuell.seite && aktuell.seite.zurueck && aktuell.el && aktuell.el.isConnected && aktuell.seite.zurueck()) return;
   tabs.verlassen();
   zeigen();
@@ -446,7 +446,7 @@ document.getElementById("suche-form").addEventListener("submit", (e) => {
 });
 tid("rueckgaengig-knopf").addEventListener("click", () => rueckgaengig());
 
-// ------------------------------------------------------------------ Kopfzeile mobil (UXMobile, D-131)
+// ------------------------------------------------------------------ Kopfzeile mobil (UXMobile, D-141)
 // Suche als Lupe: das Suchfeld erscheint erst auf Anforderung als zweite Zeile; leer und ohne Fokus wieder weg.
 const sucheKnopf = tid("suche-knopf");
 const sucheFeld = tid("suche-feld");

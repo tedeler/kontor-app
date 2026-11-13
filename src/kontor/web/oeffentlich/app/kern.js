@@ -279,7 +279,7 @@ export const kategorien = () => baumFolge(stamm.konten.filter((k) => k.art === "
 /** Klasse eines Kontos (datenmodell.md 2): Bestand, Aufwand, Ertrag, Eigenkapital. */
 export const klasse = (k) => (BESTAND.has(k.art) ? "bestand" : k.art);
 
-// ------------------------------------------------------------------ Tabellen mobil als Karten (D-131)
+// ------------------------------------------------------------------ Tabellen mobil als Karten (D-141)
 /**
  * Bereitet eine Tabelle für die Kartenansicht im mobilen Layout vor: jede Zelle bekommt eine Rolle (`data-mk`) und
  * als Beschriftung die Spaltenüberschrift (`data-label`). Rollen je Spalte: titel, betrag, info (mit Beschriftung),

@@ -69,7 +69,7 @@ export function dialog(testid, titel, aufbau, optionen) {
   let ziel = o.fokus ? o.fokus(box) : (box.querySelector("input:not([type=hidden]):not([disabled]), select, textarea")
     || box.querySelector("button:not([disabled])"));
   if (oberflaeche.istMobil && oberflaeche.istMobil()) {
-    // mobil (D-131): die Bildschirmtastatur erst auf Tippen ins Feld öffnen; Tippen neben das Blatt schließt es
+    // mobil (D-141): die Bildschirmtastatur erst auf Tippen ins Feld öffnen; Tippen neben das Blatt schließt es
     if (!o.fokus && ziel && ziel.matches("input:not([type=checkbox]):not([type=radio]):not([type=date]), textarea")) {
       box.tabIndex = -1;
       ziel = box;

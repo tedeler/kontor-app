@@ -1133,7 +1133,7 @@ class Kontoansicht {
       const z = zeileVon(e.target);
       if (!z || e.target.closest("input, textarea")) return;
       e.preventDefault();
-      // mobil (D-131): das vom Browser zur langen Berührung gemeldete Kontextmenü entfällt; sie startet die Auswahl
+      // mobil (D-141): das vom Browser zur langen Berührung gemeldete Kontextmenü entfällt; sie startet die Auswahl
       if (oberflaeche.istMobil() && performance.now() - this.letzteBeruehrung < 2500) return;
       const id = Number(z.dataset.id);
       if (!this.auswahl.has(id)) { this.auswahl = new Set([id]); this.anker = id; }
@@ -1184,7 +1184,7 @@ class Kontoansicht {
       const dy = Math.abs(w.ey - w.y);
       if (w.richtung === undefined && (dx > 10 || dy > 10)) w.richtung = dx > dy ? "waagerecht" : "senkrecht";
       if (dx > 10 && dx > dy && e.cancelable) e.preventDefault();
-      // mobil (D-131): die Zeile folgt dem Finger und zeigt, was beim Loslassen geschieht
+      // mobil (D-141): die Zeile folgt dem Finger und zeigt, was beim Loslassen geschieht
       if (w.richtung === "waagerecht" && oberflaeche.istMobil()) this.wischZeigen(w.z, w.ex - w.x, dy);
     }, { passive: false });
     this.liste.addEventListener("touchcancel", () => { if (w) this.wischEnde(w.z); w = null; });
@@ -1196,7 +1196,7 @@ class Kontoansicht {
       const z = w.z;
       w = null;
       this.wischEnde(z);
-      // mobil zeigt die Zeile den Zustand an: dort zählt nur der Weg, nicht die Dauer (D-131)
+      // mobil zeigt die Zeile den Zustand an: dort zählt nur der Weg, nicht die Dauer (D-141)
       if (Math.abs(dx) < WISCH_WEG || dy > WISCH_QUER || (dt > 1000 && !oberflaeche.istMobil())) return;
       const id = Number(z.dataset.id);
       if (dx > 0) {
@@ -1210,7 +1210,7 @@ class Kontoansicht {
     });
   }
 
-  // ---------------------------------------------------------------- Rückmeldung beim Wischen (D-131)
+  // ---------------------------------------------------------------- Rückmeldung beim Wischen (D-141)
   wischZeigen(z, dx, dy) {
     if (dy > WISCH_QUER) { this.wischEnde(z); return; }
     if (!this.wischHinweis) {
@@ -1348,12 +1348,12 @@ class Kontoansicht {
     this.istKategorie ? null : k("mehrfach-verschieben", "Verschieben…", (el) => this.verschiebenDialog(this.auswahlIds(), el)),
     k("mehrfach-loeschen", "Löschen…", (el) => this.loeschen(el)),
     k("auswahl-aufheben", "Auswahl aufheben", () => { this.auswahl.clear(); this.auswahlZeigen(); }),
-    // mobil (D-131): alle übrigen Aktionen über das Kontextmenü der Auswahl
+    // mobil (D-141): alle übrigen Aktionen über das Kontextmenü der Auswahl
     knopf("Mehr", { tid: "mehrfach-mehr", class: "knopf nur-mobil", "aria-haspopup": "menu",
       onclick: (e) => { const el = e.currentTarget; const [x, y] = menuePosition(null, el); this.menue(x, y, el); } }));
   }
 
-  // ---------------------------------------------------------------- Auswahlmodus mobil (D-131)
+  // ---------------------------------------------------------------- Auswahlmodus mobil (D-141)
   auswahlKopfAufbauen() {
     this.auswahlKopfText = h("span", { class: "auswahl-kopf-text", tid: "auswahl-kopf-anzahl", "aria-live": "polite" });
     return h("div", { class: "auswahl-kopf", tid: "auswahl-kopf", role: "toolbar", "aria-label": "Auswahlmodus", hidden: true },
