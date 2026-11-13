@@ -647,3 +647,67 @@ html[data-thema="dunkel"] .wisch-hinweis[data-bereit="ja"][data-richtung="links"
   [data-layout="mobil"] .zeile.wischt { transition: none; } }
 .app[data-layout="mobil"] ~ .kontextmenue .menue-eintrag[aria-disabled="true"] { display: none; }
 .app[data-layout="mobil"] ~ .dialog-huelle .dialog:focus { outline: none; }
+
+/* Tabellen mobil als Karten (mobilKarten in kern.js): erste Zeile Titel und Betrag, darunter die übrigen Angaben */
+[data-layout="mobil"] .tabelle.mobil-karten { display: block; font-size: 1rem; }
+[data-layout="mobil"] .tabelle.mobil-karten > thead { display: none; }
+[data-layout="mobil"] .tabelle.mobil-karten > :is(tbody, tfoot) { display: block; }
+[data-layout="mobil"] .tabelle.mobil-karten > :is(tbody, tfoot) > tr { display: flex; flex-wrap: wrap; align-items: baseline;
+  column-gap: .9rem; row-gap: .15rem; padding: .55rem .3rem; border-bottom: 1px solid var(--rand); min-height: 44px; }
+[data-layout="mobil"] .tabelle.mobil-karten > :is(tbody, tfoot) > tr::before { content: ""; order: 2; flex-basis: 100%; height: 0; }
+[data-layout="mobil"] .tabelle.mobil-karten > :is(tbody, tfoot) > tr > :is(td, th) { display: block; border: 0; padding: 0; min-width: 0; text-align: left; }
+[data-layout="mobil"] .tabelle.mobil-karten [data-mk="titel"] { order: 0; flex: 1 1 0; font-weight: 600; overflow-wrap: anywhere; }
+[data-layout="mobil"] .tabelle.mobil-karten [data-mk="titel"].name { padding-left: calc(var(--stufe, 0) * 1rem); }
+[data-layout="mobil"] .tabelle.mobil-karten [data-mk="betrag"] { order: 1; flex: none; font-weight: 600; text-align: right; white-space: nowrap; }
+[data-layout="mobil"] .tabelle.mobil-karten > tbody > tr:has(> [data-mk="aktion"]) { position: relative; padding-right: 3.1rem; }
+[data-layout="mobil"] .tabelle.mobil-karten [data-mk="aktion"] { position: absolute; right: 0; top: 50%; transform: translateY(-50%); }
+[data-layout="mobil"] .tabelle.mobil-karten [data-mk="aktion"] .knopf { min-width: 44px; width: 44px; padding: 0; }
+[data-layout="mobil"] .tabelle.mobil-karten [data-mk="aktion"] .knopf:not(.knopf-flach) { font-size: 0; }
+[data-layout="mobil"] .tabelle.mobil-karten [data-mk="aktion"] .knopf:not(.knopf-flach)::before { content: "✎"; font-size: 1.15rem; }
+[data-layout="mobil"] .tabelle.mobil-karten [data-mk="aktion"] .knopf-flach { font-size: 1.3rem; }
+[data-layout="mobil"] .tabelle.mobil-karten [data-mk="auswahl"] { order: -1; flex: none; align-self: center; }
+[data-layout="mobil"] .tabelle.mobil-karten [data-mk="auswahl"] input { width: 1.35rem; height: 1.35rem; }
+[data-layout="mobil"] .tabelle.mobil-karten :is([data-mk="info"], [data-mk="info-"], [data-mk="status"]) { order: 3; font-size: .85rem; color: var(--text-2); }
+[data-layout="mobil"] .tabelle.mobil-karten [data-mk="info"]::before { content: attr(data-label) " "; opacity: .85; }
+[data-layout="mobil"] .tabelle.mobil-karten [data-mk="info"] { color: var(--text); }
+[data-layout="mobil"] .tabelle.mobil-karten [data-mk="info"]::before { color: var(--text-2); }
+[data-layout="mobil"] .tabelle.mobil-karten [data-mk="zeile"] { order: 3; flex-basis: 100%; font-size: .85rem; color: var(--text-2); }
+[data-layout="mobil"] .tabelle.mobil-karten [data-mk="aktion2"] { order: 4; margin-left: auto; }
+[data-layout="mobil"] .tabelle.mobil-karten [data-mk="aktion2"] .knopf { min-height: 40px; }
+[data-layout="mobil"] .tabelle.mobil-karten [data-mk="weg"],
+[data-layout="mobil"] .tabelle.mobil-karten :is([data-mk="info"], [data-mk="info-"], [data-mk="zeile"]):empty { display: none; }
+[data-layout="mobil"] .tabelle.mobil-karten [data-mk="status"] { background: var(--hg-3); border-radius: 9px; padding: 0 .5rem; font-size: .78rem; }
+[data-layout="mobil"] .tabelle.mobil-karten tr[data-status="ausbleibend"] [data-mk="status"] { background: color-mix(in srgb, var(--hinweis) 22%, transparent); color: var(--text); }
+[data-layout="mobil"] .tabelle.mobil-karten tr[data-status="beendet"] { opacity: .7; }
+[data-layout="mobil"] .tabelle.mobil-karten > tfoot > tr { font-weight: 600; background: var(--hg-2); }
+[data-layout="mobil"] .tabelle.mobil-karten > tbody > tr > td:not([data-mk]) { flex-basis: 100%; order: 5; }
+[data-layout="mobil"] .tabelle.mobil-karten .bericht-details > td { padding: .3rem 0 .3rem .6rem; }
+
+/* Suchtreffer mobil wie die kompakte Buchungsliste */
+[data-layout="mobil"] .buchungsliste.treffer .liste-kopf { display: none; }
+[data-layout="mobil"] .buchungsliste.treffer .zeile { grid-template-columns: auto minmax(0, 1fr) auto; column-gap: .5rem;
+  grid-template-areas: "empf empf betrag" "datum kat kat" "zweck zweck zweck"; min-height: 58px; padding: .45rem .3rem; cursor: pointer; }
+[data-layout="mobil"] .buchungsliste.treffer .zelle { padding: 0; }
+[data-layout="mobil"] .buchungsliste.treffer [data-feld="empfaenger"] { grid-area: empf; font-weight: 600; }
+[data-layout="mobil"] .buchungsliste.treffer [data-feld="betrag"] { grid-area: betrag; font-weight: 600; }
+[data-layout="mobil"] .buchungsliste.treffer :is([data-feld="datum"], [data-feld="kategorie"], [data-feld="verwendungszweck"]) {
+  font-size: .82rem; color: var(--text-2); }
+[data-layout="mobil"] .buchungsliste.treffer [data-feld="datum"] { grid-area: datum; }
+[data-layout="mobil"] .buchungsliste.treffer [data-feld="kategorie"] { grid-area: kat; }
+[data-layout="mobil"] .buchungsliste.treffer [data-feld="verwendungszweck"] { grid-area: zweck; }
+/* Diagramme: Werkzeugleiste von Plotly verdeckt mobil die Legende; Zoomen geht mit zwei Fingern */
+[data-layout="mobil"] .modebar-container { display: none; }
+/* Nullbeträge in Kartenangaben weglassen (z. B. Sondertilgung 0,00 €) */
+[data-layout="mobil"] .tabelle.mobil-karten [data-mk="info"][data-betrag="0"] { display: none; }
+/* Kredite: Name auf eigener Zeile */
+[data-layout="mobil"] [data-testid="kredite-liste"] .karte > strong { display: block; font-size: 1.05rem; margin-bottom: .2rem; }
+
+/* Filterleiste mobil: zweispaltiges Raster */
+[data-layout="mobil"] .filter-leiste { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: .45rem .6rem; align-items: end; }
+[data-layout="mobil"] .filter-leiste[hidden] { display: none; }
+[data-layout="mobil"] .filter-leiste .feld :is(input, select) { width: 100%; }
+[data-layout="mobil"] .filter-leiste input[type="text"] { width: 100%; }
+[data-layout="mobil"] .filter-leiste .wahl { margin: 0; min-height: 44px; }
+[data-layout="mobil"] .filter-leiste > :is(fieldset, .status-filter, button, .knopf) { grid-column: 1 / -1; }
+[data-layout="mobil"] .filter-leiste fieldset .wahl { min-height: 40px; }
+[data-layout="mobil"] .filter-leiste fieldset { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: .6rem; }
