@@ -1518,15 +1518,18 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     @endpunkt("GET", "/api/erwartungen")
     async def erwartungen(request: Request):
         q = Query(request.query_params)
-        gruende = q.auswahlen("grund", erwartung.GRUENDE)
+        gruende = q.auswahlen("grund", erwartung.GRUENDE + ("serie",))
         zustaende = q.auswahlen("zustand", erwartung.ZUSTAENDE + ("ueberfaellig",))
         bis = q.datum("faellig_bis")
         suche = q.text("suche")
         richtung = q.auswahl("richtung", erwartung.RICHTUNGEN)
-        for name in sorted(set(request.query_params) - {"grund", "zustand", "faellig_bis", "suche", "richtung"}):
+        serien = q.auswahl("serien", ("ja", "nein")) == "ja"
+        for name in sorted(set(request.query_params) - {"grund", "zustand", "faellig_bis", "suche", "richtung",
+                                                         "serien"}):
             q.fehler.append(fehler_eintrag(["query", name], "Unbekannter Parameter."))
         q.pruefen()
-        erg = await lesen(erwartung.liste, _heute(), gruende, zustaende, bis, suche, richtung)
+        erg = await lesen(erwartung.liste, _heute(), gruende, zustaende, bis, suche, richtung,
+                          config.mail_abgleich_frist_tage, serien)
         erg["aktiv"] = config.mail_abgleich
         return erg
 

@@ -229,3 +229,49 @@ def test_aus_mail_erkannt_nicht_loeschbar(app_c):
     (e,) = c.get("/api/erwartungen").json()["eintraege"]
     assert c.delete(f"/api/erwartungen/{e['id']}").status_code == 409
     assert dt.date.fromisoformat(e["frist"]) == dt.date(2024, 3, 6)
+
+
+def test_erstattung_uebernimmt_kategorie_der_bestellung(app_c):
+    c, cfg, giro, kat = app_c
+    spiegeln(cfg, *bestellung(summe="9,99 €"), "<a1@example.invalid>")
+    buchung(c, giro, kat, -999, zweck=f"AMZN {NR}")
+    spiegeln(cfg, AMAZON, "Ihre Erstattung", f"Bestellnr. {NR}\nErstattungsbetrag: 9,99 €", "<a2@example.invalid>",
+             empfangen="2024-03-10T10:00:00Z")
+    abgleich(c)
+    unkat = c.post("/api/konten", json={"name": "Unkategorisiert", "art": "eigenkapital"}).json()["id"]
+    g = buchung(c, giro, unkat, 999, datum="2024-03-12", zweck=f"Erstattung {NR}")
+    abgleich(c)
+    konten = {s["konto_id"] for s in c.get(f"/api/buchungen/{g}").json()["splits"]}
+    assert konten == {giro, kat}   # Gegenbuchung jetzt auf der Kategorie der Bestellung
+
+
+def test_serien_erscheinen_als_grund(app_c):
+    c, cfg, giro, kat = app_c
+    heute = dt.date.today()
+    eid = c.post("/api/empfaenger", json={"name": "Streamingdienst (fiktiv)"}).json()["id"]
+    for monate in (3, 2, 1):
+        d = (heute.replace(day=1) - dt.timedelta(days=28 * monate)).replace(day=5)
+        c.post("/api/buchungen", json={"datum": d.isoformat(), "empfaenger_id": eid,
+                                       "verwendungszweck": "Abo", "splits": [
+                                           {"konto_id": giro, "betrag": -1299}, {"konto_id": kat, "betrag": 1299}]})
+    assert not [e for e in c.get("/api/erwartungen").json()["eintraege"] if e["grund"] == "serie"]  # D-139
+    alle = c.get("/api/erwartungen", params={"serien": "ja"}).json()["eintraege"]
+    serien = [e for e in alle if e["grund"] == "serie"]
+    assert len(serien) == 1 and serien[0]["betrag"] == 1299 and serien[0]["haendler"] == "Streamingdienst (fiktiv)"
+    assert c.get("/api/erwartungen", params={"grund": "bestellung"}).json()["anzahl"] == 0
+    assert c.get("/api/erwartungen", params={"grund": "serie"}).json()["anzahl"] == 1
+
+
+def test_mock_modus_ende_zu_ende(tmp_path):
+    cfg = KontorConfig(datenbank=tmp_path / "m.sqlite3", mock_modus=True, mail_abgleich=True, planer_starten=False)
+    c = TestClient(create_app(cfg))
+    for a in ("haushalt.eins@example.invalid", "haushalt.zwei@example.invalid"):
+        assert c.post("/api/mail/postfaecher", json={"adresse": a}).status_code == 201
+    assert c.post("/api/sync", json={}).json()["status"] == "erfolgreich"
+    assert c.post("/api/mail/abruf").status_code == 200
+    abgleich(c)
+    erfuellt = c.get("/api/erwartungen", params={"zustand": "erfuellt"}).json()["eintraege"]
+    gruende = {e["grund"] for e in erfuellt}
+    assert {"bestellung", "paypal"} <= gruende, gruende
+    b = erfuellt[0]["buchung_ids"][0]
+    assert c.get(f"/api/buchungen/{b}").json()["belege"], "Mail als Beleg an der Buchung"

@@ -1647,6 +1647,26 @@ Weitere Abkürzungen: SY = `spec/api/synchronisation.md`, KA =
   Schnellfilter als Chips (Grund, Zustand mit Vorgabe „Offen“, Fällig bis, Suche) im Abfrageteil der Adresse (je
   Tab), eine Zeile je Vorgang, Details mit Mails, Zuordnungen, Belegen und Kandidaten; mobil als Karten.
 
+## D-131 Mail-Abgleich, Fortsetzung: Serien, Kachel, Mock-Daten, Kategorie bei Erstattungen (ergänzt D-128)
+
+- **Serien als Grund:** `GET /api/erwartungen` liefert bei offenen bzw. überfälligen Einträgen zusätzlich die nächste
+  Zahlung jeder aktiven oder ausbleibenden wiederkehrenden Serie (wiederkehrend.md 2) als Eintrag mit
+  `grund = "serie"`, `id = "serie:<schluessel>"`, Datum = nächste Fälligkeit, Frist = Datum +
+  `mail_abgleich_frist_tage`, `konto_id`. Abgeleitet, nicht gespeichert; keine eigene Benachrichtigung (die
+  Meldung „ausbleibend“ der Serien bleibt maßgeblich). Ausgelassen werden Serien, deren letzte Buchung schon
+  einer erwarteten Zahlung aus einer Mail zugeordnet ist (regelmäßige Einkäufe, sonst doppelt). Filter `grund=serie`. In der Oberfläche führt die Zeile zu
+  den wiederkehrenden Buchungen.
+- **Kachel:** Die Finanzübersicht zeigt mit eingeschaltetem Mail-Abgleich unten die Kachel `kachel-erwartet`
+  („Was kommt noch?“: offen, überfällig, Summe) für Bestellungen, PayPal, Rückerstattungen und manuelle Einträge
+  (ohne Serien, damit Gehalt und Miete die Zahl nicht dominieren). Damit ist die Seite auch auf dem Handy erreichbar.
+- **Mock-Daten:** Der eingebaute Datensatz enthält je Monat eine Amazon-Bestellung (Postfach eins), jedes dritte
+  Monat eine Amazon-Erstattung, eine PayPal-Zahlung (Postfach zwei) und die passenden Umsätze im Girokonto
+  (Bestellnummer bzw. Händlername im Verwendungszweck). Absender unter `example.invalid`.
+- **Erstattung:** Wird eine Rückerstattung einer Gutschrift zugeordnet, deren Gegenbuchung (genau zwei Splits, kein
+  offener Vorschlag) noch auf „Unkategorisiert“ steht, wird sie in derselben Änderung auf die Kategorie der
+  ursprünglichen Buchung umgebucht (rückgängig machbar). Ein Vorschlag im Sinne von kategorisierung.md ist das
+  nicht, weil dessen Quellen festgelegt sind.
+
 ## D-123 ALF-BanCo-Import über den QIF-Export (Feature `alfbanco-import`)
 
 - **Frage:** ALF-BanCo 9 speichert seine Daten verschlüsselt (`HbDat001.dat`), das Format ist nicht dokumentiert.
@@ -1878,3 +1898,11 @@ D-123 bis D-127 sind auf den offenen Branches `dokumente` und `alfbanco-import` 
   dem Zusammenhang: **D-129** = Schutz der Geheimnisse mit dem Login-Passwort bzw. Sprungziel mittig, **D-130** =
   Gmail mit App-Passwort bzw. Spaltenbreiten und Markierung. Abnahme als M23 (Geheimnisse und Gmail) und M24
   (Serien im Mail-Abgleich, D-131); neue Einträge ab D-139.
+
+## D-139 Serien in der Liste der Erwartungen nur auf Anfrage (ergänzt D-131)
+
+- **Anlass:** Vorbereitung der Abnahme (M24). Mit D-131 lieferte `GET /api/erwartungen` ohne Grundfilter auch
+  Einträge mit `grund = "serie"`; das änderte die Antwort früherer Aufrufe (M20) rückwärtsinkompatibel.
+- **Entscheidung:** Serien erscheinen nur mit `grund=serie` oder mit dem neuen Abfrageparameter `serien=ja` (ohne
+  Grundfilter). Die Seite `/erwartet` setzt `serien=ja`, solange kein Grund gewählt ist; sichtbares Verhalten
+  unverändert.

@@ -119,6 +119,16 @@ export async function uebersicht(seite) {
       h("div", { class: "seiten-kopf" }, h("h2", null, "Kategorien"), umschalten),
       kategorienInhalt,
       h("p", { class: "klein" }, "Ausgaben, Einnahmen und Sonstige über alle Buchungen; Einnahmen positiv angezeigt.")));
+  // D-128: Kachel „Was kommt noch?“ (nur mit eingeschaltetem Mail-Abgleich), auch der Zugang auf dem Handy
+  try {
+    const e = await api("GET", "/api/erwartungen?grund=bestellung&grund=paypal&grund=rueckerstattung&grund=manuell");
+    if (e.aktiv) {
+      seite.append(h("a", { href: "/erwartet", class: "karte kachel-erwartet", tid: "kachel-erwartet" },
+        h("strong", null, "Was kommt noch?"), " ",
+        `${e.anzahl} offen`, e.ueberfaellig ? h("span", { class: "warnung" }, ` · ${e.ueberfaellig} überfällig`) : "",
+        " · ", betragEl("span", e.summe_offen)));
+    }
+  } catch { /* ohne Kachel */ }
   return { titel: "Finanzübersicht" };
 }
 
