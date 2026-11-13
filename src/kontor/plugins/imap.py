@@ -28,7 +28,7 @@ from ..config import KontorConfig
 from ..fehler import (MailAnmeldungAbgelehnt, MailAnmeldungFehlt, MailFehler, MailOrdnerUnbekannt,
                       MailVerbindungsFehler, PluginNichtVerfuegbar, PostfachUnbekannt)
 from ..netz import tls_kontext
-from .mail import MailNachricht, MailPlugin
+from .mail import MailNachricht, MailPlugin, mit_roh
 
 UTC = dt.timezone.utc
 _MONATE = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
@@ -121,8 +121,8 @@ def abbilden(roh: bytes, postfach: str, empfangen: dt.datetime, uidvalidity: str
             text = _teil_text(teil)
         elif art == "text/html" and html_inhalt is None:
             html_inhalt = html_text(_teil_text(teil))
-    return MailNachricht(mid or f"imap:{uidvalidity}:{uid}", postfach, empfangen, absender, betreff,
-                         text if text is not None else (html_inhalt if html_inhalt is not None else ""))
+    return mit_roh(MailNachricht(mid or f"imap:{uidvalidity}:{uid}", postfach, empfangen, absender, betreff,
+                                 text if text is not None else (html_inhalt if html_inhalt is not None else "")), roh)
 
 
 def _internaldate(kopf: bytes) -> dt.datetime | None:

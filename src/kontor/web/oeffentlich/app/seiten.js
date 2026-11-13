@@ -9,7 +9,7 @@ import {
   zuordnungDialog,
 } from "./ui.js";
 import { kategorienBaum, kontoMenue, langeBeruehrung } from "./baum.js";
-import { begruendungZeigen, layoutZuruecksetzen } from "./konto.js";
+import { begruendungZeigen, filterText, layoutZuruecksetzen, wkFilterDialog } from "./konto.js";
 
 const kopf = (seite, titel, ...werkzeuge) => {
   seite.append(h("div", { class: "seiten-kopf" }, h("h1", null, titel),
@@ -159,7 +159,9 @@ export async function kategorienSeite(seite) {
   const zeichnen = () => ort.replaceChildren(kategorienBaum({ neuZeichnen: zeichnen }));
   zeichnen();
   seite.append(h("p", { class: "klein" }, "Kategorien per Drag and Drop auf eine andere Kategorie ziehen (wird Unterkategorie) "
-    + "oder auf die Gruppenüberschrift (oberste Ebene); ohne Maus über das Kontextmenü „Verschieben nach…“."), ort);
+    + "oder auf die Gruppenüberschrift (oberste Ebene); ohne Maus über das Kontextmenü „Verschieben nach…“. "
+    + "Mit Strg/Umschalt (oder Leertaste) mehrere markieren und über das Kontextmenü „Zusammenführen in…“ "
+    + "ihre Buchungen in eine andere Kategorie überführen."), ort);
   return { titel: "Kategorien" };
 }
 
@@ -179,7 +181,7 @@ export async function wiederkehrend(seite) {
     kontextmenue(x, y, [
       { tid: "km-serie-begruendung", text: "Warum wiederkehrend?", tun: () => begruendungZeigen(letzte, ausloeser) },
       { tid: "km-serie-springen", text: "Letzte Buchung im Kontoblatt zeigen",
-        tun: () => oberflaeche.gehe(`/konten/${s.konto_id}?buchung=${letzte}`) },
+        tun: () => oberflaeche.zurBuchung(s.konto_id, letzte) },
     ], ausloeser);
   };
   const zeile = (s) => {
@@ -345,12 +347,18 @@ export async function berichte(seite) {
     try { b = await api("GET", "/api/berichte/kontostand" + abfrage({ ...p, intervall: intervall.value })); }
     catch (e) { if (n === lauf) { ausgabe.replaceChildren(h("p", { class: "fehler", role: "alert" }, e.message)); seite.dataset.geladen = "ja"; } return; }
     if (n !== lauf) return;
-    await diagrammZeichnen(diagramm, b);
+    const plot = await diagrammZeichnen(diagramm, b);
     if (n !== lauf) return;
-    ausgabe.replaceChildren(h("table", { class: "tabelle", tid: "bericht-tabelle" },
+    const hinweis = h("p", { class: "klein", tid: "bericht-zoom-hinweis", hidden: true });
+    ausgabe.replaceChildren(hinweis, h("table", { class: "tabelle", tid: "bericht-tabelle" },
       h("thead", null, h("tr", null, h("th", { scope: "col" }, "Stichtag"), b.reihen.map((r) => h("th", { scope: "col" }, r.name)))),
       h("tbody", null, b.stichtage.map((tag, i) => h("tr", { tid: `bericht-zeile-${tag}` }, datumEl("th", tag, { scope: "row" }),
         b.reihen.map((r) => betragEl("td", r.werte[i], { class: "zahl", "data-konto-id": String(r.konto_id) })))))));
+    const zeilen = ausgabe.querySelectorAll("tbody tr");
+    // Zeile i umfasst die Buchungen nach dem vorigen Stichtag bis einschließlich ihres Stichtags
+    aufklappbar(zeilen, (i) => ({ von: i ? tagDanach(b.stichtage[i - 1]) : b.stichtage[0], bis: b.stichtage[i] }),
+      ids, { spalten: 1 + b.reihen.length, praefix: "bericht" });
+    zoomFolgen(plot, zeilen, (tr, i) => b.stichtage[i], hinweis);
     seite.dataset.geladen = "ja";
   }
   for (const el of [konten, von, bis, intervall]) el.addEventListener("change", laden);
@@ -362,11 +370,16 @@ export async function berichte(seite) {
       const b = await api("GET", "/api/berichte/einnahmen-ausgaben" + abfrage({ konto_id: ids, von: von.value || null,
         bis: bis.value || null, intervall: intervall.value }));
       eaDiagramm.hidden = !b.perioden.length;
-      if (b.perioden.length) await eaZeichnen(eaDiagramm, b);
-      ea.replaceChildren(tabelle(null, ["Zeitraum", "Einnahmen", "Ausgaben", "Saldo", "nicht kategorisiert"],
+      const plot = b.perioden.length ? await eaZeichnen(eaDiagramm, b) : null;
+      const hinweis = h("p", { class: "klein", tid: "bericht-ea-zoom-hinweis", hidden: true });
+      ea.replaceChildren(hinweis, tabelle(null, ["Zeitraum", "Einnahmen", "Ausgaben", "Saldo", "nicht kategorisiert"],
         b.perioden.map((p) => h("tr", null, h("td", null, `${datumText(p.von)} – ${datumText(p.bis)}`), betragEl("td", p.einnahmen, { class: "zahl" }),
           betragEl("td", p.ausgaben, { class: "zahl" }), betragEl("td", p.saldo, { class: "zahl" }),
           betragEl("td", p.nicht_kategorisiert, { class: "zahl" })))));
+      const zeilen = ea.querySelectorAll("tbody tr");
+      aufklappbar(zeilen, (i) => ({ von: b.perioden[i].von, bis: b.perioden[i].bis }), ids,
+        { spalten: 5, praefix: "bericht-ea", ohneUmbuchungen: true });
+      zoomFolgen(plot, zeilen, (tr, i) => b.perioden[i].von, hinweis);
     } catch (e) { melde("fehler", e.message); }
   } });
   seite.append(abschnitt("Kontostandsverlauf", h("div", { class: "formular-zeile" }, feld("Konten", konten), feld("Von", von),
@@ -424,6 +437,8 @@ function plotlyLayout(f, achse, extra) {
   return {
     margin: { l: 100, r: 16, t: 36, b: 40 }, height: 320, separators: ",.", paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
     font: { color: f.text, family: "inherit" }, hovermode: "x unified", showlegend: true,
+    // Tooltip in den Farben des Themas: ohne Angabe nimmt Plotly einen hellen Hintergrund
+    hoverlabel: { bgcolor: f.hg, bordercolor: f.rand, font: { color: f.text, family: "inherit" } },
     legend: { orientation: "h", x: 0, y: 1.02, yanchor: "bottom" },
     xaxis: { type: "date", gridcolor: f.rand, linecolor: f.rand, tickformat: "%d.%m.%Y", hoverformat: "%d.%m.%Y" },
     yaxis: { tickmode: "array", tickvals: achse.tickvals, ticktext: achse.ticktext, range: achse.range, gridcolor: f.rand,
@@ -448,26 +463,27 @@ async function diagrammZeichnen(rahmen, b) {
   }
   let Plotly = null;
   try { Plotly = await plotlyLaden(); } catch (e) { /* offline: einfaches SVG */ }
-  if (!Plotly) { rahmen.replaceChildren(svgDiagramm(b)); return; }
+  if (!Plotly) { rahmen.replaceChildren(svgDiagramm(b)); return null; }
   rahmen.replaceChildren(el);
   const f = farben();
   const spuren = b.reihen.map((r, j) => ({
     type: "scatter", mode: b.stichtage.length > 60 ? "lines" : "lines+markers", name: r.name, x: b.stichtage, y: r.werte,
     line: { color: FARBEN[j % FARBEN.length], width: 2, shape: "hv" }, marker: { size: 5 },
-    customdata: r.werte.map((v) => betragText(v)), hovertemplate: "%{customdata}<extra>%{fullData.name}</extra>",
+    customdata: r.werte.map((v) => betragText(v)), hovertemplate: "%{fullData.name}: %{customdata}<extra></extra>",
   }));
   if (b.reihen.length > 1) {
     const summe = b.stichtage.map((_, i) => b.reihen.reduce((s, r) => s + r.werte[i], 0));
     spuren.push({ type: "scatter", mode: "lines", name: "Summe", x: b.stichtage, y: summe, line: { color: f.text2, width: 1.5, dash: "dot", shape: "hv" },
-      customdata: summe.map((v) => betragText(v)), hovertemplate: "%{customdata}<extra>Summe</extra>" });
+      customdata: summe.map((v) => betragText(v)), hovertemplate: "Summe: %{customdata}<extra></extra>" });
   }
   const achse = centAchse(spuren.flatMap((s) => s.y));
   await Plotly.newPlot(el, spuren, plotlyLayout(f, achse), PLOTLY_OPTIONEN);
+  return el;
 }
 
 async function eaZeichnen(rahmen, b) {
   let Plotly = null;
-  try { Plotly = await plotlyLaden(); } catch (e) { rahmen.replaceChildren(); return; }
+  try { Plotly = await plotlyLaden(); } catch (e) { rahmen.replaceChildren(); return null; }
   const el = h("div", { tid: "bericht-ea-diagramm", role: "img", class: "diagramm plotly-diagramm",
     "aria-label": `Einnahmen und Ausgaben von ${datumText(b.von)} bis ${datumText(b.bis)}` });
   rahmen.replaceChildren(el);
@@ -477,14 +493,131 @@ async function eaZeichnen(rahmen, b) {
   const ausgaben = b.perioden.map((p) => -Math.abs(p.ausgaben));
   const spuren = [
     { type: "bar", name: "Einnahmen", x, y: b.perioden.map((p) => p.einnahmen), marker: { color: f.erfolg },
-      customdata: b.perioden.map((p) => [betragText(p.einnahmen), text(p)]), hovertemplate: "%{customdata[1]}: %{customdata[0]}<extra>Einnahmen</extra>" },
+      customdata: b.perioden.map((p) => [betragText(p.einnahmen), text(p)]), hovertemplate: "Einnahmen %{customdata[1]}: %{customdata[0]}<extra></extra>" },
     { type: "bar", name: "Ausgaben", x, y: ausgaben, marker: { color: f.gefahr },
-      customdata: b.perioden.map((p) => [betragText(-Math.abs(p.ausgaben)), text(p)]), hovertemplate: "%{customdata[1]}: %{customdata[0]}<extra>Ausgaben</extra>" },
+      customdata: b.perioden.map((p) => [betragText(-Math.abs(p.ausgaben)), text(p)]), hovertemplate: "Ausgaben %{customdata[1]}: %{customdata[0]}<extra></extra>" },
     { type: "scatter", mode: "lines+markers", name: "Saldo", x, y: b.perioden.map((p) => p.saldo), line: { color: f.akzent, width: 2 },
-      customdata: b.perioden.map((p) => [betragText(p.saldo), text(p)]), hovertemplate: "%{customdata[1]}: %{customdata[0]}<extra>Saldo</extra>" },
+      customdata: b.perioden.map((p) => [betragText(p.saldo), text(p)]), hovertemplate: "Saldo %{customdata[1]}: %{customdata[0]}<extra></extra>" },
   ];
   const achse = centAchse(spuren.flatMap((s) => s.y));
   await Plotly.newPlot(el, spuren, plotlyLayout(f, achse, { barmode: "relative", hovermode: "closest" }), PLOTLY_OPTIONEN);
+  return el;
+}
+
+const tagDanach = (iso) => {
+  const d = new Date(`${iso}T12:00`);
+  d.setDate(d.getDate() + 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
+const MAX_EINZELBUCHUNGEN = 500;
+
+/** Buchungen im Zeitraum mit Split auf einem der Konten `ids` (ohne Konten: alle), nach Datum. */
+async function einzelbuchungen(ids, von, bis) {
+  const anfragen = (ids.length ? ids : [null]).map((k) => api("GET", "/api/buchungen" + abfrage({ konto_id: k, von, bis,
+    sortierung: "datum", pro_seite: MAX_EINZELBUCHUNGEN })));
+  const listen = await Promise.all(anfragen);
+  const nachId = new Map();
+  for (const l of listen) for (const e of l.eintraege) nachId.set(e.id, e);
+  const alle = [...nachId.values()].sort((a, b) => (a.datum < b.datum ? -1 : a.datum > b.datum ? 1 : a.id - b.id));
+  return { eintraege: alle, unvollstaendig: listen.some((l) => l.gesamt > l.eintraege.length) };
+}
+
+/**
+ * Macht die Zeilen einer Berichtstabelle aufklappbar: Aufgeklappt folgt eine Zeile mit den Einzelbuchungen des
+ * Zeitraums `bereich(i)` und je beteiligtem Konto einem Knopf, der die Buchung im Kontoblatt zeigt (`?buchung=`).
+ * Die Detailzeile entsteht erst beim Aufklappen; der Text der ersten Zelle bleibt unverändert.
+ */
+function aufklappbar(zeilen, bereich, ids, { spalten, praefix, ohneUmbuchungen }) {
+  const gewaehlt = new Set(ids);
+  zeilen.forEach((tr, i) => {
+    const zelle = tr.firstElementChild;
+    const k = h("button", { type: "button", class: "aufklapp-knopf", tid: `${praefix}-aufklappen-${i}`,
+      "aria-expanded": "false", "aria-label": "Einzelbuchungen zeigen" });
+    zelle.prepend(k);
+    k.addEventListener("click", async () => {
+      const offen = tr.dataset.offen !== "ja";
+      tr.dataset.offen = offen ? "ja" : "nein";
+      k.setAttribute("aria-expanded", String(offen));
+      k.setAttribute("aria-label", offen ? "Einzelbuchungen ausblenden" : "Einzelbuchungen zeigen");
+      if (!offen) { if (tr.detailZeile) tr.detailZeile.hidden = true; return; }
+      if (tr.detailZeile) { tr.detailZeile.hidden = tr.hidden; return; }
+      const inhalt = h("td", { colspan: String(spalten) }, h("p", { class: "klein" }, "Lade Buchungen …"));
+      tr.detailZeile = h("tr", { class: "bericht-details", tid: `${praefix}-details-${i}` }, inhalt);
+      tr.after(tr.detailZeile);
+      const { von, bis } = bereich(i);
+      try {
+        const { eintraege, unvollstaendig } = await einzelbuchungen(ids, von, bis);
+        const liste = ohneUmbuchungen ? eintraege.filter((e) => !e.ist_umbuchung) : eintraege;
+        inhalt.replaceChildren(buchungsTabelle(liste, gewaehlt, praefix),
+          unvollstaendig ? h("p", { class: "klein" }, `Nur die ersten ${MAX_EINZELBUCHUNGEN} Buchungen je Konto.`) : null);
+      } catch (e) {
+        inhalt.replaceChildren(h("p", { class: "fehler", role: "alert" }, e.message));
+      }
+    });
+  });
+}
+
+function buchungsTabelle(liste, gewaehlt, praefix) {
+  if (!liste.length) return h("p", { class: "leer" }, "Keine Buchungen in diesem Zeitraum.");
+  // Betrag: Wirkung auf die gewählten Konten, ohne Auswahl auf alle Bestandskonten
+  const zaehlt = (s) => (gewaehlt.size ? gewaehlt.has(s.konto_id) : BESTAND.has((kontoNach(s.konto_id) || {}).art));
+  return tabelle({ class: "tabelle einzelbuchungen" }, ["Datum", "Empfänger", "Verwendungszweck", "Betrag", "Im Konto zeigen"],
+    liste.map((e) => {
+      const konten = [...new Set(e.splits.map((s) => s.konto_id))]
+        .sort((a, b) => Number(gewaehlt.has(b)) - Number(gewaehlt.has(a)));
+      return h("tr", { tid: `${praefix}-buchung-${e.id}`, "data-id": String(e.id) },
+        datumEl("td", e.datum), h("td", null, e.empfaenger ? e.empfaenger.name : "–"), h("td", null, e.verwendungszweck || ""),
+        betragEl("td", e.splits.filter(zaehlt).reduce((n, s) => n + s.betrag, 0), { class: "zahl" }),
+        h("td", { class: "konto-knoepfe" }, konten.map((kid) => {
+          const k = kontoNach(kid);
+          const a = h("a", { class: "knopf knopf-flach klein", href: `/konten/${kid}?buchung=${e.id}`,
+            tid: `${praefix}-buchung-${e.id}-konto-${kid}`, title: `Buchung im Konto ${k ? kontoPfad(k) : kid} zeigen` },
+          k ? k.name : `Konto ${kid}`);
+          // Wie „Gehe zur Gegenbuchung“: auch in einem schon offenen Tab des Kontos die Buchung wählen und fokussieren
+          // (der Abfrageteil wirkt nur beim ersten Laden). Mit Strg/Mittelklick bleibt es ein normaler Link.
+          a.addEventListener("click", (ev) => {
+            if (ev.button !== 0 || ev.ctrlKey || ev.metaKey || ev.shiftKey || ev.altKey) return;
+            ev.preventDefault();
+            oberflaeche.zurBuchung(kid, e.id);
+          });
+          return a;
+        })));
+    }));
+}
+
+/** Zeitpunkt eines Plotly-Datums („2024-03-15“ oder „2024-03-15 12:30:00.5“) oder einer Zahl (ms) in Ortszeit. */
+function plotlyZeit(w) {
+  if (typeof w === "number") return w;
+  const t = String(w).replace(" ", "T");
+  return Date.parse(t.length === 10 ? t + "T00:00" : t);
+}
+
+/**
+ * Tabelle unter einem Diagramm zeigt nur die Zeilen, deren Datum im sichtbaren Bereich der x-Achse liegt (Zoom,
+ * Verschieben). Doppelklick ins Diagramm (Autorange) zeigt wieder alle. `datum(tr, i)` liefert das Datum der Zeile
+ * so, wie es im Diagramm als x-Wert steht.
+ */
+function zoomFolgen(plot, zeilen, datum, hinweis) {
+  if (!plot || typeof plot.on !== "function") return;
+  const anwenden = () => {
+    const ax = (plot.layout && plot.layout.xaxis) || {};
+    const r = !ax.autorange && Array.isArray(ax.range) ? ax.range.map(plotlyZeit) : null;
+    let sichtbar = 0;
+    zeilen.forEach((tr, i) => {
+      const t = plotlyZeit(datum(tr, i));
+      tr.hidden = !!r && (t < r[0] || t > r[1]);
+      if (tr.detailZeile) tr.detailZeile.hidden = tr.hidden || tr.dataset.offen !== "ja";
+      if (!tr.hidden) sichtbar += 1;
+    });
+    hinweis.hidden = !r;
+    if (r) {
+      const tag = (ms) => { const d = new Date(ms); return `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}.${d.getFullYear()}`; };
+      hinweis.textContent = `Tabelle zeigt den Ausschnitt ${tag(r[0])} – ${tag(r[1])} (${sichtbar} von ${zeilen.length} Zeilen). `
+        + "Doppelklick ins Diagramm zeigt wieder alles.";
+    }
+  };
+  plot.on("plotly_relayout", (ev) => { if (Object.keys(ev || {}).some((k) => k.startsWith("xaxis."))) anwenden(); });
 }
 
 const SVGNS = "http://www.w3.org/2000/svg";
@@ -526,14 +659,30 @@ function svgDiagramm(b) {
 export async function importSeite(seite) {
   kopf(seite, "Import");
   const format = h("select", { tid: "import-format" }, h("option", { value: "kmymoney" }, "KMyMoney (.kmy)"),
-    h("option", { value: "gnucash" }, "GnuCash (.gnucash, XML oder SQLite)"));
+    h("option", { value: "gnucash" }, "GnuCash (.gnucash, XML oder SQLite)"),
+    h("option", { value: "alfbanco" }, "ALF-BanCo (QIF-Export, eine Datei je Konto)"));
   const datei = h("input", { type: "file", tid: "import-datei" });
+  // ALF-BanCo (D-123): Zielkonto wählen, die QIF-Datei enthält nur die Umsätze eines Kontos
+  const konto = h("select", { tid: "import-konto" }, h("option", { value: "" }, "– Konto wählen –"),
+    baumFolge(stamm.konten.filter((k) => BESTAND.has(k.art))).map(({ konto: k }) => h("option", { value: String(k.id) },
+      kontoPfad(k))));
+  const kontoFeld = feld("Konto", konto);
+  const hinweis = h("p", { class: "klein", tid: "import-hinweis-alfbanco" }, "In ALF-BanCo je Konto „Datei > Export > "
+    + "Umsätze > QIF-Format“ wählen. Kategorien werden übernommen (gleichnamige vorhandene Kategorien wiederverwendet); "
+    + "doppelte Kategorien lassen sich danach unter „Kategorien“ markieren und zusammenführen.");
+  const formatZeigen = () => { kontoFeld.hidden = hinweis.hidden = format.value !== "alfbanco"; };
+  format.addEventListener("change", formatZeigen);
+  formatZeigen();
   const ausgabe = h("div", { "aria-live": "polite" });
   const starten = knopf("Import starten", { tid: "import-starten", class: "knopf knopf-haupt" });
   starten.addEventListener("click", async () => {
     if (!datei.files.length) { melde("fehler", "Bitte zuerst eine Datei wählen."); return; }
     const fd = new FormData();
     fd.append("datei", datei.files[0], datei.files[0].name);
+    if (format.value === "alfbanco") {
+      if (!konto.value) { melde("fehler", "Bitte das Konto wählen, zu dem die Datei gehört."); return; }
+      fd.append("konto_id", konto.value);
+    }
     starten.disabled = true;
     try {
       const e = await aktion(() => api("POST", `/api/import/${format.value}`, undefined, { formular: fd }),
@@ -544,7 +693,7 @@ export async function importSeite(seite) {
         h("ul", null, h("li", { tid: "import-meldung" }, `${e.code}: ${e.message}`))));
     } finally { starten.disabled = false; }
   });
-  seite.append(abschnitt("Datei importieren", feld("Format", format), feld("Datei", datei), starten,
+  seite.append(abschnitt("Datei importieren", feld("Format", format), kontoFeld, hinweis, feld("Datei", datei), starten,
     h("p", { class: "klein" }, "Der Import ist wie jede Änderung rückgängig zu machen (Strg+Z).")), ausgabe);
   return { titel: "Import", aktualisieren: async () => {} };      // Ergebnis bleibt stehen
 }
@@ -563,10 +712,46 @@ function importErgebnis(e) {
         + (m.referenz ? ` (${m.referenz})` : "")))) : null);
 }
 
+// Betragsfilter wiederkehrender Buchungen (D-137): Vorgabe der Instanz und eigene Einstellungen je Empfänger
+function wkFilterAbschnitt(wk) {
+  const modus = h("select", { tid: "wk-vorgabe-modus" }, [["toleranz", "Toleranz in Prozent"], ["aus", "aus (jeder Betrag zählt)"]]
+    .map(([w, t]) => h("option", { value: w }, t)));
+  modus.value = wk.vorgabe.modus;
+  const prozent = h("input", { type: "number", min: "0", max: "100", step: "1", tid: "wk-vorgabe-toleranz", inputmode: "numeric",
+    value: String(wk.vorgabe.toleranz_prozent ?? 10) });
+  const fProzent = feld("Toleranz (%)", prozent);
+  const sichtbar = () => { fProzent.hidden = modus.value !== "toleranz"; };
+  modus.addEventListener("change", sichtbar);
+  sichtbar();
+  const speichern = knopf("Speichern", { tid: "wk-vorgabe-speichern", onclick: async () => {
+    const k = modus.value === "toleranz" ? { modus: "toleranz", toleranz_prozent: Number(prozent.value) } : { modus: "aus" };
+    try { await api("PUT", "/api/wiederkehrend/einstellungen/vorgabe", k); melde("erfolg", "Vorgabe gespeichert."); await oberflaeche.neuLaden(); }
+    catch (e) { melde("fehler", e.message); }
+  } });
+  const zeilen = wk.empfaenger.map((x) => h("tr", { tid: `wk-filter-${x.empfaenger.id}`, "data-modus": x.modus },
+    h("td", null, x.empfaenger.name), h("td", null, filterText(x)),
+    h("td", null, knopf("Ändern …", { "aria-label": `Betragsfilter für ${x.empfaenger.name} ändern`,
+      onclick: (e) => wkFilterDialog(x.empfaenger, e.currentTarget) }),
+    knopf("Entfernen", { tid: `wk-filter-entfernen-${x.empfaenger.id}`, "aria-label": `Betragsfilter für ${x.empfaenger.name} entfernen`,
+      onclick: async () => {
+        try { await aktion(() => api("DELETE", `/api/empfaenger/${x.empfaenger.id}/wiederkehrend`), { erfolg: "Betragsfilter entfernt." }); }
+        catch (f) { /* gemeldet */ }
+      } }))));
+  return abschnitt("Wiederkehrende Buchungen",
+    h("p", { class: "klein" }, "Zahlungen eines Empfängers, deren Betrag nicht passt (z. B. Auslagenerstattungen neben dem Gehalt), "
+      + "werden bei der Erkennung übergangen und unterbrechen eine Serie nicht."),
+    h("div", { class: "formular-zeile" }, feld("Vorgabe für alle Empfänger", modus), fProzent, speichern),
+    h("h3", null, "Eigene Einstellungen je Empfänger"),
+    zeilen.length ? tabelle({ tid: "wk-filter-liste" }, ["Empfänger", "Betragsfilter", h("span", { class: "nur-sr" }, "Aktionen")], zeilen)
+      : leer("Alle Empfänger verwenden die Vorgabe."),
+    knopf("Empfänger hinzufügen …", { tid: "wk-filter-neu", onclick: (e) => wkFilterDialog(null, e.currentTarget) }));
+}
+
 // ------------------------------------------------------------------ Einstellungen (13.2)
 export async function einstellungen(seite, _p, _s, kontext) {
-  const [status, sync, geheim, zust, postfaecher] = await Promise.all([api("GET", "/api/status"), api("GET", "/api/sync/status"),
-    api("GET", "/api/geheimnisse"), api("GET", "/api/benachrichtigungen/zustellung"), api("GET", "/api/mail/postfaecher")]);
+  const [status, sync, geheim, zust, postfaecher, wk] = await Promise.all([api("GET", "/api/status"), api("GET", "/api/sync/status"),
+    api("GET", "/api/geheimnisse"), api("GET", "/api/benachrichtigungen/zustellung"), api("GET", "/api/mail/postfaecher"),
+    api("GET", "/api/wiederkehrend/einstellungen")]);
   kopf(seite, "Einstellungen");
   // Darstellung
   const thema = h("select", { tid: "einstellung-thema" }, [["system", "wie System"], ["hell", "Hell"], ["dunkel", "Dunkel"]]
@@ -575,6 +760,7 @@ export async function einstellungen(seite, _p, _s, kontext) {
   thema.addEventListener("change", () => kontext.thema.setzen(thema.value));
   seite.append(abschnitt("Darstellung", feld("Design", thema),
     knopf("Layout zurücksetzen", { tid: "layout-zuruecksetzen", onclick: () => { layoutZuruecksetzen(); melde("erfolg", "Layout zurückgesetzt."); } })));
+  seite.append(wkFilterAbschnitt(wk));
   // Betrieb
   seite.append(abschnitt("Betrieb", h("p", { tid: "status-modus", "data-modus": status.modus },
     status.modus === "mock" ? "Mock-Modus" : "Echtbetrieb", ` · Version ${status.version}`,

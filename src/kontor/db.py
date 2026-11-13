@@ -15,7 +15,7 @@ from collections.abc import Iterator
 
 from .text import norm
 
-SCHEMA_VERSION = 9
+SCHEMA_VERSION = 12
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (
@@ -396,6 +396,70 @@ CREATE TABLE IF NOT EXISTS mail_nachricht (
 );
 CREATE INDEX IF NOT EXISTS mail_nachricht_sortierung ON mail_nachricht(empfangen, nachricht_id);
 
+-- ------------------------------------------------------------ Dokumente (D-123)
+-- Inhalte inhaltsadressiert; nie protokolliert und nie durch eine Operation gelöscht (Rückgängig braucht sie).
+CREATE TABLE IF NOT EXISTS dokument_inhalt (
+    sha256 TEXT PRIMARY KEY CHECK (length(sha256) = 64),
+    inhalt BLOB NOT NULL
+);
+CREATE TABLE IF NOT EXISTS dokument (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    dateiname TEXT NOT NULL CHECK (length(dateiname) BETWEEN 1 AND 200),
+    mime_typ TEXT NOT NULL CHECK (mime_typ IN ('application/pdf','image/jpeg','image/png','image/webp',
+                                               'message/rfc822')),
+    groesse INTEGER NOT NULL CHECK (groesse > 0),
+    sha256 TEXT NOT NULL REFERENCES dokument_inhalt(sha256),
+    quelle TEXT NOT NULL CHECK (quelle IN ('upload','kamera','mail')),
+    erstellt_am TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS dokument_buchung (
+    dokument_id INTEGER NOT NULL REFERENCES dokument(id) ON DELETE CASCADE,
+    buchung_id INTEGER NOT NULL REFERENCES buchung(id) ON DELETE CASCADE,
+    PRIMARY KEY (dokument_id, buchung_id)
+) WITHOUT ROWID;
+CREATE INDEX IF NOT EXISTS dokument_buchung_buchung ON dokument_buchung(buchung_id, dokument_id);
+CREATE INDEX IF NOT EXISTS dokument_sha256 ON dokument(sha256);
+
+-- ------------------------------------------------------------ Mail-Abgleich (D-128)
+-- Erwartete Zahlungen (Buchbestand, Objektart ``erwartung``). Beträge in Cent, immer >= 0; die Richtung sagt,
+-- ob Geld abgeht oder eingeht. Zuordnungen (``buchung_ids``), Mails (``mails``: Postfach + Nachrichten-ID im
+-- Spiegel) und Dokumente (``dokument_ids``) als JSON-Listen. „überfällig“ wird abgeleitet (offen, Frist vorbei).
+CREATE TABLE IF NOT EXISTS erwartung (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    grund TEXT NOT NULL CHECK (grund IN ('bestellung','paypal','rueckerstattung','manuell')),
+    richtung TEXT NOT NULL CHECK (richtung IN ('ausgabe','eingang')),
+    anbieter TEXT CHECK (anbieter IS NULL OR anbieter IN ('amazon','paypal')),
+    schluessel TEXT UNIQUE,
+    kennung TEXT NOT NULL DEFAULT '',
+    referenz TEXT NOT NULL DEFAULT '',
+    haendler TEXT NOT NULL,
+    beschreibung TEXT NOT NULL DEFAULT '',
+    betrag INTEGER NOT NULL CHECK (typeof(betrag) = 'integer' AND betrag BETWEEN 0 AND 999999999999),
+    gesamt INTEGER NOT NULL CHECK (typeof(gesamt) = 'integer' AND gesamt BETWEEN 0 AND 999999999999),
+    guthaben INTEGER NOT NULL CHECK (typeof(guthaben) = 'integer' AND guthaben BETWEEN 0 AND 999999999999),
+    datum TEXT NOT NULL,
+    frist TEXT NOT NULL,
+    zustand TEXT NOT NULL CHECK (zustand IN ('offen','erfuellt','guthaben','storniert','erledigt')),
+    bezug_id INTEGER,
+    buchung_ids TEXT NOT NULL DEFAULT '[]',
+    mails TEXT NOT NULL DEFAULT '[]',
+    dokument_ids TEXT NOT NULL DEFAULT '[]',
+    erstellt_am TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS erwartung_zustand ON erwartung(zustand, frist);
+
+-- ------------------------------------------------------------ Betragsfilter wiederkehrender Buchungen (D-137)
+-- Eigene Einstellung je Empfänger (Buchbestand, gehört zur Objektart ``empfaenger``); ohne Zeile gilt die Vorgabe
+-- aus ``meta`` (wk_filter_modus, wk_filter_toleranz). ``mindestbetrag`` in Cent ohne Vorzeichen.
+CREATE TABLE IF NOT EXISTS empfaenger_wiederkehrend (
+    empfaenger_id INTEGER PRIMARY KEY REFERENCES empfaenger(id) ON DELETE CASCADE,
+    modus TEXT NOT NULL CHECK (modus IN ('aus','toleranz','mindestschwelle')),
+    toleranz_prozent INTEGER CHECK (toleranz_prozent IS NULL OR toleranz_prozent BETWEEN 0 AND 100),
+    mindestbetrag INTEGER CHECK (mindestbetrag IS NULL OR mindestbetrag > 0),
+    CHECK ((modus = 'toleranz') = (toleranz_prozent IS NOT NULL)),
+    CHECK ((modus = 'mindestschwelle') = (mindestbetrag IS NOT NULL))
+);
+
 -- ------------------------------------------------------------ Meilenstein 7
 -- Anmeldedaten (sicherheit.md 1): Betriebszustand, nie protokolliert, nie in der Sicherung.
 -- Zeiten in Sekunden seit der Epoche nach der Systemuhr (nie die Mock-Uhr, sicherheit.md 4.4).
@@ -439,6 +503,8 @@ _NEUE_SPALTEN = (
     ("tan_anforderung", "erinnerung_nr", "INTEGER NOT NULL DEFAULT 0"),
     # M11: Ergebnis des Saldoabgleichs je Konto und Lauf als JSON (kontostand.md 2.1); NULL = nicht verarbeitet
     ("sync_lauf_konto", "saldo_abgleich", "TEXT"),
+    # Dokumente (D-123): Rohfassung gespiegelter Mails (Betriebszustand), damit sie als Dokument übernommen werden
+    ("mail_nachricht", "roh", "BLOB"),
 )
 _NACH_MIGRATION = (
     "CREATE INDEX IF NOT EXISTS split_abstimmung ON split(abstimmung_id)",

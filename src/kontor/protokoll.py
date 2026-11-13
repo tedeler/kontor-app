@@ -25,17 +25,22 @@ from collections import defaultdict
 from collections.abc import Iterator
 from typing import Any, Callable
 
-from . import buch, db, geheimnisse, kredite, mail, regeln, vorlagen
+from . import buch, db, dokumente, erwartung, geheimnisse, kredite, mail, regeln, vorlagen
 from .validierung import ApiFehler
 
-OBJEKTE = ("konto", "empfaenger", "tag", "buchung", "regel", "verdacht", "abstimmung", "vorlage", "kredit", "postfach")
-QUELLEN = ("manuell", "import", "sync", "regeln", "umbuchung", "rueckgaengig", "lernmodell", "vorlage", "sicherung", "kredit")
+OBJEKTE = ("konto", "empfaenger", "tag", "buchung", "regel", "verdacht", "abstimmung", "vorlage", "kredit", "postfach",
+           "dokument", "erwartung")
+# Rückgängig fügt Dokumente vor Buchungen ein (Verknüpfungen gehören zur Buchung, D-123)
+_EINFUEGEN = ("dokument",) + tuple(o for o in OBJEKTE if o != "dokument")
+QUELLEN = ("manuell", "import", "sync", "regeln", "umbuchung", "rueckgaengig", "lernmodell", "vorlage", "sicherung", "kredit",
+           "mail")
 
 # Tabelle → (Objektart, Spalte mit der Objekt-ID)
 _TABELLEN = {
     "konto": ("konto", "id"),
     "empfaenger": ("empfaenger", "id"),
     "empfaenger_alias": ("empfaenger", "empfaenger_id"),
+    "empfaenger_wiederkehrend": ("empfaenger", "empfaenger_id"),
     "tag": ("tag", "id"),
     "buchung": ("buchung", "id"),
     "split": ("buchung", "buchung_id"),
@@ -51,6 +56,9 @@ _TABELLEN = {
     "kredit_zuordnung": ("kredit", "kredit_id"),
     "kredit_abgleich": ("kredit", "kredit_id"),
     "postfach": ("postfach", "id"),
+    "dokument": ("dokument", "id"),
+    "dokument_buchung": ("buchung", "buchung_id"),
+    "erwartung": ("erwartung", "id"),
 }
 
 BESCHREIBUNG = {
@@ -66,12 +74,14 @@ BESCHREIBUNG = {
     "vorschlag_entscheiden": "Vorschlag entschieden", "mehrfach_vorschlag": "Vorschläge entschieden",
     "tag_anlegen": "Tag angelegt", "tag_umbenennen": "Tag umbenannt", "tag_loeschen": "Tag gelöscht",
     "empfaenger_anlegen": "Empfänger angelegt", "empfaenger_aendern": "Empfänger geändert",
-    "empfaenger_loeschen": "Empfänger gelöscht", "empfaenger_zusammenfuehren": "Empfänger zusammengeführt",
+    "empfaenger_loeschen": "Empfänger gelöscht",
+    "wiederkehrend_filter_setzen": "Betragsfilter wiederkehrender Buchungen geändert", "empfaenger_zusammenfuehren": "Empfänger zusammengeführt",
     "dublette_aufloesen": "Dublettenverdacht aufgelöst",
     "regel_anlegen": "Regel angelegt", "regel_aendern": "Regel geändert", "regel_loeschen": "Regel gelöscht",
     "abstimmung_anlegen": "Konto abgestimmt", "abstimmung_aufheben": "Abstimmung aufgehoben",
     "umbuchung_zusammenfuehren": "Umbuchung zusammengeführt", "umbuchung_erkennen": "Umbuchungen erkannt",
-    "import_kmymoney": "KMyMoney-Import", "import_gnucash": "GnuCash-Import", "sync_kontozuordnung": "Synchronisation: Konten zugeordnet",
+    "import_kmymoney": "KMyMoney-Import", "import_gnucash": "GnuCash-Import", "import_alfbanco": "ALF-BanCo-Import",
+    "kategorien_zusammenfuehren": "Kategorien zusammengeführt", "sync_kontozuordnung": "Synchronisation: Konten zugeordnet",
     "sync_konto": "Synchronisation: Umsätze eines Kontos übernommen", "regeln_anwenden": "Regeln angewendet",
     "rueckgaengig": "Rückgängig gemacht",
     "vorlage_anlegen": "Split-Vorlage angelegt", "vorlage_aendern": "Split-Vorlage geändert",
@@ -82,6 +92,13 @@ BESCHREIBUNG = {
     "kredit_zuordnen": "Kreditraten aufgeteilt", "kredit_jahresabgleich": "Jahresabgleich eines Kredits",
     "postfach_anlegen": "Postfach angelegt", "postfach_aendern": "Postfach geändert",
     "postfach_loeschen": "Postfach gelöscht",
+    "dokument_anhaengen": "Dokument angehängt", "dokument_aus_mail": "E-Mail als Dokument angehängt",
+    "dokument_verknuepfen": "Dokument mit Buchung verknüpft", "dokument_loesen": "Dokument von Buchung gelöst",
+    "dokument_umbenennen": "Dokument umbenannt", "dokument_loeschen": "Dokument gelöscht",
+    "erwartung_erkennen": "Bestell- und Zahlungsmails erkannt", "erwartung_zuordnen": "Erwartete Zahlung zugeordnet",
+    "erwartung_loesen": "Zuordnung einer erwarteten Zahlung gelöst", "erwartung_anlegen": "Erwartete Zahlung angelegt",
+    "erwartung_aendern": "Erwartete Zahlung geändert", "erwartung_zustand": "Erwartete Zahlung geschlossen/geöffnet",
+    "erwartung_loeschen": "Erwartete Zahlung gelöscht",
 }
 
 
@@ -139,10 +156,13 @@ def _kennungen_netto(con) -> tuple[list[str], list[str]]:
 
 
 def _buchung_zustand(b: dict) -> dict:
-    return {"id": b["id"], "datum": b["datum"], "empfaenger_id": b["empfaenger"]["id"] if b["empfaenger"] else None,
-            "verwendungszweck": b["verwendungszweck"], "status": b["status"], "splits": b["splits"],
-            "tag_ids": [t["id"] for t in b["tags"]], "extern_ids": b["extern_ids"], "vorschlag": b["vorschlag"],
-            "gegen_iban": b["gegen_iban"]}
+    z = {"id": b["id"], "datum": b["datum"], "empfaenger_id": b["empfaenger"]["id"] if b["empfaenger"] else None,
+         "verwendungszweck": b["verwendungszweck"], "status": b["status"], "splits": b["splits"],
+         "tag_ids": [t["id"] for t in b["tags"]], "extern_ids": b["extern_ids"], "vorschlag": b["vorschlag"],
+         "gegen_iban": b["gegen_iban"]}
+    if b["belege"]:  # nur mit Dokumenten (D-123): Formen ohne Dokumente bleiben unverändert
+        z["dokument_ids"] = [d["id"] for d in b["belege"]]
+    return z
 
 
 def formen(con, objekt: str, ids: list[int]) -> dict[int, dict]:
@@ -158,11 +178,25 @@ def formen(con, objekt: str, ids: list[int]) -> dict[int, dict]:
                 aus[b["id"]] = _buchung_zustand(b)
         return aus
     if objekt == "empfaenger":
-        return {e["id"]: e for e in buch.empfaenger_laden(con, ids)}
+        aus = {e["id"]: e for e in buch.empfaenger_laden(con, ids)}
+        # Betragsfilter wiederkehrender Buchungen (D-137): nur in Formen von Empfängern mit eigener Einstellung
+        for teil in buch._stueckweise(ids):
+            for r in con.execute("SELECT empfaenger_id, modus, toleranz_prozent, mindestbetrag FROM"
+                                 f" empfaenger_wiederkehrend WHERE empfaenger_id IN ({buch._platzhalter(len(teil))})",
+                                 teil):
+                if r["empfaenger_id"] in aus:
+                    aus[r["empfaenger_id"]] = dict(aus[r["empfaenger_id"]], wiederkehrend={
+                        "modus": r["modus"], "toleranz_prozent": r["toleranz_prozent"],
+                        "mindestbetrag": r["mindestbetrag"]})
+        return aus
     if objekt == "kredit":
         return kredite.formen(con, ids)
     if objekt == "postfach":
         return mail.formen(con, ids)
+    if objekt == "dokument":
+        return dokumente.formen(con, ids)
+    if objekt == "erwartung":
+        return erwartung.formen(con, ids)
     for teil in buch._stueckweise(ids):
         ph = buch._platzhalter(len(teil))
         if objekt == "konto":
@@ -271,6 +305,8 @@ def protokolliert(con, quelle: str, aktion: str, zeitpunkt: str, gruppe: str | N
         yield k
         kredite.verwaiste_entfernen(con)  # M5: Zuordnungen gelöschter Buchungen entfallen (kredite.md 2.3)
         geheimnisse.verwaiste_entfernen(con)  # M6: Tokens/Spiegel/Zustand entfallen mit dem Postfach (mail.md 6.5)
+        dokumente.verwaiste_entfernen(con)  # D-123: Dokumente ohne Buchung entfallen
+        erwartung.verwaiste_entfernen(con)  # D-128: Zuordnungen gelöschter Buchungen/Dokumente entfallen
         eintraege = _nettowirkung(con)
         if k.pruefung is not None:
             k.pruefung(eintraege)
@@ -335,6 +371,18 @@ def _durch_setzen(con, aid: int, wert: int | None) -> None:
 # ================================================================== Lesen
 
 
+# Interne Felder einer Protokollform, die nie nach außen gehen (Antworten, Inhaltsprüfsumme der Sicherung): der
+# Schlüssel einer Erwartung macht die Erkennung idempotent und muss Rückgängig/Wiederholen überstehen (D-136).
+_INTERN = {"erwartung": ("schluessel",)}
+
+
+def aussen(objekt: str, form: dict | None) -> dict | None:
+    """Protokollform ohne interne Felder (erwartungen.md 12)."""
+    if form is None or objekt not in _INTERN:
+        return form
+    return {k: v for k, v in form.items() if k not in _INTERN[objekt]}
+
+
 def _aenderungen_dicts(con, zeilen: list) -> list[dict]:
     if not zeilen:
         return []
@@ -345,8 +393,8 @@ def _aenderungen_dicts(con, zeilen: list) -> list[dict]:
                              " ORDER BY aenderung_id, position", teil):
             eintraege[e["aenderung_id"]].append({
                 "objekt": e["objekt"], "objekt_id": e["objekt_id"], "art": e["art"],
-                "vorher": None if e["vorher"] is None else json.loads(e["vorher"]),
-                "nachher": None if e["nachher"] is None else json.loads(e["nachher"])})
+                "vorher": aussen(e["objekt"], None if e["vorher"] is None else json.loads(e["vorher"])),
+                "nachher": aussen(e["objekt"], None if e["nachher"] is None else json.loads(e["nachher"]))})
     return [{"id": z["id"], "zeitpunkt": z["zeitpunkt"], "quelle": z["quelle"], "aktion": z["aktion"],
              "beschreibung": z["beschreibung"], "gruppe": z["gruppe"], "eintraege": eintraege[z["id"]],
              "rueckgaengig_von": json.loads(z["rueckgaengig_von"]), "rueckgaengig_durch": z["rueckgaengig_durch"]}
@@ -425,6 +473,14 @@ def _entfernen(con, objekt: str, oid: int, schritt: set[tuple[str, int]]) -> Non
         con.execute("DELETE FROM kredit WHERE id = ?", (oid,))
     elif objekt == "postfach":
         con.execute("DELETE FROM postfach WHERE id = ?", (oid,))
+    elif objekt == "dokument":
+        # Hängt das Dokument inzwischen an einer Buchung außerhalb dieser Änderung, darf es nicht verschwinden.
+        for r in con.execute("SELECT buchung_id FROM dokument_buchung WHERE dokument_id = ?", (oid,)).fetchall():
+            if ("buchung", r["buchung_id"]) not in schritt:
+                raise _konflikt("Ein Dokument hängt inzwischen an einer anderen Buchung.")
+        con.execute("DELETE FROM dokument WHERE id = ?", (oid,))
+    elif objekt == "erwartung":
+        con.execute("DELETE FROM erwartung WHERE id = ?", (oid,))
 
 
 def _einfuegen(con, objekt: str, f: dict) -> None:
@@ -438,6 +494,10 @@ def _einfuegen(con, objekt: str, f: dict) -> None:
                     (f["id"], f["name"], f["extern_id"], f["standardkategorie_id"]))
         con.executemany("INSERT INTO empfaenger_alias (empfaenger_id, alias, ekey) VALUES (?, ?, ?)",
                         [(f["id"], a, buch.ekey(a)) for a in f["aliase"]])
+        if f.get("wiederkehrend"):
+            w = f["wiederkehrend"]
+            con.execute("INSERT INTO empfaenger_wiederkehrend (empfaenger_id, modus, toleranz_prozent, mindestbetrag)"
+                        " VALUES (?, ?, ?, ?)", (f["id"], w["modus"], w["toleranz_prozent"], w["mindestbetrag"]))
     elif objekt == "tag":
         con.execute("INSERT INTO tag (id, name, name_cf, extern_id) VALUES (?, ?, ?, ?)",
                     (f["id"], f["name"], f["name"].casefold(), f["extern_id"]))
@@ -453,6 +513,8 @@ def _einfuegen(con, objekt: str, f: dict) -> None:
                         [(f["id"], t) for t in f["tag_ids"]])
         con.executemany("INSERT INTO buchung_extern (buchung_id, extern_id) VALUES (?, ?)",
                         [(f["id"], e) for e in f["extern_ids"]])
+        con.executemany("INSERT INTO dokument_buchung (dokument_id, buchung_id) VALUES (?, ?)",
+                        [(d, f["id"]) for d in f.get("dokument_ids", [])])
         v = f["vorschlag"]
         if v is not None:
             con.execute("INSERT INTO vorschlag (buchung_id, kategorie_id, regel_id, quelle, vorher_konto_id,"
@@ -477,10 +539,19 @@ def _einfuegen(con, objekt: str, f: dict) -> None:
         kredite.einfuegen(con, f)
     elif objekt == "postfach":
         mail.einfuegen(con, f)
+    elif objekt == "dokument":
+        dokumente.einfuegen(con, f)
+    elif objekt == "erwartung":
+        erwartung.einfuegen(con, f)
 
 
 def _eintraege_von(con, aid: int) -> list[dict]:
-    return aenderung_lesen(con, aid)["eintraege"]
+    """Einträge einer Änderung mit vollständigen (internen) Formen für Rückgängig/Wiederholen."""
+    aenderung_lesen(con, aid)  # 404
+    return [{"objekt": e["objekt"], "objekt_id": e["objekt_id"], "art": e["art"],
+             "vorher": None if e["vorher"] is None else json.loads(e["vorher"]),
+             "nachher": None if e["nachher"] is None else json.loads(e["nachher"])}
+            for e in con.execute("SELECT * FROM aenderung_eintrag WHERE aenderung_id = ? ORDER BY position", (aid,))]
 
 
 def _schritt(con, aid: int) -> set[tuple[str, int]]:
@@ -502,8 +573,10 @@ def _schritt(con, aid: int) -> set[tuple[str, int]]:
             # Umbenennen zurücknehmen: Zeile bleibt (Zuordnungen zu Buchungen), Name erst vorläufig freigeben.
             con.execute("UPDATE tag SET name_cf = ? WHERE id = ?", (f"\x00{e['objekt_id']}", e["objekt_id"]))
             continue
+        if e["objekt"] == "dokument" and e["vorher"] is not None:
+            continue  # Umbenennen zurücknehmen: Zeile und Verknüpfungen bleiben (D-135)
         _entfernen(con, e["objekt"], e["objekt_id"], schritt)
-    for objekt in OBJEKTE:
+    for objekt in _EINFUEGEN:
         for e in je_objekt.get(objekt, []):
             v = e["vorher"]
             if v is None:
@@ -511,6 +584,9 @@ def _schritt(con, aid: int) -> set[tuple[str, int]]:
             if objekt == "tag" and e["nachher"] is not None:
                 con.execute("UPDATE tag SET name = ?, name_cf = ?, extern_id = ? WHERE id = ?",
                             (v["name"], v["name"].casefold(), v["extern_id"], v["id"]))
+                continue
+            if objekt == "dokument" and e["nachher"] is not None:
+                con.execute("UPDATE dokument SET dateiname = ? WHERE id = ?", (v["dateiname"], v["id"]))
                 continue
             _einfuegen(con, objekt, v)
     r = con.execute("SELECT kennungen_neu, kennungen_weg FROM aenderung WHERE id = ?", (aid,)).fetchone()
@@ -548,6 +624,7 @@ def bezuege_pruefen(con) -> None:
         " WHERE d.status = 'offen' AND NOT EXISTS (SELECT 1 FROM buchung b WHERE b.id = vk.buchung_id)",
     )
     pruefungen += kredite.BEZUG_SQL  # M5 (protokoll.md 11.1)
+    pruefungen += dokumente.BEZUG_SQL  # D-123
     for sql in pruefungen:
         if _fehlt(con, sql):
             raise _konflikt("Der wiederhergestellte Zustand verweist auf nicht mehr vorhandene Objekte.")

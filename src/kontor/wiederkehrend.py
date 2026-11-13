@@ -15,6 +15,7 @@ from dataclasses import dataclass
 
 from . import buch
 from .buch import ApiFehler
+from .validierung import BETRAG_MAX, Validierungsfehler, fehler_eintrag
 from .kredite import monat_plus
 from .text import euro
 
@@ -76,6 +77,43 @@ def _d(s: str) -> dt.date:
     return dt.date.fromisoformat(s)
 
 
+@dataclass(frozen=True)
+class Betragsfilter:
+    """Betragsfilter der Kettenbildung (D-137): Welche Einträge einer Gruppe als Glied oder zusätzliche Zahlung in
+    Frage kommen. Einträge, die nicht passen, werden übergangen – sie brechen die Kette nicht.
+
+    - ``aus``: alle Einträge (Verhalten bis M16),
+    - ``toleranz``: Betrag weicht höchstens ``toleranz_prozent`` % vom aktuellen Glied ab,
+    - ``mindestschwelle``: nur Einträge mit ``|betrag| ≥ mindestbetrag`` (Cent).
+    """
+    modus: str = "aus"
+    toleranz_prozent: int | None = None
+    mindestbetrag: int | None = None
+    quelle: str = "vorgabe"
+
+    def zugelassen(self, x: Eintrag) -> bool:
+        return self.modus != "mindestschwelle" or abs(x.betrag) >= (self.mindestbetrag or 0)
+
+    def passt(self, c: Eintrag, x: Eintrag) -> bool:
+        """``x`` kommt neben dem Glied ``c`` in Frage."""
+        return self.zugelassen(x) and self.betrag_passt(c.betrag, x.betrag)
+
+    def betrag_passt(self, bezug: int, betrag: int) -> bool:
+        """Toleranzprüfung in Ganzzahlarithmetik (Cent, Prozent)."""
+        if self.modus == "mindestschwelle":
+            return abs(betrag) >= (self.mindestbetrag or 0)
+        if self.modus != "toleranz":
+            return True
+        return abs(betrag - bezug) * 100 <= (self.toleranz_prozent or 0) * abs(bezug)
+
+    def als_dict(self) -> dict:
+        return {"modus": self.modus, "toleranz_prozent": self.toleranz_prozent, "mindestbetrag": self.mindestbetrag,
+                "quelle": self.quelle}
+
+
+OHNE_FILTER = Betragsfilter()
+
+
 @dataclass
 class Kette:
     """Ergebnis der Kettenbildung für einen Rhythmus (Indizes in die Gruppe)."""
@@ -84,15 +122,17 @@ class Kette:
     schritte: list[dict]        # Kettenprotokoll (verbunden … bruch)
 
 
-def _passend(c: Eintrag, kandidaten: list[int], gruppe: list[Eintrag], m: int) -> int:
-    """Wählt unter den Kandidaten für den Vorgänger von ``c``: gleicher Betrag vor Datumsnähe, bei Gleichstand der
-    jüngere Eintrag."""
+def _passend(c: Eintrag, kandidaten: list[int], gruppe: list[Eintrag], m: int,
+             f: Betragsfilter = OHNE_FILTER) -> int:
+    """Wählt unter den Kandidaten für den Vorgänger von ``c``: gleicher Betrag, dann Betrag in der Toleranz (D-137),
+    dann Datumsnähe, bei Gleichstand der jüngere Eintrag. Ein Betrag außerhalb der Toleranz bleibt möglich
+    (Preisänderung am Termin)."""
     cd = _d(c.datum)
-    return min(kandidaten, key=lambda i: (gruppe[i].betrag != c.betrag,
+    return min(kandidaten, key=lambda i: (gruppe[i].betrag != c.betrag, not f.passt(c, gruppe[i]),
                                            abs((cd - monat_plus(_d(gruppe[i].datum), m)).days), -i))
 
 
-def _kette_ab(gruppe: list[Eintrag], m: int, anker: int) -> Kette:
+def _kette_ab(gruppe: list[Eintrag], m: int, anker: int, f: Betragsfilter = OHNE_FILTER) -> Kette:
     """Kette ab dem Anker rückwärts (D-115). Einträge nach dem Anker liegen am selben Termin (D-117) und sind
     zusätzliche Zahlungen.
 
@@ -100,37 +140,54 @@ def _kette_ab(gruppe: list[Eintrag], m: int, anker: int) -> Kette:
     (Termin-Fenster); davon zählt der passendste (gleicher Betrag, dann Datumsnähe). Einträge zwischen Vorgänger und
     ``c`` sind **zusätzliche Zahlungen** und brechen die Kette nicht, wenn sie höchstens ``T`` Tage von ``c`` oder vom
     Vorgänger entfernt liegen oder Vorgänger-Kandidaten des vorigen Schritts waren (M16-Definition 1.2). Jeder andere Eintrag dazwischen und ein fehlender
-    Vorgänger beenden die Kette.
+    Vorgänger beenden die Kette. Einträge, die nach dem Betragsfilter ``f`` nicht zum aktuellen Glied passen, werden
+    übergangen (D-137).
     """
     c = anker
-    glieder, zusaetzlich, schritte = [c], list(range(len(gruppe) - 1, anker, -1)), []
+    a = gruppe[anker]
+    glieder, schritte = [c], []
+    zusaetzlich = [i for i in range(len(gruppe) - 1, anker, -1) if f.passt(a, gruppe[i])]
+    # Wurde schon etwas übergangen, muss jeder weitere Vorgänger im Betrag passen (D-137).
+    streng = len(zusaetzlich) < len(gruppe) - 1 - anker
     fenster_vorher: set[int] = set()
     while True:
-        cd = _d(gruppe[c].datum)
+        gc = gruppe[c]
+        cd = _d(gc.datum)
         kand = []
         for i in range(c - 1, -1, -1):  # absteigend; monat_plus ist monoton, also früh abbrechen
             ab = (cd - monat_plus(_d(gruppe[i].datum), m)).days
             if ab > T:
                 break
-            if ab >= -T:
+            if ab >= -T and f.zugelassen(gruppe[i]):
                 kand.append(i)
         kand.reverse()
         if not kand:
             # Einträge am selben Termin wie das erste Glied sind zusätzliche Zahlungen, kein Grund für den Bruch.
             v = c - 1
             neben = []
-            while v >= 0 and abs((_d(gruppe[v].datum) - cd).days) <= T:
-                neben.append(v)
+            while v >= 0 and (abs((_d(gruppe[v].datum) - cd).days) <= T or not f.passt(gc, gruppe[v])):
+                if f.passt(gc, gruppe[v]):
+                    neben.append(v)
                 v -= 1
             zusaetzlich.extend(neben)
             schritte.append({"ergebnis": "bruch", "grund": "kein_vorgaenger" if v < 0 else "abstand",
                              "von": c, "vorgaenger": v if v >= 0 else None, "uebersprungen": neben})
             break
-        p = _passend(gruppe[c], kand, gruppe, m)
-        dazwischen = list(range(p + 1, c))
+        p = _passend(gruppe[c], kand, gruppe, m, f)
+        # Einträge dazwischen, deren Betrag weder zu c noch zum Vorgänger passt, werden übergangen (D-137).
+        dazwischen = [i for i in range(p + 1, c) if f.passt(gc, gruppe[i]) or f.passt(gruppe[p], gruppe[i])]
         pd = _d(gruppe[p].datum)
         fremd = [i for i in dazwischen if i not in fenster_vorher
                  and abs((_d(gruppe[i].datum) - cd).days) > T and abs((_d(gruppe[i].datum) - pd).days) > T]
+        uebergeht = any(i not in dazwischen for i in range(p + 1, c))
+        if not fremd and not f.passt(gc, gruppe[p]) and (streng or uebergeht):
+            # Übergehen setzt passende Beträge voraus (D-137): Wurde seit dem Anker oder in diesem Schritt etwas
+            # übergangen, endet die Kette an einem Vorgänger außerhalb der Toleranz. Eine Preisänderung ohne
+            # übergangene Einträge bleibt möglich.
+            zusaetzlich.extend(i for i in dazwischen[::-1] if i not in zusaetzlich)
+            schritte.append({"ergebnis": "bruch", "grund": "betrag", "von": c, "vorgaenger": p,
+                             "uebersprungen": dazwischen[::-1]})
+            break
         if fremd:
             # Die Zusatzregel gilt auch hier (E-193): Einträge dazwischen, die nicht fremd sind, sind zusätzlich.
             neben = [i for i in dazwischen[::-1] if i not in fremd]
@@ -138,6 +195,7 @@ def _kette_ab(gruppe: list[Eintrag], m: int, anker: int) -> Kette:
             schritte.append({"ergebnis": "bruch", "grund": "fremde_zahlung", "von": c, "vorgaenger": p,
                              "fremd": fremd[-1], "uebersprungen": neben})
             break
+        streng = streng or uebergeht
         schritte.append({"ergebnis": "verbunden", "von": c, "vorgaenger": p, "uebersprungen": dazwischen[::-1]})
         zusaetzlich.extend(dazwischen[::-1])
         fenster_vorher = set(kand)
@@ -152,17 +210,44 @@ def _anker_wert(gruppe: list[Eintrag], k: Kette) -> tuple:
     return (len(k.glieder), gleich, k.glieder[0])
 
 
-def kette_bilden(gruppe: list[Eintrag], m: int) -> Kette:
+def _anker_kandidaten(gruppe: list[Eintrag], m: int, f: Betragsfilter) -> list[int]:
+    """Anker-Kandidaten absteigend (D-115, D-137).
+
+    Ohne Toleranz: alle zugelassenen Einträge höchstens ``T`` Tage vor dem jüngsten zugelassenen Eintrag. Mit
+    Toleranz: jeder zugelassene Eintrag, nach dem kein passender Eintrag mehr als ``T`` Tage später folgt – also der
+    jüngste Termin seiner Betragsklasse. Damit verdrängt eine spätere Zahlung mit anderem Betrag die Serie nicht.
+    Gesucht wird nur in den letzten ``2·m`` Monaten (+ ``T``) vor dem jüngsten Eintrag: Das deckt aktive und
+    ausbleibende Serien ab und begrenzt den Aufwand.
+    """
+    zug = [i for i in range(len(gruppe) - 1, -1, -1) if f.zugelassen(gruppe[i])]
+    if not zug:
+        return []
+    letzte = _d(gruppe[zug[0]].datum)
+    if f.modus != "toleranz":
+        return [i for i in zug if (letzte - _d(gruppe[i].datum)).days <= T]
+    grenze = monat_plus(letzte, -2 * m) - dt.timedelta(days=T)
+    aus: list[int] = []
+    for i in zug:
+        di = _d(gruppe[i].datum)
+        if di < grenze:
+            break
+        spaeter = di + dt.timedelta(days=T)
+        if not any(f.passt(gruppe[i], gruppe[j]) for j in zug if j > i and _d(gruppe[j].datum) > spaeter):
+            aus.append(i)
+    return aus
+
+
+def kette_bilden(gruppe: list[Eintrag], m: int, f: Betragsfilter = OHNE_FILTER) -> Kette:
     """Kette einer Gruppe (D-115, D-117).
 
     Anker-Kandidaten sind alle Einträge höchstens ``T`` Tage vor dem jüngsten Eintrag (jüngster Termin). Gewählt
     wird der Anker mit der längsten Kette, bei Gleichstand der mit gleichem Betrag wie sein Vorgänger in der Kette,
     dann der jüngere. Bei mehreren Kandidaten steht vorn im Kettenprotokoll ein Schritt ``anker``.
     """
-    n = len(gruppe)
-    letzte = _d(gruppe[-1].datum)
-    kandidaten = [i for i in range(n - 1, -1, -1) if (letzte - _d(gruppe[i].datum)).days <= T]
-    ketten = {a: _kette_ab(gruppe, m, a) for a in kandidaten}
+    kandidaten = _anker_kandidaten(gruppe, m, f)
+    if not kandidaten:
+        return Kette([], [], [])
+    ketten = {a: _kette_ab(gruppe, m, a, f) for a in kandidaten}
     besten = max(kandidaten, key=lambda a: _anker_wert(gruppe, ketten[a]))
     k = ketten[besten]
     if len(kandidaten) > 1:
@@ -174,11 +259,27 @@ def kette_bilden(gruppe: list[Eintrag], m: int) -> Kette:
     return k
 
 
-def serie(gruppe: list[Eintrag], stichtag: dt.date | None) -> dict | None:
-    """wiederkehrend.md 2.2–2.4 mit D-115; ``None``, wenn die Gruppe keine Serie ist."""
+def uebergangen(gruppe: list[Eintrag], k: Kette, f: Betragsfilter) -> int:
+    """Zahl der Einträge zwischen erstem und letztem Glied, die der Betragsfilter übergeht (D-137)."""
+    if f.modus == "aus" or len(k.glieder) < 2:
+        return 0
+    drin = set(k.glieder) | set(k.zusaetzlich)
+    return sum(1 for i in range(min(k.glieder) + 1, len(gruppe)) if i not in drin)
+
+
+def erfuellt(gruppe: list[Eintrag], k: Kette, f: Betragsfilter, mindest: int) -> bool:
+    """Mindestanzahl erreicht; bei der Vorgabe (nicht eigens eingestellt) muss die Serie außerdem die Mehrheit der
+    Zahlungen ihres Zeitraums ausmachen: höchstens so viele übergangene Einträge wie Glieder (D-137)."""
+    if len(k.glieder) < mindest:
+        return False
+    return f.quelle != "vorgabe" or uebergangen(gruppe, k, f) <= len(k.glieder)
+
+
+def serie(gruppe: list[Eintrag], stichtag: dt.date | None, f: Betragsfilter = OHNE_FILTER) -> dict | None:
+    """wiederkehrend.md 2.2–2.4 mit D-115 und Betragsfilter (D-137); ``None``, wenn die Gruppe keine Serie ist."""
     for name, m, mindest in RHYTHMEN:
-        k = kette_bilden(gruppe, m)
-        if len(k.glieder) < mindest:
+        k = kette_bilden(gruppe, m, f)
+        if not erfuellt(gruppe, k, f, mindest):
             continue
         kt = [gruppe[i] for i in reversed(k.glieder)]
         letzte = _d(kt[-1].datum)
@@ -196,13 +297,116 @@ def serie(gruppe: list[Eintrag], stichtag: dt.date | None) -> dict | None:
     return None
 
 
+# ================================================================ Betragsfilter (D-137)
+
+MODI = ("aus", "toleranz", "mindestschwelle")
+VORGABE = Betragsfilter("toleranz", 10, None, "vorgabe")
+
+
+def vorgabe_laden(con) -> Betragsfilter:
+    """Globale Vorgabe aus ``meta`` (Einstellung der Instanz); ohne Eintrag Toleranz ±10 %."""
+    w = {r["schluessel"]: r["wert"] for r in con.execute(
+        "SELECT schluessel, wert FROM meta WHERE schluessel IN ('wk_filter_modus', 'wk_filter_toleranz')")}
+    modus = w.get("wk_filter_modus", VORGABE.modus)
+    if modus == "aus":
+        return Betragsfilter("aus", None, None, "vorgabe")
+    return Betragsfilter("toleranz", int(w.get("wk_filter_toleranz", VORGABE.toleranz_prozent)), None, "vorgabe")
+
+
+class Filterwahl:
+    """Betragsfilter je Empfänger: eigener Eintrag, sonst die Vorgabe."""
+
+    def __init__(self, con):
+        self.vorgabe = vorgabe_laden(con)
+        self.eigene = {r["empfaenger_id"]: Betragsfilter(r["modus"], r["toleranz_prozent"], r["mindestbetrag"],
+                                                        "empfaenger")
+                       for r in con.execute("SELECT * FROM empfaenger_wiederkehrend")}
+
+    def __call__(self, empfaenger_id: int) -> Betragsfilter:
+        return self.eigene.get(empfaenger_id, self.vorgabe)
+
+
+def _filter_pruefen(d: dict, vorgabe: bool) -> None:
+    """Fachliche Prüfung eines Betragsfilters (Schema prüft vorher Typen)."""
+    fehler: list[dict] = []
+    modus = d["modus"]
+    if vorgabe and modus == "mindestschwelle":
+        fehler.append(fehler_eintrag(["body", "modus"], "Die Mindestschwelle gibt es nur je Empfänger."))
+    tp, mb = d.get("toleranz_prozent"), d.get("mindestbetrag")
+    if modus == "toleranz":
+        if tp is None:
+            fehler.append(fehler_eintrag(["body", "toleranz_prozent"], "Für die Toleranz erforderlich."))
+        elif not 0 <= tp <= 100:
+            fehler.append(fehler_eintrag(["body", "toleranz_prozent"], "Erlaubt sind 0 bis 100."))
+    elif tp is not None:
+        fehler.append(fehler_eintrag(["body", "toleranz_prozent"], "Nur beim Modus toleranz erlaubt."))
+    if modus == "mindestschwelle":
+        if mb is None:
+            fehler.append(fehler_eintrag(["body", "mindestbetrag"], "Für die Mindestschwelle erforderlich."))
+        elif not 0 < mb <= BETRAG_MAX:
+            fehler.append(fehler_eintrag(["body", "mindestbetrag"], "Betrag in Cent größer als 0 erwartet."))
+    elif mb is not None:
+        fehler.append(fehler_eintrag(["body", "mindestbetrag"], "Nur beim Modus mindestschwelle erlaubt."))
+    if fehler:
+        raise Validierungsfehler(fehler)
+
+
+def einstellungen(con) -> dict:
+    """``GET /api/wiederkehrend/einstellungen``: Vorgabe und eigene Einstellungen der Empfänger (nach Name)."""
+    v = vorgabe_laden(con)
+    return {"vorgabe": {"modus": v.modus, "toleranz_prozent": v.toleranz_prozent},
+            "empfaenger": [{"empfaenger": {"id": r["empfaenger_id"], "name": r["name"]}, "modus": r["modus"],
+                            "toleranz_prozent": r["toleranz_prozent"], "mindestbetrag": r["mindestbetrag"]}
+                           for r in con.execute("SELECT w.*, e.name FROM empfaenger_wiederkehrend w JOIN empfaenger e"
+                                                " ON e.id = w.empfaenger_id ORDER BY e.name, e.id")]}
+
+
+def vorgabe_setzen(con, d: dict) -> dict:
+    """``PUT /api/wiederkehrend/einstellungen/vorgabe``: Einstellung der Instanz (nicht im Protokoll, D-137)."""
+    _filter_pruefen(d, vorgabe=True)
+    werte = [("wk_filter_modus", d["modus"])]
+    if d["modus"] == "toleranz":
+        werte.append(("wk_filter_toleranz", str(d["toleranz_prozent"])))
+    con.executemany("INSERT INTO meta (schluessel, wert) VALUES (?, ?) ON CONFLICT(schluessel)"
+                    " DO UPDATE SET wert = excluded.wert", werte)
+    return einstellungen(con)["vorgabe"]
+
+
+def _empfaenger_pruefen(con, eid: int) -> str:
+    r = con.execute("SELECT name FROM empfaenger WHERE id = ?", (eid,)).fetchone()
+    if r is None:
+        raise buch.nicht_gefunden("Der Empfänger")
+    return r["name"]
+
+
+def empfaenger_filter_setzen(con, eid: int, d: dict) -> dict:
+    """``PUT /api/empfaenger/{id}/wiederkehrend`` (Buchbestand, protokolliert als Änderung des Empfängers)."""
+    name = _empfaenger_pruefen(con, eid)
+    _filter_pruefen(d, vorgabe=False)
+    tp, mb = d.get("toleranz_prozent"), d.get("mindestbetrag")
+    con.execute("INSERT INTO empfaenger_wiederkehrend (empfaenger_id, modus, toleranz_prozent, mindestbetrag)"
+                " VALUES (?, ?, ?, ?) ON CONFLICT(empfaenger_id) DO UPDATE SET modus = excluded.modus,"
+                " toleranz_prozent = excluded.toleranz_prozent, mindestbetrag = excluded.mindestbetrag",
+                (eid, d["modus"], tp, mb))
+    return {"empfaenger": {"id": eid, "name": name}, "modus": d["modus"], "toleranz_prozent": tp,
+            "mindestbetrag": mb}
+
+
+def empfaenger_filter_loeschen(con, eid: int) -> None:
+    """``DELETE /api/empfaenger/{id}/wiederkehrend``: wieder die Vorgabe (ohne eigene Einstellung: 404)."""
+    _empfaenger_pruefen(con, eid)
+    if con.execute("DELETE FROM empfaenger_wiederkehrend WHERE empfaenger_id = ?", (eid,)).rowcount == 0:
+        raise buch.nicht_gefunden("Die Einstellung des Empfängers")
+
+
 def uebersicht(con, stichtag: str) -> dict:
     """``GET /api/wiederkehrend`` (2.5)."""
     h = _d(stichtag)
+    wahl = Filterwahl(con)
     serien = []
-    for _, g in sorted(gruppen(eintraege(con, stichtag)).items(),
-                       key=lambda kv: (kv[0][0], kv[0][1], kv[0][2] != "ausgabe")):
-        s = serie(g, h)
+    for (_, eid, _), g in sorted(gruppen(eintraege(con, stichtag)).items(),
+                                 key=lambda kv: (kv[0][0], kv[0][1], kv[0][2] != "ausgabe")):
+        s = serie(g, h, wahl(eid))
         if s is not None:
             serien.append(s)
     return {"stichtag": stichtag, "serien": serien,
@@ -262,6 +466,9 @@ def _schritt_text(sch: dict, gruppe: list[Eintrag], m: int) -> dict:
         if aus["uebersprungen"]:
             t += " Als zusätzliche Zahlung übersprungen: " + ", ".join(
                 _kurz_text(gruppe[i]) for i in sch["uebersprungen"]) + "."
+    elif sch["grund"] == "betrag" and v is not None:
+        t = (f"{_kurz_text(c)}: {rechnung} ≤ {T}, aber der Betrag liegt außerhalb der Toleranz, und die Kette hat "
+             "Zahlungen mit anderem Betrag übergangen – die Kette beginnt hier.")
     elif sch["grund"] == "kein_vorgaenger":
         t = f"{_kurz_text(c)}: Es gibt keine ältere Buchung in der Gruppe – die Kette beginnt hier."
     elif sch["grund"] == "abstand" and v is not None:
@@ -306,34 +513,52 @@ def _wahl_grund(gruppe: list[Eintrag], k: Kette, g: int, x: int, m: int) -> str:
     return "bei sonst gleichwertigen Buchungen zählt die jüngere"
 
 
-def _rollen(gruppe: list[Eintrag], k: Kette | None) -> list[dict]:
+def _rolle(gruppe: list[Eintrag], k: Kette | None, f: Betragsfilter, i: int) -> str:
+    """Rolle eines Eintrags (8.5, D-137): ``anderer_betrag`` für Einträge, die der Betragsfilter übergeht – unter der
+    Mindestschwelle oder nach Beginn der Kette weder Glied noch zusätzlich."""
+    if not k:
+        return "keine_serie"
+    if i in k.glieder:
+        return "glied"
+    if i in k.zusaetzlich:
+        return "zusaetzlich"
+    if not f.zugelassen(gruppe[i]) or i > min(k.glieder):
+        return "anderer_betrag"
+    return "vor_beginn"
+
+
+def _rollen(gruppe: list[Eintrag], k: Kette | None, f: Betragsfilter) -> list[dict]:
     glieder = list(reversed(k.glieder)) if k else []
-    zus = set(k.zusaetzlich) if k else set()
     aus = []
     for i, x in enumerate(gruppe):
-        if i in glieder:
-            rolle, nr = "glied", glieder.index(i) + 1
-        elif i in zus:
-            rolle, nr = "zusaetzlich", None
-        else:
-            rolle, nr = ("vor_beginn" if k else "keine_serie"), None
-        aus.append(dict(_kurz(x), rolle=rolle, glied=nr))
+        rolle = _rolle(gruppe, k, f, i)
+        aus.append(dict(_kurz(x), rolle=rolle, glied=glieder.index(i) + 1 if rolle == "glied" else None))
     return aus[::-1]  # jüngste zuerst
 
 
-def _gruppe_begruenden(gruppe: list[Eintrag], e: Eintrag, h: dt.date, konto_name: str) -> dict:
+def _filter_text(f: Betragsfilter) -> str:
+    herkunft = "Einstellung des Empfängers" if f.quelle == "empfaenger" else "Vorgabe"
+    if f.modus == "toleranz":
+        return f"Betragsfilter: Toleranz ±{f.toleranz_prozent} % ({herkunft})"
+    if f.modus == "mindestschwelle":
+        return f"Betragsfilter: nur Beträge ab {euro(abs(f.mindestbetrag or 0))} ({herkunft})"
+    return f"Betragsfilter: aus ({herkunft})"
+
+
+def _gruppe_begruenden(gruppe: list[Eintrag], e: Eintrag, h: dt.date, konto_name: str,
+                       f: Betragsfilter = OHNE_FILTER) -> dict:
     idx = next(i for i, x in enumerate(gruppe) if x.buchung_id == e.buchung_id)
     rhythmen: list[dict] = []
     treffer = None
     for name, m, mindest in RHYTHMEN:
-        k = kette_bilden(gruppe, m)
-        ok = len(k.glieder) >= mindest
+        k = kette_bilden(gruppe, m, f)
+        ok = erfuellt(gruppe, k, f, mindest)
         rhythmen.append({"rhythmus": name, "monate": m, "mindestanzahl": mindest, "laenge": len(k.glieder),
                          "erfuellt": ok, "schritte": [_schritt_text(sch, gruppe, m) for sch in k.schritte]})
         if ok:
             treffer = (name, m, k)
             break
-    s = serie(gruppe, h)
+    s = serie(gruppe, h, f)
     juengste = gruppe[-1]
     diese = f"vom {_de(e.datum)} über {euro(e.betrag)}"
     kopf = f"{konto_name} · {e.empfaenger_name} · {'Ausgabe' if e.richtung == 'ausgabe' else 'Einnahme'}"
@@ -341,11 +566,17 @@ def _gruppe_begruenden(gruppe: list[Eintrag], e: Eintrag, h: dt.date, konto_name
         name, m, k = treffer
         glieder = list(reversed(k.glieder))
         rt = RHYTHMUS_TEXT[name]
-        if idx in glieder:
+        rolle = _rolle(gruppe, k, f, idx)
+        if rolle == "glied":
             urteil, glied = "glied", glieder.index(idx) + 1
             text = (f"Diese Buchung {diese} ist Glied {glied} von {len(glieder)} der {rt}en Serie "
                     f"(Status {s['status'] if s is not None else ''}).")
-        elif idx in k.zusaetzlich:
+        elif rolle == "anderer_betrag":
+            urteil, glied = "anderer_betrag", None
+            text = (f"Diese Buchung {diese} gehört nicht zur {rt}en Serie, weil ihr Betrag nicht passt "
+                    f"({_filter_text(f)}). Sie wird bei der Kettenbildung übergangen und unterbricht die Serie "
+                    f"nicht.")
+        elif rolle == "zusaetzlich":
             urteil, glied = "zusaetzlich", None
             g = min(k.glieder, key=lambda i: (abs((_d(gruppe[i].datum) - _d(e.datum)).days), -i))
             text = (f"Diese Buchung {diese} gehört nicht zur Serie. Es gibt eine {rt}e Serie, und am selben "
@@ -365,7 +596,8 @@ def _gruppe_begruenden(gruppe: list[Eintrag], e: Eintrag, h: dt.date, konto_name
     return {"konto": {"id": e.konto_id, "name": konto_name}, "richtung": e.richtung, "betrag": e.betrag,
             "datum": e.datum, "gruppe": kopf, "gruppe_anzahl": len(gruppe), "juengste": _kurz(juengste),
             "urteil": urteil, "glied": glied, "text": text, "serie": s, "rhythmen": rhythmen,
-            "buchungen": _rollen(gruppe, treffer[2] if treffer else None)}
+            "buchungen": _rollen(gruppe, treffer[2] if treffer else None, f),
+            "betragsfilter": f.als_dict(), "betragsfilter_text": _filter_text(f)}
 
 
 def begruendung(con, buchung_id: int, stichtag: str) -> dict:
@@ -375,7 +607,8 @@ def begruendung(con, buchung_id: int, stichtag: str) -> dict:
     if b is None:
         raise buch.nicht_gefunden("Die Buchung")
     aus: dict = {"buchung_id": buchung_id, "stichtag": stichtag, "urteil": "ausgeschlossen", "text": "",
-                 "eintraege": [], "ausgeschlossen": []}
+                 "eintraege": [], "ausgeschlossen": [],
+                 "empfaenger": {"id": b["empfaenger_id"], "name": b["ename"]} if b["empfaenger_id"] else None}
     if b["empfaenger_id"] is None:
         aus["text"] = "Die Buchung hat keinen Empfänger; nur Buchungen mit Empfänger zählen."
         return aus
@@ -395,11 +628,12 @@ def begruendung(con, buchung_id: int, stichtag: str) -> dict:
             aus["ausgeschlossen"].append({"konto": {"id": r["kid"], "name": namen[r["kid"]]}, "grund": "summe_null",
                                           "text": "Die Splits auf diesem Konto ergeben zusammen 0."})
     h = _d(stichtag)
+    f = Filterwahl(con)(b["empfaenger_id"])
     g = gruppen(eintraege(con, stichtag, empfaenger_id=b["empfaenger_id"]))
     for gr in sorted(g.values(), key=lambda v: (v[0].konto_id, v[0].richtung != "ausgabe")):
         e = next((x for x in gr if x.buchung_id == buchung_id), None)
         if e is not None:
-            aus["eintraege"].append(_gruppe_begruenden(gr, e, h, namen[e.konto_id]))
+            aus["eintraege"].append(_gruppe_begruenden(gr, e, h, namen[e.konto_id], f))
     if not aus["eintraege"]:
         aus["text"] = "Die Buchung berührt kein betrachtetes Bestandskonto (Giro, Spar, Karte)."
         return aus
@@ -422,6 +656,7 @@ def _ereignisse(con, buchung_ids: list[int], heute: str) -> list[dict]:
     if ids:
         alle = eintraege(con)
         g = gruppen(alle)
+        wahl = Filterwahl(con)
         je_buchung: dict[int, list[Eintrag]] = defaultdict(list)
         for e in alle:
             je_buchung[e.buchung_id].append(e)
@@ -448,9 +683,12 @@ def _ereignisse(con, buchung_ids: list[int], heute: str) -> list[dict]:
                                     "link": f"/buchungen/{bid}"})
                 for e in eig:
                     hist = [x for x in g[e.gruppe] if (x.datum, x.buchung_id) < (e.datum, e.buchung_id)]
-                    s = serie(hist, None) if hist else None
+                    f = wahl(e.empfaenger_id)
+                    s = serie(hist, None, f) if hist else None
+                    # Unter der Mindestschwelle setzt eine Zahlung die Serie nie fort (D-137); eine Preisänderung
+                    # außerhalb der Toleranz dagegen schon – sie wird gemeldet.
                     if (s is not None and abs((_d(e.datum) - _d(s["naechste_faelligkeit"])).days) <= T
-                            and e.betrag != s["betrag"]):
+                            and e.betrag != s["betrag"] and f.zugelassen(e)):
                         aus.append({"art": "wiederkehrend_betrag", "schluessel": f"wiederkehrend_betrag:{bid}",
                                     "titel": f"Geänderter Betrag: {e.empfaenger_name}",
                                     "text": f"Die {RHYTHMUS_TEXT[s['rhythmus']]}e Zahlung an bzw. von "
@@ -499,4 +737,5 @@ def pruefen_rest(con, buchung_ids: list[int], heute: str, jetzt: str) -> dict:
     return {"stichtag": heute, "benachrichtigungen": pruefen(con, buchung_ids, heute, jetzt)}
 
 
-__all__ = ["uebersicht", "pruefen", "begruendung"]
+__all__ = ["uebersicht", "pruefen", "begruendung", "einstellungen", "vorgabe_setzen", "empfaenger_filter_setzen",
+           "empfaenger_filter_loeschen"]
