@@ -155,8 +155,7 @@ def _serien(con, heute: str, frist_tage: int) -> list[dict]:
     """D-128: nächste Zahlung jeder aktiven oder ausbleibenden wiederkehrenden Serie als erwartete Zahlung mit
     Grund ``serie`` (abgeleitet, nicht gespeichert; Schließen/Zuordnen geschieht über die Buchungen selbst)."""
     aus = []
-    belegt = {r[0] for r in con.execute(  # nur Erwartungen aus Mails (D-131), nicht manuelle
-        "SELECT j.value FROM erwartung e, json_each(e.buchung_ids) j WHERE e.grund != 'manuell'")}
+    belegt = _alle_zugeordneten(con)   # jede gespeicherte Erwartung, auch manuelle (M24 1.2, D-142)
     for s in wiederkehrend.uebersicht(con, heute)["serien"]:
         if s["status"] not in ("aktiv", "ausbleibend"):
             continue

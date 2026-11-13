@@ -1920,3 +1920,9 @@ D-123 bis D-127 sind auf den offenen Branches `dokumente` und `alfbanco-import` 
 
 - Nach einer fehlgeschlagenen Verbindung blieb der Knopf gesperrt (das Ereignisziel war nach der Anfrage nicht mehr
   gesetzt). Der Knopf wird jetzt vor der Anfrage gemerkt und danach immer wieder freigegeben.
+
+## D-142 Serien: Auslassen bei Zuordnung zu jeder Erwartung (ersetzt den Serien-Teil von D-140)
+
+- Die freigegebene Meilenstein-Definition M24 (1.2) lässt eine Serie aus, wenn ihre letzte Buchung irgendeiner
+  gespeicherten Erwartung zugeordnet ist, auch einer manuellen (sonst erschiene dieselbe Zahlung doppelt). Die
+  Einschränkung auf Mail-Erwartungen aus D-140 ist zurückgenommen.
