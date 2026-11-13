@@ -9,7 +9,7 @@ import datetime as dt
 import pytest
 from fastapi.testclient import TestClient
 
-from kontor import db, mailerkennung
+from kontor import buch, db, mailerkennung
 from kontor.app import create_app
 from kontor.config import KontorConfig
 
@@ -238,7 +238,12 @@ def test_erstattung_uebernimmt_kategorie_der_bestellung(app_c):
     spiegeln(cfg, AMAZON, "Ihre Erstattung", f"Bestellnr. {NR}\nErstattungsbetrag: 9,99 €", "<a2@example.invalid>",
              empfangen="2024-03-10T10:00:00Z")
     abgleich(c)
-    unkat = c.post("/api/konten", json={"name": "Unkategorisiert", "art": "eigenkapital"}).json()["id"]
+    con = db.verbinde(cfg.aktive_datenbank)   # technisches Konto „Unkategorisiert“ (D-140)
+    try:
+        with db.transaktion(con):
+            unkat = buch.unkategorisiert_id(con)
+    finally:
+        con.close()
     g = buchung(c, giro, unkat, 999, datum="2024-03-12", zweck=f"Erstattung {NR}")
     abgleich(c)
     konten = {s["konto_id"] for s in c.get(f"/api/buchungen/{g}").json()["splits"]}
