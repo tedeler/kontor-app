@@ -13,6 +13,13 @@ für wiederkehrende Buchungen (M25, D-137). Definitionen vom Auftraggeber freige
 - Volllauf `--voll`: ohne Browser/Leistung **2955 / 2955**, Browser und Leistung **411 / 411** – zusammen
   **3366 / 3366**, nichts übersprungen. Anmeldelauf M16/M23–M25 199/199. Eigene Tests 265/265.
 - Einschränkung: M23 und M24 ohne Referenz/Mutanten in der Selbstprüfung (E-243).
+- Nachtrag nach Übernahme von main 0.13 (`feature/UXMobile`, parallel ohne Abnahme gemergt, D-144): ohne Browser/
+  Leistung weiter **2955 / 2955**; Browser und Leistung **405 / 411**. Rot sind 6 mobile Browsertests (keine
+  `kern`), die schon auf main 0.13 allein rot sind, weil UXMobile die mobile Bedienung ändert (u. a. Tab-Leiste
+  hinter einem Knopf): `m8 test_lange_beruehrung_oeffnet_menue`, `m8 test_split_bearbeiten[handy]`,
+  `m12 test_status_inline_mobil_ueber_kontextmenue`, `m17 test_mobil_lange_beruehrung`,
+  `m17 test_tab_leiste_und_attribute[handy]`, `m17 test_mobil_viele_tabs_aktiver_sichtbar`. Klärung über eine
+  Meilenstein-Definition für UXMobile; nicht Teil dieser Abnahme.
 
 ## Abnahme M18–M22 (Branch `feature/sammeltest` mit `spalten-markierung`) gegen kontor-tests `a373040`
 
