@@ -1377,10 +1377,11 @@ function appPasswortAbschnitt(id, p) {
   const ergebnis = h("p", { tid: "postfach-app-ergebnis", role: "status", "aria-live": "polite" });
   const speichern = knopf("Speichern und Verbindung testen", { tid: "postfach-app-speichern", class: "knopf knopf-haupt",
     onclick: async (e) => {
+      const knopfEl = e.currentTarget;   // nach dem ersten await ist currentTarget null (D-141)
       const wert = pw.value;
       pw.value = "";
       if (!wert) { melde("fehler", "Bitte das App-Passwort eingeben."); return; }
-      e.currentTarget.disabled = true;
+      knopfEl.disabled = true;
       ergebnis.textContent = "Verbinde mit dem Mailserver …";
       try {
         if (ordner.value.trim() && ordner.value.trim() !== p.ordner) {
@@ -1390,7 +1391,7 @@ function appPasswortAbschnitt(id, p) {
         melde("erfolg", `Verbunden: ${r.nachrichten_im_ordner} Nachricht(en) im Ordner „${r.ordner}“.`);
         await oberflaeche.neuLaden();
       } catch (f) { ergebnis.textContent = `Fehler: ${f.message}`; }
-      finally { e.currentTarget.disabled = false; }
+      finally { knopfEl.disabled = false; }
     } });
   const entfernen = knopf("App-Passwort entfernen", { tid: "postfach-app-entfernen", onclick: async () => {
     try { await api("DELETE", `/api/mail/postfaecher/${id}/app-passwort`); melde("erfolg", "App-Passwort entfernt."); await oberflaeche.neuLaden(); }

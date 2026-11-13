@@ -1915,3 +1915,8 @@ D-123 bis D-127 sind auf den offenen Branches `dokumente` und `alfbanco-import` 
   `manuell`) zugeordnet ist; Sortierung bei gleicher Frist: gespeicherte Erwartungen nach Nummer, dann Serien.
   `serien=ja` steht nur in der REST-Abfrage, nicht in der Adresse der Seite `/erwartet` (berichtigt D-139).
 - **Erstattung:** „Unkategorisiert“ wird an `extern_id = "kontor:unkategorisiert"` erkannt, nicht am Namen.
+
+## D-141 Abnahme M23: Knopf „Speichern und Verbindung testen“ nach einem Fehler wieder bedienbar
+
+- Nach einer fehlgeschlagenen Verbindung blieb der Knopf gesperrt (das Ereignisziel war nach der Anfrage nicht mehr
+  gesetzt). Der Knopf wird jetzt vor der Anfrage gemerkt und danach immer wieder freigegeben.
