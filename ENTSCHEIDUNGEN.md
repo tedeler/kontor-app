@@ -1933,3 +1933,78 @@ D-123 bis D-127 sind auf den offenen Branches `dokumente` und `alfbanco-import` 
   landete in den alten Feldern und ging verloren (zweites Speichern schickte den alten Stand). Die Vorgabe ist eine
   Instanz-Einstellung ohne Rückgängig: Die Felder übernehmen die Antwort des Servers, die Seite bleibt stehen, andere
   Tabs laden beim nächsten Zeigen neu.
+
+## D-141 Bedienung auf dem Handy (Feature `UXMobile`, iterativ, Branch `feature/UXMobile`)
+
+- **Anlass:** Auftrag 2026-11-13: Die Bedienung auf dem Handy (Pixel 7, 412 × 915 CSS-Pixel) ist an vielen Stellen
+  schlecht: Im Kontoblatt wurden durch Tippen mal Buchungen markiert, mal die Einzelheiten gezeigt, ohne dass der
+  Zustand sichtbar war; Tabellen (z. B. wiederkehrende Buchungen) waren in schmale Spalten gequetscht. Vorgabe: die
+  Desktop-Bedienung bleibt unverändert. Nummer D-141, weil D-131 bis D-140 auf parallelen Branches vergeben sind.
+- **Grundsatz:** Alle Änderungen wirken nur im mobilen Layout (`data-layout="mobil"`, < 768 CSS-Pixel). Neue
+  Elemente, die es nur mobil gibt, tragen `nur-mobil` und sind auf dem Desktop ausgeblendet; Desktop-Bildschirmfotos
+  von 16 Ansichten sind vorher/nachher pixelgleich.
+- **Kopfzeile:** eine Zeile mit Menü, Suche (Lupe `suche-knopf`, blendet das Suchfeld als zweite Zeile ein), Sync,
+  Rückgängig, Wiederholen (unter 390 px nur über die Palette), Palette, Glocke und `tabs-knopf` mit der Zahl offener
+  Ansichten. Die Tab-Leiste ist mobil ausgeblendet; `tabs-knopf` klappt sie als Liste auf (Wahl schließt die Liste,
+  Esc/Tippen daneben auch). Der Mock-Hinweis ist einzeilig, Tippen zeigt den ganzen Text.
+  Entscheidung des Auftraggebers: „Kompakt, Tabs als Knopf“.
+- **Auswahlmodus im Kontoblatt (Android-Standard, Entscheidung des Auftraggebers):**
+  - Tippen ohne Auswahl öffnet die Einzelheiten (wie bisher). **Lange Berührung startet den Auswahlmodus** mit dieser
+    Zeile (kurze Vibration), statt das Kontextmenü zu öffnen; im Auswahlmodus nimmt sie die Zeile hinzu. Das vom
+    Browser zur langen Berührung gemeldete `contextmenu` wird in der Liste ignoriert. Auf dem Desktop (auch mit
+    Touch) bleibt lange Berührung = Kontextmenü.
+  - Im Auswahlmodus (`buchungsliste` mit `data-auswahlmodus="ja"`) zeigt jede Zeile links einen Kreis bzw. ein
+    Häkchen; Tippen schaltet um. Direkt unter der App-Kopfzeile (über dem Seitenkopf, Rückgängig bleibt erreichbar)
+    liegt die Leiste `auswahl-kopf` mit `auswahl-beenden` (✕), `auswahl-kopf-anzahl` („3 ausgewählt“) und
+    `auswahl-alle`. Die Zurück-Taste des Handys beendet den Auswahlmodus
+    (eigener History-Eintrag beim Start).
+  - `mehrfach-leiste` zeigt mobil nur Kategorie, Tags, Löschen und `mehrfach-mehr` („⋮ Mehr“ = Kontextmenü der
+    Auswahl); die übrigen Knöpfe bleiben im DOM, sind aber ausgeblendet. Der schwebende Knopf „+“ (= `buchung-erfassen`)
+    ist im Auswahlmodus ausgeblendet.
+  - Kein „klebendes“ Hover nach dem Tippen (`hover: none`): es sah wie eine Markierung aus.
+- **Wischgesten** (Entscheidung „Behalten, mit Rückmeldung“): Die Zeile folgt dem Finger; darunter erscheint
+  „✓ Auswählen“/„✕ Abwählen“ (rechts) bzw. „Kategorie …“ (links), farbig, sobald der Mindestweg von 80 px erreicht ist.
+  Mobil zählt nur der Weg (≥ 80 px waagerecht, ≤ 40 px senkrecht), nicht mehr die Dauer ≤ 1 000 ms – sonst würde ein
+  langsames Wischen „bereit“ anzeigen und beim Loslassen nichts tun.
+- **Kompakte Liste:** Empfänger und Betrag in der ersten Zeile, Datum und Kategorie klein darunter; Kopfzeile als
+  schmale Sortierleiste („Sortieren: Datum ↓ Empfänger Betrag“). Kontoblatt-Kopf in einer Zeile (Filter, ⚙, ⇄ als
+  Symbolknöpfe), „Buchung erfassen“ als schwebender Knopf unten rechts. Filterleiste zweispaltig.
+- **Kontextmenüs und Dialoge** mobil als Blatt vom unteren Rand (volle Breite, Griff, abgedunkelter Hintergrund;
+  Tippen daneben schließt). Deaktivierte Menüeinträge sind mobil ausgeblendet. Dialoge setzen den Fokus mobil nicht in
+  ein Textfeld, damit die Bildschirmtastatur erst auf Tippen erscheint. `interactive-widget=resizes-content` im
+  Viewport hält Blätter über der Tastatur.
+- **Tabellen als Karten:** `mobilKarten(tabelle, rollen)` (kern.js) gibt jeder Zelle eine Rolle (`data-mk`: titel,
+  betrag, info mit Beschriftung aus der Spaltenüberschrift, info-, zeile, status, aktion, aktion2, auswahl, weg); CSS
+  zeigt mobil je Zeile eine Karte (Titel und Betrag oben, Angaben darunter). Eingesetzt für Finanzübersicht,
+  Kategorien der Übersicht, Konten, wiederkehrende Buchungen, Tilgungsplan, Berichte (Kontostand, Einnahmen/Ausgaben,
+  Einzelbuchungen), Betragsfilter, Empfänger. Suchtreffer mobil wie die kompakte Liste, Tippen springt zur Buchung im
+  Konto. Plotly-Werkzeugleiste mobil ausgeblendet.
+- **Auswirkung auf Abnahmetests (Spezifikationsänderung, Klärung über die Meilenstein-Definition):** oberflaeche.md
+  16.4 (lange Berührung auf einer Buchungszeile = Kontextmenü; Wischen ≤ 1 000 ms) und 27.1.2 (Tab-Leiste sichtbar)
+  gelten mobil nicht mehr; betroffen sind die Handy-Tests zur langen Berührung im Kontoblatt (M8, M16, M17) und die
+  Sichtbarkeit der Tab-Leiste auf dem Handy (M17).
+
+## D-142 Statische Dateien immer prüfen; wiederkehrende Buchungen mobil als feste Karte (Nachtrag zu D-141)
+
+- **Anlass:** Nach dem Update auf 0.12 zeigte das Handy des Auftraggebers weiter die alte Oberfläche (alte Tabelle der
+  wiederkehrenden Buchungen). Ursache: Dateien unter `/oeffentlich/` wurden ohne `Cache-Control` ausgeliefert; der
+  Browser hält sie dann nach eigener Schätzung (Alter der Datei) für frisch und fragt nicht nach – auch der Service
+  Worker holte sie über diesen Zwischenspeicher.
+- **Entscheidung:** Antworten unter `/oeffentlich/` und `/static/` tragen `Cache-Control: no-cache`, sofern sie keine
+  eigene Angabe haben (bedingte Anfrage mit ETag, in der Regel 304). Der Service Worker (Cache `kontor-huelle-6`) ruft
+  statische Dateien mit `cache: "no-cache"` ab. Nach einem Update genügt damit ein Neuladen; bereits betroffene Geräte
+  bekommen den neuen Service Worker beim nächsten Aufruf und ab dem darauffolgenden Laden den aktuellen Stand.
+  Die Spezifikation regelt nur `/sw.js` und die Hülle (oberflaeche.md 18); für die übrigen Dateien ist nichts festgelegt.
+- **Wiederkehrende Buchungen mobil:** statt der allgemeinen Kartenansicht eine feste Karte in drei Zeilen: Empfänger
+  (höchstens zwei Zeilen) und Betrag; Rhythmus · Konto (gekürzt) und „x € / Jahr“ rechtsbündig unter dem Betrag;
+  Status-Marke und „Nächste TT.MM.JJJJ“. Farbiger linker Rand nach Status (aktiv grün, ausbleibend gelb), Summe der
+  Jahreskosten als Kasten. Tippen auf die Karte öffnet die Aktionen der Serie (wie der Knopf „…“). Desktop unverändert.
+
+## D-144 Doppelte Nummern durch `feature/UXMobile` (ergänzt D-132, D-138)
+
+- `feature/UXMobile` wurde parallel ohne Abnahme auf main gemergt und vergibt D-131, D-141 und D-142 ein zweites Mal.
+  Verweise gelten aus dem Zusammenhang: **D-131** = Serien im Mail-Abgleich bzw. Bedienung auf dem Handy (UXMobile),
+  **D-141** = Knopf nach Fehler (M23) bzw. Bedienung auf dem Handy, **D-142** = Serien auslassen (M24) bzw.
+  statische Dateien mit no-cache und mobile Karte der wiederkehrenden Buchungen. Neue Einträge ab D-145.
+- UXMobile hat keine eigene Meilenstein-Definition und keine eigenen Abnahmetests; geprüft ist nur, dass die
+  bestehende Abnahmesuite (einschließlich aller Browsertests) mit ihm grün bleibt.

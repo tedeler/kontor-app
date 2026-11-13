@@ -279,6 +279,31 @@ export const kategorien = () => baumFolge(stamm.konten.filter((k) => k.art === "
 /** Klasse eines Kontos (datenmodell.md 2): Bestand, Aufwand, Ertrag, Eigenkapital. */
 export const klasse = (k) => (BESTAND.has(k.art) ? "bestand" : k.art);
 
+// ------------------------------------------------------------------ Tabellen mobil als Karten (D-141)
+/**
+ * Bereitet eine Tabelle für die Kartenansicht im mobilen Layout vor: jede Zelle bekommt eine Rolle (`data-mk`) und
+ * als Beschriftung die Spaltenüberschrift (`data-label`). Rollen je Spalte: titel, betrag, info (mit Beschriftung),
+ * info- (ohne), zeile (ganze Breite), aktion (oben rechts), aktion2 (unten rechts), auswahl (links), weg (ausgeblendet);
+ * „info:Text“ setzt eine eigene Beschriftung. Wirkt nur über CSS unter data-layout="mobil"; Desktop bleibt gleich.
+ */
+export function mobilKarten(tabelle, rollen) {
+  tabelle.classList.add("mobil-karten");
+  const koepfe = [...tabelle.querySelectorAll("thead th")].map((th) => th.textContent.trim());
+  for (const tr of tabelle.querySelectorAll(":scope > tbody > tr, :scope > tfoot > tr")) {
+    if (tr.dataset.mkFertig) continue;
+    tr.dataset.mkFertig = "ja";
+    let i = 0;
+    for (const zelle of tr.children) {
+      const [rolle, eigen] = (rollen[i] || "info").split(":");
+      zelle.dataset.mk = rolle;
+      const label = eigen !== undefined ? eigen : koepfe[i];
+      if (label && rolle === "info") zelle.dataset.label = label;
+      i += Number(zelle.getAttribute("colspan") || 1);
+    }
+  }
+  return tabelle;
+}
+
 // ------------------------------------------------------------------ Ebenen (Menü, Dialog, Palette, Menü mobil)
 export const ebenen = [];
 

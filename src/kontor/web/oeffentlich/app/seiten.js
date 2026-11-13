@@ -1,7 +1,7 @@
 /* Kontor – Seiten außer der Kontoansicht (oberflaeche.md 6, 13, 14). */
 import {
   BESTAND, STATUS_TEXT, abfrage, aktion, anmeldung, api, baumFolge, betragEl, betragLesen, betragText, datumEl,
-  datumText, h, kategorien, kontoNach, kontoPfad, melde, nachName, neueId, oberflaeche, pfadVon, stamm, tid, zeitEl,
+  datumText, h, kategorien, kontoNach, kontoPfad, melde, mobilKarten, nachName, neueId, oberflaeche, pfadVon, stamm, tid, zeitEl,
   zeitText,
 } from "./kern.js";
 import {
@@ -17,8 +17,11 @@ const kopf = (seite, titel, ...werkzeuge) => {
 };
 const abschnitt = (titel, ...inhalt) => h("section", { class: "karte" }, h("h2", null, titel), inhalt);
 const leer = (text) => h("p", { class: "leer" }, text);
-const tabelle = (attrs, spalten, zeilen) => h("table", { class: "tabelle", ...(attrs || {}) },
-  h("thead", null, h("tr", null, spalten.map((s) => h("th", { scope: "col" }, s)))), h("tbody", null, zeilen));
+const tabelle = (attrs, spalten, zeilen, rollen) => {
+  const t = h("table", { class: "tabelle", ...(attrs || {}) },
+    h("thead", null, h("tr", null, spalten.map((s) => h("th", { scope: "col" }, s)))), h("tbody", null, zeilen));
+  return rollen ? mobilKarten(t, rollen) : t;
+};
 
 // ------------------------------------------------------------------ Finanzübersicht (6, 22.1)
 const KATEGORIEN_OFFEN = "kontor.uebersicht.kategorien";
@@ -62,6 +65,8 @@ function anzeigeBetrag(tag, roh, vz, attrs) {
   return el;
 }
 
+const UEB_ROLLEN = ["titel", "info-", "betrag", "info:Buchungen"];
+
 export async function uebersicht(seite) {
   const u = await api("GET", "/api/kontenuebersicht");
   kopf(seite, "Finanzübersicht");
@@ -69,6 +74,7 @@ export async function uebersicht(seite) {
   const geschlossene = h("input", { type: "checkbox", tid: "uebersicht-geschlossene", id: "uebersicht-geschlossene" });
   const tbody = h("tbody");
   const kategorienInhalt = h("div", { id: "uebersicht-kategorien-inhalt", class: "kategorien-inhalt" });
+  let uebTabelle = null;
   const zeichnen = () => {
     const mit = geschlossene.checked;
     tbody.replaceChildren(...kontoZeilen(bestand, mit, "uebersicht-konto", (k) => [
@@ -87,6 +93,8 @@ export async function uebersicht(seite) {
         h("tfoot", null, h("tr", null, h("th", { scope: "row" }, `Summe ${titel}`),
           anzeigeBetrag("td", summe, vz, { tid: `uebersicht-summe-${art}`, class: "zahl" }), h("td"))))];
     }));
+    if (uebTabelle) mobilKarten(uebTabelle, UEB_ROLLEN);
+    for (const t of kategorienInhalt.querySelectorAll("table")) mobilKarten(t, ["titel", "betrag", "info:Buchungen"]);
   };
   geschlossene.addEventListener("change", zeichnen);
   zeichnen();
@@ -109,11 +117,11 @@ export async function uebersicht(seite) {
       { bubbles: true, cancelable: true, clientX: x, clientY: y })));
   }
   seite.append(h("label", { class: "wahl" }, geschlossene, " geschlossene Konten anzeigen"),
-    h("table", { class: "tabelle", tid: "uebersicht-tabelle" },
+    uebTabelle = mobilKarten(h("table", { class: "tabelle", tid: "uebersicht-tabelle" },
       h("thead", null, h("tr", null, ["Konto", "Art", "Saldo", "Buchungen"].map((s) => h("th", { scope: "col" }, s)))),
       tbody,
       h("tfoot", null, h("tr", null, h("th", { scope: "row", colspan: "2" }, "Summe der Bestandskonten"),
-        betragEl("td", u.summe_bestand, { tid: "uebersicht-summe", class: "zahl" }), h("td")))),
+        betragEl("td", u.summe_bestand, { tid: "uebersicht-summe", class: "zahl" }), h("td")))), UEB_ROLLEN),
     h("p", { class: "klein" }, "Saldo = Summe aller Splits je Konto einschließlich Unterkonten. Schulden sind negativ."),
     h("section", { class: "karte uebersicht-kategorien", tid: "uebersicht-kategorien" },
       h("div", { class: "seiten-kopf" }, h("h2", null, "Kategorien"), umschalten),
@@ -156,7 +164,8 @@ export async function konten(seite) {
   });
   langeBeruehrung(seite, (t) => t.closest("tr[data-testid]"), (tr, x, y) => tr.dispatchEvent(new MouseEvent("contextmenu",
     { bubbles: true, cancelable: true, clientX: x, clientY: y })));
-  seite.append(zeilen.length ? tabelle({ tid: "kontenbaum" }, ["Konto", "Art", "IBAN", "Saldo", "Abstimmung"], zeilen)
+  seite.append(zeilen.length ? tabelle({ tid: "kontenbaum" }, ["Konto", "Art", "IBAN", "Saldo", "Abstimmung"], zeilen,
+    ["titel", "info-", "info-", "betrag", "aktion2"])
     : h("div", { tid: "kontenbaum" }, leer("Noch keine Konten.")));
   return { titel: "Konten" };
 }
@@ -205,6 +214,11 @@ export async function wiederkehrend(seite) {
       betragEl("td", s.jahreskosten, { class: "zahl" }), datumEl("td", s.naechste_faelligkeit),
       h("td", null, SERIENSTATUS[s.status] || s.status), h("td", { class: "aktionen" }, mehr));
     tr.addEventListener("contextmenu", (e) => { e.preventDefault(); serienMenue(s, e.clientX, e.clientY, tr); });
+    // mobil (D-142): Tippen auf die Karte öffnet die Aktionen
+    tr.addEventListener("click", (e) => {
+      if (!oberflaeche.istMobil() || e.target.closest("button, a")) return;
+      const [x, y] = menuePosition(null, tr); serienMenue(s, x, y, tr);
+    });
     tr.addEventListener("keydown", (e) => {
       if (e.target === tr && ((e.key === "F10" && e.shiftKey) || e.key === "ContextMenu")) {
         e.preventDefault(); const [x, y] = menuePosition(null, tr); serienMenue(s, x, y, tr);
@@ -214,9 +228,10 @@ export async function wiederkehrend(seite) {
   };
   langeBeruehrung(seite, (t) => t.closest("tr[data-status]"), (tr, x, y) => tr.dispatchEvent(new MouseEvent("contextmenu",
     { bubbles: true, cancelable: true, clientX: x, clientY: y })));
-  seite.append(h("p", null, "Summe der Jahreskosten: ", betragEl("strong", u.summe_jahreskosten)),
+  seite.append(h("p", { class: "wk-summe" }, "Summe der Jahreskosten: ", betragEl("strong", u.summe_jahreskosten)),
     tabelle({ tid: "wiederkehrend-tabelle" }, ["Empfänger", "Konto", "Rhythmus", "Betrag", "Jahreskosten", "Nächste Fälligkeit",
-      "Status", h("span", { class: "nur-sr" }, "Aktionen")], u.serien.map(zeile)),
+      "Status", h("span", { class: "nur-sr" }, "Aktionen")], u.serien.map(zeile),
+    ["titel", "wk-konto", "wk-rhythmus", "betrag", "wk-jahr", "wk-faellig", "status", "wk-aktion"]),
     ...(u.serien.length ? [] : [leer("Keine wiederkehrenden Buchungen erkannt.")]));
   return { titel: "Wiederkehrende Buchungen" };
 }
@@ -326,7 +341,8 @@ export async function kredit(seite, id) {
   seite.append(abschnitt("Tilgungsplan", tabelle({ tid: "tilgungsplan" }, ["Nr.", "Fälligkeit", "Rate", "Zins", "Tilgung", "Sondertilgung", "Restschuld"],
     plan.zeilen.map((z) => h("tr", { tid: `plan-zeile-${z.nr}` }, h("td", null, String(z.nr)), datumEl("td", z.faelligkeit),
       betragEl("td", z.rate, { class: "zahl" }), betragEl("td", z.zins, { class: "zahl" }), betragEl("td", z.tilgung, { class: "zahl" }),
-      betragEl("td", z.sondertilgung, { class: "zahl" }), betragEl("td", z.restschuld_nachher, { class: "zahl" }))))));
+      betragEl("td", z.sondertilgung, { class: "zahl" }), betragEl("td", z.restschuld_nachher, { class: "zahl" }))),
+    ["info:Nr.", "titel", "betrag", "info", "info", "info", "info"])));
   return { titel: k.name };
 }
 
@@ -364,6 +380,7 @@ export async function berichte(seite) {
       h("thead", null, h("tr", null, h("th", { scope: "col" }, "Stichtag"), b.reihen.map((r) => h("th", { scope: "col" }, r.name)))),
       h("tbody", null, b.stichtage.map((tag, i) => h("tr", { tid: `bericht-zeile-${tag}` }, datumEl("th", tag, { scope: "row" }),
         b.reihen.map((r) => betragEl("td", r.werte[i], { class: "zahl", "data-konto-id": String(r.konto_id) })))))));
+    mobilKarten(ausgabe.querySelector("table"), ["titel", ...b.reihen.map(() => (b.reihen.length === 1 ? "betrag" : "info"))]);
     const zeilen = ausgabe.querySelectorAll("tbody tr");
     // Zeile i umfasst die Buchungen nach dem vorigen Stichtag bis einschließlich ihres Stichtags
     aufklappbar(zeilen, (i) => ({ von: i ? tagDanach(b.stichtage[i - 1]) : b.stichtage[0], bis: b.stichtage[i] }),
@@ -385,7 +402,8 @@ export async function berichte(seite) {
       ea.replaceChildren(hinweis, tabelle(null, ["Zeitraum", "Einnahmen", "Ausgaben", "Saldo", "nicht kategorisiert"],
         b.perioden.map((p) => h("tr", null, h("td", null, `${datumText(p.von)} – ${datumText(p.bis)}`), betragEl("td", p.einnahmen, { class: "zahl" }),
           betragEl("td", p.ausgaben, { class: "zahl" }), betragEl("td", p.saldo, { class: "zahl" }),
-          betragEl("td", p.nicht_kategorisiert, { class: "zahl" })))));
+          betragEl("td", p.nicht_kategorisiert, { class: "zahl" }))),
+        ["titel", "info", "info", "betrag", "info:nicht kategorisiert"]));
       const zeilen = ea.querySelectorAll("tbody tr");
       aufklappbar(zeilen, (i) => ({ von: b.perioden[i].von, bis: b.perioden[i].bis }), ids,
         { spalten: 5, praefix: "bericht-ea", ohneUmbuchungen: true });
@@ -593,7 +611,7 @@ function buchungsTabelle(liste, gewaehlt, praefix) {
           });
           return a;
         })));
-    }));
+    }), ["info-", "titel", "zeile", "betrag", "aktion2"]);
 }
 
 /** Zeitpunkt eines Plotly-Datums („2024-03-15“ oder „2024-03-15 12:30:00.5“) oder einer Zahl (ms) in Ortszeit. */
@@ -760,7 +778,8 @@ function wkFilterAbschnitt(wk) {
       + "werden bei der Erkennung übergangen und unterbrechen eine Serie nicht."),
     h("div", { class: "formular-zeile" }, feld("Vorgabe für alle Empfänger", modus), fProzent, speichern),
     h("h3", null, "Eigene Einstellungen je Empfänger"),
-    zeilen.length ? tabelle({ tid: "wk-filter-liste" }, ["Empfänger", "Betragsfilter", h("span", { class: "nur-sr" }, "Aktionen")], zeilen)
+    zeilen.length ? tabelle({ tid: "wk-filter-liste" }, ["Empfänger", "Betragsfilter", h("span", { class: "nur-sr" }, "Aktionen")], zeilen,
+      ["titel", "info-", "aktion2"])
       : leer("Alle Empfänger verwenden die Vorgabe."),
     knopf("Empfänger hinzufügen …", { tid: "wk-filter-neu", onclick: (e) => wkFilterDialog(null, e.currentTarget) }));
 }
@@ -983,7 +1002,7 @@ export async function empfaenger(seite) {
       h("td", null, wahl), h("td", null, e.name), h("td", null, (e.aliase || []).join(", ")),
       h("td", null, e.standardkategorie_id ? pfadVon(e.standardkategorie_id) : ""),
       h("td", null, knopf("Bearbeiten…", { "aria-label": `Empfänger ${e.name} bearbeiten`, onclick: (ev) => empfaengerDialog(e, ev.currentTarget) })));
-  }))
+  }), ["auswahl", "titel", "info:Aliase", "info:Kategorie", "aktion"])
     : leer("Noch keine Empfänger."));
   return { titel: "Empfänger" };
 }
@@ -1279,6 +1298,8 @@ export async function suche(seite, _p, suchtext) {
         betragEl("div", b.betrag, { role: "gridcell", class: "zelle zahl", "data-feld": "betrag" }));
       const konto = b.splits.map((s) => kontoNach(s.konto_id)).find((k) => k && BESTAND.has(k.art));
       z.addEventListener("dblclick", () => { if (konto) oberflaeche.gehe(`/konten/${konto.id}`); });
+      // mobil (D-141): Tippen zeigt die Buchung im Konto (Doppeltippen ist auf dem Handy unüblich)
+      z.addEventListener("click", () => { if (konto && oberflaeche.istMobil()) oberflaeche.zurBuchung(konto.id, b.id); });
       z.addEventListener("keydown", (ev) => { if (ev.key === "Enter" && konto) oberflaeche.gehe(`/konten/${konto.id}`); });
       return z;
     }));

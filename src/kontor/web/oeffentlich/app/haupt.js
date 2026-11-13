@@ -52,6 +52,7 @@ oberflaeche.istMobil = istMobil;
 function layoutSetzen() {
   app.dataset.layout = istMobil() ? "mobil" : "desktop";
   menueSchliessen(false);
+  if (!istMobil()) { tabsListe(false); sucheMobil(false); }
   if (aktuell && aktuell.seite && aktuell.seite.layoutGeaendert) aktuell.seite.layoutGeaendert();
 }
 mobilAbfrage.addEventListener("change", layoutSetzen);
@@ -421,7 +422,12 @@ oberflaeche.zurBuchung = async (kontoId, buchungId) => {
   if (aktuell && aktuell.pfad === ziel && aktuell.seite && aktuell.seite.buchungZeigen) await aktuell.seite.buchungZeigen(buchungId);
 };
 
-window.addEventListener("popstate", () => { tabs.verlassen(); zeigen(); });
+window.addEventListener("popstate", () => {
+  // mobil (D-141): die Zurück-Taste beendet zuerst den Auswahlmodus der Kontoansicht
+  if (aktuell && aktuell.seite && aktuell.seite.zurueck && aktuell.el && aktuell.el.isConnected && aktuell.seite.zurueck()) return;
+  tabs.verlassen();
+  zeigen();
+});
 
 document.addEventListener("click", (e) => {
   if (e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
@@ -441,6 +447,62 @@ document.getElementById("suche-form").addEventListener("submit", (e) => {
   if (q) gehe("/suche?q=" + encodeURIComponent(q));
 });
 tid("rueckgaengig-knopf").addEventListener("click", () => rueckgaengig());
+
+// ------------------------------------------------------------------ Kopfzeile mobil (UXMobile, D-141)
+// Suche als Lupe: das Suchfeld erscheint erst auf Anforderung als zweite Zeile; leer und ohne Fokus wieder weg.
+const sucheKnopf = tid("suche-knopf");
+const sucheFeld = tid("suche-feld");
+function sucheMobil(offen) {
+  app.classList.toggle("suche-offen", offen);
+  sucheKnopf.setAttribute("aria-expanded", String(offen));
+  sucheKnopf.setAttribute("aria-label", offen ? "Suche ausblenden" : "Suche einblenden");
+}
+sucheKnopf.addEventListener("click", () => {
+  const offen = !app.classList.contains("suche-offen");
+  sucheMobil(offen);
+  if (offen) sucheFeld.focus();
+});
+sucheFeld.addEventListener("focus", () => { if (istMobil()) sucheMobil(true); });
+sucheFeld.addEventListener("blur", () => {
+  // Tippen auf die Lupe schließt selbst; sonst nach dem Verlassen des leeren Felds einklappen
+  setTimeout(() => { if (istMobil() && !sucheFeld.value && document.activeElement !== sucheKnopf) sucheMobil(false); }, 150);
+});
+
+// Tabs mobil: statt der Leiste ein Knopf mit der Zahl offener Ansichten; er klappt die Leiste als Liste auf.
+const tabsKnopf = tid("tabs-knopf");
+let tabsEbene = null;
+function tabsListe(offen) {
+  if (offen === !!tabsEbene) return;
+  app.classList.toggle("tabs-offen", offen);
+  tabsKnopf.setAttribute("aria-expanded", String(offen));
+  if (offen) {
+    tabsEbene = ebeneOeffnen({ art: "tabs-mobil", escape: () => tabsListe(false) });
+    const aktiv = tid("tab-leiste").querySelector("[aria-selected='true'] a") || tid("tab-leiste").querySelector("a");
+    if (aktiv) aktiv.focus();
+  } else {
+    ebeneSchliessen(tabsEbene);
+    tabsEbene = null;
+  }
+}
+tabsKnopf.addEventListener("click", () => tabsListe(!tabsEbene));
+document.addEventListener("pointerdown", (e) => {
+  if (tabsEbene && !tid("tab-leiste").contains(e.target) && !tabsKnopf.contains(e.target)) tabsListe(false);
+}, true);
+tid("tab-leiste").addEventListener("click", (e) => {
+  // Wahl eines Tabs schließt die Liste; Schließen eines Tabs lässt sie offen
+  if (tabsEbene && e.target.closest(".tab-titel")) tabsListe(false);
+});
+oberflaeche.tabsGezeichnet = (anzahl) => {
+  tid("tabs-zahl").textContent = String(anzahl);
+  tabsKnopf.setAttribute("aria-label", `Geöffnete Ansichten (${anzahl})`);
+  if (!anzahl) tabsListe(false);
+};
+tabs.beiZeichnen = oberflaeche.tabsGezeichnet;
+oberflaeche.tabsGezeichnet(tabs.liste.length);
+
+// Mock-Hinweis mobil einzeilig; Tippen zeigt den ganzen Text
+const mockHinweis = document.querySelector(".mock-hinweis");
+if (mockHinweis) mockHinweis.addEventListener("click", () => mockHinweis.classList.toggle("ganz"));
 tid("wiederholen-knopf").addEventListener("click", () => wiederholen());
 tid("befehlspalette-knopf").addEventListener("click", (e) => palette(e.currentTarget));
 tid("sync-starten").addEventListener("click", () => synchronisieren());

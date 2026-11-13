@@ -216,10 +216,21 @@ def test_mobil_tabs_und_gegenbuchung(tmp_path, browser):  # noqa: F811
         konten = {k["name"]: k["id"] for k in _get(url + "/api/konten")}
         page.goto(url + f"/konten/{konten['Giro']}")
         bereit(page, "konto")
-        expect(tid(page, "tab-leiste")).to_be_visible()
+        # D-141: mobil ist die Tab-Leiste ausgeblendet; der Tabs-Knopf zeigt die Zahl und klappt sie als Liste auf
+        expect(tid(page, "tab-leiste")).to_be_hidden()
+        expect(tid(page, "tabs-zahl")).to_have_text("1")
         zeile = page.locator('[data-testid="buchungsliste"] [role="row"][data-id]', has_text="Einkauf 4").first
-        zeile.click(button="right")
+        zeile.click(button="right")          # Rechtsklick (Maus) öffnet auch mobil das Kontextmenü
         tid(page, "km-gegenbuchung").click()
         bereit(page, "konto")
         expect(page.locator("h1")).to_have_text("Lebensmittel")
         expect(_tabs(page)).to_have_count(2)
+        expect(tid(page, "tabs-zahl")).to_have_text("2")
+        tid(page, "tabs-knopf").click()
+        expect(tid(page, "tab-leiste")).to_be_visible()
+        expect(tid(page, "tabs-knopf")).to_have_attribute("aria-expanded", "true")
+        _tabs(page).first.get_by_test_id("tab-titel").click()
+        bereit(page, "konto")
+        expect(page.locator("h1")).to_have_text("Giro")
+        expect(tid(page, "tab-leiste")).to_be_hidden()
+        expect(tid(page, "tabs-knopf")).to_have_attribute("aria-expanded", "false")

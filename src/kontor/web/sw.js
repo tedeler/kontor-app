@@ -2,7 +2,7 @@
  * Zwischengespeichert werden nur die Hülle und die statischen Dateien (Caches „kontor-…“), nie Antworten unter /api/.
  * Navigationen: zuerst Netz, bei Netzfehler die zwischengespeicherte Hülle. Statische Dateien: zuerst Netz, offline
  * aus dem Cache. */
-const CACHE = "kontor-huelle-5";
+const CACHE = "kontor-huelle-6";
 const DATEIEN = [
   "/",
   "/oeffentlich/app.css",
@@ -60,7 +60,8 @@ self.addEventListener("fetch", (ev) => {
     return;
   }
   if (!DATEIEN.includes(url.pathname) || url.search) return;
-  ev.respondWith(fetch(req).then((r) => {
+  // D-142: am HTTP-Cache vorbei prüfen (bedingte Anfrage), damit nach einem Update nie alte Dateien gezeigt werden
+  ev.respondWith(fetch(req, { cache: "no-cache" }).then((r) => {
     if (r.ok && r.type === "basic") {
       const kopie = r.clone();
       caches.open(CACHE).then((c) => c.put(url.pathname, kopie));

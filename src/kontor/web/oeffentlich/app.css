@@ -513,3 +513,243 @@ html[data-thema="dunkel"] { --mark-gruen: #5fb878; --mark-grau: #6f7884; --mark-
 .zeile[data-wiederkehrend="ja"] .zelle-empfaenger::before { content: "↻"; }
 .zeile[data-mail="ja"] .zelle-empfaenger::before { content: "✉"; }
 .zeile[data-wiederkehrend="ja"][data-mail="ja"] .zelle-empfaenger::before { content: "↻ ✉"; }
+
+/* ==================================================================================================================
+ * UXMobile (D-141): Bedienung auf dem Handy. Alle Regeln gelten nur im mobilen Layout ([data-layout="mobil"] bzw.
+ * dieselbe Breitenabfrage) oder für Elemente, die es nur mobil gibt (.nur-mobil); das Desktop-Layout bleibt gleich.
+ * ================================================================================================================== */
+.nur-mobil { display: none; }
+[data-layout="mobil"] .nur-mobil { display: inline-flex; }
+
+/* Kopfzeile: eine Zeile; Suche als Lupe, Tabs als Zählerknopf */
+@media (max-width: 767.98px) {
+  .mock-hinweis:not(.ganz) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: .8rem; padding: .2rem .5rem;
+    cursor: pointer; }
+}
+[data-layout="mobil"] .kopf { gap: .2rem; padding: .3rem .35rem; }
+[data-layout="mobil"] .kopf-knoepfe { margin-left: auto; gap: .15rem; }
+[data-layout="mobil"]:not(.suche-offen) .suche-kopf { display: none; }
+[data-layout="mobil"].suche-offen .suche-kopf { order: 5; flex-basis: 100%; }
+[data-layout="mobil"] .kopf-knopf { border-color: transparent; background: none; }
+[data-layout="mobil"] .kopf-knopf[aria-expanded="true"] { background: var(--akzent-hell); }
+@media (max-width: 389.98px) { [data-layout="mobil"] #wiederholen-knopf { display: none; } }
+.tabs-zahl { display: inline-flex; align-items: center; justify-content: center; min-width: 1.45rem; height: 1.45rem; padding: 0 .2rem;
+  border: 2px solid currentColor; border-radius: 5px; font-size: .78rem; font-weight: 700; line-height: 1; }
+[data-layout="mobil"] .tab-leiste { display: none; }
+[data-layout="mobil"].tabs-offen .tab-leiste:not([hidden]) { display: flex; flex-direction: column; gap: 0; position: absolute; z-index: 650;
+  top: 0; right: .35rem; width: min(21rem, calc(100vw - .7rem)); max-height: 70vh; overflow-y: auto; padding: .3rem 0;
+  background: var(--hg); border: 1px solid var(--rand); border-radius: 0 0 10px 10px; box-shadow: var(--schatten); }
+[data-layout="mobil"].tabs-offen .tab { max-width: none; border: 0; border-radius: 0; margin: 0; background: none; min-height: 48px; }
+[data-layout="mobil"].tabs-offen .tab + .tab { border-top: 1px solid var(--hg-3); }
+[data-layout="mobil"].tabs-offen .tab-aktiv { background: var(--akzent-hell); box-shadow: inset 4px 0 0 var(--akzent); }
+[data-layout="mobil"].tabs-offen .tab-titel { font-size: 1rem; padding: .7rem .4rem .7rem 1rem; }
+[data-layout="mobil"] h1 { font-size: 1.25rem; }
+
+/* Kontoblatt mobil: Kopf in einer Zeile, Erfassen als schwebender Knopf */
+[data-layout="mobil"] .seite-konto > .seiten-kopf { flex-wrap: nowrap; }
+[data-layout="mobil"] .seite-konto > .seiten-kopf h1 { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-layout="mobil"] .seite-konto > .seiten-kopf .werkzeuge { flex: none; flex-wrap: nowrap; gap: .25rem; }
+[data-layout="mobil"] :is([data-testid="konto-einstellungen-oeffnen"], [data-testid="konto-verschieben"]) { font-size: 0; padding: 0; width: 44px; }
+[data-layout="mobil"] :is([data-testid="konto-einstellungen-oeffnen"], [data-testid="konto-verschieben"])::before { font-size: 1.2rem; }
+[data-layout="mobil"] [data-testid="konto-einstellungen-oeffnen"]::before { content: "⚙"; }
+[data-layout="mobil"] [data-testid="konto-verschieben"]::before { content: "⇄"; }
+[data-layout="mobil"] [data-testid="buchung-erfassen"] { position: fixed; z-index: 390; right: 1rem; bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+  width: 56px; height: 56px; padding: 0; border-radius: 16px; font-size: 0; background: var(--akzent); color: var(--akzent-text);
+  border: 0; box-shadow: var(--schatten); }
+[data-layout="mobil"] [data-testid="buchung-erfassen"]::before { content: "+"; font-size: 2rem; line-height: 1; font-weight: 300; }
+[data-layout="mobil"] .seite-konto:has(> .mehrfach-leiste:not([hidden])) [data-testid="buchung-erfassen"] { display: none; }
+[data-layout="mobil"] .seite-konto .listen-info { font-size: .82rem; }
+[data-layout="mobil"] .seite-konto :is(.auswahl-anzahl, .auswahl-trenner) { display: none; }
+
+/* Kompakte Buchungsliste (nur mobil, data-kompakt="ja"): Empfänger und Betrag oben, Datum und Kategorie darunter */
+.buchungsliste[data-kompakt="ja"] .zeile { grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "empf empf betrag" "datum kat tags";
+  column-gap: .5rem; row-gap: 0; min-height: 58px; padding: .4rem .3rem .4rem .7rem; }
+.buchungsliste[data-kompakt="ja"] .zeile .zelle { padding: 0; }
+.buchungsliste[data-kompakt="ja"] .zelle-empfaenger { font-weight: 600; font-size: 1rem; }
+.buchungsliste[data-kompakt="ja"] .zelle-betrag { font-weight: 600; font-size: 1rem; }
+.buchungsliste[data-kompakt="ja"] .zelle-datum { font-size: .82rem; color: var(--text-2); }
+.buchungsliste[data-kompakt="ja"] .zelle-kategorie { font-size: .82rem; }
+.buchungsliste[data-kompakt="ja"] .zelle-tags .tag { font-size: .72rem; }
+.buchungsliste[data-kompakt="ja"] .ersatz { font-weight: 400; font-style: italic; }
+.buchungsliste.mit-konto[data-kompakt="ja"] .zeile { grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr) auto;
+  grid-template-areas: "empf empf empf betrag" "datum kat konto tags"; }
+.buchungsliste[data-kompakt="ja"] .liste-kopf { padding-left: .4rem; }
+/* Auswahlmodus: Häkchen links, deutliche Markierung */
+.buchungsliste[data-auswahlmodus="ja"] .zeile { grid-template-columns: 2rem auto minmax(0, 1fr) auto;
+  grid-template-areas: "haken empf empf betrag" "haken datum kat tags"; padding-left: .3rem; }
+.buchungsliste.mit-konto[data-auswahlmodus="ja"] .zeile { grid-template-columns: 2rem auto minmax(0, 1fr) minmax(0, 1fr) auto;
+  grid-template-areas: "haken empf empf empf betrag" "haken datum kat konto tags"; }
+.buchungsliste[data-auswahlmodus="ja"] .zeile::before { content: ""; grid-area: haken; align-self: center; justify-self: center;
+  box-sizing: border-box; width: 1.4rem; height: 1.4rem; border: 2px solid var(--text-2); border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; font-size: .85rem; font-weight: 700; line-height: 1; }
+.buchungsliste[data-auswahlmodus="ja"] .zeile[aria-selected="true"]::before { content: "✓"; background: var(--akzent);
+  border-color: var(--akzent); color: var(--akzent-text); }
+/* kein „klebendes“ Hover nach dem Tippen auf Touch-Geräten (wirkte wie eine Markierung) */
+@media (hover: none) {
+  [data-layout="mobil"] .buchungsliste .zeile:hover { background-color: transparent; }
+  [data-layout="mobil"] .buchungsliste .zeile[data-markierung="kategorisiert"]:hover { background-color: var(--mark-gruen-hg); }
+  [data-layout="mobil"] .buchungsliste .zeile[data-markierung="importiert"]:hover { background-color: var(--mark-grau-hg); }
+  [data-layout="mobil"] .buchungsliste .zeile[data-markierung="abgeglichen"]:hover { background-color: var(--mark-gruengrau-hg); }
+  [data-layout="mobil"] .buchungsliste .zeile[aria-selected="true"]:hover { background-color: var(--auswahl); }
+  [data-layout="mobil"] .tabelle tbody tr.klickbar:hover { background: none; }
+}
+[data-layout="mobil"] .buchungsliste .zeile:focus-visible { outline: none; }
+/* Kopfleiste des Auswahlmodus: direkt unter der Kopfzeile der App, über dem Seitenkopf */
+.auswahl-kopf { display: flex; align-items: center; gap: .3rem; position: fixed; z-index: 500; left: 0; right: 0; min-height: 52px;
+  padding: 0 .35rem; background: var(--akzent); color: var(--akzent-text); box-shadow: 0 2px 6px rgba(0, 0, 0, .25); }
+.auswahl-kopf[hidden] { display: none; }
+.auswahl-kopf .knopf-flach { color: inherit; min-height: 44px; min-width: 44px; font-size: 1.1rem; }
+.auswahl-kopf .knopf-flach:hover { background: rgba(255, 255, 255, .15); }
+.auswahl-kopf-text { flex: 1 1 auto; font-weight: 600; font-size: 1.05rem; }
+.auswahl-kopf [data-testid="auswahl-alle"] { font-size: .95rem; border: 0; background: none; padding: 0 .8rem; }
+/* untere Aktionsleiste: wenige große Knöpfe, der Rest unter „Mehr“ */
+[data-layout="mobil"] .mehrfach-leiste { flex-wrap: nowrap; gap: 0; padding: .2rem .2rem calc(.2rem + env(safe-area-inset-bottom, 0px)); background: var(--hg); }
+[data-layout="mobil"] .mehrfach-leiste > :is([data-testid="mehrfach-status"], [data-testid="mehrfach-bearbeiten"],
+  [data-testid="mehrfach-vorschlag-annehmen"], [data-testid="mehrfach-vorschlag-ablehnen"], [data-testid="mehrfach-verschieben"],
+  [data-testid="auswahl-aufheben"]) { display: none; }
+[data-layout="mobil"] .mehrfach-leiste .knopf { flex: 1 1 0; border: 0; background: none; min-height: 52px; font-size: .9rem; border-radius: 8px; }
+[data-layout="mobil"] .mehrfach-leiste .knopf:active { background: var(--hg-3); }
+[data-layout="mobil"] .mehrfach-leiste [data-testid="mehrfach-loeschen"] { color: var(--gefahr); }
+[data-layout="mobil"] .mehrfach-leiste [data-testid="mehrfach-mehr"]::before { content: "⋮"; font-weight: 700; margin-right: .2rem; }
+
+/* Sortierung der kompakten Liste als schmale Leiste */
+.buchungsliste[data-kompakt="ja"] .liste-kopf { min-height: 40px; align-items: center; font-weight: 400; font-size: .85rem; gap: .1rem .9rem; }
+.buchungsliste[data-kompakt="ja"] .liste-kopf::before { content: "Sortieren:"; color: var(--text-2); }
+.buchungsliste[data-kompakt="ja"] .liste-kopf .spalten-knopf { font-weight: 400; color: var(--text-2); min-height: 40px; min-width: 0; }
+.buchungsliste[data-kompakt="ja"] .liste-kopf [aria-sort="ascending"] .spalten-knopf,
+.buchungsliste[data-kompakt="ja"] .liste-kopf [aria-sort="descending"] .spalten-knopf { font-weight: 700; color: var(--akzent); }
+
+/* Kontextmenü und Dialoge mobil als Blatt vom unteren Rand */
+.app[data-layout="mobil"] ~ .kontextmenue { left: 0 !important; right: 0; top: auto !important; bottom: 0; width: 100%;
+  min-width: 0; max-width: none; max-height: 78vh; overflow-y: auto; border-radius: 14px 14px 0 0; border-bottom: 0;
+  padding: .5rem 0 calc(.5rem + env(safe-area-inset-bottom, 0px)); box-shadow: 0 0 0 100vmax rgba(0, 0, 0, .35), var(--schatten); }
+.app[data-layout="mobil"] ~ .kontextmenue .menue-eintrag { min-height: 48px; padding: 0 1.25rem; font-size: 1rem; }
+.app[data-layout="mobil"] ~ .kontextmenue .menue-eintrag:focus:not(:focus-visible) { background: none; }
+@media (hover: none) { .app[data-layout="mobil"] ~ .kontextmenue .menue-eintrag:hover:not(:focus-visible) { background: none; } }
+.app[data-layout="mobil"] ~ .kontextmenue .menue-eintrag:active { background: var(--auswahl); }
+.app[data-layout="mobil"] ~ .kontextmenue::before { content: ""; display: block; width: 2.5rem; height: 4px; border-radius: 2px; background: var(--rand);
+  margin: 0 auto .4rem; }
+.app[data-layout="mobil"] ~ .dialog-huelle { align-items: flex-end; padding: 0; }
+.app[data-layout="mobil"] ~ .dialog-huelle .dialog { width: 100%; max-width: none; max-height: 92%; border-radius: 14px 14px 0 0; border-bottom: 0;
+  padding-bottom: env(safe-area-inset-bottom, 0px); }
+.app[data-layout="mobil"] ~ .dialog-huelle .dialog-palette { align-self: stretch; margin: 0; border-radius: 0 0 14px 14px; max-height: 80%; }
+.app[data-layout="mobil"] ~ .dialog-huelle:has(.dialog-palette) { align-items: flex-start; }
+.app[data-layout="mobil"] ~ .dialog-huelle .dialog-kopf { padding: .8rem 1rem .3rem; }
+.app[data-layout="mobil"] ~ .dialog-huelle .dialog-inhalt { padding: .3rem 1rem 1rem; }
+.app[data-layout="mobil"] ~ .dialog-huelle .auswahl-liste { max-height: none; }
+.app[data-layout="mobil"] ~ .dialog-huelle .option { min-height: 46px; }
+.app[data-layout="mobil"] ~ .dialog-huelle .knopf-leiste { position: sticky; bottom: -1rem; background: var(--hg); padding: .5rem 0 .2rem; margin-bottom: -.2rem; }
+
+/* Wischgesten mobil: die Zeile folgt dem Finger, darunter erscheint die Wirkung */
+[data-layout="mobil"] .listen-spalte { position: relative; }
+.zeile.wischt { position: relative; z-index: 1; background-color: var(--hg) !important; box-shadow: 0 1px 6px rgba(0, 0, 0, .2); }
+.wisch-hinweis { position: absolute; left: 0; right: 0; z-index: 0; display: flex; align-items: center; justify-content: space-between;
+  padding: 0 1rem; font-weight: 600; font-size: .95rem; pointer-events: none; color: var(--text-2); background: var(--hg-3); }
+.wisch-hinweis[hidden] { display: none; }
+.wisch-hinweis[data-richtung="rechts"] .wisch-rechts, .wisch-hinweis[data-richtung="links"] .wisch-links { visibility: hidden; }
+.wisch-hinweis[data-bereit="ja"][data-richtung="rechts"] { background: var(--akzent); color: var(--akzent-text); }
+.wisch-hinweis[data-bereit="ja"][data-richtung="links"] { background: var(--erfolg); color: #fff; }
+html[data-thema="dunkel"] .wisch-hinweis[data-bereit="ja"][data-richtung="links"] { color: #15181c; }
+@media (prefers-reduced-motion: no-preference) { [data-layout="mobil"] .zeile { transition: transform .15s ease-out, background-color .12s; }
+  [data-layout="mobil"] .zeile.wischt { transition: none; } }
+.app[data-layout="mobil"] ~ .kontextmenue .menue-eintrag[aria-disabled="true"] { display: none; }
+.app[data-layout="mobil"] ~ .dialog-huelle .dialog:focus { outline: none; }
+
+/* Tabellen mobil als Karten (mobilKarten in kern.js): erste Zeile Titel und Betrag, darunter die übrigen Angaben */
+[data-layout="mobil"] .tabelle.mobil-karten { display: block; font-size: 1rem; }
+[data-layout="mobil"] .tabelle.mobil-karten > thead { display: none; }
+[data-layout="mobil"] .tabelle.mobil-karten > :is(tbody, tfoot) { display: block; }
+[data-layout="mobil"] .tabelle.mobil-karten > :is(tbody, tfoot) > tr { display: flex; flex-wrap: wrap; align-items: baseline;
+  column-gap: .9rem; row-gap: .15rem; padding: .55rem .3rem; border-bottom: 1px solid var(--rand); min-height: 44px; }
+[data-layout="mobil"] .tabelle.mobil-karten > :is(tbody, tfoot) > tr::before { content: ""; order: 2; flex-basis: 100%; height: 0; }
+[data-layout="mobil"] .tabelle.mobil-karten > :is(tbody, tfoot) > tr > :is(td, th) { display: block; border: 0; padding: 0; min-width: 0; text-align: left; }
+[data-layout="mobil"] .tabelle.mobil-karten [data-mk="titel"] { order: 0; flex: 1 1 0; font-weight: 600; overflow-wrap: anywhere; }
+[data-layout="mobil"] .tabelle.mobil-karten [data-mk="titel"].name { padding-left: calc(var(--stufe, 0) * 1rem); }
+[data-layout="mobil"] .tabelle.mobil-karten [data-mk="betrag"] { order: 1; flex: none; font-weight: 600; text-align: right; white-space: nowrap; }
+[data-layout="mobil"] .tabelle.mobil-karten > tbody > tr:has(> [data-mk="aktion"]) { position: relative; padding-right: 3.1rem; }
+[data-layout="mobil"] .tabelle.mobil-karten [data-mk="aktion"] { position: absolute; right: 0; top: 50%; transform: translateY(-50%); }
+[data-layout="mobil"] .tabelle.mobil-karten [data-mk="aktion"] .knopf { min-width: 44px; width: 44px; padding: 0; }
+[data-layout="mobil"] .tabelle.mobil-karten [data-mk="aktion"] .knopf:not(.knopf-flach) { font-size: 0; }
+[data-layout="mobil"] .tabelle.mobil-karten [data-mk="aktion"] .knopf:not(.knopf-flach)::before { content: "✎"; font-size: 1.15rem; }
+[data-layout="mobil"] .tabelle.mobil-karten [data-mk="aktion"] .knopf-flach { font-size: 1.3rem; }
+[data-layout="mobil"] .tabelle.mobil-karten [data-mk="auswahl"] { order: -1; flex: none; align-self: center; }
+[data-layout="mobil"] .tabelle.mobil-karten [data-mk="auswahl"] input { width: 1.35rem; height: 1.35rem; }
+[data-layout="mobil"] .tabelle.mobil-karten :is([data-mk="info"], [data-mk="info-"], [data-mk="status"]) { order: 3; font-size: .85rem; color: var(--text-2); }
+[data-layout="mobil"] .tabelle.mobil-karten [data-mk="info"]::before { content: attr(data-label) " "; opacity: .85; }
+[data-layout="mobil"] .tabelle.mobil-karten [data-mk="info"] { color: var(--text); }
+[data-layout="mobil"] .tabelle.mobil-karten [data-mk="info"]::before { color: var(--text-2); }
+[data-layout="mobil"] .tabelle.mobil-karten [data-mk="zeile"] { order: 3; flex-basis: 100%; font-size: .85rem; color: var(--text-2); }
+[data-layout="mobil"] .tabelle.mobil-karten [data-mk="aktion2"] { order: 4; margin-left: auto; }
+[data-layout="mobil"] .tabelle.mobil-karten [data-mk="aktion2"] .knopf { min-height: 40px; }
+[data-layout="mobil"] .tabelle.mobil-karten [data-mk="weg"],
+[data-layout="mobil"] .tabelle.mobil-karten :is([data-mk="info"], [data-mk="info-"], [data-mk="zeile"]):empty { display: none; }
+[data-layout="mobil"] .tabelle.mobil-karten [data-mk="status"] { background: var(--hg-3); border-radius: 9px; padding: 0 .5rem; font-size: .78rem; }
+[data-layout="mobil"] .tabelle.mobil-karten tr[data-status="ausbleibend"] [data-mk="status"] { background: color-mix(in srgb, var(--hinweis) 22%, transparent); color: var(--text); }
+[data-layout="mobil"] .tabelle.mobil-karten tr[data-status="beendet"] { opacity: .7; }
+[data-layout="mobil"] .tabelle.mobil-karten > tfoot > tr { font-weight: 600; background: var(--hg-2); }
+[data-layout="mobil"] .tabelle.mobil-karten > tbody > tr > td:not([data-mk]) { flex-basis: 100%; order: 5; }
+[data-layout="mobil"] .tabelle.mobil-karten .bericht-details > td { padding: .3rem 0 .3rem .6rem; }
+
+/* Suchtreffer mobil wie die kompakte Buchungsliste */
+[data-layout="mobil"] .buchungsliste.treffer .liste-kopf { display: none; }
+[data-layout="mobil"] .buchungsliste.treffer .zeile { grid-template-columns: auto minmax(0, 1fr) auto; column-gap: .5rem;
+  grid-template-areas: "empf empf betrag" "datum kat kat" "zweck zweck zweck"; min-height: 58px; padding: .45rem .3rem; cursor: pointer; }
+[data-layout="mobil"] .buchungsliste.treffer .zelle { padding: 0; }
+[data-layout="mobil"] .buchungsliste.treffer [data-feld="empfaenger"] { grid-area: empf; font-weight: 600; }
+[data-layout="mobil"] .buchungsliste.treffer [data-feld="betrag"] { grid-area: betrag; font-weight: 600; }
+[data-layout="mobil"] .buchungsliste.treffer :is([data-feld="datum"], [data-feld="kategorie"], [data-feld="verwendungszweck"]) {
+  font-size: .82rem; color: var(--text-2); }
+[data-layout="mobil"] .buchungsliste.treffer [data-feld="datum"] { grid-area: datum; }
+[data-layout="mobil"] .buchungsliste.treffer [data-feld="kategorie"] { grid-area: kat; }
+[data-layout="mobil"] .buchungsliste.treffer [data-feld="verwendungszweck"] { grid-area: zweck; }
+/* Diagramme: Werkzeugleiste von Plotly verdeckt mobil die Legende; Zoomen geht mit zwei Fingern */
+[data-layout="mobil"] .modebar-container { display: none; }
+/* Nullbeträge in Kartenangaben weglassen (z. B. Sondertilgung 0,00 €) */
+[data-layout="mobil"] .tabelle.mobil-karten [data-mk="info"][data-betrag="0"] { display: none; }
+/* Kredite: Name auf eigener Zeile */
+[data-layout="mobil"] [data-testid="kredite-liste"] .karte > strong { display: block; font-size: 1.05rem; margin-bottom: .2rem; }
+
+/* Filterleiste mobil: zweispaltiges Raster */
+[data-layout="mobil"] .filter-leiste { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: .45rem .6rem; align-items: end; }
+[data-layout="mobil"] .filter-leiste[hidden] { display: none; }
+[data-layout="mobil"] .filter-leiste .feld :is(input, select) { width: 100%; }
+[data-layout="mobil"] .filter-leiste input[type="text"] { width: 100%; }
+[data-layout="mobil"] .filter-leiste .wahl { margin: 0; min-height: 44px; }
+[data-layout="mobil"] .filter-leiste > :is(fieldset, .status-filter, button, .knopf) { grid-column: 1 / -1; }
+[data-layout="mobil"] .filter-leiste fieldset .wahl { min-height: 40px; }
+[data-layout="mobil"] .filter-leiste fieldset { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: .6rem; }
+
+/* Wiederkehrende Buchungen mobil (D-142): feste Karte in drei Zeilen
+ *   Empfänger ...................... Betrag
+ *   Konto · Rhythmus ........... x € / Jahr
+ *   [Status] Nächste TT.MM.JJJJ ......... ⋯  */
+[data-layout="mobil"] .wk-summe { display: flex; justify-content: space-between; align-items: baseline; margin: .2rem 0 .6rem;
+  padding: .6rem .8rem; background: var(--hg-2); border: 1px solid var(--rand); border-radius: 10px; color: var(--text-2); }
+[data-layout="mobil"] .wk-summe strong { font-size: 1.15rem; color: var(--text); }
+[data-layout="mobil"] .tabelle.mobil-karten[data-testid="wiederkehrend-tabelle"] > tbody > tr { position: relative; column-gap: .4rem; row-gap: .2rem;
+  padding: .7rem .2rem .7rem .7rem; border-left: 4px solid var(--rand); margin-bottom: .5rem; border: 1px solid var(--rand);
+  border-left-width: 4px; border-radius: 10px; cursor: pointer; }
+[data-layout="mobil"] .tabelle.mobil-karten[data-testid="wiederkehrend-tabelle"] > tbody > tr:active { background: var(--hg-2); }
+[data-layout="mobil"] .tabelle.mobil-karten[data-testid="wiederkehrend-tabelle"] > tbody > tr[data-status="aktiv"] { border-left-color: var(--erfolg); }
+[data-layout="mobil"] .tabelle.mobil-karten[data-testid="wiederkehrend-tabelle"] > tbody > tr[data-status="ausbleibend"] { border-left-color: var(--hinweis); }
+[data-layout="mobil"] .tabelle.mobil-karten[data-testid="wiederkehrend-tabelle"] > tbody > tr::after { content: ""; order: 5; flex-basis: 100%; height: 0; }
+[data-layout="mobil"] .tabelle.mobil-karten[data-testid="wiederkehrend-tabelle"] [data-mk="titel"] { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+  overflow: hidden; line-height: 1.25; }
+[data-layout="mobil"] .tabelle.mobil-karten[data-testid="wiederkehrend-tabelle"] [data-mk="titel"]:empty::before { content: "ohne Empfänger"; font-weight: 400;
+  font-style: italic; color: var(--text-2); }
+[data-layout="mobil"] .tabelle.mobil-karten[data-testid="wiederkehrend-tabelle"] [data-mk="betrag"] { font-size: 1.05rem; padding-right: .6rem; }
+[data-layout="mobil"] .tabelle.mobil-karten[data-testid="wiederkehrend-tabelle"] :is([data-mk="wk-konto"], [data-mk="wk-rhythmus"], [data-mk="wk-jahr"], [data-mk="wk-faellig"]) {
+  order: 3; font-size: .85rem; color: var(--text-2); white-space: nowrap; }
+[data-layout="mobil"] .tabelle.mobil-karten[data-testid="wiederkehrend-tabelle"] [data-mk="wk-konto"] { order: 4; flex: 1 1 0; overflow: hidden; text-overflow: ellipsis; }
+[data-layout="mobil"] .tabelle.mobil-karten[data-testid="wiederkehrend-tabelle"] [data-mk="wk-rhythmus"] { flex: none; }
+[data-layout="mobil"] .tabelle.mobil-karten[data-testid="wiederkehrend-tabelle"] [data-mk="wk-konto"]::before { content: "· "; margin-left: -.15rem; }
+[data-layout="mobil"] .tabelle.mobil-karten[data-testid="wiederkehrend-tabelle"] [data-mk="wk-jahr"] { order: 4; flex: none; padding-right: .6rem;
+  color: var(--text-2) !important; font-variant-numeric: tabular-nums; }
+[data-layout="mobil"] .tabelle.mobil-karten[data-testid="wiederkehrend-tabelle"] [data-mk="wk-jahr"]::after { content: " / Jahr"; }
+[data-layout="mobil"] .tabelle.mobil-karten[data-testid="wiederkehrend-tabelle"] [data-mk="status"] { order: 6; align-self: center; font-weight: 600; margin: .15rem 0; }
+[data-layout="mobil"] .tabelle.mobil-karten[data-testid="wiederkehrend-tabelle"] [data-mk="wk-faellig"] { order: 7; align-self: center; margin-right: 3rem; }
+[data-layout="mobil"] .tabelle.mobil-karten[data-testid="wiederkehrend-tabelle"] [data-mk="wk-faellig"]::before { content: "Nächste "; }
+[data-layout="mobil"] .tabelle.mobil-karten[data-testid="wiederkehrend-tabelle"] [data-mk="wk-faellig"]:empty { display: none; }
+[data-layout="mobil"] .tabelle.mobil-karten[data-testid="wiederkehrend-tabelle"] [data-mk="wk-aktion"] { position: absolute; right: .15rem; bottom: 0; }
+[data-layout="mobil"] .tabelle.mobil-karten[data-testid="wiederkehrend-tabelle"] [data-mk="wk-aktion"] .knopf { min-width: 44px; min-height: 40px; padding: 0; font-size: 1.3rem;
+  color: var(--text-2); }
