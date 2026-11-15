@@ -232,6 +232,7 @@ DUBLETTE_AUFLOESEN = {
     "entscheidung": S("enum", pflicht=True, werte=("zusammenfuehren", "keine_dublette")),
     "behalten_id": S("int"),
 }
+DUBLETTE_ANLEGEN = {"buchung_ids": S("int_liste", pflicht=True, min_items=2, max_items=50, eindeutig=True)}
 
 
 # ------------------------------------------------------------- App-Fabrik
@@ -1654,6 +1655,11 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
         status_ = q.auswahl("status", ("offen", "zusammengefuehrt", "keine_dublette"))
         q.pruefen()
         return await lesen(buch.dubletten_liste, status_)
+
+    @endpunkt("POST", "/api/dubletten", 201)
+    async def dublette_anlegen(request: Request):
+        d = await koerper(request, DUBLETTE_ANLEGEN)
+        return await aendern("dublette_anlegen", mit_uhr(buch.verdacht_anlegen), d["buchung_ids"])
 
     @endpunkt("POST", "/api/dubletten/{verdacht_id:int}/aufloesen")
     async def dublette_aufloesen(request: Request):

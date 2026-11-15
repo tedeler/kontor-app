@@ -327,8 +327,11 @@ html.zieht, html.zieht * { cursor: grabbing !important; }
 .option[aria-selected="true"] { background: var(--auswahl); }
 .dialog input[type="text"], .dialog input[type="date"], .dialog input[type="password"], .dialog input[type="url"], .dialog select { width: 100%; }
 .split-zeile { display: grid; grid-template-columns: minmax(8rem, 2fr) 7rem minmax(5rem, 1.5fr) auto; gap: .35rem; margin-bottom: .35rem; align-items: center; }
+.split-aktionen { display: flex; flex-wrap: wrap; gap: .35rem; }
+.split-vorlage { display: flex; flex-wrap: wrap; gap: .5rem; align-items: flex-end; margin-top: .4rem; }
+.split-vorlage .feld { flex: 1 1 14rem; margin-bottom: 0; }
 [data-layout="mobil"] .split-zeile { grid-template-columns: 1fr 6.5rem; }
-[data-layout="mobil"] .split-zeile select { grid-column: 1 / -1; }
+[data-layout="mobil"] .split-zeile select, [data-layout="mobil"] .split-aktionen { grid-column: 1 / -1; }
 .split-tabelle input, .split-tabelle select { width: 100%; }
 .dialog-details { align-self: flex-end; width: 100%; }
 .loeschen-zahlen { padding-left: 1.2rem; }

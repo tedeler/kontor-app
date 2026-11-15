@@ -436,14 +436,69 @@ export function splitDialog(buchung, ausloeser) {
         const memo = h("input", { type: "text", tid: `split-memo-${i}`, value: z.memo, maxlength: "1000",
           "aria-label": `Memo von Split ${i + 1}` });
         memo.addEventListener("input", () => { z.memo = memo.value; });
+        const ausgleichen = knopf("Split Ausgleichen", { tid: `split-ausgleichen-${i}`,
+          "aria-label": `Split ${i + 1} ausgleichen`,
+          onclick: () => {
+            let andere = 0;
+            zeilen.forEach((andereZeile, j) => {
+              if (j === i) return;
+              const c = betragLesen(andereZeile.betrag);
+              if (typeof c === "number") andere += c;
+            });
+            z.betrag = betragEingabe(-andere);
+            betrag.value = z.betrag;
+            pruefen();
+          } });
         const entfernen = knopf("Entfernen", { tid: `split-entfernen-${i}`, "aria-label": `Split ${i + 1} entfernen`,
           onclick: () => { zeilen.splice(i, 1); zeichnen(); } });
-        return h("div", { class: "split-zeile", tid: `split-zeile-${i}` }, konto, betrag, memo, entfernen);
+        return h("div", { class: "split-zeile", tid: `split-zeile-${i}` }, konto, betrag, memo,
+          h("div", { class: "split-aktionen" }, ausgleichen, entfernen));
       }));
       pruefen();
     }
     const hinzufuegen = knopf("Split hinzufügen", { tid: "split-hinzufuegen",
       onclick: () => { zeilen.push({ konto_id: null, betrag: "", memo: "" }); zeichnen(); } });
+    const nameVorschlag = String((buchung.empfaenger && buchung.empfaenger.name) || buchung.verwendungszweck || "Split").trim().slice(0, 200);
+    const vorlageName = h("input", { type: "text", tid: "split-vorlage-name", maxlength: "200", value: nameVorschlag,
+      "aria-label": "Name der Vorlage" });
+    const vorlageKnopf = knopf("Diesen Split zur Vorlage machen", { tid: "split-vorlage",
+      "aria-label": "Diesen Split zur Vorlage machen" });
+    function vorlageKoerper() {
+      const name = vorlageName.value.trim();
+      if (!name) { d.fehler("Bitte einen Namen für die Vorlage eingeben."); return null; }
+      const empfaenger = buchung.empfaenger && buchung.empfaenger.name ? String(buchung.empfaenger.name).trim() : "";
+      if (!empfaenger) { d.fehler("Die Buchung hat keinen Empfänger. Eine Split-Vorlage gilt über den Empfänger."); return null; }
+      const teile = [];
+      for (const z of zeilen) {
+        const k = z.konto_id ? kontoNach(z.konto_id) : null;
+        if (!k || BESTAND.has(k.art)) continue;
+        if (k.art !== "aufwand" && k.art !== "ertrag") {
+          d.fehler("Eine Split-Vorlage nimmt nur Kategorien (Ausgaben oder Einnahmen).");
+          return null;
+        }
+        const c = betragLesen(z.betrag);
+        if (typeof c !== "number" || c === 0) {
+          d.fehler("Jeder Kategorie-Teil braucht einen Betrag ungleich 0.");
+          return null;
+        }
+        teile.push({ kategorie_id: k.id, betrag: c, memo: z.memo || "" });
+      }
+      if (teile.length < 2) {
+        d.fehler("Eine Split-Vorlage braucht mindestens zwei Kategorien. Das Bestandskonto zählt nicht mit.");
+        return null;
+      }
+      if (teile.reduce((s, t) => s + t.betrag, 0) === 0) {
+        d.fehler("Die Summe der Kategorie-Teile darf nicht 0 sein.");
+        return null;
+      }
+      return { name, bedingungen: [{ feld: "empfaenger", operator: "gleich", wert: empfaenger.slice(0, 200) }], teile };
+    }
+    vorlageKnopf.addEventListener("click", () => imDialog(d, vorlageKnopf, async () => {
+      const body = vorlageKoerper();
+      if (!body) return;
+      await aktion(() => api("POST", "/api/vorlagen", body),
+        { stillBeiFehler: true, ohneNeuLaden: true, erfolg: "Split-Vorlage angelegt." });
+    }));
     speichern.addEventListener("click", () => imDialog(d, speichern, async () => {
       const splits = zeilen.map((z) => ({ konto_id: z.konto_id, betrag: betragLesen(z.betrag), memo: z.memo }));
       await aktion(() => api("PUT", `/api/buchungen/${buchung.id}/splits`, { splits }),
@@ -452,6 +507,7 @@ export function splitDialog(buchung, ausloeser) {
     zeichnen();
     inhalt.append(h("p", null, `${datumText(buchung.datum)} · ${buchung.empfaenger ? buchung.empfaenger.name : ""} · `,
       betragEl("span", buchung.betrag)), tabelle, hinzufuegen, rest,
+    h("div", { class: "split-vorlage" }, feld("Name der Vorlage", vorlageName), vorlageKnopf),
     knopfLeiste(speichern, knopf("Abbrechen", { tid: "split-abbrechen", onclick: () => d.schliessen(null) })));
   }, { ausloeser, klasse: "dialog-breit" });
 }
@@ -686,29 +742,56 @@ export function kategorienZusammenfuehren(quellen, ausloeser) {
 }
 
 // ------------------------------------------------------------------ Dubletten-Dialog (9.6)
+function dubletteText(verdacht) {
+  if (verdacht.grund === "gleich") return "Gleicher Betrag, gleiches Buchungsdatum und gleicher Empfänger.";
+  if (verdacht.grund === "manuell") return "Diese beiden Buchungen als Dublette prüfen.";
+  if (verdacht.grund === "mehrdeutig") return "Mehrere mögliche Gegenstücke gefunden.";
+  return "Ähnliche Buchung gefunden.";
+}
+
+/** Reihenfolge fürs Anlegen: die erste Id wird beim Zusammenführen entfernt, behalten_id ist Kandidat. */
+export function dubletteIds(verdacht, body) {
+  const alle = [verdacht.buchung_id, ...verdacht.kandidat_ids];
+  if (body.entscheidung !== "zusammenfuehren") return alle;
+  const weg = alle.filter((id) => id !== body.behalten_id);
+  if (!weg.length) return alle;
+  return [weg[0], body.behalten_id, ...weg.slice(1)];
+}
+
+/** Bestehenden Verdacht auflösen. Ohne Id erst anlegen (Vorschlag oder manuelles Paar); Abbrechen ruft das nicht auf. */
+export async function dubletteAufloesen(verdacht, body) {
+  let id = verdacht.id;
+  if (id == null) {
+    const neu = await api("POST", "/api/dubletten", { buchung_ids: dubletteIds(verdacht, body) });
+    id = neu.id;
+  }
+  return api("POST", `/api/dubletten/${id}/aufloesen`, body);
+}
+
 export async function dubletteDialog(verdacht, ausloeser) {
   const ids = [verdacht.buchung_id, ...verdacht.kandidat_ids];
   let buchungen;
   try { buchungen = await Promise.all(ids.map((id) => api("GET", `/api/buchungen/${id}`))); }
   catch (e) { melde("fehler", e.message); return; }
-  dialog("dublette-dialog", "Dublettenverdacht", (inhalt, d) => {
+  const frei = verdacht.id == null;
+  dialog("dublette-dialog", frei ? "Als Dublette markieren" : "Dublettenverdacht", (inhalt, d) => {
     const zeile = (b, mitKnopf) => h("li", { tid: mitKnopf ? `dublette-kandidat-${b.id}` : null, class: "dublette" },
       `${datumText(b.datum)} · ${b.empfaenger ? b.empfaenger.name : "ohne Empfänger"} · ${b.verwendungszweck || ""} · `,
       betragEl("span", b.betrag),
-      knopf("Diese behalten", { tid: `dublette-zusammenfuehren-${b.id}`, "aria-label": `Buchung ${b.id} behalten und zusammenführen`,
-        onclick: (e) => aufloesen(e.currentTarget, { entscheidung: "zusammenfuehren", behalten_id: b.id }) }));
+      mitKnopf ? knopf("Diese behalten", { tid: `dublette-zusammenfuehren-${b.id}`,
+        "aria-label": `Buchung ${b.id} behalten und zusammenführen`,
+        onclick: (e) => aufloesen(e.currentTarget, { entscheidung: "zusammenfuehren", behalten_id: b.id }) }) : null);
     async function aufloesen(k, body) {
       await imDialog(d, k, async () => {
-        await aktion(() => api("POST", `/api/dubletten/${verdacht.id}/aufloesen`, body),
+        await aktion(() => dubletteAufloesen(verdacht, body),
           { stillBeiFehler: true, danach: () => d.schliessen(true), erfolg: "Dublettenverdacht aufgelöst." });
       });
     }
-    inhalt.append(h("p", null, verdacht.grund === "mehrdeutig" ? "Mehrere mögliche Gegenstücke gefunden."
-      : "Ähnliche Buchung gefunden."),
-    h("ul", { class: "dubletten" }, buchungen.map((b, i) => zeile(b, i > 0))),
+    inhalt.append(h("p", { tid: "dublette-erklaerung" }, dubletteText(verdacht)),
+    h("ul", { class: "dubletten" }, buchungen.map((b, i) => zeile(b, frei || i > 0))),
     knopfLeiste(knopf("Keine Dublette", { tid: "dublette-keine",
       onclick: (e) => aufloesen(e.currentTarget, { entscheidung: "keine_dublette" }) }),
-    knopf("Abbrechen", { onclick: () => d.schliessen(null) })));
+    knopf("Abbrechen", { tid: "dublette-abbrechen", onclick: () => d.schliessen(null) })));
   }, { ausloeser, klasse: "dialog-breit" });
 }
 

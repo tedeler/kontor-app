@@ -5,8 +5,8 @@ import {
   zeitText,
 } from "./kern.js";
 import {
-  abstimmungDialog, bestaetigen, dialog, feld, imDialog, knopf, knopfLeiste, kontextmenue, kontoDialog, menuePosition,
-  zuordnungDialog,
+  abstimmungDialog, bestaetigen, dialog, dubletteAufloesen, feld, imDialog, knopf, knopfLeiste, kontextmenue,
+  kontoDialog, menuePosition, zuordnungDialog,
 } from "./ui.js";
 import { kategorienBaum, kontoMenue, langeBeruehrung } from "./baum.js";
 import { layoutZuruecksetzen } from "./konto.js";
@@ -1086,15 +1086,76 @@ export async function regeln(seite) {
   return { titel: "Regeln" };
 }
 
+function empfaengerBedingung(v) {
+  const b = (v.bedingungen || []).find((x) => x.feld === "empfaenger" && x.wert);
+  return b ? String(b.wert) : "";
+}
+
+/** Splitbetrag ist der Gesamtbetrag der Teile. Die Differenz landet auf einem Teil, nie als Gleitkommazahl. */
+function teileFuerSplitbetrag(teile, splitbetrag) {
+  const kopie = teile.map((t) => ({ kategorie_id: t.kategorie_id, betrag: t.betrag, memo: t.memo || "" }));
+  if (kopie.length < 2 || kopie.some((t) => typeof t.betrag !== "number" || !t.kategorie_id)) return null;
+  const summe = kopie.reduce((s, t) => s + t.betrag, 0);
+  const delta = -splitbetrag - summe;
+  if (delta !== 0) {
+    const i = kopie.findIndex((t) => t.betrag + delta !== 0);
+    if (i < 0) return null;
+    kopie[i] = { ...kopie[i], betrag: kopie[i].betrag + delta };
+  }
+  if (kopie.some((t) => t.betrag === 0) || kopie.reduce((s, t) => s + t.betrag, 0) === 0) return null;
+  return kopie;
+}
+
+function vorlageKarte(v) {
+  const empfaenger = empfaengerBedingung(v);
+  const empFeld = h("input", { type: "text", tid: `vorlage-empfaenger-feld-${v.id}`, maxlength: "200",
+    value: empfaenger, "aria-label": "Empfänger" });
+  const betragFeld = h("input", { type: "text", inputmode: "decimal", tid: `vorlage-splitbetrag-feld-${v.id}`,
+    value: betragEingabeText(v.gesamtbetrag), "aria-label": "Splitbetrag in Euro" });
+  const speichern = knopf("Regel speichern", { tid: `vorlage-regel-speichern-${v.id}`,
+    "aria-label": `Regel der Vorlage ${v.name} speichern` });
+  speichern.addEventListener("click", async () => {
+    const name = empFeld.value.trim();
+    const cent = betragLesen(betragFeld.value);
+    if (!name) { melde("fehler", "Bitte einen Empfänger eingeben."); return; }
+    if (typeof cent !== "number") { melde("fehler", "Bitte den Splitbetrag in Euro eingeben, zum Beispiel -80,00."); return; }
+    const teile = teileFuerSplitbetrag(v.teile, cent);
+    if (!teile) {
+      melde("fehler", "Der Splitbetrag passt nicht zu den Teilen: kein Teil darf 0 werden, die Summe der Teile nicht 0.");
+      return;
+    }
+    try {
+      await aktion(() => api("PATCH", `/api/vorlagen/${v.id}`, {
+        bedingungen: [{ feld: "empfaenger", operator: "gleich", wert: name }], teile,
+      }), { erfolg: "Regel gespeichert." });
+    } catch (e) { /* gemeldet */ }
+  });
+  const loeschen = knopf("Löschen", { tid: `vorlage-loeschen-${v.id}`, "aria-label": `Vorlage ${v.name} löschen` });
+  loeschen.addEventListener("click", async (e) => {
+    if (!(await bestaetigen(`Split-Vorlage „${v.name}“ löschen?`, { ja: "Löschen", ausloeser: e.currentTarget }))) return;
+    try { await aktion(() => api("DELETE", `/api/vorlagen/${v.id}`), { erfolg: "Split-Vorlage gelöscht." }); }
+    catch (f) { /* gemeldet */ }
+  });
+  return h("li", { tid: `vorlage-${v.id}`, class: "karte" },
+    h("strong", null, v.name),
+    h("p", { tid: `vorlage-regel-${v.id}` }, "Empfänger ",
+      h("strong", { tid: `vorlage-empfaenger-${v.id}` }, empfaenger || "—"),
+      " · Splitbetrag ", betragEl("strong", v.gesamtbetrag, { tid: `vorlage-splitbetrag-${v.id}` })),
+    h("p", { class: "klein" }, "Die Vorlage gilt, wenn Empfänger und Splitbetrag übereinstimmen. Angewendet über „Vorlagen anwenden“ und beim Import."),
+    h("ul", { class: "klein" }, v.teile.map((t) => {
+      const id = t.kategorie_id !== undefined && t.kategorie_id !== null ? t.kategorie_id : t.konto_id;
+      const betrag = t.betrag !== undefined && t.betrag !== null ? betragEl("span", t.betrag) : (t.rest ? "Rest" : "");
+      return h("li", null, `${pfadVon(id)}: `, betrag, t.memo ? ` – ${t.memo}` : "");
+    })),
+    h("div", { class: "formular-zeile" }, feld("Empfänger", empFeld), feld("Splitbetrag", betragFeld), speichern, loeschen));
+}
+
 export async function vorlagen(seite) {
   const liste = await api("GET", "/api/vorlagen");
   kopf(seite, "Split-Vorlagen", knopf("Vorlagen anwenden", { tid: "vorlagen-anwenden", onclick: async () => {
     try { await aktion(() => api("POST", "/api/vorlagen/anwenden", {}), { erfolg: "Vorlagen angewendet." }); } catch (e) { /* gemeldet */ }
   } }));
-  seite.append(liste.length ? h("ul", { class: "karten-liste" }, liste.map((v) => h("li", { tid: `vorlage-${v.id}`, class: "karte" },
-    h("strong", null, v.name), " · Gesamtbetrag ", betragEl("span", v.gesamtbetrag),
-    h("ul", { class: "klein" }, v.teile.map((t) => h("li", null, `${pfadVon(t.konto_id)}: `,
-      t.betrag !== undefined && t.betrag !== null ? betragEl("span", t.betrag) : (t.rest ? "Rest" : ""), t.memo ? ` – ${t.memo}` : "")))))) : leer("Noch keine Split-Vorlagen."));
+  seite.append(liste.length ? h("ul", { class: "karten-liste" }, liste.map(vorlageKarte)) : leer("Noch keine Split-Vorlagen."));
   return { titel: "Split-Vorlagen" };
 }
 
@@ -1139,19 +1200,26 @@ export async function dubletten(seite) {
   kopf(seite, "Dubletten", knopf("Umbuchungen erkennen", { onclick: async () => {
     try { await aktion(() => api("POST", "/api/umbuchungen/erkennen", {}), { erfolg: "Umbuchungen geprüft." }); } catch (e) { /* gemeldet */ }
   } }));
+  seite.append(h("p", { class: "hinweis", tid: "dubletten-regel" },
+    "Vorschläge: gleicher Betrag in Cent, gleiches Buchungsdatum und gleicher Empfänger. "
+    + "Buchungen ohne Empfänger gelten nicht als gleich. Zwei Buchungssätze einer Buchung sind keine zwei Buchungen."));
   const zeilen = await Promise.all(liste.map(async (v) => {
     const bs = await Promise.all([v.buchung_id, ...v.kandidat_ids].map((id) => api("GET", `/api/buchungen/${id}`).catch(() => null)));
+    const vorschlag = !!v.vorschlag;
+    const schluessel = v.id != null ? `verdacht-${v.id}` : `vorschlag-${[v.buchung_id, ...v.kandidat_ids].join("-")}`;
     const aufloesen = async (body) => {
-      try { await aktion(() => api("POST", `/api/dubletten/${v.id}/aufloesen`, body), { erfolg: "Dublettenverdacht aufgelöst." }); }
+      try { await aktion(() => dubletteAufloesen(v, body), { erfolg: "Dublettenverdacht aufgelöst." }); }
       catch (e) { /* gemeldet */ }
     };
-    return h("li", { tid: `verdacht-${v.id}`, class: "karte" }, h("p", null, `Verdacht ${v.id} (${v.grund})`),
+    return h("li", { tid: schluessel, class: "karte", "data-vorschlag": vorschlag ? "ja" : "nein", "data-grund": v.grund },
+      h("p", null, vorschlag ? "Vorschlag: gleicher Betrag, gleiches Datum, gleicher Empfänger"
+        : `Verdacht ${v.id} (${v.grund})`),
       h("ul", null, bs.filter(Boolean).map((b) => h("li", null, `${datumText(b.datum)} · ${b.empfaenger ? b.empfaenger.name : "ohne Empfänger"} · `,
         betragEl("span", b.betrag), " ", knopf("Diese behalten", { "aria-label": `Buchung ${b.id} behalten`,
           onclick: () => aufloesen({ entscheidung: "zusammenfuehren", behalten_id: b.id }) })))),
       knopf("Keine Dublette", { onclick: () => aufloesen({ entscheidung: "keine_dublette" }) }));
   }));
-  seite.append(zeilen.length ? h("ul", { class: "karten-liste" }, zeilen) : leer("Keine offenen Dublettenverdachte."));
+  seite.append(zeilen.length ? h("ul", { class: "karten-liste", tid: "dubletten-liste" }, zeilen) : leer("Keine offenen Dublettenverdachte."));
   return { titel: "Dubletten" };
 }
 

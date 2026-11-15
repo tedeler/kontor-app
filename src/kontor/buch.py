@@ -899,12 +899,112 @@ def _verdacht_dict(con, r) -> dict:
             "status": r["status"], "erstellt_am": r["erstellt_am"]}
 
 
+_ZAHLUNG_ARTEN = ("girokonto", "sparkonto")
+
+
 def dubletten_liste(con, status: str | None) -> list[dict]:
     if status:
         zeilen = con.execute("SELECT * FROM dublettenverdacht WHERE status = ? ORDER BY id", (status,))
     else:
         zeilen = con.execute("SELECT * FROM dublettenverdacht ORDER BY id")
-    return [_verdacht_dict(con, r) for r in zeilen.fetchall()]
+    aus = [_verdacht_dict(con, r) for r in zeilen.fetchall()]
+    # Vorschläge nur bei offenen Listen: sie sind noch nicht entschieden.
+    if status in (None, "offen"):
+        aus.extend(dubletten_vorschlaege(con))
+    return aus
+
+
+def _bewertete_paare(con) -> set[frozenset[int]]:
+    """Buchungspaare, die schon in einem Verdacht stehen (offen, zusammengeführt oder keine Dublette)."""
+    gruppen: dict[int, list[int]] = defaultdict(list)
+    for r in con.execute(
+            "SELECT d.id AS id, d.buchung_id AS bid, vk.buchung_id AS kid"
+            " FROM dublettenverdacht d LEFT JOIN verdacht_kandidat vk ON vk.verdacht_id = d.id"):
+        gruppen[r["id"]].append(r["bid"])
+        if r["kid"] is not None:
+            gruppen[r["id"]].append(r["kid"])
+    paare: set[frozenset[int]] = set()
+    for ids in gruppen.values():
+        eindeutig = sorted(set(ids))
+        for i, a in enumerate(eindeutig):
+            for b in eindeutig[i + 1:]:
+                paare.add(frozenset((a, b)))
+    return paare
+
+
+def _zahlungsbetraege(con) -> list[tuple[int, str, int, int]]:
+    """Zahlungsbetrag je Buchung: Summe der Splits auf genau einem Giro- oder Sparkonto, in Cent.
+
+    Das Vorzeichen bleibt. Eine Buchung mit zwei solchen Konten hat keinen vergleichbaren Betrag
+    und zählt nicht. Zwei Splits derselben Buchung sind keine zwei Buchungen.
+    """
+    ph = _platzhalter(len(_ZAHLUNG_ARTEN))
+    sql = (
+        "SELECT b.id AS id, b.datum AS datum, b.empfaenger_id AS eid,"
+        " COUNT(DISTINCT s.konto_id) AS n, SUM(s.betrag) AS summe"
+        " FROM buchung b JOIN split s ON s.buchung_id = b.id JOIN konto k ON k.id = s.konto_id"
+        f" WHERE b.empfaenger_id IS NOT NULL AND k.art IN ({ph})"
+        " GROUP BY b.id HAVING n = 1 ORDER BY b.id"
+    )
+    aus: list[tuple[int, str, int, int]] = []
+    for r in con.execute(sql, _ZAHLUNG_ARTEN):
+        summe = r["summe"]
+        if type(summe) is not int:
+            continue
+        aus.append((r["id"], r["datum"], r["eid"], summe))
+    return aus
+
+
+def _vorschlag_dict(ids: list[int]) -> dict:
+    return {"id": None, "buchung_id": ids[0], "kandidat_ids": ids[1:], "grund": "gleich",
+            "status": "offen", "erstellt_am": None, "vorschlag": True}
+
+
+def dubletten_vorschlaege(con) -> list[dict]:
+    """Paare mit gleichem Betrag (Cent, gleiches Vorzeichen), gleichem Datum und gleicher Empfänger-Id.
+
+    Buchungen ohne Empfänger passen nicht zueinander. Bestehende Verdachte bleiben und verdecken
+    dieselben Paare; diese Regel kommt dazu und ersetzt die Prüfung beim Import nicht.
+    """
+    bewertet = _bewertete_paare(con)
+    gruppen: dict[tuple, list[int]] = defaultdict(list)
+    for bid, datum, eid, betrag in _zahlungsbetraege(con):
+        gruppen[(datum, eid, betrag)].append(bid)
+    aus: list[dict] = []
+    for ids in gruppen.values():
+        ids = sorted(set(ids))
+        if len(ids) < 2:
+            continue
+        paare = [frozenset((a, b)) for i, a in enumerate(ids) for b in ids[i + 1:]]
+        offen = [p for p in paare if p not in bewertet]
+        if not offen:
+            continue
+        if len(offen) == len(paare):
+            aus.append(_vorschlag_dict(ids))
+        else:
+            for p in sorted(offen, key=lambda s: tuple(sorted(s))):
+                aus.append(_vorschlag_dict(sorted(p)))
+    aus.sort(key=lambda v: (v["buchung_id"], tuple(v["kandidat_ids"])))
+    return aus
+
+
+def verdacht_anlegen(con, buchung_ids: list[int], jetzt: str) -> dict:
+    """Offener Dublettenverdacht. Die erste Id wird beim Zusammenführen entfernt, die übrigen sind Kandidaten."""
+    if len(buchung_ids) < 2 or len(set(buchung_ids)) != len(buchung_ids):
+        raise ApiFehler(422, "validierung", "Mindestens zwei verschiedene Buchungen sind nötig.",
+                        [{"ort": ["body", "buchung_ids"], "meldung": "Mindestens zwei verschiedene Buchungen."}])
+    vorhanden = _vorhandene_buchungen(con, buchung_ids)
+    fehlend = sorted(set(buchung_ids) - vorhanden)
+    if fehlend:
+        raise ApiFehler(422, "referenz_unbekannt", "Unbekannte Buchungen.", {"buchung_ids": fehlend})
+    primaer, *kandidaten = [sichere_id(x) for x in buchung_ids]
+    grund = "mehrdeutig" if len(kandidaten) > 1 else "aehnlich"
+    vid = con.execute(
+        "INSERT INTO dublettenverdacht (buchung_id, grund, status, erstellt_am) VALUES (?, ?, 'offen', ?)",
+        (primaer, grund, jetzt)).lastrowid
+    con.executemany("INSERT INTO verdacht_kandidat (verdacht_id, buchung_id) VALUES (?, ?)",
+                    [(vid, k) for k in kandidaten])
+    return verdacht_lesen(con, vid)
 
 
 def verdacht_lesen(con, vid: int) -> dict:

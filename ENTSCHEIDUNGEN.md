@@ -2185,5 +2185,47 @@ D-123 bis D-127 sind auf den offenen Branches `dokumente` und `alfbanco-import` 
 - **Entscheidung:** Doppelklick auf eine Zelle öffnet keinen Editor. In den Einzelheiten hat Datum, Empfänger,
   Verwendungszweck, die Buchungssätze, die Tags und der Status je einen Stift. Der Editor sitzt in der
   Zeile der Einzelheiten. Der Status bleibt auch bei abgestimmten Buchungen erreichbar, die übrigen Stifte
-  nicht. F2 und der Menüeintrag für den Verwendungszweck bleiben. Der Service-Worker-Cache heißt
-  `kontor-huelle-22`.
+  nicht. F2 und der Menüeintrag für den Verwendungszweck bleiben. Der Service-Worker-Cache heißt seit D-164
+  `kontor-huelle-23`.
+
+## D-162 Split ausgleichen
+
+- **Anlass:** Beim Anlegen eines Splits soll jede Zeile den Betrag übernehmen können, der die Buchung auf 0 stellt.
+- **Entscheidung:** Im Split-Dialog hat jede Zeile den Knopf „Split Ausgleichen“. Er setzt den Betrag dieser Zeile
+  auf die negative Summe der übrigen Zeilen, in ganzen Cent. Der bisherige Betrag der Zeile zählt nicht mit.
+  Leere oder ungültige übrige Beträge zählen als 0. Ist der Rest schon 0, wird 0 gesetzt.
+
+## D-163 Split zur Vorlage
+
+- **Anlass:** Im Split-Fenster soll der gerade gezeigte Split als Split-Vorlage gespeichert werden können.
+- **Entscheidung:** Der Dialog hat das Namensfeld und den Knopf „Diesen Split zur Vorlage machen“. Voreingestellt
+  ist der Empfänger, sonst der Verwendungszweck. Gespeichert wird über `POST /api/vorlagen`: die Kategorie-Teile
+  (Aufwand oder Ertrag) mit Betrag und Memo, dazu die Bedingung Empfänger gleich. Das Bestandskonto ist kein Teil.
+  Der Dialog bleibt offen.
+
+## D-164 Regel der Split-Vorlage
+
+- **Anlass:** Eine Split-Vorlage soll nach Empfänger und Splitbetrag angewendet werden.
+- **Entscheidung:** Auf der Seite Split-Vorlagen zeigt jede Vorlage die Schlüssel Empfänger und Splitbetrag und
+  lässt sie speichern. Der Empfänger ist die Bedingung `empfaenger gleich`. Der Splitbetrag ist der Gesamtbetrag
+  der Teile; ändert man ihn, wandert die Differenz in ganzen Cent auf einen Teil, damit Schlüssel und Teile
+  zusammenpassen. Verwendungszweck und Konto sind keine Schlüssel. Eine Vorlage trifft, wenn Empfänger und
+  Splitbetrag passen. Angewendet wird sie über „Vorlagen anwenden“ und beim Import, nicht durch Umschreiben
+  bestehender Buchungen von selbst. Der Service-Worker-Cache heißt seit D-165 `kontor-huelle-24`.
+
+## D-165 Zwei Buchungen als Dublette, Vorschlag nach Betrag, Datum und Empfänger
+
+- **Anlass:** „Als Dublette markieren…“ war nur wählbar, wenn genau eine Buchung schon in einem offenen
+  Dublettenverdacht stand. Zwei markierte Buchungen ließen sich deshalb nicht als Dublette kennzeichnen.
+  Zusätzlich sollen Paare vorgeschlagen werden, die im Betrag, im Buchungsdatum und im Empfänger übereinstimmen.
+- **Entscheidung:** Bei genau zwei ausgewählten Buchungen ist der Eintrag aktiv, auch ohne bestehenden Verdacht.
+  Der bisherige Dialog gilt. Abbrechen speichert nichts. Erst „Diese behalten“ oder „Keine Dublette“ legt den
+  Verdacht an (`POST /api/dubletten`) und löst ihn über die bisherige Auflösung auf. Dabei kann jede der beiden
+  Buchungen behalten werden; entfernt wird die andere. Mehr als zwei bleibt deaktiviert. Eine einzelne Buchung
+  verhält sich wie bisher. Vorschläge kommen zur Prüfung beim Import und bei der Synchronisation hinzu, sie
+  ersetzen sie nicht: gleicher Zahlungsbetrag in ganzen Cent (Summe der Splits auf genau einem Giro- oder
+  Sparkonto, das Vorzeichen zählt mit), gleiches Buchungsdatum, gleiche Empfänger-Id. Buchungen ohne Empfänger
+  passen nicht zueinander. Zwei Buchungssätze einer Buchung sind keine zwei Buchungen. Ein Vorschlag wird nicht
+  von selbst zusammengeführt und ändert keine Buchung. Er erscheint auf der Seite Dubletten und in der Liste
+  offener Verdachte des Kontoblatts. Paare, die schon in einem Verdacht stehen, werden nicht noch einmal
+  vorgeschlagen. Der Service-Worker-Cache heißt `kontor-huelle-24`.

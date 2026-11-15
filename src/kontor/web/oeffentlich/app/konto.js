@@ -1770,17 +1770,37 @@ class Kontoansicht {
     await this.laden();
   }
 
+  /** Offener Dublettenverdacht: eine Buchung wie bisher, oder genau das gewählte Paar. */
+  dublettenVerdacht(ids) {
+    if (ids.length === 1) {
+      const id = ids[0];
+      return this.verdachte.find((v) => v.buchung_id === id || v.kandidat_ids.includes(id)) || null;
+    }
+    if (ids.length === 2) {
+      return this.verdachte.find((v) => {
+        const alle = [v.buchung_id, ...v.kandidat_ids];
+        return alle.length === 2 && alle.includes(ids[0]) && alle.includes(ids[1]);
+      }) || null;
+    }
+    return null;
+  }
+
   menue(x, y, ausloeser, alt = false) {
     const ids = this.auswahlIds();
     const eine = ids.length === 1;
     const mitVorschlag = this.eintraege.some((b) => this.auswahl.has(b.id) && b.vorschlag);
-    const verdacht = eine ? this.verdachte.find((v) => v.buchung_id === ids[0] || v.kandidat_ids.includes(ids[0])) : null;
+    const verdacht = this.dublettenVerdacht(ids);
+    const paar = ids.length === 2 && !verdacht ? {
+      id: null, buchung_id: ids[0], kandidat_ids: [ids[1]], grund: "manuell", status: "offen", vorschlag: true,
+    } : null;
+    const dublette = verdacht || paar;
     const b = eine ? this.eintraege.find((x2) => x2.id === ids[0]) : null;
     kontextmenue(x, y, [
       { tid: "km-kategorie", text: "Kategorie setzen…", tun: () => this.kategorieWaehlen(ids, ausloeser) },
       { tid: "km-tags", text: "Tags…", tun: () => tagAuswahl(ids, ausloeser) },
       { tid: "km-splitten", text: "Splitten…", aktiv: eine, tun: () => splitDialog(b, ausloeser) },
-      { tid: "km-dublette", text: "Als Dublette markieren…", aktiv: !!verdacht, tun: () => dubletteDialog(verdacht, ausloeser) },
+      { tid: "km-dublette", text: "Als Dublette markieren…", aktiv: !!dublette,
+        tun: () => { if (dublette) dubletteDialog(dublette, ausloeser); } },
       { tid: "km-vorschlag-annehmen", text: "Vorschlag annehmen", aktiv: mitVorschlag, tun: () => this.vorschlag(null, ids, "annehmen") },
       { tid: "km-vorschlag-ablehnen", text: "Vorschlag ablehnen", aktiv: mitVorschlag, tun: () => this.vorschlag(null, ids, "ablehnen") },
       { tid: "km-bearbeiten", text: "Verwendungszweck bearbeiten", aktiv: eine, tun: () => this.bearbeiten(ids[0], "verwendungszweck") },

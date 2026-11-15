@@ -77,6 +77,7 @@ BESCHREIBUNG = {
     "empfaenger_anlegen": "Empfänger angelegt", "empfaenger_aendern": "Empfänger geändert",
     "empfaenger_loeschen": "Empfänger gelöscht",
     "wiederkehrend_filter_setzen": "Betragsfilter wiederkehrender Buchungen geändert", "empfaenger_zusammenfuehren": "Empfänger zusammengeführt",
+    "dublette_anlegen": "Dublettenverdacht angelegt",
     "dublette_aufloesen": "Dublettenverdacht aufgelöst",
     "regel_anlegen": "Regel angelegt", "regel_aendern": "Regel geändert", "regel_loeschen": "Regel gelöscht",
     "abstimmung_anlegen": "Konto abgestimmt", "abstimmung_aufheben": "Abstimmung aufgehoben",
