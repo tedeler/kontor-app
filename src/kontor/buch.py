@@ -254,9 +254,12 @@ def kontenuebersicht(con, stichtag: str | None) -> dict:
 # ================================================================ Empfänger
 
 
-def empfaenger_dict(r, aliase: list[str] | None = None) -> dict:
-    return {"id": r["id"], "name": r["name"], "extern_id": r["extern_id"], "aliase": sorted(aliase or []),
-            "standardkategorie_id": r["standardkategorie_id"]}
+def empfaenger_dict(r, aliase: list[str] | None = None, tags: list[dict] | None = None) -> dict:
+    d = {"id": r["id"], "name": r["name"], "extern_id": r["extern_id"], "aliase": sorted(aliase or []),
+         "standardkategorie_id": r["standardkategorie_id"]}
+    if tags:
+        d["tags"] = sorted(tags, key=lambda t: (t["name"], t["id"]))
+    return d
 
 
 def empfaenger_laden(con, ids: list[int] | None = None) -> list[dict]:
@@ -266,7 +269,8 @@ def empfaenger_laden(con, ids: list[int] | None = None) -> list[dict]:
         aliase: dict[int, list[str]] = defaultdict(list)
         for r in con.execute("SELECT empfaenger_id, alias FROM empfaenger_alias"):
             aliase[r["empfaenger_id"]].append(r["alias"])
-        return [empfaenger_dict(r, aliase.get(r["id"])) for r in zeilen]
+        tags = _empfaenger_tags(con, None)
+        return [empfaenger_dict(r, aliase.get(r["id"]), tags.get(r["id"])) for r in zeilen]
     aus = []
     for teil in _stueckweise(sorted(set(ids))):
         ph = _platzhalter(len(teil))
@@ -275,8 +279,25 @@ def empfaenger_laden(con, ids: list[int] | None = None) -> list[dict]:
         for r in con.execute(f"SELECT empfaenger_id, alias FROM empfaenger_alias WHERE empfaenger_id IN ({ph})",
                              teil):
             aliase[r["empfaenger_id"]].append(r["alias"])
-        aus.extend(empfaenger_dict(r, aliase.get(r["id"])) for r in zeilen)
+        tags = _empfaenger_tags(con, teil)
+        aus.extend(empfaenger_dict(r, aliase.get(r["id"]), tags.get(r["id"])) for r in zeilen)
     return aus
+
+
+def _empfaenger_tags(con, ids: list[int] | None) -> dict[int, list[dict]]:
+    tags: dict[int, list[dict]] = defaultdict(list)
+    if ids is None:
+        zeilen = con.execute("SELECT et.empfaenger_id, t.id, t.name FROM empfaenger_tag et"
+                             " JOIN tag t ON t.id = et.tag_id")
+    elif not ids:
+        return tags
+    else:
+        zeilen = con.execute("SELECT et.empfaenger_id, t.id, t.name FROM empfaenger_tag et"
+                             " JOIN tag t ON t.id = et.tag_id WHERE et.empfaenger_id IN"
+                             f" ({_platzhalter(len(ids))})", ids)
+    for r in zeilen:
+        tags[r["empfaenger_id"]].append({"id": r["id"], "name": r["name"]})
+    return tags
 
 
 def empfaenger_liste(con) -> list[dict]:
@@ -358,6 +379,7 @@ def tag_umbenennen(con, tid: int, name: str) -> dict:
 def tag_loeschen(con, tid: int) -> None:
     tag_lesen(con, tid)
     con.execute("DELETE FROM buchung_tag WHERE tag_id = ?", (tid,))
+    con.execute("DELETE FROM empfaenger_tag WHERE tag_id = ?", (tid,))
     con.execute("DELETE FROM tag WHERE id = ?", (tid,))
 
 
@@ -458,6 +480,8 @@ def buchung_lesen(con, bid: int) -> dict:
     aus = buchungen_laden(con, [sichere_id(bid)])
     if not aus:
         raise nicht_gefunden("Die Buchung")
+    from . import verdacht
+    verdacht.anreichern(con, aus)
     return aus[0]
 
 
@@ -763,9 +787,36 @@ def buchungsliste(con, f: dict) -> dict:
         par.append(sichere_id(f["empfaenger_id"]))
     if f.get("ohne_empfaenger"):
         bed.append("b.empfaenger_id IS NULL")
+    if f.get("empfaenger_aehnlich"):
+        from .text import namen_aehnlich
+        aliase: dict[int, list[str]] = defaultdict(list)
+        for r in con.execute("SELECT empfaenger_id, alias FROM empfaenger_alias"):
+            aliase[r["empfaenger_id"]].append(r["alias"])
+        ids = sorted(r["id"] for r in con.execute("SELECT id, name FROM empfaenger")
+                     if namen_aehnlich(f["empfaenger_aehnlich"], r["name"])
+                     or any(namen_aehnlich(f["empfaenger_aehnlich"], a) for a in aliase[r["id"]]))
+        if ids:
+            bed.append(f"b.empfaenger_id IN ({_platzhalter(len(ids))})")
+            par.extend(ids)
+        else:
+            bed.append("0")
     if f.get("verwendungszweck"):
         bed.append("instr(norm(b.verwendungszweck), ?) > 0")
         par.append(norm(f["verwendungszweck"]))
+    if f.get("zweck_leer"):
+        bed.append("b.verwendungszweck = ''")
+    elif f.get("zweck_gleich"):
+        bed.append("norm(b.verwendungszweck) = ?")
+        par.append(norm(f["zweck_gleich"]))
+    if f.get("zweck_aehnlich"):
+        from .text import woerter
+        worte = woerter(f["zweck_aehnlich"])
+        if worte:
+            bed.append("(" + " OR ".join("instr(norm(b.verwendungszweck), ?) > 0" for _ in worte) + ")")
+            par.extend(worte)
+        else:
+            bed.append("norm(b.verwendungszweck) = ?")
+            par.append(norm(f["zweck_aehnlich"]))
     if f.get("suche"):
         n = norm(f["suche"])
         bed.append("(instr(norm(e.name), ?) > 0 OR instr(norm(b.verwendungszweck), ?) > 0"
@@ -815,6 +866,8 @@ def buchungsliste(con, f: dict) -> dict:
         zeilen = con.execute(f"{basis} ORDER BY {order} LIMIT ? OFFSET ?", alle_par + [pro_seite, offset])
         ids = [z["id"] for z in zeilen]
         eintraege = buchungen_laden(con, ids, konten=None if konten is None else set(konten))
+        from . import verdacht
+        verdacht.anreichern(con, eintraege)
     return {"eintraege": eintraege, "gesamt": gesamt, "seite": seite, "pro_seite": pro_seite, "summe": summe}
 
 

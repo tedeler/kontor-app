@@ -539,12 +539,17 @@ Single-Page-App ohne Build-Schritt, Framework und externe Ressourcen (ES-Module 
 - **Kopf:** ☰ (nur Handy), Suche (Enter → `/suche?q=…`), ↻ Synchronisieren (bei TAN mit Link zur TAN-Seite,
   bei fehlender/falscher PIN mit PIN-Dialog), ↶ Rückgängig, ↷ Wiederholen, ⌘ Befehlspalette, 🔔
   Benachrichtigungen mit Zahl der ungelesenen. Im Mock-Modus steht darüber immer der gelbe Mock-Hinweis.
-- **Navigation links:** Finanzübersicht, Konten, Kategorien, Wiederkehrende Buchungen, Kredite, Berichte, Import,
-  Einstellungen, Änderungsprotokoll, Empfänger, Regeln, Split-Vorlagen, Dubletten, Synchronisation. Jede Seite hat
+- **Navigation links,** in Gruppen: Buchhaltung (Finanzübersicht, Konten, Kategorien, Empfänger, Kredite),
+  Zahlungen (Was kommt noch?, Mail-Blatt), Auswertung (Berichte, Statistische Analyse), Regeln (Regeln,
+  Split-Vorlagen, Dubletten), Betrieb (Import, Synchronisation, Änderungsprotokoll, Einstellungen). Jede Seite hat
   eine eigene Adresse (Lesezeichen, Zurück/Vor, Neuladen), z. B. `/konten/5?von=2024-03-01&status=bestaetigt`.
 - **Kontoansicht** (`/konten/<id>`): Filterleiste (Zeitraum, Betrag, Empfänger, Verwendungszweck, Freitext,
   Kategorie mit Unterkategorien, Tag, Status; in der Adresse gespeichert), sortierbare Spalten, 200 Buchungen je
-  Seite mit „Weitere laden“, Vorschläge mit ✓/✗, „Buchung erfassen“. Links das Panel **Kategorien** (Buchungen
+  Seite mit „Weitere laden“. „nach Datum“ gruppiert hierarchisch nach Jahr, Monat und Tag. Jede Ebene ist
+  ein einklappbarer Balken mit Eingang, Ausgang, Summe und Anzahl; „Alles zusammenklappen“ und
+  „Alles aufklappen“ gelten für alle Ebenen. Dafür lädt das Blatt die ganze Filtermenge und zeichnet bei
+  vielen Zeilen nur den sichtbaren Ausschnitt. Vorschläge mit ✓/✗,
+  „Buchung erfassen“. Links das Panel **Kategorien** (Buchungen
   darauf ziehen), rechts **Einzelheiten** der fokussierten Buchung (alle Splits). Panels: Kopf ziehen bzw. ⇄
   verschiebt in den anderen Bereich, Rand ziehen oder Pfeiltasten ändert die Breite (160–600 px), ▾ klappt ein;
   das Layout liegt im `localStorage` (`kontor.layout`), „Layout zurücksetzen“ in den Einstellungen.

@@ -97,3 +97,15 @@ def test_tan_und_pin_nie_im_protokoll(tmp_path):
     assert tan["status"] == "offen"
     text = c.get("/api/aenderungen", params={"pro_seite": 500}).text
     assert "geheim-4711" not in text
+
+
+def test_empfaenger_bestaetigung_wie_buchungstag(tmp_path):
+    c = _client(tmp_path)
+    e = c.post("/api/empfaenger", json={"name": "Bäcker"}).json()
+    assert "tags" not in e
+    t = c.post("/api/tags", json={"name": "Torsten"}).json()["id"]
+    markiert = c.patch(f"/api/empfaenger/{e['id']}", json={"tag_ids": [t]}).json()
+    assert markiert["tags"] == [{"id": t, "name": "Torsten"}]
+    a = c.get("/api/aenderungen", params={"pro_seite": 1}).json()["eintraege"][0]
+    assert c.post(f"/api/aenderungen/{a['id']}/rueckgaengig").status_code == 200
+    assert "tags" not in c.get(f"/api/empfaenger/{e['id']}").json()

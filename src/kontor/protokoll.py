@@ -40,6 +40,7 @@ _TABELLEN = {
     "konto": ("konto", "id"),
     "empfaenger": ("empfaenger", "id"),
     "empfaenger_alias": ("empfaenger", "empfaenger_id"),
+    "empfaenger_tag": ("empfaenger", "empfaenger_id"),
     "empfaenger_wiederkehrend": ("empfaenger", "empfaenger_id"),
     "tag": ("tag", "id"),
     "buchung": ("buchung", "id"),
@@ -498,6 +499,8 @@ def _einfuegen(con, objekt: str, f: dict) -> None:
             w = f["wiederkehrend"]
             con.execute("INSERT INTO empfaenger_wiederkehrend (empfaenger_id, modus, toleranz_prozent, mindestbetrag)"
                         " VALUES (?, ?, ?, ?)", (f["id"], w["modus"], w["toleranz_prozent"], w["mindestbetrag"]))
+        con.executemany("INSERT INTO empfaenger_tag (empfaenger_id, tag_id) VALUES (?, ?)",
+                        [(f["id"], t["id"]) for t in f.get("tags") or []])
     elif objekt == "tag":
         con.execute("INSERT INTO tag (id, name, name_cf, extern_id) VALUES (?, ?, ?, ?)",
                     (f["id"], f["name"], f["name"].casefold(), f["extern_id"]))

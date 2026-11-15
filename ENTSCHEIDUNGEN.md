@@ -2008,3 +2008,182 @@ D-123 bis D-127 sind auf den offenen Branches `dokumente` und `alfbanco-import` 
   statische Dateien mit no-cache und mobile Karte der wiederkehrenden Buchungen. Neue Einträge ab D-145.
 - UXMobile hat keine eigene Meilenstein-Definition und keine eigenen Abnahmetests; geprüft ist nur, dass die
   bestehende Abnahmesuite (einschließlich aller Browsertests) mit ihm grün bleibt.
+
+## D-145 Statistische Analyse, experimentell
+
+- **Anlass:** Das Kontoblatt soll zeigen, was sich regelmäßig wiederholt, was ungewöhnlich ist und was zum bekannten
+  Rauschen gehört. Die bestehende Ketten-Erkennung (`wiederkehrend.py`) bleibt unverändert; sie ist ein Urteil mit
+  festem Raster und letzter Rate, keine Beschreibung der Streuung.
+- **Entscheidung:** Neuer nur lesender Endpunkt `GET /api/statistik?konto_id=&stichtag=` und die Seite `/statistik`.
+  Antwort trägt `"experimentell": true`. Der Endpunkt steht nicht in `openapi.yaml`. Die lokale Oberfläche-Prüfung
+  lässt `/api/statistik` ausdrücklich zu. Kein Buchbestand, kein Protokoll, keine Sicherung.
+- **Rechnung:** Gegenpartei ist die IBAN, sonst der normalisierte Empfängername; mehrere Betragsgruppen derselben
+  Gegenpartei werden getrennt (neuer Modus ab 15 % Abstand zum Median der Gruppe, mindestens 1 €). Je Gruppe mit
+  mindestens drei Buchungen: Median und MAD der Abstände und der Beträge, ganze Cent. Regelmäßig ab vier Buchungen,
+  wenn der Medianabstand in einem Raster liegt (5–9, 12–17, 26–35, 80–100, 330–400 Tage) und beide MAD höchstens
+  15 % bzw. 10 % des Medians sind. Drei Buchungen mit denselben Schwellen sind „möglich“, eine Gruppe im Raster mit
+  zu großer Streuung ist „Kandidat“. Die Jahresrate ist `Median der Kosten × 365 / Medianabstand`. Fixkosten summieren
+  nur regelmäßige Ausgaben. Umbuchungen auf ein anderes Bestandskonto und Tilgung ohne Zinsaufwand (Konto aus
+  `kredit`) zählen nicht. Rauschen sind die übrigen Buchungen je Kategorie als Monatssumme (Median, 10.- und
+  90.-Perzentil). Ungewöhnlich ist ein robustes z ab 3,50 gegen die Reihe oder gegen das Rauschen der Kategorie;
+  eine überfällige regelmäßige Reihe zusätzlich an der Lücke. Der Service-Worker-Cache heißt seit D-146
+  `kontor-huelle-8`.
+
+## D-146 Wiederkehrende Buchungen aus der Oberfläche
+
+- **Anlass:** Die Seite „Wiederkehrende Buchungen“ und die daraus abgeleiteten Einträge unter „Was kommt noch?“
+  überlagern sich. Die statistische Analyse (D-145) beschreibt die Regelmäßigkeit; für die erwarteten Zahlungen
+  braucht es ein eigenes Konzept. Bis dahin soll die alte Seite nicht mehr in der Bedienung stehen.
+- **Entscheidung:** Navigation, Adresse `/wiederkehrend`, Befehlspalette, Betragsfilter in den Einstellungen,
+  Serienmarke im Kontoblatt und der Filter „Serie“ unter „Was kommt noch?“ entfallen. „Was kommt noch?“ zeigt
+  nur noch Erwartungen aus Mails und manuelle Einträge. Die Erkennung in `wiederkehrend.py` und ihre
+  REST-Endpunkte bleiben, bis das neue Konzept sie ablöst; sie schreiben weiterhin nichts in den Buchbestand.
+  Der Service-Worker-Cache heißt seit D-147 `kontor-huelle-9`.
+
+## D-147 Mail-Blatt
+
+- **Anlass:** Abgerufene Mails waren nur als Anhang einer Buchung oder indirekt über „Was kommt noch?“ sichtbar.
+  Die Zuordnung einer Mail zu einer erwarteten Zahlung und zu Buchungen soll auf einen Blick lesbar sein.
+- **Entscheidung:** Seite `/mail` („Mail-Blatt“). `GET /api/mail/nachrichten` ergänzt jedes Element um
+  `postfach` und `zuordnung`: die Erwartungen, deren Mail-Liste diese Nachricht enthält, mit Zustand, Händler,
+  Betrag und den zugeordneten Bestandskonten-Buchungen. Kein neues Objekt, kein Protokoll. Der
+  Service-Worker-Cache heißt seit D-148 `kontor-huelle-10`.
+
+## D-148 Kontextmenü der Tabs
+
+- **Anlass:** Ein Tab ließ sich nur über das Kreuz, den Mittelklick oder die Entf-Taste schließen.
+- **Entscheidung:** Rechtsklick und Umschalt+F10 auf einem Tab öffnen „Schließen“, „Andere Tabs schließen“
+  und „Alle Tabs schließen“. „Andere“ behält den angeklickten Tab und zeigt ihn, wenn er nicht aktiv war.
+  „Alle“ leert die Leiste; die Oberfläche zeigt danach die Startseite, wie beim Schließen des letzten Tabs.
+  Auf dem Handy gilt dieselbe Liste nach einer langen Berührung. Der Service-Worker-Cache heißt
+  `kontor-huelle-10`. Seit D-149 heißt der Cache `kontor-huelle-11`.
+
+## D-149 Navigation in Themengruppen
+
+- **Anlass:** Die linke Leiste war eine lange Folge ohne Zusammenhang. Mail, erwartete Zahlungen und die
+  statistische Analyse standen zwischen den Stammdaten.
+- **Entscheidung:** Fünf Gruppen mit Überschrift: Buchhaltung, Zahlungen, Auswertung, Regeln, Betrieb.
+  Alt+1 bis Alt+7 bleiben bei Finanzübersicht, Konten, Kategorien, Kredite, Berichte, Import und Einstellungen.
+  Der Service-Worker-Cache heißt seit den Pastelltönen `kontor-huelle-12`. Jede Gruppe hat einen eigenen
+  Ton: Blau, Pfirsich, Mint, Flieder, Sand. Im dunklen Thema dieselben Farben, nur gedämpft.
+
+## D-150 Gruppierung im Kontoblatt
+
+- **Anlass:** Im Kontoblatt lagen die Buchungen als fortlaufende Liste. Eine Periode war nur durch Mitlesen der
+  Datumsspalte zu überblicken.
+- **Entscheidung:** Über der Liste schaltet „Keine“, „Tage“ oder „Monate“ (`?gruppierung=tag` oder `monat`,
+  kein Parameter der Buchungsliste). Jede Periode ist ein Balken mit Eingang (positive Beträge), Ausgang
+  (negative Beträge), Summe und Anzahl. Der Balken klappt die Buchungen der Periode ein und aus. Solange
+  gruppiert wird, lädt das Blatt alle Seiten des aktuellen Filters, damit die Zahlen der Periode vollständig
+  sind. Der Service-Worker-Cache heißt seit D-151 `kontor-huelle-14`.
+
+## D-151 Alle Perioden klappen, Tagessicht nur im Ausschnitt
+
+- **Anlass:** In der Tagessicht wurden alle Buchungen auf einmal gezeichnet. Bei einigen tausend Buchungen
+  stockte das Blatt. Es fehlte ein Schalter für alle Perioden zugleich.
+- **Entscheidung:** „Alles zusammenklappen“ und „Alles aufklappen“ stehen neben der Gruppierung. Ab hundert
+  Zeilen zeichnet das Kontoblatt nur den sichtbaren Ausschnitt samt einem kleinen Puffer; die Höhen der
+  Balken und Zeilen werden einmal gemessen. Die Seiten der Buchungsliste lädt die Gruppierung parallel zu
+  je 500 Einträgen. Der Service-Worker-Cache heißt seit D-152 `kontor-huelle-15`.
+
+## D-152 Gruppierung nach Datum als Hierarchie
+
+- **Anlass:** Tag und Monat ließen sich nur getrennt wählen. Ein Jahr, sein Monat und der Tag waren nicht
+  ineinander geschachtelt.
+- **Entscheidung:** Die Leiste bietet „Keine“ und „nach Datum“ (`?gruppierung=datum`). „nach Datum“ zeigt
+  Jahre, darin Monate, darin Tage, darin die Buchungen. Jede Ebene hat Eingang, Ausgang, Summe und Anzahl
+  und klappt ihre Kinder ein. Ein zugeklappter Knoten verbirgt die Ebenen darunter. „Alles zusammenklappen“
+  und „Alles aufklappen“ gelten für Jahre, Monate und Tage. Der Service-Worker-Cache heißt seit D-153
+  `kontor-huelle-16`.
+
+## D-153 Mail-Blatt seitenweise, mit Grund der Buchungszuordnung
+
+- **Anlass:** Das Mail-Blatt lud alle Mails auf einmal. Bei zehntausenden Einträgen blieb die Liste leer und
+  „Mails abrufen“ grau, ohne dass ein Stand sichtbar war. An einer zugeordneten Buchung fehlte, warum sie passt.
+- **Entscheidung:** Das Blatt zeigt 100 Mails je Seite, die neuesten zuerst, und den Stand je Postfach
+  (Anzahl, letzter Erfolg, Fehler). Die Filter zählen Alle, Buchung zugeordnet, Nur erwartet und Nicht erkannt.
+  Jede zugeordnete Buchung nennt den Grund: Kennung im Verwendungszweck oder beim Empfänger, passender Betrag
+  und Name, oder manuelle Zuordnung. Der Service-Worker-Cache heißt seit D-154 `kontor-huelle-17`.
+
+## D-154 Mail mit Pfeiltasten, festes Lesefenster, keine Leerwörter
+
+- **Anlass:** Im Mail-Blatt ließ sich die Auswahl nicht mit den Pfeiltasten bewegen, und der Mailtext
+  scrollte mit der Liste mit. In manchen Fenstern stand das Wort „null“, „nul“, „None“ oder „undefined“,
+  wenn ein Wert fehlte.
+- **Entscheidung:** Pfeil nach unten und oben wählen die nächste oder vorige Mail und zeigen ihren Inhalt.
+  Am Seitenrand wird geblättert. Die Liste und der Inhalt haben getrennte Rollbereiche; auf dem Desktop
+  bleibt der Inhalt neben der Liste stehen. Fehlende Werte werden nicht als diese Wörter gezeichnet.
+  Die Nulllinie im einfachen Diagramm heißt in der Darstellung nur noch Basislinie.
+  Der Service-Worker-Cache heißt seit D-155 `kontor-huelle-18`.
+
+## D-155 Mailkonto wählen, Bestätigung durch Torsten oder Tina
+
+- **Anlass:** Es gibt mehrere Postfächer, das Mail-Blatt zeigte sie aber nur gemischt. Buchungen sollen
+  von Torsten oder Tina bestätigt werden können, bei einem gemeinsamen Passwort.
+- **Entscheidung:** Im Mail-Blatt wählt man „Alle Konten“ oder ein Postfach. Die Liste und die Zähler gelten
+  für diese Auswahl. Das Passwort bleibt das eine Haushaltspasswort. Nach dem Öffnen, und nach dem Abmelden
+  erneut, fragt Kontor, wer gerade da ist. Der Name steht oben rechts und lässt sich wechseln, ohne das
+  Passwort neu einzugeben. „Als Torsten bestätigen“ oder „Als Tina bestätigen“ setzt den gleichnamigen Tag
+  an die Buchung; beide können dieselbe Buchung bestätigen. Der Service-Worker-Cache heißt seit D-156 `kontor-huelle-19`.
+
+## D-156 Empfänger wie Buchungen bestätigen
+
+- **Anlass:** Empfänger sollen sich genauso bestätigen lassen wie die Buchungen im Kontoblatt, von Torsten
+  oder Tina.
+- **Entscheidung:** Auf der Seite Empfänger trägt jede Zeile die Namen, die sie bestätigt haben, und den Knopf
+  „Als Torsten bestätigen“ oder „Als Tina bestätigen“. Die Auswahl mehrerer Empfänger und das Kontextmenü tun
+  dasselbe. Beide können denselben Empfänger bestätigen. Zurücknehmen gilt nur für den eigenen Namen. Beim
+  Zusammenführen bleiben die Bestätigungen am Ziel erhalten. Der Service-Worker-Cache heißt seit D-157
+  `kontor-huelle-20`.
+
+## D-157 Label für verdächtige Buchungen
+
+- **Anlass:** Ungewohnte Buchungen sollen im Kontoblatt auffallen, mit einer lesbaren Einschätzung. Sobald die
+  Buchung bestätigt ist, soll das Label weg sein.
+- **Entscheidung:** Eine Buchung mit Status Importiert oder Vorläufig trägt das Label „Verdächtig“, wenn ihr
+  Empfänger ausschließlich in solchen Buchungen vorkommt oder ihr Zahlungsbetrag stark von den bestätigten
+  Buchungen desselben Empfängers abweicht. Bestätigt und Abgeglichen tragen kein Label. Der Zahlungsbetrag ist
+  die Summe auf genau einem Giro- oder Sparkonto. Für die Streuung braucht es mindestens vier bestätigte
+  Zahlungen. Stark heißt robustes z ab 3,50, dieselbe Schwelle wie in der statistischen Analyse. Liegen alle
+  bestätigten Zahlungen auf demselben Betrag, gilt eine Abweichung von mehr als der Hälfte und mindestens
+  20 €. Die Erklärung steht am Label und in den Einzelheiten. Das Label wird beim Lesen gebildet und nicht
+  gespeichert. Der Service-Worker-Cache heißt seit D-161 `kontor-huelle-22`.
+
+## D-158 Filter im Kontextmenü einer Buchung
+
+- **Anlass:** Aus einer Buchung heraus soll die Liste auf denselben oder einen ähnlichen Empfänger und auf
+  denselben oder einen ähnlichen Verwendungszweck eingeschränkt werden.
+- **Entscheidung:** Das Kontextmenü einer Buchung hat den Eintrag „Filter“ mit dem Untermenü „gleicher
+  Empfänger“, „Gleicher Verwendungszweck“, „ähnlicher Verwendungszweck“ und „ähnlicher Empfänger“. Gleicher
+  Empfänger ist die Empfänger-ID. Gleicher Verwendungszweck ist der Text nach der üblichen Normalisierung.
+  Ein leerer Verwendungszweck trifft nur leere. Ähnlicher Verwendungszweck trifft Buchungen, die mindestens
+  ein Wort ab vier Buchstaben teilen; Ziffernfolgen zählen nicht. Ähnlicher Empfänger trifft Namen, deren
+  Vergleichsschlüssel gleich beginnt und der gemeinsame Anfang mindestens vier Zeichen lang ist, den Namen
+  selbst eingeschlossen, Aliase mitgezählt. Die Filterleiste zeigt den gesetzten Wert und lässt sich
+  zurücksetzen. Der bisherige Filter „Verwendungszweck“ bleibt eine Teilzeichenkette.
+
+## D-159 Bestätigen setzt den Status
+
+- **Anlass:** Die Bestätigung durch Torsten oder Tina soll den Status der Buchung verändern. Der Weg ist
+  Importiert, dann Bestätigt.
+- **Entscheidung:** „Als … bestätigen“ setzt bei Buchungen im Status Importiert zugleich den Status auf
+  Bestätigt, in derselben Rückgängig-Gruppe wie die Namensmarkierung. Zurücknehmen nimmt nur den Namen weg.
+  Vorläufig bleibt Vorläufig, weil dieser Übergang nicht vorgesehen ist. Das Label „Verdächtig“ verschwindet
+  mit dem Status Bestätigt.
+
+## D-160 Verschieben nur mit Alt
+
+- **Anlass:** Buchungen verschieben soll möglich bleiben, der Knopf dafür aber nicht in der Titelzeile stehen.
+- **Entscheidung:** Die Titelzeile des Kontoblatts hat keinen Knopf „Verschieben…“. Der Eintrag „Auf anderes
+  Konto verschieben…“ erscheint im Kontextmenü nur, wenn es mit gehaltener Alt-Taste geöffnet wird. Auf dem
+  Handy, wo es keine Alt-Taste gibt, bleibt der Eintrag im Menü und in der Auswahlleiste.
+
+## D-161 Stifte in den Einzelheiten
+
+- **Anlass:** Ein Doppelklick im Kontoblatt soll nicht mehr bearbeiten. Jeder Bestandteil einer Buchung soll
+  in den Einzelheiten einen Stift zum Bearbeiten haben.
+- **Entscheidung:** Doppelklick auf eine Zelle öffnet keinen Editor. In den Einzelheiten hat Datum, Empfänger,
+  Verwendungszweck, die Buchungssätze, die Tags und der Status je einen Stift. Der Editor sitzt in der
+  Zeile der Einzelheiten. Der Status bleibt auch bei abgestimmten Buchungen erreichbar, die übrigen Stifte
+  nicht. F2 und der Menüeintrag für den Verwendungszweck bleiben. Der Service-Worker-Cache heißt
+  `kontor-huelle-22`.

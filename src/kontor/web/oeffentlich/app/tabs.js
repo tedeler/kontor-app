@@ -5,6 +5,8 @@
  * Liste der Tabs (Pfad, Abfrageteil, Titel) und der aktive Tab liegen im localStorage unter `kontor.tabs`.
  * Dieses Modul kennt nur den Zustand und die Leiste; das Zeigen der Seiten übernimmt der Router in haupt.js. */
 import { h } from "./kern.js";
+import { langeBeruehrung } from "./baum.js";
+import { kontextmenue, menuePosition } from "./ui.js";
 
 const SCHLUESSEL = "kontor.tabs";
 const HOECHSTENS = 40;          // gespeicherte Tabs; ältere inaktive fallen beim Speichern weg
@@ -21,6 +23,10 @@ export class Tabs {
     this.aktiv = null;
     this.laden();
     this.zeichnen();
+    langeBeruehrung(this.leiste, (ziel) => ziel.closest("[role=tab]"), (el, x, y) => {
+      const t = this.finden(el.dataset.pfad);
+      if (t) this.menue(t, x, y, el);
+    });
   }
 
   // ---------------------------------------------------------------- Speicherung
@@ -123,6 +129,40 @@ export class Tabs {
     if (z) z.focus();
   }
 
+  /** Den angeklickten Tab behalten, alle übrigen verwerfen. War er nicht aktiv, wird er gezeigt. */
+  andereSchliessen(behalten) {
+    if (!this.liste.includes(behalten) || this.liste.length < 2) return;
+    const warAktiv = this.aktiv === behalten;
+    this.liste = [behalten];
+    if (!warAktiv) this.aktiv = null;
+    this.zeichnen();
+    this.speichern();
+    if (!warAktiv) this.beiWahl(behalten);
+  }
+
+  /** Alle Tabs verwerfen. Die Oberfläche zeigt danach wieder die Startseite. */
+  alleSchliessen() {
+    if (!this.liste.length) return;
+    const letzter = this.aktiv;
+    this.liste = [];
+    this.aktiv = null;
+    this.zeichnen();
+    this.speichern();
+    this.beiSchliessen(letzter, null);
+  }
+
+  menue(t, x, y, ausloeser) {
+    const titel = t.titel || t.pfad;
+    kontextmenue(x, y, [
+      { tid: "km-tab-schliessen", text: "Schließen", tun: () => this.schliessen(t) },
+      { tid: "km-tab-andere", text: "Andere Tabs schließen", aktiv: this.liste.length > 1,
+        tun: () => this.andereSchliessen(t) },
+      { tid: "km-tab-alle", text: "Alle Tabs schließen", tun: () => this.alleSchliessen() },
+    ], ausloeser);
+    const menue = document.querySelector("[data-testid=kontextmenue]");
+    if (menue) menue.setAttribute("aria-label", `Tab „${titel}“`);
+  }
+
   // ---------------------------------------------------------------- Leiste
   zeichnen() {
     const fokusPfad = this.leiste.contains(document.activeElement)
@@ -156,6 +196,10 @@ export class Tabs {
     // Mittelklick schließt den Tab
     el.addEventListener("auxclick", (e) => { if (e.button === 1) { e.preventDefault(); this.schliessen(t); } });
     el.addEventListener("mousedown", (e) => { if (e.button === 1) e.preventDefault(); });
+    el.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      this.menue(t, e.clientX, e.clientY, el);
+    });
     el.addEventListener("keydown", (e) => this.taste(t, e));
     return el;
   }
@@ -172,6 +216,11 @@ export class Tabs {
     else if (e.key === "Home") { e.preventDefault(); fokus(0); }
     else if (e.key === "End") { e.preventDefault(); fokus(this.liste.length - 1); }
     else if (e.key === "Delete") { e.preventDefault(); this.schliessen(t); }
+    else if ((e.key === "F10" && e.shiftKey) || e.key === "ContextMenu") {
+      e.preventDefault();
+      const [x, y] = menuePosition(null, e.currentTarget);
+      this.menue(t, x, y, e.currentTarget);
+    }
     else if (e.key === " ") { e.preventDefault(); if (t !== this.aktiv) this.beiWahl(t); }
   }
 }

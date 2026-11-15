@@ -1,7 +1,7 @@
 /* Kontor – Seiten außer der Kontoansicht (oberflaeche.md 6, 13, 14). */
 import {
   BESTAND, STATUS_TEXT, abfrage, aktion, anmeldung, api, baumFolge, betragEl, betragLesen, betragText, datumEl,
-  datumText, h, kategorien, kontoNach, kontoPfad, melde, mobilKarten, nachName, neueId, oberflaeche, pfadVon, stamm, tid, zeitEl,
+  datumText, h, kategorien, kontoNach, kontoPfad, melde, mobilKarten, nachName, neueId, oberflaeche, personLesen, pfadVon, sichtbar, stamm, tid, zeitEl,
   zeitText,
 } from "./kern.js";
 import {
@@ -9,7 +9,7 @@ import {
   zuordnungDialog,
 } from "./ui.js";
 import { kategorienBaum, kontoMenue, langeBeruehrung } from "./baum.js";
-import { begruendungZeigen, filterText, layoutZuruecksetzen, wkFilterDialog } from "./konto.js";
+import { layoutZuruecksetzen } from "./konto.js";
 
 const kopf = (seite, titel, ...werkzeuge) => {
   seite.append(h("div", { class: "seiten-kopf" }, h("h1", null, titel),
@@ -182,58 +182,6 @@ export async function kategorienSeite(seite) {
     + "Mit Strg/Umschalt (oder Leertaste) mehrere markieren und über das Kontextmenü „Zusammenführen in…“ "
     + "ihre Buchungen in eine andere Kategorie überführen."), ort);
   return { titel: "Kategorien" };
-}
-
-// ------------------------------------------------------------------ Wiederkehrend (13.5)
-const RHYTHMUS = { monatlich: "monatlich", vierteljaehrlich: "vierteljährlich", jaehrlich: "jährlich" };
-const SERIENSTATUS = { aktiv: "aktiv", ausbleibend: "ausbleibend", beendet: "beendet" };
-
-export async function wiederkehrend(seite) {
-  const u = await api("GET", "/api/wiederkehrend");
-  kopf(seite, "Wiederkehrende Buchungen", knopf("Jetzt prüfen", { onclick: async () => {
-    try { await api("POST", "/api/wiederkehrend/pruefen", {}); melde("erfolg", "Wiederkehrende Buchungen geprüft."); await oberflaeche.neuLaden(); }
-    catch (e) { melde("fehler", e.message); }
-  } }));
-  // Menü je Serie (D-118): Begründung zur jüngsten Buchung, Sprung ins Kontoblatt
-  const serienMenue = (s, x, y, ausloeser) => {
-    const letzte = s.buchung_ids[s.buchung_ids.length - 1];
-    kontextmenue(x, y, [
-      { tid: "km-serie-begruendung", text: "Warum wiederkehrend?", tun: () => begruendungZeigen(letzte, ausloeser) },
-      { tid: "km-serie-springen", text: "Letzte Buchung im Kontoblatt zeigen",
-        tun: () => oberflaeche.zurBuchung(s.konto_id, letzte) },
-    ], ausloeser);
-  };
-  const zeile = (s) => {
-    const name = s.empfaenger ? s.empfaenger.name : "";
-    const mehr = knopf("…", { tid: `wk-menue-${s.schluessel}`, class: "knopf-flach", "aria-haspopup": "menu",
-      "aria-label": `Aktionen für ${name}`, title: "Aktionen",
-      onclick: (e) => { const [x, y] = menuePosition(null, e.currentTarget); serienMenue(s, x, y, e.currentTarget); } });
-    const tr = h("tr", { tid: `serie-${s.schluessel}`, "data-status": s.status, tabindex: "0" },
-      h("td", null, name), h("td", null, pfadVon(s.konto_id)),
-      h("td", null, RHYTHMUS[s.rhythmus] || s.rhythmus), betragEl("td", s.betrag, { class: "zahl" }),
-      betragEl("td", s.jahreskosten, { class: "zahl" }), datumEl("td", s.naechste_faelligkeit),
-      h("td", null, SERIENSTATUS[s.status] || s.status), h("td", { class: "aktionen" }, mehr));
-    tr.addEventListener("contextmenu", (e) => { e.preventDefault(); serienMenue(s, e.clientX, e.clientY, tr); });
-    // mobil (D-142): Tippen auf die Karte öffnet die Aktionen
-    tr.addEventListener("click", (e) => {
-      if (!oberflaeche.istMobil() || e.target.closest("button, a")) return;
-      const [x, y] = menuePosition(null, tr); serienMenue(s, x, y, tr);
-    });
-    tr.addEventListener("keydown", (e) => {
-      if (e.target === tr && ((e.key === "F10" && e.shiftKey) || e.key === "ContextMenu")) {
-        e.preventDefault(); const [x, y] = menuePosition(null, tr); serienMenue(s, x, y, tr);
-      }
-    });
-    return tr;
-  };
-  langeBeruehrung(seite, (t) => t.closest("tr[data-status]"), (tr, x, y) => tr.dispatchEvent(new MouseEvent("contextmenu",
-    { bubbles: true, cancelable: true, clientX: x, clientY: y })));
-  seite.append(h("p", { class: "wk-summe" }, "Summe der Jahreskosten: ", betragEl("strong", u.summe_jahreskosten)),
-    tabelle({ tid: "wiederkehrend-tabelle" }, ["Empfänger", "Konto", "Rhythmus", "Betrag", "Jahreskosten", "Nächste Fälligkeit",
-      "Status", h("span", { class: "nur-sr" }, "Aktionen")], u.serien.map(zeile),
-    ["titel", "wk-konto", "wk-rhythmus", "betrag", "wk-jahr", "wk-faellig", "status", "wk-aktion"]),
-    ...(u.serien.length ? [] : [leer("Keine wiederkehrenden Buchungen erkannt.")]));
-  return { titel: "Wiederkehrende Buchungen" };
 }
 
 // ------------------------------------------------------------------ Kredite (13.4)
@@ -652,7 +600,10 @@ const SVGNS = "http://www.w3.org/2000/svg";
 const svg = (tag, attrs, ...kinder) => {
   const el = document.createElementNS(SVGNS, tag);
   for (const [k, v] of Object.entries(attrs || {})) el.setAttribute(k, String(v));
-  for (const k of kinder) el.append(k instanceof Node ? k : document.createTextNode(String(k)));
+  for (const k of kinder) {
+    if (k instanceof Node) el.append(k);
+    else { const text = sichtbar(k); if (text.trim() !== "") el.append(document.createTextNode(text)); }
+  }
   return el;
 };
 const FARBEN = ["#1f5f8b", "#c9781e", "#2e7d32", "#8e24aa", "#c62828", "#00838f"];
@@ -674,7 +625,7 @@ function svgDiagramm(b) {
   const n = b.stichtage.length;
   const x = (i) => rand + (n === 1 ? 0 : (i * (B - 2 * rand)) / (n - 1));
   const y = (v) => H - rand / 2 - ((v - min) * (H - rand)) / spanne;
-  el.append(svg("line", { x1: rand, x2: B - rand, y1: y(0), y2: y(0), class: "nulllinie" }));
+  el.append(svg("line", { x1: rand, x2: B - rand, y1: y(0), y2: y(0), class: "basislinie" }));
   b.reihen.forEach((r, j) => {
     el.append(svg("polyline", { fill: "none", stroke: FARBEN[j % FARBEN.length], "stroke-width": 2,
       points: r.werte.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ") },
@@ -740,55 +691,10 @@ function importErgebnis(e) {
         + (m.referenz ? ` (${m.referenz})` : "")))) : null);
 }
 
-// Betragsfilter wiederkehrender Buchungen (D-137): Vorgabe der Instanz und eigene Einstellungen je Empfänger
-function wkFilterAbschnitt(wk) {
-  const modus = h("select", { tid: "wk-vorgabe-modus" }, [["toleranz", "Toleranz in Prozent"], ["aus", "aus (jeder Betrag zählt)"]]
-    .map(([w, t]) => h("option", { value: w }, t)));
-  modus.value = wk.vorgabe.modus;
-  const prozent = h("input", { type: "number", min: "0", max: "100", step: "1", tid: "wk-vorgabe-toleranz", inputmode: "numeric",
-    value: String(wk.vorgabe.toleranz_prozent ?? 10) });
-  const fProzent = feld("Toleranz (%)", prozent);
-  const sichtbar = () => { fProzent.hidden = modus.value !== "toleranz"; };
-  modus.addEventListener("change", sichtbar);
-  sichtbar();
-  const speichern = knopf("Speichern", { tid: "wk-vorgabe-speichern", onclick: async () => {
-    const k = modus.value === "toleranz" ? { modus: "toleranz", toleranz_prozent: Number(prozent.value) } : { modus: "aus" };
-    // D-143: kein Neuzeichnen der Einstellungsseite (Instanz-Einstellung, kein Buchbestand); die Felder zeigen schon
-    // den gespeicherten Stand, andere Tabs (Begründungen, Übersicht) laden beim nächsten Zeigen neu
-    try {
-      const v = await api("PUT", "/api/wiederkehrend/einstellungen/vorgabe", k);
-      modus.value = v.modus;
-      if (v.toleranz_prozent != null) prozent.value = String(v.toleranz_prozent);
-      sichtbar();
-      oberflaeche.andereVeraltet();
-      melde("erfolg", "Vorgabe gespeichert.");
-    } catch (e) { melde("fehler", e.message); }
-  } });
-  const zeilen = wk.empfaenger.map((x) => h("tr", { tid: `wk-filter-${x.empfaenger.id}`, "data-modus": x.modus },
-    h("td", null, x.empfaenger.name), h("td", null, filterText(x)),
-    h("td", null, knopf("Ändern …", { "aria-label": `Betragsfilter für ${x.empfaenger.name} ändern`,
-      onclick: (e) => wkFilterDialog(x.empfaenger, e.currentTarget) }),
-    knopf("Entfernen", { tid: `wk-filter-entfernen-${x.empfaenger.id}`, "aria-label": `Betragsfilter für ${x.empfaenger.name} entfernen`,
-      onclick: async () => {
-        try { await aktion(() => api("DELETE", `/api/empfaenger/${x.empfaenger.id}/wiederkehrend`), { erfolg: "Betragsfilter entfernt." }); }
-        catch (f) { /* gemeldet */ }
-      } }))));
-  return abschnitt("Wiederkehrende Buchungen",
-    h("p", { class: "klein" }, "Zahlungen eines Empfängers, deren Betrag nicht passt (z. B. Auslagenerstattungen neben dem Gehalt), "
-      + "werden bei der Erkennung übergangen und unterbrechen eine Serie nicht."),
-    h("div", { class: "formular-zeile" }, feld("Vorgabe für alle Empfänger", modus), fProzent, speichern),
-    h("h3", null, "Eigene Einstellungen je Empfänger"),
-    zeilen.length ? tabelle({ tid: "wk-filter-liste" }, ["Empfänger", "Betragsfilter", h("span", { class: "nur-sr" }, "Aktionen")], zeilen,
-      ["titel", "info-", "aktion2"])
-      : leer("Alle Empfänger verwenden die Vorgabe."),
-    knopf("Empfänger hinzufügen …", { tid: "wk-filter-neu", onclick: (e) => wkFilterDialog(null, e.currentTarget) }));
-}
-
 // ------------------------------------------------------------------ Einstellungen (13.2)
 export async function einstellungen(seite, _p, _s, kontext) {
-  const [status, sync, geheim, zust, postfaecher, wk] = await Promise.all([api("GET", "/api/status"), api("GET", "/api/sync/status"),
-    api("GET", "/api/geheimnisse"), api("GET", "/api/benachrichtigungen/zustellung"), api("GET", "/api/mail/postfaecher"),
-    api("GET", "/api/wiederkehrend/einstellungen")]);
+  const [status, sync, geheim, zust, postfaecher] = await Promise.all([api("GET", "/api/status"), api("GET", "/api/sync/status"),
+    api("GET", "/api/geheimnisse"), api("GET", "/api/benachrichtigungen/zustellung"), api("GET", "/api/mail/postfaecher")]);
   kopf(seite, "Einstellungen");
   // Darstellung
   const thema = h("select", { tid: "einstellung-thema" }, [["system", "wie System"], ["hell", "Hell"], ["dunkel", "Dunkel"]]
@@ -797,7 +703,6 @@ export async function einstellungen(seite, _p, _s, kontext) {
   thema.addEventListener("change", () => kontext.thema.setzen(thema.value));
   seite.append(abschnitt("Darstellung", feld("Design", thema),
     knopf("Layout zurücksetzen", { tid: "layout-zuruecksetzen", onclick: () => { layoutZuruecksetzen(); melde("erfolg", "Layout zurückgesetzt."); } })));
-  seite.append(wkFilterAbschnitt(wk));
   // Betrieb
   seite.append(abschnitt("Betrieb", h("p", { tid: "status-modus", "data-modus": status.modus },
     status.modus === "mock" ? "Mock-Modus" : "Echtbetrieb", ` · Version ${status.version}`,
@@ -988,23 +893,91 @@ export async function protokoll(seite) {
 }
 
 // ------------------------------------------------------------------ Empfänger (13.10)
+const PERSON_NAMEN = ["Torsten", "Tina"];
+
+function personTags(e) {
+  return (e.tags || []).filter((t) => PERSON_NAMEN.includes(t.name));
+}
+
 export async function empfaenger(seite) {
   const liste = stamm.empfaenger;
   const auswahl = new Set();
   const zusammen = knopf("Zusammenführen…", { tid: "empfaenger-zusammenfuehren", disabled: true,
     onclick: (e) => zusammenfuehren(liste.filter((x) => auswahl.has(x.id)), e.currentTarget) });
-  const pruefen = () => { zusammen.disabled = auswahl.size < 2; };   // 22.3: ab zwei ausgewählten
-  kopf(seite, "Empfänger", zusammen);
-  seite.append(liste.length ? tabelle({ class: "tabelle" }, ["", "Name", "Aliase", "Standardkategorie", ""], liste.map((e) => {
-    const wahl = h("input", { type: "checkbox", tid: `empfaenger-auswahl-${e.id}`, "aria-label": `${e.name} auswählen` });
-    wahl.addEventListener("change", () => { if (wahl.checked) auswahl.add(e.id); else auswahl.delete(e.id); pruefen(); });
-    return h("tr", { tid: `empfaenger-${e.id}` },
-      h("td", null, wahl), h("td", null, e.name), h("td", null, (e.aliase || []).join(", ")),
-      h("td", null, e.standardkategorie_id ? pfadVon(e.standardkategorie_id) : ""),
-      h("td", null, knopf("Bearbeiten…", { "aria-label": `Empfänger ${e.name} bearbeiten`, onclick: (ev) => empfaengerDialog(e, ev.currentTarget) })));
-  }), ["auswahl", "titel", "info:Aliase", "info:Kategorie", "aktion"])
+  const markieren = knopf("Bestätigen", { tid: "empfaenger-bestaetigen", disabled: true });
+  const pruefen = () => {
+    zusammen.disabled = auswahl.size < 2;   // 22.3: ab zwei ausgewählten
+    const name = personLesen();
+    const gewaehlt = liste.filter((x) => auswahl.has(x.id));
+    const alle = !!(name && gewaehlt.length && gewaehlt.every((e) => personTags(e).some((t) => t.name === name)));
+    markieren.disabled = !name || !gewaehlt.length;
+    markieren.textContent = alle ? `Bestätigung von ${name} zurücknehmen` : (name ? `Auswahl als ${name} bestätigen` : "Bestätigen");
+    markieren.dataset.zurueck = alle ? "ja" : "nein";
+  };
+  markieren.addEventListener("click", () => {
+    const gewaehlt = liste.filter((x) => auswahl.has(x.id));
+    empfaengerMarkieren(gewaehlt, markieren.dataset.zurueck !== "ja");
+  });
+  kopf(seite, "Empfänger", markieren, zusammen);
+  seite.append(liste.length ? tabelle({ class: "tabelle" }, ["", "Name", "Bestätigt", "Aliase", "Standardkategorie", ""],
+    liste.map((e) => zeileEmpfaenger(e, auswahl, pruefen)),
+    ["auswahl", "titel", "info:Bestätigt", "info:Aliase", "info:Kategorie", "aktion"])
     : leer("Noch keine Empfänger."));
+  pruefen();
   return { titel: "Empfänger" };
+
+  function zeileEmpfaenger(e, auswahlSet, nachWahl) {
+    const wahl = h("input", { type: "checkbox", tid: `empfaenger-auswahl-${e.id}`, "aria-label": `${e.name} auswählen` });
+    wahl.addEventListener("change", () => { if (wahl.checked) auswahlSet.add(e.id); else auswahlSet.delete(e.id); nachWahl(); });
+    const namen = personTags(e).map((t) => t.name);
+    const name = personLesen();
+    const hat = name && namen.includes(name);
+    const tr = h("tr", { tid: `empfaenger-${e.id}` },
+      h("td", null, wahl), h("td", null, e.name),
+      h("td", { "data-feld": "bestaetigt" }, namen.map((n) => h("span", { class: "tag tag-person", tid: "tag",
+        "data-person": n, title: `Bestätigt von ${n}` }, n))),
+      h("td", null, (e.aliase || []).join(", ")),
+      h("td", null, e.standardkategorie_id ? pfadVon(e.standardkategorie_id) : ""),
+      h("td", null, knopf(hat ? `Bestätigung von ${name} zurücknehmen` : `Als ${name || "…"} bestätigen`, {
+        tid: `empfaenger-bestaetigen-${e.id}`, disabled: !name,
+        "aria-label": hat ? `Bestätigung von ${name} für ${e.name} zurücknehmen` : `${e.name} als ${name || "Person"} bestätigen`,
+        onclick: () => empfaengerMarkieren([e], !hat) }),
+      knopf("Bearbeiten…", { "aria-label": `Empfänger ${e.name} bearbeiten`, onclick: (ev) => empfaengerDialog(e, ev.currentTarget) })));
+    if (namen.length) tr.dataset.bestaetigt = namen.join(" ");
+    tr.addEventListener("contextmenu", (ev) => {
+      if (ev.target.closest("input, button")) return;
+      ev.preventDefault();
+      const ziele = auswahlSet.has(e.id) && auswahlSet.size > 1 ? liste.filter((x) => auswahlSet.has(x.id)) : [e];
+      const wer = personLesen();
+      const alle = !!(wer && ziele.every((x) => personTags(x).some((t) => t.name === wer)));
+      kontextmenue(ev.clientX, ev.clientY, [
+        wer ? { tid: "em-bestaetigen", text: alle ? `Bestätigung von ${wer} zurücknehmen` : `Als ${wer} bestätigen`,
+          tun: () => empfaengerMarkieren(ziele, !alle) } : null,
+        ziele.length === 1 ? { tid: "em-bearbeiten", text: "Bearbeiten…", tun: () => empfaengerDialog(e, tr) } : null,
+      ].filter(Boolean), tr);
+    });
+    return tr;
+  }
+}
+
+async function empfaengerMarkieren(liste, hinzu) {
+  const name = personLesen();
+  if (!name) { melde("hinweis", "Bitte oben rechts wählen, wer du bist."); return; }
+  if (!liste.length) return;
+  try {
+    await aktion(async () => {
+      let t = stamm.tags.find((x) => x.name === name);
+      if (!t && hinzu) t = await api("POST", "/api/tags", { name });
+      if (!t) return null;
+      for (const e of liste) {
+        const ids = new Set((e.tags || []).map((x) => x.id));
+        if (hinzu) ids.add(t.id);
+        else ids.delete(t.id);
+        await api("PATCH", `/api/empfaenger/${e.id}`, { tag_ids: [...ids] });
+      }
+      return true;
+    }, { erfolg: hinzu ? `Als ${name} bestätigt.` : `Bestätigung von ${name} zurückgenommen.` });
+  } catch { /* gemeldet */ }
 }
 
 function empfaengerDialog(e, ausloeser) {
@@ -1292,7 +1265,9 @@ export async function suche(seite, _p, suchtext) {
     e.buchungen.map((b) => {
       const z = h("div", { role: "row", tid: `buchung-${b.id}`, class: "zeile", tabindex: "0", "data-status": b.status, "aria-selected": "false" },
         datumEl("div", b.datum, { role: "gridcell", class: "zelle", "data-feld": "datum" }),
-        h("div", { role: "gridcell", class: "zelle", "data-feld": "empfaenger" }, b.empfaenger ? b.empfaenger.name : ""),
+        h("div", { role: "gridcell", class: "zelle", "data-feld": "empfaenger" }, b.empfaenger ? b.empfaenger.name : "",
+          b.verdacht ? h("span", { class: "tag tag-verdacht", tid: "verdacht", "data-grund": b.verdacht.grund,
+            title: b.verdacht.text, "aria-label": b.verdacht.text }, "Verdächtig") : null),
         h("div", { role: "gridcell", class: "zelle", "data-feld": "verwendungszweck" }, b.verwendungszweck),
         h("div", { role: "gridcell", class: "zelle", "data-feld": "kategorie" }, b.kategorie_id ? pfadVon(b.kategorie_id) : ""),
         betragEl("div", b.betrag, { role: "gridcell", class: "zelle zahl", "data-feld": "betrag" }));

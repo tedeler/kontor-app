@@ -134,6 +134,52 @@ def erwartung_dict(con, r, heute: str) -> dict:
     return f
 
 
+def _warum(z, b: dict) -> str:
+    """Warum diese Buchung zur Erwartung passt, gelesen an Kennung, Betrag und Namen."""
+    zweck = _kompakt(b.get("verwendungszweck"))
+    empf = _kompakt(b.get("empfaenger"))
+    for feld, name in (("kennung", "Kennung"), ("referenz", "Referenz")):
+        roh = z[feld] or ""
+        k = _kompakt(roh)
+        if len(k) < 6:
+            continue
+        if k in zweck:
+            return f"Die {name} „{roh}“ steht im Verwendungszweck."
+        if k in empf:
+            return f"Die {name} „{roh}“ steht beim Empfänger."
+    if abs(b["betrag"]) == z["betrag"] and _anbieter_passt(z, b):
+        return "Der Betrag stimmt, und der Name des Händlers oder Anbieters steht in der Buchung."
+    return "Manuell zugeordnet. Kennung, Betrag und Name erklären die Buchung nicht von selbst."
+
+
+def zuordnungen_nach_mail(con, heute: str) -> dict[tuple[str, str], list[dict]]:
+    """Je gespiegelter Mail (Postfach, Nachrichten-ID) die Erwartungen, die sie begründet haben, samt Buchungen."""
+    zeilen = list(con.execute("SELECT * FROM erwartung"))
+    ids: list[int] = []
+    gelesen: list[tuple] = []
+    for r in zeilen:
+        buchung_ids = json.loads(r["buchung_ids"])
+        ids.extend(buchung_ids)
+        gelesen.append((r, buchung_ids, json.loads(r["mails"])))
+    bank = _bankbuchungen(con, ids)
+    aus: dict[tuple[str, str], list[dict]] = {}
+    for r, buchung_ids, mails in gelesen:
+        buchungen = []
+        for bid in buchung_ids:
+            b = bank.get(bid)
+            if b is None:
+                continue
+            buchungen.append({**b, "warum": _warum(r, b)})
+        eintrag = {"erwartung_id": r["id"], "grund": r["grund"], "zustand": r["zustand"],
+                   "ueberfaellig": r["zustand"] == "offen" and r["frist"] < heute,
+                   "haendler": r["haendler"], "kennung": r["kennung"],
+                   "vorzeichen_betrag": -r["betrag"] if r["richtung"] == "ausgabe" else r["betrag"],
+                   "buchungen": buchungen}
+        for m in mails:
+            aus.setdefault((m.get("postfach") or "", m.get("nachricht_id") or ""), []).append(eintrag)
+    return aus
+
+
 def lesen(con, eid: int, heute: str) -> dict:
     aus = erwartung_dict(con, _zeile(con, eid), heute)
     aus["buchungen"] = list(_bankbuchungen(con, aus["buchung_ids"]).values())

@@ -131,15 +131,29 @@ export function bestaetigen(text, optionen) {
 // ------------------------------------------------------------------ Kontextmenü (8)
 let offenesMenue = null;
 
-/** eintraege: [{tid, text, aktiv, tun}] */
+/** eintraege: [{tid, text, aktiv, tun, kinder}] – ``kinder`` öffnet ein Untermenü. */
 export function kontextmenue(x, y, eintraege, ausloeser) {
   if (offenesMenue) offenesMenue.schliessen(false);
   const liste = h("div", { class: "kontextmenue", role: "menu", tid: "kontextmenue", "aria-label": "Kontextmenü",
     tabindex: "-1" });
+  let unter = null;
+  let unterEintraege = [];
+  let unterItems = [];
   const items = eintraege.map((e) => {
-    const el = h("div", { role: "menuitem", tid: e.tid, tabindex: "-1", class: "menue-eintrag",
-      "aria-disabled": e.aktiv === false ? "true" : null }, e.text);
-    el.addEventListener("click", (ev) => { ev.stopPropagation(); ausfuehren(e); });
+    const hatKinder = !!(e.kinder && e.kinder.length);
+    const el = h("div", { role: "menuitem", tid: e.tid, tabindex: "-1",
+      class: "menue-eintrag" + (hatKinder ? " menue-mit-unter" : ""),
+      "aria-disabled": e.aktiv === false ? "true" : null, "aria-haspopup": hatKinder ? "menu" : null,
+      "aria-expanded": hatKinder ? "false" : null },
+    h("span", { class: "menue-text" }, e.text),
+    hatKinder ? h("span", { class: "menue-pfeil", "aria-hidden": "true" }, "›") : null);
+    el.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      if (hatKinder) unterOeffnen(el, e);
+      else ausfuehren(e);
+    });
+    if (hatKinder) el.addEventListener("mouseenter", () => { if (!oberflaeche.istMobil()) unterOeffnen(el, e); });
+    else el.addEventListener("mouseenter", () => unterSchliessen());
     return el;
   });
   anhaengen(liste, items);
@@ -148,37 +162,125 @@ export function kontextmenue(x, y, eintraege, ausloeser) {
     art: "menue", el: liste,
     schliessen(fokusZurueck = true) {
       if (offenesMenue !== m) return;
+      unterSchliessen();
       offenesMenue = null;
       ebeneSchliessen(m);
       liste.remove();
       document.removeEventListener("pointerdown", aussen, true);
       if (fokusZurueck && ausloeser && ausloeser.isConnected) ausloeser.focus();
     },
-    escape() { m.schliessen(true); },
+    escape() {
+      if (unter) {
+        const offen = items.find((el) => el.getAttribute("aria-expanded") === "true");
+        unterSchliessen();
+        if (offen) offen.focus();
+        return;
+      }
+      m.schliessen(true);
+    },
   };
   function ausfuehren(e) {
     if (e.aktiv === false) return;
     m.schliessen(true);
     Promise.resolve().then(() => e.tun());
   }
+  function unterSchliessen() {
+    if (!unter) return;
+    unter.remove();
+    unter = null;
+    unterEintraege = [];
+    unterItems = [];
+    for (const el of items) if (el.getAttribute("aria-expanded") === "true") el.setAttribute("aria-expanded", "false");
+  }
+  function unterOeffnen(el, e) {
+    if (e.aktiv === false) return;
+    if (unter && el.getAttribute("aria-expanded") === "true") return;
+    unterSchliessen();
+    const box = h("div", { class: "kontextmenue untermenue", role: "menu", tid: "untermenue",
+      "aria-label": e.text, tabindex: "-1" });
+    unterEintraege = e.kinder;
+    unterItems = e.kinder.map((k) => {
+      const kn = h("div", { role: "menuitem", tid: k.tid, tabindex: "-1", class: "menue-eintrag",
+        "aria-disabled": k.aktiv === false ? "true" : null }, k.text);
+      kn.addEventListener("click", (ev) => { ev.stopPropagation(); ausfuehren(k); });
+      return kn;
+    });
+    anhaengen(box, unterItems);
+    box.addEventListener("keydown", (ev) => unterTaste(ev));
+    box.addEventListener("contextmenu", (ev) => ev.preventDefault());
+    document.body.append(box);
+    const pr = el.getBoundingClientRect();
+    const br = box.getBoundingClientRect();
+    let left = pr.right + 4;
+    let top = pr.top;
+    if (oberflaeche.istMobil() || left + br.width > window.innerWidth - 4) left = Math.max(4, pr.left - br.width - 4);
+    if (oberflaeche.istMobil()) {
+      left = 8;
+      box.style.width = "calc(100vw - 16px)";
+      top = Math.max(4, pr.top - box.getBoundingClientRect().height - 6);
+    } else if (top + br.height > window.innerHeight - 4) top = Math.max(4, window.innerHeight - br.height - 4);
+    box.style.left = left + "px";
+    box.style.top = top + "px";
+    unter = box;
+    el.setAttribute("aria-expanded", "true");
+  }
+  function unterTaste(ev) {
+    const a = unterItems.filter((el) => el.getAttribute("aria-disabled") !== "true");
+    const i = a.indexOf(document.activeElement);
+    if (ev.key === "ArrowDown" || ev.key === "ArrowUp") {
+      ev.preventDefault();
+      ev.stopPropagation();
+      if (!a.length) return;
+      const n = ev.key === "ArrowDown" ? (i + 1) % a.length : (i - 1 + a.length) % a.length;
+      a[n].focus();
+    } else if (ev.key === "ArrowLeft" || ev.key === "Escape") {
+      ev.preventDefault();
+      ev.stopPropagation();
+      const offen = items.find((el) => el.getAttribute("aria-expanded") === "true");
+      unterSchliessen();
+      if (offen) offen.focus();
+    } else if (ev.key === "Enter" || ev.key === " ") {
+      ev.preventDefault();
+      ev.stopPropagation();
+      const idx = unterItems.indexOf(document.activeElement);
+      if (idx >= 0) ausfuehren(unterEintraege[idx]);
+    } else if (ev.key === "Tab") ev.preventDefault();
+  }
   function aussen(ev) {
-    if (!liste.contains(ev.target)) m.schliessen(true);
+    if (!liste.contains(ev.target) && !(unter && unter.contains(ev.target))) m.schliessen(true);
   }
   liste.addEventListener("keydown", (ev) => {
+    if (unter && unter.contains(document.activeElement)) { unterTaste(ev); return; }
     const a = aktive();
     const i = a.indexOf(document.activeElement);
     if (ev.key === "ArrowDown" || ev.key === "ArrowUp") {
       ev.preventDefault();
+      unterSchliessen();
       if (!a.length) return;
       const n = ev.key === "ArrowDown" ? (i + 1) % a.length : (i - 1 + a.length) % a.length;
       a[n].focus();
+    } else if (ev.key === "ArrowRight") {
+      const idx = items.indexOf(document.activeElement);
+      if (idx >= 0 && eintraege[idx].kinder && eintraege[idx].kinder.length && eintraege[idx].aktiv !== false) {
+        ev.preventDefault();
+        unterOeffnen(items[idx], eintraege[idx]);
+        const erstes = unterItems.find((el) => el.getAttribute("aria-disabled") !== "true");
+        if (erstes) erstes.focus();
+      }
     } else if (ev.key === "Home" || ev.key === "End") {
       ev.preventDefault();
+      unterSchliessen();
       if (a.length) a[ev.key === "Home" ? 0 : a.length - 1].focus();
     } else if (ev.key === "Enter" || ev.key === " ") {
       ev.preventDefault();
       const idx = items.indexOf(document.activeElement);
-      if (idx >= 0) ausfuehren(eintraege[idx]);
+      if (idx >= 0) {
+        if (eintraege[idx].kinder && eintraege[idx].kinder.length) {
+          unterOeffnen(items[idx], eintraege[idx]);
+          const erstes = unterItems.find((el) => el.getAttribute("aria-disabled") !== "true");
+          if (erstes) erstes.focus();
+        } else ausfuehren(eintraege[idx]);
+      }
     } else if (ev.key === "Tab") {
       ev.preventDefault();
     }
@@ -591,7 +693,7 @@ export async function dubletteDialog(verdacht, ausloeser) {
   catch (e) { melde("fehler", e.message); return; }
   dialog("dublette-dialog", "Dublettenverdacht", (inhalt, d) => {
     const zeile = (b, mitKnopf) => h("li", { tid: mitKnopf ? `dublette-kandidat-${b.id}` : null, class: "dublette" },
-      `${datumText(b.datum)} · ${b.empfaenger ? b.empfaenger.name : "ohne Empfänger"} · ${b.verwendungszweck} · `,
+      `${datumText(b.datum)} · ${b.empfaenger ? b.empfaenger.name : "ohne Empfänger"} · ${b.verwendungszweck || ""} · `,
       betragEl("span", b.betrag),
       knopf("Diese behalten", { tid: `dublette-zusammenfuehren-${b.id}`, "aria-label": `Buchung ${b.id} behalten und zusammenführen`,
         onclick: (e) => aufloesen(e.currentTarget, { entscheidung: "zusammenfuehren", behalten_id: b.id }) }));

@@ -3,13 +3,16 @@
  * 15.4, 16–19). */
 import {
   ApiFehler, BESTAND, anmeldung, anmeldungLaden, api, beiOffline, dialogOffen, ebeneOeffnen, ebeneSchliessen, ebenen,
-  fehlerMelden, h, istTexteingabe, kontoNach, melde, nachName, neueId, oberflaeche, obersteEbene, passt, rueckgaengig, stamm,
+  fehlerMelden, h, istTexteingabe, kontoNach, melde, nachName, neueId, oberflaeche, obersteEbene, passt, PERSONEN,
+  personLesen, personLoeschen, personSchreiben, rueckgaengig, stamm,
   stammLaden, stapelAnzeigen, tid, wiederholen,
 } from "./kern.js";
 import { bestaetigen, dialog, feld, fokusFalle, imDialog, knopf, knopfLeiste, zuordnungDialog } from "./ui.js";
-import { begruendungZeigen, kontoSeite, layoutZuruecksetzen, markierteBuchung } from "./konto.js";
+import { kontoSeite, layoutZuruecksetzen } from "./konto.js";
 import * as S from "./seiten.js";
 import { erwartetSeite } from "./erwartet.js";
+import { mailSeite } from "./mail.js";
+import { statistikSeite } from "./statistik.js";
 import { Tabs } from "./tabs.js";
 
 const app = tid("app");
@@ -227,8 +230,9 @@ const ROUTEN = [
   [/^\/konten$/, "konten", "konten", S.konten],
   [/^\/konten\/(\d+)$/, "konto", "konten", (seite, id, suche) => kontoSeite(seite, id, suche)],
   [/^\/kategorien$/, "kategorien", "kategorien", S.kategorienSeite],
-  [/^\/wiederkehrend$/, "wiederkehrend", "wiederkehrend", S.wiederkehrend],
-  [/^\/erwartet$/, "erwartet", null, erwartetSeite],
+  [/^\/erwartet$/, "erwartet", "erwartet", erwartetSeite],
+  [/^\/mail$/, "mail", "mail", mailSeite],
+  [/^\/statistik$/, "statistik", "statistik", statistikSeite],
   [/^\/kredite$/, "kredite", "kredite", S.kredite],
   [/^\/kredite\/(\d+)$/, "kredit", "kredite", S.kredit],
   [/^\/berichte$/, "berichte", "berichte", S.berichte],
@@ -246,7 +250,7 @@ const ROUTEN = [
   [/^\/mail\/postfaecher\/(\d+)$/, "postfach", "einstellungen", S.postfach],
   [/^\/buchungen\/(\d+)$/, "buchung", null, S.buchung],
 ];
-const NAV_ZIELE = ["uebersicht", "konten", "kategorien", "wiederkehrend", "kredite", "berichte", "import", "einstellungen"];
+const NAV_ZIELE = ["uebersicht", "konten", "kategorien", "kredite", "berichte", "import", "einstellungen"];
 
 let aktuell = null;
 let renderNr = 0;
@@ -259,8 +263,9 @@ const kontext = {
 };
 
 function navMarkieren(ziel) {
-  for (const a of navigation.querySelectorAll("a[data-testid^='nav-']")) {
-    if (a.dataset.testid === `nav-${ziel}`) a.setAttribute("aria-current", "page");
+  for (const a of navigation.querySelectorAll("a[data-testid^='nav']")) {
+    const id = a.dataset.testid;
+    if (ziel && (id === `nav-${ziel}` || id === `navlink-${ziel}`)) a.setAttribute("aria-current", "page");
     else a.removeAttribute("aria-current");
   }
 }
@@ -380,10 +385,11 @@ async function zeigen(optionen) {
 }
 
 const TITEL = { uebersicht: "Finanzübersicht", konten: "Konten", konto: "Konto", kategorien: "Kategorien",
-  wiederkehrend: "Wiederkehrende Buchungen", kredite: "Kredite", kredit: "Kredit", berichte: "Berichte", import: "Import",
+  statistik: "Statistische Analyse", kredite: "Kredite", kredit: "Kredit", berichte: "Berichte", import: "Import",
   einstellungen: "Einstellungen", protokoll: "Änderungsprotokoll", empfaenger: "Empfänger", regeln: "Regeln",
   vorlagen: "Split-Vorlagen", dubletten: "Dubletten", sync: "Synchronisation", benachrichtigungen: "Benachrichtigungen",
-  suche: "Suche", tan: "TAN-Freigabe", postfach: "Postfach", buchung: "Buchung", erwartet: "Was kommt noch?" };
+  suche: "Suche", tan: "TAN-Freigabe", postfach: "Postfach", buchung: "Buchung", erwartet: "Was kommt noch?",
+  mail: "Mail-Blatt" };
 const titelVon = (n) => TITEL[n] || "Kontor";
 
 function titelSetzen(t) {
@@ -691,9 +697,43 @@ function pinDialog(falsch) {
 
 // ------------------------------------------------------------------ Anmeldung (19)
 async function abmelden() {
+  personLoeschen();
   try { await api("POST", "/api/anmeldung/abmelden"); } catch (e) { /* trotzdem zur Anmeldeseite */ }
   anmeldung.csrf = null;
   location.assign("/anmelden");
+}
+
+function personZeigen() {
+  const name = personLesen();
+  const b = tid("person-knopf");
+  if (!b) return;
+  b.textContent = name || "Wer?";
+  b.dataset.person = name;
+  b.title = name ? `${name} – Benutzer wechseln` : "Wer bist du?";
+  b.setAttribute("aria-label", name ? `Angemeldet als ${name}. Benutzer wechseln.` : "Wer bist du?");
+}
+
+function personDialog(pflicht) {
+  const d = dialog("person-dialog", pflicht ? "Wer bist du?" : "Benutzer wechseln", (inhalt) => {
+    inhalt.append(
+      h("p", null, "Das Passwort gilt für den ganzen Haushalt. Buchungen, die du bestätigst, werden mit deinem Namen markiert."),
+      h("div", { class: "knopf-leiste" }, ...PERSONEN.map((name) =>
+        knopf(name, { tid: `person-${name.toLowerCase()}`,
+          class: "knopf" + (personLesen() === name ? " knopf-haupt" : ""),
+          onclick: () => { personSchreiben(name); personZeigen(); d.schliessen(name); if (oberflaeche.neuLaden) oberflaeche.neuLaden(); } }))),
+      pflicht ? null : knopf("Abbrechen", { tid: "person-abbrechen", onclick: () => d.schliessen(null) }));
+  });
+  if (pflicht) d.escape = () => {};
+}
+
+function personEinrichten() {
+  const leiste = document.querySelector(".kopf-knoepfe");
+  if (leiste && !tid("person-knopf")) {
+    leiste.append(h("button", { type: "button", class: "kopf-knopf person-knopf", tid: "person-knopf",
+      onclick: () => personDialog(false) }));
+  }
+  personZeigen();
+  if (!personLesen()) personDialog(true);
 }
 
 // ------------------------------------------------------------------ Befehlspalette (12.3)
@@ -701,7 +741,6 @@ const BEFEHLE = [
   ["gehe-uebersicht", "Gehe zu: Finanzübersicht", () => gehe("/")],
   ["gehe-konten", "Gehe zu: Konten", () => gehe("/konten")],
   ["gehe-kategorien", "Gehe zu: Kategorien", () => gehe("/kategorien")],
-  ["gehe-wiederkehrend", "Gehe zu: Wiederkehrende Buchungen", () => gehe("/wiederkehrend")],
   ["gehe-kredite", "Gehe zu: Kredite", () => gehe("/kredite")],
   ["gehe-berichte", "Gehe zu: Berichte", () => gehe("/berichte")],
   ["gehe-import", "Gehe zu: Import", () => gehe("/import")],
@@ -713,6 +752,8 @@ const BEFEHLE = [
   ["gehe-dubletten", "Gehe zu: Dubletten", () => gehe("/dubletten")],
   ["gehe-sync", "Gehe zu: Synchronisation", () => gehe("/sync")],
   ["gehe-erwartet", "Gehe zu: Was kommt noch? (erwartete Zahlungen)", () => gehe("/erwartet")],
+  ["gehe-mail", "Gehe zu: Mail-Blatt", () => gehe("/mail")],
+  ["gehe-statistik", "Gehe zu: Statistische Analyse", () => gehe("/statistik")],
   ["gehe-benachrichtigungen", "Gehe zu: Benachrichtigungen", () => gehe("/benachrichtigungen")],
   ["rueckgaengig", "Rückgängig", () => rueckgaengig()],
   ["wiederholen", "Wiederholen", () => wiederholen()],
@@ -722,8 +763,6 @@ const BEFEHLE = [
   ["thema-dunkel", "Design: Dunkel", () => thema.setzen("dunkel")],
   ["layout-zuruecksetzen", "Layout zurücksetzen", () => { layoutZuruecksetzen(); melde("erfolg", "Layout zurückgesetzt."); zeigen(); }],
   ["abmelden", "Abmelden", () => abmelden(), () => anmeldung.aktiv],
-  ["wiederkehrend-warum", "Markierte Buchung: Warum (nicht) wiederkehrend?", () => begruendungZeigen(markierteBuchung()),
-    () => markierteBuchung() !== null],
 ];
 
 function palette(ausloeser) {
@@ -891,6 +930,7 @@ async function start() {
   if (!navigator.onLine) offlineSetzen(true);
   try { await anmeldungLaden(); } catch (e) { behandeln(e); }
   await zeigen();
+  personEinrichten();
   sperrStatusPruefen();
   window.addEventListener("kontor-sperre", sperrStatusPruefen);
   app.dataset.bereit = "ja";

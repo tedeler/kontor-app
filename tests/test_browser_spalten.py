@@ -61,8 +61,7 @@ def test_markierung_der_zeilen(tmp_path, browser):  # noqa: F811
         assert zeile(ids["offen"]).get_attribute("data-markierung") is None
         for i in ids["serie"]:
             expect(zeile(i)).to_have_attribute("data-markierung", "kategorisiert")
-            expect(zeile(i)).to_have_attribute("data-wiederkehrend", "ja")
-        assert zeile(ids["importiert"]).get_attribute("data-wiederkehrend") is None
+            assert zeile(i).get_attribute("data-wiederkehrend") is None  # D-146: keine Serienmarke mehr
         # durch Mail bestätigt: nur die zugeordnete Buchung
         expect(zeile(ids["serie"][-1])).to_have_attribute("data-mail", "ja")
         assert zeile(ids["serie"][-1]).locator('[data-feld="empfaenger"]').get_attribute("title").endswith(
