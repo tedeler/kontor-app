@@ -175,6 +175,10 @@ fieldset { border: 1px solid var(--rand); border-radius: var(--radius); padding:
 .tabelle tbody tr.klickbar:hover { background: var(--hg-2); }
 .tabelle .name { padding-left: calc(.5rem + var(--stufe, 0) * 1.2rem); }
 .tabelle tr.geschlossen { color: var(--text-2); }
+.empfaenger-liste tbody tr { cursor: default; user-select: none; }
+.empfaenger-liste tbody tr:hover { background: var(--hg-2); }
+.empfaenger-liste tbody tr[aria-selected="true"] { background: var(--auswahl); }
+.empfaenger-liste tbody tr:focus-visible { outline: 2px solid var(--akzent); outline-offset: -2px; }
 [data-layout="mobil"] .tabelle { font-size: .9rem; }
 [data-layout="mobil"] .tabelle th, [data-layout="mobil"] .tabelle td { padding: .3rem .25rem; }
 [data-layout="mobil"] .tabelle tr { min-height: 44px; }

@@ -2229,3 +2229,17 @@ D-123 bis D-127 sind auf den offenen Branches `dokumente` und `alfbanco-import` 
   von selbst zusammengeführt und ändert keine Buchung. Er erscheint auf der Seite Dubletten und in der Liste
   offener Verdachte des Kontoblatts. Paare, die schon in einem Verdacht stehen, werden nicht noch einmal
   vorgeschlagen. Der Service-Worker-Cache heißt `kontor-huelle-24`.
+
+## D-166 Empfänger markieren wie im Kontoblatt
+
+- **Anlass:** Empfänger sollen sich auf dieselbe Art markieren lassen wie Buchungen im Kontoblatt, vor allem, um
+  mehrere Empfänger bequem zusammenzuführen. Bisher ging das nur über die Kästchen der ersten Spalte.
+- **Entscheidung:** Die Zeilen der Empfängerliste tragen `aria-selected` und werden wie im Kontoblatt bedient:
+  Klick wählt genau einen Empfänger, Strg/⌘-Klick schaltet um, Umschalt-Klick markiert einen Bereich ab dem
+  Anker, Strg+Umschalt-Klick fügt einen Bereich hinzu. Mit der Tastatur: Pfeiltasten, Pos1/Ende, Umschalt+Pfeil
+  (Bereich), Strg+Pfeil (nur Fokus), Leertaste (umschalten), Strg+A (alle), Esc (Auswahl aufheben),
+  Eingabe/F2/Doppelklick (Bearbeiten), Umschalt+F10/Kontextmenütaste (Menü). Rechtsklick auf eine nicht markierte
+  Zeile markiert nur sie. Das Kontextmenü bietet ab zwei markierten Empfängern „n Empfänger zusammenführen…“
+  (`em-zusammenfuehren`, derselbe Dialog wie der Knopf). Mobil schaltet Tippen um, die lange Berührung öffnet das
+  Menü. Die Kästchen `empfaenger-auswahl-{id}` bleiben und zeigen die Auswahl an. Die Anzahl steht in
+  `empfaenger-auswahl-anzahl` (`data-anzahl`). Der Service-Worker-Cache heißt `kontor-huelle-25`.

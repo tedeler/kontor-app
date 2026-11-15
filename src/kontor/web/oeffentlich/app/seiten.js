@@ -901,38 +901,149 @@ function personTags(e) {
 
 export async function empfaenger(seite) {
   const liste = stamm.empfaenger;
+  const ids = liste.map((e) => e.id);
+  // Mehrfachauswahl wie im Kontoblatt (D-166): Klick wählt eine, Strg/⌘ schaltet um, Umschalt markiert einen Bereich
   const auswahl = new Set();
+  let anker = null;
+  let fokusId = null;
+  const zeilen = new Map();
+  const gewaehlt = () => liste.filter((x) => auswahl.has(x.id));
   const zusammen = knopf("Zusammenführen…", { tid: "empfaenger-zusammenfuehren", disabled: true,
-    onclick: (e) => zusammenfuehren(liste.filter((x) => auswahl.has(x.id)), e.currentTarget) });
+    onclick: (e) => zusammenfuehren(gewaehlt(), e.currentTarget) });
   const markieren = knopf("Bestätigen", { tid: "empfaenger-bestaetigen", disabled: true });
+  const anzahl = h("span", { tid: "empfaenger-auswahl-anzahl", "data-anzahl": "0", class: "auswahl-anzahl", "aria-live": "polite" });
   const pruefen = () => {
+    for (const [id, z] of zeilen) {
+      const an = auswahl.has(id);
+      z.setAttribute("aria-selected", an ? "true" : "false");
+      z.tabIndex = id === (fokusId ?? ids[0]) ? 0 : -1;
+      const wahl = z.querySelector("input[type=checkbox]");
+      if (wahl) wahl.checked = an;
+    }
+    anzahl.dataset.anzahl = String(auswahl.size);
+    anzahl.textContent = auswahl.size ? `${auswahl.size} ausgewählt` : "keine Auswahl";
     zusammen.disabled = auswahl.size < 2;   // 22.3: ab zwei ausgewählten
     const name = personLesen();
-    const gewaehlt = liste.filter((x) => auswahl.has(x.id));
-    const alle = !!(name && gewaehlt.length && gewaehlt.every((e) => personTags(e).some((t) => t.name === name)));
-    markieren.disabled = !name || !gewaehlt.length;
+    const g = gewaehlt();
+    const alle = !!(name && g.length && g.every((e) => personTags(e).some((t) => t.name === name)));
+    markieren.disabled = !name || !g.length;
     markieren.textContent = alle ? `Bestätigung von ${name} zurücknehmen` : (name ? `Auswahl als ${name} bestätigen` : "Bestätigen");
     markieren.dataset.zurueck = alle ? "ja" : "nein";
   };
-  markieren.addEventListener("click", () => {
-    const gewaehlt = liste.filter((x) => auswahl.has(x.id));
-    empfaengerMarkieren(gewaehlt, markieren.dataset.zurueck !== "ja");
-  });
+  const bereich = (a, b) => {
+    let i = ids.indexOf(a);
+    let j = ids.indexOf(b);
+    if (i < 0) i = j;
+    if (i > j) [i, j] = [j, i];
+    return ids.slice(i, j + 1);
+  };
+  const umschalten = (id) => { if (auswahl.has(id)) auswahl.delete(id); else auswahl.add(id); anker = id; };
+  const fokussieren = (id, mitDom = true) => {
+    fokusId = id;
+    pruefen();
+    const z = zeilen.get(id);
+    if (z && mitDom) { z.focus({ preventScroll: true }); z.scrollIntoView({ block: "nearest" }); }
+  };
+  const allein = (id) => { if (!auswahl.has(id)) { auswahl.clear(); auswahl.add(id); anker = id; } };
+  const klick = (id, e) => {
+    const strg = e.ctrlKey || e.metaKey;
+    if (strg && e.shiftKey) {
+      if (anker !== null) for (const x of bereich(anker, id)) auswahl.add(x);
+      else { auswahl.add(id); anker = id; }
+    } else if (strg || (oberflaeche.istMobil() && !e.shiftKey)) umschalten(id);   // mobil: Tippen schaltet um
+    else if (e.shiftKey && anker !== null) { auswahl.clear(); for (const x of bereich(anker, id)) auswahl.add(x); }
+    else { auswahl.clear(); auswahl.add(id); anker = id; }
+    fokussieren(id);
+  };
+  const menue = (e, x, y, ausloeser) => {
+    allein(e.id);
+    fokussieren(e.id, false);
+    const ziele = auswahl.size > 1 ? gewaehlt() : [e];
+    const wer = personLesen();
+    const alle = !!(wer && ziele.every((z) => personTags(z).some((t) => t.name === wer)));
+    kontextmenue(x, y, [
+      ziele.length > 1 ? { tid: "em-zusammenfuehren", text: `${ziele.length} Empfänger zusammenführen…`,
+        tun: () => zusammenfuehren(ziele, ausloeser) } : null,
+      wer ? { tid: "em-bestaetigen", text: alle ? `Bestätigung von ${wer} zurücknehmen` : `Als ${wer} bestätigen`,
+        tun: () => empfaengerMarkieren(ziele, !alle) } : null,
+      ziele.length === 1 ? { tid: "em-bearbeiten", text: "Bearbeiten…", tun: () => empfaengerDialog(e, ausloeser) } : null,
+    ].filter(Boolean), ausloeser);
+  };
+  markieren.addEventListener("click", () => empfaengerMarkieren(gewaehlt(), markieren.dataset.zurueck !== "ja"));
   kopf(seite, "Empfänger", markieren, zusammen);
-  seite.append(liste.length ? tabelle({ class: "tabelle" }, ["", "Name", "Bestätigt", "Aliase", "Standardkategorie", ""],
-    liste.map((e) => zeileEmpfaenger(e, auswahl, pruefen)),
-    ["auswahl", "titel", "info:Bestätigt", "info:Aliase", "info:Kategorie", "aktion"])
-    : leer("Noch keine Empfänger."));
+  if (!liste.length) { seite.append(leer("Noch keine Empfänger.")); pruefen(); return { titel: "Empfänger" }; }
+  seite.append(h("p", { class: "klein" }, anzahl, " · Markieren wie im Kontoblatt: Klick, Strg/⌘-Klick, Umschalt-Klick, "
+    + "Pfeiltasten, Leertaste, Strg+A; Rechtsklick für das Menü (ab zwei markierten: Zusammenführen)."));
+  const tab = tabelle({ class: "tabelle empfaenger-liste", tid: "empfaenger-liste", "aria-multiselectable": "true" },
+    ["", "Name", "Bestätigt", "Aliase", "Standardkategorie", ""],
+    liste.map((e) => zeileEmpfaenger(e)),
+    ["auswahl", "titel", "info:Bestätigt", "info:Aliase", "info:Kategorie", "aktion"]);
+  const zeileVon = (t) => t && t.closest && t.closest("tr[data-id]");
+  tab.addEventListener("mousedown", (e) => { if (e.shiftKey && zeileVon(e.target)) e.preventDefault(); });   // keine Textauswahl
+  tab.addEventListener("click", (e) => {
+    if (e.target.closest("button, input, select, a")) return;
+    const z = zeileVon(e.target);
+    if (z) klick(Number(z.dataset.id), e);
+  });
+  tab.addEventListener("dblclick", (e) => {
+    const z = zeileVon(e.target);
+    if (z && !e.target.closest("button, input")) empfaengerDialog(liste.find((x) => x.id === Number(z.dataset.id)), z);
+  });
+  tab.addEventListener("keydown", (e) => {
+    const z = zeileVon(e.target);
+    if (!z || e.target !== z) return;
+    const id = Number(z.dataset.id);
+    const i = ids.indexOf(id);
+    const strg = e.ctrlKey || e.metaKey;
+    const ziel = { ArrowDown: ids[i + 1], ArrowUp: ids[i - 1], Home: ids[0], End: ids[ids.length - 1] }[e.key];
+    if (["ArrowDown", "ArrowUp", "Home", "End"].includes(e.key)) {
+      e.preventDefault();
+      if (ziel === undefined) return;
+      if (strg && !e.shiftKey) { fokussieren(ziel); return; }
+      if (e.shiftKey) {
+        if (anker === null) anker = id;
+        auswahl.clear();
+        for (const x of bereich(anker, ziel)) auswahl.add(x);
+      } else { auswahl.clear(); auswahl.add(ziel); anker = ziel; }
+      fokussieren(ziel);
+    } else if (e.key === " ") { e.preventDefault(); umschalten(id); fokussieren(id); }
+    else if (strg && (e.key === "a" || e.key === "A")) { e.preventDefault(); for (const x of ids) auswahl.add(x); pruefen(); }
+    else if (e.key === "Enter" || e.key === "F2") { e.preventDefault(); empfaengerDialog(liste.find((x) => x.id === id), z); }
+    else if ((e.key === "F10" && e.shiftKey) || e.key === "ContextMenu") {
+      e.preventDefault();
+      const [x, y] = menuePosition(null, z);
+      menue(liste.find((x2) => x2.id === id), x, y, z);
+    }
+  });
+  tab.addEventListener("contextmenu", (e) => {
+    const z = zeileVon(e.target);
+    if (!z || e.target.closest("input, button")) return;
+    e.preventDefault();
+    if (oberflaeche.istMobil()) return;   // mobil öffnet die lange Berührung das Menü (nicht doppelt)
+    menue(liste.find((x) => x.id === Number(z.dataset.id)), e.clientX, e.clientY, z);
+  });
+  langeBeruehrung(tab, zeileVon, (z, x, y) => menue(liste.find((e) => e.id === Number(z.dataset.id)), x, y, z));
+  seite.append(tab);
   pruefen();
-  return { titel: "Empfänger" };
+  const escape = () => {
+    if (!auswahl.size) return false;
+    auswahl.clear();
+    pruefen();
+    return true;
+  };
+  return { titel: "Empfänger", escape };
 
-  function zeileEmpfaenger(e, auswahlSet, nachWahl) {
-    const wahl = h("input", { type: "checkbox", tid: `empfaenger-auswahl-${e.id}`, "aria-label": `${e.name} auswählen` });
-    wahl.addEventListener("change", () => { if (wahl.checked) auswahlSet.add(e.id); else auswahlSet.delete(e.id); nachWahl(); });
+  function zeileEmpfaenger(e) {
+    const wahl = h("input", { type: "checkbox", tid: `empfaenger-auswahl-${e.id}`, "aria-label": `${e.name} auswählen`, tabindex: "-1" });
+    wahl.addEventListener("change", () => {
+      if (wahl.checked) auswahl.add(e.id); else auswahl.delete(e.id);
+      anker = e.id;
+      fokussieren(e.id, false);
+    });
     const namen = personTags(e).map((t) => t.name);
     const name = personLesen();
     const hat = name && namen.includes(name);
-    const tr = h("tr", { tid: `empfaenger-${e.id}` },
+    const tr = h("tr", { tid: `empfaenger-${e.id}`, "data-id": String(e.id), class: "empfaenger-zeile", "aria-selected": "false", tabindex: "-1" },
       h("td", null, wahl), h("td", null, e.name),
       h("td", { "data-feld": "bestaetigt" }, namen.map((n) => h("span", { class: "tag tag-person", tid: "tag",
         "data-person": n, title: `Bestätigt von ${n}` }, n))),
@@ -944,18 +1055,7 @@ export async function empfaenger(seite) {
         onclick: () => empfaengerMarkieren([e], !hat) }),
       knopf("Bearbeiten…", { "aria-label": `Empfänger ${e.name} bearbeiten`, onclick: (ev) => empfaengerDialog(e, ev.currentTarget) })));
     if (namen.length) tr.dataset.bestaetigt = namen.join(" ");
-    tr.addEventListener("contextmenu", (ev) => {
-      if (ev.target.closest("input, button")) return;
-      ev.preventDefault();
-      const ziele = auswahlSet.has(e.id) && auswahlSet.size > 1 ? liste.filter((x) => auswahlSet.has(x.id)) : [e];
-      const wer = personLesen();
-      const alle = !!(wer && ziele.every((x) => personTags(x).some((t) => t.name === wer)));
-      kontextmenue(ev.clientX, ev.clientY, [
-        wer ? { tid: "em-bestaetigen", text: alle ? `Bestätigung von ${wer} zurücknehmen` : `Als ${wer} bestätigen`,
-          tun: () => empfaengerMarkieren(ziele, !alle) } : null,
-        ziele.length === 1 ? { tid: "em-bearbeiten", text: "Bearbeiten…", tun: () => empfaengerDialog(e, tr) } : null,
-      ].filter(Boolean), tr);
-    });
+    zeilen.set(e.id, tr);
     return tr;
   }
 }
