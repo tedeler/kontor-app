@@ -8,7 +8,7 @@ import {
   stammLaden, stapelAnzeigen, tid, wiederholen,
 } from "./kern.js";
 import { bestaetigen, dialog, feld, fokusFalle, imDialog, knopf, knopfLeiste, zuordnungDialog } from "./ui.js";
-import { kontoSeite, layoutZuruecksetzen } from "./konto.js";
+import { kontoKuerzel, kontoSeite, layoutZuruecksetzen } from "./konto.js";
 import * as S from "./seiten.js";
 import { erwartetSeite } from "./erwartet.js";
 import { mailSeite } from "./mail.js";
@@ -767,9 +767,14 @@ const BEFEHLE = [
 
 function palette(ausloeser) {
   if (tid("befehlspalette")) return;
+  // im Kontoblatt dessen Kürzel als Befehle (D-167), mit der Tastenfolge im Text
+  const seite = aktuell && aktuell.seite && aktuell.seite.kuerzelAusfuehren ? aktuell.seite : null;
+  const konto = seite ? kontoKuerzel().map(([k, g, text], i) => ({ id: `kontoblatt-${i}`,
+    text: `Kontoblatt (${g}): ${text} [${k}]`, tun: () => seite.kuerzelAusfuehren(i) })) : [];
   const eintraege = BEFEHLE.filter((b) => !b[3] || b[3]()).map(([id, text, tun]) => ({ id, text, tun }))
     .concat(stamm.konten.filter((k) => BESTAND.has(k.art) && !k.geschlossen).sort(nachName)
-      .map((k) => ({ id: `konto-${k.id}`, text: `Konto öffnen: ${k.name}`, tun: () => gehe(`/konten/${k.id}`) })));
+      .map((k) => ({ id: `konto-${k.id}`, text: `Konto öffnen: ${k.name}`, tun: () => gehe(`/konten/${k.id}`) })))
+    .concat(konto);
   dialog("befehlspalette", "Befehlspalette", (inhalt, d) => {
     const listeId = neueId("befehle");
     const eingabe = h("input", { type: "text", tid: "befehlspalette-eingabe", role: "combobox", "aria-expanded": "true",
@@ -814,13 +819,21 @@ function tastaturHilfe() {
   if (tid("tastatur-hilfe")) return;
   const K = [["Strg+K, ⌘+K, Strg+Umschalt+P", "Befehlspalette"], ["/", "Suche"], ["?", "diese Hilfe"],
     ["Strg+Z", "Rückgängig"], ["Strg+Umschalt+Z, Strg+Y", "Wiederholen"], ["Alt+1 … Alt+8", "Finanzübersicht … Einstellungen"],
-    ["Esc", "Menü/Dialog schließen, sonst Auswahl leeren"], ["Pfeiltasten, Pos1, Ende", "Buchung wählen"],
+    ["Esc", "Menü/Dialog schließen, sonst Auswahl leeren"], ["Pfeiltasten, Pos1, Ende, Bild↑, Bild↓", "Buchung wählen"],
     ["Umschalt+Pfeil", "Bereich auswählen"], ["Strg+Pfeil", "nur den Fokus bewegen"], ["Leertaste", "Buchung zur Auswahl hinzu/weg"],
     ["Strg+A", "alle Buchungen auswählen"], ["F2", "Verwendungszweck bearbeiten"], ["Entf", "Auswahl löschen (mit Rückfrage)"],
     ["Enter", "Einzelheiten zeigen"], ["Umschalt+F10, Kontextmenü-Taste", "Kontextmenü"]];
+  const zeile = ([k, w]) => h("tr", null, h("th", { scope: "row" }, h("kbd", null, k)), h("td", null, w));
+  // im Kontoblatt zusätzlich dessen Kürzel, nach Gruppen (D-167)
+  const imKonto = !!(aktuell && aktuell.seite && aktuell.seite.kuerzel);
+  const gruppen = new Map();
+  if (imKonto) for (const [k, g, w] of kontoKuerzel()) { if (!gruppen.has(g)) gruppen.set(g, []); gruppen.get(g).push([k, w]); }
   dialog("tastatur-hilfe", "Tastaturkürzel", (inhalt, d) => {
-    inhalt.append(h("table", { class: "tabelle" }, h("tbody", null, K.map(([k, w]) => h("tr", null, h("th", { scope: "row" }, h("kbd", null, k)),
-      h("td", null, w))))), knopfLeiste(knopf("Schließen", { onclick: () => d.schliessen(null) })));
+    inhalt.append(h("table", { class: "tabelle" }, h("tbody", null, K.map(zeile))),
+      ...[...gruppen].map(([g, liste]) => [h("h3", null, `Kontoblatt – ${g}`),
+        h("table", { class: "tabelle", tid: `tastatur-hilfe-${g === "Filter" ? "filter" : g === "Ansicht" ? "ansicht" : "aktionen"}` },
+          h("tbody", null, liste.map(zeile)))]).flat(),
+      knopfLeiste(knopf("Schließen", { onclick: () => d.schliessen(null) })));
   });
 }
 
@@ -850,6 +863,11 @@ document.addEventListener("keydown", (e) => {
     return;
   }
   if (imText || ebene) return;
+  // Kürzel der aktuellen Seite (Kontoblatt, D-167) vor den globalen Ein-Tasten-Kürzeln
+  if (aktuell && aktuell.seite && aktuell.seite.kuerzel && aktuell.el && aktuell.el.isConnected && aktuell.seite.kuerzel(e)) {
+    e.preventDefault();
+    return;
+  }
   if (e.altKey && !strg && /^Digit[1-8]$/.test(e.code)) {
     e.preventDefault();
     const z = NAV_ZIELE[Number(e.code.slice(5)) - 1];

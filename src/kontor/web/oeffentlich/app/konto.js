@@ -74,6 +74,70 @@ const STATUS = ["importiert", "vorlaeufig", "bestaetigt", "abgeglichen"];
 const PARAMETER = ["von", "bis", "betrag_min", "betrag_max", "empfaenger_id", "ohne_empfaenger", "verwendungszweck",
   "zweck_gleich", "zweck_aehnlich", "zweck_leer", "empfaenger_aehnlich",
   "suche", "kategorie_id", "unterkategorien", "unterkonten", "tag_id", "status", "sortierung"];
+// Tastaturkürzel des Kontoblatts (D-167): [Vortaste, Taste, Text, Wirkung]. Ohne Vortaste wirken sie auf die
+// markierten Buchungen; „f“ führt zu den Filtern, „v“ zur Ansicht. Groß-/Kleinschreibung zählt (Umschalt).
+const KUERZEL = [
+  ["", "k", "Kategorie setzen…", (s) => s.mitZielen((ids, el) => s.kategorieWaehlen(ids, el))],
+  ["", "t", "Tags…", (s) => s.mitZielen((ids, el) => tagAuswahl(ids, el))],
+  ["", "s", "Status setzen…", (s) => s.mitZielen((ids, el) => s.statusWaehlen(ids, el))],
+  ["", "b", "Als ich bestätigen / zurücknehmen", (s) => s.mitZielen((ids) => {
+    const e = s.bestaetigenEintrag(ids);
+    if (e) e.tun(); else melde("hinweis", "Bitte oben rechts wählen, wer du bist.");
+  })],
+  ["", "a", "Vorschlag annehmen", (s) => s.mitZielen((ids) => s.vorschlagTaste(ids, "annehmen"))],
+  ["", "A", "Vorschlag ablehnen", (s) => s.mitZielen((ids) => s.vorschlagTaste(ids, "ablehnen"))],
+  ["", "e", "Bearbeiten… (mehrere Felder)", (s) => s.mitZielen((ids, el) => s.mehrfachDialog(ids, el))],
+  ["", "x", "Splitten…", (s) => s.mitZielen((ids, el) => s.einzeln(ids, (b) => splitDialog(b, el)))],
+  ["", "d", "Als Dublette markieren…", (s) => s.mitZielen((ids, el) => {
+    const d = s.dubletteFuer(ids);
+    if (d) dubletteDialog(d, el); else melde("hinweis", "Dafür eine Buchung mit Verdacht oder genau zwei Buchungen markieren.");
+  })],
+  ["", "g", "Gehe zur Gegenbuchung", (s) => s.mitZielen((ids, el) => s.einzeln(ids, (b) => {
+    const [x, y] = menuePosition(null, el);
+    const e = s.gegenbuchungEintrag(b, x, y, el);
+    if (e.aktiv) e.tun(); else melde("hinweis", "Die Buchung hat keine Gegenbuchung.");
+  }))],
+  ["", "m", "Dokument anhängen…", (s) => s.mitZielen((ids) => dateiWaehlen(ids))],
+  ["", "M", "E-Mail anhängen…", (s) => s.mitZielen((ids, el) => mailDialog(ids, el))],
+  ["", "n", "Neue Buchung erfassen", (s) => erfassenDialog(s.konto.id, tid("buchung-erfassen", s.seite))],
+  ["f", "f", "Filterleiste ein/aus", (s) => s.filterLeisteTaste()],
+  ["f", "v", "Von", (s) => s.filterFokus("filter-von")],
+  ["f", "b", "Bis", (s) => s.filterFokus("filter-bis")],
+  ["f", "z", "Verwendungszweck", (s) => s.filterFokus("filter-verwendungszweck")],
+  ["f", "e", "Empfänger", (s) => s.filterFokus("filter-empfaenger")],
+  ["f", "k", "Kategorie (in Kategorien: Konto)", (s) => s.filterFokus(s.istKategorie ? "filter-konto" : "filter-kategorie")],
+  ["f", "t", "Tag", (s) => s.filterFokus("filter-tag")],
+  ["f", "s", "Status", (s) => s.filterFokus(`filter-status-${STATUS[0]}`)],
+  ["f", "r", "Betrag ab (Tab: bis)", (s) => s.filterFokus("filter-betrag-min")],
+  ["f", "u", "mit Unterkonten ein/aus", (s) => s.filterSetzen("unterkonten", s.filter.unterkonten === "true" ? "" : "true")
+    .then(() => s.filterLeisteNeu())],
+  ["f", "U", "mit Unterkategorien ein/aus", (s) => (s.istKategorie ? melde("hinweis", "In einer Kategorie gibt es diesen Filter nicht.")
+    : s.filterSetzen("unterkategorien", s.filter.unterkategorien === "true" ? "" : "true").then(() => s.filterLeisteNeu()))],
+  [`f`, ".", "gleicher Empfänger wie die markierte Buchung", (s) => s.filterWieBuchung("km-filter-empfaenger")],
+  ["f", ",", "gleicher Verwendungszweck", (s) => s.filterWieBuchung("km-filter-zweck")],
+  ["f", ";", "ähnlicher Verwendungszweck", (s) => s.filterWieBuchung("km-filter-zweck-aehnlich")],
+  ["f", "m", "Zeitraum: dieser Monat", (s) => s.zeitraum("monat")],
+  ["f", "l", "Zeitraum: letzter Monat", (s) => s.zeitraum("letzter")],
+  ["f", "j", "Zeitraum: dieses Jahr", (s) => s.zeitraum("jahr")],
+  ["f", "0", "alle Filter zurücksetzen", (s) => { const k = tid("filter-zuruecksetzen", s.filterLeiste); if (k) k.click(); }],
+  ["v", "g", "Gruppierung: keine ↔ nach Datum", (s) => s.gruppierungSetzen(s.gruppierung ? "" : "datum")],
+  ["v", "+", "alle Gruppen aufklappen", (s) => s.alleKlappen(false)],
+  ["v", "-", "alle Gruppen zuklappen", (s) => s.alleKlappen(true)],
+  ["v", "o", "Sortierspalte wechseln", (s) => s.sortierungWechseln(false)],
+  ["v", "r", "Sortierrichtung umkehren", (s) => s.sortierungWechseln(true)],
+  ["v", "d", "Panel Einzelheiten ein-/ausklappen", (s) => s.panelUmschalten("details")],
+  ["v", "k", "Panel Kategorien ein-/ausklappen", (s) => s.panelUmschalten("kategorien")],
+  ["v", "a", "Spaltenbreiten an den Inhalt anpassen", (s) => s.spalteAnpassen(s.spalten.map(([f]) => f))],
+  ["v", "0", "Spaltenbreiten zurücksetzen", (s) => s.spaltenZuruecksetzen()],
+  ["v", ",", "Konto-Einstellungen…", (s) => kontoEinstellungen(s.konto, tid("konto-einstellungen-oeffnen", s.seite))],
+];
+const VORTASTEN = { f: "Filter", v: "Ansicht" };
+
+/** Kürzel des Kontoblatts für Hilfe und Befehlspalette: [Tastenfolge, Gruppe, Text]. */
+export function kontoKuerzel() {
+  return KUERZEL.map(([vor, taste, text]) => [vor ? `${vor} ${taste}` : taste, vor ? VORTASTEN[vor] : "Markierte Buchungen", text]);
+}
+
 const SPALTEN = [["datum", "Datum", true], ["empfaenger", "Empfänger", true], ["verwendungszweck", "Verwendungszweck"],
   ["kategorie", "Kategorie"], ["tags", "Tags"], ["status", "Status"], ["betrag", "Betrag", true]];
 // M11 (oberflaeche.md 22.2): Kontoansicht einer Kategorie mit zusätzlicher Spalte „Konto“ nach „Kategorie“
@@ -532,6 +596,12 @@ class Kontoansicht {
     const f = this.filter;
     const leiste = h("div", { class: "filter-leiste", id: "filter-leiste", tid: "filter-leiste", role: "search",
       "aria-label": "Filter der Buchungsliste", hidden: !this.filterSichtbar });
+    // Esc im Filter: zurück zur Liste, damit es ohne Maus weitergeht (D-167)
+    leiste.addEventListener("keydown", (e) => {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      this.listeFokussieren();
+    });
     const feld = (text, el) => {
       el.id = el.id || neueId("filter");
       return h("div", { class: "feld" }, h("label", { for: el.id }, text), el);
@@ -1067,7 +1137,10 @@ class Kontoansicht {
         this.gruppeUmschalten(id);
       } },
     h("button", { type: "button", class: "perioden-knopf", tid: `periode-${id}`, "aria-expanded": String(auf),
-      onclick: () => this.gruppeUmschalten(id) },
+      onclick: () => this.gruppeUmschalten(id),
+      onkeydown: (e) => {   // D-167: ← klappt zu, → klappt auf
+        if ((e.key === "ArrowLeft" && auf) || (e.key === "ArrowRight" && !auf)) { e.preventDefault(); this.gruppeUmschalten(id); }
+      } },
     auf ? "▾ " : "▸ ", periodeText(id)),
     h("span", { class: "perioden-zahl" }, "Eingang ", betragEl("span", bilanz.eingang, { tid: `periode-eingang-${id}` })),
     h("span", { class: "perioden-zahl" }, "Ausgang ", betragEl("span", bilanz.ausgang, { tid: `periode-ausgang-${id}` })),
@@ -1512,8 +1585,10 @@ class Kontoansicht {
     const ids = this.sichtbareIds();
     const i = ids.indexOf(id);
     const strg = e.ctrlKey || e.metaKey;
-    const ziel = { ArrowDown: ids[i + 1], ArrowUp: ids[i - 1], Home: ids[0], End: ids[ids.length - 1] }[e.key];
-    if (["ArrowDown", "ArrowUp", "Home", "End"].includes(e.key)) {
+    const seite = Math.max(1, Math.floor((this.listenSpalte.clientHeight || 400) / (z.offsetHeight || 32)) - 1);
+    const ziel = { ArrowDown: ids[i + 1], ArrowUp: ids[i - 1], Home: ids[0], End: ids[ids.length - 1],
+      PageDown: ids[Math.min(ids.length - 1, i + seite)], PageUp: ids[Math.max(0, i - seite)] }[e.key];
+    if (["ArrowDown", "ArrowUp", "Home", "End", "PageDown", "PageUp"].includes(e.key)) {
       e.preventDefault();
       if (ziel === undefined) return;
       if (strg && !e.shiftKey) { this.fokussieren(ziel); return; }
@@ -1555,6 +1630,7 @@ class Kontoansicht {
   }
 
   escape() {
+    if (this.vortaste) { this.vortasteBeenden(); return true; }
     if (!this.auswahl.size) return false;
     this.auswahl.clear();
     this.auswahlZeigen();
@@ -1687,7 +1763,7 @@ class Kontoansicht {
     const name = personLesen();
     if (!name || !ids.length) return null;
     const alle = ids.every((id) => this.bestaetigt(this.eintraege.find((x) => x.id === id), name));
-    return { tid: "km-bestaetigen", text: alle ? `Bestätigung von ${name} zurücknehmen` : `Als ${name} bestätigen`,
+    return { tid: "km-bestaetigen", kuerzel: "b", text: alle ? `Bestätigung von ${name} zurücknehmen` : `Als ${name} bestätigen`,
       tun: () => this.personMarkieren(ids, !alle) };
   }
 
@@ -1723,6 +1799,146 @@ class Kontoansicht {
         return true;
       }, { erfolg: hinzu ? `Als ${name} bestätigt.` : `Bestätigung von ${name} zurückgenommen.` });
     } catch { /* gemeldet */ }
+  }
+
+  // ---------------------------------------------------------------- Tastaturkürzel (D-167)
+  /** Taste außerhalb von Textfeldern und Dialogen; true, wenn sie hier eine Wirkung hatte. */
+  kuerzel(e) {
+    if (e.ctrlKey || e.metaKey || e.altKey) return false;
+    if (document.activeElement && document.activeElement.closest(".baum, .kontextmenue")) return false;
+    const vor = this.vortaste || "";
+    if (vor) this.vortasteBeenden();
+    if (!vor && VORTASTEN[e.key]) { this.vortasteStarten(e.key); return true; }
+    const k = KUERZEL.find(([v, taste]) => v === vor && taste === e.key);
+    if (!k) {
+      if (vor && !["Shift", "CapsLock"].includes(e.key)) melde("hinweis", `„${vor} ${e.key}“ ist nicht belegt.`);
+      if (vor && ["Shift", "CapsLock"].includes(e.key)) this.vortasteStarten(vor);   // Umschalt allein bricht nicht ab
+      return !!vor;
+    }
+    Promise.resolve().then(() => k[3](this)).catch(() => { /* gemeldet */ });
+    return true;
+  }
+
+  /** Kürzel Nummer i aus der Befehlspalette ausführen. */
+  kuerzelAusfuehren(i) {
+    const k = KUERZEL[i];
+    if (k) Promise.resolve().then(() => k[3](this)).catch(() => { /* gemeldet */ });
+  }
+
+  vortasteStarten(vor) {
+    this.vortaste = vor;
+    if (!this.vortasteEl) {
+      this.vortasteEl = h("div", { class: "kuerzel-hinweis", tid: "kuerzel-hinweis", role: "status", "aria-live": "polite" });
+    }
+    const el = this.vortasteEl;
+    el.dataset.vortaste = vor;
+    el.replaceChildren(h("strong", null, `${VORTASTEN[vor]} (${vor}) – weiter mit:`),
+      h("ul", null, KUERZEL.filter(([v]) => v === vor).map(([, taste, text]) => h("li", null, h("kbd", null, taste), " ", text))),
+      h("span", { class: "klein" }, "Esc bricht ab"));
+    document.body.append(el);
+  }
+
+  vortasteBeenden() {
+    this.vortaste = "";
+    if (this.vortasteEl) this.vortasteEl.remove();
+  }
+
+  /** Markierte Buchungen, sonst die mit dem Fokus (wird dann markiert). */
+  mitZielen(wirkung) {
+    if (!this.auswahl.size && this.fokusId !== null && this.eintraege.some((b) => b.id === this.fokusId)) {
+      this.auswahl.add(this.fokusId);
+      this.anker = this.fokusId;
+      this.auswahlZeigen();
+    }
+    const ids = this.auswahlIds();
+    if (!ids.length) { melde("hinweis", "Keine Buchung markiert."); return undefined; }
+    const el = this.zeilen.get(this.fokusId) || this.zeilen.get(ids[0]) || this.liste;
+    return wirkung(ids, el);
+  }
+
+  einzeln(ids, wirkung) {
+    if (ids.length !== 1) { melde("hinweis", "Dafür genau eine Buchung markieren."); return undefined; }
+    return wirkung(this.eintraege.find((b) => b.id === ids[0]));
+  }
+
+  vorschlagTaste(ids, was) {
+    const mit = ids.filter((id) => (this.eintraege.find((b) => b.id === id) || {}).vorschlag);
+    if (!mit.length) { melde("hinweis", "Die markierten Buchungen haben keinen Vorschlag."); return undefined; }
+    return this.vorschlag(null, ids, was);
+  }
+
+  /** Offener Verdacht, sonst bei genau zwei Buchungen ein neues Paar (D-165). */
+  dubletteFuer(ids) {
+    const verdacht = this.dublettenVerdacht(ids);
+    const paar = ids.length === 2 && !verdacht ? {
+      id: null, buchung_id: ids[0], kandidat_ids: [ids[1]], grund: "manuell", status: "offen", vorschlag: true,
+    } : null;
+    return verdacht || paar;
+  }
+
+  filterLeisteNeu() {
+    const neu = this.filterAufbauen();
+    neu.hidden = !this.filterSichtbar;
+    this.filterLeiste.replaceWith(neu);
+    this.filterLeiste = neu;
+  }
+
+  filterLeisteTaste() {
+    this.filterUmschalten();
+    if (this.filterSichtbar) this.filterFokus("filter-von");
+    else this.listeFokussieren();
+  }
+
+  filterFokus(testid) {
+    if (!this.filterSichtbar) this.filterUmschalten();
+    const el = tid(testid, this.filterLeiste);
+    if (el) el.focus();
+  }
+
+  listeFokussieren() {
+    const id = this.fokusId ?? this.sichtbareIds()[0];
+    if (id !== undefined && id !== null) this.fokussieren(id);
+    else this.liste.focus();
+  }
+
+  filterWieBuchung(testid) {
+    const ids = this.auswahl.size ? this.auswahlIds() : (this.fokusId !== null ? [this.fokusId] : []);
+    if (ids.length !== 1) { melde("hinweis", "Dafür genau eine Buchung markieren."); return undefined; }
+    const b = this.eintraege.find((x) => x.id === ids[0]);
+    const e = this.filterEintrag(b).kinder.find((k) => k.tid === testid);
+    if (!e || e.aktiv === false) { melde("hinweis", "Die Buchung hat keinen Empfänger."); return undefined; }
+    return e.tun();
+  }
+
+  zeitraum(art) {
+    const heute = new Date();
+    const zwei = (n) => String(n).padStart(2, "0");
+    const tag = (j, m, t) => `${j}-${zwei(m)}-${zwei(t)}`;
+    let j = heute.getFullYear();
+    let m = heute.getMonth() + 1;
+    if (art === "jahr") return this.filterAnwenden({ von: tag(j, 1, 1), bis: tag(j, 12, 31) });
+    if (art === "letzter") { m -= 1; if (m === 0) { m = 12; j -= 1; } }
+    const letzter = new Date(j, m, 0).getDate();
+    return this.filterAnwenden({ von: tag(j, m, 1), bis: tag(j, m, letzter) });
+  }
+
+  sortierungWechseln(umkehren) {
+    const sort = this.sortierung;
+    const ab = sort.startsWith("-");
+    const feld = sort.replace(/^-/, "");
+    if (umkehren) return this.filterSetzen("sortierung", ab ? feld : "-" + feld);
+    const felder = this.spalten.filter(([, , sortierbar]) => sortierbar).map(([f]) => f);
+    const neu = felder[(felder.indexOf(feld) + 1) % felder.length];
+    melde("hinweis", `Sortiert nach ${this.spalten.find(([f]) => f === neu)[1]}.`);
+    return this.filterSetzen("sortierung", (ab ? "-" : "") + neu);
+  }
+
+  panelUmschalten(p) {
+    if (oberflaeche.istMobil()) return;
+    const l = this.layout.panels[p];
+    l.eingeklappt = !l.eingeklappt;
+    this.layoutAnwenden();
+    if (p === "details" && !l.eingeklappt) this.detailsZeichnen();
   }
 
   // ---------------------------------------------------------------- Kontextmenü (8.2)
@@ -1789,36 +2005,32 @@ class Kontoansicht {
     const ids = this.auswahlIds();
     const eine = ids.length === 1;
     const mitVorschlag = this.eintraege.some((b) => this.auswahl.has(b.id) && b.vorschlag);
-    const verdacht = this.dublettenVerdacht(ids);
-    const paar = ids.length === 2 && !verdacht ? {
-      id: null, buchung_id: ids[0], kandidat_ids: [ids[1]], grund: "manuell", status: "offen", vorschlag: true,
-    } : null;
-    const dublette = verdacht || paar;
+    const dublette = this.dubletteFuer(ids);
     const b = eine ? this.eintraege.find((x2) => x2.id === ids[0]) : null;
     kontextmenue(x, y, [
-      { tid: "km-kategorie", text: "Kategorie setzen…", tun: () => this.kategorieWaehlen(ids, ausloeser) },
-      { tid: "km-tags", text: "Tags…", tun: () => tagAuswahl(ids, ausloeser) },
-      { tid: "km-splitten", text: "Splitten…", aktiv: eine, tun: () => splitDialog(b, ausloeser) },
-      { tid: "km-dublette", text: "Als Dublette markieren…", aktiv: !!dublette,
+      { tid: "km-kategorie", kuerzel: "k", text: "Kategorie setzen…", tun: () => this.kategorieWaehlen(ids, ausloeser) },
+      { tid: "km-tags", kuerzel: "t", text: "Tags…", tun: () => tagAuswahl(ids, ausloeser) },
+      { tid: "km-splitten", kuerzel: "x", text: "Splitten…", aktiv: eine, tun: () => splitDialog(b, ausloeser) },
+      { tid: "km-dublette", kuerzel: "d", text: "Als Dublette markieren…", aktiv: !!dublette,
         tun: () => { if (dublette) dubletteDialog(dublette, ausloeser); } },
-      { tid: "km-vorschlag-annehmen", text: "Vorschlag annehmen", aktiv: mitVorschlag, tun: () => this.vorschlag(null, ids, "annehmen") },
-      { tid: "km-vorschlag-ablehnen", text: "Vorschlag ablehnen", aktiv: mitVorschlag, tun: () => this.vorschlag(null, ids, "ablehnen") },
-      { tid: "km-bearbeiten", text: "Verwendungszweck bearbeiten", aktiv: eine, tun: () => this.bearbeiten(ids[0], "verwendungszweck") },
-      { tid: "km-status", text: "Status setzen…", tun: () => this.statusWaehlen(ids, ausloeser) },
+      { tid: "km-vorschlag-annehmen", kuerzel: "a", text: "Vorschlag annehmen", aktiv: mitVorschlag, tun: () => this.vorschlag(null, ids, "annehmen") },
+      { tid: "km-vorschlag-ablehnen", kuerzel: "⇧A", text: "Vorschlag ablehnen", aktiv: mitVorschlag, tun: () => this.vorschlag(null, ids, "ablehnen") },
+      { tid: "km-bearbeiten", kuerzel: "F2", text: "Verwendungszweck bearbeiten", aktiv: eine, tun: () => this.bearbeiten(ids[0], "verwendungszweck") },
+      { tid: "km-status", kuerzel: "s", text: "Status setzen…", tun: () => this.statusWaehlen(ids, ausloeser) },
       this.bestaetigenEintrag(ids),
       this.filterEintrag(b),
-      { tid: "km-mehrfach", text: "Bearbeiten…", tun: () => this.mehrfachDialog(ids, ausloeser) },
+      { tid: "km-mehrfach", kuerzel: "e", text: "Bearbeiten…", tun: () => this.mehrfachDialog(ids, ausloeser) },
       this.gegenbuchungEintrag(b, x, y, ausloeser),
       // Dokumente (D-123): an alle gewählten Buchungen
-      { tid: "km-dokument-anhaengen", text: "Dokument anhängen…", tun: () => dateiWaehlen(ids) },
+      { tid: "km-dokument-anhaengen", kuerzel: "m", text: "Dokument anhängen…", tun: () => dateiWaehlen(ids) },
       oberflaeche.istMobil() ? { tid: "km-dokument-foto", text: "Foto aufnehmen…", tun: () => dateiWaehlen(ids, { kamera: true }) } : null,
-      { tid: "km-dokument-mail", text: "E-Mail anhängen…", tun: () => mailDialog(ids, ausloeser) },
+      { tid: "km-dokument-mail", kuerzel: "⇧M", text: "E-Mail anhängen…", tun: () => mailDialog(ids, ausloeser) },
       { tid: "km-dokumente-ansehen", text: "Dokumente ansehen", aktiv: !!(b && b.belege && b.belege.length),
         tun: () => betrachter(b.belege, 0, ausloeser) },
       // Verschieben nur mit gehaltener Alt-Taste, auf dem Handy im Menü (D-160)
       ...(!this.istKategorie && (alt || oberflaeche.istMobil()) ? [{ tid: "km-verschieben",
         text: "Auf anderes Konto verschieben…", tun: () => this.verschiebenDialog(ids, ausloeser) }] : []),
-      { tid: "km-loeschen", text: "Löschen…", tun: () => this.loeschen(ausloeser) },
+      { tid: "km-loeschen", kuerzel: "Entf", text: "Löschen…", tun: () => this.loeschen(ausloeser) },
     ].filter(Boolean), ausloeser);
   }
 
@@ -1835,7 +2047,7 @@ class Kontoansicht {
   gegenbuchungEintrag(b, x, y, ausloeser) {
     const ziele = this.gegenkonten(b);
     const mehrere = ziele.length > 1;
-    return { tid: "km-gegenbuchung", text: mehrere ? "Gehe zur Gegenbuchung…" : "Gehe zur Gegenbuchung",
+    return { tid: "km-gegenbuchung", kuerzel: "g", text: mehrere ? "Gehe zur Gegenbuchung…" : "Gehe zur Gegenbuchung",
       aktiv: ziele.length > 0, tun: () => {
         if (!mehrere) return oberflaeche.zurBuchung(ziele[0], b.id);
         // mehrere Gegenseiten: Auswahl als Untermenü an derselben Stelle

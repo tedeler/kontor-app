@@ -146,6 +146,7 @@ export function kontextmenue(x, y, eintraege, ausloeser) {
       "aria-disabled": e.aktiv === false ? "true" : null, "aria-haspopup": hatKinder ? "menu" : null,
       "aria-expanded": hatKinder ? "false" : null },
     h("span", { class: "menue-text" }, e.text),
+    e.kuerzel && !oberflaeche.istMobil() ? h("kbd", { class: "menue-kuerzel", "aria-hidden": "true" }, e.kuerzel) : null,
     hatKinder ? h("span", { class: "menue-pfeil", "aria-hidden": "true" }, "›") : null);
     el.addEventListener("click", (ev) => {
       ev.stopPropagation();

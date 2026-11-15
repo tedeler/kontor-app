@@ -846,3 +846,14 @@ html[data-thema="dunkel"] .wisch-hinweis[data-bereit="ja"][data-richtung="links"
 [data-layout="mobil"] .tabelle.mobil-karten[data-testid="wiederkehrend-tabelle"] [data-mk="wk-aktion"] { position: absolute; right: .15rem; bottom: 0; }
 [data-layout="mobil"] .tabelle.mobil-karten[data-testid="wiederkehrend-tabelle"] [data-mk="wk-aktion"] .knopf { min-width: 44px; min-height: 40px; padding: 0; font-size: 1.3rem;
   color: var(--text-2); }
+
+/* Tastaturkürzel des Kontoblatts (D-167) */
+.kuerzel-hinweis { position: fixed; left: 50%; bottom: 1rem; transform: translateX(-50%); z-index: 50;
+  background: var(--hg); color: var(--text); border: 1px solid var(--rand); border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, .2); padding: .6rem .9rem; max-width: min(46rem, calc(100vw - 2rem)); font-size: .9em; }
+.kuerzel-hinweis ul { list-style: none; margin: .4rem 0; padding: 0; columns: 2 14rem; column-gap: 1.5rem; }
+.kuerzel-hinweis li { break-inside: avoid; padding: .1rem 0; }
+.kuerzel-hinweis kbd, .menue-kuerzel { font-family: inherit; font-size: .85em; border: 1px solid var(--rand);
+  border-radius: 3px; padding: 0 .3em; background: var(--hg-2); }
+.menue-kuerzel { margin-left: auto; padding-left: .3em; color: var(--text-2); }
+.menue-eintrag { display: flex; align-items: center; gap: 1rem; }

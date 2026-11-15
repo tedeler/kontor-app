@@ -2243,3 +2243,24 @@ D-123 bis D-127 sind auf den offenen Branches `dokumente` und `alfbanco-import` 
   (`em-zusammenfuehren`, derselbe Dialog wie der Knopf). Mobil schaltet Tippen um, die lange Berührung öffnet das
   Menü. Die Kästchen `empfaenger-auswahl-{id}` bleiben und zeigen die Auswahl an. Die Anzahl steht in
   `empfaenger-auswahl-anzahl` (`data-anzahl`). Der Service-Worker-Cache heißt `kontor-huelle-25`.
+
+## D-167 Kontoblatt ganz mit der Tastatur bedienen
+
+- **Anlass:** Im Kontoblatt sollen sich alle Einstellungen und Aktionen ohne Maus vornehmen lassen.
+- **Entscheidung:** Kürzel sind einzelne Tasten ohne Strg/Alt. Sie wirken nur außerhalb von Textfeldern, Auswahllisten,
+  Dialogen, Menüs und dem Kategorienbaum. So kollidieren sie weder mit Browser-Kürzeln noch mit Strg+K, Strg+Z oder
+  Alt+1…8. Die Tabelle `KUERZEL` in `konto.js` ist die einzige Quelle für Wirkung, Hilfe (`?`) und Befehlspalette.
+  - **Aktionen** auf die markierten Buchungen (ohne Markierung: die Buchung mit dem Fokus): `k` Kategorie, `t` Tags,
+    `s` Status, `b` bestätigen/zurücknehmen, `a`/`A` Vorschlag annehmen/ablehnen, `e` Bearbeiten, `x` Splitten,
+    `d` Dublette, `g` Gegenbuchung, `m`/`M` Dokument/E-Mail anhängen, `n` neue Buchung. Dazu kommen `Bild↑`/`Bild↓`
+    in der Liste.
+  - **Filter** mit der Vortaste `f`: `f` Leiste, `v`/`b` Von/Bis, `z` Zweck, `e` Empfänger, `k` Kategorie bzw. Konto,
+    `t` Tag, `s` Status, `r` Betrag, `u` Unterkonten, `U` Unterkategorien, `.`/`,`/`;` wie die markierte Buchung,
+    `m`/`l`/`j` dieser Monat/letzter Monat/dieses Jahr (Browserdatum), `0` zurücksetzen. Esc in einem Filterfeld
+    setzt den Fokus zurück in die Liste.
+  - **Ansicht** mit der Vortaste `v`: `g` Gruppierung, `+`/`-` alle auf/zu, `o` Sortierspalte, `r` Richtung,
+    `d`/`k` Panels, `a`/`0` Spaltenbreiten, `,` Konto-Einstellungen. Auf einem Periodenkopf klappen `←`/`→` zu bzw. auf.
+- Nach einer Vortaste zeigt `kuerzel-hinweis` die möglichen zweiten Tasten. Esc bricht ab, eine unbelegte Taste wird
+  gemeldet. Das Kontextmenü zeigt die Kürzel rechts an (`kuerzel` im Eintrag, mobil nicht). Die Befehlspalette führt
+  die Kürzel im Kontoblatt als Einträge „Kontoblatt (…)“ hinter den übrigen Befehlen. Der Service-Worker-Cache heißt
+  `kontor-huelle-26`.
