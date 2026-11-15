@@ -709,6 +709,7 @@ function personZeigen() {
   if (!b) return;
   b.textContent = name || "Wer?";
   b.dataset.person = name;
+  b.dataset.kurz = name ? name.slice(0, 1) : "?";
   b.title = name ? `${name} – Benutzer wechseln` : "Wer bist du?";
   b.setAttribute("aria-label", name ? `Angemeldet als ${name}. Benutzer wechseln.` : "Wer bist du?");
 }
@@ -721,7 +722,7 @@ function personDialog(pflicht) {
         knopf(name, { tid: `person-${name.toLowerCase()}`,
           class: "knopf" + (personLesen() === name ? " knopf-haupt" : ""),
           onclick: () => { personSchreiben(name); personZeigen(); d.schliessen(name); if (oberflaeche.neuLaden) oberflaeche.neuLaden(); } }))),
-      pflicht ? null : knopf("Abbrechen", { tid: "person-abbrechen", onclick: () => d.schliessen(null) }));
+      ...(pflicht ? [] : [knopf("Abbrechen", { tid: "person-abbrechen", onclick: () => d.schliessen(null) })]));
   });
   if (pflicht) d.escape = () => {};
 }

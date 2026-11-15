@@ -9,7 +9,7 @@ import contextlib
 import httpx
 import pytest
 
-from .test_browser import DESKTOP, HANDY, bereit, browser, expect, server, tid  # noqa: F401
+from .test_browser import DESKTOP, HANDY, bereit, browser, expect, person_vorab, server, tid  # noqa: F401
 from .test_browser_tabs import _daten, _get
 from .test_dokumente_eigen import PDF, PNG, mail_bytes
 
@@ -19,6 +19,7 @@ def seite(browser, url, **kw):  # noqa: F811
     """Wie test_browser.seite, aber der eingebaute PDF-Betrachter von Chrome (chrome-extension://, chrome://) ist
     erlaubt; vom Server blockierte externe Inhalte einer E-Mail werden gesammelt statt als Fehler gewertet."""
     ctx = browser.new_context(locale="de-DE", timezone_id="Europe/Berlin", reduced_motion="reduce", **kw)
+    person_vorab(ctx, "Torsten")
     ctx.set_default_timeout(10_000)
     page = ctx.new_page()
     fehler: list[str] = []

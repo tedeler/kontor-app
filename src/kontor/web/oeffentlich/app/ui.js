@@ -146,7 +146,9 @@ export function kontextmenue(x, y, eintraege, ausloeser) {
       "aria-disabled": e.aktiv === false ? "true" : null, "aria-haspopup": hatKinder ? "menu" : null,
       "aria-expanded": hatKinder ? "false" : null },
     h("span", { class: "menue-text" }, e.text),
-    e.kuerzel && !oberflaeche.istMobil() ? h("kbd", { class: "menue-kuerzel", "aria-hidden": "true" }, e.kuerzel) : null,
+    // Kürzel nur als Darstellung (CSS ::after), damit der Text des Eintrags unverändert bleibt (D-168).
+    e.kuerzel && !oberflaeche.istMobil() ? h("kbd", { class: "menue-kuerzel", "aria-hidden": "true",
+      "data-kuerzel": e.kuerzel }) : null,
     hatKinder ? h("span", { class: "menue-pfeil", "aria-hidden": "true" }, "›") : null);
     el.addEventListener("click", (ev) => {
       ev.stopPropagation();

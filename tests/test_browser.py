@@ -78,9 +78,20 @@ HANDY = {"viewport": {"width": 390, "height": 844}, "device_scale_factor": 3, "i
 DESKTOP = {"viewport": {"width": 1280, "height": 800}}
 
 
+PERSON_VORAB = "try { if (!localStorage.getItem('kontor.person')) localStorage.setItem('kontor.person', 'Torsten'); } catch (e) {}"
+
+
+def person_vorab(ctx, person):
+    """D-155: Ohne gewählte Person fragt Kontor beim Öffnen „Wer bist du?“. Die Rauchtests wählen vorab Torsten,
+    außer ``person=None`` (Test des Dialogs selbst)."""
+    if person:
+        ctx.add_init_script(PERSON_VORAB.replace("Torsten", person))
+
+
 @contextlib.contextmanager
-def seite(browser, url, **kw):
+def seite(browser, url, *, person: str | None = "Torsten", **kw):
     ctx = browser.new_context(locale="de-DE", timezone_id="Europe/Berlin", reduced_motion="reduce", **kw)
+    person_vorab(ctx, person)
     ctx.set_default_timeout(10_000)
     page = ctx.new_page()
     fehler: list[str] = []
@@ -533,3 +544,38 @@ def test_bericht_sprung_mobil_mit_nachladen_nicht_verdeckt(tmp_path, browser):
             const oben = document.elementFromPoint(b.left + 5, b.top + b.height / 2);
             return b.top >= 0 && b.bottom <= unten && !!oben && oben.closest('[data-id]') === r;
         }""")
+
+
+def test_person_dialog_beim_oeffnen_und_wechseln(tmp_path, browser):
+    """D-155/D-168: Ohne gewählte Person fragt Kontor beim Öffnen, ohne Abbrechen; danach steht der Name oben rechts
+    und lässt sich wechseln (mit Abbrechen). Der Dialog zeigt keinen leeren Rest („null“)."""
+    with server(tmp_path, daten=False) as (url, _), seite(browser, url, person=None, **DESKTOP) as page:
+        page.goto(url + "/")
+        d = tid(page, "person-dialog")
+        expect(d).to_be_visible()
+        expect(d).not_to_contain_text("null")
+        expect(tid(page, "person-abbrechen")).to_have_count(0)
+        tid(page, "person-tina").click()
+        expect(d).to_have_count(0)
+        expect(tid(page, "person-knopf")).to_have_text("Tina")
+        tid(page, "person-knopf").click()
+        expect(d).to_be_visible()
+        expect(d).not_to_contain_text("null")
+        tid(page, "person-abbrechen").click()
+        expect(d).to_have_count(0)
+        page.reload()
+        bereit(page, "uebersicht")
+        expect(tid(page, "person-dialog")).to_have_count(0)
+        expect(tid(page, "person-knopf")).to_have_text("Tina")
+
+
+def test_person_knopf_mobil_passt_in_kopfleiste(tmp_path, browser):
+    """D-168: Mobil zeigt der Knopf nur den Anfangsbuchstaben; die Seite bleibt so breit wie das Gerät (390 px)."""
+    with server(tmp_path) as (url, _), seite(browser, url, **HANDY) as page:
+        page.goto(url + "/konten/1")
+        bereit(page, "konto")
+        k = tid(page, "person-knopf")
+        expect(k).to_have_attribute("data-kurz", "T")
+        expect(k).to_have_attribute("aria-label", re.compile("Torsten"))
+        assert page.evaluate("window.innerWidth") == 390
+        assert k.bounding_box()["x"] + k.bounding_box()["width"] <= 390

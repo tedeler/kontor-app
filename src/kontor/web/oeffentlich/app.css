@@ -244,7 +244,7 @@ fieldset { border: 1px solid var(--rand); border-radius: var(--radius); padding:
 .details-splits { list-style: none; padding: 0; margin: .3rem 0; }
 .details-split { display: flex; justify-content: space-between; gap: .5rem; flex-wrap: wrap; padding: .2rem 0; border-bottom: 1px solid var(--hg-3); }
 
-.buchungsliste { min-width: 100%; width: max-content; }
+.buchungsliste { min-width: min-content; }   /* D-168: nicht nach dem längsten Text wachsen */
 .buchungsliste .liste-kopf, .buchungsliste .zeile { display: grid; grid-template-columns: 6.5rem minmax(7rem, 1.2fr) minmax(8rem, 1.8fr) minmax(9rem, 1.6fr) minmax(4rem, .7fr) 6.5rem 7.5rem;
   align-items: center; min-height: var(--zeile); }
 .buchungsliste .liste-kopf { position: sticky; top: 0; z-index: 2; background: var(--hg-2); font-weight: 600; font-size: .9rem; border-bottom: 1px solid var(--rand); }
@@ -856,4 +856,10 @@ html[data-thema="dunkel"] .wisch-hinweis[data-bereit="ja"][data-richtung="links"
 .kuerzel-hinweis kbd, .menue-kuerzel { font-family: inherit; font-size: .85em; border: 1px solid var(--rand);
   border-radius: 3px; padding: 0 .3em; background: var(--hg-2); }
 .menue-kuerzel { margin-left: auto; padding-left: .3em; color: var(--text-2); }
+.menue-kuerzel::after { content: attr(data-kuerzel); }
 .menue-eintrag { display: flex; align-items: center; gap: 1rem; }
+
+/* D-168: mobil nur der Anfangsbuchstabe der Person, damit die Kopfleiste nicht über den Rand ragt */
+[data-layout="mobil"] .person-knopf { font-size: 0; min-width: 44px; justify-content: center; }
+[data-layout="mobil"] .person-knopf::before { content: attr(data-kurz); font-size: 1rem; font-weight: 600; width: 1.8rem; height: 1.8rem;
+  line-height: 1.8rem; border-radius: 50%; background: var(--hg-3); text-align: center; }

@@ -2264,3 +2264,22 @@ D-123 bis D-127 sind auf den offenen Branches `dokumente` und `alfbanco-import` 
   gemeldet. Das Kontextmenü zeigt die Kürzel rechts an (`kuerzel` im Eintrag, mobil nicht). Die Befehlspalette führt
   die Kürzel im Kontoblatt als Einträge „Kontoblatt (…)“ hinter den übrigen Befehlen. Der Service-Worker-Cache heißt
   `kontor-huelle-26`.
+
+## D-168 Vorbereitung des Merge von `feature/sammel`
+
+- **Anlass:** Vor dem Merge liefen die eigenen Tests nur zu 252/281. Ursachen: Der Pflichtdialog „Wer bist du?“
+  (D-155) verdeckte jede Seite der Rauchtests. Der Dialog zeigte ohne „Abbrechen“ sichtbar den Text „null“. Mobil
+  machte der Namensknopf die Kopfleiste 12 px breiter als das Gerät, sodass der Browser herauszoomte. Die
+  Buchungsliste wuchs mit `width: max-content` nach dem längsten Verwendungszweck auf über 2500 px und lag unter dem
+  Panel der Einzelheiten. Und die Kürzel im Kontextmenü (D-167) veränderten den Text der Einträge, etwa „Gehe zur
+  Gegenbuchung“ zu „Gehe zur Gegenbuchungg“.
+- **Entscheidung:**
+  - Der Pflichtdialog bleibt wie in D-155 und bekommt keinen Rest „null“ mehr.
+  - Mobil zeigt der Namensknopf nur den Anfangsbuchstaben in einem Kreis (`data-kurz`). Der volle Name steht im
+    `aria-label`.
+  - Die Buchungsliste ist mindestens so breit wie ihre Mindestspalten (`min-width: min-content`) und wächst nicht
+    mehr nach dem Inhalt. Eigene Spaltenbreiten (`spalten-eigen`) bleiben wie bisher.
+  - Das Kürzel im Kontextmenü ist reine Darstellung (CSS `::after` aus `data-kuerzel`). Der Text des Eintrags bleibt
+    unverändert.
+  - Die eigenen Rauchtests wählen vorab Torsten. Ein eigener Test prüft den Dialog selbst und die Breite mobil.
+  - Der Service-Worker-Cache heißt `kontor-huelle-27`.
