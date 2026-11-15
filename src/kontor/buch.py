@@ -254,9 +254,12 @@ def kontenuebersicht(con, stichtag: str | None) -> dict:
 # ================================================================ Empfänger
 
 
-def empfaenger_dict(r, aliase: list[str] | None = None) -> dict:
-    return {"id": r["id"], "name": r["name"], "extern_id": r["extern_id"], "aliase": sorted(aliase or []),
-            "standardkategorie_id": r["standardkategorie_id"]}
+def empfaenger_dict(r, aliase: list[str] | None = None, tags: list[dict] | None = None) -> dict:
+    d = {"id": r["id"], "name": r["name"], "extern_id": r["extern_id"], "aliase": sorted(aliase or []),
+         "standardkategorie_id": r["standardkategorie_id"]}
+    if tags:
+        d["tags"] = sorted(tags, key=lambda t: (t["name"], t["id"]))
+    return d
 
 
 def empfaenger_laden(con, ids: list[int] | None = None) -> list[dict]:
@@ -266,7 +269,8 @@ def empfaenger_laden(con, ids: list[int] | None = None) -> list[dict]:
         aliase: dict[int, list[str]] = defaultdict(list)
         for r in con.execute("SELECT empfaenger_id, alias FROM empfaenger_alias"):
             aliase[r["empfaenger_id"]].append(r["alias"])
-        return [empfaenger_dict(r, aliase.get(r["id"])) for r in zeilen]
+        tags = _empfaenger_tags(con, None)
+        return [empfaenger_dict(r, aliase.get(r["id"]), tags.get(r["id"])) for r in zeilen]
     aus = []
     for teil in _stueckweise(sorted(set(ids))):
         ph = _platzhalter(len(teil))
@@ -275,8 +279,25 @@ def empfaenger_laden(con, ids: list[int] | None = None) -> list[dict]:
         for r in con.execute(f"SELECT empfaenger_id, alias FROM empfaenger_alias WHERE empfaenger_id IN ({ph})",
                              teil):
             aliase[r["empfaenger_id"]].append(r["alias"])
-        aus.extend(empfaenger_dict(r, aliase.get(r["id"])) for r in zeilen)
+        tags = _empfaenger_tags(con, teil)
+        aus.extend(empfaenger_dict(r, aliase.get(r["id"]), tags.get(r["id"])) for r in zeilen)
     return aus
+
+
+def _empfaenger_tags(con, ids: list[int] | None) -> dict[int, list[dict]]:
+    tags: dict[int, list[dict]] = defaultdict(list)
+    if ids is None:
+        zeilen = con.execute("SELECT et.empfaenger_id, t.id, t.name FROM empfaenger_tag et"
+                             " JOIN tag t ON t.id = et.tag_id")
+    elif not ids:
+        return tags
+    else:
+        zeilen = con.execute("SELECT et.empfaenger_id, t.id, t.name FROM empfaenger_tag et"
+                             " JOIN tag t ON t.id = et.tag_id WHERE et.empfaenger_id IN"
+                             f" ({_platzhalter(len(ids))})", ids)
+    for r in zeilen:
+        tags[r["empfaenger_id"]].append({"id": r["id"], "name": r["name"]})
+    return tags
 
 
 def empfaenger_liste(con) -> list[dict]:
@@ -358,6 +379,7 @@ def tag_umbenennen(con, tid: int, name: str) -> dict:
 def tag_loeschen(con, tid: int) -> None:
     tag_lesen(con, tid)
     con.execute("DELETE FROM buchung_tag WHERE tag_id = ?", (tid,))
+    con.execute("DELETE FROM empfaenger_tag WHERE tag_id = ?", (tid,))
     con.execute("DELETE FROM tag WHERE id = ?", (tid,))
 
 
@@ -458,6 +480,8 @@ def buchung_lesen(con, bid: int) -> dict:
     aus = buchungen_laden(con, [sichere_id(bid)])
     if not aus:
         raise nicht_gefunden("Die Buchung")
+    from . import verdacht
+    verdacht.anreichern(con, aus)
     return aus[0]
 
 
@@ -763,9 +787,36 @@ def buchungsliste(con, f: dict) -> dict:
         par.append(sichere_id(f["empfaenger_id"]))
     if f.get("ohne_empfaenger"):
         bed.append("b.empfaenger_id IS NULL")
+    if f.get("empfaenger_aehnlich"):
+        from .text import namen_aehnlich
+        aliase: dict[int, list[str]] = defaultdict(list)
+        for r in con.execute("SELECT empfaenger_id, alias FROM empfaenger_alias"):
+            aliase[r["empfaenger_id"]].append(r["alias"])
+        ids = sorted(r["id"] for r in con.execute("SELECT id, name FROM empfaenger")
+                     if namen_aehnlich(f["empfaenger_aehnlich"], r["name"])
+                     or any(namen_aehnlich(f["empfaenger_aehnlich"], a) for a in aliase[r["id"]]))
+        if ids:
+            bed.append(f"b.empfaenger_id IN ({_platzhalter(len(ids))})")
+            par.extend(ids)
+        else:
+            bed.append("0")
     if f.get("verwendungszweck"):
         bed.append("instr(norm(b.verwendungszweck), ?) > 0")
         par.append(norm(f["verwendungszweck"]))
+    if f.get("zweck_leer"):
+        bed.append("b.verwendungszweck = ''")
+    elif f.get("zweck_gleich"):
+        bed.append("norm(b.verwendungszweck) = ?")
+        par.append(norm(f["zweck_gleich"]))
+    if f.get("zweck_aehnlich"):
+        from .text import woerter
+        worte = woerter(f["zweck_aehnlich"])
+        if worte:
+            bed.append("(" + " OR ".join("instr(norm(b.verwendungszweck), ?) > 0" for _ in worte) + ")")
+            par.extend(worte)
+        else:
+            bed.append("norm(b.verwendungszweck) = ?")
+            par.append(norm(f["zweck_aehnlich"]))
     if f.get("suche"):
         n = norm(f["suche"])
         bed.append("(instr(norm(e.name), ?) > 0 OR instr(norm(b.verwendungszweck), ?) > 0"
@@ -815,6 +866,8 @@ def buchungsliste(con, f: dict) -> dict:
         zeilen = con.execute(f"{basis} ORDER BY {order} LIMIT ? OFFSET ?", alle_par + [pro_seite, offset])
         ids = [z["id"] for z in zeilen]
         eintraege = buchungen_laden(con, ids, konten=None if konten is None else set(konten))
+        from . import verdacht
+        verdacht.anreichern(con, eintraege)
     return {"eintraege": eintraege, "gesamt": gesamt, "seite": seite, "pro_seite": pro_seite, "summe": summe}
 
 
@@ -846,12 +899,112 @@ def _verdacht_dict(con, r) -> dict:
             "status": r["status"], "erstellt_am": r["erstellt_am"]}
 
 
-def dubletten_liste(con, status: str | None) -> list[dict]:
+_ZAHLUNG_ARTEN = ("girokonto", "sparkonto")
+
+
+def dubletten_liste(con, status: str | None, vorschlaege: bool = False) -> list[dict]:
     if status:
         zeilen = con.execute("SELECT * FROM dublettenverdacht WHERE status = ? ORDER BY id", (status,))
     else:
         zeilen = con.execute("SELECT * FROM dublettenverdacht ORDER BY id")
-    return [_verdacht_dict(con, r) for r in zeilen.fetchall()]
+    aus = [_verdacht_dict(con, r) for r in zeilen.fetchall()]
+    # Vorschläge nur auf Anfrage (D-169) und nur bei offenen Listen: sie sind noch nicht entschieden.
+    if vorschlaege and status in (None, "offen"):
+        aus.extend(dubletten_vorschlaege(con))
+    return aus
+
+
+def _bewertete_paare(con) -> set[frozenset[int]]:
+    """Buchungspaare, die schon in einem Verdacht stehen (offen, zusammengeführt oder keine Dublette)."""
+    gruppen: dict[int, list[int]] = defaultdict(list)
+    for r in con.execute(
+            "SELECT d.id AS id, d.buchung_id AS bid, vk.buchung_id AS kid"
+            " FROM dublettenverdacht d LEFT JOIN verdacht_kandidat vk ON vk.verdacht_id = d.id"):
+        gruppen[r["id"]].append(r["bid"])
+        if r["kid"] is not None:
+            gruppen[r["id"]].append(r["kid"])
+    paare: set[frozenset[int]] = set()
+    for ids in gruppen.values():
+        eindeutig = sorted(set(ids))
+        for i, a in enumerate(eindeutig):
+            for b in eindeutig[i + 1:]:
+                paare.add(frozenset((a, b)))
+    return paare
+
+
+def _zahlungsbetraege(con) -> list[tuple[int, str, int, int]]:
+    """Zahlungsbetrag je Buchung: Summe der Splits auf genau einem Giro- oder Sparkonto, in Cent.
+
+    Das Vorzeichen bleibt. Eine Buchung mit zwei solchen Konten hat keinen vergleichbaren Betrag
+    und zählt nicht. Zwei Splits derselben Buchung sind keine zwei Buchungen.
+    """
+    ph = _platzhalter(len(_ZAHLUNG_ARTEN))
+    sql = (
+        "SELECT b.id AS id, b.datum AS datum, b.empfaenger_id AS eid,"
+        " COUNT(DISTINCT s.konto_id) AS n, SUM(s.betrag) AS summe"
+        " FROM buchung b JOIN split s ON s.buchung_id = b.id JOIN konto k ON k.id = s.konto_id"
+        f" WHERE b.empfaenger_id IS NOT NULL AND k.art IN ({ph})"
+        " GROUP BY b.id HAVING n = 1 ORDER BY b.id"
+    )
+    aus: list[tuple[int, str, int, int]] = []
+    for r in con.execute(sql, _ZAHLUNG_ARTEN):
+        summe = r["summe"]
+        if type(summe) is not int:
+            continue
+        aus.append((r["id"], r["datum"], r["eid"], summe))
+    return aus
+
+
+def _vorschlag_dict(ids: list[int]) -> dict:
+    return {"id": None, "buchung_id": ids[0], "kandidat_ids": ids[1:], "grund": "gleich",
+            "status": "offen", "erstellt_am": None, "vorschlag": True}
+
+
+def dubletten_vorschlaege(con) -> list[dict]:
+    """Paare mit gleichem Betrag (Cent, gleiches Vorzeichen), gleichem Datum und gleicher Empfänger-Id.
+
+    Buchungen ohne Empfänger passen nicht zueinander. Bestehende Verdachte bleiben und verdecken
+    dieselben Paare; diese Regel kommt dazu und ersetzt die Prüfung beim Import nicht.
+    """
+    bewertet = _bewertete_paare(con)
+    gruppen: dict[tuple, list[int]] = defaultdict(list)
+    for bid, datum, eid, betrag in _zahlungsbetraege(con):
+        gruppen[(datum, eid, betrag)].append(bid)
+    aus: list[dict] = []
+    for ids in gruppen.values():
+        ids = sorted(set(ids))
+        if len(ids) < 2:
+            continue
+        paare = [frozenset((a, b)) for i, a in enumerate(ids) for b in ids[i + 1:]]
+        offen = [p for p in paare if p not in bewertet]
+        if not offen:
+            continue
+        if len(offen) == len(paare):
+            aus.append(_vorschlag_dict(ids))
+        else:
+            for p in sorted(offen, key=lambda s: tuple(sorted(s))):
+                aus.append(_vorschlag_dict(sorted(p)))
+    aus.sort(key=lambda v: (v["buchung_id"], tuple(v["kandidat_ids"])))
+    return aus
+
+
+def verdacht_anlegen(con, buchung_ids: list[int], jetzt: str) -> dict:
+    """Offener Dublettenverdacht. Die erste Id wird beim Zusammenführen entfernt, die übrigen sind Kandidaten."""
+    if len(buchung_ids) < 2 or len(set(buchung_ids)) != len(buchung_ids):
+        raise ApiFehler(422, "validierung", "Mindestens zwei verschiedene Buchungen sind nötig.",
+                        [{"ort": ["body", "buchung_ids"], "meldung": "Mindestens zwei verschiedene Buchungen."}])
+    vorhanden = _vorhandene_buchungen(con, buchung_ids)
+    fehlend = sorted(set(buchung_ids) - vorhanden)
+    if fehlend:
+        raise ApiFehler(422, "referenz_unbekannt", "Unbekannte Buchungen.", {"buchung_ids": fehlend})
+    primaer, *kandidaten = [sichere_id(x) for x in buchung_ids]
+    grund = "mehrdeutig" if len(kandidaten) > 1 else "aehnlich"
+    vid = con.execute(
+        "INSERT INTO dublettenverdacht (buchung_id, grund, status, erstellt_am) VALUES (?, ?, 'offen', ?)",
+        (primaer, grund, jetzt)).lastrowid
+    con.executemany("INSERT INTO verdacht_kandidat (verdacht_id, buchung_id) VALUES (?, ?)",
+                    [(vid, k) for k in kandidaten])
+    return verdacht_lesen(con, vid)
 
 
 def verdacht_lesen(con, vid: int) -> dict:

@@ -3,7 +3,7 @@
 import {
   BESTAND, STATUS_TEXT, abfrage, aktion, anhaengen, api, baumFolge, betragEingabe, betragEl, betragLesen, betragText, datumEl,
   datumText, h, kategorien, klasse,
-  kontoNach, kontoPfad, melde, neueId, oberflaeche, pfadVon, stamm, tid,
+  kontoNach, kontoPfad, melde, neueId, oberflaeche, personLesen, pfadVon, stamm, tid,
 } from "./kern.js";
 import {
   bestaetigen, dialog, dubletteDialog, erfassenDialog, feld, imDialog, kategorieAuswahl, kontextmenue, knopf, knopfLeiste,
@@ -13,11 +13,131 @@ import { kategorienBaum, langeBeruehrung, ziehbar } from "./baum.js";
 import { ablageEinrichten, betrachter, dateiWaehlen, detailsAbschnitt, mailDialog } from "./dokumente.js";
 
 const PRO_SEITE = 200;
+const GRUPPE_SEITE = 500;          // Höchstwert der Buchungsliste; beim Gruppieren eine Seite statt vieler kleiner
+const FENSTER_GRENZE = 100;        // darüber zeichnet das Blatt nur den sichtbaren Ausschnitt
+const FENSTER_PUFFER = 12;
+const MONATE = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
+
+function periodeText(schluessel) {
+  if (/^\d{4}$/.test(schluessel)) return schluessel;
+  if (/^\d{4}-\d{2}$/.test(schluessel)) {
+    const name = MONATE[Number(schluessel.slice(5, 7)) - 1];
+    return name ? `${name} ${schluessel.slice(0, 4)}` : schluessel;
+  }
+  return datumText(schluessel);
+}
+
+/** Jahr → Monat → Tag. Jeder Knoten trägt die Buchungen seiner Periode. */
+function datumBaum(eintraege, sortierung) {
+  const aufsteigend = sortierung === "datum";
+  const cmp = (a, b) => (aufsteigend ? a.schluessel.localeCompare(b.schluessel) : b.schluessel.localeCompare(a.schluessel));
+  const jahre = new Map();
+  for (const b of eintraege) {
+    const tag = String(b.datum || "").slice(0, 10);
+    const jahrK = tag.slice(0, 4);
+    const monatK = tag.slice(0, 7);
+    let jahr = jahre.get(jahrK);
+    if (!jahr) jahre.set(jahrK, (jahr = { schluessel: jahrK, monate: new Map(), buchungen: [] }));
+    jahr.buchungen.push(b);
+    let monat = jahr.monate.get(monatK);
+    if (!monat) jahr.monate.set(monatK, (monat = { schluessel: monatK, tage: new Map(), buchungen: [] }));
+    monat.buchungen.push(b);
+    let t = monat.tage.get(tag);
+    if (!t) monat.tage.set(tag, (t = { schluessel: tag, buchungen: [] }));
+    t.buchungen.push(b);
+  }
+  return [...jahre.values()].sort(cmp).map((jahr) => ({
+    schluessel: jahr.schluessel, ebene: "jahr", buchungen: jahr.buchungen,
+    kinder: [...jahr.monate.values()].sort(cmp).map((monat) => ({
+      schluessel: monat.schluessel, ebene: "monat", buchungen: monat.buchungen,
+      kinder: [...monat.tage.values()].sort(cmp).map((tag) => ({
+        schluessel: tag.schluessel, ebene: "tag", buchungen: tag.buchungen, kinder: [],
+      })),
+    })),
+  }));
+}
+
+function periodenBilanz(buchungen) {
+  let eingang = 0;
+  let ausgang = 0;
+  for (const b of buchungen) {
+    const c = b.betrag || 0;
+    if (c > 0) eingang += c;
+    else if (c < 0) ausgang += c;
+  }
+  return { eingang, ausgang, summe: eingang + ausgang, anzahl: buchungen.length };
+}
+
 const WISCH_WEG = 80;     // Mindestweg einer Wischgeste (16.4)
 const WISCH_QUER = 40;    // höchstens so weit senkrecht
 const STATUS = ["importiert", "vorlaeufig", "bestaetigt", "abgeglichen"];
 const PARAMETER = ["von", "bis", "betrag_min", "betrag_max", "empfaenger_id", "ohne_empfaenger", "verwendungszweck",
+  "zweck_gleich", "zweck_aehnlich", "zweck_leer", "empfaenger_aehnlich",
   "suche", "kategorie_id", "unterkategorien", "unterkonten", "tag_id", "status", "sortierung"];
+// Tastaturkürzel des Kontoblatts (D-167): [Vortaste, Taste, Text, Wirkung]. Ohne Vortaste wirken sie auf die
+// markierten Buchungen; „f“ führt zu den Filtern, „v“ zur Ansicht. Groß-/Kleinschreibung zählt (Umschalt).
+const KUERZEL = [
+  ["", "k", "Kategorie setzen…", (s) => s.mitZielen((ids, el) => s.kategorieWaehlen(ids, el))],
+  ["", "t", "Tags…", (s) => s.mitZielen((ids, el) => tagAuswahl(ids, el))],
+  ["", "s", "Status setzen…", (s) => s.mitZielen((ids, el) => s.statusWaehlen(ids, el))],
+  ["", "b", "Als ich bestätigen / zurücknehmen", (s) => s.mitZielen((ids) => {
+    const e = s.bestaetigenEintrag(ids);
+    if (e) e.tun(); else melde("hinweis", "Bitte oben rechts wählen, wer du bist.");
+  })],
+  ["", "a", "Vorschlag annehmen", (s) => s.mitZielen((ids) => s.vorschlagTaste(ids, "annehmen"))],
+  ["", "A", "Vorschlag ablehnen", (s) => s.mitZielen((ids) => s.vorschlagTaste(ids, "ablehnen"))],
+  ["", "e", "Bearbeiten… (mehrere Felder)", (s) => s.mitZielen((ids, el) => s.mehrfachDialog(ids, el))],
+  ["", "x", "Splitten…", (s) => s.mitZielen((ids, el) => s.einzeln(ids, (b) => splitDialog(b, el)))],
+  ["", "d", "Als Dublette markieren…", (s) => s.mitZielen((ids, el) => {
+    const d = s.dubletteFuer(ids);
+    if (d) dubletteDialog(d, el); else melde("hinweis", "Dafür eine Buchung mit Verdacht oder genau zwei Buchungen markieren.");
+  })],
+  ["", "g", "Gehe zur Gegenbuchung", (s) => s.mitZielen((ids, el) => s.einzeln(ids, (b) => {
+    const [x, y] = menuePosition(null, el);
+    const e = s.gegenbuchungEintrag(b, x, y, el);
+    if (e.aktiv) e.tun(); else melde("hinweis", "Die Buchung hat keine Gegenbuchung.");
+  }))],
+  ["", "m", "Dokument anhängen…", (s) => s.mitZielen((ids) => dateiWaehlen(ids))],
+  ["", "M", "E-Mail anhängen…", (s) => s.mitZielen((ids, el) => mailDialog(ids, el))],
+  ["", "n", "Neue Buchung erfassen", (s) => erfassenDialog(s.konto.id, tid("buchung-erfassen", s.seite))],
+  ["f", "f", "Filterleiste ein/aus", (s) => s.filterLeisteTaste()],
+  ["f", "v", "Von", (s) => s.filterFokus("filter-von")],
+  ["f", "b", "Bis", (s) => s.filterFokus("filter-bis")],
+  ["f", "z", "Verwendungszweck", (s) => s.filterFokus("filter-verwendungszweck")],
+  ["f", "e", "Empfänger", (s) => s.filterFokus("filter-empfaenger")],
+  ["f", "k", "Kategorie (in Kategorien: Konto)", (s) => s.filterFokus(s.istKategorie ? "filter-konto" : "filter-kategorie")],
+  ["f", "t", "Tag", (s) => s.filterFokus("filter-tag")],
+  ["f", "s", "Status", (s) => s.filterFokus(`filter-status-${STATUS[0]}`)],
+  ["f", "r", "Betrag ab (Tab: bis)", (s) => s.filterFokus("filter-betrag-min")],
+  ["f", "u", "mit Unterkonten ein/aus", (s) => s.filterSetzen("unterkonten", s.filter.unterkonten === "true" ? "" : "true")
+    .then(() => s.filterLeisteNeu())],
+  ["f", "U", "mit Unterkategorien ein/aus", (s) => (s.istKategorie ? melde("hinweis", "In einer Kategorie gibt es diesen Filter nicht.")
+    : s.filterSetzen("unterkategorien", s.filter.unterkategorien === "true" ? "" : "true").then(() => s.filterLeisteNeu()))],
+  [`f`, ".", "gleicher Empfänger wie die markierte Buchung", (s) => s.filterWieBuchung("km-filter-empfaenger")],
+  ["f", ",", "gleicher Verwendungszweck", (s) => s.filterWieBuchung("km-filter-zweck")],
+  ["f", ";", "ähnlicher Verwendungszweck", (s) => s.filterWieBuchung("km-filter-zweck-aehnlich")],
+  ["f", "m", "Zeitraum: dieser Monat", (s) => s.zeitraum("monat")],
+  ["f", "l", "Zeitraum: letzter Monat", (s) => s.zeitraum("letzter")],
+  ["f", "j", "Zeitraum: dieses Jahr", (s) => s.zeitraum("jahr")],
+  ["f", "0", "alle Filter zurücksetzen", (s) => { const k = tid("filter-zuruecksetzen", s.filterLeiste); if (k) k.click(); }],
+  ["v", "g", "Gruppierung: keine ↔ nach Datum", (s) => s.gruppierungSetzen(s.gruppierung ? "" : "datum")],
+  ["v", "+", "alle Gruppen aufklappen", (s) => s.alleKlappen(false)],
+  ["v", "-", "alle Gruppen zuklappen", (s) => s.alleKlappen(true)],
+  ["v", "o", "Sortierspalte wechseln", (s) => s.sortierungWechseln(false)],
+  ["v", "r", "Sortierrichtung umkehren", (s) => s.sortierungWechseln(true)],
+  ["v", "d", "Panel Einzelheiten ein-/ausklappen", (s) => s.panelUmschalten("details")],
+  ["v", "k", "Panel Kategorien ein-/ausklappen", (s) => s.panelUmschalten("kategorien")],
+  ["v", "a", "Spaltenbreiten an den Inhalt anpassen", (s) => s.spalteAnpassen(s.spalten.map(([f]) => f))],
+  ["v", "0", "Spaltenbreiten zurücksetzen", (s) => s.spaltenZuruecksetzen()],
+  ["v", ",", "Konto-Einstellungen…", (s) => kontoEinstellungen(s.konto, tid("konto-einstellungen-oeffnen", s.seite))],
+];
+const VORTASTEN = { f: "Filter", v: "Ansicht" };
+
+/** Kürzel des Kontoblatts für Hilfe und Befehlspalette: [Tastenfolge, Gruppe, Text]. */
+export function kontoKuerzel() {
+  return KUERZEL.map(([vor, taste, text]) => [vor ? `${vor} ${taste}` : taste, vor ? VORTASTEN[vor] : "Markierte Buchungen", text]);
+}
+
 const SPALTEN = [["datum", "Datum", true], ["empfaenger", "Empfänger", true], ["verwendungszweck", "Verwendungszweck"],
   ["kategorie", "Kategorie"], ["tags", "Tags"], ["status", "Status"], ["betrag", "Betrag", true]];
 // M11 (oberflaeche.md 22.2): Kontoansicht einer Kategorie mit zusätzlicher Spalte „Konto“ nach „Kategorie“
@@ -270,6 +390,8 @@ class Kontoansicht {
     this.mailBestaetigt = new Map();
     this.titel = konto.name;
     this.filter = this.filterAusUrl(suche);
+    this.gruppierung = this.gruppierungAusUrl(suche);
+    this.zugeklappt = new Set();
     this.eintraege = [];
     this.gesamt = 0;
     this.summe = 0;
@@ -297,9 +419,15 @@ class Kontoansicht {
       if (f[p] !== undefined && !/^-?\d+$/.test(f[p])) delete f[p];
     }
     if (f.ohne_empfaenger !== undefined && f.ohne_empfaenger !== "true") delete f.ohne_empfaenger;
+    if (f.zweck_leer !== undefined && f.zweck_leer !== "true") delete f.zweck_leer;
     for (const p of ["unterkategorien", "unterkonten"]) if (f[p] !== undefined && f[p] !== "true") delete f[p];
     if (this.istKategorie) delete f.unterkategorien;   // 22.2: entfällt in der Kategorieansicht
     return f;
+  }
+
+  gruppierungAusUrl(suche) {
+    const g = new URLSearchParams(suche || "").get("gruppierung");
+    return g === "datum" || g === "tag" || g === "monat" ? "datum" : "";
   }
 
   get sortierung() { return this.filter.sortierung || "-datum"; }
@@ -310,6 +438,7 @@ class Kontoansicht {
 
   urlSchreiben() {
     const f = { ...this.filter };   // nur gesetzte Filter und eine gewählte Sortierung (7.1)
+    if (this.gruppierung) f.gruppierung = this.gruppierung;   // Ansicht, kein Parameter der Buchungsliste
     history.replaceState(history.state, "", `/konten/${this.konto.id}${abfrage(f)}`);
     if (oberflaeche.urlGeaendert) oberflaeche.urlGeaendert();   // Tab merkt sich Filter und Sortierung
   }
@@ -337,46 +466,58 @@ class Kontoansicht {
   /** Markiert eine Buchung und rollt zu ihr; lädt dafür bei Bedarf weitere Seiten nach (D-118). */
   async springen(id) {
     this.sprungId = null;
-    while (!this.zeilen.has(id) && this.eintraege.length < this.gesamt) {
+    while (!this.eintraege.some((b) => b.id === id) && this.eintraege.length < this.gesamt) {
       this.seiten += 1;
       await this.laden();
     }
     this.urlSchreiben();   // Sprungziel aus der Adresse entfernen
-    if (!this.zeilen.has(id)) { melde("hinweis", "Die Buchung ist mit den aktuellen Filtern nicht sichtbar."); return; }
+    if (!this.eintraege.some((b) => b.id === id)) {
+      melde("hinweis", "Die Buchung ist mit den aktuellen Filtern nicht sichtbar.");
+      return;
+    }
+    const kette = this.periodeKette(id);
+    let geoeffnet = false;
+    for (const k of kette) if (this.zugeklappt.delete(k)) geoeffnet = true;
+    if (geoeffnet) this.listeZeichnen();
     this.sprungMarkieren(id);
   }
 
   async laden() {
     const nr = (this.ladeNr = (this.ladeNr || 0) + 1);   // nur die jüngste Antwort zählt
     this.seite.dataset.geladen = "nein";
-    const basis = { konto_id: this.konto.id, ...this.filter, sortierung: this.sortierung, pro_seite: PRO_SEITE };
-    // D-130: Buchungen wiederkehrender Serien (wiederkehrend.md 2.5) für die Markierung der Zeilen
-    const serien = api("GET", "/api/wiederkehrend").then((w) => w.serien, () => []);
+    const proSeite = this.gruppierung ? GRUPPE_SEITE : PRO_SEITE;
+    const basis = { konto_id: this.konto.id, ...this.filter, sortierung: this.sortierung, pro_seite: proSeite };
+    delete basis.gruppierung;
     // D-130: Buchungen, die einer aus Mails erkannten Erwartung zugeordnet sind (Mail-Abgleich, D-128)
     const erwartungen = api("GET", "/api/erwartungen" + abfrage({ grund: MAIL_GRUENDE, zustand: ERWARTUNG_ZUSTAENDE }))
       .then((e) => e.eintraege, () => []);
     const eintraege = [];
     let gesamt = 0;
     let summe = 0;
-    for (let n = 1; n <= this.seiten; n++) {
-      const s = await api("GET", "/api/buchungen" + abfrage({ ...basis, seite: n }));
-      eintraege.push(...s.eintraege);
-      gesamt = s.gesamt;
-      summe = s.summe;
-      if (eintraege.length >= gesamt) break;
+    // Gruppiert lädt die Liste die ganze Filtermenge, damit Eingang, Ausgang und Summe einer Periode vollständig sind.
+    // Die weiteren Seiten laufen parallel; ohne Gruppierung bleibt es beim seitenweisen Nachladen.
+    const bis = this.gruppierung ? 100000 : this.seiten;
+    const erste = await api("GET", "/api/buchungen" + abfrage({ ...basis, seite: 1 }));
+    eintraege.push(...erste.eintraege);
+    gesamt = erste.gesamt;
+    summe = erste.summe;
+    const letzte = Math.min(bis, Math.ceil(gesamt / proSeite) || 1);
+    if (letzte > 1) {
+      const rest = await Promise.all(Array.from({ length: letzte - 1 }, (_, i) =>
+        api("GET", "/api/buchungen" + abfrage({ ...basis, seite: i + 2 }))));
+      for (const s of rest) eintraege.push(...s.eintraege);
     }
     let verdachte = [];
-    try { verdachte = await api("GET", "/api/dubletten?status=offen"); } catch (e) { verdachte = []; }
+    try { verdachte = await api("GET", "/api/dubletten?status=offen&vorschlaege=ja"); } catch (e) { verdachte = []; }
     await this.regelnLaden(eintraege);
-    const wk = new Set((await serien).flatMap((x) => x.buchung_ids));
     const mail = new Map();
     for (const e of await erwartungen) for (const id of e.buchung_ids) if (!mail.has(id)) mail.set(id, erwartungText(e));
     if (nr !== this.ladeNr) return;
-    this.wiederkehrend = wk;
     this.mailBestaetigt = mail;
     this.kandidatenCache = new Map();
     this.verdachte = verdachte;
     this.eintraege = eintraege;
+    this._gruppen = null;
     this.gesamt = gesamt;
     this.summe = summe;
     const ids = new Set(eintraege.map((b) => b.id));
@@ -407,12 +548,9 @@ class Kontoansicht {
       onclick: (e) => erfassenDialog(this.konto.id, e.currentTarget) });
     s.append(h("div", { class: "seiten-kopf" }, h("h1", null, this.konto.name),
       h("div", { class: "werkzeuge" }, this.filterKnopf, erfassen,
-        knopf("Einstellungen…", { tid: "konto-einstellungen-oeffnen", onclick: (e) => kontoEinstellungen(this.konto, e.currentTarget) }),
-        this.istKategorie ? null : knopf("Verschieben…", { tid: "konto-verschieben",
-          title: "Buchungen dieses Kontos auf ein anderes Konto verschieben",
-          onclick: (e) => this.verschiebenDialog(this.auswahlIds(), e.currentTarget) }))),
+        knopf("Einstellungen…", { tid: "konto-einstellungen-oeffnen", onclick: (e) => kontoEinstellungen(this.konto, e.currentTarget) }))),
     h("div", { class: "listen-info" }, this.anzahlEl, " · Summe ", this.summeEl, h("span", { class: "auswahl-trenner" }, " · "),
-      this.auswahlEl));
+      this.auswahlEl, this.gruppierungLeiste()));
     this.filterLeiste = this.filterAufbauen();
     s.append(this.filterLeiste);
     this.liste = h("div", { role: "grid", tid: "buchungsliste", "aria-multiselectable": "true", "aria-label": "Buchungen",
@@ -436,6 +574,8 @@ class Kontoansicht {
 
   layoutGeaendert() {
     const mobil = oberflaeche.istMobil();
+    this.zeilenH = 0;
+    this.balkenH = 0;
     this.liste.dataset.kompakt = mobil ? "ja" : "nein";
     this.arbeitZeichnen();
     this.listeZeichnen();
@@ -456,6 +596,12 @@ class Kontoansicht {
     const f = this.filter;
     const leiste = h("div", { class: "filter-leiste", id: "filter-leiste", tid: "filter-leiste", role: "search",
       "aria-label": "Filter der Buchungsliste", hidden: !this.filterSichtbar });
+    // Esc im Filter: zurück zur Liste, damit es ohne Maus weitergeht (D-167)
+    leiste.addEventListener("keydown", (e) => {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      this.listeFokussieren();
+    });
     const feld = (text, el) => {
       el.id = el.id || neueId("filter");
       return h("div", { class: "feld" }, h("label", { for: el.id }, text), el);
@@ -465,8 +611,8 @@ class Kontoansicht {
       el.addEventListener("change", () => this.filterSetzen(name, el.value));
       return el;
     };
-    const text = (name, testid) => {
-      const el = h("input", { type: "text", tid: testid, value: f[name] || "", maxlength: "200" });
+    const text = (name, testid, max = "200") => {
+      const el = h("input", { type: "text", tid: testid, value: f[name] || "", maxlength: max });
       const setzen = () => this.filterSetzen(name, el.value.trim());
       el.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); setzen(); } });
       el.addEventListener("change", setzen);
@@ -547,6 +693,10 @@ class Kontoansicht {
       feld("Betrag ab (€)", betrag("betrag_min", "filter-betrag-min")),
       feld("Betrag bis (€)", betrag("betrag_max", "filter-betrag-max")),
       feld("Empfänger", empf), feld("Verwendungszweck", text("verwendungszweck", "filter-verwendungszweck")),
+      f.zweck_gleich !== undefined ? feld("Verwendungszweck genau", text("zweck_gleich", "filter-zweck-gleich", "10000")) : null,
+      f.zweck_aehnlich !== undefined ? feld("Verwendungszweck ähnlich", text("zweck_aehnlich", "filter-zweck-aehnlich", "10000")) : null,
+      f.zweck_leer === "true" ? h("p", { tid: "filter-zweck-leer" }, "Verwendungszweck ist leer") : null,
+      f.empfaenger_aehnlich !== undefined ? feld("Empfänger ähnlich", text("empfaenger_aehnlich", "filter-empfaenger-aehnlich")) : null,
       feld("Freitext", text("suche", "filter-freitext")), feld(this.istKategorie ? "Konto" : "Kategorie", kat),
       this.istKategorie ? null : h("label", { class: "wahl" }, unter, " mit Unterkategorien"),
       h("label", { class: "wahl" }, unterkonten, " mit Unterkonten"), feld("Tag", tag), status, zurueck].filter(Boolean));
@@ -755,17 +905,98 @@ class Kontoansicht {
     return el;
   }
 
+  /** Stift an einem Bestandteil der Einzelheiten (D-161). */
+  stift(feld, label, tun, gesperrt) {
+    return h("button", { type: "button", class: "stift", tid: `stift-${feld}`,
+      "aria-label": label, title: gesperrt ? "Abgestimmt bzw. abgeglichen" : label,
+      disabled: gesperrt || null,
+      onclick: (e) => { e.stopPropagation(); tun(e.currentTarget); } }, "✎");
+  }
+
+  detailZeile(b, feld, name, wert, gesperrt) {
+    const wertEl = h("span", { class: "details-wert" }, wert);
+    return h("div", { class: "details-feld", "data-feld": feld },
+      h("span", { class: "details-name" }, name), wertEl,
+      this.stift(feld, `${name} bearbeiten`, () => this.detailBearbeiten(b, feld, wertEl), gesperrt));
+  }
+
+  /** Editor sitzt in der Einzelheiten-Zeile, nicht in der Liste. */
+  detailBearbeiten(b, feld, wertEl) {
+    if (feld !== "status" && (b.abgestimmt || b.status === "abgeglichen")) {
+      melde("hinweis", "Diese Buchung ist abgestimmt bzw. abgeglichen und kann nicht bearbeitet werden.");
+      return;
+    }
+    const id = b.id;
+    let editor;
+    let alt;
+    if (feld === "datum") {
+      alt = b.datum;
+      editor = h("input", { type: "date", value: b.datum, "aria-label": "Datum" });
+    } else if (feld === "verwendungszweck") {
+      alt = b.verwendungszweck;
+      editor = h("input", { type: "text", value: b.verwendungszweck, "aria-label": "Verwendungszweck" });
+    } else if (feld === "status") {
+      alt = b.status;
+      editor = statusSelect("Status");
+      editor.value = alt;
+    } else if (feld === "empfaenger") {
+      alt = b.empfaenger ? String(b.empfaenger.id) : "";
+      editor = empfaengerSelect("Empfänger");
+      editor.value = alt;
+    } else return;
+    editor.dataset.testid = "inline-editor";
+    editor.dataset.feld = feld;
+    editor.classList.add("inline-editor");
+    const altKnoten = [...wertEl.childNodes];
+    let fertig = false;
+    const zurueck = () => { if (wertEl.isConnected) wertEl.replaceChildren(...altKnoten); };
+    const uebernehmen = async () => {
+      if (fertig) return;
+      const wert = editor.value;
+      fertig = true;
+      zurueck();
+      if (wert === alt || (feld === "datum" && !wert)) return;
+      if (feld === "status") { await this.statusSetzen([id], wert); return; }
+      try {
+        await aktion(() => (feld === "empfaenger"
+          ? api("PATCH", `/api/buchungen/${id}`, { empfaenger_id: wert === "" ? null : Number(wert) })
+          : api("PATCH", `/api/buchungen/${id}`, { [feld]: wert })), { erfolg: "Buchung geändert." });
+      } catch { /* gemeldet */ }
+    };
+    editor.addEventListener("keydown", (e) => {
+      e.stopPropagation();
+      if (e.key === "Enter") { e.preventDefault(); uebernehmen(); }
+      else if (e.key === "Escape") { e.preventDefault(); fertig = true; zurueck(); }
+    });
+    editor.addEventListener("blur", () => uebernehmen());
+    if (editor.tagName === "SELECT") editor.addEventListener("change", () => uebernehmen());
+    for (const t of ["click", "dblclick", "pointerdown", "contextmenu"]) editor.addEventListener(t, (e) => e.stopPropagation());
+    wertEl.replaceChildren(editor);
+    editor.focus();
+    if (feld === "verwendungszweck") editor.select();
+  }
+
   detailsInhalt(b) {
     if (!b) return [h("p", { class: "leer" }, "Keine Buchung gewählt.")];
+    const gesperrt = !!(b.abgestimmt || b.status === "abgeglichen");
     return [
+      b.verdacht ? h("p", { class: "verdacht-erklaerung", tid: "verdacht-erklaerung" }, b.verdacht.text) : null,
       b.vorschlag ? this.vorschlagDetails(b) : null,
-      h("p", null, datumText(b.datum), " · ", b.empfaenger ? b.empfaenger.name : "ohne Empfänger"),
-      h("p", { class: "zweck" }, b.verwendungszweck),
+      this.detailZeile(b, "datum", "Datum", datumText(b.datum), gesperrt),
+      this.detailZeile(b, "empfaenger", "Empfänger", b.empfaenger ? b.empfaenger.name : "ohne Empfänger", gesperrt),
+      this.detailZeile(b, "verwendungszweck", "Verwendungszweck", b.verwendungszweck || "–", gesperrt),
+      h("div", { class: "details-feld" },
+        h("span", { class: "details-name" }, "Buchungssätze"),
+        this.stift("splits", "Buchungssätze bearbeiten", (el) => splitDialog(b, el), gesperrt)),
       h("ul", { class: "details-splits" }, b.splits.map((s) => h("li", { tid: `details-split-${s.id}`, class: "details-split" },
         h("span", null, pfadVon(s.konto_id)), " ", betragEl("span", s.betrag), s.memo ? h("small", null, " " + s.memo) : null))),
-      b.tags.length ? h("p", null, "Tags: ", b.tags.map((t) => t.name).join(", ")) : null,
+      h("div", { class: "details-feld", "data-feld": "tags" },
+        h("span", { class: "details-name" }, "Tags"),
+        h("span", { class: "details-wert" }, b.tags.length ? b.tags.map((t) => t.name).join(", ") : "keine"),
+        this.stift("tags", "Tags bearbeiten", (el) => tagAuswahl([b.id], el), false)),
       b.extern_ids.length ? h("p", { class: "klein" }, "Herkunft: ", b.extern_ids.join(", ")) : null,
-      h("p", { class: "klein" }, "Status: ", STATUS_TEXT[b.status] || b.status, b.abgestimmt ? " · abgestimmt" : ""),
+      this.detailZeile(b, "status", "Status", (STATUS_TEXT[b.status] || b.status) + (b.abgestimmt ? " · abgestimmt" : ""), false),
+      this.bestaetigungZeile(b),
       detailsAbschnitt(b),
     ];
   }
@@ -791,6 +1022,274 @@ class Kontoansicht {
     this.detailsZeichnen();
   }
 
+  // ---------------------------------------------------------------- Gruppierung (D-150)
+  gruppierungLeiste() {
+    const knopfArt = (art, text) => h("button", { type: "button", class: "gruppierung-knopf",
+      tid: art ? `gruppierung-${art}` : "gruppierung-keine", "aria-pressed": String(this.gruppierung === art),
+      onclick: () => this.gruppierungSetzen(art) }, text);
+    return h("div", { class: "gruppierung-zeile" },
+      h("div", { class: "gruppierung", role: "group", "aria-label": "Buchungen gruppieren" },
+        knopfArt("", "Keine"), knopfArt("datum", "nach Datum")),
+      knopf("Alles zusammenklappen", { tid: "gruppierung-zu", disabled: true, onclick: () => this.alleKlappen(true) }),
+      knopf("Alles aufklappen", { tid: "gruppierung-auf", disabled: true, onclick: () => this.alleKlappen(false) }));
+  }
+
+  async gruppierungSetzen(art) {
+    if ((art !== "" && art !== "datum") || art === this.gruppierung) return;
+    this.gruppierung = art;
+    this._gruppen = null;
+    this.urlSchreiben();
+    if (art && this.eintraege.length < this.gesamt) await this.laden();
+    else this.listeZeichnen();
+  }
+
+  alleKlappen(zu) {
+    if (!this.gruppierung) return;
+    if (zu) this.zugeklappt = new Set(this.alleSchluessel());
+    else this.zugeklappt.clear();
+    this.listeZeichnen();
+  }
+
+  gruppierungKnopfZustand() {
+    for (const art of ["", "datum"]) {
+      const el = tid(art ? `gruppierung-${art}` : "gruppierung-keine", this.seite);
+      if (el) el.setAttribute("aria-pressed", String(this.gruppierung === art));
+    }
+    const schluessel = this.gruppierung ? this.alleSchluessel() : [];
+    const zu = tid("gruppierung-zu", this.seite);
+    const auf = tid("gruppierung-auf", this.seite);
+    const alleZu = schluessel.length > 0 && schluessel.every((k) => this.zugeklappt.has(k));
+    const alleAuf = schluessel.length > 0 && schluessel.every((k) => !this.zugeklappt.has(k));
+    if (zu) zu.disabled = !schluessel.length || alleZu;
+    if (auf) auf.disabled = !schluessel.length || alleAuf;
+  }
+
+  periodeKette(id) {
+    if (!this.gruppierung) return [];
+    const b = this.eintraege.find((x) => x.id === id);
+    if (!b) return [];
+    const tag = String(b.datum || "").slice(0, 10);
+    return [tag.slice(0, 4), tag.slice(0, 7), tag];
+  }
+
+  gruppen() {
+    if (!this._gruppen) this._gruppen = this.gruppierung ? datumBaum(this.eintraege, this.sortierung) : [];
+    return this._gruppen;
+  }
+
+  alleSchluessel() {
+    const aus = [];
+    for (const jahr of this.gruppen()) {
+      aus.push(jahr.schluessel);
+      for (const monat of jahr.kinder) {
+        aus.push(monat.schluessel);
+        for (const tag of monat.kinder) aus.push(tag.schluessel);
+      }
+    }
+    return aus;
+  }
+
+  /** Sichtbare Balken und Buchungen: ein zugeklappter Knoten verbirgt seine Kinder. */
+  jedenZeitraum(rueckruf) {
+    if (!this.gruppierung) {
+      for (const b of this.eintraege) rueckruf({ typ: "zeile", buchung: b });
+      return;
+    }
+    for (const jahr of this.gruppen()) {
+      rueckruf({ typ: "balken", gruppe: jahr });
+      if (this.zugeklappt.has(jahr.schluessel)) continue;
+      for (const monat of jahr.kinder) {
+        rueckruf({ typ: "balken", gruppe: monat });
+        if (this.zugeklappt.has(monat.schluessel)) continue;
+        for (const tag of monat.kinder) {
+          rueckruf({ typ: "balken", gruppe: tag });
+          if (this.zugeklappt.has(tag.schluessel)) continue;
+          for (const b of tag.buchungen) rueckruf({ typ: "zeile", buchung: b });
+        }
+      }
+    }
+  }
+
+  sichtbareIds() {
+    if (!this.gruppierung) return this.ids();
+    const aus = [];
+    this.jedenZeitraum((e) => { if (e.typ === "zeile") aus.push(e.buchung.id); });
+    return aus;
+  }
+
+  gruppeUmschalten(schluessel) {
+    if (this.zugeklappt.has(schluessel)) this.zugeklappt.delete(schluessel);
+    else this.zugeklappt.add(schluessel);
+    this.listeZeichnen();
+    if (this.virtual) this.slotZeigen(`p:${schluessel}`);
+    const knopf = tid(`periode-${schluessel}`, this.liste);
+    if (knopf) knopf.focus();
+  }
+
+  periodenBalken(gruppe) {
+    const auf = !this.zugeklappt.has(gruppe.schluessel);
+    const bilanz = periodenBilanz(gruppe.buchungen);
+    const id = gruppe.schluessel;
+    return h("div", { class: "perioden-balken" + (auf ? "" : " zugeklappt"), role: "row", "data-periode": id,
+      "data-ebene": gruppe.ebene,
+      onclick: (e) => {
+        if (e.target.closest("button")) return;
+        this.gruppeUmschalten(id);
+      } },
+    h("button", { type: "button", class: "perioden-knopf", tid: `periode-${id}`, "aria-expanded": String(auf),
+      onclick: () => this.gruppeUmschalten(id),
+      onkeydown: (e) => {   // D-167: ← klappt zu, → klappt auf
+        if ((e.key === "ArrowLeft" && auf) || (e.key === "ArrowRight" && !auf)) { e.preventDefault(); this.gruppeUmschalten(id); }
+      } },
+    auf ? "▾ " : "▸ ", periodeText(id)),
+    h("span", { class: "perioden-zahl" }, "Eingang ", betragEl("span", bilanz.eingang, { tid: `periode-eingang-${id}` })),
+    h("span", { class: "perioden-zahl" }, "Ausgang ", betragEl("span", bilanz.ausgang, { tid: `periode-ausgang-${id}` })),
+    h("span", { class: "perioden-zahl" }, "Summe ", betragEl("span", bilanz.summe, { tid: `periode-summe-${id}` })),
+    h("span", { class: "perioden-anzahl", tid: `periode-anzahl-${id}`, "data-anzahl": String(bilanz.anzahl) },
+      bilanz.anzahl === 1 ? "1 Buchung" : `${bilanz.anzahl} Buchungen`));
+  }
+
+  // ---------------------------------------------------------------- Sichtbares Fenster (D-151)
+  // Ab FENSTER_GRENZE Zeilen liegt die Liste in einem hohen Platzhalter; gezeichnet werden nur die Zeilen im Blick.
+  slotsBauen() {
+    const kompakt = oberflaeche.istMobil();
+    if (this.hoeheKompakt !== kompakt || !this.zeilenH || !this.balkenH) {
+      this.hoeheKompakt = kompakt;
+      this.zeilenH = kompakt ? 56 : 32;
+      this.balkenH = kompakt ? 96 : 44;
+    }
+    this.slotsMitHoehe();
+  }
+
+  virtualAktiv() { return this.slots.length > FENSTER_GRENZE; }
+
+  scrollBehaelter() {
+    const s = this.listenSpalte;
+    if (s && getComputedStyle(s).overflowY !== "visible") return s;
+    return this.seite.closest(".hauptbereich") || s || this.liste;
+  }
+
+  scrollLauschen() {
+    const el = this.scrollBehaelter();
+    if (this.scrollZiel === el) return;
+    if (this.scrollZiel && this.beiScroll) this.scrollZiel.removeEventListener("scroll", this.beiScroll);
+    this.scrollZiel = el;
+    if (!this.beiScroll) {
+      this.beiScroll = () => {
+        if (this.editorOffen || this.scrollRahmen) return;
+        this.scrollRahmen = requestAnimationFrame(() => {
+          this.scrollRahmen = 0;
+          this.fensterBereichZeichnen(false);
+        });
+      };
+    }
+    el.addEventListener("scroll", this.beiScroll, { passive: true });
+  }
+
+  slotSuchen(y) {
+    let lo = 0;
+    let hi = this.slots.length;
+    while (lo < hi) {
+      const m = (lo + hi) >> 1;
+      if (this.slots[m].top + this.slots[m].hoehe <= y) lo = m + 1;
+      else hi = m;
+    }
+    return lo;
+  }
+
+  sichtBereich() {
+    const scroller = this.scrollBehaelter();
+    const fallback = scroller.clientHeight || 800;
+    if (!this.fenster) return { start: 0, ende: fallback };
+    const fenster = this.fenster.getBoundingClientRect();
+    const sicht = scroller.getBoundingClientRect();
+    const start = Math.max(0, sicht.top - fenster.top);
+    const ende = Math.min(this.listeHoehe, sicht.bottom - fenster.top);
+    if (ende <= start) return { start: 0, ende: Math.min(this.listeHoehe, fallback) };
+    return { start, ende };
+  }
+
+  fensterBereichZeichnen(erzwingen) {
+    if (!this.virtual || !this.fensterInnen || this.editorOffen) return;
+    const { start, ende } = this.sichtBereich();
+    let von = Math.max(0, this.slotSuchen(start) - FENSTER_PUFFER);
+    let bis = Math.min(this.slots.length, this.slotSuchen(ende) + 1 + FENSTER_PUFFER);
+    if (bis < von) bis = von;
+    if (!erzwingen && von === this.fensterVon && bis === this.fensterBis) return;
+    this.fensterVon = von;
+    this.fensterBis = bis;
+    this.zeilen = new Map();
+    const kompakt = oberflaeche.istMobil();
+    const kinder = [];
+    for (let i = von; i < bis; i++) {
+      const s = this.slots[i];
+      kinder.push(s.typ === "balken" ? this.periodenBalken(s.gruppe) : this.zeile(s.buchung, kompakt));
+    }
+    const y = von < this.slots.length ? this.slots[von].top : 0;
+    this.fensterInnen.style.transform = `translateY(${y}px)`;
+    this.fensterInnen.replaceChildren(...kinder);
+    this.auswahlZeigen();
+  }
+
+  hoehenPruefen() {
+    if (!this.virtual || this.hoeheGeprueft) return;
+    this.hoeheGeprueft = true;
+    const balken = this.liste.querySelector(".perioden-balken");
+    const zeile = this.liste.querySelector(".zeile");
+    const bh = balken ? Math.ceil(balken.getBoundingClientRect().height) : 0;
+    const zh = zeile ? Math.ceil(zeile.getBoundingClientRect().height) : 0;
+    if ((bh > 8 && bh !== this.balkenH) || (zh > 8 && zh !== this.zeilenH)) {
+      if (bh > 8) this.balkenH = bh;
+      if (zh > 8) this.zeilenH = zh;
+      this.slotsMitHoehe();
+      if (this.fenster) this.fenster.style.height = `${this.listeHoehe}px`;
+      this.fensterVon = -1;
+      this.fensterBereichZeichnen(true);
+    }
+  }
+
+  /** Baut die Slots mit den zuletzt gemessenen Zeilenhöhen neu, ohne die Schätzwerte zu überschreiben. */
+  slotsMitHoehe() {
+    const zeilenH = this.zeilenH;
+    const balkenH = this.balkenH;
+    const slots = [];
+    let top = 0;
+    const schieben = (typ, hoehe, extra) => {
+      slots.push({ typ, top, hoehe, ...extra });
+      top += hoehe;
+    };
+    this.jedenZeitraum((eintrag) => {
+      if (eintrag.typ === "balken") {
+        schieben("balken", balkenH, { slotId: `p:${eintrag.gruppe.schluessel}`, gruppe: eintrag.gruppe });
+      } else schieben("zeile", zeilenH, { slotId: eintrag.buchung.id, buchung: eintrag.buchung });
+    });
+    this.slots = slots;
+    this.listeHoehe = top;
+    this.slotIndex = new Map(slots.map((s, i) => [s.slotId, i]));
+  }
+
+  slotZeigen(slotId, block = "nearest") {
+    if (!this.virtual || !this.fenster) return false;
+    const i = this.slotIndex.get(slotId);
+    if (i === undefined) return false;
+    const s = this.slots[i];
+    const scroller = this.scrollBehaelter();
+    const fenster = this.fenster.getBoundingClientRect();
+    const sicht = scroller.getBoundingClientRect();
+    const fensterTop = fenster.top - sicht.top + scroller.scrollTop;
+    const pos = fensterTop + s.top;
+    let ziel = scroller.scrollTop;
+    if (block === "center") ziel = pos - (scroller.clientHeight - s.hoehe) / 2;
+    else if (pos < scroller.scrollTop + 8) ziel = pos - 8;
+    else if (pos + s.hoehe > scroller.scrollTop + scroller.clientHeight - 8) {
+      ziel = pos - scroller.clientHeight + s.hoehe + 8;
+    }
+    ziel = Math.max(0, ziel);
+    if (ziel !== scroller.scrollTop) scroller.scrollTop = ziel;
+    this.fensterBereichZeichnen(false);
+    return true;
+  }
+
   // ---------------------------------------------------------------- Liste (7.2)
   listeZeichnen() {
     const kompakt = oberflaeche.istMobil();
@@ -811,8 +1310,27 @@ class Kontoansicht {
     const fokusImGrid = this.liste.contains(document.activeElement) && document.activeElement.getAttribute("role") === "row";
     const editor = this.editorOffen;
     const editorFokus = editor ? editor.loesen() : false;
-    const zeilen = this.eintraege.map((b) => this.zeile(b, kompakt));
-    this.liste.replaceChildren(kopf, ...zeilen);
+    this.slotsBauen();
+    this.virtual = this.virtualAktiv();
+    this.hoeheGeprueft = false;
+    if (this.virtual) {
+      this.fenster = h("div", { class: "listen-fenster" });
+      this.fenster.style.height = `${this.listeHoehe}px`;
+      this.fensterInnen = h("div", { class: "listen-fenster-innen" });
+      this.fenster.append(this.fensterInnen);
+      this.fensterVon = -1;
+      this.liste.replaceChildren(kopf, this.fenster);
+      this.scrollLauschen();
+      this.fensterBereichZeichnen(true);
+      requestAnimationFrame(() => this.hoehenPruefen());
+    } else {
+      const zeilen = [];
+      this.jedenZeitraum((eintrag) => {
+        zeilen.push(eintrag.typ === "balken" ? this.periodenBalken(eintrag.gruppe) : this.zeile(eintrag.buchung, kompakt));
+      });
+      this.liste.replaceChildren(kopf, ...zeilen);
+    }
+    this.gruppierungKnopfZustand();
     this.breitenAnwenden();
     if (editor && this.editorOffen === editor) editor.umziehen(editorFokus);
     this.anzahlEl.dataset.anzahl = String(this.gesamt);
@@ -873,17 +1391,22 @@ class Kontoansicht {
     kat,
     this.istKategorie ? kontoZelle(b) : null,
     h("div", { role: "gridcell", class: "zelle zelle-tags", "data-feld": "tags" },
-      b.tags.map((t) => h("span", { class: "tag", tid: "tag", "data-tag-id": String(t.id) }, t.name))),
+      b.tags.map((t) => {
+        const person = t.name === "Torsten" || t.name === "Tina";
+        return h("span", { class: person ? "tag tag-person" : "tag", tid: "tag", "data-tag-id": String(t.id),
+          "data-person": person ? t.name : null, title: person ? `Bestätigt von ${t.name}` : t.name }, t.name);
+      }),
+      b.verdacht ? h("span", { class: "tag tag-verdacht", tid: "verdacht", "data-grund": b.verdacht.grund,
+        title: b.verdacht.text, "aria-label": b.verdacht.text }, "Verdächtig") : null),
     h("div", { role: "gridcell", class: "zelle zelle-status", "data-feld": "status" }, STATUS_TEXT[b.status] || b.status),
     betragEl("div", b.betrag, { role: "gridcell", class: "zelle zelle-betrag", "data-feld": "betrag" }));
+    const bestaetigtVon = b.tags.filter((t) => t.name === "Torsten" || t.name === "Tina").map((t) => t.name);
+    if (bestaetigtVon.length) zeile.dataset.bestaetigt = bestaetigtVon.join(" ");
+    if (b.verdacht) zeile.dataset.verdacht = b.verdacht.grund;
     if (b.abgestimmt || b.status === "abgeglichen") zeile.dataset.gesperrt = "ja";
     const mark = markierung(b);
     if (mark) zeile.dataset.markierung = mark;
     const hinweise = [];
-    if (this.wiederkehrend.has(b.id)) {
-      zeile.dataset.wiederkehrend = "ja";
-      hinweise.push("wiederkehrende Buchung");
-    }
     if (this.mailBestaetigt.has(b.id)) {
       zeile.dataset.mail = "ja";
       hinweise.push(`durch Mail bestätigt: ${this.mailBestaetigt.get(b.id)}`);
@@ -1018,13 +1541,14 @@ class Kontoansicht {
 
   fokussieren(id, mitDom = true) {
     this.fokusId = id;
+    if (mitDom && this.virtual) this.slotZeigen(id);
     this.auswahlZeigen();
     const z = this.zeilen.get(id);
     if (z && mitDom) {
       // nur senkrecht nachführen: eine Zeile ist breiter als die Liste, waagerecht bleibt die Lage (23.2)
       const links = this.listenSpalte ? this.listenSpalte.scrollLeft : 0;
       z.focus({ preventScroll: true });
-      z.scrollIntoView({ block: "nearest" });
+      if (!this.virtual) z.scrollIntoView({ block: "nearest" });
       if (this.listenSpalte) this.listenSpalte.scrollLeft = links;
     }
     this.detailsZeichnen();
@@ -1058,11 +1582,13 @@ class Kontoansicht {
     const z = e.target.closest('[role="row"][data-id]');
     if (!z || e.target !== z) return;
     const id = Number(z.dataset.id);
-    const ids = this.ids();
+    const ids = this.sichtbareIds();
     const i = ids.indexOf(id);
     const strg = e.ctrlKey || e.metaKey;
-    const ziel = { ArrowDown: ids[i + 1], ArrowUp: ids[i - 1], Home: ids[0], End: ids[ids.length - 1] }[e.key];
-    if (["ArrowDown", "ArrowUp", "Home", "End"].includes(e.key)) {
+    const seite = Math.max(1, Math.floor((this.listenSpalte.clientHeight || 400) / (z.offsetHeight || 32)) - 1);
+    const ziel = { ArrowDown: ids[i + 1], ArrowUp: ids[i - 1], Home: ids[0], End: ids[ids.length - 1],
+      PageDown: ids[Math.min(ids.length - 1, i + seite)], PageUp: ids[Math.max(0, i - seite)] }[e.key];
+    if (["ArrowDown", "ArrowUp", "Home", "End", "PageDown", "PageUp"].includes(e.key)) {
       e.preventDefault();
       if (ziel === undefined) return;
       if (strg && !e.shiftKey) { this.fokussieren(ziel); return; }
@@ -1104,6 +1630,7 @@ class Kontoansicht {
   }
 
   escape() {
+    if (this.vortaste) { this.vortasteBeenden(); return true; }
     if (!this.auswahl.size) return false;
     this.auswahl.clear();
     this.auswahlZeigen();
@@ -1117,15 +1644,6 @@ class Kontoansicht {
       if (e.target.closest("button, input, select, [data-testid=inline-editor]")) return;
       const z = zeileVon(e.target);
       if (z) this.klick(Number(z.dataset.id), e);
-    });
-    this.liste.addEventListener("dblclick", (e) => {
-      if (oberflaeche.istMobil()) return;
-      const zelle = e.target.closest("[data-feld]");
-      const z = zeileVon(e.target);
-      if (!z || !zelle || e.target.closest("button, input, select")) return;
-      if (["datum", "verwendungszweck", "kategorie", "empfaenger", "status", "betrag"].includes(zelle.dataset.feld)) {
-        this.bearbeiten(Number(z.dataset.id), zelle.dataset.feld);
-      }
     });
     this.liste.addEventListener("keydown", (e) => this.taste(e));
     this.liste.addEventListener("contextmenu", (e) => {
@@ -1238,38 +1756,281 @@ class Kontoansicht {
     z.style.transform = "";
   }
 
+  // ---------------------------------------------------------------- Bestätigung durch Torsten oder Tina (D-155)
+  bestaetigt(b, name) { return !!(b && b.tags.some((t) => t.name === name)); }
+
+  bestaetigenEintrag(ids) {
+    const name = personLesen();
+    if (!name || !ids.length) return null;
+    const alle = ids.every((id) => this.bestaetigt(this.eintraege.find((x) => x.id === id), name));
+    return { tid: "km-bestaetigen", kuerzel: "b", text: alle ? `Bestätigung von ${name} zurücknehmen` : `Als ${name} bestätigen`,
+      tun: () => this.personMarkieren(ids, !alle) };
+  }
+
+  bestaetigungZeile(b) {
+    const name = personLesen();
+    const namen = b.tags.filter((t) => t.name === "Torsten" || t.name === "Tina").map((t) => t.name);
+    const hat = name && this.bestaetigt(b, name);
+    return h("p", { class: "bestaetigung", tid: "buchung-bestaetigung" },
+      namen.length ? ["Bestätigt von ", namen.join(" und "), ". "] : "Noch von niemandem bestätigt. ",
+      name ? knopf(hat ? `Bestätigung von ${name} zurücknehmen` : `Als ${name} bestätigen`, {
+        tid: "buchung-bestaetigen", class: "knopf knopf-klein",
+        onclick: () => this.personMarkieren([b.id], !hat) }) : "Oben rechts wählen, wer du bist.");
+  }
+
+  async personMarkieren(ids, hinzu) {
+    const name = personLesen();
+    if (!name) { melde("hinweis", "Bitte oben rechts wählen, wer du bist."); return; }
+    try {
+      await aktion(async () => {
+        let t = stamm.tags.find((x) => x.name === name);
+        if (!t && hinzu) t = await api("POST", "/api/tags", { name });
+        if (!t) return null;
+        await api("POST", "/api/buchungen/mehrfach/tags", {
+          buchung_ids: ids, hinzufuegen: hinzu ? [t.id] : [], entfernen: hinzu ? [] : [t.id] });
+        // Importiert wird durch die Bestätigung der Person zu Bestätigt (D-159).
+        if (hinzu) {
+          const offen = ids.filter((id) => {
+            const x = this.eintraege.find((e) => e.id === id);
+            return x && x.status === "importiert";
+          }).sort((a, c) => a - c);
+          if (offen.length) await api("POST", "/api/buchungen/mehrfach/aendern", { buchung_ids: offen, status: "bestaetigt" });
+        }
+        return true;
+      }, { erfolg: hinzu ? `Als ${name} bestätigt.` : `Bestätigung von ${name} zurückgenommen.` });
+    } catch { /* gemeldet */ }
+  }
+
+  // ---------------------------------------------------------------- Tastaturkürzel (D-167)
+  /** Taste außerhalb von Textfeldern und Dialogen; true, wenn sie hier eine Wirkung hatte. */
+  kuerzel(e) {
+    if (e.ctrlKey || e.metaKey || e.altKey) return false;
+    if (document.activeElement && document.activeElement.closest(".baum, .kontextmenue")) return false;
+    const vor = this.vortaste || "";
+    if (vor) this.vortasteBeenden();
+    if (!vor && VORTASTEN[e.key]) { this.vortasteStarten(e.key); return true; }
+    const k = KUERZEL.find(([v, taste]) => v === vor && taste === e.key);
+    if (!k) {
+      if (vor && !["Shift", "CapsLock"].includes(e.key)) melde("hinweis", `„${vor} ${e.key}“ ist nicht belegt.`);
+      if (vor && ["Shift", "CapsLock"].includes(e.key)) this.vortasteStarten(vor);   // Umschalt allein bricht nicht ab
+      return !!vor;
+    }
+    Promise.resolve().then(() => k[3](this)).catch(() => { /* gemeldet */ });
+    return true;
+  }
+
+  /** Kürzel Nummer i aus der Befehlspalette ausführen. */
+  kuerzelAusfuehren(i) {
+    const k = KUERZEL[i];
+    if (k) Promise.resolve().then(() => k[3](this)).catch(() => { /* gemeldet */ });
+  }
+
+  vortasteStarten(vor) {
+    this.vortaste = vor;
+    if (!this.vortasteEl) {
+      this.vortasteEl = h("div", { class: "kuerzel-hinweis", tid: "kuerzel-hinweis", role: "status", "aria-live": "polite" });
+    }
+    const el = this.vortasteEl;
+    el.dataset.vortaste = vor;
+    el.replaceChildren(h("strong", null, `${VORTASTEN[vor]} (${vor}) – weiter mit:`),
+      h("ul", null, KUERZEL.filter(([v]) => v === vor).map(([, taste, text]) => h("li", null, h("kbd", null, taste), " ", text))),
+      h("span", { class: "klein" }, "Esc bricht ab"));
+    document.body.append(el);
+  }
+
+  vortasteBeenden() {
+    this.vortaste = "";
+    if (this.vortasteEl) this.vortasteEl.remove();
+  }
+
+  /** Markierte Buchungen, sonst die mit dem Fokus (wird dann markiert). */
+  mitZielen(wirkung) {
+    if (!this.auswahl.size && this.fokusId !== null && this.eintraege.some((b) => b.id === this.fokusId)) {
+      this.auswahl.add(this.fokusId);
+      this.anker = this.fokusId;
+      this.auswahlZeigen();
+    }
+    const ids = this.auswahlIds();
+    if (!ids.length) { melde("hinweis", "Keine Buchung markiert."); return undefined; }
+    const el = this.zeilen.get(this.fokusId) || this.zeilen.get(ids[0]) || this.liste;
+    return wirkung(ids, el);
+  }
+
+  einzeln(ids, wirkung) {
+    if (ids.length !== 1) { melde("hinweis", "Dafür genau eine Buchung markieren."); return undefined; }
+    return wirkung(this.eintraege.find((b) => b.id === ids[0]));
+  }
+
+  vorschlagTaste(ids, was) {
+    const mit = ids.filter((id) => (this.eintraege.find((b) => b.id === id) || {}).vorschlag);
+    if (!mit.length) { melde("hinweis", "Die markierten Buchungen haben keinen Vorschlag."); return undefined; }
+    return this.vorschlag(null, ids, was);
+  }
+
+  /** Offener Verdacht, sonst bei genau zwei Buchungen ein neues Paar (D-165). */
+  dubletteFuer(ids) {
+    const verdacht = this.dublettenVerdacht(ids);
+    const paar = ids.length === 2 && !verdacht ? {
+      id: null, buchung_id: ids[0], kandidat_ids: [ids[1]], grund: "manuell", status: "offen", vorschlag: true,
+    } : null;
+    return verdacht || paar;
+  }
+
+  filterLeisteNeu() {
+    const neu = this.filterAufbauen();
+    neu.hidden = !this.filterSichtbar;
+    this.filterLeiste.replaceWith(neu);
+    this.filterLeiste = neu;
+  }
+
+  filterLeisteTaste() {
+    this.filterUmschalten();
+    if (this.filterSichtbar) this.filterFokus("filter-von");
+    else this.listeFokussieren();
+  }
+
+  filterFokus(testid) {
+    if (!this.filterSichtbar) this.filterUmschalten();
+    const el = tid(testid, this.filterLeiste);
+    if (el) el.focus();
+  }
+
+  listeFokussieren() {
+    const id = this.fokusId ?? this.sichtbareIds()[0];
+    if (id !== undefined && id !== null) this.fokussieren(id);
+    else this.liste.focus();
+  }
+
+  filterWieBuchung(testid) {
+    const ids = this.auswahl.size ? this.auswahlIds() : (this.fokusId !== null ? [this.fokusId] : []);
+    if (ids.length !== 1) { melde("hinweis", "Dafür genau eine Buchung markieren."); return undefined; }
+    const b = this.eintraege.find((x) => x.id === ids[0]);
+    const e = this.filterEintrag(b).kinder.find((k) => k.tid === testid);
+    if (!e || e.aktiv === false) { melde("hinweis", "Die Buchung hat keinen Empfänger."); return undefined; }
+    return e.tun();
+  }
+
+  zeitraum(art) {
+    const heute = new Date();
+    const zwei = (n) => String(n).padStart(2, "0");
+    const tag = (j, m, t) => `${j}-${zwei(m)}-${zwei(t)}`;
+    let j = heute.getFullYear();
+    let m = heute.getMonth() + 1;
+    if (art === "jahr") return this.filterAnwenden({ von: tag(j, 1, 1), bis: tag(j, 12, 31) });
+    if (art === "letzter") { m -= 1; if (m === 0) { m = 12; j -= 1; } }
+    const letzter = new Date(j, m, 0).getDate();
+    return this.filterAnwenden({ von: tag(j, m, 1), bis: tag(j, m, letzter) });
+  }
+
+  sortierungWechseln(umkehren) {
+    const sort = this.sortierung;
+    const ab = sort.startsWith("-");
+    const feld = sort.replace(/^-/, "");
+    if (umkehren) return this.filterSetzen("sortierung", ab ? feld : "-" + feld);
+    const felder = this.spalten.filter(([, , sortierbar]) => sortierbar).map(([f]) => f);
+    const neu = felder[(felder.indexOf(feld) + 1) % felder.length];
+    melde("hinweis", `Sortiert nach ${this.spalten.find(([f]) => f === neu)[1]}.`);
+    return this.filterSetzen("sortierung", (ab ? "-" : "") + neu);
+  }
+
+  panelUmschalten(p) {
+    if (oberflaeche.istMobil()) return;
+    const l = this.layout.panels[p];
+    l.eingeklappt = !l.eingeklappt;
+    this.layoutAnwenden();
+    if (p === "details" && !l.eingeklappt) this.detailsZeichnen();
+  }
+
   // ---------------------------------------------------------------- Kontextmenü (8.2)
   auswahlIds() { return this.ids().filter((x) => this.auswahl.has(x)); }
+
+  /** Filter aus der gewählten Buchung. Gleich ist derselbe Empfänger bzw. derselbe Text,
+   * ähnlich ein gemeinsamer Namensanfang oder ein gemeinsames Wort (D-158). */
+  filterEintrag(b) {
+    const zweck = b ? b.verwendungszweck : "";
+    const genau = zweck
+      ? { zweck_gleich: zweck, zweck_aehnlich: "", zweck_leer: "", verwendungszweck: "" }
+      : { zweck_leer: "true", zweck_gleich: "", zweck_aehnlich: "", verwendungszweck: "" };
+    const aehnlich = zweck
+      ? { zweck_aehnlich: zweck, zweck_gleich: "", zweck_leer: "", verwendungszweck: "" }
+      : { zweck_leer: "true", zweck_gleich: "", zweck_aehnlich: "", verwendungszweck: "" };
+    return { tid: "km-filter", text: "Filter", aktiv: !!b, kinder: [
+      { tid: "km-filter-empfaenger", text: "gleicher Empfänger", aktiv: !!(b && b.empfaenger),
+        tun: () => this.filterAnwenden({ empfaenger_id: String(b.empfaenger.id), ohne_empfaenger: "", empfaenger_aehnlich: "" }) },
+      { tid: "km-filter-zweck", text: "Gleicher Verwendungszweck", tun: () => this.filterAnwenden(genau) },
+      { tid: "km-filter-zweck-aehnlich", text: "ähnlicher Verwendungszweck", tun: () => this.filterAnwenden(aehnlich) },
+      { tid: "km-filter-empfaenger-aehnlich", text: "ähnlicher Empfänger", aktiv: !!(b && b.empfaenger),
+        tun: () => this.filterAnwenden({ empfaenger_aehnlich: b.empfaenger.name, empfaenger_id: "", ohne_empfaenger: "" }) },
+    ] };
+  }
+
+  async filterAnwenden(teil) {
+    const neu = { ...this.filter };
+    for (const [k, v] of Object.entries(teil)) {
+      if (v === null || v === undefined || v === "") delete neu[k];
+      else neu[k] = v;
+    }
+    this.filter = neu;
+    this.auswahl.clear();
+    this.anker = null;
+    this.seiten = 1;
+    this.urlSchreiben();
+    if (!this.filterSichtbar) {
+      this.filterSichtbar = true;
+      this.filterKnopf.setAttribute("aria-expanded", "true");
+    }
+    const leiste = this.filterAufbauen();
+    leiste.hidden = false;
+    this.filterLeiste.replaceWith(leiste);
+    this.filterLeiste = leiste;
+    await this.laden();
+  }
+
+  /** Offener Dublettenverdacht: eine Buchung wie bisher, oder genau das gewählte Paar. */
+  dublettenVerdacht(ids) {
+    if (ids.length === 1) {
+      const id = ids[0];
+      return this.verdachte.find((v) => v.buchung_id === id || v.kandidat_ids.includes(id)) || null;
+    }
+    if (ids.length === 2) {
+      return this.verdachte.find((v) => {
+        const alle = [v.buchung_id, ...v.kandidat_ids];
+        return alle.length === 2 && alle.includes(ids[0]) && alle.includes(ids[1]);
+      }) || null;
+    }
+    return null;
+  }
 
   menue(x, y, ausloeser, alt = false) {
     const ids = this.auswahlIds();
     const eine = ids.length === 1;
     const mitVorschlag = this.eintraege.some((b) => this.auswahl.has(b.id) && b.vorschlag);
-    const verdacht = eine ? this.verdachte.find((v) => v.buchung_id === ids[0] || v.kandidat_ids.includes(ids[0])) : null;
+    const dublette = this.dubletteFuer(ids);
     const b = eine ? this.eintraege.find((x2) => x2.id === ids[0]) : null;
     kontextmenue(x, y, [
-      { tid: "km-kategorie", text: "Kategorie setzen…", tun: () => this.kategorieWaehlen(ids, ausloeser) },
-      { tid: "km-tags", text: "Tags…", tun: () => tagAuswahl(ids, ausloeser) },
-      { tid: "km-splitten", text: "Splitten…", aktiv: eine, tun: () => splitDialog(b, ausloeser) },
-      { tid: "km-dublette", text: "Als Dublette markieren…", aktiv: !!verdacht, tun: () => dubletteDialog(verdacht, ausloeser) },
-      { tid: "km-vorschlag-annehmen", text: "Vorschlag annehmen", aktiv: mitVorschlag, tun: () => this.vorschlag(null, ids, "annehmen") },
-      { tid: "km-vorschlag-ablehnen", text: "Vorschlag ablehnen", aktiv: mitVorschlag, tun: () => this.vorschlag(null, ids, "ablehnen") },
-      { tid: "km-bearbeiten", text: "Verwendungszweck bearbeiten", aktiv: eine, tun: () => this.bearbeiten(ids[0], "verwendungszweck") },
-      { tid: "km-status", text: "Status setzen…", tun: () => this.statusWaehlen(ids, ausloeser) },
-      { tid: "km-mehrfach", text: "Bearbeiten…", tun: () => this.mehrfachDialog(ids, ausloeser) },
+      { tid: "km-kategorie", kuerzel: "k", text: "Kategorie setzen…", tun: () => this.kategorieWaehlen(ids, ausloeser) },
+      { tid: "km-tags", kuerzel: "t", text: "Tags…", tun: () => tagAuswahl(ids, ausloeser) },
+      { tid: "km-splitten", kuerzel: "x", text: "Splitten…", aktiv: eine, tun: () => splitDialog(b, ausloeser) },
+      { tid: "km-dublette", kuerzel: "d", text: "Als Dublette markieren…", aktiv: !!dublette,
+        tun: () => { if (dublette) dubletteDialog(dublette, ausloeser); } },
+      { tid: "km-vorschlag-annehmen", kuerzel: "a", text: "Vorschlag annehmen", aktiv: mitVorschlag, tun: () => this.vorschlag(null, ids, "annehmen") },
+      { tid: "km-vorschlag-ablehnen", kuerzel: "⇧A", text: "Vorschlag ablehnen", aktiv: mitVorschlag, tun: () => this.vorschlag(null, ids, "ablehnen") },
+      { tid: "km-bearbeiten", kuerzel: "F2", text: "Verwendungszweck bearbeiten", aktiv: eine, tun: () => this.bearbeiten(ids[0], "verwendungszweck") },
+      { tid: "km-status", kuerzel: "s", text: "Status setzen…", tun: () => this.statusWaehlen(ids, ausloeser) },
+      this.bestaetigenEintrag(ids),
+      this.filterEintrag(b),
+      { tid: "km-mehrfach", kuerzel: "e", text: "Bearbeiten…", tun: () => this.mehrfachDialog(ids, ausloeser) },
       this.gegenbuchungEintrag(b, x, y, ausloeser),
       // Dokumente (D-123): an alle gewählten Buchungen
-      { tid: "km-dokument-anhaengen", text: "Dokument anhängen…", tun: () => dateiWaehlen(ids) },
+      { tid: "km-dokument-anhaengen", kuerzel: "m", text: "Dokument anhängen…", tun: () => dateiWaehlen(ids) },
       oberflaeche.istMobil() ? { tid: "km-dokument-foto", text: "Foto aufnehmen…", tun: () => dateiWaehlen(ids, { kamera: true }) } : null,
-      { tid: "km-dokument-mail", text: "E-Mail anhängen…", tun: () => mailDialog(ids, ausloeser) },
+      { tid: "km-dokument-mail", kuerzel: "⇧M", text: "E-Mail anhängen…", tun: () => mailDialog(ids, ausloeser) },
       { tid: "km-dokumente-ansehen", text: "Dokumente ansehen", aktiv: !!(b && b.belege && b.belege.length),
         tun: () => betrachter(b.belege, 0, ausloeser) },
-      ...(this.istKategorie ? [] : [{ tid: "km-verschieben", text: "Auf anderes Konto verschieben…",
-        tun: () => this.verschiebenDialog(ids, ausloeser) }]),
-      { tid: "km-loeschen", text: "Löschen…", tun: () => this.loeschen(ausloeser) },
-      // Versteckt (D-116): nur mit gedrückter Alt-Taste
-      alt ? { tid: "km-wiederkehrend", text: "Warum (nicht) wiederkehrend?", aktiv: eine,
-        tun: () => begruendungZeigen(ids[0], ausloeser) } : null,
+      // Verschieben nur mit gehaltener Alt-Taste, auf dem Handy im Menü (D-160)
+      ...(!this.istKategorie && (alt || oberflaeche.istMobil()) ? [{ tid: "km-verschieben",
+        text: "Auf anderes Konto verschieben…", tun: () => this.verschiebenDialog(ids, ausloeser) }] : []),
+      { tid: "km-loeschen", kuerzel: "Entf", text: "Löschen…", tun: () => this.loeschen(ausloeser) },
     ].filter(Boolean), ausloeser);
   }
 
@@ -1286,7 +2047,7 @@ class Kontoansicht {
   gegenbuchungEintrag(b, x, y, ausloeser) {
     const ziele = this.gegenkonten(b);
     const mehrere = ziele.length > 1;
-    return { tid: "km-gegenbuchung", text: mehrere ? "Gehe zur Gegenbuchung…" : "Gehe zur Gegenbuchung",
+    return { tid: "km-gegenbuchung", kuerzel: "g", text: mehrere ? "Gehe zur Gegenbuchung…" : "Gehe zur Gegenbuchung",
       aktiv: ziele.length > 0, tun: () => {
         if (!mehrere) return oberflaeche.zurBuchung(ziele[0], b.id);
         // mehrere Gegenseiten: Auswahl als Untermenü an derselben Stelle
@@ -1324,11 +2085,12 @@ class Kontoansicht {
   sprungMarkieren(id) {
     this.auswahl = new Set([id]);
     this.anker = id;
+    if (this.virtual) this.slotZeigen(id, "center");
     this.fokussieren(id);
     const z = this.zeilen.get(id);
     if (!z) return;
     const links = this.listenSpalte ? this.listenSpalte.scrollLeft : 0;
-    z.scrollIntoView({ block: "center" });
+    if (!this.virtual) z.scrollIntoView({ block: "center" });
     if (this.listenSpalte) this.listenSpalte.scrollLeft = links;
     z.classList.add("sprung-ziel");
     setTimeout(() => z.classList.remove("sprung-ziel"), 2000);
@@ -1345,7 +2107,8 @@ class Kontoansicht {
     k("mehrfach-bearbeiten", "Bearbeiten…", (el) => this.mehrfachDialog(this.auswahlIds(), el)),
     k("mehrfach-vorschlag-annehmen", "Vorschläge annehmen", () => this.vorschlag(null, this.auswahlIds(), "annehmen")),
     k("mehrfach-vorschlag-ablehnen", "Vorschläge ablehnen", () => this.vorschlag(null, this.auswahlIds(), "ablehnen")),
-    this.istKategorie ? null : k("mehrfach-verschieben", "Verschieben…", (el) => this.verschiebenDialog(this.auswahlIds(), el)),
+    this.istKategorie ? null : knopf("Verschieben…", { tid: "mehrfach-verschieben", class: "knopf nur-mobil",
+      onclick: (e) => this.verschiebenDialog(this.auswahlIds(), e.currentTarget) }),
     k("mehrfach-loeschen", "Löschen…", (el) => this.loeschen(el)),
     k("auswahl-aufheben", "Auswahl aufheben", () => { this.auswahl.clear(); this.auswahlZeigen(); }),
     // mobil (D-141): alle übrigen Aktionen über das Kontextmenü der Auswahl

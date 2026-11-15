@@ -78,9 +78,20 @@ HANDY = {"viewport": {"width": 390, "height": 844}, "device_scale_factor": 3, "i
 DESKTOP = {"viewport": {"width": 1280, "height": 800}}
 
 
+PERSON_VORAB = "try { if (!localStorage.getItem('kontor.person')) localStorage.setItem('kontor.person', 'Torsten'); } catch (e) {}"
+
+
+def person_vorab(ctx, person):
+    """D-155: Ohne gewählte Person fragt Kontor beim Öffnen „Wer bist du?“. Die Rauchtests wählen vorab Torsten,
+    außer ``person=None`` (Test des Dialogs selbst)."""
+    if person:
+        ctx.add_init_script(PERSON_VORAB.replace("Torsten", person))
+
+
 @contextlib.contextmanager
-def seite(browser, url, **kw):
+def seite(browser, url, *, person: str | None = "Torsten", **kw):
     ctx = browser.new_context(locale="de-DE", timezone_id="Europe/Berlin", reduced_motion="reduce", **kw)
+    person_vorab(ctx, person)
     ctx.set_default_timeout(10_000)
     page = ctx.new_page()
     fehler: list[str] = []
@@ -130,7 +141,8 @@ def test_desktop_ablauf(tmp_path, browser):
         # Inline-Bearbeitung und Rückgängig über das Protokoll
         zweck = zeilen.nth(1).locator('[data-feld="verwendungszweck"]')
         alt = zweck.inner_text()
-        zweck.dblclick()
+        zeilen.nth(1).locator('[data-feld="datum"]').click()
+        tid(page, "stift-verwendungszweck").click()
         tid(page, "inline-editor").fill("Geändert <b>&</b>")
         page.keyboard.press("Enter")
         expect(zweck).to_have_text("Geändert <b>&</b>")
@@ -278,42 +290,6 @@ def test_mobil_karten_und_wischhinweis(tmp_path, browser):
             expect(tid(page, "kategorie-auswahl-suche")).not_to_be_focused()
 
 
-def test_mobil_wiederkehrend_karten(tmp_path, browser):
-    """D-142: wiederkehrende Buchungen mobil als feste Karte; Tippen auf die Karte öffnet die Aktionen."""
-    import httpx
-
-    with server(tmp_path, daten=False) as (url, _):
-        with httpx.Client(base_url=url, trust_env=False) as c:
-            giro = c.post("/api/konten", json={"name": "Giro", "art": "girokonto"}).json()["id"]
-            kat = c.post("/api/konten", json={"name": "Telefon", "art": "aufwand"}).json()["id"]
-            e = c.post("/api/empfaenger", json={"name": "Netzfunk Internet und Telefon GmbH (fiktiv)"}).json()["id"]
-            for monat in range(1, 7):
-                r = c.post("/api/buchungen", json={"datum": f"2024-{monat:02d}-15", "empfaenger_id": e, "splits": [
-                    {"konto_id": giro, "betrag": -4539}, {"konto_id": kat, "betrag": 4539}]})
-                assert r.status_code == 201, r.text
-        with seite(browser, url, **DESKTOP) as page:      # Desktop bleibt eine Tabelle
-            page.goto(url + "/wiederkehrend")
-            bereit(page, "wiederkehrend")
-            t = tid(page, "wiederkehrend-tabelle")
-            expect(t.locator("thead")).to_be_visible()
-            assert t.locator("tbody tr").first.evaluate("e => getComputedStyle(e).display") == "table-row"
-        with seite(browser, url, **HANDY) as page:
-            page.goto(url + "/wiederkehrend")
-            bereit(page, "wiederkehrend")
-            t = tid(page, "wiederkehrend-tabelle")
-            expect(t.locator("thead")).to_be_hidden()
-            tr = t.locator("tbody tr").first
-            titel, betrag, jahr = (tr.locator(f'[data-mk="{m}"]').bounding_box() for m in ("titel", "betrag", "wk-jahr"))
-            karte = tr.bounding_box()
-            assert abs(titel["y"] - betrag["y"]) < 8, "Empfänger und Betrag in einer Zeile"
-            assert jahr["y"] > betrag["y"] + 10, "Jahreskosten darunter"
-            assert abs((betrag["x"] + betrag["width"]) - (jahr["x"] + jahr["width"])) < 2, "Beträge rechtsbündig untereinander"
-            assert karte["x"] + karte["width"] - (betrag["x"] + betrag["width"]) < 24, "Betrag am rechten Rand"
-            assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
-            tr.locator('[data-mk="titel"]').tap()
-            expect(tid(page, "km-serie-begruendung")).to_be_visible()
-
-
 def test_service_worker_und_offline(tmp_path, browser):
     with server(tmp_path) as (url, _), seite(browser, url, **DESKTOP) as page:
         page.goto(url + "/kategorien")
@@ -373,7 +349,8 @@ def test_sammelpaket_loeschen_verschieben_bis(tmp_path, browser):
         # drei Buchungen verschieben: eine Änderung
         zeilen.nth(0).locator('[data-feld="datum"]').click()
         zeilen.nth(2).locator('[data-feld="datum"]').click(modifiers=["Shift"])
-        tid(page, "mehrfach-verschieben").click()
+        zeilen.nth(2).click(button="right", modifiers=["Alt"])
+        tid(page, "km-verschieben").click()
         tid(page, "verschieben-ziel").select_option(label="Zweitkonto")
         tid(page, "verschieben-ok").click()
         expect(zeilen).to_have_count(17)
@@ -567,3 +544,38 @@ def test_bericht_sprung_mobil_mit_nachladen_nicht_verdeckt(tmp_path, browser):
             const oben = document.elementFromPoint(b.left + 5, b.top + b.height / 2);
             return b.top >= 0 && b.bottom <= unten && !!oben && oben.closest('[data-id]') === r;
         }""")
+
+
+def test_person_dialog_beim_oeffnen_und_wechseln(tmp_path, browser):
+    """D-155/D-168: Ohne gewählte Person fragt Kontor beim Öffnen, ohne Abbrechen; danach steht der Name oben rechts
+    und lässt sich wechseln (mit Abbrechen). Der Dialog zeigt keinen leeren Rest („null“)."""
+    with server(tmp_path, daten=False) as (url, _), seite(browser, url, person=None, **DESKTOP) as page:
+        page.goto(url + "/")
+        d = tid(page, "person-dialog")
+        expect(d).to_be_visible()
+        expect(d).not_to_contain_text("null")
+        expect(tid(page, "person-abbrechen")).to_have_count(0)
+        tid(page, "person-tina").click()
+        expect(d).to_have_count(0)
+        expect(tid(page, "person-knopf")).to_have_text("Tina")
+        tid(page, "person-knopf").click()
+        expect(d).to_be_visible()
+        expect(d).not_to_contain_text("null")
+        tid(page, "person-abbrechen").click()
+        expect(d).to_have_count(0)
+        page.reload()
+        bereit(page, "uebersicht")
+        expect(tid(page, "person-dialog")).to_have_count(0)
+        expect(tid(page, "person-knopf")).to_have_text("Tina")
+
+
+def test_person_knopf_mobil_passt_in_kopfleiste(tmp_path, browser):
+    """D-168: Mobil zeigt der Knopf nur den Anfangsbuchstaben; die Seite bleibt so breit wie das Gerät (390 px)."""
+    with server(tmp_path) as (url, _), seite(browser, url, **HANDY) as page:
+        page.goto(url + "/konten/1")
+        bereit(page, "konto")
+        k = tid(page, "person-knopf")
+        expect(k).to_have_attribute("data-kurz", "T")
+        expect(k).to_have_attribute("aria-label", re.compile("Torsten"))
+        assert page.evaluate("window.innerWidth") == 390
+        assert k.bounding_box()["x"] + k.bounding_box()["width"] <= 390

@@ -5,7 +5,7 @@ import {
 import { bestaetigen, dialog, feld, imDialog, knopf, knopfLeiste, kontextmenue, menuePosition } from "./ui.js";
 import { betrachter } from "./dokumente.js";
 
-const GRUND = { bestellung: "Bestellung", paypal: "PayPal", rueckerstattung: "Rückerstattung", serie: "Serie",
+const GRUND = { bestellung: "Bestellung", paypal: "PayPal", rueckerstattung: "Rückerstattung",
   manuell: "Manuell" };
 const ZUSTAND = { offen: "offen", erfuellt: "erfüllt", guthaben: "aus Guthaben", storniert: "storniert",
   erledigt: "erledigt" };
@@ -41,7 +41,6 @@ function zustandSchreiben(f) {
 
 function apiParameter(f) {
   const p = new URLSearchParams();
-  if (!f.gruende.length) p.set("serien", "ja");  // D-139: Serien nur auf Anfrage
   for (const g of f.gruende) p.append("grund", g);
   for (const c of ZUSTAND_CHIPS) if (f.zustaende.includes(c[0])) for (const z of c[2]) p.append("zustand", z);
   if (f.faellig !== "") p.set("faellig_bis", plusTage(Number(f.faellig)));
@@ -120,10 +119,10 @@ export async function erwartetSeite(seite, _param, suche) {
     h("td", { class: "e-kennung" }, e.kennung || e.referenz || ""),
     betragEl("td", e.vorzeichen_betrag, { class: "zahl e-betrag" }), h("td", { class: "e-zustand" }, zustandText),
     h("td", { class: "aktionen e-aktionen" }, mehr));
-    tr.addEventListener("dblclick", () => (e.grund === "serie" ? oberflaeche.gehe("/wiederkehrend") : details(e.id, tr)));
+    tr.addEventListener("dblclick", () => details(e.id, tr));
     tr.addEventListener("keydown", (ev) => {
       if (ev.target !== tr) return;
-      if (ev.key === "Enter") { ev.preventDefault(); if (e.grund === "serie") oberflaeche.gehe("/wiederkehrend"); else details(e.id, tr); }
+      if (ev.key === "Enter") { ev.preventDefault(); details(e.id, tr); }
       if ((ev.key === "F10" && ev.shiftKey) || ev.key === "ContextMenu") {
         ev.preventDefault(); const [x, y] = menuePosition(null, tr); menue(e, x, y, tr);
       }
@@ -133,11 +132,6 @@ export async function erwartetSeite(seite, _param, suche) {
   }
 
   function menue(e, x, y, ausloeser) {
-    if (e.grund === "serie") {  // abgeleitet aus den wiederkehrenden Buchungen: dort ansehen
-      kontextmenue(x, y, [{ tid: "km-erwartung-serie", text: "Serie ansehen", tun: () => oberflaeche.gehe("/wiederkehrend") },
-        { tid: "km-erwartung-konto", text: "Konto öffnen", tun: () => oberflaeche.gehe(`/konten/${e.konto_id}`) }], ausloeser);
-      return;
-    }
     const offen = e.zustand === "offen";
     kontextmenue(x, y, [
       { tid: "km-erwartung-details", text: "Details und Zuordnung…", tun: () => details(e.id, ausloeser) },
@@ -219,10 +213,12 @@ export async function erwartetSeite(seite, _param, suche) {
         e.beschreibung ? [h("dt", null, "Artikel / Beschreibung"), h("dd", null, e.beschreibung)] : null));
       if (e.mail_eintraege.length) {
         inhalt.append(h("h3", null, "Mails"), h("ul", { tid: "erwartung-mails" }, e.mail_eintraege.map((m) =>
-          h("li", null, `${datumText(m.empfangen)} – ${m.betreff}`, m.spiegel_id ? "" : " (nicht mehr im Postfach-Spiegel)"))));
+          h("li", null, `${datumText(m.empfangen)} – ${m.betreff || "(ohne Betreff)"}`,
+            m.spiegel_id ? "" : " (nicht mehr im Postfach-Spiegel)"))));
       }
       const buchungen = h("ul", { tid: "erwartung-buchungen" }, e.buchungen.map((b) => h("li", null,
-        `${datumText(b.datum)} · ${b.konto} · `, betragEl("span", b.betrag), ` · ${b.empfaenger || b.verwendungszweck || ""} `,
+        `${datumText(b.datum)} · ${b.konto || "Konto"} · `, betragEl("span", b.betrag),
+        ` · ${b.empfaenger || b.verwendungszweck || ""} `,
         knopf("Zeigen", { class: "knopf-flach", onclick: () => { d.schliessen(null); oberflaeche.gehe(`/konten/${b.konto_id}?buchung=${b.id}`); } }),
         knopf("Lösen", { class: "knopf-flach", tid: `erwartung-loesen-${b.id}`, onclick: async () => {
           try { await aktion(() => api("DELETE", `/api/erwartungen/${e.id}/buchungen/${b.id}`)); } catch (err) { d.fehler(err.message); return; }
@@ -241,7 +237,8 @@ export async function erwartetSeite(seite, _param, suche) {
         inhalt.append(h("h3", null, "Passende Buchungen"), kandEl);
         api("GET", `/api/erwartungen/${e.id}/kandidaten`).then((k) => {
           kandEl.replaceChildren(k.eintraege.length ? h("ul", null, k.eintraege.map((b) => h("li", { tid: `kandidat-${b.id}` },
-            `${datumText(b.datum)} · ${b.konto} · `, betragEl("span", b.betrag), ` · ${b.empfaenger || ""} ${b.verwendungszweck || ""} `,
+            `${datumText(b.datum)} · ${b.konto || "Konto"} · `, betragEl("span", b.betrag),
+            ` · ${b.empfaenger || ""} ${b.verwendungszweck || ""} `,
             b.kennung_passt ? h("span", { class: "marke" }, "Kennung") : null,
             b.betrag_gleich ? h("span", { class: "marke" }, "Betrag") : null,
             knopf("Zuordnen", { class: "knopf knopf-haupt", tid: `kandidat-zuordnen-${b.id}`, onclick: async () => {

@@ -47,21 +47,37 @@
   </header>
   <div class="koerper">
     <nav class="navigation" id="navigation" data-testid="navigation" aria-label="Hauptnavigation">
-      <a href="/" data-testid="nav-uebersicht">Finanzübersicht</a>
-      <a href="/konten" data-testid="nav-konten">Konten</a>
-      <a href="/kategorien" data-testid="nav-kategorien">Kategorien</a>
-      <a href="/wiederkehrend" data-testid="nav-wiederkehrend">Wiederkehrende Buchungen</a>
-      <a href="/erwartet" data-testid="navlink-erwartet" class="nav-zusatz">Was kommt noch?</a>
-      <a href="/kredite" data-testid="nav-kredite">Kredite</a>
-      <a href="/berichte" data-testid="nav-berichte">Berichte</a>
-      <a href="/import" data-testid="nav-import">Import</a>
-      <a href="/einstellungen" data-testid="nav-einstellungen">Einstellungen</a>
-      <a href="/protokoll" data-testid="nav-protokoll">Änderungsprotokoll</a>
-      <a href="/empfaenger" data-testid="nav-empfaenger">Empfänger</a>
-      <a href="/regeln" data-testid="nav-regeln">Regeln</a>
-      <a href="/vorlagen" data-testid="nav-vorlagen">Split-Vorlagen</a>
-      <a href="/dubletten" data-testid="nav-dubletten">Dubletten</a>
-      <a href="/sync" data-testid="nav-sync">Synchronisation</a>
+      <section class="nav-gruppe nav-ton-buchhaltung" aria-labelledby="nav-gruppe-buchhaltung">
+        <h2 id="nav-gruppe-buchhaltung" class="nav-ueberschrift" data-testid="nav-gruppe-buchhaltung">Buchhaltung</h2>
+        <a href="/" data-testid="nav-uebersicht">Finanzübersicht</a>
+        <a href="/konten" data-testid="nav-konten">Konten</a>
+        <a href="/kategorien" data-testid="nav-kategorien">Kategorien</a>
+        <a href="/empfaenger" data-testid="nav-empfaenger">Empfänger</a>
+        <a href="/kredite" data-testid="nav-kredite">Kredite</a>
+      </section>
+      <section class="nav-gruppe nav-ton-zahlungen" aria-labelledby="nav-gruppe-zahlungen">
+        <h2 id="nav-gruppe-zahlungen" class="nav-ueberschrift" data-testid="nav-gruppe-zahlungen">Zahlungen</h2>
+        <a href="/erwartet" data-testid="navlink-erwartet" class="nav-zusatz">Was kommt noch?</a>
+        <a href="/mail" data-testid="navlink-mail">Mail-Blatt</a>
+      </section>
+      <section class="nav-gruppe nav-ton-auswertung" aria-labelledby="nav-gruppe-auswertung">
+        <h2 id="nav-gruppe-auswertung" class="nav-ueberschrift" data-testid="nav-gruppe-auswertung">Auswertung</h2>
+        <a href="/berichte" data-testid="nav-berichte">Berichte</a>
+        <a href="/statistik" data-testid="navlink-statistik">Statistische Analyse</a>
+      </section>
+      <section class="nav-gruppe nav-ton-regeln" aria-labelledby="nav-gruppe-regeln">
+        <h2 id="nav-gruppe-regeln" class="nav-ueberschrift" data-testid="nav-gruppe-regeln">Regeln</h2>
+        <a href="/regeln" data-testid="nav-regeln">Regeln</a>
+        <a href="/vorlagen" data-testid="nav-vorlagen">Split-Vorlagen</a>
+        <a href="/dubletten" data-testid="nav-dubletten">Dubletten</a>
+      </section>
+      <section class="nav-gruppe nav-ton-betrieb" aria-labelledby="nav-gruppe-betrieb">
+        <h2 id="nav-gruppe-betrieb" class="nav-ueberschrift" data-testid="nav-gruppe-betrieb">Betrieb</h2>
+        <a href="/import" data-testid="nav-import">Import</a>
+        <a href="/sync" data-testid="nav-sync">Synchronisation</a>
+        <a href="/protokoll" data-testid="nav-protokoll">Änderungsprotokoll</a>
+        <a href="/einstellungen" data-testid="nav-einstellungen">Einstellungen</a>
+      </section>
       <button type="button" class="version-knopf" id="version-knopf" data-testid="version-knopf" aria-haspopup="dialog"
               title="Über Kontor">Version {{VERSION}}</button>
     </nav>

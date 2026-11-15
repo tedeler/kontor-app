@@ -233,6 +233,14 @@ CREATE TABLE IF NOT EXISTS empfaenger_alias (
 );
 CREATE INDEX IF NOT EXISTS empfaenger_alias_empfaenger ON empfaenger_alias(empfaenger_id);
 
+-- Bestätigung eines Empfängers durch eine Person (D-156), dieselben Tags wie an Buchungen.
+CREATE TABLE IF NOT EXISTS empfaenger_tag (
+    empfaenger_id INTEGER NOT NULL REFERENCES empfaenger(id) ON DELETE CASCADE,
+    tag_id INTEGER NOT NULL REFERENCES tag(id) ON DELETE CASCADE,
+    PRIMARY KEY (empfaenger_id, tag_id)
+);
+CREATE INDEX IF NOT EXISTS empfaenger_tag_tag ON empfaenger_tag(tag_id);
+
 -- Kontenabstimmungen (buchhaltungspflege.md 5).
 CREATE TABLE IF NOT EXISTS abstimmung (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

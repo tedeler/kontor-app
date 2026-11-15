@@ -21,6 +21,30 @@ def ekey(s: str | None) -> str | None:
     return _NICHT_ALNUM.sub("", norm(s))
 
 
+def woerter(s: str | None, mindest: int = 4) -> list[str]:
+    """Normierte Wörter ab ``mindest`` Buchstaben, reine Ziffernfolgen ausgelassen, ohne Doppelte."""
+    aus: list[str] = []
+    for w in _NICHT_ALNUM.split(norm(s)):
+        if len(w) < mindest or w.isdigit() or w in aus:
+            continue
+        aus.append(w)
+    return aus
+
+
+def namen_aehnlich(a: str | None, b: str | None) -> bool:
+    """Empfängernamen gelten als ähnlich, wenn ihr Vergleichsschlüssel gleich ist oder der gemeinsame
+    Anfang mindestens vier Zeichen lang ist (D-158)."""
+    ka, kb = ekey(a) or "", ekey(b) or ""
+    if not ka or not kb:
+        return False
+    n = 0
+    for x, y in zip(ka, kb):
+        if x != y:
+            break
+        n += 1
+    return n >= 4
+
+
 def passend(a: str | None, b: str | None) -> bool:
     """Zwei Empfänger sind passend, wenn beide fehlen oder ekey gleich und nicht leer ist."""
     if a is None and b is None:

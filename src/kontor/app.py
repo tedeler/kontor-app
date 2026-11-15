@@ -30,7 +30,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.staticfiles import StaticFiles
 
 from . import (__version__, berichte, buch, db, export, kredite, lernmodell, mail, pflege, protokoll, regeln,
-               sicherung, verschieben, vorlagen, wiederkehrend)
+               sicherung, statistik, verschieben, vorlagen, wiederkehrend)
 from . import aktualisierung
 from . import abgleich, dokumente, erwartung
 from . import anmeldung as anm
@@ -50,7 +50,7 @@ log = logging.getLogger("kontor")
 
 WEB = pathlib.Path(__file__).parent / "web"
 #: Routen der Oberfläche (oberflaeche.md 3) und Links aus Benachrichtigungen (/buchungen/<id>, /sync/konten)
-SPA_ROUTEN = ["/", "/konten", "/konten/{konto_id:int}", "/kategorien", "/wiederkehrend", "/erwartet", "/kredite",
+SPA_ROUTEN = ["/", "/konten", "/konten/{konto_id:int}", "/kategorien", "/erwartet", "/mail", "/statistik", "/kredite",
               "/kredite/{kredit_id:int}", "/berichte", "/import", "/einstellungen", "/protokoll", "/empfaenger", "/regeln",
               "/vorlagen", "/dubletten", "/sync", "/sync/konten", "/benachrichtigungen", "/suche", "/tan/{tan_id:int}",
               "/mail/postfaecher/{postfach_id:int}", "/buchungen/{buchung_id:int}"]
@@ -147,7 +147,8 @@ ALIASE = S("str_liste", strip=True, min_len=1, max_len=200, max_items=100)
 EMPFAENGER_NEU = {"name": S("str", pflicht=True, strip=True, min_len=1, max_len=200), "aliase": ALIASE,
                   "standardkategorie_id": S("int", nullbar=True)}
 EMPFAENGER_AENDERUNG = {"name": S("str", strip=True, min_len=1, max_len=200), "aliase": ALIASE,
-                        "standardkategorie_id": S("int", nullbar=True)}
+                        "standardkategorie_id": S("int", nullbar=True),
+                        "tag_ids": S("int_liste", max_items=50, eindeutig=True)}
 EMPFAENGER_ZUSAMMEN = {"quelle_ids": S("int_liste", pflicht=True, min_items=1, max_items=100, eindeutig=True),
                        # M11 (buchhaltungspflege.md 10): optionaler neuer Name des Ziels
                        "name": S("str", strip=True, min_len=1, max_len=200)}
@@ -231,6 +232,7 @@ DUBLETTE_AUFLOESEN = {
     "entscheidung": S("enum", pflicht=True, werte=("zusammenfuehren", "keine_dublette")),
     "behalten_id": S("int"),
 }
+DUBLETTE_ANLEGEN = {"buchung_ids": S("int_liste", pflicht=True, min_items=2, max_items=50, eindeutig=True)}
 
 
 # ------------------------------------------------------------- App-Fabrik
@@ -531,6 +533,10 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
             "empfaenger_id": q.ganzzahl("empfaenger_id"),
             "ohne_empfaenger": q.wahrheitswert("ohne_empfaenger") or False,
             "verwendungszweck": q.text("verwendungszweck", 1),
+            "zweck_gleich": q.text("zweck_gleich", 1),
+            "zweck_aehnlich": q.text("zweck_aehnlich", 1),
+            "zweck_leer": q.wahrheitswert("zweck_leer") or False,
+            "empfaenger_aehnlich": q.text("empfaenger_aehnlich", 1),
             "suche": q.text("suche", 1),
             "status": q.auswahlen("status", STATUS),
             "vorschlag": q.wahrheitswert("vorschlag"),
@@ -941,8 +947,10 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
         postfach_id = q.ganzzahl("postfach_id")
         seite = q.ganzzahl("seite", minimum=1)
         pro_seite = q.ganzzahl("pro_seite", minimum=1, maximum=500)
+        zuordnung = q.auswahl("zuordnung", ("zugeordnet", "erwartet", "keine"))
         q.pruefen()
-        return await lesen(maildienst.nachrichten_liste, postfach_id, seite or 1, pro_seite or 50)
+        return await lesen(maildienst.nachrichten_liste, postfach_id, seite or 1, pro_seite or 50,
+                           sync.heute().isoformat(), zuordnung)
 
     @app.get("/oauth2/rueckruf", include_in_schema=False)
     async def oauth_rueckruf(request: Request):
@@ -1227,6 +1235,19 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
         stichtag = q.datum("stichtag")
         q.pruefen()
         return await lesen(wiederkehrend.uebersicht, stichtag or sync.heute().isoformat())
+
+    @endpunkt("GET", "/api/statistik")
+    async def statistik_analyse(request: Request):
+        """Experimentell (D-145): regelmäßig, Rauschen, ungewöhnlich. Nicht im OpenAPI-Vertrag."""
+        q = Query(request.query_params)
+        konto_id = q.ganzzahl("konto_id", 1)
+        stichtag = q.datum("stichtag")
+        for name in sorted(set(request.query_params.keys()) - {"konto_id", "stichtag"}):
+            q.fehler_melden(name, "Unbekannter Parameter.")
+        if "konto_id" not in request.query_params:
+            q.fehler_melden("konto_id", "Pflichtparameter fehlt.")
+        q.pruefen()
+        return await lesen(statistik.analyse, konto_id, stichtag or sync.heute().isoformat())
 
     @endpunkt("GET", "/api/buchungen/{buchung_id:int}/wiederkehrend")
     async def wiederkehrend_begruendung(request: Request):
@@ -1632,8 +1653,14 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     async def dubletten(request: Request):
         q = Query(request.query_params)
         status_ = q.auswahl("status", ("offen", "zusammengefuehrt", "keine_dublette"))
+        vorschlaege = q.auswahl("vorschlaege", ("ja", "nein")) == "ja"   # D-169: nur auf Anfrage
         q.pruefen()
-        return await lesen(buch.dubletten_liste, status_)
+        return await lesen(buch.dubletten_liste, status_, vorschlaege)
+
+    @endpunkt("POST", "/api/dubletten", 201)
+    async def dublette_anlegen(request: Request):
+        d = await koerper(request, DUBLETTE_ANLEGEN)
+        return await aendern("dublette_anlegen", mit_uhr(buch.verdacht_anlegen), d["buchung_ids"])
 
     @endpunkt("POST", "/api/dubletten/{verdacht_id:int}/aufloesen")
     async def dublette_aufloesen(request: Request):

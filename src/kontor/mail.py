@@ -686,19 +686,64 @@ class MailDienst:
             return True
         return zeit_lesen(r) + dt.timedelta(minutes=self.config.mail_intervall_minuten) <= self._jetzt()
 
-    def nachrichten_liste(self, con, postfach_id: int | None, seite: int, pro_seite: int) -> dict:
+    def nachrichten_liste(self, con, postfach_id: int | None, seite: int, pro_seite: int,
+                          heute: str | None = None, zuordnung: str | None = None) -> dict:
         wo, par = "", []
         if postfach_id is not None:
             wo, par = " WHERE p.id = ?", [buch.sichere_id(postfach_id)]
-        basis = " FROM mail_nachricht n JOIN postfach p ON p.adresse_cf = n.adresse_cf" + wo
-        gesamt = con.execute("SELECT COUNT(*)" + basis, par).fetchone()[0]
-        zeilen = con.execute("SELECT n.*, p.id AS postfach_id" + basis
-                             + " ORDER BY n.empfangen, p.id, n.nachricht_id LIMIT ? OFFSET ?",
-                             par + [pro_seite, (seite - 1) * pro_seite]).fetchall()
-        return {"eintraege": [{"id": r["id"], "postfach_id": r["postfach_id"], "nachricht_id": r["nachricht_id"],
-                               "empfangen": r["empfangen"], "absender": r["absender"], "betreff": r["betreff"],
-                               "text": r["text"]} for r in zeilen],
-                "gesamt": gesamt, "seite": seite, "pro_seite": pro_seite}
+        from . import erwartung
+        zuord = erwartung.zuordnungen_nach_mail(con, heute) if heute else {}
+        reihen = con.execute(
+            "SELECT n.id, n.adresse_cf, n.nachricht_id FROM mail_nachricht n"
+            " JOIN postfach p ON p.adresse_cf = n.adresse_cf" + wo
+            + " ORDER BY n.empfangen DESC, p.id, n.nachricht_id", par).fetchall()
+        zaehler = {"zugeordnet": 0, "erwartet": 0, "keine": 0}
+        gewaehlt: list[int] = []
+        for r in reihen:
+            art = _zuordnung_art(zuord.get((r["adresse_cf"], r["nachricht_id"]), []))
+            zaehler[art] += 1
+            if zuordnung is None or art == zuordnung:
+                gewaehlt.append(r["id"])
+        gesamt = len(gewaehlt)
+        seiten = max(1, (gesamt + pro_seite - 1) // pro_seite)
+        seite = min(seite, seiten)
+        stueck = gewaehlt[(seite - 1) * pro_seite:seite * pro_seite]
+        zeilen = _nachrichten_laden(con, stueck)
+        return {"eintraege": [{"id": r["id"], "postfach_id": r["postfach_id"],
+                               "postfach": r["postfach_bezeichnung"] or r["postfach_adresse"],
+                               "nachricht_id": r["nachricht_id"], "empfangen": r["empfangen"],
+                               "absender": r["absender"], "betreff": r["betreff"], "text": r["text"],
+                               "zuordnung": zuord.get((r["adresse_cf"], r["nachricht_id"]), [])} for r in zeilen],
+                "gesamt": gesamt, "seite": seite, "pro_seite": pro_seite,
+                "stand": {"gesamt": len(reihen), **zaehler,
+                          "postfaecher": [self._postfach_stand(con, p)
+                                         for p in con.execute("SELECT * FROM postfach ORDER BY id")]}}
+
+    def _postfach_stand(self, con, row) -> dict:
+        p = postfach_dict(row)
+        s = self.status_dict(con, p)
+        return {"postfach_id": p["id"], "adresse": p["adresse"], "bezeichnung": p["bezeichnung"],
+                "aktiv": p["aktiv"], "nachrichten": s["nachrichten"],
+                "letzter_abruf_am": s["letzter_abruf_am"], "letzter_erfolg_am": s["letzter_erfolg_am"],
+                "letzter_fehler": s["letzter_fehler"]}
+
+
+def _zuordnung_art(eintraege: list[dict]) -> str:
+    if any(e["buchungen"] for e in eintraege):
+        return "zugeordnet"
+    if eintraege:
+        return "erwartet"
+    return "keine"
+
+
+def _nachrichten_laden(con, ids: list[int]) -> list:
+    if not ids:
+        return []
+    gefunden = {r["id"]: r for r in con.execute(
+        "SELECT n.*, p.id AS postfach_id, p.bezeichnung AS postfach_bezeichnung, p.adresse AS postfach_adresse"
+        " FROM mail_nachricht n JOIN postfach p ON p.adresse_cf = n.adresse_cf"
+        f" WHERE n.id IN ({buch._platzhalter(len(ids))})", ids)}
+    return [gefunden[i] for i in ids if i in gefunden]
 
 
 def _sekunden(wert) -> int:

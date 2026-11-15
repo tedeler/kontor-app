@@ -1,5 +1,26 @@
 # Ergebnis der Implementierung
 
+## Merge von `feature/sammel` (D-145 bis D-169) ohne Abnahme, gegen kontor-tests `e301131`
+
+Stand: 2026-11-15, Implementierungs-Thread. Gemergt auf ausdrückliche Anweisung des Auftraggebers, bevor es eine
+Meilenstein-Definition und Abnahmetests gibt (wie UXMobile, D-144). Vor dem Merge behoben: Personendialog, Kopfleiste
+mobil, Listenbreite, Kürzel im Kontextmenü (D-168) und Dublettenvorschläge nur auf Anfrage (D-169).
+
+- Eigene Tests: **283 / 283**.
+- Abnahme ohne Browser und Leistung (`--voll`): 2921 grün, 31 rot und 3 Fehler. Rot sind nur beabsichtigte
+  Änderungen, die eine Meilenstein-Definition und angepasste Tests brauchen:
+  - neues Feld `verdacht` an Buchungen (D-157) in `GET/POST /api/buchungen`, `GET /api/buchungen/{id}` und
+    `GET /api/suche`. Das Feld ist abgeleitet und ändert sich, wenn sich andere Buchungen desselben Empfängers ändern.
+    Davon betroffen sind Vergleiche ganzer Buchungen in M2-Altbestand und M12-Massenänderungen;
+  - neue Felder `stand`, `postfach` und `zuordnung` in `GET /api/mail/nachrichten` (D-147, D-153, D-155), betroffen
+    sind M6, M18, M20 und M23;
+  - die Adresse `/wiederkehrend` ist entfallen (D-146), betroffen ist M8-Auslieferung.
+- Leistung `-m leistung`: 22 / 22, gemessen mit lokal abgeschalteter Prüfung auf die neuen Zusatzfelder. Ohne diese
+  Abschaltung scheitern alle 13 Leistungstests mit Buchungslisten zuerst am Schema.
+- Browser: nicht vollständig gelaufen. Eine Stichprobe `m8` ergab 12 rot von 29. Der Pflichtdialog „Wer bist du?“
+  (D-155) verdeckt beim Öffnen jede Seite, bis eine Person gewählt ist (Browser-Speicher `kontor.person`, Werte
+  „Torsten“ oder „Tina“). Für die Abnahmetests braucht es eine vorab gewählte Person in der Browser-Fixture.
+
 ## Abnahme M23–M25 (Branch `feature/sammeltest2`) gegen kontor-tests `e301131`
 
 Stand: 2026-11-13, Implementierungs-Thread. Der Branch enthält `feature/geheimnisse` und `feature/gmail-app-passwort`

@@ -11,13 +11,16 @@ import kontor
 WEB = Path(kontor.__file__).parent / "web"
 APP = WEB / "oeffentlich" / "app"
 #: oberflaeche.md 3: die acht Ziele aus K 5, danach die weiteren Ziele
+#: D-149: Reihenfolge der `nav-`-Links in den Gruppen Buchhaltung, Auswertung, Regeln, Betrieb
 NAVIGATION = [("uebersicht", "/", "Finanzübersicht"), ("konten", "/konten", "Konten"),
-              ("kategorien", "/kategorien", "Kategorien"), ("wiederkehrend", "/wiederkehrend", "Wiederkehrende Buchungen"),
-              ("kredite", "/kredite", "Kredite"), ("berichte", "/berichte", "Berichte"), ("import", "/import", "Import"),
-              ("einstellungen", "/einstellungen", "Einstellungen"), ("protokoll", "/protokoll", "Änderungsprotokoll"),
-              ("empfaenger", "/empfaenger", "Empfänger"), ("regeln", "/regeln", "Regeln"),
-              ("vorlagen", "/vorlagen", "Split-Vorlagen"), ("dubletten", "/dubletten", "Dubletten"),
-              ("sync", "/sync", "Synchronisation")]
+              ("kategorien", "/kategorien", "Kategorien"), ("empfaenger", "/empfaenger", "Empfänger"),
+              ("kredite", "/kredite", "Kredite"), ("berichte", "/berichte", "Berichte"),
+              ("regeln", "/regeln", "Regeln"), ("vorlagen", "/vorlagen", "Split-Vorlagen"),
+              ("dubletten", "/dubletten", "Dubletten"), ("import", "/import", "Import"),
+              ("sync", "/sync", "Synchronisation"), ("protokoll", "/protokoll", "Änderungsprotokoll"),
+              ("einstellungen", "/einstellungen", "Einstellungen")]
+NAV_GRUPPEN = [("buchhaltung", "Buchhaltung"), ("zahlungen", "Zahlungen"), ("auswertung", "Auswertung"),
+               ("regeln", "Regeln"), ("betrieb", "Betrieb")]
 #: Pfade der REST-Schnittstelle laut openapy.yaml 2.8.0, als Präfixe der Literale im JavaScript
 REST = ["/api/status", "/api/konten", "/api/kontenuebersicht", "/api/buchungen", "/api/tags", "/api/empfaenger",
         "/api/version", "/api/import/kmymoney", "/api/import/gnucash", "/api/dubletten", "/api/regeln", "/api/sync", "/api/tan-anforderungen",
@@ -27,6 +30,7 @@ REST = ["/api/status", "/api/konten", "/api/kontenuebersicht", "/api/buchungen",
         "/api/mail/anmeldung/abschluss", "/api/mail/abruf", "/api/anmeldung", "/api/update",  # update: D-107
         "/api/dokumente", "/api/mail/nachrichten",  # Dokumente: D-123
         "/api/erwartungen",  # Mail-Abgleich: D-128
+        "/api/statistik",  # experimentell, D-145, noch nicht im OpenAPI-Vertrag
         "/api/import/alfbanco", "/api/kategorien/zusammenfuehren"]  # ALF-BanCo: D-123, D-126
 
 
@@ -36,6 +40,8 @@ def test_startseite_echt(client):
     assert "mock-hinweis" not in r.text
     links = re.findall(r'<a href="([^"]+)" data-testid="nav-([a-z]+)">([^<]+)</a>', r.text)
     assert links == [(p, z, t) for z, p, t in NAVIGATION]
+    gruppen = re.findall(r'data-testid="nav-gruppe-([a-z]+)">(.*?)</h2>', r.text)
+    assert gruppen == NAV_GRUPPEN
     assert '<script type="module" src="/oeffentlich/app/haupt.js"></script>' in r.text
 
 
@@ -52,6 +58,7 @@ def test_routen_liefern_dieselbe_huelle(mock_client):
         assert r.status_code == 200 and r.text == start, pfad
         assert "no-store" in r.headers["cache-control"]
     assert mock_client.get("/gibt-es-nicht").status_code == 404
+    assert mock_client.get("/wiederkehrend").status_code == 404  # D-146: Seite aus der Oberfläche genommen
     assert mock_client.get("/konten/abc").status_code == 404
 
 

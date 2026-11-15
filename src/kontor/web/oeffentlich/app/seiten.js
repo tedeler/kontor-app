@@ -1,15 +1,15 @@
 /* Kontor – Seiten außer der Kontoansicht (oberflaeche.md 6, 13, 14). */
 import {
   BESTAND, STATUS_TEXT, abfrage, aktion, anmeldung, api, baumFolge, betragEl, betragLesen, betragText, datumEl,
-  datumText, h, kategorien, kontoNach, kontoPfad, melde, mobilKarten, nachName, neueId, oberflaeche, pfadVon, stamm, tid, zeitEl,
+  datumText, h, kategorien, kontoNach, kontoPfad, melde, mobilKarten, nachName, neueId, oberflaeche, personLesen, pfadVon, sichtbar, stamm, tid, zeitEl,
   zeitText,
 } from "./kern.js";
 import {
-  abstimmungDialog, bestaetigen, dialog, feld, imDialog, knopf, knopfLeiste, kontextmenue, kontoDialog, menuePosition,
-  zuordnungDialog,
+  abstimmungDialog, bestaetigen, dialog, dubletteAufloesen, feld, imDialog, knopf, knopfLeiste, kontextmenue,
+  kontoDialog, menuePosition, zuordnungDialog,
 } from "./ui.js";
 import { kategorienBaum, kontoMenue, langeBeruehrung } from "./baum.js";
-import { begruendungZeigen, filterText, layoutZuruecksetzen, wkFilterDialog } from "./konto.js";
+import { layoutZuruecksetzen } from "./konto.js";
 
 const kopf = (seite, titel, ...werkzeuge) => {
   seite.append(h("div", { class: "seiten-kopf" }, h("h1", null, titel),
@@ -182,58 +182,6 @@ export async function kategorienSeite(seite) {
     + "Mit Strg/Umschalt (oder Leertaste) mehrere markieren und über das Kontextmenü „Zusammenführen in…“ "
     + "ihre Buchungen in eine andere Kategorie überführen."), ort);
   return { titel: "Kategorien" };
-}
-
-// ------------------------------------------------------------------ Wiederkehrend (13.5)
-const RHYTHMUS = { monatlich: "monatlich", vierteljaehrlich: "vierteljährlich", jaehrlich: "jährlich" };
-const SERIENSTATUS = { aktiv: "aktiv", ausbleibend: "ausbleibend", beendet: "beendet" };
-
-export async function wiederkehrend(seite) {
-  const u = await api("GET", "/api/wiederkehrend");
-  kopf(seite, "Wiederkehrende Buchungen", knopf("Jetzt prüfen", { onclick: async () => {
-    try { await api("POST", "/api/wiederkehrend/pruefen", {}); melde("erfolg", "Wiederkehrende Buchungen geprüft."); await oberflaeche.neuLaden(); }
-    catch (e) { melde("fehler", e.message); }
-  } }));
-  // Menü je Serie (D-118): Begründung zur jüngsten Buchung, Sprung ins Kontoblatt
-  const serienMenue = (s, x, y, ausloeser) => {
-    const letzte = s.buchung_ids[s.buchung_ids.length - 1];
-    kontextmenue(x, y, [
-      { tid: "km-serie-begruendung", text: "Warum wiederkehrend?", tun: () => begruendungZeigen(letzte, ausloeser) },
-      { tid: "km-serie-springen", text: "Letzte Buchung im Kontoblatt zeigen",
-        tun: () => oberflaeche.zurBuchung(s.konto_id, letzte) },
-    ], ausloeser);
-  };
-  const zeile = (s) => {
-    const name = s.empfaenger ? s.empfaenger.name : "";
-    const mehr = knopf("…", { tid: `wk-menue-${s.schluessel}`, class: "knopf-flach", "aria-haspopup": "menu",
-      "aria-label": `Aktionen für ${name}`, title: "Aktionen",
-      onclick: (e) => { const [x, y] = menuePosition(null, e.currentTarget); serienMenue(s, x, y, e.currentTarget); } });
-    const tr = h("tr", { tid: `serie-${s.schluessel}`, "data-status": s.status, tabindex: "0" },
-      h("td", null, name), h("td", null, pfadVon(s.konto_id)),
-      h("td", null, RHYTHMUS[s.rhythmus] || s.rhythmus), betragEl("td", s.betrag, { class: "zahl" }),
-      betragEl("td", s.jahreskosten, { class: "zahl" }), datumEl("td", s.naechste_faelligkeit),
-      h("td", null, SERIENSTATUS[s.status] || s.status), h("td", { class: "aktionen" }, mehr));
-    tr.addEventListener("contextmenu", (e) => { e.preventDefault(); serienMenue(s, e.clientX, e.clientY, tr); });
-    // mobil (D-142): Tippen auf die Karte öffnet die Aktionen
-    tr.addEventListener("click", (e) => {
-      if (!oberflaeche.istMobil() || e.target.closest("button, a")) return;
-      const [x, y] = menuePosition(null, tr); serienMenue(s, x, y, tr);
-    });
-    tr.addEventListener("keydown", (e) => {
-      if (e.target === tr && ((e.key === "F10" && e.shiftKey) || e.key === "ContextMenu")) {
-        e.preventDefault(); const [x, y] = menuePosition(null, tr); serienMenue(s, x, y, tr);
-      }
-    });
-    return tr;
-  };
-  langeBeruehrung(seite, (t) => t.closest("tr[data-status]"), (tr, x, y) => tr.dispatchEvent(new MouseEvent("contextmenu",
-    { bubbles: true, cancelable: true, clientX: x, clientY: y })));
-  seite.append(h("p", { class: "wk-summe" }, "Summe der Jahreskosten: ", betragEl("strong", u.summe_jahreskosten)),
-    tabelle({ tid: "wiederkehrend-tabelle" }, ["Empfänger", "Konto", "Rhythmus", "Betrag", "Jahreskosten", "Nächste Fälligkeit",
-      "Status", h("span", { class: "nur-sr" }, "Aktionen")], u.serien.map(zeile),
-    ["titel", "wk-konto", "wk-rhythmus", "betrag", "wk-jahr", "wk-faellig", "status", "wk-aktion"]),
-    ...(u.serien.length ? [] : [leer("Keine wiederkehrenden Buchungen erkannt.")]));
-  return { titel: "Wiederkehrende Buchungen" };
 }
 
 // ------------------------------------------------------------------ Kredite (13.4)
@@ -652,7 +600,10 @@ const SVGNS = "http://www.w3.org/2000/svg";
 const svg = (tag, attrs, ...kinder) => {
   const el = document.createElementNS(SVGNS, tag);
   for (const [k, v] of Object.entries(attrs || {})) el.setAttribute(k, String(v));
-  for (const k of kinder) el.append(k instanceof Node ? k : document.createTextNode(String(k)));
+  for (const k of kinder) {
+    if (k instanceof Node) el.append(k);
+    else { const text = sichtbar(k); if (text.trim() !== "") el.append(document.createTextNode(text)); }
+  }
   return el;
 };
 const FARBEN = ["#1f5f8b", "#c9781e", "#2e7d32", "#8e24aa", "#c62828", "#00838f"];
@@ -674,7 +625,7 @@ function svgDiagramm(b) {
   const n = b.stichtage.length;
   const x = (i) => rand + (n === 1 ? 0 : (i * (B - 2 * rand)) / (n - 1));
   const y = (v) => H - rand / 2 - ((v - min) * (H - rand)) / spanne;
-  el.append(svg("line", { x1: rand, x2: B - rand, y1: y(0), y2: y(0), class: "nulllinie" }));
+  el.append(svg("line", { x1: rand, x2: B - rand, y1: y(0), y2: y(0), class: "basislinie" }));
   b.reihen.forEach((r, j) => {
     el.append(svg("polyline", { fill: "none", stroke: FARBEN[j % FARBEN.length], "stroke-width": 2,
       points: r.werte.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ") },
@@ -740,55 +691,10 @@ function importErgebnis(e) {
         + (m.referenz ? ` (${m.referenz})` : "")))) : null);
 }
 
-// Betragsfilter wiederkehrender Buchungen (D-137): Vorgabe der Instanz und eigene Einstellungen je Empfänger
-function wkFilterAbschnitt(wk) {
-  const modus = h("select", { tid: "wk-vorgabe-modus" }, [["toleranz", "Toleranz in Prozent"], ["aus", "aus (jeder Betrag zählt)"]]
-    .map(([w, t]) => h("option", { value: w }, t)));
-  modus.value = wk.vorgabe.modus;
-  const prozent = h("input", { type: "number", min: "0", max: "100", step: "1", tid: "wk-vorgabe-toleranz", inputmode: "numeric",
-    value: String(wk.vorgabe.toleranz_prozent ?? 10) });
-  const fProzent = feld("Toleranz (%)", prozent);
-  const sichtbar = () => { fProzent.hidden = modus.value !== "toleranz"; };
-  modus.addEventListener("change", sichtbar);
-  sichtbar();
-  const speichern = knopf("Speichern", { tid: "wk-vorgabe-speichern", onclick: async () => {
-    const k = modus.value === "toleranz" ? { modus: "toleranz", toleranz_prozent: Number(prozent.value) } : { modus: "aus" };
-    // D-143: kein Neuzeichnen der Einstellungsseite (Instanz-Einstellung, kein Buchbestand); die Felder zeigen schon
-    // den gespeicherten Stand, andere Tabs (Begründungen, Übersicht) laden beim nächsten Zeigen neu
-    try {
-      const v = await api("PUT", "/api/wiederkehrend/einstellungen/vorgabe", k);
-      modus.value = v.modus;
-      if (v.toleranz_prozent != null) prozent.value = String(v.toleranz_prozent);
-      sichtbar();
-      oberflaeche.andereVeraltet();
-      melde("erfolg", "Vorgabe gespeichert.");
-    } catch (e) { melde("fehler", e.message); }
-  } });
-  const zeilen = wk.empfaenger.map((x) => h("tr", { tid: `wk-filter-${x.empfaenger.id}`, "data-modus": x.modus },
-    h("td", null, x.empfaenger.name), h("td", null, filterText(x)),
-    h("td", null, knopf("Ändern …", { "aria-label": `Betragsfilter für ${x.empfaenger.name} ändern`,
-      onclick: (e) => wkFilterDialog(x.empfaenger, e.currentTarget) }),
-    knopf("Entfernen", { tid: `wk-filter-entfernen-${x.empfaenger.id}`, "aria-label": `Betragsfilter für ${x.empfaenger.name} entfernen`,
-      onclick: async () => {
-        try { await aktion(() => api("DELETE", `/api/empfaenger/${x.empfaenger.id}/wiederkehrend`), { erfolg: "Betragsfilter entfernt." }); }
-        catch (f) { /* gemeldet */ }
-      } }))));
-  return abschnitt("Wiederkehrende Buchungen",
-    h("p", { class: "klein" }, "Zahlungen eines Empfängers, deren Betrag nicht passt (z. B. Auslagenerstattungen neben dem Gehalt), "
-      + "werden bei der Erkennung übergangen und unterbrechen eine Serie nicht."),
-    h("div", { class: "formular-zeile" }, feld("Vorgabe für alle Empfänger", modus), fProzent, speichern),
-    h("h3", null, "Eigene Einstellungen je Empfänger"),
-    zeilen.length ? tabelle({ tid: "wk-filter-liste" }, ["Empfänger", "Betragsfilter", h("span", { class: "nur-sr" }, "Aktionen")], zeilen,
-      ["titel", "info-", "aktion2"])
-      : leer("Alle Empfänger verwenden die Vorgabe."),
-    knopf("Empfänger hinzufügen …", { tid: "wk-filter-neu", onclick: (e) => wkFilterDialog(null, e.currentTarget) }));
-}
-
 // ------------------------------------------------------------------ Einstellungen (13.2)
 export async function einstellungen(seite, _p, _s, kontext) {
-  const [status, sync, geheim, zust, postfaecher, wk] = await Promise.all([api("GET", "/api/status"), api("GET", "/api/sync/status"),
-    api("GET", "/api/geheimnisse"), api("GET", "/api/benachrichtigungen/zustellung"), api("GET", "/api/mail/postfaecher"),
-    api("GET", "/api/wiederkehrend/einstellungen")]);
+  const [status, sync, geheim, zust, postfaecher] = await Promise.all([api("GET", "/api/status"), api("GET", "/api/sync/status"),
+    api("GET", "/api/geheimnisse"), api("GET", "/api/benachrichtigungen/zustellung"), api("GET", "/api/mail/postfaecher")]);
   kopf(seite, "Einstellungen");
   // Darstellung
   const thema = h("select", { tid: "einstellung-thema" }, [["system", "wie System"], ["hell", "Hell"], ["dunkel", "Dunkel"]]
@@ -797,7 +703,6 @@ export async function einstellungen(seite, _p, _s, kontext) {
   thema.addEventListener("change", () => kontext.thema.setzen(thema.value));
   seite.append(abschnitt("Darstellung", feld("Design", thema),
     knopf("Layout zurücksetzen", { tid: "layout-zuruecksetzen", onclick: () => { layoutZuruecksetzen(); melde("erfolg", "Layout zurückgesetzt."); } })));
-  seite.append(wkFilterAbschnitt(wk));
   // Betrieb
   seite.append(abschnitt("Betrieb", h("p", { tid: "status-modus", "data-modus": status.modus },
     status.modus === "mock" ? "Mock-Modus" : "Echtbetrieb", ` · Version ${status.version}`,
@@ -988,23 +893,191 @@ export async function protokoll(seite) {
 }
 
 // ------------------------------------------------------------------ Empfänger (13.10)
+const PERSON_NAMEN = ["Torsten", "Tina"];
+
+function personTags(e) {
+  return (e.tags || []).filter((t) => PERSON_NAMEN.includes(t.name));
+}
+
 export async function empfaenger(seite) {
   const liste = stamm.empfaenger;
+  const ids = liste.map((e) => e.id);
+  // Mehrfachauswahl wie im Kontoblatt (D-166): Klick wählt eine, Strg/⌘ schaltet um, Umschalt markiert einen Bereich
   const auswahl = new Set();
+  let anker = null;
+  let fokusId = null;
+  const zeilen = new Map();
+  const gewaehlt = () => liste.filter((x) => auswahl.has(x.id));
   const zusammen = knopf("Zusammenführen…", { tid: "empfaenger-zusammenfuehren", disabled: true,
-    onclick: (e) => zusammenfuehren(liste.filter((x) => auswahl.has(x.id)), e.currentTarget) });
-  const pruefen = () => { zusammen.disabled = auswahl.size < 2; };   // 22.3: ab zwei ausgewählten
-  kopf(seite, "Empfänger", zusammen);
-  seite.append(liste.length ? tabelle({ class: "tabelle" }, ["", "Name", "Aliase", "Standardkategorie", ""], liste.map((e) => {
-    const wahl = h("input", { type: "checkbox", tid: `empfaenger-auswahl-${e.id}`, "aria-label": `${e.name} auswählen` });
-    wahl.addEventListener("change", () => { if (wahl.checked) auswahl.add(e.id); else auswahl.delete(e.id); pruefen(); });
-    return h("tr", { tid: `empfaenger-${e.id}` },
-      h("td", null, wahl), h("td", null, e.name), h("td", null, (e.aliase || []).join(", ")),
+    onclick: (e) => zusammenfuehren(gewaehlt(), e.currentTarget) });
+  const markieren = knopf("Bestätigen", { tid: "empfaenger-bestaetigen", disabled: true });
+  const anzahl = h("span", { tid: "empfaenger-auswahl-anzahl", "data-anzahl": "0", class: "auswahl-anzahl", "aria-live": "polite" });
+  const pruefen = () => {
+    for (const [id, z] of zeilen) {
+      const an = auswahl.has(id);
+      z.setAttribute("aria-selected", an ? "true" : "false");
+      z.tabIndex = id === (fokusId ?? ids[0]) ? 0 : -1;
+      const wahl = z.querySelector("input[type=checkbox]");
+      if (wahl) wahl.checked = an;
+    }
+    anzahl.dataset.anzahl = String(auswahl.size);
+    anzahl.textContent = auswahl.size ? `${auswahl.size} ausgewählt` : "keine Auswahl";
+    zusammen.disabled = auswahl.size < 2;   // 22.3: ab zwei ausgewählten
+    const name = personLesen();
+    const g = gewaehlt();
+    const alle = !!(name && g.length && g.every((e) => personTags(e).some((t) => t.name === name)));
+    markieren.disabled = !name || !g.length;
+    markieren.textContent = alle ? `Bestätigung von ${name} zurücknehmen` : (name ? `Auswahl als ${name} bestätigen` : "Bestätigen");
+    markieren.dataset.zurueck = alle ? "ja" : "nein";
+  };
+  const bereich = (a, b) => {
+    let i = ids.indexOf(a);
+    let j = ids.indexOf(b);
+    if (i < 0) i = j;
+    if (i > j) [i, j] = [j, i];
+    return ids.slice(i, j + 1);
+  };
+  const umschalten = (id) => { if (auswahl.has(id)) auswahl.delete(id); else auswahl.add(id); anker = id; };
+  const fokussieren = (id, mitDom = true) => {
+    fokusId = id;
+    pruefen();
+    const z = zeilen.get(id);
+    if (z && mitDom) { z.focus({ preventScroll: true }); z.scrollIntoView({ block: "nearest" }); }
+  };
+  const allein = (id) => { if (!auswahl.has(id)) { auswahl.clear(); auswahl.add(id); anker = id; } };
+  const klick = (id, e) => {
+    const strg = e.ctrlKey || e.metaKey;
+    if (strg && e.shiftKey) {
+      if (anker !== null) for (const x of bereich(anker, id)) auswahl.add(x);
+      else { auswahl.add(id); anker = id; }
+    } else if (strg || (oberflaeche.istMobil() && !e.shiftKey)) umschalten(id);   // mobil: Tippen schaltet um
+    else if (e.shiftKey && anker !== null) { auswahl.clear(); for (const x of bereich(anker, id)) auswahl.add(x); }
+    else { auswahl.clear(); auswahl.add(id); anker = id; }
+    fokussieren(id);
+  };
+  const menue = (e, x, y, ausloeser) => {
+    allein(e.id);
+    fokussieren(e.id, false);
+    const ziele = auswahl.size > 1 ? gewaehlt() : [e];
+    const wer = personLesen();
+    const alle = !!(wer && ziele.every((z) => personTags(z).some((t) => t.name === wer)));
+    kontextmenue(x, y, [
+      ziele.length > 1 ? { tid: "em-zusammenfuehren", text: `${ziele.length} Empfänger zusammenführen…`,
+        tun: () => zusammenfuehren(ziele, ausloeser) } : null,
+      wer ? { tid: "em-bestaetigen", text: alle ? `Bestätigung von ${wer} zurücknehmen` : `Als ${wer} bestätigen`,
+        tun: () => empfaengerMarkieren(ziele, !alle) } : null,
+      ziele.length === 1 ? { tid: "em-bearbeiten", text: "Bearbeiten…", tun: () => empfaengerDialog(e, ausloeser) } : null,
+    ].filter(Boolean), ausloeser);
+  };
+  markieren.addEventListener("click", () => empfaengerMarkieren(gewaehlt(), markieren.dataset.zurueck !== "ja"));
+  kopf(seite, "Empfänger", markieren, zusammen);
+  if (!liste.length) { seite.append(leer("Noch keine Empfänger.")); pruefen(); return { titel: "Empfänger" }; }
+  seite.append(h("p", { class: "klein" }, anzahl, " · Markieren wie im Kontoblatt: Klick, Strg/⌘-Klick, Umschalt-Klick, "
+    + "Pfeiltasten, Leertaste, Strg+A; Rechtsklick für das Menü (ab zwei markierten: Zusammenführen)."));
+  const tab = tabelle({ class: "tabelle empfaenger-liste", tid: "empfaenger-liste", "aria-multiselectable": "true" },
+    ["", "Name", "Bestätigt", "Aliase", "Standardkategorie", ""],
+    liste.map((e) => zeileEmpfaenger(e)),
+    ["auswahl", "titel", "info:Bestätigt", "info:Aliase", "info:Kategorie", "aktion"]);
+  const zeileVon = (t) => t && t.closest && t.closest("tr[data-id]");
+  tab.addEventListener("mousedown", (e) => { if (e.shiftKey && zeileVon(e.target)) e.preventDefault(); });   // keine Textauswahl
+  tab.addEventListener("click", (e) => {
+    if (e.target.closest("button, input, select, a")) return;
+    const z = zeileVon(e.target);
+    if (z) klick(Number(z.dataset.id), e);
+  });
+  tab.addEventListener("dblclick", (e) => {
+    const z = zeileVon(e.target);
+    if (z && !e.target.closest("button, input")) empfaengerDialog(liste.find((x) => x.id === Number(z.dataset.id)), z);
+  });
+  tab.addEventListener("keydown", (e) => {
+    const z = zeileVon(e.target);
+    if (!z || e.target !== z) return;
+    const id = Number(z.dataset.id);
+    const i = ids.indexOf(id);
+    const strg = e.ctrlKey || e.metaKey;
+    const ziel = { ArrowDown: ids[i + 1], ArrowUp: ids[i - 1], Home: ids[0], End: ids[ids.length - 1] }[e.key];
+    if (["ArrowDown", "ArrowUp", "Home", "End"].includes(e.key)) {
+      e.preventDefault();
+      if (ziel === undefined) return;
+      if (strg && !e.shiftKey) { fokussieren(ziel); return; }
+      if (e.shiftKey) {
+        if (anker === null) anker = id;
+        auswahl.clear();
+        for (const x of bereich(anker, ziel)) auswahl.add(x);
+      } else { auswahl.clear(); auswahl.add(ziel); anker = ziel; }
+      fokussieren(ziel);
+    } else if (e.key === " ") { e.preventDefault(); umschalten(id); fokussieren(id); }
+    else if (strg && (e.key === "a" || e.key === "A")) { e.preventDefault(); for (const x of ids) auswahl.add(x); pruefen(); }
+    else if (e.key === "Enter" || e.key === "F2") { e.preventDefault(); empfaengerDialog(liste.find((x) => x.id === id), z); }
+    else if ((e.key === "F10" && e.shiftKey) || e.key === "ContextMenu") {
+      e.preventDefault();
+      const [x, y] = menuePosition(null, z);
+      menue(liste.find((x2) => x2.id === id), x, y, z);
+    }
+  });
+  tab.addEventListener("contextmenu", (e) => {
+    const z = zeileVon(e.target);
+    if (!z || e.target.closest("input, button")) return;
+    e.preventDefault();
+    if (oberflaeche.istMobil()) return;   // mobil öffnet die lange Berührung das Menü (nicht doppelt)
+    menue(liste.find((x) => x.id === Number(z.dataset.id)), e.clientX, e.clientY, z);
+  });
+  langeBeruehrung(tab, zeileVon, (z, x, y) => menue(liste.find((e) => e.id === Number(z.dataset.id)), x, y, z));
+  seite.append(tab);
+  pruefen();
+  const escape = () => {
+    if (!auswahl.size) return false;
+    auswahl.clear();
+    pruefen();
+    return true;
+  };
+  return { titel: "Empfänger", escape };
+
+  function zeileEmpfaenger(e) {
+    const wahl = h("input", { type: "checkbox", tid: `empfaenger-auswahl-${e.id}`, "aria-label": `${e.name} auswählen`, tabindex: "-1" });
+    wahl.addEventListener("change", () => {
+      if (wahl.checked) auswahl.add(e.id); else auswahl.delete(e.id);
+      anker = e.id;
+      fokussieren(e.id, false);
+    });
+    const namen = personTags(e).map((t) => t.name);
+    const name = personLesen();
+    const hat = name && namen.includes(name);
+    const tr = h("tr", { tid: `empfaenger-${e.id}`, "data-id": String(e.id), class: "empfaenger-zeile", "aria-selected": "false", tabindex: "-1" },
+      h("td", null, wahl), h("td", null, e.name),
+      h("td", { "data-feld": "bestaetigt" }, namen.map((n) => h("span", { class: "tag tag-person", tid: "tag",
+        "data-person": n, title: `Bestätigt von ${n}` }, n))),
+      h("td", null, (e.aliase || []).join(", ")),
       h("td", null, e.standardkategorie_id ? pfadVon(e.standardkategorie_id) : ""),
-      h("td", null, knopf("Bearbeiten…", { "aria-label": `Empfänger ${e.name} bearbeiten`, onclick: (ev) => empfaengerDialog(e, ev.currentTarget) })));
-  }), ["auswahl", "titel", "info:Aliase", "info:Kategorie", "aktion"])
-    : leer("Noch keine Empfänger."));
-  return { titel: "Empfänger" };
+      h("td", null, knopf(hat ? `Bestätigung von ${name} zurücknehmen` : `Als ${name || "…"} bestätigen`, {
+        tid: `empfaenger-bestaetigen-${e.id}`, disabled: !name,
+        "aria-label": hat ? `Bestätigung von ${name} für ${e.name} zurücknehmen` : `${e.name} als ${name || "Person"} bestätigen`,
+        onclick: () => empfaengerMarkieren([e], !hat) }),
+      knopf("Bearbeiten…", { "aria-label": `Empfänger ${e.name} bearbeiten`, onclick: (ev) => empfaengerDialog(e, ev.currentTarget) })));
+    if (namen.length) tr.dataset.bestaetigt = namen.join(" ");
+    zeilen.set(e.id, tr);
+    return tr;
+  }
+}
+
+async function empfaengerMarkieren(liste, hinzu) {
+  const name = personLesen();
+  if (!name) { melde("hinweis", "Bitte oben rechts wählen, wer du bist."); return; }
+  if (!liste.length) return;
+  try {
+    await aktion(async () => {
+      let t = stamm.tags.find((x) => x.name === name);
+      if (!t && hinzu) t = await api("POST", "/api/tags", { name });
+      if (!t) return null;
+      for (const e of liste) {
+        const ids = new Set((e.tags || []).map((x) => x.id));
+        if (hinzu) ids.add(t.id);
+        else ids.delete(t.id);
+        await api("PATCH", `/api/empfaenger/${e.id}`, { tag_ids: [...ids] });
+      }
+      return true;
+    }, { erfolg: hinzu ? `Als ${name} bestätigt.` : `Bestätigung von ${name} zurückgenommen.` });
+  } catch { /* gemeldet */ }
 }
 
 function empfaengerDialog(e, ausloeser) {
@@ -1113,15 +1186,76 @@ export async function regeln(seite) {
   return { titel: "Regeln" };
 }
 
+function empfaengerBedingung(v) {
+  const b = (v.bedingungen || []).find((x) => x.feld === "empfaenger" && x.wert);
+  return b ? String(b.wert) : "";
+}
+
+/** Splitbetrag ist der Gesamtbetrag der Teile. Die Differenz landet auf einem Teil, nie als Gleitkommazahl. */
+function teileFuerSplitbetrag(teile, splitbetrag) {
+  const kopie = teile.map((t) => ({ kategorie_id: t.kategorie_id, betrag: t.betrag, memo: t.memo || "" }));
+  if (kopie.length < 2 || kopie.some((t) => typeof t.betrag !== "number" || !t.kategorie_id)) return null;
+  const summe = kopie.reduce((s, t) => s + t.betrag, 0);
+  const delta = -splitbetrag - summe;
+  if (delta !== 0) {
+    const i = kopie.findIndex((t) => t.betrag + delta !== 0);
+    if (i < 0) return null;
+    kopie[i] = { ...kopie[i], betrag: kopie[i].betrag + delta };
+  }
+  if (kopie.some((t) => t.betrag === 0) || kopie.reduce((s, t) => s + t.betrag, 0) === 0) return null;
+  return kopie;
+}
+
+function vorlageKarte(v) {
+  const empfaenger = empfaengerBedingung(v);
+  const empFeld = h("input", { type: "text", tid: `vorlage-empfaenger-feld-${v.id}`, maxlength: "200",
+    value: empfaenger, "aria-label": "Empfänger" });
+  const betragFeld = h("input", { type: "text", inputmode: "decimal", tid: `vorlage-splitbetrag-feld-${v.id}`,
+    value: betragEingabeText(v.gesamtbetrag), "aria-label": "Splitbetrag in Euro" });
+  const speichern = knopf("Regel speichern", { tid: `vorlage-regel-speichern-${v.id}`,
+    "aria-label": `Regel der Vorlage ${v.name} speichern` });
+  speichern.addEventListener("click", async () => {
+    const name = empFeld.value.trim();
+    const cent = betragLesen(betragFeld.value);
+    if (!name) { melde("fehler", "Bitte einen Empfänger eingeben."); return; }
+    if (typeof cent !== "number") { melde("fehler", "Bitte den Splitbetrag in Euro eingeben, zum Beispiel -80,00."); return; }
+    const teile = teileFuerSplitbetrag(v.teile, cent);
+    if (!teile) {
+      melde("fehler", "Der Splitbetrag passt nicht zu den Teilen: kein Teil darf 0 werden, die Summe der Teile nicht 0.");
+      return;
+    }
+    try {
+      await aktion(() => api("PATCH", `/api/vorlagen/${v.id}`, {
+        bedingungen: [{ feld: "empfaenger", operator: "gleich", wert: name }], teile,
+      }), { erfolg: "Regel gespeichert." });
+    } catch (e) { /* gemeldet */ }
+  });
+  const loeschen = knopf("Löschen", { tid: `vorlage-loeschen-${v.id}`, "aria-label": `Vorlage ${v.name} löschen` });
+  loeschen.addEventListener("click", async (e) => {
+    if (!(await bestaetigen(`Split-Vorlage „${v.name}“ löschen?`, { ja: "Löschen", ausloeser: e.currentTarget }))) return;
+    try { await aktion(() => api("DELETE", `/api/vorlagen/${v.id}`), { erfolg: "Split-Vorlage gelöscht." }); }
+    catch (f) { /* gemeldet */ }
+  });
+  return h("li", { tid: `vorlage-${v.id}`, class: "karte" },
+    h("strong", null, v.name),
+    h("p", { tid: `vorlage-regel-${v.id}` }, "Empfänger ",
+      h("strong", { tid: `vorlage-empfaenger-${v.id}` }, empfaenger || "—"),
+      " · Splitbetrag ", betragEl("strong", v.gesamtbetrag, { tid: `vorlage-splitbetrag-${v.id}` })),
+    h("p", { class: "klein" }, "Die Vorlage gilt, wenn Empfänger und Splitbetrag übereinstimmen. Angewendet über „Vorlagen anwenden“ und beim Import."),
+    h("ul", { class: "klein" }, v.teile.map((t) => {
+      const id = t.kategorie_id !== undefined && t.kategorie_id !== null ? t.kategorie_id : t.konto_id;
+      const betrag = t.betrag !== undefined && t.betrag !== null ? betragEl("span", t.betrag) : (t.rest ? "Rest" : "");
+      return h("li", null, `${pfadVon(id)}: `, betrag, t.memo ? ` – ${t.memo}` : "");
+    })),
+    h("div", { class: "formular-zeile" }, feld("Empfänger", empFeld), feld("Splitbetrag", betragFeld), speichern, loeschen));
+}
+
 export async function vorlagen(seite) {
   const liste = await api("GET", "/api/vorlagen");
   kopf(seite, "Split-Vorlagen", knopf("Vorlagen anwenden", { tid: "vorlagen-anwenden", onclick: async () => {
     try { await aktion(() => api("POST", "/api/vorlagen/anwenden", {}), { erfolg: "Vorlagen angewendet." }); } catch (e) { /* gemeldet */ }
   } }));
-  seite.append(liste.length ? h("ul", { class: "karten-liste" }, liste.map((v) => h("li", { tid: `vorlage-${v.id}`, class: "karte" },
-    h("strong", null, v.name), " · Gesamtbetrag ", betragEl("span", v.gesamtbetrag),
-    h("ul", { class: "klein" }, v.teile.map((t) => h("li", null, `${pfadVon(t.konto_id)}: `,
-      t.betrag !== undefined && t.betrag !== null ? betragEl("span", t.betrag) : (t.rest ? "Rest" : ""), t.memo ? ` – ${t.memo}` : "")))))) : leer("Noch keine Split-Vorlagen."));
+  seite.append(liste.length ? h("ul", { class: "karten-liste" }, liste.map(vorlageKarte)) : leer("Noch keine Split-Vorlagen."));
   return { titel: "Split-Vorlagen" };
 }
 
@@ -1162,23 +1296,30 @@ function betragEingabeText(c) {
 
 // ------------------------------------------------------------------ Dubletten (13.10)
 export async function dubletten(seite) {
-  const liste = await api("GET", "/api/dubletten?status=offen");
+  const liste = await api("GET", "/api/dubletten?status=offen&vorschlaege=ja");
   kopf(seite, "Dubletten", knopf("Umbuchungen erkennen", { onclick: async () => {
     try { await aktion(() => api("POST", "/api/umbuchungen/erkennen", {}), { erfolg: "Umbuchungen geprüft." }); } catch (e) { /* gemeldet */ }
   } }));
+  seite.append(h("p", { class: "hinweis", tid: "dubletten-regel" },
+    "Vorschläge: gleicher Betrag in Cent, gleiches Buchungsdatum und gleicher Empfänger. "
+    + "Buchungen ohne Empfänger gelten nicht als gleich. Zwei Buchungssätze einer Buchung sind keine zwei Buchungen."));
   const zeilen = await Promise.all(liste.map(async (v) => {
     const bs = await Promise.all([v.buchung_id, ...v.kandidat_ids].map((id) => api("GET", `/api/buchungen/${id}`).catch(() => null)));
+    const vorschlag = !!v.vorschlag;
+    const schluessel = v.id != null ? `verdacht-${v.id}` : `vorschlag-${[v.buchung_id, ...v.kandidat_ids].join("-")}`;
     const aufloesen = async (body) => {
-      try { await aktion(() => api("POST", `/api/dubletten/${v.id}/aufloesen`, body), { erfolg: "Dublettenverdacht aufgelöst." }); }
+      try { await aktion(() => dubletteAufloesen(v, body), { erfolg: "Dublettenverdacht aufgelöst." }); }
       catch (e) { /* gemeldet */ }
     };
-    return h("li", { tid: `verdacht-${v.id}`, class: "karte" }, h("p", null, `Verdacht ${v.id} (${v.grund})`),
+    return h("li", { tid: schluessel, class: "karte", "data-vorschlag": vorschlag ? "ja" : "nein", "data-grund": v.grund },
+      h("p", null, vorschlag ? "Vorschlag: gleicher Betrag, gleiches Datum, gleicher Empfänger"
+        : `Verdacht ${v.id} (${v.grund})`),
       h("ul", null, bs.filter(Boolean).map((b) => h("li", null, `${datumText(b.datum)} · ${b.empfaenger ? b.empfaenger.name : "ohne Empfänger"} · `,
         betragEl("span", b.betrag), " ", knopf("Diese behalten", { "aria-label": `Buchung ${b.id} behalten`,
           onclick: () => aufloesen({ entscheidung: "zusammenfuehren", behalten_id: b.id }) })))),
       knopf("Keine Dublette", { onclick: () => aufloesen({ entscheidung: "keine_dublette" }) }));
   }));
-  seite.append(zeilen.length ? h("ul", { class: "karten-liste" }, zeilen) : leer("Keine offenen Dublettenverdachte."));
+  seite.append(zeilen.length ? h("ul", { class: "karten-liste", tid: "dubletten-liste" }, zeilen) : leer("Keine offenen Dublettenverdachte."));
   return { titel: "Dubletten" };
 }
 
@@ -1292,7 +1433,9 @@ export async function suche(seite, _p, suchtext) {
     e.buchungen.map((b) => {
       const z = h("div", { role: "row", tid: `buchung-${b.id}`, class: "zeile", tabindex: "0", "data-status": b.status, "aria-selected": "false" },
         datumEl("div", b.datum, { role: "gridcell", class: "zelle", "data-feld": "datum" }),
-        h("div", { role: "gridcell", class: "zelle", "data-feld": "empfaenger" }, b.empfaenger ? b.empfaenger.name : ""),
+        h("div", { role: "gridcell", class: "zelle", "data-feld": "empfaenger" }, b.empfaenger ? b.empfaenger.name : "",
+          b.verdacht ? h("span", { class: "tag tag-verdacht", tid: "verdacht", "data-grund": b.verdacht.grund,
+            title: b.verdacht.text, "aria-label": b.verdacht.text }, "Verdächtig") : null),
         h("div", { role: "gridcell", class: "zelle", "data-feld": "verwendungszweck" }, b.verwendungszweck),
         h("div", { role: "gridcell", class: "zelle", "data-feld": "kategorie" }, b.kategorie_id ? pfadVon(b.kategorie_id) : ""),
         betragEl("div", b.betrag, { role: "gridcell", class: "zelle zahl", "data-feld": "betrag" }));

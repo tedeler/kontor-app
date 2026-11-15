@@ -85,6 +85,11 @@ def empfaenger_aendern(con, eid: int, d: dict) -> dict:
                 (d.get("name", alt["name"]), d.get("standardkategorie_id", alt["standardkategorie_id"]), eid))
     if aliase is not None and aliase != alt["aliase"]:
         _aliase_schreiben(con, eid, aliase)
+    if "tag_ids" in d:
+        ids = buch._tags_pruefen(con, d["tag_ids"] or [])
+        con.execute("DELETE FROM empfaenger_tag WHERE empfaenger_id = ?", (eid,))
+        con.executemany("INSERT INTO empfaenger_tag (empfaenger_id, tag_id) VALUES (?, ?)",
+                        [(eid, t) for t in ids])
     return buch.empfaenger_lesen(con, eid)
 
 
@@ -125,6 +130,8 @@ def empfaenger_zusammenfuehren(con, ziel_id: int, quelle_ids: list[int], name: s
         schluessel.add(k)
         neu.append(kand)
     ph = buch._platzhalter(len(quelle_ids))
+    con.execute(f"INSERT OR IGNORE INTO empfaenger_tag (empfaenger_id, tag_id)"
+                f" SELECT ?, tag_id FROM empfaenger_tag WHERE empfaenger_id IN ({ph})", (ziel_id, *quelle_ids))
     con.execute(f"UPDATE buchung SET empfaenger_id = ? WHERE empfaenger_id IN ({ph})", (ziel_id, *quelle_ids))
     con.execute(f"DELETE FROM empfaenger WHERE id IN ({ph})", quelle_ids)
     if umbenennen:
@@ -435,8 +442,11 @@ def suche(con, q: str, limit: int) -> dict:
         texte = {bid: trenner.join(f) for bid, f in teile.items()}
         treffer = [bid for datum, bid in sorted(reihe, reverse=True)
                    if all(w in texte[bid] for w in woerter)]
+    buchungen = buch.buchungen_laden(con, treffer[:limit])
+    from . import verdacht
+    verdacht.anreichern(con, buchungen)
     return {"q": q, "konten": konten, "empfaenger": empfaenger, "tags": tags,
-            "buchungen": buch.buchungen_laden(con, treffer[:limit]), "buchungen_gesamt": len(treffer)}
+            "buchungen": buchungen, "buchungen_gesamt": len(treffer)}
 
 
 # ============================================== Konto mit Buchungen löschen

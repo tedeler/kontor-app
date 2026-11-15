@@ -210,6 +210,33 @@ def test_gegenbuchung_setzt_verdeckende_filter_zurueck(umgebung):
     expect(page.locator('[data-testid="meldung"][data-art="hinweis"]').first).to_contain_text("Filter zurückgesetzt")
 
 
+def test_rechtsklick_schliesst_diesen_andere_oder_alle(umgebung):
+    """D-148: Rechtsklick auf einen Tab schließt ihn, die anderen oder alle."""
+    url, page, konten, _ = umgebung
+    giro = f"/konten/{konten['Giro']}"
+    spar = f"/konten/{konten['Sparkonto']}"
+    page.goto(url + "/")
+    bereit(page, "uebersicht")
+    page.goto(url + giro)
+    bereit(page, "konto")
+    page.goto(url + spar)
+    bereit(page, "konto")
+    expect(_tabs(page)).to_have_count(3)
+    _tab(page, giro).click(button="right")
+    expect(tid(page, "km-tab-schliessen")).to_be_visible()
+    expect(tid(page, "km-tab-andere")).to_be_enabled()
+    tid(page, "km-tab-andere").click()
+    expect(_tabs(page)).to_have_count(1)
+    expect(_tab(page, giro)).to_have_attribute("aria-selected", "true")
+    expect(page).to_have_url(url + giro)
+    _tab(page, giro).click(button="right")
+    expect(tid(page, "km-tab-andere")).to_have_attribute("aria-disabled", "true")
+    tid(page, "km-tab-alle").click()
+    bereit(page, "uebersicht")
+    expect(_tabs(page)).to_have_count(1)
+    expect(_tab(page, "/")).to_have_attribute("aria-selected", "true")
+
+
 def test_mobil_tabs_und_gegenbuchung(tmp_path, browser):  # noqa: F811
     _daten(tmp_path)
     with server(tmp_path, daten=False) as (url, _), seite(browser, url, **HANDY) as page:

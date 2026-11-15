@@ -24,10 +24,26 @@ export function h(tag, attrs, ...kinder) {
   return el;
 }
 
+/** Sichtbarer Text. Leere Werte erscheinen nicht als die Wörter null, nul, None oder undefined. */
+export function sichtbar(wert) {
+  if (wert === null || wert === undefined || wert === false) return "";
+  if (typeof wert === "number" || typeof wert === "bigint") return String(wert);
+  const roh = String(wert);
+  if (!/(?:null|nul|None|undefined)/.test(roh)) return roh;
+  return roh
+    .replace(/(^|[\s·,:;()<>„"'/])(?:null|nul|None|undefined)(?=$|[\s·,:;()<>„"'/.])/g, "$1")
+    .replace(/\s*<>\s*/g, " ")
+    .replace(/(?:\s*·\s*){2,}/g, " · ")
+    .replace(/[ \t]{2,}/g, " ");
+}
+
 export function anhaengen(el, kinder) {
   for (const kind of [kinder].flat(Infinity)) {
     if (kind === null || kind === undefined || kind === false) continue;
-    el.append(kind instanceof Node ? kind : document.createTextNode(String(kind)));
+    if (kind instanceof Node) { el.append(kind); continue; }
+    const text = sichtbar(kind);
+    if (text.trim() === "") continue;
+    el.append(document.createTextNode(text));
   }
   return el;
 }
@@ -110,6 +126,22 @@ export function zeitEl(tag, wert, attrs) {
 
 export const STATUS_TEXT = { importiert: "Importiert", vorlaeufig: "Vorläufig", bestaetigt: "Bestätigt",
   abgeglichen: "Abgeglichen" };
+/** Haushalt: ein Passwort, zwei Personen. Die Bestätigung einer Buchung trägt diesen Namen. */
+export const PERSONEN = ["Torsten", "Tina"];
+const PERSON_SCHLUESSEL = "kontor.person";
+export function personLesen() {
+  try {
+    const w = localStorage.getItem(PERSON_SCHLUESSEL);
+    return PERSONEN.includes(w) ? w : "";
+  } catch { return ""; }
+}
+export function personSchreiben(name) {
+  if (!PERSONEN.includes(name)) return;
+  try { localStorage.setItem(PERSON_SCHLUESSEL, name); } catch { /* ohne Speicher */ }
+}
+export function personLoeschen() {
+  try { localStorage.removeItem(PERSON_SCHLUESSEL); } catch { /* ohne Speicher */ }
+}
 export const ART_TEXT = { girokonto: "Girokonto", sparkonto: "Sparkonto", kreditkonto: "Kreditkonto",
   aufwand: "Ausgaben", ertrag: "Einnahmen", eigenkapital: "Eigenkapital" };
 export const BESTAND = new Set(["girokonto", "sparkonto", "kreditkonto"]);

@@ -41,7 +41,7 @@ from .validierung import ApiFehler, datum_gueltig
 
 FORMAT = "kontor-sicherung"
 FORMATVERSION = 1
-SCHEMAVERSION = 6
+SCHEMAVERSION = 7
 OBJEKTE = protokoll.OBJEKTE
 # Objektarten aus M9 (immer in ``anzahl``) und ab M5 nur bei Vorhandensein (sicherung.md 2.5, E-109)
 OBJEKTE_IMMER = ("konto", "empfaenger", "tag", "buchung", "regel", "verdacht", "abstimmung", "vorlage")
@@ -52,11 +52,11 @@ MAX_MANIFEST = 1024 ** 2
 
 # Objektarten je Schemaversion der Sicherungsdatei (für spätere Meilensteine, sicherung.md 2.3, 3.4).
 OBJEKTE_JE_VERSION = {1: OBJEKTE_IMMER, 2: OBJEKTE_IMMER + ("kredit",), 3: OBJEKTE_IMMER + ("kredit", "postfach"),
-                      4: OBJEKTE_IMMER + ("kredit", "postfach", "dokument"), 5: OBJEKTE, 6: OBJEKTE}
+                      4: OBJEKTE_IMMER + ("kredit", "postfach", "dokument"), 5: OBJEKTE, 6: OBJEKTE, 7: OBJEKTE}
 # Tabellen, die erst ab einer Schemaversion der Sicherungsdatei existieren (ältere Sicherungen: leer, 3.4)
 TABELLEN_AB = {"kredit": 2, "kredit_zuordnung": 2, "kredit_abgleich": 2, "postfach": 3,
                "dokument_inhalt": 4, "dokument": 4, "dokument_buchung": 4, "erwartung": 5,
-               "empfaenger_wiederkehrend": 6}
+               "empfaenger_wiederkehrend": 6, "empfaenger_tag": 7}
 
 # Tabellen der Sicherungsdatei (Schemaversion 1): Name → [(Spalte, Typ, nullbar)]. Die Namen entsprechen den
 # Tabellen der App-Datenbank; ``id_zaehler`` hält die höchste je vergebene ID je Objektart (auch Splits).
@@ -67,6 +67,7 @@ SPALTEN: dict[str, list[tuple[str, str, bool]]] = {
     "empfaenger": [("id", "int", False), ("name", "str", False), ("extern_id", "str", True),
                    ("standardkategorie_id", "int", True)],
     "empfaenger_alias": [("empfaenger_id", "int", False), ("alias", "str", False)],
+    "empfaenger_tag": [("empfaenger_id", "int", False), ("tag_id", "int", False)],
     "tag": [("id", "int", False), ("name", "str", False), ("extern_id", "str", True)],
     "buchung": [("id", "int", False), ("datum", "str", False), ("empfaenger_id", "int", True),
                 ("verwendungszweck", "str", False), ("status", "str", False), ("gegen_iban", "str", True)],
@@ -122,8 +123,8 @@ SPALTEN: dict[str, list[tuple[str, str, bool]]] = {
                                  ("toleranz_prozent", "int", True), ("mindestbetrag", "int", True)],
 }
 _ORDNUNG = {
-    "split": "buchung_id, position, id", "empfaenger_alias": "empfaenger_id, alias",
-    "empfaenger_wiederkehrend": "empfaenger_id",
+    "split": "buchung_id, position, id",     "empfaenger_alias": "empfaenger_id, alias",
+    "empfaenger_wiederkehrend": "empfaenger_id", "empfaenger_tag": "empfaenger_id, tag_id",
     "buchung_tag": "buchung_id, tag_id", "buchung_extern": "buchung_id, extern_id",
     "vorschlag": "buchung_id", "verdacht_kandidat": "verdacht_id, buchung_id", "sync_kennung": "kennung",
     "sync_konto_zustand": "iban", "id_zaehler": "objekt",
@@ -131,7 +132,9 @@ _ORDNUNG = {
     "dokument_inhalt": "sha256", "dokument_buchung": "dokument_id, buchung_id",
 }
 _SCHLUESSEL = {"empfaenger_alias": "PRIMARY KEY (empfaenger_id, alias)",
-               "empfaenger_wiederkehrend": "PRIMARY KEY (empfaenger_id)", "buchung_tag": "PRIMARY KEY (buchung_id, tag_id)",
+               "empfaenger_wiederkehrend": "PRIMARY KEY (empfaenger_id)",
+               "empfaenger_tag": "PRIMARY KEY (empfaenger_id, tag_id)",
+               "buchung_tag": "PRIMARY KEY (buchung_id, tag_id)",
                "buchung_extern": "PRIMARY KEY (extern_id)", "verdacht_kandidat": "PRIMARY KEY (verdacht_id, buchung_id)",
                "vorschlag": "PRIMARY KEY (buchung_id)", "sync_kennung": "PRIMARY KEY (kennung)",
                "sync_konto_zustand": "PRIMARY KEY (iban)", "id_zaehler": "PRIMARY KEY (objekt)",
@@ -139,7 +142,7 @@ _SCHLUESSEL = {"empfaenger_alias": "PRIMARY KEY (empfaenger_id, alias)",
                "kredit_abgleich": "PRIMARY KEY (kredit_id, jahr)",
                "dokument_inhalt": "PRIMARY KEY (sha256)", "dokument_buchung": "PRIMARY KEY (dokument_id, buchung_id)"}
 # Buchbestand (ohne Kennungen, Bankkonto-Zustand, Zähler) in Einfügereihenfolge.
-BUCH_TABELLEN = ("konto", "empfaenger", "empfaenger_alias", "empfaenger_wiederkehrend", "tag", "regel", "abstimmung", "buchung", "split",
+BUCH_TABELLEN = ("konto", "empfaenger", "empfaenger_alias", "empfaenger_wiederkehrend", "tag", "empfaenger_tag", "regel", "abstimmung", "buchung", "split",
                  "buchung_tag", "buchung_extern", "vorschlag", "dublettenverdacht", "verdacht_kandidat", "vorlage",
                  "kredit", "kredit_zuordnung", "kredit_abgleich", "postfach", "dokument_inhalt", "dokument",
                  "dokument_buchung", "erwartung")
@@ -712,7 +715,7 @@ def probelauf(con, s: Sicherung) -> dict:
     return _ergebnis(s, True, not _identisch(aktuell, s), None, unterschied, betroffen)
 
 
-_LOESCHEN = ("erwartung", "dokument_buchung", "dokument", "postfach", "kredit_abgleich", "kredit_zuordnung", "kredit", "vorschlag", "buchung_tag", "buchung_extern", "verdacht_kandidat", "dublettenverdacht", "split",
+_LOESCHEN = ("erwartung", "dokument_buchung", "dokument", "postfach", "kredit_abgleich", "kredit_zuordnung", "kredit", "vorschlag", "buchung_tag", "empfaenger_tag", "buchung_extern", "verdacht_kandidat", "dublettenverdacht", "split",
              "buchung", "abstimmung", "regel", "vorlage", "empfaenger_wiederkehrend", "empfaenger_alias", "empfaenger", "tag",
              "konto")
 

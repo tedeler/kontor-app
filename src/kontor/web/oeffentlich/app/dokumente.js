@@ -157,7 +157,12 @@ function bildAnsicht(url, name) {
 }
 
 function adressText(liste) {
-  return liste.map((a) => (a.name ? `${a.name} <${a.adresse}>` : a.adresse)).join(", ");
+  return (liste || []).map((a) => {
+    const name = a && a.name ? String(a.name) : "";
+    const adresse = a && a.adresse ? String(a.adresse) : "";
+    if (name && adresse) return `${name} <${adresse}>`;
+    return name || adresse;
+  }).filter(Boolean).join(", ");
 }
 
 async function mailAnsicht(dok, betrachten) {
@@ -303,7 +308,7 @@ export function betrachter(dokumente, index, ausloeser) {
     const zurMail = knopf("Zurück zur E-Mail", { class: "knopf knopf-klein", tid: "betrachter-zur-mail" });
     const zeigen = async (dok) => {
       const url = dok.url || inhaltUrl(dok.id);
-      titel.textContent = dok.dateiname;
+      titel.textContent = dok.dateiname || "(ohne Namen)";
       d.el.dataset.typ = dok.mime_typ;
       d.el.dataset.dokumentId = String(dok.id);
       laden.href = dok.url ? `${dok.url}?herunterladen=true` : inhaltUrl(dok.id, true);
