@@ -1653,8 +1653,9 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     async def dubletten(request: Request):
         q = Query(request.query_params)
         status_ = q.auswahl("status", ("offen", "zusammengefuehrt", "keine_dublette"))
+        vorschlaege = q.auswahl("vorschlaege", ("ja", "nein")) == "ja"   # D-169: nur auf Anfrage
         q.pruefen()
-        return await lesen(buch.dubletten_liste, status_)
+        return await lesen(buch.dubletten_liste, status_, vorschlaege)
 
     @endpunkt("POST", "/api/dubletten", 201)
     async def dublette_anlegen(request: Request):

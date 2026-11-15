@@ -902,14 +902,14 @@ def _verdacht_dict(con, r) -> dict:
 _ZAHLUNG_ARTEN = ("girokonto", "sparkonto")
 
 
-def dubletten_liste(con, status: str | None) -> list[dict]:
+def dubletten_liste(con, status: str | None, vorschlaege: bool = False) -> list[dict]:
     if status:
         zeilen = con.execute("SELECT * FROM dublettenverdacht WHERE status = ? ORDER BY id", (status,))
     else:
         zeilen = con.execute("SELECT * FROM dublettenverdacht ORDER BY id")
     aus = [_verdacht_dict(con, r) for r in zeilen.fetchall()]
-    # Vorschläge nur bei offenen Listen: sie sind noch nicht entschieden.
-    if status in (None, "offen"):
+    # Vorschläge nur auf Anfrage (D-169) und nur bei offenen Listen: sie sind noch nicht entschieden.
+    if vorschlaege and status in (None, "offen"):
         aus.extend(dubletten_vorschlaege(con))
     return aus
 

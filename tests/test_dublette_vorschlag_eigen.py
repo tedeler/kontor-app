@@ -56,7 +56,7 @@ def test_vorschlag_betrag_datum_empfaenger(client):
     umbuchung = _buchung(client, "2024-06-01", [
         {"konto_id": giro, "betrag": -10_000}, {"konto_id": spar, "betrag": 10_000}], vermieter)
 
-    liste = client.get("/api/dubletten?status=offen").json()
+    liste = client.get("/api/dubletten?status=offen&vorschlaege=ja").json()
     vorschlaege = [v for v in liste if v.get("vorschlag")]
     assert len(vorschlaege) == 1
     assert vorschlaege[0]["grund"] == "gleich"
@@ -64,6 +64,10 @@ def test_vorschlag_betrag_datum_empfaenger(client):
     assert _ids(vorschlaege[0]) == {a["id"], b["id"], doppelt["id"]}
     assert umbuchung["id"] not in _ids(vorschlaege[0])
     assert anderes_datum["id"] not in _ids(vorschlaege[0])
+    # D-169: ohne ausdrückliche Anfrage keine Vorschläge (bestehender Vertrag von GET /api/dubletten)
+    assert not [v for v in client.get("/api/dubletten?status=offen").json() if v.get("vorschlag")]
+    assert not [v for v in client.get("/api/dubletten").json() if v.get("vorschlag")]
+    assert client.get("/api/dubletten?vorschlaege=vielleicht").status_code == 422
     assert all(type(x) is int for x in _ids(vorschlaege[0]))
 
     # Manuelles Paar ohne die drei Schlüssel; der Vorschlag bleibt daneben stehen.
@@ -72,7 +76,7 @@ def test_vorschlag_betrag_datum_empfaenger(client):
     assert fremd.status_code == 201
     assert set(_ids(fremd.json())) == {a["id"], anderes_datum["id"]}
     assert fremd.json().get("vorschlag") is not True
-    offen = client.get("/api/dubletten?status=offen").json()
+    offen = client.get("/api/dubletten?status=offen&vorschlaege=ja").json()
     assert [set(_ids(v)) for v in offen if v.get("vorschlag")] == [{a["id"], b["id"], doppelt["id"]}]
     assert [v["id"] for v in offen if not v.get("vorschlag")] == [fremd.json()["id"]]
 
@@ -82,7 +86,7 @@ def test_vorschlag_betrag_datum_empfaenger(client):
     weg = client.post(f"/api/dubletten/{gruppe.json()['id']}/aufloesen",
                       json={"entscheidung": "keine_dublette"})
     assert weg.status_code == 200 and weg.json()["status"] == "keine_dublette"
-    rest = client.get("/api/dubletten?status=offen").json()
+    rest = client.get("/api/dubletten?status=offen&vorschlaege=ja").json()
     assert rest == [fremd.json()] or [v["id"] for v in rest] == [fremd.json()["id"]]
     assert client.get(f"/api/buchungen/{a['id']}").status_code == 200
     assert client.get(f"/api/buchungen/{doppelt['id']}").status_code == 200

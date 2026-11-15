@@ -2283,3 +2283,13 @@ D-123 bis D-127 sind auf den offenen Branches `dokumente` und `alfbanco-import` 
     unverändert.
   - Die eigenen Rauchtests wählen vorab Torsten. Ein eigener Test prüft den Dialog selbst und die Breite mobil.
   - Der Service-Worker-Cache heißt `kontor-huelle-27`.
+
+## D-169 Dublettenvorschläge nur auf Anfrage
+
+- **Anlass:** Seit D-165 lieferte `GET /api/dubletten` (ohne Status oder mit `status=offen`) die berechneten
+  Vorschläge in derselben Liste wie die gespeicherten Verdachte. Sie haben `id: null` und `erstellt_am: null`. Das
+  brach den bestehenden Vertrag der Liste, etwa für Auflösen, Filter und Idempotenz.
+- **Entscheidung:** Wie bei den Serien (D-139) gibt es die Vorschläge nur auf ausdrückliche Anfrage, mit dem
+  Query-Parameter `vorschlaege=ja` (`ja`/`nein`, sonst 422). Ohne den Parameter enthält die Liste nur gespeicherte
+  Verdachte. Kontoblatt und Seite Dubletten fragen mit `vorschlaege=ja`. Der Service-Worker-Cache heißt
+  `kontor-huelle-28`.

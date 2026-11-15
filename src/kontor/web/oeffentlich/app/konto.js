@@ -508,7 +508,7 @@ class Kontoansicht {
       for (const s of rest) eintraege.push(...s.eintraege);
     }
     let verdachte = [];
-    try { verdachte = await api("GET", "/api/dubletten?status=offen"); } catch (e) { verdachte = []; }
+    try { verdachte = await api("GET", "/api/dubletten?status=offen&vorschlaege=ja"); } catch (e) { verdachte = []; }
     await this.regelnLaden(eintraege);
     const mail = new Map();
     for (const e of await erwartungen) for (const id of e.buchung_ids) if (!mail.has(id)) mail.set(id, erwartungText(e));

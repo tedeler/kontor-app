@@ -1296,7 +1296,7 @@ function betragEingabeText(c) {
 
 // ------------------------------------------------------------------ Dubletten (13.10)
 export async function dubletten(seite) {
-  const liste = await api("GET", "/api/dubletten?status=offen");
+  const liste = await api("GET", "/api/dubletten?status=offen&vorschlaege=ja");
   kopf(seite, "Dubletten", knopf("Umbuchungen erkennen", { onclick: async () => {
     try { await aktion(() => api("POST", "/api/umbuchungen/erkennen", {}), { erfolg: "Umbuchungen geprüft." }); } catch (e) { /* gemeldet */ }
   } }));
