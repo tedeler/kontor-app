@@ -870,10 +870,10 @@ document.addEventListener("keydown", (e) => {
     e.preventDefault();
     return;
   }
-  if (e.altKey && !strg && /^Digit[1-8]$/.test(e.code)) {
-    e.preventDefault();
-    const z = NAV_ZIELE[Number(e.code.slice(5)) - 1];
-    tid(`nav-${z}`).click();
+  if (e.altKey && !strg && /^Digit[1-9]$/.test(e.code)) {
+    const z = NAV_ZIELE[Number(e.code.slice(5)) - 1];   // Alt+1 … Alt+7; Alt+8 ohne Wirkung (M28 2, D-173)
+    const link = z ? tid(`nav-${z}`) : null;
+    if (link) { e.preventDefault(); link.click(); }
     return;
   }
   if (strg || e.altKey) return;

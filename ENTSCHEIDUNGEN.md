@@ -2321,3 +2321,8 @@ D-123 bis D-127 sind auf den offenen Branches `dokumente` und `alfbanco-import` 
   bleibt (M26 36.5): Befehlspalette (`befehlspalette-eingabe`) und Entsperren (`entsperren-passwort`).
 - Das Web-App-Manifest antwortet wie alle statischen Dateien mit `Cache-Control: no-cache`, `ETag` und 304 bei
   passendem `If-None-Match` (M26 36.8.1).
+
+## D-173 Abnahme M28: Alt+8 ohne Wirkung und ohne Skriptfehler
+
+- Nach dem Wegfall von „Wiederkehrende Buchungen“ in der Navigation (D-146) löste Alt+8 einen Skriptfehler aus
+  (Link nicht vorhanden). Alt+Ziffer wirkt nur noch, wenn es ein Ziel gibt; sonst geschieht nichts (M28 2).
