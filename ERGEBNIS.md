@@ -1,6 +1,23 @@
 # Ergebnis der Implementierung
 
 
+## Merge von `feature/lernmodell-transparenz` (D-179 bis D-184) ohne Abnahme, gegen kontor-tests `c99b6ac`
+
+Stand: 2026-11-16, Implementierungs-Thread. Gemergt auf ausdrückliche Anweisung des Auftraggebers („merge auf
+main“) nach der iterativen Phase, vor Meilenstein-Definition und eigenen Abnahmetests. Inhalt: automatisch
+angelegte Regeln aus dem Gelernten (Einstellung, Vorgabe aus; `kontor.env` ein), „Warum?“ des Lernmodells in den
+Einzelheiten, Seite `/lernmodell` (Güte, Schwelle, Verlässlichkeit, Kategorien), einstellbare Schwelle (Vorgabe
+700 ‰ wie lernmodell.md), Knopf „Vorschläge für unkategorisierte Buchungen“, 3000 Mock-Lerndaten
+(`POST /api/mock/lerndaten`). Datenbankschema 13, Sicherungsdatei 8. Vor dem Merge main (D-175 bis D-178,
+`feature/detailansicht`) zusammengeführt; eigene Entscheidungen dafür auf D-179 bis D-184 umnummeriert.
+
+- Gesamtlauf aller Abnahmetests auf dem Branch: 2912 / 2917, 28 übersprungen (AqBanking nicht installiert). Die 5
+  roten Tests (M13 Versionsknopf, M8 Hülle) stammen aus D-178: außerhalb von main zeigt die Hülle den Branch statt
+  der Version. Auf main nachgeprüft: M13 und `m8/test_m8_auslieferung.py` 51 / 51 grün.
+- Eigene Tests: 308 / 308 (auf main; auf dem Branch 2 wegen D-178 rot, siehe oben).
+- Nicht gelaufen: M10 mit AqBanking und der Leistungslauf unter Last. Codequalitätsanalyse nach `refactor.md`
+  folgt vor der Meilenstein-Definition.
+
 ## Nachtrag: D-178 von `feature/detailansicht` auf main, gegen kontor-tests `c99b6ac`
 
 Stand: 2026-11-16. Ein anderer Thread hatte nach dem ersten Merge D-178 (Branch mit Link statt Versionsnummer
