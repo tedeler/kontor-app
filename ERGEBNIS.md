@@ -1,5 +1,21 @@
 # Ergebnis der Implementierung
 
+
+## Abnahme M26–M28 (Branch `feature/abnahme-m26-m28`) gegen kontor-tests `c99b6ac`
+
+Stand: 2026-11-16, Implementierungs-Thread. `feature/UXMobile` (M26) und `feature/sammel` (M27 REST, M28
+Oberfläche) waren von anderen Threads ohne Abnahme auf main gemergt worden (0.13, 0.15). Definitionen vom
+Auftraggeber freigegeben, Tests vom Test-Thread (E-246 bis E-257).
+
+- Behoben: Person ohne Browser-Speicher, echte Texte unverändert, Zeilenangaben im Ausschnitt, Tastaturhilfe
+  (D-170); `verdacht` nur auf Anfrage, Mail-Liste wieder aufsteigend, Konflikt beim Rückgängig eines Tags an
+  Empfängern (D-171); Startfokus Befehlspalette/Entsperren mobil, Manifest mit ETag (D-172); Alt+8 ohne
+  Skriptfehler (D-173); Meldungen lassen Klicks durch, mobile Suche ohne Wettlauf (D-174).
+- Widersprüche W-013 und W-014 vom Test-Thread als Testfehler behoben (E-257).
+- Volllauf `--voll`: ohne Browser/Leistung **3048 / 3048**, Browser und Leistung **447 / 447** – zusammen
+  **3495 / 3495**, nichts übersprungen. Anmeldelauf M26/M27 86/86. Eigene Tests 283/283.
+- Die 6 mobilen Browsertests aus dem Nachtrag zu M23–M25 sind mit M26 (E-248) grün.
+
 ## Merge von `feature/sammel` (D-145 bis D-169) ohne Abnahme, gegen kontor-tests `e301131`
 
 Stand: 2026-11-15, Implementierungs-Thread. Gemergt auf ausdrückliche Anweisung des Auftraggebers, bevor es eine
