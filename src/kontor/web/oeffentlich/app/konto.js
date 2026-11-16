@@ -11,6 +11,8 @@ import {
 } from "./ui.js";
 import { kategorienBaum, langeBeruehrung, ziehbar } from "./baum.js";
 import { ablageEinrichten, betrachter, dateiWaehlen, detailsAbschnitt, mailDialog } from "./dokumente.js";
+import { AusdruckEingabe, markiert } from "./ausdruck.js";
+import { ausdruckFeld, regelEditor } from "./regeleditor.js";
 
 const PRO_SEITE = 200;
 const GRUPPE_SEITE = 500;          // Höchstwert der Buchungsliste; beim Gruppieren eine Seite statt vieler kleiner
@@ -73,7 +75,11 @@ const WISCH_QUER = 40;    // höchstens so weit senkrecht
 const STATUS = ["importiert", "vorlaeufig", "bestaetigt", "abgeglichen"];
 const PARAMETER = ["von", "bis", "betrag_min", "betrag_max", "empfaenger_id", "ohne_empfaenger", "verwendungszweck",
   "zweck_gleich", "zweck_aehnlich", "zweck_leer", "empfaenger_aehnlich",
-  "suche", "kategorie_id", "unterkategorien", "unterkonten", "tag_id", "status", "sortierung"];
+  "suche", "kategorie_id", "unterkategorien", "unterkonten", "tag_id", "status", "sortierung", "filter"];
+// Schnellauswahl Zeitraum des Filterausdrucks (D-175, Konzept 4.6.11): [Datumsangabe, Beschriftung]
+const SCHNELL = [["heute", "Heute"], ["-7d", "7 Tage"], ["-30d", "30 Tage"], ["dieser_monat", "Dieser Monat"],
+  ["letzter_monat", "Letzter Monat"], ["dieses_jahr", "Dieses Jahr"], ["letztes_jahr", "Letztes Jahr"]];
+const SCHNELL_TEIL = /^(?:datum|dt)\s+(?:in|==)\s+(?:heute|[+-]\d+[dwmqy]|dieser_monat|letzter_monat|dieses_jahr|letztes_jahr|vorjahr)$/i;
 // Tastaturkürzel des Kontoblatts (D-167): [Vortaste, Taste, Text, Wirkung]. Ohne Vortaste wirken sie auf die
 // markierten Buchungen; „f“ führt zu den Filtern, „v“ zur Ansicht. Groß-/Kleinschreibung zählt (Umschalt).
 const KUERZEL = [
@@ -119,6 +125,7 @@ const KUERZEL = [
   ["f", "m", "Zeitraum: dieser Monat", (s) => s.zeitraum("monat")],
   ["f", "l", "Zeitraum: letzter Monat", (s) => s.zeitraum("letzter")],
   ["f", "j", "Zeitraum: dieses Jahr", (s) => s.zeitraum("jahr")],
+  ["f", "a", "Filterausdruck", (s) => { if (s.ausdruckEingabe) s.ausdruckEingabe.eingabe.focus(); }],
   ["f", "0", "alle Filter zurücksetzen", (s) => { const k = tid("filter-zuruecksetzen", s.filterLeiste); if (k) k.click(); }],
   ["v", "g", "Gruppierung: keine ↔ nach Datum", (s) => s.gruppierungSetzen(s.gruppierung ? "" : "datum")],
   ["v", "+", "alle Gruppen aufklappen", (s) => s.alleKlappen(false)],
@@ -525,6 +532,7 @@ class Kontoansicht {
     if (!ids.has(this.anker)) this.anker = null;
     if (!ids.has(this.fokusId)) this.fokusId = null;
     this.listeZeichnen();
+    this.zusammenfassungZeichnen();
     this.seite.dataset.geladen = "ja";
   }
 
@@ -551,6 +559,7 @@ class Kontoansicht {
         knopf("Einstellungen…", { tid: "konto-einstellungen-oeffnen", onclick: (e) => kontoEinstellungen(this.konto, e.currentTarget) }))),
     h("div", { class: "listen-info" }, this.anzahlEl, " · Summe ", this.summeEl, h("span", { class: "auswahl-trenner" }, " · "),
       this.auswahlEl, this.gruppierungLeiste()));
+    s.append(this.ausdruckFilterAufbauen());
     this.filterLeiste = this.filterAufbauen();
     s.append(this.filterLeiste);
     this.liste = h("div", { role: "grid", tid: "buchungsliste", "aria-multiselectable": "true", "aria-label": "Buchungen",
@@ -590,6 +599,77 @@ class Kontoansicht {
     this.filterSichtbar = !this.filterSichtbar;
     this.filterLeiste.hidden = !this.filterSichtbar;
     this.filterKnopf.setAttribute("aria-expanded", String(this.filterSichtbar));
+  }
+
+  // ------------------------------------------------- Filterausdruck (D-175, Konzept 5.4)
+  ausdruckFilterAufbauen() {
+    let uhr;
+    const anwenden = () => {
+      clearTimeout(uhr);
+      const t = this.ausdruckEingabe.wert.trim();
+      const e = this.ausdruckEingabe.ergebnis;
+      if (t && (!e || !e.gueltig)) return;   // bei Fehlern bleibt die letzte gültige Liste stehen
+      this.filterSetzen("filter", t);
+    };
+    this.ausdruckEingabe = new AusdruckEingabe({ kontext: "filter", tid: "filter-ausdruck", wert: this.filter.filter || "",
+      beschriftung: "Filter: Suchtext oder Ausdruck", platzhalter: "z. B.  rewe dt in letzter_monat and bet > 20",
+      beiErgebnis: () => { this.zusammenfassungZeichnen(); clearTimeout(uhr); uhr = setTimeout(anwenden, 400); },
+      beiEnter: anwenden });
+    const leeren = h("button", { type: "button", class: "knopf-flach", tid: "filter-ausdruck-leeren", "aria-label": "Filterausdruck leeren",
+      onclick: () => { this.ausdruckEingabe.wert = ""; anwenden(); this.ausdruckEingabe.eingabe.focus(); } }, "✕");
+    const menue = h("button", { type: "button", class: "knopf-flach", tid: "filter-ausdruck-menue", "aria-haspopup": "menu",
+      "aria-label": "Weitere Aktionen zum Filter" }, "⋯");
+    menue.addEventListener("click", (e) => {
+      const gueltig = !!(this.ausdruckEingabe.ergebnis && this.ausdruckEingabe.ergebnis.gueltig);
+      const r = e.currentTarget.getBoundingClientRect();
+      kontextmenue(r.left, r.bottom, [
+        { tid: "km-filter-festschreiben", text: "Jahr festschreiben", aktiv: gueltig, tun: () => this.festschreiben() },
+        { tid: "km-filter-als-regel", text: "Als Regel speichern…", aktiv: gueltig, tun: () => this.alsRegel(menue) },
+      ], menue);
+    });
+    this.zusammenfassungEl = h("p", { class: "filter-zusammenfassung", tid: "filter-zusammenfassung", "aria-live": "polite" });
+    const chips = h("div", { class: "filter-schnell", tid: "filter-schnell", role: "group", "aria-label": "Zeitraum" },
+      SCHNELL.map(([w, text]) => h("button", { type: "button", class: "chip", tid: `filter-schnell-${w}`,
+        onclick: () => { this.ausdruckEingabe.wert = this.mitZeitraum(w); anwenden(); } }, text)));
+    return h("div", { class: "ausdruck-filter", tid: "ausdruck-filter", role: "search", "aria-label": "Filterausdruck" },
+      h("div", { class: "ausdruck-filter-zeile" }, ausdruckFeld("Filter", this.ausdruckEingabe), leeren, menue),
+      this.zusammenfassungEl, chips);
+  }
+
+  /** Setzt bzw. ersetzt einen einfachen Datumsteil auf oberster Ebene (Schnellauswahl). */
+  mitZeitraum(w) {
+    const neu = w === "heute" ? "datum == heute" : `datum in ${w}`;
+    const t = this.ausdruckEingabe.wert.trim();
+    if (!t) return neu;
+    if (/\bor\b|\|\||[()]/.test(t)) return `(${t}) and ${neu}`;
+    const teile = t.split(/\s+(?:and|&&)\s+/).filter((x) => !SCHNELL_TEIL.test(x.trim()));
+    return [...teile, neu].join(" and ");
+  }
+
+  zusammenfassungZeichnen() {
+    if (!this.zusammenfassungEl) return;
+    const e = this.ausdruckEingabe && this.ausdruckEingabe.ergebnis;
+    const t = this.filter.filter;
+    if (!t) { this.zusammenfassungEl.textContent = ""; return; }
+    const teile = e && e.gueltig ? e.zusammenfassung : [];
+    this.zusammenfassungEl.textContent = [...teile, `${this.gesamt} Buchung${this.gesamt === 1 ? "" : "en"}`].join(" · ");
+  }
+
+  async festschreiben() {
+    try {
+      const r = await api("POST", "/api/ausdruck/pruefen", { ausdruck: this.ausdruckEingabe.wert, kontext: "filter", festschreiben: true });
+      if (r.gueltig) { this.ausdruckEingabe.wert = r.kanonisch; this.filterSetzen("filter", r.kanonisch); }
+    } catch (e) { melde("fehler", e.message); }
+  }
+
+  async alsRegel(ausloeser) {
+    try {
+      const r = await api("POST", "/api/ausdruck/als-regel", { ausdruck: this.ausdruckEingabe.wert });
+      if (!r.ausdruck) { melde("hinweis", "Der Filter enthält nur Teile, die es in Regeln nicht gibt (z. B. Datum)."); return; }
+      if (r.entfernt.length && !(await bestaetigen(`Nicht übernommen: ${r.entfernt.join(", ")}. Datumsangaben gibt es nur im Filter. `
+        + `Die Regel lautet: ${r.ausdruck}`, { ja: "Weiter", ausloeser }))) return;
+      regelEditor({ name: "", ausdruck: r.ausdruck, aktiv: true, testmenge: this.ausdruckEingabe.wert }, ausloeser);
+    } catch (e) { melde("fehler", e.message); }
   }
 
   filterAufbauen() {
@@ -679,6 +759,7 @@ class Kontoansicht {
     const zurueck = knopf("Filter zurücksetzen", { tid: "filter-zuruecksetzen", onclick: async () => {
       const sort = this.filter.sortierung;
       this.filter = sort ? { sortierung: sort } : {};
+      if (this.ausdruckEingabe) this.ausdruckEingabe.wert = "";
       this.auswahl.clear();
       this.anker = null;
       this.seiten = 1;
@@ -1371,9 +1452,10 @@ class Kontoansicht {
     const empfName = b.empfaenger ? b.empfaenger.name : "";
     const empf = h("div", { role: "gridcell", class: "zelle zelle-empfaenger", "data-feld": "empfaenger",
       "data-empfaenger-id": b.empfaenger ? String(b.empfaenger.id) : "" },
-    empfName || (kompakt ? h("span", { class: "ersatz" }, b.verwendungszweck) : ""));
+    empfName ? markiert(empfName, b.markierungen, "empfänger")
+      : (kompakt ? h("span", { class: "ersatz" }, markiert(b.verwendungszweck, b.markierungen, "verwendungszweck")) : ""));
     const zweckZelle = h("div", { role: "gridcell", class: "zelle zelle-verwendungszweck", "data-feld": "verwendungszweck" },
-      b.verwendungszweck);
+      markiert(b.verwendungszweck, b.markierungen, "verwendungszweck"));
     const belegMarke = b.belege && b.belege.length ? h("button", { type: "button", class: "beleg-marke", tid: `beleg-marke-${b.id}`,
         "data-nicht-ziehen": "", "data-anzahl": String(b.belege.length), tabindex: "-1",
         title: b.belege.map((d) => d.dateiname).join("\n"), "aria-label": `${b.belege.length} Dokument(e) ansehen`,

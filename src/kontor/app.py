@@ -206,7 +206,9 @@ REGELN_ANWENDEN = {
 }
 # D-175: Kontor-Ausdrücke
 AUSDRUCK_PRUEFEN = {"ausdruck": S("str", pflicht=True, max_len=4000), "kontext": S("enum", werte=("regel", "filter")),
-                    "stichtag": S("datum")}
+                    "stichtag": S("datum"), "festschreiben": S("bool")}
+AUSDRUCK_ALS_REGEL = {"ausdruck": S("str", pflicht=True, min_len=1, max_len=4000),
+                      "freitext_feld": S("enum", werte=("empfänger", "verwendungszweck"))}
 REGELN_REIHENFOLGE = {"regel_ids": S("int_liste", pflicht=True, eindeutig=True)}
 REGEL_TEST = {"ausdruck": S("str", min_len=1, max_len=4000), "regel_id": S("int"), "kategorie_id": S("int", nullbar=True),
               "testmenge": S("str", max_len=4000), "stichtag": S("datum"),
@@ -687,7 +689,13 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     @endpunkt("POST", "/api/ausdruck/pruefen")
     async def ausdruck_pruefen(request: Request):
         d = await koerper(request, AUSDRUCK_PRUEFEN)
-        return await lesen(ausdruck.pruefen, d["ausdruck"], d.get("kontext") or "filter", _bezugstag(d))
+        return await lesen(ausdruck.pruefen, d["ausdruck"], d.get("kontext") or "filter", _bezugstag(d),
+                           bool(d.get("festschreiben")))
+
+    @endpunkt("POST", "/api/ausdruck/als-regel")
+    async def ausdruck_als_regel(request: Request):
+        d = await koerper(request, AUSDRUCK_ALS_REGEL)
+        return await lesen(ausdruck.als_regel, d["ausdruck"], d.get("freitext_feld") or "empfänger")
 
     @endpunkt("POST", "/api/regeln/reihenfolge")
     async def regeln_reihenfolge(request: Request):

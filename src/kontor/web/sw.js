@@ -2,7 +2,7 @@
  * Zwischengespeichert werden nur die Hülle und die statischen Dateien (Caches „kontor-…“), nie Antworten unter /api/.
  * Navigationen: zuerst Netz, bei Netzfehler die zwischengespeicherte Hülle. Statische Dateien: zuerst Netz, offline
  * aus dem Cache. */
-const CACHE = "kontor-huelle-30";
+const CACHE = "kontor-huelle-31";
 const DATEIEN = [
   "/",
   "/oeffentlich/app.css",
@@ -17,6 +17,8 @@ const DATEIEN = [
   "/oeffentlich/app/erwartet.js",
   "/oeffentlich/app/mail.js",
   "/oeffentlich/app/statistik.js",
+  "/oeffentlich/app/ausdruck.js",
+  "/oeffentlich/app/regeleditor.js",
   "/oeffentlich/vendor/plotly-basic.min.js",
   "/oeffentlich/icon.svg",
   "/oeffentlich/icon-192.png",

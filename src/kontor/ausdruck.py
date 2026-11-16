@@ -1264,7 +1264,7 @@ def _zusammenfassung_teil(n: dict, bez: Bezuege, heute: dt.date) -> str:
     return drucken(n, bez)
 
 
-def pruefen(con, quelle: str, kontext: str, heute: dt.date) -> dict:
+def pruefen(con, quelle: str, kontext: str, heute: dt.date, festschreiben_: bool = False) -> dict:
     """POST /api/ausdruck/pruefen (Konzept 6.2). Antwort auch bei Fehlern im Ausdruck."""
     bez = Bezuege.laden(con)
     try:
@@ -1272,6 +1272,8 @@ def pruefen(con, quelle: str, kontext: str, heute: dt.date) -> dict:
     except AusdruckFehler as f:
         return {"gueltig": False, "fehler": f.fehler, "kanonisch": None, "baum": None, "baukasten_faehig": False,
                 "hinweise": [], "datumsangaben": [], "freitext": [], "zusammenfassung": []}
+    if festschreiben_:
+        e.baum = baum_festschreiben(e.baum, heute)
     aus: dict[str, Any] = {"gueltig": True, "fehler": [], "kanonisch": drucken(e.baum, bez), "baum": e.baum,
                            "baukasten_faehig": baukasten_faehig(e.baum), "hinweise": e.hinweise}
     if kontext == "filter":
@@ -1768,3 +1770,37 @@ def markierungen(baum: dict, s: Sicht, heute: dt.date) -> list[dict]:
             gesehen.add(k)
             aus.append(m)
     return aus
+
+
+# ============================================================ Filter → Regel
+
+
+def _nur_filter(n: Any) -> bool:
+    if isinstance(n, dict):
+        if n.get("t") in ("zeit", "freitext") or (n.get("t") == "feld" and FELDER[n["name"]].nur_filter):
+            return True
+        return any(_nur_filter(v) for v in n.values())
+    if isinstance(n, list):
+        return any(_nur_filter(v) for v in n)
+    return False
+
+
+def als_regel(con, quelle: str, freitext_feld: str = "empfänger") -> dict:
+    """„Als Regel speichern…“ (Konzept 5.4): Teile auf oberster Ebene, die nur im Filter gehen, entfallen;
+    allein stehender Freitext wird zu ``"x" in <freitext_feld>``."""
+    bez = Bezuege.laden(con)
+    baum_ = filter_baum(con, quelle)
+    teile = baum_["teile"] if baum_["t"] == "und" else [baum_]
+    behalten, entfernt = [], []
+    for x in teile:
+        if x["t"] == "freitext":
+            behalten.append({"t": "kette", "terme": [{"t": "text", "wert": x["wert"]},
+                                                     {"t": "feld", "name": freitext_feld}], "ops": ["in"]})
+        elif _nur_filter(x):
+            entfernt.append(drucken(x, bez))
+        else:
+            behalten.append(x)
+    if not behalten:
+        return {"ausdruck": None, "entfernt": entfernt}
+    neu = behalten[0] if len(behalten) == 1 else {"t": "und", "teile": behalten}
+    return {"ausdruck": drucken(neu, bez), "entfernt": entfernt}

@@ -10,6 +10,7 @@ import {
 } from "./ui.js";
 import { kategorienBaum, kontoMenue, langeBeruehrung } from "./baum.js";
 import { layoutZuruecksetzen } from "./konto.js";
+import { regelnSeite } from "./regeleditor.js";
 
 const kopf = (seite, titel, ...werkzeuge) => {
   seite.append(h("div", { class: "seiten-kopf" }, h("h1", null, titel),
@@ -1161,29 +1162,9 @@ function zusammenfuehren(gewaehlt, ausloeser) {
   }, { ausloeser });
 }
 
-// ------------------------------------------------------------------ Regeln, Vorlagen (13.10)
-const BED_TEXT = (b) => `${b.feld} ${b.operator} ${b.wert ?? b.konto_id ?? ""}`;
-
+// ------------------------------------------------------------------ Regeln (D-175: regeleditor.js), Vorlagen (13.10)
 export async function regeln(seite) {
-  const liste = await api("GET", "/api/regeln");
-  kopf(seite, "Regeln", knopf("Regeln anwenden", { tid: "regeln-anwenden", onclick: async () => {
-    try {
-      const r = await aktion(() => api("POST", "/api/regeln/anwenden", {}), { erfolg: "Regeln angewendet." });
-      if (r && r.geaendert !== undefined) melde("hinweis", `${r.geaendert} Buchungen geändert.`);
-    } catch (e) { /* gemeldet */ }
-  } }), knopf("Lernmodell anwenden", { onclick: async () => {
-    try { await aktion(() => api("POST", "/api/lernmodell/anwenden", {}), { erfolg: "Lernmodell angewendet." }); } catch (e) { /* gemeldet */ }
-  } }));
-  seite.querySelector(".werkzeuge").prepend(knopf("Regel anlegen", { tid: "regel-anlegen", onclick: (e) => regelDialog(null, e.currentTarget) }));
-  seite.append(liste.length ? h("ul", { class: "karten-liste" }, liste.map((r) => h("li", { tid: `regel-${r.id}`, class: "karte" },
-    h("strong", null, r.name), ` → ${pfadVon(r.kategorie_id)} · Priorität ${r.prioritaet}${r.aktiv ? "" : " · inaktiv"}`,
-    h("ul", { class: "klein" }, r.bedingungen.map((b) => h("li", null, BED_TEXT(b)))),
-    knopfLeiste(knopf("Bearbeiten…", { "aria-label": `Regel ${r.name} bearbeiten`, onclick: (e) => regelDialog(r, e.currentTarget) }),
-      knopf("Löschen", { "aria-label": `Regel ${r.name} löschen`, onclick: async (e) => {
-        if (!(await bestaetigen(`Regel „${r.name}“ löschen?`, { ja: "Löschen", ausloeser: e.currentTarget }))) return;
-        try { await aktion(() => api("DELETE", `/api/regeln/${r.id}`), { erfolg: "Regel gelöscht." }); } catch (f) { /* gemeldet */ }
-      } }))))) : leer("Noch keine Regeln."));
-  return { titel: "Regeln" };
+  return regelnSeite(seite, kopf);
 }
 
 function empfaengerBedingung(v) {
@@ -1257,35 +1238,6 @@ export async function vorlagen(seite) {
   } }));
   seite.append(liste.length ? h("ul", { class: "karten-liste" }, liste.map(vorlageKarte)) : leer("Noch keine Split-Vorlagen."));
   return { titel: "Split-Vorlagen" };
-}
-
-/** Bedingungen als Zeilen „feld operator wert“ (Text: empfaenger/verwendungszweck; Betrag in Euro). */
-function regelDialog(r, ausloeser) {
-  dialog("regel-dialog", r ? `Regel „${r.name}“` : "Regel anlegen", (inhalt, d) => {
-    const name = h("input", { type: "text", maxlength: "200", value: r ? r.name : "" });
-    const kat = h("select", null, kategorien().map(({ konto }) => h("option", { value: String(konto.id),
-      selected: r && konto.id === r.kategorie_id }, kontoPfad(konto))));
-    const prio = h("input", { type: "number", step: "1", value: String(r ? r.prioritaet : 100) });
-    const aktiv = h("input", { type: "checkbox", checked: r ? r.aktiv : true });
-    const bed = h("textarea", { rows: "4", spellcheck: "false" });
-    bed.value = r ? r.bedingungen.map((b) => (b.feld === "betrag" ? `betrag ${b.operator} ${betragEingabeText(b.wert)}`
-      : `${b.feld} ${b.operator} ${b.wert}`)).join("\n") : "empfaenger enthaelt ";
-    const speichern = knopf("Speichern", { class: "knopf knopf-haupt" });
-    speichern.addEventListener("click", () => imDialog(d, speichern, async () => {
-      const bedingungen = bed.value.split("\n").map((z) => z.trim()).filter(Boolean).map((z) => {
-        const [feld, operator, ...rest] = z.split(/\s+/);
-        const wert = rest.join(" ");
-        return feld === "betrag" ? { feld, operator, wert: betragLesen(wert) } : { feld, operator, wert };
-      });
-      const body = { name: name.value.trim(), kategorie_id: Number(kat.value), prioritaet: Number(prio.value), aktiv: aktiv.checked,
-        bedingungen };
-      await aktion(() => (r ? api("PATCH", `/api/regeln/${r.id}`, body) : api("POST", "/api/regeln", body)),
-        { stillBeiFehler: true, danach: () => d.schliessen(true), erfolg: "Regel gespeichert." });
-    }));
-    inhalt.append(feld("Name", name), feld("Kategorie", kat), feld("Priorität", prio), h("label", { class: "wahl" }, aktiv, " aktiv"),
-      feld("Bedingungen (je Zeile: Feld Operator Wert, z. B. „empfaenger enthaelt Bäckerei“ oder „betrag hoechstens -10,00“)", bed),
-      knopfLeiste(speichern, knopf("Abbrechen", { onclick: () => d.schliessen(null) })));
-  }, { ausloeser });
 }
 
 function betragEingabeText(c) {

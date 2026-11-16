@@ -2388,3 +2388,28 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   ohne Konto auf alle Bestandskonten (wie bei Regeln). Einträge tragen bei aktivem Filter `markierungen`.
 - `GET /api/ausdruck/sprache?kontext=…` und `POST /api/ausdruck/pruefen` (mit `datumsangaben`, `freitext`,
   `zusammenfassung`, `hinweise`, `baukasten_faehig`).
+
+## D-178 Oberfläche der Kontor-Ausdrücke
+
+- **Neue Module** `app/ausdruck.js` (Ausdrucksfeld mit Hervorhebung als Schicht unter einem transparenten
+  Textfeld, Prüfung über `POST /api/ausdruck/pruefen` nach 300 ms, Fehlerstelle unterwellt, Vervollständigung von
+  Feldern, Kurzformen, Schlüsselwörtern und Datumswörtern, Markierungen) und `app/regeleditor.js` (Regelliste,
+  Editor, Baukasten, Testbereich). Kein eigener Code-Editor (kein CodeMirror): die Schicht reicht und braucht
+  keine Fremdbibliothek. Service-Worker-Cache `kontor-huelle-31`.
+- **Kontoblatt:** Über der Liste steht das Filterfeld `filter-ausdruck` (immer sichtbar) mit Zusammenfassung
+  `filter-zusammenfassung`, Zeitraum-Chips `filter-schnell-<wert>`, Leeren `filter-ausdruck-leeren` und Menü
+  `filter-ausdruck-menue` („Jahr festschreiben“, „Als Regel speichern…“). Gefiltert wird nach 400 ms Tipppause oder
+  Enter, nur mit gültigem Ausdruck; sonst bleibt die letzte Liste. Adresse `?filter=…`. Treffer in Empfänger und
+  Verwendungszweck sind mit `<mark class="treffer">` hervorgehoben. Kürzel `f a` fokussiert das Feld.
+- **Bisherige Filterleiste bleibt** unverändert (Einzelfelder, M8/M12/M17-Verträge); sie wirkt zusätzlich per
+  `and`. Ein Baukasten im Filter entfällt deshalb vorerst (Konzept 5.4 offen, Frage 9).
+- **Regelliste:** Reihenfolge per Ziehen oder Alt+↑/↓ am Griff (eine Änderung `regeln_reihenfolge`), Aktiv-Schalter
+  je Regel, Ausdruck hervorgehoben, Duplizieren. Testkennungen `regel-anlegen`, `regel-dialog`, `regel-<id>`,
+  `regeln-anwenden` bleiben.
+- **Editor:** Reiter Baukasten/Ausdruck (zuletzt gewählter Reiter im Browser-Speicher, Vorgabe Ausdruck). Der
+  Baukasten wird aus dem geprüften Baum erzeugt; passt ein Ausdruck nicht hinein, bleibt er als Text. Die alte
+  Zeilenform („empfaenger enthaelt Bäckerei“) wird weiter angenommen und als `bedingungen` gesendet. Kategorie,
+  Priorität unter „Weitere Einstellungen“ (leer = ans Ende).
+- **Testbereich:** Testmenge als Filterausdruck (Vorgabe `datum in -12m`, Chips), Zählung je Wirkung als Filter,
+  Treffer mit Markierung, „Warum?“ als Prüfbaum, „Nicht erfasst“, „Auf n Buchungen anwenden…“ mit Rückfrage
+  (abweichende überschreiben, Vorgabe aus).

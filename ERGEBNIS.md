@@ -1,6 +1,18 @@
 # Ergebnis der Implementierung
 
 
+## Feature `ausdruecke` (Branch `feature/ausdruecke`, iterative Phase, D-175 bis D-178)
+
+Stand: 2026-11-16, Implementierungs-Thread. Kontor-Ausdrücke für Regeln und den Kontoblatt-Filter nach dem Konzept
+`claude/feature-regeln.md` im Projekt. Noch keine Meilenstein-Definition und keine Abnahmetests.
+
+- Eigene Tests: **335 / 335** (neu: `test_ausdruck_eigen.py` mit 49 Fällen, `test_browser_ausdruck.py` mit 3).
+- **Abnahmetests nicht gelaufen:** kontor-tests war in dieser Sitzung nicht erreichbar (Klon ohne Zugangsdaten
+  abgelehnt). Vor dem Merge muss der Volllauf nachgeholt werden; Risiken: Antworten von `/api/regeln` haben die
+  neuen Felder `ausdruck` und `ausdruck_form`, der Regeldialog ist neu (Beschriftungen und Ablauf).
+- Neue Abhängigkeit `google-re2` (reguläre Ausdrücke mit linearer Laufzeit).
+
+
 ## Abnahme M26–M28 (Branch `feature/abnahme-m26-m28`) gegen kontor-tests `c99b6ac`
 
 Stand: 2026-11-16, Implementierungs-Thread. `feature/UXMobile` (M26) und `feature/sammel` (M27 REST, M28
