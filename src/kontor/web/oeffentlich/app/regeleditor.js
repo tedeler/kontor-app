@@ -421,9 +421,29 @@ export async function regelEditor(r, ausloeser) {
     tabAz.addEventListener("click", () => zeigen("ausdruck"));
 
     // ---------------------------------------------------------- Testbereich (5.3)
+    const bedingungSetzen = async (text, katId) => {
+      ausdruckEl.wert = text;
+      if (katId) kat.value = String(katId);
+      geaendert = true;
+      if (modus === "baukasten") await zeigen("baukasten");
+      testPlanen();
+    };
     const test = new Testbereich(() => ({ ausdruck: ausdruckEl.wert, ergebnis: ausdruckEl.ergebnis,
       kategorie_id: Number(kat.value), regel_id: gespeichert ? gespeichert.id : undefined, geaendert }),
-    r && r.testmenge, async () => anwendenDialog());
+    r && r.testmenge, async () => anwendenDialog(), (text) => bedingungSetzen(text));
+    // Bestehende Regel in Bedingung und Test übernehmen
+    const uebernehmen = h("select", { tid: "regel-uebernehmen", "aria-label": "Bedingung einer bestehenden Regel übernehmen" },
+      h("option", { value: "" }, "Bedingung einer bestehenden Regel übernehmen …"));
+    api("GET", "/api/regeln").then((liste) => {
+      for (const x of liste) if (!gespeichert || x.id !== gespeichert.id) uebernehmen.append(h("option", { value: String(x.id) }, x.name));
+      uebernehmen.hidden = uebernehmen.options.length < 2;
+      uebernehmen._regeln = liste;
+    }).catch(() => { uebernehmen.hidden = true; });
+    uebernehmen.addEventListener("change", () => {
+      const x = (uebernehmen._regeln || []).find((y) => String(y.id) === uebernehmen.value);
+      uebernehmen.value = "";
+      if (x) bedingungSetzen(x.ausdruck, x.kategorie_id);
+    });
     let testUhr;
     const testPlanen = () => { clearTimeout(testUhr); testUhr = setTimeout(() => test.laden(), 400); };
     kat.addEventListener("change", () => { geaendert = true; testPlanen(); });
@@ -458,7 +478,7 @@ export async function regelEditor(r, ausloeser) {
 
     const links = h("div", { class: "regel-editor-links" },
       h("div", { class: "formular-zeile" }, feld("Name", name), h("label", { class: "wahl" }, aktiv, " aktiv")),
-      h("h3", null, "Wenn"),
+      h("h3", null, "Wenn"), uebernehmen,
       h("div", { role: "tablist", class: "reiter-leiste", "aria-label": "Eingabeart" }, tabBk, tabAz), bkHinweis, bkBereich, azBereich,
       h("h3", null, "Dann"),
       feld("Kategorie", kat, "wird als Vorschlag gesetzt, bis er bestätigt ist"),
@@ -473,8 +493,9 @@ export async function regelEditor(r, ausloeser) {
 
 // ------------------------------------------------------------------ Testbereich
 class Testbereich {
-  constructor(regel, testmenge, anwenden) {
+  constructor(regel, testmenge, anwenden, alsBedingung) {
     this.regel = regel;
+    this.alsBedingung = alsBedingung;
     this.wirkung = "";
     this.zaehlung = null;
     this.nr = 0;
@@ -516,13 +537,14 @@ class Testbereich {
       this.erfasstEl.textContent = "";
       this.anwendenKnopf.disabled = true;
     };
-    if (!r.ausdruck.trim()) { leer("Noch keine Bedingung."); return; }
+    const ohne = !r.ausdruck.trim();   // ohne Bedingung: Buchungen der Testmenge zeigen (Bedingung „True“)
     if (alt && !(r.regel_id && !r.geaendert)) { leer("Alte Zeilenform: zum Testen speichern oder als Ausdruck schreiben."); return; }
-    if (!alt && r.ergebnis && !r.ergebnis.gueltig) { leer("Erst einen gültigen Ausdruck eingeben."); return; }
-    const body = { kategorie_id: r.kategorie_id, testmenge: this.menge.wert, pro_seite: 100, konto_id: this.kontoId() };
-    if (!alt) body.ausdruck = r.ausdruck;
-    if (r.regel_id) body.regel_id = r.regel_id;
-    if (this.wirkung) body.wirkung = [this.wirkung];
+    if (!ohne && !alt && r.ergebnis && !r.ergebnis.gueltig) { leer("Erst einen gültigen Ausdruck eingeben."); return; }
+    const body = { kategorie_id: ohne ? undefined : r.kategorie_id, testmenge: this.menge.wert, pro_seite: 100, konto_id: this.kontoId() };
+    if (ohne) body.ausdruck = "True";
+    else if (!alt) body.ausdruck = r.ausdruck;
+    if (r.regel_id && !ohne) body.regel_id = r.regel_id;
+    if (this.wirkung && !ohne) body.wirkung = [this.wirkung];
     this.el.dataset.geladen = "nein";
     let t;
     try { t = await api("POST", "/api/regeln/test", body); } catch (e) {
@@ -532,19 +554,22 @@ class Testbereich {
     if (nr !== this.nr) return;
     this.zaehlung = t.zaehlung;
     this.leerHinweis.hidden = t.testmenge_anzahl > 0;
-    this.zahlenEl.textContent = `${t.anzahl} Treffer in ${t.testmenge_anzahl} Buchungen der Testmenge`;
+    this.ohneBedingung = ohne;
+    this.zahlenEl.textContent = ohne
+      ? `Noch keine Bedingung – ${t.testmenge_anzahl} Buchungen der Testmenge. „→ Bedingung“ übernimmt eine Buchung als Vorlage.`
+      : `${t.anzahl} Treffer in ${t.testmenge_anzahl} Buchungen der Testmenge`;
     this.zahlenEl.dataset.anzahl = String(t.anzahl);
-    this.chipsEl.replaceChildren(...[["", "Alle", t.anzahl], ...Object.entries(t.zaehlung).filter(([, n]) => n > 0)
+    this.chipsEl.replaceChildren(...(ohne ? [] : [["", "Alle", t.anzahl], ...Object.entries(t.zaehlung).filter(([, n]) => n > 0)
       .map(([w, n]) => [w, WIRKUNG_TEXT[w], n])].map(([w, text, n]) => h("button", { type: "button", class: "chip",
       tid: `test-wirkung-${w || "alle"}`, "data-anzahl": String(n), "aria-pressed": String(this.wirkung === w),
-      onclick: () => { this.wirkung = w; this.laden(); } }, `${text} ${n}`)));
+      onclick: () => { this.wirkung = w; this.laden(); } }, `${text} ${n}`))));
     this.listeEl.replaceChildren(...t.treffer.map((z) => this.zeile(z)),
       t.gesamt > t.treffer.length ? h("li", { class: "klein" }, `… und ${t.gesamt - t.treffer.length} weitere`) : "");
     const ne = t.nicht_erfasst.anzahl;
     this.erfasstEl.textContent = ne && r.kategorie_id
       ? `Nicht erfasst: ${ne} Buchung(en) haben „${pfadVon(r.kategorie_id)}“, treffen aber nicht.` : "";
     const wirksam = (t.zaehlung.neu || 0) + (t.zaehlung.abweichend || 0);
-    this.anwendenKnopf.disabled = !wirksam;
+    this.anwendenKnopf.disabled = ohne || !wirksam;
     this.anwendenKnopf.textContent = `Auf ${wirksam} Buchung(en) anwenden…`;
     this.el.dataset.geladen = "ja";
   }
@@ -557,11 +582,14 @@ class Testbereich {
       h("span", { class: "test-datum" }, datumText(z.datum)),
       h("span", { class: "test-empf" }, markiert(z.empfaenger || "", z.markierungen, "empfänger")),
       betragEl("span", z.betrag, { class: "test-betrag" }),
-      h("span", { class: `test-wirkung wirkung-${z.wirkung}` }, WIRKUNG_TEXT[z.wirkung]),
+      this.ohneBedingung ? h("span") : h("span", { class: `test-wirkung wirkung-${z.wirkung}` }, WIRKUNG_TEXT[z.wirkung]),
       h("span", { class: "test-zweck klein" }, markiert(z.verwendungszweck || "", z.markierungen, "verwendungszweck")),
-      h("span", { class: "test-kat klein" }, z.wirkung === "verdeckt" ? `verdeckt durch „${z.verdeckt_von.name}“`
+      h("span", { class: "test-kat klein" }, this.ohneBedingung ? vorher : z.wirkung === "verdeckt" ? `verdeckt durch „${z.verdeckt_von.name}“`
         : z.wirkung === "uebersprungen" ? (z.grund === "gesperrt" ? "gesperrt" : "Splitbuchung") : `${vorher}${nachher ? ` → ${nachher}` : ""}`),
-      knopf("Warum?", { class: "knopf klein", tid: `test-warum-${z.buchung_id}`, onclick: () => this.warum(z.buchung_id, warum) }),
+      h("span", { class: "test-knoepfe" },
+        knopf("→ Bedingung", { class: "knopf klein", tid: `test-uebernehmen-${z.buchung_id}`,
+          title: "Empfänger dieser Buchung als Bedingung der Regel übernehmen", onclick: () => this.alsBedingung(bedingungAus(z)) }),
+        this.ohneBedingung ? "" : knopf("Warum?", { class: "knopf klein", tid: `test-warum-${z.buchung_id}`, onclick: () => this.warum(z.buchung_id, warum) })),
       warum);
     return li;
   }
@@ -575,6 +603,15 @@ class Testbereich {
       el.hidden = false;
     } catch (f) { melde("fehler", f.message); }
   }
+}
+
+/** Vorlage einer Bedingung aus einer Buchung: Empfänger, sonst der Verwendungszweck; dazu die Richtung. */
+function bedingungAus(z) {
+  const richtung = z.betrag < 0 ? "ausgabe" : "einnahme";
+  const q = (s) => JSON.stringify(String(s));
+  if (z.empfaenger) return `empf == ${q(z.empfaenger)} and dir == "${richtung}"`;
+  const wort = (z.verwendungszweck || "").split(/\s+/).find((w) => w.length >= 4 && !/^\d+$/.test(w)) || z.verwendungszweck;
+  return `${q(wort)} in vwz and dir == "${richtung}"`;
 }
 
 /** „Warum?“-Baum: ✓/✗ je Bedingung mit tatsächlichem Wert; nicht ausgewertete Zweige grau. */

@@ -2425,3 +2425,12 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   `/api/regeln/{id}/anwenden` nehmen `konto_id` (nur Bestandskonten, sonst 422 `konto_ungueltig`). Ist die
   Testmenge leer (z. B. Mock-Daten älter als zwölf Monate), erscheint `test-leer` mit „Alle Buchungen testen“.
 - Die Vervollständigung öffnet sich nicht mehr bei Einheiten von Zeitangaben (`-12m`).
+
+## D-180 Testbereich ohne Bedingung, Übernahme aus Buchung und Regel (2026-11-16)
+
+- Ohne Bedingung zeigt der Testbereich die Buchungen der Testmenge (Abfrage mit der Bedingung `True`, ohne
+  Kategorie, ohne Wirkungsmarken), damit man die Daten sieht, bevor man eine Regel formuliert.
+- Je Buchung „→ Bedingung“ (`test-uebernehmen-<id>`): übernimmt `empf == "<Empfänger>" and dir == "<Richtung>"`,
+  ohne Empfänger das erste Wort ab vier Buchstaben aus dem Verwendungszweck (`"…" in vwz`).
+- Auswahl „Bedingung einer bestehenden Regel übernehmen …“ (`regel-uebernehmen`) übernimmt Ausdruck und Kategorie
+  einer anderen Regel in den Editor; der Test läuft sofort.

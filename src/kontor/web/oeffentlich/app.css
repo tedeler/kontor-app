@@ -983,3 +983,5 @@ html[data-thema="dunkel"] .wirkung-abweichend { background: #5a3412; color: #ffd
 .app[data-layout="mobil"] ~ .dialog-huelle .bk-wert { grid-column: 1 / 3; }
 .filter-schnell .chip, .test-schnell .chip, .test-chips .chip { white-space: nowrap; flex: none; }
 .ausdruck-vorschlaege .klein { margin-left: .6em; color: var(--text-2); }
+.test-knoepfe { grid-column: 4; grid-row: 2; display: inline-flex; gap: .25rem; }
+#regel-uebernehmen, [data-testid="regel-uebernehmen"] { margin-bottom: .4rem; max-width: 100%; }

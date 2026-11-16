@@ -69,3 +69,14 @@ def test_regelliste_handy(tmp_path, browser):  # noqa: F811
         expect(tid(page, "regel-dialog")).to_be_visible()
         tid(page, "regel-ausdruck").fill('datum in -5d')
         expect(tid(page, "regel-ausdruck-fehler")).to_contain_text("nur im Filter")
+
+
+def test_regeleditor_ohne_bedingung_und_uebernahme(tmp_path, browser):  # noqa: F811
+    with server(tmp_path) as (url, _), seite(browser, url, **DESKTOP) as page:
+        page.goto(url + "/regeln")
+        bereit(page, "regeln")
+        tid(page, "regel-anlegen").click()
+        expect(tid(page, "test-zahlen")).to_contain_text("20 Buchungen der Testmenge")
+        page.locator('[data-testid^="test-uebernehmen-"]').first.click()
+        expect(tid(page, "regel-ausdruck")).to_have_value('"Einkauf" in vwz and dir == "ausgabe"')
+        expect(tid(page, "test-zahlen")).to_have_attribute("data-anzahl", "20")
