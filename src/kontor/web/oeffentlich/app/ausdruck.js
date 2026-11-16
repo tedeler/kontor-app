@@ -265,7 +265,8 @@ export class AusdruckEingabe {
     const vor = e.value.slice(0, e.selectionStart);
     if (/["'][^"']*$/.test(vor.replace(/"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/g, ""))) { this.liste.hidden = true; return; }
     const m = /([A-Za-zÄÖÜäöüß_][\wÄÖÜäöüß]*)$/.exec(vor);
-    if (!m || !this.sp || m[1].length < 1) { this.liste.hidden = true; return; }
+    const davor = vor.charAt(vor.length - (m ? m[1].length : 0) - 1);
+    if (!m || !this.sp || m[1].length < 1 || /\d/.test(davor)) { this.liste.hidden = true; return; }   // nicht in „-12m“
     const wort = falten(m[1]);
     const nachPunkt = vor.slice(0, vor.length - m[1].length).endsWith(".");
     const kandidaten = [];

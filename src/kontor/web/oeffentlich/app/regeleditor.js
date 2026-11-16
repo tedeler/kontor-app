@@ -6,6 +6,21 @@ import {
 import { bestaetigen, dialog, feld, imDialog, knopf, knopfLeiste } from "./ui.js";
 import { AusdruckEingabe, alteBedingungen, feldMenge, hervorgehoben, markiert, sprache } from "./ausdruck.js";
 
+/** Text in die Zwischenablage; ohne sicheren Kontext (http im Heimnetz) über ein verstecktes Textfeld. */
+export async function kopieren(text) {
+  try {
+    if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(text); return true; }
+  } catch (e) { /* Rückfall unten */ }
+  const ta = h("textarea", { "aria-hidden": "true", readonly: true, stil: { position: "fixed", left: "-9999px", top: "0" } });
+  ta.value = text;
+  document.body.append(ta);
+  ta.select();
+  let ok = false;
+  try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+  ta.remove();
+  return ok;
+}
+
 /** Beschriftetes Ausdrucksfeld (das Label zeigt auf das Textfeld). */
 export function ausdruckFeld(beschriftung, ae, hinweis) {
   return h("div", { class: "feld" }, h("label", { for: ae.eingabe.id }, beschriftung), ae.el,
@@ -355,18 +370,25 @@ export async function regelEditor(r, ausloeser) {
       geaendert = true;
     });
     const vorschau = h("div", { class: "bk-vorschau", tid: "regel-baukasten-ausdruck" });
-    const kopieren = knopf("Kopieren", { class: "knopf klein", onclick: () => {
-      try { navigator.clipboard.writeText(ausdruckEl.wert); melde("hinweis", "Ausdruck kopiert."); } catch (e) { /* ohne Zwischenablage */ }
+    const kopierKnopf = () => knopf("Kopieren", { class: "knopf klein", tid: "regel-ausdruck-kopieren", onclick: async () => {
+      melde("hinweis", (await kopieren(ausdruckEl.wert)) ? "Ausdruck kopiert." : "Kopieren ist hier nicht möglich; bitte markieren und Strg+C.");
     } });
+    const testKnopf = () => knopf("Als Testmenge übernehmen", { class: "knopf klein", tid: "regel-in-testmenge",
+      title: "Zeigt im Test alle Buchungen, auf die der Ausdruck passt", onclick: () => {
+        if (!ausdruckEl.wert.trim()) { melde("hinweis", "Noch keine Bedingung."); return; }
+        test.menge.wert = ausdruckEl.wert;
+        test.laden();
+      } });
     const tabBk = h("button", { type: "button", role: "tab", tid: "regel-modus-baukasten", class: "reiter" }, "Baukasten");
     const tabAz = h("button", { type: "button", role: "tab", tid: "regel-modus-ausdruck", class: "reiter" }, "Ausdruck");
     const bkHinweis = h("p", { class: "klein hinweis", tid: "regel-baukasten-hinweis", hidden: true });
-    const bkBereich = h("div", { role: "tabpanel", class: "bk-bereich" }, baukasten.el, h("div", { class: "bk-unten" }, h("span", { class: "klein" }, "Ausdruck: "), vorschau, kopieren));
+    const bkBereich = h("div", { role: "tabpanel", class: "bk-bereich" }, baukasten.el, h("div", { class: "bk-unten" }, h("span", { class: "klein" }, "Ausdruck: "), vorschau, kopierKnopf(), testKnopf()));
     const azBereich = h("div", { role: "tabpanel", class: "az-bereich" }, ausdruckFeld(
       "Bedingungen (Ausdruck; die alte Zeilenform „empfaenger enthaelt Bäckerei“ geht weiterhin)", ausdruckEl),
       h("p", { class: "klein" }, "Python-Ausdrücke: ", h("code", null, "and or not in == != < <= > >= is None"),
         ", Methoden ", h("code", null, '.startswith("…") .endswith("…") .search(r"…")'), ". Kurzformen: ",
-        h("code", null, "empf vwz bet dir"), ". Regeln kennen kein Datum; dafür monatstag, monat, wochentag."));
+        h("code", null, "empf vwz bet dir"), ". Regeln kennen kein Datum; dafür monatstag, monat, wochentag."),
+      knopfLeiste(kopierKnopf(), testKnopf()));
     const umschalterPruefen = (e) => {
       const ok = !e || (e.gueltig && e.baukasten_faehig);
       tabBk.disabled = !ok && modus === "ausdruck";
@@ -427,11 +449,11 @@ export async function regelEditor(r, ausloeser) {
     speichern.addEventListener("click", () => imDialog(d, speichern, () => speichernUnd(null)));
     const speichernAnwenden = knopf("Speichern und anwenden…", { tid: "regel-speichern-anwenden" });
     speichernAnwenden.addEventListener("click", () => imDialog(d, speichernAnwenden, () => speichernUnd((neu) =>
-      anwendenFrage(neu, test.testmengeText(), test.zaehlung, ausloeser))));
+      anwendenFrage(neu, test.testmengeText(), test.kontoId(), test.zaehlung, ausloeser))));
     const anwendenDialog = async () => {
       if (!gespeichert || geaendert) { speichernAnwenden.click(); return; }
       d.schliessen(true);
-      await anwendenFrage(gespeichert, test.testmengeText(), test.zaehlung, ausloeser);
+      await anwendenFrage(gespeichert, test.testmengeText(), test.kontoId(), test.zaehlung, ausloeser);
     };
 
     const links = h("div", { class: "regel-editor-links" },
@@ -463,15 +485,23 @@ class Testbereich {
     this.listeEl = h("ul", { class: "test-liste", tid: "test-liste" });
     this.erfasstEl = h("p", { class: "klein", tid: "test-nicht-erfasst" });
     this.anwendenKnopf = knopf("Anwenden…", { tid: "regel-test-anwenden", disabled: true, onclick: () => anwenden() });
+    this.konto = h("select", { tid: "regel-test-konto" }, h("option", { value: "" }, "– alle Konten –"),
+      baumFolge(stamm.konten.filter((k) => BESTAND.has(k.art))).map(({ konto }) => h("option", { value: String(konto.id) }, kontoPfad(konto))));
+    this.konto.addEventListener("change", () => this.laden());
+    this.leerHinweis = h("p", { class: "hinweis klein", tid: "test-leer", hidden: true }, "Die Testmenge enthält keine Buchungen. ",
+      knopf("Alle Buchungen testen", { class: "knopf klein", tid: "test-alle", onclick: () => { this.menge.wert = ""; this.laden(); } }));
     const schnell = [["12 Monate", "datum in -12m"], ["dieses Jahr", "datum in dieses_jahr"], ["Vorjahr", "datum in vorjahr"], ["alle", ""]];
     this.el = h("section", { class: "regel-test", tid: "regel-test", "aria-label": "Test" },
       h("h3", null, "Test an vorhandenen Buchungen"),
+      feld("Quellkonto", this.konto),
       ausdruckFeld("Testmenge (Filter)", this.menge),
       h("div", { class: "test-schnell" }, schnell.map(([t, w]) => knopf(t, { class: "chip", onclick: () => { this.menge.wert = w; this.laden(); } }))),
-      this.zahlenEl, this.chipsEl, this.listeEl, this.erfasstEl, knopfLeiste(this.anwendenKnopf));
+      this.zahlenEl, this.leerHinweis, this.chipsEl, this.listeEl, this.erfasstEl, knopfLeiste(this.anwendenKnopf));
   }
 
   testmengeText() { return this.menge.wert; }
+
+  kontoId() { return this.konto.value ? Number(this.konto.value) : undefined; }
 
   planen() { clearTimeout(this.uhr); this.uhr = setTimeout(() => this.laden(), 400); }
 
@@ -489,7 +519,7 @@ class Testbereich {
     if (!r.ausdruck.trim()) { leer("Noch keine Bedingung."); return; }
     if (alt && !(r.regel_id && !r.geaendert)) { leer("Alte Zeilenform: zum Testen speichern oder als Ausdruck schreiben."); return; }
     if (!alt && r.ergebnis && !r.ergebnis.gueltig) { leer("Erst einen gültigen Ausdruck eingeben."); return; }
-    const body = { kategorie_id: r.kategorie_id, testmenge: this.menge.wert, pro_seite: 100 };
+    const body = { kategorie_id: r.kategorie_id, testmenge: this.menge.wert, pro_seite: 100, konto_id: this.kontoId() };
     if (!alt) body.ausdruck = r.ausdruck;
     if (r.regel_id) body.regel_id = r.regel_id;
     if (this.wirkung) body.wirkung = [this.wirkung];
@@ -501,6 +531,7 @@ class Testbereich {
     }
     if (nr !== this.nr) return;
     this.zaehlung = t.zaehlung;
+    this.leerHinweis.hidden = t.testmenge_anzahl > 0;
     this.zahlenEl.textContent = `${t.anzahl} Treffer in ${t.testmenge_anzahl} Buchungen der Testmenge`;
     this.zahlenEl.dataset.anzahl = String(t.anzahl);
     this.chipsEl.replaceChildren(...[["", "Alle", t.anzahl], ...Object.entries(t.zaehlung).filter(([, n]) => n > 0)
@@ -556,7 +587,7 @@ export function erklaerungEl(k) {
 }
 
 /** Rückfrage „Auf n Buchungen anwenden“ (5.3) und POST /api/regeln/{id}/anwenden. */
-async function anwendenFrage(regel, testmenge, zaehlung, ausloeser) {
+async function anwendenFrage(regel, testmenge, kontoId, zaehlung, ausloeser) {
   const neu = zaehlung ? zaehlung.neu || 0 : null;
   const abw = zaehlung ? zaehlung.abweichend || 0 : null;
   dialog("regel-anwenden-dialog", `Regel „${regel.name}“ anwenden`, (inhalt, d) => {
@@ -564,10 +595,11 @@ async function anwendenFrage(regel, testmenge, zaehlung, ausloeser) {
     const ok = knopf("Anwenden", { class: "knopf knopf-haupt", tid: "regel-anwenden-ok" });
     ok.addEventListener("click", () => imDialog(d, ok, async () => {
       const r = await aktion(() => api("POST", `/api/regeln/${regel.id}/anwenden`,
-        { testmenge, abweichende_ueberschreiben: ueber.checked }), { stillBeiFehler: true, danach: () => d.schliessen(true) });
+        { testmenge, konto_id: kontoId, abweichende_ueberschreiben: ueber.checked }), { stillBeiFehler: true, danach: () => d.schliessen(true) });
       if (r) melde("erfolg", `${r.anzahl} Buchung(en) geändert. Rückgängig mit Strg+Z.`);
     }));
-    inhalt.append(h("p", null, "Testmenge: ", h("code", null, testmenge || "alle Buchungen")),
+    inhalt.append(h("p", null, "Testmenge: ", h("code", null, testmenge || "alle Buchungen"),
+      kontoId ? ` · Quellkonto ${pfadVon(kontoId)}` : ""),
       h("p", null, neu === null ? "Unkategorisierte Buchungen erhalten einen Vorschlag." : `${neu} unkategorisierte Buchung(en) erhalten einen Vorschlag.`),
       h("label", { class: "wahl" }, ueber, ` auch abweichende überschreiben${abw === null ? "" : ` (${abw})`}`),
       h("p", { class: "klein" }, "Verdeckte und gesperrte Buchungen bleiben unverändert. Eine Änderung im Protokoll."),

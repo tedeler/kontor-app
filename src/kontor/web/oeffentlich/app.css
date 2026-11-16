@@ -876,7 +876,8 @@ html[data-thema="dunkel"] .wisch-hinweis[data-bereit="ja"][data-richtung="links"
   caret-color: var(--text); border-color: var(--rand); min-height: 2.1rem; }
 .ausdruck-eingabe:not(.mehrzeilig) .ausdruck-text { resize: none; overflow: hidden; }
 .ausdruck-text::placeholder { color: var(--text-2); }
-.ausdruck-text::selection { background: var(--auswahl); color: transparent; }
+/* Markierung durchscheinend, damit die Schrift der Hervorhebungsschicht darunter lesbar bleibt */
+.ausdruck-text::selection { background: color-mix(in srgb, var(--akzent) 30%, transparent); color: transparent; }
 .ausdruck-text[aria-invalid="true"] { border-color: var(--gefahr); }
 .ausdruck-status { position: absolute; right: .5rem; top: .45rem; font-size: .85rem; }
 .ausdruck-status[data-status="ok"] { color: var(--erfolg); }
@@ -981,3 +982,4 @@ html[data-thema="dunkel"] .wirkung-abweichend { background: #5a3412; color: #ffd
 [data-layout="mobil"] .bk-zeile, .app[data-layout="mobil"] ~ .dialog-huelle .bk-zeile { display: grid; grid-template-columns: 1fr 1fr auto; }
 .app[data-layout="mobil"] ~ .dialog-huelle .bk-wert { grid-column: 1 / 3; }
 .filter-schnell .chip, .test-schnell .chip, .test-chips .chip { white-space: nowrap; flex: none; }
+.ausdruck-vorschlaege .klein { margin-left: .6em; color: var(--text-2); }

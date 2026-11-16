@@ -485,8 +485,17 @@ def _test_regel(con, d: dict) -> tuple[dict, int | None, int | None]:
     return b, kat, rid
 
 
-def _testmenge(con, text: str | None, heute: dt.date) -> list[int]:
-    alle = [r["id"] for r in con.execute("SELECT id FROM buchung ORDER BY datum DESC, id DESC")]
+def _testmenge(con, text: str | None, heute: dt.date, konto_id: int | None = None) -> list[int]:
+    """Buchungen der Testmenge (Filterausdruck), optional nur mit einem Split auf ``konto_id`` (Quellkonto)."""
+    if konto_id is not None:
+        r = buch.konto_zeile(con, konto_id)
+        if r is None or r["art"] not in BESTAND:
+            raise ApiFehler(422, "konto_ungueltig", "Das Quellkonto muss ein Bestandskonto sein.", {"feld": "konto_id"})
+        alle = [r["id"] for r in con.execute(
+            "SELECT id FROM buchung WHERE id IN (SELECT buchung_id FROM split WHERE konto_id = ?)"
+            " ORDER BY datum DESC, id DESC", (konto_id,))]
+    else:
+        alle = [r["id"] for r in con.execute("SELECT id FROM buchung ORDER BY datum DESC, id DESC")]
     if text is None:
         text = TESTMENGE_VORGABE
     if not text.strip():
@@ -544,7 +553,7 @@ def _bewerten(con, baum_: dict, kat: int | None, rid: int | None, ids: list[int]
 def testen(con, d: dict, heute: dt.date) -> dict:
     """POST /api/regeln/test (Konzept 6.4): Lesezugriff, kein Protokolleintrag."""
     baum_, kat, rid = _test_regel(con, d)
-    ids = _testmenge(con, d.get("testmenge"), heute)
+    ids = _testmenge(con, d.get("testmenge"), heute, d.get("konto_id"))
     zeilen, nicht_erfasst = _bewerten(con, baum_, kat, rid, ids, heute)
     zaehlung = {w: 0 for w in WIRKUNGEN}
     for z in zeilen:
@@ -571,7 +580,7 @@ def regel_anwenden(con, rid: int, d: dict, heute: dt.date) -> dict:
     """POST /api/regeln/{id}/anwenden (Konzept 6.6): wie der Testbereich zeigt; verdeckte Treffer nicht."""
     regel = regel_lesen(con, rid)
     baum_ = bedingungen_als_baum(regel["bedingungen"])
-    ids = d.get("buchung_ids") or _testmenge(con, d.get("testmenge"), heute)
+    ids = d.get("buchung_ids") or _testmenge(con, d.get("testmenge"), heute, d.get("konto_id"))
     zeilen, _ = _bewerten(con, baum_, regel["kategorie_id"], rid, ids, heute, mit_zeilen=False)
     ziel = {"neu", "abweichend"} if d.get("abweichende_ueberschreiben") else {"neu"}
     art_von = kontoarten(con)

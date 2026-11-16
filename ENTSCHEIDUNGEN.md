@@ -2413,3 +2413,15 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - **Testbereich:** Testmenge als Filterausdruck (Vorgabe `datum in -12m`, Chips), Zählung je Wirkung als Filter,
   Treffer mit Markierung, „Warum?“ als Prüfbaum, „Nicht erfasst“, „Auf n Buchungen anwenden…“ mit Rückfrage
   (abweichende überschreiben, Vorgabe aus).
+
+## D-179 Rückmeldungen zum Regeleditor (2026-11-16)
+
+- Markierter Text im Ausdrucksfeld ist durchscheinend hinterlegt (vorher verdeckte die Markierungsfarbe im dunklen
+  Design die Schrift der Hervorhebungsschicht).
+- „Kopieren“ funktioniert auch ohne sicheren Kontext (http im Heimnetz) über ein verstecktes Textfeld. Neu ist
+  „Als Testmenge übernehmen“ (`regel-in-testmenge`, im Baukasten und unter dem Ausdruck): setzt den Ausdruck als
+  Testmenge, damit der Test alle passenden Buchungen zeigt.
+- Testbereich mit **Quellkonto** (`regel-test-konto`, Vorgabe alle Konten): `POST /api/regeln/test` und
+  `/api/regeln/{id}/anwenden` nehmen `konto_id` (nur Bestandskonten, sonst 422 `konto_ungueltig`). Ist die
+  Testmenge leer (z. B. Mock-Daten älter als zwölf Monate), erscheint `test-leer` mit „Alle Buchungen testen“.
+- Die Vervollständigung öffnet sich nicht mehr bei Einheiten von Zeitangaben (`-12m`).

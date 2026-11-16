@@ -230,6 +230,12 @@ def test_testbereich_erklaeren_anwenden(tmp_path):
     assert wirkung == {k["ids"][0]: "bereits_so", k["ids"][1]: "verdeckt", unk: "abweichend"}
     assert test["nicht_erfasst"]["buchung_ids"] == [k["ids"][2]]   # EDEKA hat die Kategorie, trifft nicht
     assert test["treffer"][0]["markierungen"][0]["feld"] == "empfänger"
+    # Quellkonto: nur Buchungen mit Split auf diesem Konto; kein Bestandskonto → 422
+    leer = c.post("/api/konten", json={"name": "Spar", "art": "sparkonto"}).json()["id"]
+    assert c.post("/api/regeln/test", json={"ausdruck": '"rewe" in empf', "konto_id": leer, "testmenge": ""}).json()["testmenge_anzahl"] == 0
+    assert c.post("/api/regeln/test", json={"ausdruck": '"rewe" in empf', "konto_id": k["giro"], "testmenge": ""}).json()["anzahl"] == 4
+    r = c.post("/api/regeln/test", json={"ausdruck": '"rewe" in empf', "konto_id": k["lm"]})
+    assert r.status_code == 422 and r.json()["fehler"]["code"] == "konto_ungueltig"
     e = c.post("/api/regeln/erklaeren", json={"ausdruck": '"rewe" in empf and bet > 50',
                                               "buchung_id": k["ids"][1]}).json()
     assert e["ergebnis"] == "falsch"

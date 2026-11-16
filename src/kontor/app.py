@@ -211,12 +211,12 @@ AUSDRUCK_ALS_REGEL = {"ausdruck": S("str", pflicht=True, min_len=1, max_len=4000
                       "freitext_feld": S("enum", werte=("empfänger", "verwendungszweck"))}
 REGELN_REIHENFOLGE = {"regel_ids": S("int_liste", pflicht=True, eindeutig=True)}
 REGEL_TEST = {"ausdruck": S("str", min_len=1, max_len=4000), "regel_id": S("int"), "kategorie_id": S("int", nullbar=True),
-              "testmenge": S("str", max_len=4000), "stichtag": S("datum"),
+              "testmenge": S("str", max_len=4000), "konto_id": S("int"), "stichtag": S("datum"),
               "wirkung": S("str_liste"),
               "seite": S("int"), "pro_seite": S("int")}
 REGEL_ERKLAEREN = {"ausdruck": S("str", min_len=1, max_len=4000), "regel_id": S("int"), "buchung_id": S("int", pflicht=True),
                    "stichtag": S("datum")}
-REGEL_ANWENDEN_EINZELN = {"testmenge": S("str", max_len=4000), "buchung_ids": S("int_liste", min_items=1, eindeutig=True),
+REGEL_ANWENDEN_EINZELN = {"testmenge": S("str", max_len=4000), "konto_id": S("int"), "buchung_ids": S("int_liste", min_items=1, eindeutig=True),
                           "abweichende_ueberschreiben": S("bool"), "stichtag": S("datum")}
 SYNC_ANFRAGE = {"von": S("datum"), "bis": S("datum")}
 SYNC_ENTSCHEIDUNG = {"aktion": S("enum", pflicht=True, werte=("wiederherstellen", "ignorieren")),
