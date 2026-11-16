@@ -11,9 +11,11 @@ ein Entwicklungsstand aus dem Quellbaum.
 from __future__ import annotations
 
 import json
+import pathlib
 import platform
 import re
 from importlib import resources
+from urllib.parse import quote
 from typing import Any
 
 NAME = "Kontor"
@@ -67,6 +69,38 @@ def build() -> dict[str, Any]:
     commit = daten.get("commit") if isinstance(daten.get("commit"), str) else None
     datum = daten.get("build_datum") if isinstance(daten.get("build_datum"), str) else None
     return {"commit": commit[:12] if commit else None, "build_datum": datum, "entwicklungsstand": roh is None}
+
+
+def zweig(start: pathlib.Path | None = None) -> str | None:
+    """Git-Branch eines Entwicklungsstands aus ``.git/HEAD`` (D-178), ohne Git aufzurufen.
+
+    None für Releases (``build.json`` vorhanden), außerhalb eines Git-Checkouts und bei losgelöstem HEAD.
+    """
+    if start is None and _paketdatei("build.json") is not None:
+        return None
+    ort = (start or pathlib.Path(__file__)).resolve()
+    for ordner in [ort, *ort.parents][:6]:
+        git = ordner / ".git"
+        try:
+            if git.is_file():   # Worktree: „gitdir: <pfad>“
+                ziel = git.read_text(encoding="utf-8").strip()
+                if not ziel.startswith("gitdir:"):
+                    return None
+                git = (ordner / ziel[len("gitdir:"):].strip()).resolve()
+            if git.is_dir():
+                kopf = (git / "HEAD").read_text(encoding="utf-8").strip()
+                if kopf.startswith("ref: refs/heads/"):
+                    name = kopf[len("ref: refs/heads/"):]
+                    return name if re.fullmatch(r"[A-Za-z0-9._/-]{1,200}", name) else None
+                return None
+        except (OSError, UnicodeDecodeError):
+            return None
+    return None
+
+
+def zweig_url(name: str) -> str:
+    """Link auf den Branch im Repository."""
+    return f"{REPOSITORY}/tree/{quote(name, safe='/')}"
 
 
 def info() -> dict[str, Any]:
