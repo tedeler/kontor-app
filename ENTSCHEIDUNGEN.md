@@ -2335,3 +2335,42 @@ D-123 bis D-127 sind auf den offenen Branches `dokumente` und `alfbanco-import` 
 - **Mobile Suche:** Das verzögerte Einklappen nach dem Verlassen des leeren Felds unterbleibt, wenn der Fokus
   inzwischen wieder im Feld liegt (Wettlauf beim schnellen Öffnen über die Lupe).
 - Service-Worker-Cache `kontor-huelle-30`.
+
+## D-175 Einzelheiten: gegliederte Darstellung und lesbarer Verwendungszweck (feature/detailansicht, Entwurf)
+
+- **Kopf:** Empfänger und Betrag (Summe der Splits auf dem angezeigten Konto, `details-betrag`) groß, darunter
+  Wochentag/Datum und der Status als farbige Marke; Randfarbe nach Ein-/Ausgang, 🔒 bei gesperrten Buchungen.
+  Stifte, `data-feld` und Inline-Editoren bleiben wie in 37.8 (Namen nur für Vorleser verborgen).
+- **Verwendungszweck nur in der Anzeige zerlegt** (`app/zweck.js`), gespeichert bleibt der Originaltext:
+  Buchungsarten als Marken („Lastschrift / Belastung“, „Kartenzahlung“ …), SEPA-Schlüssel (EREF+, MREF+,
+  CRED+, SVWZ+ …) als benannte Angaben, dazu Karte (mit Kartenart), ISO-Zeitpunkt und „Ref.“. Auch an
+  zusammengeklebten Zeilen („BELASTUNGCAFE“) wird getrennt; Buchungsarten links nur nach Nicht-Buchstaben,
+  rechts nicht vor Kleinbuchstaben. Wird nichts erkannt, erscheint der Text unverändert; sonst ist der
+  Originaltext aufklappbar.
+- Buchungssätze als Karten (eigenes Konto zurückgenommen, „Unkategorisiert“ hervorgehoben), Tags als Marken,
+  Verdachtshinweis mit Warnsymbol (vorher wirkungslose Hintergrundfarbe wegen `--hg-1`).
+- Service-Worker-Cache `kontor-huelle-31`, neues Modul in `DATEIEN`.
+
+## D-176 Verwendungszweck: ausgeschriebene Schlüssel, PayPal, Amazon (ergänzt D-175)
+
+- Ausgeschriebene Schlüssel wie bei comdirect („END-TO-END-REF.:“, „MANDATSREF.:“, „GLÄUBIGER-ID:“,
+  „KUNDENREFERENZ:“) gliedern wie SEPA-Schlüssel; „Ref.“ beendet den Wert davor. Ein „CORE“/„B2B“/„COR1“ direkt
+  vor „ / “ ist das Lastschriftverfahren und wird eigene Angabe. Leere Werte und „NOTPROVIDED“ entfallen.
+- PayPal („<Kennung>/PP.<Nr>.PP/. <Händler>, IHR EINKAUF BEI <Händler>“): Marke „PayPal“, Kennung als
+  PayPal-Referenz, Text „Einkauf bei <Händler>“. Amazon-Bestellnummern (`ddd-ddddddd-ddddddd`, auch mit x
+  maskiert) als Bestellnummer. Kennungen, die schon als Angabe stehen, erscheinen nicht noch einmal im Text.
+- Sichtbar bleiben Karte, Zeitpunkt, Bestellnummer und Verfahren; technische Kennungen (Referenzen, Mandat,
+  Gläubiger-ID, PayPal) sind unter „Referenzen (n)“ aufklappbar.
+
+## D-177 Empfängernamen in normaler Schreibweise (nur Anzeige)
+
+- Namen, die ganz in Groß- oder ganz in Kleinbuchstaben vorliegen („AMAZON“, „amazon“), zeigt die Oberfläche in
+  normaler Schreibweise („Amazon“): erster Buchstabe je Wort groß (auch nach Bindestrich und Schrägstrich),
+  kleine Wörter mitten im Namen klein („Cafe am Markt“), bekannte Abkürzungen und Rechtsformen in üblicher Form
+  (GmbH, KG, e.V., Co., DB, ADAC …; Liste `NAME_FEST` in `kern.js`). Gemischt geschriebene Namen („eBay GmbH“)
+  bleiben unverändert, weil sie bewusst so erfasst sind.
+- Nur Anzeige (`nameAnzeige`): Buchungsliste der Kontoansicht, Kopf der Einzelheiten, Suchergebnisse und
+  Einzelbuchungen der Berichte. Gespeichert, gesucht, gefiltert und in Auswahllisten/Empfängerverwaltung wird
+  der Name wie erfasst; Texte vom Server (z. B. Verdachtshinweis) bleiben unverändert.
+- Verwendungszweck (Frage aus D-175): bleibt beim Import unverändert; die Gliederung erfolgt nur in der Anzeige,
+  damit alte und neue Buchungen für Regeln, Lernmodell und Dublettenerkennung gleich aussehen.

@@ -1,6 +1,20 @@
 # Ergebnis der Implementierung
 
 
+## Merge von `feature/detailansicht` (D-175 bis D-177) ohne Abnahme, gegen kontor-tests `c99b6ac`
+
+Stand: 2026-11-16, Implementierungs-Thread. Gemergt auf ausdrückliche Anweisung des Auftraggebers nach der
+iterativen Phase, bevor es eine Meilenstein-Definition und eigene Abnahmetests gibt (wie D-144, feature/sammel).
+Inhalt: neu gegliedertes Panel Einzelheiten (Kopf mit Betrag/Status, Abschnitte, Buchungssätze als Karten),
+Verwendungszweck in der Anzeige zerlegt (Buchungsart, SEPA- und ausgeschriebene Schlüssel, Karte, Zeitpunkt,
+PayPal, Bestellnummer; Originaltext aufklappbar), Empfängernamen in Groß-/Kleinbuchstaben normal geschrieben.
+Datenmodell, REST und Import unverändert.
+
+- Volllauf `--voll` aller bestehenden Abnahmetests: **3495 / 3495** (3467 im Gesamtlauf, dazu die 28 dort mangels
+  AqBanking übersprungenen M10-Tests nach Installation von `aqbanking-tools` einzeln: 46/46 M10), nichts übersprungen.
+- Eigene Tests: **286 / 286** (neu `tests/test_zweck_eigen.py`).
+- Offen: Meilenstein-Definition für Panel, Zerlegung und Namensschreibweise samt Abnahmetests.
+
 ## Abnahme M26–M28 (Branch `feature/abnahme-m26-m28`) gegen kontor-tests `c99b6ac`
 
 Stand: 2026-11-16, Implementierungs-Thread. `feature/UXMobile` (M26) und `feature/sammel` (M27 REST, M28
