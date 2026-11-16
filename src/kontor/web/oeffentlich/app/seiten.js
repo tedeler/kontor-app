@@ -675,6 +675,22 @@ export async function importSeite(seite) {
   });
   seite.append(abschnitt("Datei importieren", feld("Format", format), kontoFeld, hinweis, feld("Datei", datei), starten,
     h("p", { class: "klein" }, "Der Import ist wie jede Änderung rückgängig zu machen (Strg+Z).")), ausgabe);
+  if (document.querySelector(".mock-hinweis")) {
+    // D-184: Lerndaten des Mock-Modus (3000 synthetische Buchungen mit Kategorien)
+    const laden = knopf("Lerndaten laden (3.000 Buchungen)", { tid: "mock-lerndaten-laden" });
+    laden.addEventListener("click", async () => {
+      laden.disabled = true;
+      try {
+        await aktion(() => api("POST", "/api/mock/lerndaten"), { erfolg: (r) =>
+          `${r.buchungen} Buchungen geladen; ${r.pruefbuchungen} davon stehen noch auf „Unkategorisiert“.` });
+      } catch (e) { /* gemeldet */ } finally { laden.disabled = false; }
+    });
+    seite.append(abschnitt("Lerndaten (Mock-Modus)", h("p", { class: "klein" },
+      "Ein Girokonto mit 3.000 erfundenen Buchungen von 09/2022 bis 10/2026 nach Mustern echter Kontoauszüge "
+      + "(Supermärkte, PayPal, Amazon, Lastschriften, Gutschriften, Umbuchungen). Die älteren 80 % sind kategorisiert, "
+      + "die neuesten 20 % stehen auf „Unkategorisiert“ – zum Ausprobieren des Lernmodells. Nur in einen Bestand "
+      + "ohne Buchungen."), laden));
+  }
   return { titel: "Import", aktualisieren: async () => {} };      // Ergebnis bleibt stehen
 }
 

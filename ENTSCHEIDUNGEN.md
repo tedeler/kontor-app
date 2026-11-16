@@ -2388,6 +2388,106 @@ D-123 bis D-127 sind auf den offenen Branches `dokumente` und `alfbanco-import` 
   (`ueber-zweig`). Auf main und in Releases bleibt alles wie bisher.
 - `GET /api/version` bleibt unverändert, der Branch steht nur in der Hülle. Der Service-Worker-Cache heißt
   `kontor-huelle-32`.
+
+## D-179 Automatisch angelegte Regeln aus dem Gelernten (Feature `lernmodell-transparenz`, in Arbeit)
+
+- **Auftrag (2026-11-16):** Gelerntes wird automatisch zur sichtbaren Regel, sofern das System danach genauso gut
+  kategorisiert. Messung auf dem M4-Lerndatensatz des Generators (30 Startwerte, rund 7.900 Prüfbuchungen):
+  Genauigkeit 98,40 % und Abdeckung 84,94 % mit und ohne automatische Regeln; 1.373 Prüfbuchungen liefen über eine
+  automatische Regel, alle richtig.
+- **Auslöser:** Ein Empfänger hat in der Trainingsmenge (lernmodell.md 3) mindestens 5 Buchungen derselben
+  Kategorie, diese Kategorie hat mindestens 95 % seiner Buchungen in der Trainingsmenge (nachgeschärft nach der
+  Messung mit `tests/lerndaten.py`: ohne diese Bedingung entstand für eine Tankstelle mit Kraftstoff und Shop eine
+  Regel „Tanken“, die das am Verwendungszweck unterscheidende Lernmodell verdeckte), und alle seine Buchungen der Trainingsmenge aus den letzten 365 Tagen (App-Uhr) haben diese Kategorie
+  (mindestens eine). Keine Regel, wenn der Empfänger eine Standardkategorie hat, wenn schon eine automatische Regel
+  für ihn besteht oder gesperrt ist, oder wenn eine aktive Regel seine jüngste Buchung bereits trifft.
+- **Regel:** Name = Empfängername (die Liste zeigt die Kategorie dahinter), Bedingung `empfaenger gleich <Name>`, aktiv, Priorität wie beim
+  Anlegen ohne Angabe (ans Ende). Vermerk in `regel_automatisch` (Objektart `regel`); die Regel trägt in API und
+  Protokollform zusätzlich `automatisch: true` und `empfaenger_id` (nur bei automatischen Regeln, sonst fehlen die
+  Felder). Sonst eine gewöhnliche Regel: bearbeitbar, abschaltbar, löschbar.
+- **Löschen** einer automatischen Regel sperrt den Empfänger (`empfaenger_lernregel_sperre`, Objektart
+  `empfaenger`, Form `lernregel_gesperrt: true` nur bei gesperrten); Rückgängig hebt die Sperre mit auf.
+- **Zeitpunkt:** nach jeder Änderung mit Quelle `manuell` oder `import`, die Buchungen berührt, für die Empfänger
+  dieser Buchungen (vorher und nachher), als **eigene Änderung** `quelle = "lernmodell"`, `aktion =
+  "regel_automatisch"` direkt danach. Die Oberfläche legt beide Änderungen als einen Rückgängig-Schritt ab und
+  meldet „Regel „…“ automatisch angelegt.“ mit Link zu den Regeln. Synchronisation, Regeln, Lernmodell und
+  Rückgängig lösen nichts aus (sie erzeugen keine neuen bestätigten Zuordnungen bzw. sollen nicht zurückwirken).
+- **Einstellung:** `regeln_automatisch` / `KONTOR_REGELN_AUTOMATISCH`, Vorgabe aus (bestehende Abnahmetests
+  unverändert); die ausgelieferte `kontor.env` schaltet ein. Die Seite „Lernmodell“ soll den Schalter später
+  übernehmen.
+- **Bekannte Grenze:** Die Bedingung vergleicht den Namen. Wird der Empfänger umbenannt, greift die Regel nicht
+  mehr; die Regel wird nicht nachgezogen.
+- Schema: Datenbank 13, Sicherungsdatei 8 (neue Tabellen `regel_automatisch`, `empfaenger_lernregel_sperre`;
+  ältere Sicherungen ohne sie). Service-Worker-Cache `kontor-huelle-31`.
+
+## D-180 Lernmodell: Doppelzählung Empfänger/Verwendungszweck bleibt
+
+- Geprüft wurde, Zweckwörter, die auch im Empfängernamen stehen, nicht zusätzlich als Merkmal zu zählen. Messung
+  wie D-179: Genauigkeit unverändert 98,40 %, Abdeckung 84,94 % → 84,63 %. Die Sicherheit ist auf diesen Daten
+  nicht überhöht (Vorhersagen mit 50–60 % stimmen zu 90 %). Das Verfahren aus lernmodell.md 4 bleibt daher
+  unverändert; die Verlässlichkeit der Prozentangabe soll stattdessen auf echten Daten angezeigt werden.
+
+## D-181 Lerndaten nach echten Kontoauszugsmustern (`tests/lerndaten.py`)
+
+- 3000 synthetische Buchungen eines Girokontos (09/2022–10/2026) nach Mustern des Auftraggebers: Miete, Gehalt,
+  Supermärkte mit Uhrzeit/Terminal/Kartennummer, PayPal mit Händler im Zweck, Amazon ohne Artikel, Tankstelle
+  (Kraftstoff/Shop), Lastschriften mit Mandat, Abos, Gutschriften, Umbuchungen auf eigene Konten, drei neue
+  Empfänger in der Prüfzeit, etwa 3 % falsch erfasste Kategorien. Ältere 80 % kategorisiert, neueste 20 % auf
+  „Unkategorisiert“ mit bekannter Wahrheit. Alle Namen und Nummern erfunden bzw. Beispielwerte.
+- Messung 2026-11-16 (574 Prüfbuchungen mit Kategorie): Lernmodell allein 89,0 % Abdeckung, 99,2 % Genauigkeit;
+  mit automatischen Regeln (16 Regeln) 89,5 % Abdeckung, 99,2 % Genauigkeit. Amazon bleibt erwartungsgemäß meist
+  ohne Vorschlag (3 von 47), PayPal wird über den Händler im Zweck erkannt.
+
+## D-182 „Lernmodell anwenden“ heißt „Vorschläge für unkategorisierte Buchungen“; Einschätzung ohne Vorschlag
+
+- Der Knopf auf der Seite Regeln (`lernmodell-anwenden`, `POST /api/lernmodell/anwenden`) heißt jetzt
+  „Vorschläge für unkategorisierte Buchungen“ und erklärt im Tooltip, was geschieht: nur Buchungen auf
+  „Unkategorisiert“, ab 70 % ein Vorschlag, kein Training (das Modell lernt ohnehin laufend). Die Meldung nennt das
+  Ergebnis („5 von 7 unkategorisierten Buchungen haben einen Vorschlag erhalten; 2 bleiben offen“).
+- „Regeln anwenden“ meldet jetzt die Zahl der Vorschläge. Vorher las die Oberfläche das nicht vorhandene Feld
+  `geaendert` und zeigte nie eine Zahl.
+- Einzelheiten einer unkategorisierten Buchung ohne Vorschlag zeigen „Kein Vorschlag“ mit Grund (unbekannte
+  Merkmale, beste Kategorie unter der Schwelle, oder: das Modell würde vorschlagen) und die Kandidaten des
+  Lernmodells ab 1 % mit „Übernehmen“ (`details-einschaetzung`, `details-einschaetzung-grund`,
+  `details-einschaetzung-kandidaten`, `details-kandidat-<id>`). Lesezugriff über `POST /api/lernmodell/vorhersage`.
+  Service-Worker-Cache `kontor-huelle-32`.
+
+## D-183 Transparenz des Lernmodells: Erklärung je Buchung, Seite „Lernmodell“, Einstellungen der Instanz
+
+- **`GET /api/buchungen/{id}/lernmodell`** (Lesezugriff): `grund` (`vorschlag`, `unter_schwelle`, `unbekannt`,
+  `kein_modell`), Vorhersage wie 5.3, `beste_kategorie_id`, `vergleich_kategorie_id` (zweitbeste), je Merkmal der
+  Buchung die Zählungen `anzahl` = N(f), `anzahl_kategorie`, `anzahl_vergleich`, die drei häufigsten Kategorien und
+  `faktor_promille` = ⌊1000 · Faktor(beste)/Faktor(zweite)⌋ mit Faktor = (N_c(f)+1)/(N_c+2) (lernmodell.md 4), dazu
+  der Grundwert N_c/n. Das Produkt aller Faktoren ist genau P(beste)/P(zweite): keine Näherung, das Verfahren
+  bleibt unverändert. `aehnliche`: bis zu 5 Trainingsbuchungen mit den meisten gemeinsamen Merkmalen (Empfänger
+  zählt dreifach, Betrag nicht).
+- **`GET /api/lernmodell/uebersicht`** (Lesezugriff, zwischengespeichert bis zur nächsten Änderung oder
+  Schwellenänderung): Güte wie lernmodell.md 6 auf den eigenen Daten (Trainingsmenge nach Datum, neueste 20 %,
+  höchstens 2000, als Prüfung), Vorschläge/richtig je Schwelle 50–95 %, Verlässlichkeit je Zehntel der Sicherheit,
+  je Kategorie Beispiele, Prüfung, erkannt, häufigste Verwechslungen und die fünf stärksten Merkmale.
+- **`GET`/`PUT /api/lernmodell/einstellungen`**: `schwelle_promille` (500–990, Vorgabe 700) und
+  `regeln_automatisch` (Vorgabe aus `KONTOR_REGELN_AUTOMATISCH`) als **Einstellung der Instanz in `meta`**, nicht im
+  Änderungsprotokoll und nicht in der Sicherung – wie die Vorgabe des Betragsfilters (D-137). Abweichend vom
+  Konzept (dort: Änderung im Protokoll), weil eine Schwelle kein Buchbestand ist. `GET /api/lernmodell` meldet die
+  wirksame Schwelle; mit der Vorgabe 700 ist alles wie lernmodell.md.
+- **Oberfläche:** Einzelheiten zeigen bei Vorschlägen des Lernmodells „Warum dieser Vorschlag?“, bei Buchungen ohne
+  Vorschlag „Warum?“ (aufklappbar, `lern-warum`): Satz, Merkmale mit Balken (dafür/dagegen gegenüber der
+  nächstbesten Kategorie), Verwendungszweck mit markierten Wörtern, ähnliche Buchungen (Links `/buchungen/<id>`).
+  Neue Seite `/lernmodell` (Modul `lernmodell.js`), erreichbar über „Lernmodell …“ auf der Seite Regeln und den
+  Link in der Erklärung. **Kein Eintrag in der Navigation**: die Navigation ist in oberflaeche.md 37.2 fest
+  aufgezählt (16 Links); ein Eintrag gehört in die Meilenstein-Definition. Service-Worker-Cache `kontor-huelle-34` (nach dem Zusammenführen mit main).
+
+## D-184 Mock-Lerndaten eingecheckt; automatische Regeln mit Toleranz im letzten Jahr
+
+- Die 3000 Lerndaten (D-181) gehören zum Mock: Generator `kontor/mock_lerndaten.py`, eingecheckt als
+  `kontor/mockdaten/lerndaten-3000.csv` (Paketdaten). `POST /api/mock/lerndaten` lädt sie im Mock-Modus in einen
+  Bestand ohne Buchungen (sonst 409 `bestand_nicht_leer`; außerhalb des Mock-Modus 409 `nur_mock_modus`), als eine
+  Änderung `quelle = "import"`, `aktion = "mock_lerndaten"` (rückgängig zu machen). Die Seite Import bietet im
+  Mock-Modus den Knopf „Lerndaten laden (3.000 Buchungen)“.
+- **Ersetzt in D-179 die Bedingung „in den letzten 365 Tagen nie anders“:** in den 365 Tagen bis zur jüngsten
+  Buchung des Empfängers in der Trainingsmenge (bzw. bis heute, falls früher) ebenfalls mindestens 95 %. Das
+  Fenster hängt damit an der Geschichte des Empfängers, nicht an der Uhr. Beim Laden auf einmal verhinderte sonst ein einzelner Fehlgriff (3 % der Lerndaten) die Regel für
+  häufige Empfänger wie den Supermarkt, während sie beim schrittweisen Erfassen früh entstand.
 ## D-185 Kontor-Ausdrücke: gemeinsame Sprache für Regeln und Kontoblatt-Filter (Feature `ausdruecke`)
 
 Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abgestimmt am 2026-11-16).

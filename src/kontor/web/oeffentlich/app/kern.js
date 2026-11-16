@@ -438,13 +438,14 @@ export async function hoechsteAenderung() {
   return s.eintraege.length ? s.eintraege[0].id : 0;
 }
 
-async function aenderungenSeit(m) {
+async function aenderungenSeit(m, lernregeln) {
   const ids = [];
   for (let seite = 1; seite < 100; seite++) {
     const s = await api("GET", `/api/aenderungen?pro_seite=100&seite=${seite}`);
     let fertig = s.eintraege.length === 0;
     for (const a of s.eintraege) {
       if (a.id <= m) { fertig = true; break; }
+      if (lernregeln && a.aktion === "regel_automatisch") lernregeln.push(a);
       if (!(a.gruppe || "").startsWith("sync:")) ids.push(a.id);
     }
     if (fertig || seite * 100 >= s.gesamt) break;
@@ -478,8 +479,9 @@ async function aktionAusfuehren(ausfuehren, o, stapelFertig) {
   let fehler = null;
   try { ergebnis = await ausfuehren(); } catch (e) { fehler = e; }
   if (!fehler && o.danach) o.danach(ergebnis);       // z. B. Dialog schließen, bevor neu geladen wird
+  const lernregeln = [];
   try {
-    const neu = await aenderungenSeit(m);
+    const neu = await aenderungenSeit(m, lernregeln);
     if (neu.length) {
       rueckStapel.push(neu);
       vorStapel.length = 0;
@@ -491,6 +493,11 @@ async function aktionAusfuehren(ausfuehren, o, stapelFertig) {
     if (!o.stillBeiFehler) fehlerMelden(fehler);
   } else if (o.erfolg) {
     melde("erfolg", typeof o.erfolg === "function" ? o.erfolg(ergebnis) : o.erfolg, { rueckgaengig: true });
+  }
+  // D-179: automatisch angelegte Regeln melden; Rückgängig nimmt sie zusammen mit der auslösenden Änderung zurück
+  for (const a of lernregeln) {
+    melde("hinweis", String(a.beschreibung || "Regel automatisch angelegt").replace(/ \(\d+ Objekte?\)$/, "") + ".",
+      { link: { href: "/regeln", tid: "meldung-lernregel", text: "Ansehen" } });
   }
   if (!o.ohneNeuLaden) await neuLadenSicher();
   if (fehler) throw fehler;

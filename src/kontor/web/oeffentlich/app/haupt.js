@@ -13,6 +13,7 @@ import * as S from "./seiten.js";
 import { erwartetSeite } from "./erwartet.js";
 import { mailSeite } from "./mail.js";
 import { statistikSeite } from "./statistik.js";
+import { lernmodellSeite } from "./lernmodell.js";
 import { Tabs } from "./tabs.js";
 
 const app = tid("app");
@@ -250,6 +251,7 @@ const ROUTEN = [
   [/^\/protokoll$/, "protokoll", "protokoll", S.protokoll],
   [/^\/empfaenger$/, "empfaenger", "empfaenger", S.empfaenger],
   [/^\/regeln$/, "regeln", "regeln", S.regeln],
+  [/^\/lernmodell$/, "lernmodell", "regeln", lernmodellSeite],
   [/^\/vorlagen$/, "vorlagen", "vorlagen", S.vorlagen],
   [/^\/dubletten$/, "dubletten", "dubletten", S.dubletten],
   [/^\/sync(?:\/konten)?$/, "sync", "sync", S.syncSeite],
@@ -395,7 +397,7 @@ async function zeigen(optionen) {
 
 const TITEL = { uebersicht: "Finanzübersicht", konten: "Konten", konto: "Konto", kategorien: "Kategorien",
   statistik: "Statistische Analyse", kredite: "Kredite", kredit: "Kredit", berichte: "Berichte", import: "Import",
-  einstellungen: "Einstellungen", protokoll: "Änderungsprotokoll", empfaenger: "Empfänger", regeln: "Regeln",
+  einstellungen: "Einstellungen", protokoll: "Änderungsprotokoll", empfaenger: "Empfänger", regeln: "Regeln", lernmodell: "Lernmodell",
   vorlagen: "Split-Vorlagen", dubletten: "Dubletten", sync: "Synchronisation", benachrichtigungen: "Benachrichtigungen",
   suche: "Suche", tan: "TAN-Freigabe", postfach: "Postfach", buchung: "Buchung", erwartet: "Was kommt noch?",
   mail: "Mail-Blatt" };

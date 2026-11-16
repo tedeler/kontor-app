@@ -204,22 +204,35 @@ def _bezuege_pruefen(con, d: dict) -> None:
 
 
 def regel_dict(r, bez: ausdruck.Bezuege | None = None) -> dict:
-    """Protokollform (ohne ``bez``) bzw. API-Form mit ``ausdruck`` (kanonischer Text, auch für alte Regeln)."""
+    """Regel als Objekt: Protokollform (ohne ``bez``) bzw. API-Form mit ``ausdruck`` (kanonischer Text, auch für alte
+    Regeln, D-185). Automatisch angelegte Regeln (D-179) tragen zusätzlich ``automatisch: true`` und den Empfänger,
+    aus dessen Buchungen sie entstanden sind."""
     d = {"id": r["id"], "name": r["name"], "aktiv": bool(r["aktiv"]), "prioritaet": r["prioritaet"],
          "kategorie_id": r["kategorie_id"], "bedingungen": json.loads(r["bedingungen"])}
+    if "automatisch" in r.keys() and r["automatisch"]:
+        d["automatisch"] = True
+        d["empfaenger_id"] = r["auto_empfaenger_id"]
     if bez is not None:
         d["ausdruck"] = ausdruck_text(d["bedingungen"], bez)
         d["ausdruck_form"] = "ausdruck" if ist_ausdruck(d["bedingungen"]) else "bedingungen"
     return d
 
 
+_AUSWAHL = ("SELECT r.*, (ra.regel_id IS NOT NULL) AS automatisch, ra.empfaenger_id AS auto_empfaenger_id FROM regel r"
+            " LEFT JOIN regel_automatisch ra ON ra.regel_id = r.id")
+
+
+def regel_zeilen(con, ids: list[int]) -> list:
+    return con.execute(f"{_AUSWAHL} WHERE r.id IN ({buch._platzhalter(len(ids))})", ids).fetchall()
+
+
 def regeln_liste(con, mit_ausdruck: bool = True) -> list[dict]:
     bez = ausdruck.Bezuege.laden(con) if mit_ausdruck else None
-    return [regel_dict(r, bez) for r in con.execute("SELECT * FROM regel ORDER BY prioritaet, id")]
+    return [regel_dict(r, bez) for r in con.execute(f"{_AUSWAHL} ORDER BY r.prioritaet, r.id")]
 
 
 def regel_lesen(con, rid: int) -> dict:
-    r = con.execute("SELECT * FROM regel WHERE id = ?", (sichere_id(rid),)).fetchone()
+    r = con.execute(f"{_AUSWAHL} WHERE r.id = ?", (sichere_id(rid),)).fetchone()
     if r is None:
         raise nicht_gefunden("Die Regel")
     return regel_dict(r, ausdruck.Bezuege.laden(con))
@@ -302,6 +315,10 @@ def regel_aendern(con, rid: int, d: dict) -> dict:
 
 def regel_loeschen(con, rid: int) -> None:
     regel_lesen(con, rid)
+    # Gelöschte automatische Regel: Empfänger sperren, damit sie nicht wieder entsteht (D-179)
+    con.execute("INSERT OR IGNORE INTO empfaenger_lernregel_sperre (empfaenger_id)"
+                " SELECT empfaenger_id FROM regel_automatisch WHERE regel_id = ?"
+                " AND empfaenger_id IN (SELECT id FROM empfaenger)", (rid,))
     con.execute("UPDATE vorschlag SET regel_id = NULL WHERE regel_id = ?", (rid,))
     con.execute("DELETE FROM regel WHERE id = ?", (rid,))
 

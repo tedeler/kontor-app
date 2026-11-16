@@ -35,20 +35,39 @@ export const WIRKUNG_TEXT = { neu: "neu", abweichend: "abweichend", bereits_so: 
   uebersprungen: "übersprungen", treffer: "Treffer" };
 
 // ------------------------------------------------------------------ Regelliste (5.1)
+const anzahlText = (n, eins, viele) => `${n} ${n === 1 ? eins : viele}`;
+
 export async function regelnSeite(seite, kopf) {
   const [liste, sp] = await Promise.all([api("GET", "/api/regeln"), sprache("regel")]);
   const felder = feldMenge(sp);
   kopf(seite, "Regeln",
     knopf("Regel anlegen", { tid: "regel-anlegen", class: "knopf knopf-haupt", onclick: (e) => regelEditor(null, e.currentTarget) }),
-    knopf("Regeln anwenden", { tid: "regeln-anwenden", onclick: async () => {
-      try {
-        const r = await aktion(() => api("POST", "/api/regeln/anwenden", {}), { erfolg: "Regeln angewendet." });
-        if (r && r.anzahl !== undefined) melde("hinweis", `${r.anzahl} Buchungen geändert.`);
-      } catch (e) { /* gemeldet */ }
-    } }),
-    knopf("Lernmodell anwenden", { onclick: async () => {
-      try { await aktion(() => api("POST", "/api/lernmodell/anwenden", {}), { erfolg: "Lernmodell angewendet." }); } catch (e) { /* gemeldet */ }
-    } }));
+    // aus main (D-178/D-179): Zähler beim Anwenden, Vorschläge des Lernmodells, Link zum Lernmodell
+    knopf("Regeln anwenden", { tid: "regeln-anwenden",
+      title: "Alle aktiven Regeln auf vorhandene Buchungen anwenden. Treffer werden als Vorschlag gesetzt.",
+      onclick: async () => {
+        try {
+          await aktion(() => api("POST", "/api/regeln/anwenden", {}), { erfolg: (r) =>
+            `Regeln angewendet: ${r.anzahl} von ${anzahlText(r.geprueft, "geprüften Buchung", "geprüften Buchungen")} `
+            + `${r.anzahl === 1 ? "hat" : "haben"} einen Vorschlag erhalten.` });
+        } catch (e) { /* gemeldet */ }
+      } }),
+    knopf("Vorschläge für unkategorisierte Buchungen", { tid: "lernmodell-anwenden",
+      title: "Fragt das Lernmodell für alle Buchungen, die noch auf „Unkategorisiert“ stehen. Ab "
+        + "70 % Sicherheit wird die Kategorie als Vorschlag gesetzt; du nimmst ihn an oder lehnst ihn ab. "
+        + "Kategorisierte Buchungen bleiben unverändert. Das Modell lernt ohnehin laufend aus deinen Zuordnungen.",
+      onclick: async () => {
+        try {
+          await aktion(() => api("POST", "/api/lernmodell/anwenden", {}), { erfolg: (r) => {
+            if (!r.geprueft) return "Es gibt keine unkategorisierten Buchungen.";
+            const offen = r.geprueft - r.anzahl;
+            return `${r.anzahl} von ${anzahlText(r.geprueft, "unkategorisierten Buchung", "unkategorisierten Buchungen")} `
+              + `${r.anzahl === 1 ? "hat" : "haben"} einen Vorschlag erhalten`
+              + (offen ? `; ${offen} ${offen === 1 ? "bleibt" : "bleiben"} offen (Grund in den Einzelheiten der Buchung).` : ".");
+          } });
+        } catch (e) { /* gemeldet */ }
+      } }),
+    h("a", { href: "/lernmodell", class: "knopf", tid: "regeln-lernmodell" }, "Lernmodell …"));
   if (!liste.length) {
     seite.append(h("p", { class: "leer" }, "Noch keine Regeln. Regeln ordnen neuen Buchungen eine Kategorie zu, bevor das Lernmodell gefragt wird."));
     return { titel: "Regeln" };
@@ -85,6 +104,9 @@ export async function regelnSeite(seite, kopf) {
     griff, h("span", { class: "regel-nr" }, `${i + 1}.`), aktiv,
     h("div", { class: "regel-inhalt" },
       h("strong", null, r.name), h("span", { class: "regel-ziel" }, ` → ${pfadVon(r.kategorie_id)}`),
+      r.automatisch ? h("span", { class: "regel-auto", tid: `regel-automatisch-${r.id}`,
+        title: "Aus deinen Zuordnungen gelernt. Wird die Regel gelöscht, legt Kontor sie für diesen Empfänger nicht wieder an." },
+      "automatisch angelegt") : null,
       h("div", { class: "regel-bedingung", tid: `regel-ausdruck-${r.id}`, title: r.ausdruck }, hervorgehoben(r.ausdruck || "", felder))),
     knopfLeiste(
       knopf("Bearbeiten…", { "aria-label": `Regel ${r.name} bearbeiten`, onclick: (e) => regelEditor(r, e.currentTarget) }),

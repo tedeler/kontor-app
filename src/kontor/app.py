@@ -30,7 +30,7 @@ from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.staticfiles import StaticFiles
 
-from . import (__version__, ausdruck, berichte, buch, db, export, kredite, lernmodell, mail, pflege, protokoll, regeln,
+from . import (__version__, ausdruck, berichte, buch, db, export, kredite, lernerklaerung, lernmodell, lernregeln, mock_lerndaten, mail, pflege, protokoll, regeln,
                sicherung, statistik, verschieben, vorlagen, wiederkehrend)
 from . import aktualisierung
 from . import abgleich, dokumente, erwartung
@@ -52,7 +52,7 @@ log = logging.getLogger("kontor")
 WEB = pathlib.Path(__file__).parent / "web"
 #: Routen der Oberfläche (oberflaeche.md 3) und Links aus Benachrichtigungen (/buchungen/<id>, /sync/konten)
 SPA_ROUTEN = ["/", "/konten", "/konten/{konto_id:int}", "/kategorien", "/erwartet", "/mail", "/statistik", "/kredite",
-              "/kredite/{kredit_id:int}", "/berichte", "/import", "/einstellungen", "/protokoll", "/empfaenger", "/regeln",
+              "/kredite/{kredit_id:int}", "/berichte", "/import", "/einstellungen", "/protokoll", "/empfaenger", "/regeln", "/lernmodell",
               "/vorlagen", "/dubletten", "/sync", "/sync/konten", "/benachrichtigungen", "/suche", "/tan/{tan_id:int}",
               "/mail/postfaecher/{postfach_id:int}", "/buchungen/{buchung_id:int}"]
 MOCK_HINWEIS = "Mock-Modus: Es werden ausschließlich synthetische Testdaten verwendet (eigene Mock-Datenbank)."
@@ -243,6 +243,7 @@ WIEDERKEHREND_PRUEFEN = {"buchung_ids": S("int_liste", max_items=10000, eindeuti
 # D-137: Betragsfilter (fachliche Prüfung in wiederkehrend._filter_pruefen)
 WIEDERKEHREND_FILTER = {"modus": S("enum", pflicht=True, werte=wiederkehrend.MODI),
                         "toleranz_prozent": S("int", nullbar=True), "mindestbetrag": S("int", nullbar=True)}
+LERN_EINSTELLUNGEN = {"schwelle_promille": S("int"), "regeln_automatisch": S("bool")}
 DUBLETTE_AUFLOESEN = {
     "entscheidung": S("enum", pflicht=True, werte=("zusammenfuehren", "keine_dublette")),
     "behalten_id": S("int"),
@@ -448,10 +449,26 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
         def ausfuehren(*args):
             con = db.verbinde(pfad)
             try:
-                return protokoll.ausfuehren(con, quelle, aktion, sync.jetzt_text(), f, *args)
+                if quelle not in ("manuell", "import") or not lernerklaerung.regeln_automatisch(
+                        con, config.regeln_automatisch):
+                    return protokoll.ausfuehren(con, quelle, aktion, sync.jetzt_text(), f, *args)
+                gemerkt: list = []
+                erg = protokoll.ausfuehren(con, quelle, aktion, sync.jetzt_text(), f, *args, merken=gemerkt)
+                lernregeln_nachziehen(con, gemerkt)
+                return erg
             finally:
                 con.close()
         return ausfuehren
+
+    def lernregeln_nachziehen(con, eintraege: list[dict]) -> None:
+        """D-179: nach einer Änderung an Buchungen fällige automatische Regeln als eigene Änderung anlegen."""
+        empfaenger = lernregeln.betroffene_empfaenger(eintraege)
+        if not empfaenger:
+            return
+        with protokoll.protokolliert(con, "lernmodell", lernregeln.AKTION, sync.jetzt_text()) as k:
+            neu = lernregeln.anlegen(con, empfaenger, sync.heute())
+            if neu:
+                k.beschreibung = lernregeln.beschreibung(con, neu)
 
     async def aendern(aktion: str, f: Callable, *args, quelle: str = "manuell"):
         """Schreibende Operation auf dem Buchbestand: eine Transaktion, eine Änderung im Protokoll."""
@@ -1192,6 +1209,38 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     @endpunkt("GET", "/api/lernmodell")
     async def lernmodell_zustand(request: Request):
         return await lesen(lernmodell.zustand, config.lernmodell_automatisch)
+
+    @endpunkt("POST", "/api/mock/lerndaten")
+    async def mock_lerndaten_laden(request: Request):
+        """D-184: 3000 Lerndaten (mockdaten/lerndaten-3000.csv) in einen leeren Mock-Bestand laden."""
+        if not config.mock_modus:
+            raise ApiFehler(409, "nur_mock_modus", "Die Lerndaten gibt es nur im Mock-Modus.")
+        q = Query(request.query_params)
+        q.pruefen()
+        return await aendern("mock_lerndaten", mock_lerndaten.mock_laden, quelle="import")
+
+    # D-183: Transparenz des Lernmodells (Erklärung je Buchung, Übersicht, Einstellungen der Instanz)
+    @endpunkt("GET", "/api/buchungen/{buchung_id:int}/lernmodell")
+    async def lernmodell_erklaeren(request: Request):
+        q = Query(request.query_params)
+        q.pruefen()
+        return await lesen(lernerklaerung.erklaeren, pid(request, "buchung_id"))
+
+    @endpunkt("GET", "/api/lernmodell/uebersicht")
+    async def lernmodell_uebersicht(request: Request):
+        q = Query(request.query_params)
+        q.pruefen()
+        return await lesen(lernerklaerung.uebersicht, config.regeln_automatisch, config.lernmodell_automatisch)
+
+    @endpunkt("GET", "/api/lernmodell/einstellungen")
+    async def lernmodell_einstellungen(request: Request):
+        return await lesen(lernerklaerung.einstellungen, config.regeln_automatisch, config.lernmodell_automatisch)
+
+    @endpunkt("PUT", "/api/lernmodell/einstellungen")
+    async def lernmodell_einstellungen_setzen(request: Request):
+        d = await koerper(request, LERN_EINSTELLUNGEN)
+        return await schreiben(lernerklaerung.einstellungen_setzen, d, config.regeln_automatisch,
+                               config.lernmodell_automatisch)
 
     @endpunkt("POST", "/api/lernmodell/vorhersage")
     async def lernmodell_vorhersage(request: Request):

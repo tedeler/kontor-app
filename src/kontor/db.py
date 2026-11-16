@@ -15,7 +15,7 @@ from collections.abc import Iterator
 
 from .text import norm
 
-SCHEMA_VERSION = 12
+SCHEMA_VERSION = 13
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (
@@ -466,6 +466,18 @@ CREATE TABLE IF NOT EXISTS empfaenger_wiederkehrend (
     mindestbetrag INTEGER CHECK (mindestbetrag IS NULL OR mindestbetrag > 0),
     CHECK ((modus = 'toleranz') = (toleranz_prozent IS NOT NULL)),
     CHECK ((modus = 'mindestschwelle') = (mindestbetrag IS NOT NULL))
+);
+
+-- ------------------------------------------------------------ Automatische Regeln (D-179)
+-- Vermerk „automatisch angelegt“ je Regel (gehört zur Objektart ``regel``) und Sperre je Empfänger nach dem
+-- Löschen einer automatischen Regel (gehört zur Objektart ``empfaenger``). Beides Buchbestand.
+CREATE TABLE IF NOT EXISTS regel_automatisch (
+    regel_id INTEGER PRIMARY KEY REFERENCES regel(id) ON DELETE CASCADE,
+    empfaenger_id INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS regel_automatisch_empfaenger ON regel_automatisch(empfaenger_id);
+CREATE TABLE IF NOT EXISTS empfaenger_lernregel_sperre (
+    empfaenger_id INTEGER PRIMARY KEY REFERENCES empfaenger(id) ON DELETE CASCADE
 );
 
 -- ------------------------------------------------------------ Meilenstein 7

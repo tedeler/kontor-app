@@ -455,6 +455,7 @@ html.zieht, html.zieht * { cursor: grabbing !important; }
 .aenderung.bis-markiert { background: var(--akzent-hell); border-radius: 4px; }
 .knopf-klein { font-size: .8rem; padding: .1rem .45rem; margin-left: .3rem; }
 .marke { font-size: .75rem; background: var(--hg-3); border-radius: 4px; padding: 0 .3em; }
+.regel-auto { margin-left: .4rem; font-size: .75rem; background: var(--hg-3); border-radius: 4px; padding: 0 .3em; }
 
 /* Bewegung (20) */
 @media (prefers-reduced-motion: reduce) {
@@ -1114,3 +1115,39 @@ html[data-thema="dunkel"] .wirkung-abweichend { background: #5a3412; color: #ffd
 .bk-umschalter { white-space: nowrap; margin-top: .2rem; }
 [data-layout="mobil"] .ausdruck-filter-zeile { flex-wrap: wrap; }
 [data-layout="mobil"] .ausdruck-filter-zeile > .feld { flex-basis: 100%; }
+/* Lernmodell (D-183): Erklärung je Buchung und Seite /lernmodell */
+.lern-warum { margin: .4rem 0; }
+.lern-warum > summary { cursor: pointer; color: var(--akzent, #1f5f8b); }
+.lern-erklaerung { font-size: .85rem; }
+.lern-merkmale { list-style: none; padding: 0; margin: .3rem 0; }
+.lern-merkmal { display: grid; grid-template-columns: minmax(6rem, 1fr) 5rem; gap: .1rem .5rem; align-items: center; padding: .15rem 0; border-bottom: 1px solid var(--rand); }
+.lern-merkmal-name { overflow-wrap: anywhere; }
+.lern-merkmal-wert { grid-column: 1 / -1; color: var(--text-2, #555); font-size: .78rem; }
+.lern-balken { position: relative; display: block; height: .6rem; background: var(--hg-3); border-radius: 3px; }
+.lern-balken-dafuer, .lern-balken-dagegen { position: absolute; top: 0; bottom: 0; border-radius: 3px; }
+.lern-balken-dafuer { background: #2e8b57; }
+.lern-balken-dagegen { background: #c0392b; }
+.lern-zweck { font-family: ui-monospace, monospace; font-size: .78rem; overflow-wrap: anywhere; }
+.lern-wort { border-radius: 3px; padding: 0 .1em; }
+.lern-wort-dafuer { background: #cdebd8; color: inherit; }
+.lern-wort-dagegen { background: #f6d2cd; color: inherit; }
+.lern-wort-neutral { background: var(--hg-3); color: inherit; }
+.lern-wort-unbekannt { background: transparent; text-decoration: underline dotted; color: inherit; }
+.lern-aehnliche { padding-left: 1rem; margin: .2rem 0; }
+.lern-stand { padding-left: 1.2rem; }
+.lern-schalter { display: block; margin-top: .5rem; }
+.lern-guete { font-size: 1.05rem; }
+.lern-regler { display: flex; align-items: center; gap: .5rem; max-width: 28rem; }
+.lern-regler input { flex: 1; }
+.lern-diagramm { width: 100%; max-width: 28rem; height: auto; display: block; }
+.lern-diagramm polyline { fill: none; stroke-width: 2.5; }
+.lern-linie-abdeckung { stroke: #1f5f8b; }
+.lern-linie-genauigkeit { stroke: #2e8b57; }
+.lern-marke { stroke: var(--text-2, #888); stroke-dasharray: 3 3; }
+.lern-achse { font-size: 9px; fill: var(--text-2, #888); }
+.lern-legende-abdeckung { color: #1f5f8b; }
+.lern-legende-genauigkeit { color: #2e8b57; }
+.lern-balken-voll { position: relative; display: block; width: 8rem; height: .7rem; background: var(--hg-3); border-radius: 3px; }
+.lern-balken-wert { position: absolute; left: 0; top: 0; bottom: 0; background: #2e8b57; border-radius: 3px; }
+.lern-balken-soll { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--text, #222); }
+.lern-chip { display: inline-block; font-size: .75rem; background: var(--hg-3); border-radius: 4px; padding: 0 .35em; margin: 0 .2rem .2rem 0; }
