@@ -2335,3 +2335,18 @@ D-123 bis D-127 sind auf den offenen Branches `dokumente` und `alfbanco-import` 
 - **Mobile Suche:** Das verzögerte Einklappen nach dem Verlassen des leeren Felds unterbleibt, wenn der Fokus
   inzwischen wieder im Feld liegt (Wettlauf beim schnellen Öffnen über die Lupe).
 - Service-Worker-Cache `kontor-huelle-30`.
+
+## D-175 Einzelheiten: gegliederte Darstellung und lesbarer Verwendungszweck (feature/detailansicht, Entwurf)
+
+- **Kopf:** Empfänger und Betrag (Summe der Splits auf dem angezeigten Konto, `details-betrag`) groß, darunter
+  Wochentag/Datum und der Status als farbige Marke; Randfarbe nach Ein-/Ausgang, 🔒 bei gesperrten Buchungen.
+  Stifte, `data-feld` und Inline-Editoren bleiben wie in 37.8 (Namen nur für Vorleser verborgen).
+- **Verwendungszweck nur in der Anzeige zerlegt** (`app/zweck.js`), gespeichert bleibt der Originaltext:
+  Buchungsarten als Marken („Lastschrift / Belastung“, „Kartenzahlung“ …), SEPA-Schlüssel (EREF+, MREF+,
+  CRED+, SVWZ+ …) als benannte Angaben, dazu Karte (mit Kartenart), ISO-Zeitpunkt und „Ref.“. Auch an
+  zusammengeklebten Zeilen („BELASTUNGCAFE“) wird getrennt; Buchungsarten links nur nach Nicht-Buchstaben,
+  rechts nicht vor Kleinbuchstaben. Wird nichts erkannt, erscheint der Text unverändert; sonst ist der
+  Originaltext aufklappbar.
+- Buchungssätze als Karten (eigenes Konto zurückgenommen, „Unkategorisiert“ hervorgehoben), Tags als Marken,
+  Verdachtshinweis mit Warnsymbol (vorher wirkungslose Hintergrundfarbe wegen `--hg-1`).
+- Service-Worker-Cache `kontor-huelle-31`, neues Modul in `DATEIEN`.
