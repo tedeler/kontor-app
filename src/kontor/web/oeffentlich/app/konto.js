@@ -905,6 +905,44 @@ class Kontoansicht {
     return el;
   }
 
+  /** Kategorisierbar, aber noch ohne Kategorie: genau ein Gegensplit, und der liegt auf einem Eigenkapitalkonto. */
+  unkategorisiert(b) {
+    if (b.vorschlag || b.kategorie_id != null || b.abgestimmt || b.status === "abgeglichen") return false;
+    const gegen = b.splits.filter((s) => !BESTAND.has((kontoNach(s.konto_id) || {}).art));
+    return gegen.length === 1 && (kontoNach(gegen[0].konto_id) || {}).art === "eigenkapital";
+  }
+
+  /** Einschätzung des Lernmodells für eine Buchung ohne Vorschlag, mit Grund (D-178). Ohne Wirkung. */
+  einschaetzungDetails(b) {
+    const grund = h("p", { class: "klein", tid: "details-einschaetzung-grund" }, "Das Lernmodell wird gefragt …");
+    const kandidaten = h("ol", { class: "vorschlag-kandidaten", tid: "details-einschaetzung-kandidaten" });
+    const el = h("div", { class: "details-vorschlag details-einschaetzung", tid: "details-einschaetzung" },
+      h("p", null, h("strong", null, "Kein Vorschlag")), grund, kandidaten);
+    Promise.all([api("POST", "/api/lernmodell/vorhersage", { eintraege: [{ buchung_id: b.id }] }),
+      this.schwelle ? Promise.resolve({ schwelle_promille: this.schwelle }) : api("GET", "/api/lernmodell")])
+      .then(([r, z]) => {
+        this.schwelle = z.schwelle_promille;
+        const e = r.ergebnisse[0] || {};
+        const liste = (e.kandidaten || []).filter((k) => k.sicherheit >= 5);
+        const prozent = (p) => `${Math.floor((p + 5) / 10)} %`;
+        if (e.kategorie_id != null) {
+          grund.textContent = `Das Lernmodell würde ${pfadVon(e.kategorie_id)} vorschlagen (${prozent(e.sicherheit)}). `
+            + "„Vorschläge für unkategorisierte Buchungen“ auf der Seite Regeln setzt den Vorschlag.";
+        } else if (!liste.length) {
+          grund.textContent = "Weder der Empfänger noch ein Wort des Verwendungszwecks kommt in kategorisierten "
+            + "Buchungen vor. Das Lernmodell kann hier nichts einschätzen.";
+        } else {
+          grund.textContent = `Am wahrscheinlichsten ist ${pfadVon(liste[0].kategorie_id)} mit ${prozent(liste[0].sicherheit)}. `
+            + `Vorgeschlagen wird erst ab ${prozent(this.schwelle)}.`;
+        }
+        kandidaten.replaceChildren(...liste.map((k) => h("li", { "data-kategorie-id": String(k.kategorie_id) },
+          `${pfadVon(k.kategorie_id)} – ${prozent(k.sicherheit)}`,
+          knopf("Übernehmen", { class: "knopf knopf-klein", tid: `details-kandidat-${k.kategorie_id}`,
+            onclick: () => this.kategorieSetzen([b.id], k.kategorie_id) }))));
+      }).catch(() => { grund.textContent = "Die Einschätzung des Lernmodells ist gerade nicht verfügbar."; });
+    return el;
+  }
+
   /** Stift an einem Bestandteil der Einzelheiten (D-161). */
   stift(feld, label, tun, gesperrt) {
     return h("button", { type: "button", class: "stift", tid: `stift-${feld}`,
@@ -981,7 +1019,7 @@ class Kontoansicht {
     const gesperrt = !!(b.abgestimmt || b.status === "abgeglichen");
     return [
       b.verdacht ? h("p", { class: "verdacht-erklaerung", tid: "verdacht-erklaerung" }, b.verdacht.text) : null,
-      b.vorschlag ? this.vorschlagDetails(b) : null,
+      b.vorschlag ? this.vorschlagDetails(b) : this.unkategorisiert(b) ? this.einschaetzungDetails(b) : null,
       this.detailZeile(b, "datum", "Datum", datumText(b.datum), gesperrt),
       this.detailZeile(b, "empfaenger", "Empfänger", b.empfaenger ? b.empfaenger.name : "ohne Empfänger", gesperrt),
       this.detailZeile(b, "verwendungszweck", "Verwendungszweck", b.verwendungszweck || "–", gesperrt),

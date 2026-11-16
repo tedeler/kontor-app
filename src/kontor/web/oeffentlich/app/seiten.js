@@ -1166,14 +1166,30 @@ const BED_TEXT = (b) => `${b.feld} ${b.operator} ${b.wert ?? b.konto_id ?? ""}`;
 
 export async function regeln(seite) {
   const liste = await api("GET", "/api/regeln");
-  kopf(seite, "Regeln", knopf("Regeln anwenden", { tid: "regeln-anwenden", onclick: async () => {
-    try {
-      const r = await aktion(() => api("POST", "/api/regeln/anwenden", {}), { erfolg: "Regeln angewendet." });
-      if (r && r.geaendert !== undefined) melde("hinweis", `${r.geaendert} Buchungen geändert.`);
-    } catch (e) { /* gemeldet */ }
-  } }), knopf("Lernmodell anwenden", { onclick: async () => {
-    try { await aktion(() => api("POST", "/api/lernmodell/anwenden", {}), { erfolg: "Lernmodell angewendet." }); } catch (e) { /* gemeldet */ }
-  } }));
+  const anzahlText = (n, eins, viele) => `${n} ${n === 1 ? eins : viele}`;
+  kopf(seite, "Regeln", knopf("Regeln anwenden", { tid: "regeln-anwenden",
+    title: "Alle aktiven Regeln auf vorhandene Buchungen anwenden. Treffer werden als Vorschlag gesetzt.",
+    onclick: async () => {
+      try {
+        await aktion(() => api("POST", "/api/regeln/anwenden", {}), { erfolg: (r) =>
+          `Regeln angewendet: ${r.anzahl} von ${anzahlText(r.geprueft, "geprüften Buchung", "geprüften Buchungen")} `
+          + `${r.anzahl === 1 ? "hat" : "haben"} einen Vorschlag erhalten.` });
+      } catch (e) { /* gemeldet */ }
+    } }), knopf("Vorschläge für unkategorisierte Buchungen", { tid: "lernmodell-anwenden",
+    title: "Fragt das Lernmodell für alle Buchungen, die noch auf „Unkategorisiert“ stehen. Ab "
+      + "70 % Sicherheit wird die Kategorie als Vorschlag gesetzt; du nimmst ihn an oder lehnst ihn ab. "
+      + "Kategorisierte Buchungen bleiben unverändert. Das Modell lernt ohnehin laufend aus deinen Zuordnungen.",
+    onclick: async () => {
+      try {
+        await aktion(() => api("POST", "/api/lernmodell/anwenden", {}), { erfolg: (r) => {
+          if (!r.geprueft) return "Es gibt keine unkategorisierten Buchungen.";
+          const offen = r.geprueft - r.anzahl;
+          return `${r.anzahl} von ${anzahlText(r.geprueft, "unkategorisierten Buchung", "unkategorisierten Buchungen")} `
+            + `${r.anzahl === 1 ? "hat" : "haben"} einen Vorschlag erhalten`
+            + (offen ? `; ${offen} ${offen === 1 ? "bleibt" : "bleiben"} offen (Grund in den Einzelheiten der Buchung).` : ".");
+        } });
+      } catch (e) { /* gemeldet */ }
+    } }));
   seite.querySelector(".werkzeuge").prepend(knopf("Regel anlegen", { tid: "regel-anlegen", onclick: (e) => regelDialog(null, e.currentTarget) }));
   seite.append(liste.length ? h("ul", { class: "karten-liste" }, liste.map((r) => h("li", { tid: `regel-${r.id}`, class: "karte" },
     h("strong", null, r.name), ` → ${pfadVon(r.kategorie_id)} · Priorität ${r.prioritaet}${r.aktiv ? "" : " · inaktiv"}`,

@@ -2384,3 +2384,17 @@ D-123 bis D-127 sind auf den offenen Branches `dokumente` und `alfbanco-import` 
 - Messung 2026-11-16 (574 Prüfbuchungen mit Kategorie): Lernmodell allein 89,0 % Abdeckung, 99,2 % Genauigkeit;
   mit automatischen Regeln (16 Regeln) 89,5 % Abdeckung, 99,2 % Genauigkeit. Amazon bleibt erwartungsgemäß meist
   ohne Vorschlag (3 von 47), PayPal wird über den Händler im Zweck erkannt.
+
+## D-178 „Lernmodell anwenden“ heißt „Vorschläge für unkategorisierte Buchungen“; Einschätzung ohne Vorschlag
+
+- Der Knopf auf der Seite Regeln (`lernmodell-anwenden`, `POST /api/lernmodell/anwenden`) heißt jetzt
+  „Vorschläge für unkategorisierte Buchungen“ und erklärt im Tooltip, was geschieht: nur Buchungen auf
+  „Unkategorisiert“, ab 70 % ein Vorschlag, kein Training (das Modell lernt ohnehin laufend). Die Meldung nennt das
+  Ergebnis („5 von 7 unkategorisierten Buchungen haben einen Vorschlag erhalten; 2 bleiben offen“).
+- „Regeln anwenden“ meldet jetzt die Zahl der Vorschläge. Vorher las die Oberfläche das nicht vorhandene Feld
+  `geaendert` und zeigte nie eine Zahl.
+- Einzelheiten einer unkategorisierten Buchung ohne Vorschlag zeigen „Kein Vorschlag“ mit Grund (unbekannte
+  Merkmale, beste Kategorie unter der Schwelle, oder: das Modell würde vorschlagen) und die Kandidaten des
+  Lernmodells ab 1 % mit „Übernehmen“ (`details-einschaetzung`, `details-einschaetzung-grund`,
+  `details-einschaetzung-kandidaten`, `details-kandidat-<id>`). Lesezugriff über `POST /api/lernmodell/vorhersage`.
+  Service-Worker-Cache `kontor-huelle-32`.
