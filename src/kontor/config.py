@@ -104,6 +104,8 @@ class KontorConfig:
     umbuchung_fenster_tage: int = 3
     # Meilenstein 4: Lernmodell bei neuen Buchungen (python-api.md 10.1)
     lernmodell_automatisch: bool = False
+    # D-175: aus dem Gelernten automatisch Regeln anlegen (Vorgabe aus; die ausgelieferte Umgebungsdatei schaltet ein)
+    regeln_automatisch: bool = False
     # Meilenstein 5: Prüfung auf unerwartete Buchungen nach jedem Lauf (python-api.md 12.1)
     wiederkehrend_automatisch: bool = False
     # Sammelpaket (D-111): unbekannte Bankkonten automatisch als Konto anlegen (synchronisation.md 3) oder
@@ -197,6 +199,8 @@ class KontorConfig:
         if not isinstance(self.lernmodell_automatisch, bool):
             raise KonfigurationsFehler("lernmodell_automatisch muss wahr oder falsch sein.",
                                        feld="lernmodell_automatisch")
+        if not isinstance(self.regeln_automatisch, bool):
+            raise KonfigurationsFehler("regeln_automatisch muss wahr oder falsch sein.", feld="regeln_automatisch")
         if not isinstance(self.umbuchung_automatisch, bool):
             raise KonfigurationsFehler("umbuchung_automatisch muss wahr oder falsch sein.",
                                        feld="umbuchung_automatisch")
@@ -404,6 +408,7 @@ class KontorConfig:
                                                "KONTOR_UMBUCHUNG_AUTOMATISCH", False)
         lernmodell_automatisch = _wahrheitswert(wert("KONTOR_LERNMODELL_AUTOMATISCH"),
                                                 "KONTOR_LERNMODELL_AUTOMATISCH", False)
+        regeln_automatisch = _wahrheitswert(wert("KONTOR_REGELN_AUTOMATISCH"), "KONTOR_REGELN_AUTOMATISCH", False)
         sync_konten_anlegen = _wahrheitswert(wert("KONTOR_SYNC_KONTEN_ANLEGEN"), "KONTOR_SYNC_KONTEN_ANLEGEN", True)
         wiederkehrend_automatisch = _wahrheitswert(wert("KONTOR_WIEDERKEHREND_AUTOMATISCH"),
                                                    "KONTOR_WIEDERKEHREND_AUTOMATISCH", False)
@@ -446,6 +451,7 @@ class KontorConfig:
             planer_starten=planer_starten,
             umbuchung_automatisch=umbuchung_automatisch,
             lernmodell_automatisch=lernmodell_automatisch,
+            regeln_automatisch=regeln_automatisch,
             wiederkehrend_automatisch=wiederkehrend_automatisch,
             sync_konten_anlegen=sync_konten_anlegen,
             mail_abgleich=mail_abgleich,

@@ -135,16 +135,30 @@ def _bezuege_pruefen(con, d: dict) -> None:
 
 
 def regel_dict(r) -> dict:
-    return {"id": r["id"], "name": r["name"], "aktiv": bool(r["aktiv"]), "prioritaet": r["prioritaet"],
-            "kategorie_id": r["kategorie_id"], "bedingungen": json.loads(r["bedingungen"])}
+    """Regel als Objekt; automatisch angelegte Regeln (D-175) tragen zusätzlich ``automatisch: true`` und den
+    Empfänger, aus dessen Buchungen sie entstanden sind."""
+    d = {"id": r["id"], "name": r["name"], "aktiv": bool(r["aktiv"]), "prioritaet": r["prioritaet"],
+         "kategorie_id": r["kategorie_id"], "bedingungen": json.loads(r["bedingungen"])}
+    if r["automatisch"]:
+        d["automatisch"] = True
+        d["empfaenger_id"] = r["auto_empfaenger_id"]
+    return d
+
+
+_AUSWAHL = ("SELECT r.*, (ra.regel_id IS NOT NULL) AS automatisch, ra.empfaenger_id AS auto_empfaenger_id FROM regel r"
+            " LEFT JOIN regel_automatisch ra ON ra.regel_id = r.id")
+
+
+def regel_zeilen(con, ids: list[int]) -> list:
+    return con.execute(f"{_AUSWAHL} WHERE r.id IN ({buch._platzhalter(len(ids))})", ids).fetchall()
 
 
 def regeln_liste(con) -> list[dict]:
-    return [regel_dict(r) for r in con.execute("SELECT * FROM regel ORDER BY prioritaet, id")]
+    return [regel_dict(r) for r in con.execute(f"{_AUSWAHL} ORDER BY r.prioritaet, r.id")]
 
 
 def regel_lesen(con, rid: int) -> dict:
-    r = con.execute("SELECT * FROM regel WHERE id = ?", (sichere_id(rid),)).fetchone()
+    r = con.execute(f"{_AUSWAHL} WHERE r.id = ?", (sichere_id(rid),)).fetchone()
     if r is None:
         raise nicht_gefunden("Die Regel")
     return regel_dict(r)
@@ -174,6 +188,10 @@ def regel_aendern(con, rid: int, d: dict) -> dict:
 
 def regel_loeschen(con, rid: int) -> None:
     regel_lesen(con, rid)
+    # Gelöschte automatische Regel: Empfänger sperren, damit sie nicht wieder entsteht (D-175)
+    con.execute("INSERT OR IGNORE INTO empfaenger_lernregel_sperre (empfaenger_id)"
+                " SELECT empfaenger_id FROM regel_automatisch WHERE regel_id = ?"
+                " AND empfaenger_id IN (SELECT id FROM empfaenger)", (rid,))
     con.execute("UPDATE vorschlag SET regel_id = NULL WHERE regel_id = ?", (rid,))
     con.execute("DELETE FROM regel WHERE id = ?", (rid,))
 

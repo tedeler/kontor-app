@@ -393,6 +393,7 @@ html.zieht, html.zieht * { cursor: grabbing !important; }
 .aenderung.bis-markiert { background: var(--akzent-hell); border-radius: 4px; }
 .knopf-klein { font-size: .8rem; padding: .1rem .45rem; margin-left: .3rem; }
 .marke { font-size: .75rem; background: var(--hg-3); border-radius: 4px; padding: 0 .3em; }
+.regel-auto { font-size: .75rem; background: var(--hg-3); border-radius: 4px; padding: 0 .3em; }
 
 /* Bewegung (20) */
 @media (prefers-reduced-motion: reduce) {

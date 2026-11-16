@@ -1,0 +1,136 @@
+"""Eigene Entwicklungstests zum Feature „lernmodell-transparenz“: automatisch angelegte Regeln (D-175)."""
+
+from __future__ import annotations
+
+import datetime as dt
+
+import pytest
+from fastapi.testclient import TestClient
+
+from kontor.app import create_app
+from kontor.config import KontorConfig
+
+
+@pytest.fixture
+def auto(tmp_path):
+    c = TestClient(create_app(KontorConfig(datenbank=tmp_path / "kontor.sqlite3", regeln_automatisch=True)))
+    g = c.post("/api/konten", json={"name": "Giro", "art": "girokonto"}).json()["id"]
+    kat = {n: c.post("/api/konten", json={"name": n, "art": "aufwand"}).json()["id"]
+           for n in ("Lebensmittel", "Drogerie", "Unklar")}
+    emp = {n: c.post("/api/empfaenger", json={"name": n}).json()["id"] for n in ("Frischekorb", "Glanz")}
+    heute = dt.date.today()
+
+    def buchen(empf, kategorie, tage_her=10, betrag=-1234):
+        r = c.post("/api/buchungen", json={
+            "datum": (heute - dt.timedelta(days=tage_her)).isoformat(), "empfaenger_id": emp[empf],
+            "verwendungszweck": "Kartenzahlung",
+            "splits": [{"konto_id": g, "betrag": betrag}, {"konto_id": kat[kategorie], "betrag": -betrag}]})
+        assert r.status_code == 201, r.text
+        return r.json()["id"]
+
+    return c, buchen, kat, emp
+
+
+def automatische(c):
+    return [r for r in c.get("/api/regeln").json() if r.get("automatisch")]
+
+
+def test_fuenfte_gleiche_zuordnung_legt_regel_an(auto):
+    c, buchen, kat, emp = auto
+    for i in range(4):
+        buchen("Frischekorb", "Lebensmittel", 30 + i)
+    assert automatische(c) == []
+    buchen("Frischekorb", "Lebensmittel", 5)
+    (r,) = automatische(c)
+    assert r["kategorie_id"] == kat["Lebensmittel"] and r["empfaenger_id"] == emp["Frischekorb"]
+    assert r["bedingungen"] == [{"feld": "empfaenger", "operator": "gleich", "wert": "Frischekorb"}]
+    assert r["name"] == "Frischekorb → Lebensmittel" and r["aktiv"]
+    a = c.get("/api/aenderungen", params={"pro_seite": 1}).json()["eintraege"][0]
+    assert a["quelle"] == "lernmodell" and a["aktion"] == "regel_automatisch"
+    assert "Frischekorb → Lebensmittel" in a["beschreibung"]
+
+
+def test_abweichung_im_letzten_jahr_verhindert_regel(auto):
+    c, buchen, _kat, _emp = auto
+    buchen("Glanz", "Lebensmittel", 100)
+    for i in range(6):
+        buchen("Glanz", "Drogerie", 20 + i)
+    assert automatische(c) == []
+
+
+def test_alte_abweichung_stoert_nicht(auto):
+    c, buchen, kat, _emp = auto
+    buchen("Glanz", "Lebensmittel", 500)
+    for i in range(5):
+        buchen("Glanz", "Drogerie", 20 + i)
+    (r,) = automatische(c)
+    assert r["kategorie_id"] == kat["Drogerie"]
+
+
+def test_geloeschte_regel_entsteht_nicht_wieder(auto):
+    c, buchen, _kat, emp = auto
+    for i in range(5):
+        buchen("Frischekorb", "Lebensmittel", 10 + i)
+    (r,) = automatische(c)
+    assert c.delete(f"/api/regeln/{r['id']}").status_code in (200, 204)
+    buchen("Frischekorb", "Lebensmittel", 3)
+    assert automatische(c) == []
+    # Rückgängig des Löschens bringt Regel und Vermerk zurück und hebt die Sperre auf
+    loeschung = [a for a in c.get("/api/aenderungen").json()["eintraege"] if a["aktion"] == "regel_loeschen"][0]
+    assert c.post(f"/api/aenderungen/{loeschung['id']}/rueckgaengig").status_code == 200
+    (r2,) = automatische(c)
+    assert r2["id"] == r["id"] and r2["empfaenger_id"] == emp["Frischekorb"]
+
+
+def test_rueckgaengig_entfernt_automatische_regel(auto):
+    c, buchen, _kat, _emp = auto
+    for i in range(5):
+        buchen("Frischekorb", "Lebensmittel", 10 + i)
+    a = c.get("/api/aenderungen", params={"pro_seite": 1}).json()["eintraege"][0]
+    assert a["aktion"] == "regel_automatisch"
+    assert c.post(f"/api/aenderungen/{a['id']}/rueckgaengig").status_code == 200
+    assert automatische(c) == []
+
+
+def test_keine_regel_bei_standardkategorie_oder_vorhandener_regel(auto):
+    c, buchen, kat, emp = auto
+    assert c.patch(f"/api/empfaenger/{emp['Glanz']}",
+                   json={"standardkategorie_id": kat["Drogerie"]}).status_code == 200
+    c.post("/api/regeln", json={"name": "Frisch", "kategorie_id": kat["Lebensmittel"],
+                                "bedingungen": [{"feld": "empfaenger", "operator": "enthaelt", "wert": "frisch"}]})
+    for i in range(5):
+        buchen("Glanz", "Drogerie", 10 + i)
+        buchen("Frischekorb", "Lebensmittel", 10 + i)
+    assert automatische(c) == []
+
+
+def test_ohne_einstellung_keine_automatischen_regeln(client):
+    g = client.post("/api/konten", json={"name": "Giro", "art": "girokonto"}).json()["id"]
+    k = client.post("/api/konten", json={"name": "L", "art": "aufwand"}).json()["id"]
+    e = client.post("/api/empfaenger", json={"name": "X"}).json()["id"]
+    for i in range(6):
+        client.post("/api/buchungen", json={"datum": dt.date.today().isoformat(), "empfaenger_id": e,
+                                            "splits": [{"konto_id": g, "betrag": -100}, {"konto_id": k, "betrag": 100}]})
+    assert client.get("/api/regeln").json() == []
+
+
+def test_sicherung_enthaelt_vermerk_und_sperre(auto, tmp_path):
+    c, buchen, _kat, emp = auto
+    for i in range(5):
+        buchen("Frischekorb", "Lebensmittel", 10 + i)
+        buchen("Glanz", "Drogerie", 10 + i)
+    regeln_vorher = automatische(c)
+    glanz = [r for r in regeln_vorher if r["empfaenger_id"] == emp["Glanz"]][0]
+    c.delete(f"/api/regeln/{glanz['id']}")
+    datei = c.get("/api/sicherung")
+    assert datei.status_code == 200, datei.text
+    z = TestClient(create_app(KontorConfig(datenbank=tmp_path / "ziel.sqlite3", regeln_automatisch=True)))
+    r = z.post("/api/sicherung/einspielen?bestaetigt=true", files={"datei": ("s.zip", datei.content, "application/zip")})
+    assert r.status_code == 200, r.text
+    assert [x["empfaenger_id"] for x in automatische(z)] == [emp["Frischekorb"]]
+    # Sperre ist mitgekommen: weitere Drogerie-Buchungen legen keine Regel an
+    gid = [k["id"] for k in z.get("/api/konten").json() if k["name"] == "Giro"][0]
+    did = [k["id"] for k in z.get("/api/konten").json() if k["name"] == "Drogerie"][0]
+    z.post("/api/buchungen", json={"datum": dt.date.today().isoformat(), "empfaenger_id": emp["Glanz"],
+                                   "splits": [{"konto_id": gid, "betrag": -5}, {"konto_id": did, "betrag": 5}]})
+    assert len(automatische(z)) == 1

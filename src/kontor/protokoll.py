@@ -49,6 +49,8 @@ _TABELLEN = {
     "buchung_extern": ("buchung", "buchung_id"),
     "vorschlag": ("buchung", "buchung_id"),
     "regel": ("regel", "id"),
+    "regel_automatisch": ("regel", "regel_id"),
+    "empfaenger_lernregel_sperre": ("empfaenger", "empfaenger_id"),
     "dublettenverdacht": ("verdacht", "id"),
     "verdacht_kandidat": ("verdacht", "verdacht_id"),
     "abstimmung": ("abstimmung", "id"),
@@ -88,7 +90,7 @@ BESCHREIBUNG = {
     "rueckgaengig": "Rückgängig gemacht",
     "vorlage_anlegen": "Split-Vorlage angelegt", "vorlage_aendern": "Split-Vorlage geändert",
     "vorlage_loeschen": "Split-Vorlage gelöscht", "vorlagen_anwenden": "Split-Vorlagen angewendet",
-    "lernmodell_anwenden": "Lernmodell angewendet",
+    "lernmodell_anwenden": "Lernmodell angewendet", "regel_automatisch": "Regel automatisch angelegt",
     "sicherung_einspielen": "Sicherung eingespielt",
     "kredit_anlegen": "Kredit angelegt", "kredit_aendern": "Kredit geändert", "kredit_loeschen": "Kredit gelöscht",
     "kredit_zuordnen": "Kreditraten aufgeteilt", "kredit_jahresabgleich": "Jahresabgleich eines Kredits",
@@ -190,6 +192,11 @@ def formen(con, objekt: str, ids: list[int]) -> dict[int, dict]:
                     aus[r["empfaenger_id"]] = dict(aus[r["empfaenger_id"]], wiederkehrend={
                         "modus": r["modus"], "toleranz_prozent": r["toleranz_prozent"],
                         "mindestbetrag": r["mindestbetrag"]})
+            # Sperre automatischer Regeln (D-175): nur in Formen gesperrter Empfänger
+            for r in con.execute("SELECT empfaenger_id FROM empfaenger_lernregel_sperre WHERE empfaenger_id IN"
+                                 f" ({buch._platzhalter(len(teil))})", teil):
+                if r["empfaenger_id"] in aus:
+                    aus[r["empfaenger_id"]] = dict(aus[r["empfaenger_id"]], lernregel_gesperrt=True)
         return aus
     if objekt == "kredit":
         return kredite.formen(con, ids)
@@ -208,7 +215,7 @@ def formen(con, objekt: str, ids: list[int]) -> dict[int, dict]:
             for r in con.execute(f"SELECT id, name, extern_id FROM tag WHERE id IN ({ph})", teil):
                 aus[r["id"]] = {"id": r["id"], "name": r["name"], "extern_id": r["extern_id"]}
         elif objekt == "regel":
-            for r in con.execute(f"SELECT * FROM regel WHERE id IN ({ph})", teil):
+            for r in regeln.regel_zeilen(con, teil):
                 aus[r["id"]] = regeln.regel_dict(r)
         elif objekt == "verdacht":
             for r in con.execute(f"SELECT * FROM dublettenverdacht WHERE id IN ({ph})", teil).fetchall():
@@ -325,10 +332,13 @@ def protokolliert(con, quelle: str, aktion: str, zeitpunkt: str, gruppe: str | N
         _leeren(con)
 
 
-def ausfuehren(con, quelle: str, aktion: str, zeitpunkt: str, f: Callable, *args, gruppe: str | None = None):
-    """Führt ``f(con, *args)`` protokolliert aus und gibt sein Ergebnis zurück."""
+def ausfuehren(con, quelle: str, aktion: str, zeitpunkt: str, f: Callable, *args, gruppe: str | None = None,
+               merken: list | None = None):
+    """Führt ``f(con, *args)`` protokolliert aus und gibt sein Ergebnis zurück; ``merken`` erhält die Einträge."""
     with protokolliert(con, quelle, aktion, zeitpunkt, gruppe) as k:
         erg = f(con, *args)
+    if merken is not None:
+        merken.extend(k.eintraege)
     return erg if not isinstance(erg, _MitAenderung) else erg.fertig(k.aenderung_id)
 
 
@@ -506,6 +516,8 @@ def _einfuegen(con, objekt: str, f: dict) -> None:
                         " VALUES (?, ?, ?, ?)", (f["id"], w["modus"], w["toleranz_prozent"], w["mindestbetrag"]))
         con.executemany("INSERT INTO empfaenger_tag (empfaenger_id, tag_id) VALUES (?, ?)",
                         [(f["id"], t["id"]) for t in f.get("tags") or []])
+        if f.get("lernregel_gesperrt"):
+            con.execute("INSERT INTO empfaenger_lernregel_sperre (empfaenger_id) VALUES (?)", (f["id"],))
     elif objekt == "tag":
         con.execute("INSERT INTO tag (id, name, name_cf, extern_id) VALUES (?, ?, ?, ?)",
                     (f["id"], f["name"], f["name"].casefold(), f["extern_id"]))
@@ -533,6 +545,9 @@ def _einfuegen(con, objekt: str, f: dict) -> None:
         con.execute("INSERT INTO regel (id, name, aktiv, prioritaet, kategorie_id, bedingungen) VALUES (?, ?, ?, ?, ?, ?)",
                     (f["id"], f["name"], 1 if f["aktiv"] else 0, f["prioritaet"], f["kategorie_id"],
                      json.dumps(f["bedingungen"], ensure_ascii=False)))
+        if f.get("automatisch"):
+            con.execute("INSERT INTO regel_automatisch (regel_id, empfaenger_id) VALUES (?, ?)",
+                        (f["id"], f["empfaenger_id"]))
     elif objekt == "verdacht":
         con.execute("INSERT INTO dublettenverdacht (id, buchung_id, grund, status, erstellt_am) VALUES (?, ?, ?, ?, ?)",
                     (f["id"], f["buchung_id"], f["grund"], f["status"], f["erstellt_am"]))

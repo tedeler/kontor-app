@@ -2335,3 +2335,39 @@ D-123 bis D-127 sind auf den offenen Branches `dokumente` und `alfbanco-import` 
 - **Mobile Suche:** Das verzögerte Einklappen nach dem Verlassen des leeren Felds unterbleibt, wenn der Fokus
   inzwischen wieder im Feld liegt (Wettlauf beim schnellen Öffnen über die Lupe).
 - Service-Worker-Cache `kontor-huelle-30`.
+
+## D-175 Automatisch angelegte Regeln aus dem Gelernten (Feature `lernmodell-transparenz`, in Arbeit)
+
+- **Auftrag (2026-11-16):** Gelerntes wird automatisch zur sichtbaren Regel, sofern das System danach genauso gut
+  kategorisiert. Messung auf dem M4-Lerndatensatz des Generators (30 Startwerte, rund 7.900 Prüfbuchungen):
+  Genauigkeit 98,40 % und Abdeckung 84,94 % mit und ohne automatische Regeln; 1.373 Prüfbuchungen liefen über eine
+  automatische Regel, alle richtig.
+- **Auslöser:** Ein Empfänger hat in der Trainingsmenge (lernmodell.md 3) mindestens 5 Buchungen derselben
+  Kategorie, und alle seine Buchungen der Trainingsmenge aus den letzten 365 Tagen (App-Uhr) haben diese Kategorie
+  (mindestens eine). Keine Regel, wenn der Empfänger eine Standardkategorie hat, wenn schon eine automatische Regel
+  für ihn besteht oder gesperrt ist, oder wenn eine aktive Regel seine jüngste Buchung bereits trifft.
+- **Regel:** Name „<Empfänger> → <Kategorie>“, Bedingung `empfaenger gleich <Name>`, aktiv, Priorität wie beim
+  Anlegen ohne Angabe (ans Ende). Vermerk in `regel_automatisch` (Objektart `regel`); die Regel trägt in API und
+  Protokollform zusätzlich `automatisch: true` und `empfaenger_id` (nur bei automatischen Regeln, sonst fehlen die
+  Felder). Sonst eine gewöhnliche Regel: bearbeitbar, abschaltbar, löschbar.
+- **Löschen** einer automatischen Regel sperrt den Empfänger (`empfaenger_lernregel_sperre`, Objektart
+  `empfaenger`, Form `lernregel_gesperrt: true` nur bei gesperrten); Rückgängig hebt die Sperre mit auf.
+- **Zeitpunkt:** nach jeder Änderung mit Quelle `manuell` oder `import`, die Buchungen berührt, für die Empfänger
+  dieser Buchungen (vorher und nachher), als **eigene Änderung** `quelle = "lernmodell"`, `aktion =
+  "regel_automatisch"` direkt danach. Die Oberfläche legt beide Änderungen als einen Rückgängig-Schritt ab und
+  meldet „Regel „…“ automatisch angelegt.“ mit Link zu den Regeln. Synchronisation, Regeln, Lernmodell und
+  Rückgängig lösen nichts aus (sie erzeugen keine neuen bestätigten Zuordnungen bzw. sollen nicht zurückwirken).
+- **Einstellung:** `regeln_automatisch` / `KONTOR_REGELN_AUTOMATISCH`, Vorgabe aus (bestehende Abnahmetests
+  unverändert); die ausgelieferte `kontor.env` schaltet ein. Die Seite „Lernmodell“ soll den Schalter später
+  übernehmen.
+- **Bekannte Grenze:** Die Bedingung vergleicht den Namen. Wird der Empfänger umbenannt, greift die Regel nicht
+  mehr; die Regel wird nicht nachgezogen.
+- Schema: Datenbank 13, Sicherungsdatei 8 (neue Tabellen `regel_automatisch`, `empfaenger_lernregel_sperre`;
+  ältere Sicherungen ohne sie). Service-Worker-Cache `kontor-huelle-31`.
+
+## D-176 Lernmodell: Doppelzählung Empfänger/Verwendungszweck bleibt
+
+- Geprüft wurde, Zweckwörter, die auch im Empfängernamen stehen, nicht zusätzlich als Merkmal zu zählen. Messung
+  wie D-175: Genauigkeit unverändert 98,40 %, Abdeckung 84,94 % → 84,63 %. Die Sicherheit ist auf diesen Daten
+  nicht überhöht (Vorhersagen mit 50–60 % stimmen zu 90 %). Das Verfahren aus lernmodell.md 4 bleibt daher
+  unverändert; die Verlässlichkeit der Prozentangabe soll stattdessen auf echten Daten angezeigt werden.

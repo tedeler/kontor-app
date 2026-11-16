@@ -30,7 +30,7 @@ from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.staticfiles import StaticFiles
 
-from . import (__version__, berichte, buch, db, export, kredite, lernmodell, mail, pflege, protokoll, regeln,
+from . import (__version__, berichte, buch, db, export, kredite, lernmodell, lernregeln, mail, pflege, protokoll, regeln,
                sicherung, statistik, verschieben, vorlagen, wiederkehrend)
 from . import aktualisierung
 from . import abgleich, dokumente, erwartung
@@ -423,10 +423,25 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
         def ausfuehren(*args):
             con = db.verbinde(pfad)
             try:
-                return protokoll.ausfuehren(con, quelle, aktion, sync.jetzt_text(), f, *args)
+                if not config.regeln_automatisch or quelle not in ("manuell", "import"):
+                    return protokoll.ausfuehren(con, quelle, aktion, sync.jetzt_text(), f, *args)
+                gemerkt: list = []
+                erg = protokoll.ausfuehren(con, quelle, aktion, sync.jetzt_text(), f, *args, merken=gemerkt)
+                lernregeln_nachziehen(con, gemerkt)
+                return erg
             finally:
                 con.close()
         return ausfuehren
+
+    def lernregeln_nachziehen(con, eintraege: list[dict]) -> None:
+        """D-175: nach einer Änderung an Buchungen fällige automatische Regeln als eigene Änderung anlegen."""
+        empfaenger = lernregeln.betroffene_empfaenger(eintraege)
+        if not empfaenger:
+            return
+        with protokoll.protokolliert(con, "lernmodell", lernregeln.AKTION, sync.jetzt_text()) as k:
+            neu = lernregeln.anlegen(con, empfaenger, sync.heute())
+            if neu:
+                k.beschreibung = lernregeln.beschreibung(neu)
 
     async def aendern(aktion: str, f: Callable, *args, quelle: str = "manuell"):
         """Schreibende Operation auf dem Buchbestand: eine Transaktion, eine Änderung im Protokoll."""

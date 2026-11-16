@@ -1177,6 +1177,9 @@ export async function regeln(seite) {
   seite.querySelector(".werkzeuge").prepend(knopf("Regel anlegen", { tid: "regel-anlegen", onclick: (e) => regelDialog(null, e.currentTarget) }));
   seite.append(liste.length ? h("ul", { class: "karten-liste" }, liste.map((r) => h("li", { tid: `regel-${r.id}`, class: "karte" },
     h("strong", null, r.name), ` → ${pfadVon(r.kategorie_id)} · Priorität ${r.prioritaet}${r.aktiv ? "" : " · inaktiv"}`,
+    ...(r.automatisch ? [" ", h("span", { class: "regel-auto", tid: `regel-automatisch-${r.id}`,
+      title: "Aus deinen Zuordnungen gelernt. Wird die Regel gelöscht, legt Kontor sie für diesen Empfänger nicht wieder an." },
+    "automatisch angelegt")] : []),
     h("ul", { class: "klein" }, r.bedingungen.map((b) => h("li", null, BED_TEXT(b)))),
     knopfLeiste(knopf("Bearbeiten…", { "aria-label": `Regel ${r.name} bearbeiten`, onclick: (e) => regelDialog(r, e.currentTarget) }),
       knopf("Löschen", { "aria-label": `Regel ${r.name} löschen`, onclick: async (e) => {
