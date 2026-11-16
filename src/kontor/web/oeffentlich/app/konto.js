@@ -10,6 +10,7 @@ import {
   kontoEinstellungen, menuePosition, splitDialog, tagAuswahl,
 } from "./ui.js";
 import { kategorienBaum, langeBeruehrung, ziehbar } from "./baum.js";
+import { warumAbschnitt } from "./lernerklaerung.js";
 import { ablageEinrichten, betrachter, dateiWaehlen, detailsAbschnitt, mailDialog } from "./dokumente.js";
 
 const PRO_SEITE = 200;
@@ -880,6 +881,7 @@ class Kontoansicht {
       h("p", null, h("strong", null, "Vorschlag: "), pfadVon(v.kategorie_id)),
       h("p", { class: "klein" }, vs.lang, v.vorher_konto_id ? ` · vorher: ${pfadVon(v.vorher_konto_id)}` : ""),
       kandidaten,
+      v.quelle === "lernmodell" ? warumAbschnitt(b, "Warum dieser Vorschlag?") : null,
       knopfLeiste(knopf("Annehmen", { tid: "details-vorschlag-annehmen", onclick: () => this.vorschlag(null, [b.id], "annehmen") }),
         knopf("Ablehnen", { tid: "details-vorschlag-ablehnen", onclick: () => this.vorschlag(null, [b.id], "ablehnen") })));
     // Alternativen des Lernmodells (lernmodell.md 5.3, ohne Wirkung)
@@ -917,7 +919,7 @@ class Kontoansicht {
     const grund = h("p", { class: "klein", tid: "details-einschaetzung-grund" }, "Das Lernmodell wird gefragt …");
     const kandidaten = h("ol", { class: "vorschlag-kandidaten", tid: "details-einschaetzung-kandidaten" });
     const el = h("div", { class: "details-vorschlag details-einschaetzung", tid: "details-einschaetzung" },
-      h("p", null, h("strong", null, "Kein Vorschlag")), grund, kandidaten);
+      h("p", null, h("strong", null, "Kein Vorschlag")), grund, kandidaten, warumAbschnitt(b, "Warum?"));
     Promise.all([api("POST", "/api/lernmodell/vorhersage", { eintraege: [{ buchung_id: b.id }] }),
       this.schwelle ? Promise.resolve({ schwelle_promille: this.schwelle }) : api("GET", "/api/lernmodell")])
       .then(([r, z]) => {

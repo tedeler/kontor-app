@@ -2410,3 +2410,28 @@ D-123 bis D-127 sind auf den offenen Branches `dokumente` und `alfbanco-import` 
   Buchung des Empfängers in der Trainingsmenge (bzw. bis heute, falls früher) ebenfalls mindestens 95 %. Das
   Fenster hängt damit an der Geschichte des Empfängers, nicht an der Uhr. Beim Laden auf einmal verhinderte sonst ein einzelner Fehlgriff (3 % der Lerndaten) die Regel für
   häufige Empfänger wie den Supermarkt, während sie beim schrittweisen Erfassen früh entstand.
+
+## D-179 Transparenz des Lernmodells: Erklärung je Buchung, Seite „Lernmodell“, Einstellungen der Instanz
+
+- **`GET /api/buchungen/{id}/lernmodell`** (Lesezugriff): `grund` (`vorschlag`, `unter_schwelle`, `unbekannt`,
+  `kein_modell`), Vorhersage wie 5.3, `beste_kategorie_id`, `vergleich_kategorie_id` (zweitbeste), je Merkmal der
+  Buchung die Zählungen `anzahl` = N(f), `anzahl_kategorie`, `anzahl_vergleich`, die drei häufigsten Kategorien und
+  `faktor_promille` = ⌊1000 · Faktor(beste)/Faktor(zweite)⌋ mit Faktor = (N_c(f)+1)/(N_c+2) (lernmodell.md 4), dazu
+  der Grundwert N_c/n. Das Produkt aller Faktoren ist genau P(beste)/P(zweite): keine Näherung, das Verfahren
+  bleibt unverändert. `aehnliche`: bis zu 5 Trainingsbuchungen mit den meisten gemeinsamen Merkmalen (Empfänger
+  zählt dreifach, Betrag nicht).
+- **`GET /api/lernmodell/uebersicht`** (Lesezugriff, zwischengespeichert bis zur nächsten Änderung oder
+  Schwellenänderung): Güte wie lernmodell.md 6 auf den eigenen Daten (Trainingsmenge nach Datum, neueste 20 %,
+  höchstens 2000, als Prüfung), Vorschläge/richtig je Schwelle 50–95 %, Verlässlichkeit je Zehntel der Sicherheit,
+  je Kategorie Beispiele, Prüfung, erkannt, häufigste Verwechslungen und die fünf stärksten Merkmale.
+- **`GET`/`PUT /api/lernmodell/einstellungen`**: `schwelle_promille` (500–990, Vorgabe 700) und
+  `regeln_automatisch` (Vorgabe aus `KONTOR_REGELN_AUTOMATISCH`) als **Einstellung der Instanz in `meta`**, nicht im
+  Änderungsprotokoll und nicht in der Sicherung – wie die Vorgabe des Betragsfilters (D-137). Abweichend vom
+  Konzept (dort: Änderung im Protokoll), weil eine Schwelle kein Buchbestand ist. `GET /api/lernmodell` meldet die
+  wirksame Schwelle; mit der Vorgabe 700 ist alles wie lernmodell.md.
+- **Oberfläche:** Einzelheiten zeigen bei Vorschlägen des Lernmodells „Warum dieser Vorschlag?“, bei Buchungen ohne
+  Vorschlag „Warum?“ (aufklappbar, `lern-warum`): Satz, Merkmale mit Balken (dafür/dagegen gegenüber der
+  nächstbesten Kategorie), Verwendungszweck mit markierten Wörtern, ähnliche Buchungen (Links `/buchungen/<id>`).
+  Neue Seite `/lernmodell` (Modul `lernmodell.js`), erreichbar über „Lernmodell …“ auf der Seite Regeln und den
+  Link in der Erklärung. **Kein Eintrag in der Navigation**: die Navigation ist in oberflaeche.md 37.2 fest
+  aufgezählt (16 Links); ein Eintrag gehört in die Meilenstein-Definition. Service-Worker-Cache `kontor-huelle-33`.
