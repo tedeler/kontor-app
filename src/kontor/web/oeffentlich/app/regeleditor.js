@@ -125,6 +125,10 @@ const OPS = {
   bool: [["wahr", "ja"], ["falsch", "nein"]],
 };
 OPS.int = OPS.betrag;
+// nur im Filter (D-187): Datum mit Zeitangaben nach Konzept 4.6, Freitext wie die Volltextsuche
+OPS.datum = [["in", "liegt in"], ["not in", "nicht in"], [">=", "ab"], ["<=", "bis"], [">", "nach"], ["<", "vor"]];
+OPS.frei = [["enthaelt", "enthält"]];
+export const FREITEXT = { name: "__frei", kurz: null, typ: "frei", bezeichnung: "Freitext (Empfänger, Zweck, Notiz, Tags)" };
 const MONATE = ["", "jan", "feb", "mär", "apr", "mai", "jun", "jul", "aug", "sep", "okt", "nov", "dez"];
 
 const q = (s) => JSON.stringify(String(s));
@@ -132,7 +136,7 @@ const roh = (s) => (s.includes('"') || s.endsWith("\\") ? q(s) : `r"${s}"`);
 const centText = (c) => (c % 100 === 0 ? String(Math.trunc(c / 100)) : `${Math.trunc(c / 100)}.${String(Math.abs(c % 100)).padStart(2, "0")}`);
 
 function zeileText(z, sp) {
-  const f = sp.felder.find((x) => x.name === z.feld);
+  const f = z.feld === FREITEXT.name ? FREITEXT : sp.felder.find((x) => x.name === z.feld);
   if (!f) return null;
   const n = f.name;
   const w = z.wert ?? "";
@@ -142,6 +146,8 @@ function zeileText(z, sp) {
     return typeof c === "number" ? centText(Math.abs(c)) : null;
   };
   switch (f.typ) {
+    case "frei": return String(w).trim() ? q(w) : null;
+    case "datum": return String(w).trim() ? `${n} ${z.op} ${String(w).trim()}` : null;
     case "text":
       if (z.op === "enthaelt") return `${q(w)} in ${n}`;
       if (z.op === "enthaelt_nicht") return `${q(w)} not in ${n}`;
@@ -172,27 +178,49 @@ function zeileText(z, sp) {
 }
 
 /** Baukasten-Modell {verkn, teile: [zeile | {verkn, teile}]} → Ausdruckstext (oder null, wenn unvollständig). */
-export function baukastenText(m, sp) {
+export function baukastenText(m, sp, leereAuslassen = false) {
   const teil = (x) => {
     if (x.teile) {
-      const t = x.teile.map((y) => zeileText(y, sp));
-      if (t.some((y) => y === null) || !t.length) return null;
+      let t = x.teile.map((y) => zeileText(y, sp));
+      if (leereAuslassen) t = t.filter((y) => y !== null);
+      if (t.some((y) => y === null) || !t.length) return leereAuslassen ? "" : null;
       return t.length === 1 ? t[0] : `(${t.join(` ${x.verkn} `)})`;
     }
     return zeileText(x, sp);
   };
-  const t = m.teile.map(teil);
+  let t = m.teile.map(teil);
+  if (leereAuslassen) {   // im Filter: leere Zeilen zählen nicht (D-187)
+    t = t.filter((x) => x);
+    return t.join(` ${m.verkn} `);
+  }
   if (!t.length || t.some((x) => x === null)) return null;
   return t.join(` ${m.verkn} `);
 }
 
+/** Zeitangabe des Baums als Text (wie ``ausdruck.zeit_text`` auf dem Server). */
+export function zeitText(z) {
+  const zw = (n) => String(n).padStart(2, "0");
+  switch (z.a) {
+    case "tag": return `${zw(z.d)}.${zw(z.m)}.${z.j ?? ""}`;
+    case "jahr": return String(z.j);
+    case "monat": return z.j != null ? `${z.m}/${z.j}` : MONATE[z.m];
+    case "quartal": return `q${z.q}${z.j != null ? `/${z.j}` : ""}`;
+    case "kw": return `kw${z.w}${z.j != null ? `/${z.j}` : ""}`;
+    case "wort": return z.w;
+    case "rel": return `${z.vz}${z.n}${z.e}`;
+    case "plus": return `${zeitText(z.basis)} ${z.vz} ${z.n}${z.e}`;
+    default: return `${zeitText(z.von)} .. ${zeitText(z.bis)}`;
+  }
+}
+
 /** Typisierter Baum (POST /api/ausdruck/pruefen) → Baukasten-Modell, oder null, wenn nicht darstellbar. */
 export function baukastenAusBaum(b, sp) {
-  const typ = (name) => (sp.felder.find((f) => f.name === name) || {}).typ;
+  const typ = (name) => (name === FREITEXT.name ? "frei" : (sp.felder.find((f) => f.name === name) || {}).typ);
   const wertText = (x) => {
     if (x.t === "text" || x.t === "auswahl") return x.wert;
     if (x.t === "betrag") return centText(x.cent).replace(".", ",");
     if (x.t === "int") return String(x.wert);
+    if (x.t === "zeit") return zeitText(x.z);
     if (x.t === "ref") return x.art === "tag" ? ((stamm.tags.find((t) => t.id === x.id) || {}).name || `#${x.id}`) : pfadVon(x.id);
     return null;
   };
@@ -203,6 +231,7 @@ export function baukastenAusBaum(b, sp) {
       return y && NEG[y.op] ? { ...y, op: NEG[y.op] } : null;
     }
     if (x.t === "feld" && typ(x.name) === "bool") return { feld: x.name, op: "wahr" };
+    if (x.t === "freitext") return { feld: FREITEXT.name, op: "enthaelt", wert: x.wert };
     if (x.t === "methode") return { feld: x.feld, op: { startswith: "beginnt", endswith: "endet", search: "regex" }[x.name], wert: x.muster,
       _ok: !x.case && x.fold };
     if (x.t !== "kette") return null;
@@ -220,8 +249,12 @@ export function baukastenAusBaum(b, sp) {
       const flip = { "<": ">", "<=": ">=", ">": "<", ">=": "<=", "==": "==", "!=": "!=" }[op];
       return blatt({ t: "kette", terme: [c, a], ops: [flip] });
     }
-    if (a.t !== "feld" || c.t === "liste") return null;
+    if (a.t !== "feld" || (c.t === "liste" && typ(a.name) !== "datum")) return null;
     const t = typ(a.name);
+    if (t === "datum") {
+      if (c.t !== "zeit") return null;
+      return { feld: a.name, op: { "==": "in", "!=": "not in" }[op] || op, wert: wertText(c) };
+    }
     if (op === "is" || op === "is not") return { feld: a.name, op: op === "is" ? "leer" : "nicht_leer" };
     if (t === "text") return { feld: a.name, op: op === "==" ? "ist" : "ist_nicht", wert: wertText(c) };
     return { feld: a.name, op, wert: wertText(c) };
@@ -258,6 +291,8 @@ function wertEingabe(f, z, tidBasis, aenderung) {
     return mit(s, schl);
   };
   switch (f.typ) {
+    case "frei": return text("wert", { placeholder: "Suchtext" });
+    case "datum": return text("wert", { class: "mono", placeholder: "z. B. 5.2.  -30d  2017  letzter_monat  1.1. .. 31.3." });
     case "text":
       return text("wert", z.op && z.op.startsWith("regex") ? { class: "mono", placeholder: "z. B. ^(rewe|edeka)\\b" } : { placeholder: "Text" });
     case "betrag": case "int": {
@@ -277,12 +312,15 @@ function wertEingabe(f, z, tidBasis, aenderung) {
   }
 }
 
-class Baukasten {
-  constructor(sp, beiAenderung) {
+export class Baukasten {
+  /** `filter`: mit Freitext und Datum, leere Zeilen werden ausgelassen (D-187). */
+  constructor(sp, beiAenderung, optionen) {
     this.sp = sp;
     this.beiAenderung = beiAenderung;
+    this.filter = !!(optionen && optionen.filter);
+    this.felder = this.filter ? [FREITEXT, ...sp.felder] : sp.felder;
     this.modell = { verkn: "and", teile: [] };
-    this.el = h("div", { class: "baukasten", tid: "regel-baukasten" });
+    this.el = h("div", { class: "baukasten", tid: optionen && optionen.tid ? optionen.tid : "regel-baukasten" });
   }
 
   setzen(m) {
@@ -291,9 +329,9 @@ class Baukasten {
     this.zeichnen();
   }
 
-  neueZeile() { return { feld: "empfänger", op: "enthaelt", wert: "" }; }
+  neueZeile() { return this.filter ? { feld: FREITEXT.name, op: "enthaelt", wert: "" } : { feld: "empfänger", op: "enthaelt", wert: "" }; }
 
-  text() { return baukastenText(this.modell, this.sp); }
+  text() { return baukastenText(this.modell, this.sp, this.filter); }
 
   zeichnen() {
     let nr = 0;
@@ -306,7 +344,7 @@ class Baukasten {
     };
     const zeile = (z, liste) => {
       const i = nr++;
-      const felder = this.sp.felder;
+      const felder = this.felder;
       const fwahl = h("select", { tid: `bk-${i}-feld`, "aria-label": "Feld" },
         felder.map((f) => h("option", { value: f.name }, f.bezeichnung)));
       fwahl.value = z.feld;

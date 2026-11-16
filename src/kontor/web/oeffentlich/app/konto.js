@@ -11,8 +11,8 @@ import {
 } from "./ui.js";
 import { kategorienBaum, langeBeruehrung, ziehbar } from "./baum.js";
 import { ablageEinrichten, betrachter, dateiWaehlen, detailsAbschnitt, mailDialog } from "./dokumente.js";
-import { AusdruckEingabe, markiert } from "./ausdruck.js";
-import { ausdruckFeld, regelEditor } from "./regeleditor.js";
+import { AusdruckEingabe, markiert, sprache } from "./ausdruck.js";
+import { Baukasten, ausdruckFeld, baukastenAusBaum, regelEditor } from "./regeleditor.js";
 import { zweckZerlegen } from "./zweck.js";
 
 const PRO_SEITE = 200;
@@ -109,6 +109,42 @@ const PARAMETER = ["von", "bis", "betrag_min", "betrag_max", "empfaenger_id", "o
 // Schnellauswahl Zeitraum des Filterausdrucks (D-178, Konzept 4.6.11): [Datumsangabe, Beschriftung]
 const SCHNELL = [["heute", "Heute"], ["-7d", "7 Tage"], ["-30d", "30 Tage"], ["dieser_monat", "Dieser Monat"],
   ["letzter_monat", "Letzter Monat"], ["dieses_jahr", "Dieses Jahr"], ["letztes_jahr", "Letztes Jahr"]];
+// Alte Einzelfilter, die es als Ausdruck nicht gibt: bleiben Parameter und erscheinen als Chips (D-187)
+const ALTE_FILTER = { betrag_min: "Betrag ab", betrag_max: "Betrag bis", zweck_aehnlich: "Verwendungszweck ähnlich",
+  empfaenger_aehnlich: "Empfänger ähnlich" };
+const qText = (s) => JSON.stringify(String(s));
+
+/** Einzelparameter früherer Adressen und Kontextmenüs (von, bis, empfaenger_id …) → Teile des Filterausdrucks. */
+function alteFilterUebernehmen(f, istKategorie) {
+  const teile = [];
+  const nimm = (k, teil) => { if (teil) teile.push(teil); delete f[k]; };
+  if (f.von) nimm("von", `datum >= ${f.von}`);
+  if (f.bis) nimm("bis", `datum <= ${f.bis}`);
+  if (f.empfaenger_id) {
+    const e = stamm.empfaenger.find((x) => String(x.id) === f.empfaenger_id);
+    if (e) nimm("empfaenger_id", `empf == ${qText(e.name)}`);
+  }
+  if (f.ohne_empfaenger) nimm("ohne_empfaenger", 'empf == ""');
+  if (f.verwendungszweck) nimm("verwendungszweck", `${qText(f.verwendungszweck)} in vwz`);
+  if (f.zweck_gleich) nimm("zweck_gleich", `vwz == ${qText(f.zweck_gleich)}`);
+  if (f.zweck_leer) nimm("zweck_leer", 'vwz == ""');
+  if (f.suche) nimm("suche", qText(f.suche));
+  if (f.kategorie_id && !f.unterkategorien) {
+    const k = kontoNach(Number(f.kategorie_id));
+    if (k) nimm("kategorie_id", `${istKategorie ? "konto" : "kategorie"} == ${qText(kontoPfad(k))}`);
+  }
+  if (f.tag_id) {
+    const tg = stamm.tags.find((x) => String(x.id) === f.tag_id);
+    if (tg) nimm("tag_id", `${qText(tg.name)} in tags`);
+  }
+  if (f.status) nimm("status", `status in [${f.status.map(qText).join(", ")}]`);
+  if (teile.length) {
+    const alt = f.filter && /\bor\b|\|\|/.test(f.filter) ? `(${f.filter})` : f.filter;
+    f.filter = [alt, ...teile].filter(Boolean).join(" and ");
+  }
+  return f;
+}
+
 const SCHNELL_TEIL = /^(?:datum|dt)\s+(?:in|==)\s+(?:heute|[+-]\d+[dwmqy]|dieser_monat|letzter_monat|dieses_jahr|letztes_jahr|vorjahr)$/i;
 // Tastaturkürzel des Kontoblatts (D-167): [Vortaste, Taste, Text, Wirkung]. Ohne Vortaste wirken sie auf die
 // markierten Buchungen; „f“ führt zu den Filtern, „v“ zur Ansicht. Groß-/Kleinschreibung zählt (Umschalt).
@@ -136,15 +172,7 @@ const KUERZEL = [
   ["", "m", "Dokument anhängen…", (s) => s.mitZielen((ids) => dateiWaehlen(ids))],
   ["", "M", "E-Mail anhängen…", (s) => s.mitZielen((ids, el) => mailDialog(ids, el))],
   ["", "n", "Neue Buchung erfassen", (s) => erfassenDialog(s.konto.id, tid("buchung-erfassen", s.seite))],
-  ["f", "f", "Filterleiste ein/aus", (s) => s.filterLeisteTaste()],
-  ["f", "v", "Von", (s) => s.filterFokus("filter-von")],
-  ["f", "b", "Bis", (s) => s.filterFokus("filter-bis")],
-  ["f", "z", "Verwendungszweck", (s) => s.filterFokus("filter-verwendungszweck")],
-  ["f", "e", "Empfänger", (s) => s.filterFokus("filter-empfaenger")],
-  ["f", "k", "Kategorie (in Kategorien: Konto)", (s) => s.filterFokus(s.istKategorie ? "filter-konto" : "filter-kategorie")],
-  ["f", "t", "Tag", (s) => s.filterFokus("filter-tag")],
-  ["f", "s", "Status", (s) => s.filterFokus(`filter-status-${STATUS[0]}`)],
-  ["f", "r", "Betrag ab (Tab: bis)", (s) => s.filterFokus("filter-betrag-min")],
+  ["f", "f", "Filter-Baukasten ein/aus", (s) => s.filterLeisteTaste()],
   ["f", "u", "mit Unterkonten ein/aus", (s) => s.filterSetzen("unterkonten", s.filter.unterkonten === "true" ? "" : "true")
     .then(() => s.filterLeisteNeu())],
   ["f", "U", "mit Unterkategorien ein/aus", (s) => (s.istKategorie ? melde("hinweis", "In einer Kategorie gibt es diesen Filter nicht.")
@@ -152,9 +180,14 @@ const KUERZEL = [
   [`f`, ".", "gleicher Empfänger wie die markierte Buchung", (s) => s.filterWieBuchung("km-filter-empfaenger")],
   ["f", ",", "gleicher Verwendungszweck", (s) => s.filterWieBuchung("km-filter-zweck")],
   ["f", ";", "ähnlicher Verwendungszweck", (s) => s.filterWieBuchung("km-filter-zweck-aehnlich")],
-  ["f", "m", "Zeitraum: dieser Monat", (s) => s.zeitraum("monat")],
-  ["f", "l", "Zeitraum: letzter Monat", (s) => s.zeitraum("letzter")],
-  ["f", "j", "Zeitraum: dieses Jahr", (s) => s.zeitraum("jahr")],
+  ["f", "h", "Zeitraum: heute", (s) => s.zeitraumSetzen("heute")],
+  ["f", "w", "Zeitraum: letzte 7 Tage", (s) => s.zeitraumSetzen("-7d")],
+  ["f", "d", "Zeitraum: letzte 30 Tage", (s) => s.zeitraumSetzen("-30d")],
+  ["f", "m", "Zeitraum: dieser Monat", (s) => s.zeitraumSetzen("dieser_monat")],
+  ["f", "l", "Zeitraum: letzter Monat", (s) => s.zeitraumSetzen("letzter_monat")],
+  ["f", "j", "Zeitraum: dieses Jahr", (s) => s.zeitraumSetzen("dieses_jahr")],
+  ["f", "J", "Zeitraum: letztes Jahr", (s) => s.zeitraumSetzen("letztes_jahr")],
+  ["f", "x", "Zeitraum entfernen", (s) => s.zeitraumSetzen(null)],
   ["f", "a", "Filterausdruck", (s) => { if (s.ausdruckEingabe) s.ausdruckEingabe.eingabe.focus(); }],
   ["f", "0", "alle Filter zurücksetzen", (s) => { const k = tid("filter-zuruecksetzen", s.filterLeiste); if (k) k.click(); }],
   ["v", "g", "Gruppierung: keine ↔ nach Datum", (s) => s.gruppierungSetzen(s.gruppierung ? "" : "datum")],
@@ -459,7 +492,7 @@ class Kontoansicht {
     if (f.zweck_leer !== undefined && f.zweck_leer !== "true") delete f.zweck_leer;
     for (const p of ["unterkategorien", "unterkonten"]) if (f[p] !== undefined && f[p] !== "true") delete f[p];
     if (this.istKategorie) delete f.unterkategorien;   // 22.2: entfällt in der Kategorieansicht
-    return f;
+    return alteFilterUebernehmen(f, this.istKategorie);
   }
 
   gruppierungAusUrl(suche) {
@@ -470,7 +503,9 @@ class Kontoansicht {
   get sortierung() { return this.filter.sortierung || "-datum"; }
 
   filterAnzahl() {
-    return Object.keys(this.filter).filter((k) => k !== "sortierung").length;
+    const e = this.ausdruckEingabe && this.ausdruckEingabe.ergebnis;
+    const teile = this.filter.filter ? Math.max(1, e && e.gueltig ? e.zusammenfassung.length : 1) : 0;
+    return Object.keys(this.filter).filter((k) => k !== "sortierung" && k !== "filter").length + teile;
   }
 
   urlSchreiben() {
@@ -643,7 +678,12 @@ class Kontoansicht {
     };
     this.ausdruckEingabe = new AusdruckEingabe({ kontext: "filter", tid: "filter-ausdruck", wert: this.filter.filter || "",
       beschriftung: "Filter: Suchtext oder Ausdruck", platzhalter: "z. B.  rewe dt in letzter_monat and bet > 20",
-      beiErgebnis: () => { this.zusammenfassungZeichnen(); clearTimeout(uhr); uhr = setTimeout(anwenden, 400); },
+      beiErgebnis: (e) => {
+        this.zusammenfassungZeichnen();
+        if (this.ausBaukasten) this.ausBaukasten = false; else this.baukastenAusAusdruck(e);
+        clearTimeout(uhr);
+        uhr = setTimeout(anwenden, 400);
+      },
       beiEnter: anwenden });
     const leeren = h("button", { type: "button", class: "knopf-flach", tid: "filter-ausdruck-leeren", "aria-label": "Filterausdruck leeren",
       onclick: () => { this.ausdruckEingabe.wert = ""; anwenden(); this.ausdruckEingabe.eingabe.focus(); } }, "✕");
@@ -660,7 +700,7 @@ class Kontoansicht {
     this.zusammenfassungEl = h("p", { class: "filter-zusammenfassung", tid: "filter-zusammenfassung", "aria-live": "polite" });
     const chips = h("div", { class: "filter-schnell", tid: "filter-schnell", role: "group", "aria-label": "Zeitraum" },
       SCHNELL.map(([w, text]) => h("button", { type: "button", class: "chip", tid: `filter-schnell-${w}`,
-        onclick: () => { this.ausdruckEingabe.wert = this.mitZeitraum(w); anwenden(); } }, text)));
+        onclick: () => this.zeitraumSetzen(w) }, text)));
     return h("div", { class: "ausdruck-filter", tid: "ausdruck-filter", role: "search", "aria-label": "Filterausdruck" },
       h("div", { class: "ausdruck-filter-zeile" }, ausdruckFeld("Filter", this.ausdruckEingabe), leeren, menue),
       this.zusammenfassungEl, chips);
@@ -668,13 +708,25 @@ class Kontoansicht {
 
   /** Setzt bzw. ersetzt einen einfachen Datumsteil auf oberster Ebene (Schnellauswahl). */
   mitZeitraum(w) {
-    const neu = w === "heute" ? "datum == heute" : `datum in ${w}`;
-    const t = this.ausdruckEingabe.wert.trim();
-    if (!t) return neu;
-    if (/\bor\b|\|\||[()]/.test(t)) return `(${t}) and ${neu}`;
-    const teile = t.split(/\s+(?:and|&&)\s+/).filter((x) => !SCHNELL_TEIL.test(x.trim()));
-    return [...teile, neu].join(" and ");
+    return this.mitTeil(SCHNELL_TEIL, w === null ? null : w === "heute" ? "datum == heute" : `datum in ${w}`);
   }
+
+  /** Ersetzt Teile auf oberster Ebene, die `muster` erfüllen, durch `neu` (null: nur entfernen). */
+  mitTeil(muster, neu) {
+    const t = this.ausdruckEingabe.wert.trim();
+    if (!t) return neu || "";
+    if (/\bor\b|\|\||[()]/.test(t)) return neu ? `(${t}) and ${neu}` : t;
+    const teile = t.split(/\s+(?:and|&&)\s+/).filter((x) => !muster.test(x.trim()));
+    return [...teile, neu].filter(Boolean).join(" and ");
+  }
+
+  /** Setzt den Filterausdruck und wendet ihn sofort an. */
+  ausdruckSetzen(text) {
+    this.ausdruckEingabe.wert = text;
+    return this.filterSetzen("filter", text.trim());
+  }
+
+  zeitraumSetzen(w) { return this.ausdruckSetzen(this.mitZeitraum(w)); }
 
   zusammenfassungZeichnen() {
     if (!this.zusammenfassungEl) return;
@@ -702,116 +754,82 @@ class Kontoansicht {
     } catch (e) { melde("fehler", e.message); }
   }
 
+  /** Filter-Baukasten (D-187): dieselben Zeilen wie im Regeleditor, dazu Datum und Freitext; erzeugt den
+   *  Filterausdruck oben. Dazu „mit Unterkonten/-kategorien“, Chips für alte Einzelfilter und Zurücksetzen. */
   filterAufbauen() {
     const f = this.filter;
-    const leiste = h("div", { class: "filter-leiste", id: "filter-leiste", tid: "filter-leiste", role: "search",
-      "aria-label": "Filter der Buchungsliste", hidden: !this.filterSichtbar });
+    const leiste = h("div", { class: "filter-leiste", id: "filter-leiste", tid: "filter-leiste", role: "group",
+      "aria-label": "Filter-Baukasten", hidden: !this.filterSichtbar });
     // Esc im Filter: zurück zur Liste, damit es ohne Maus weitergeht (D-167)
     leiste.addEventListener("keydown", (e) => {
       if (e.key !== "Escape") return;
       e.preventDefault();
       this.listeFokussieren();
     });
-    const feld = (text, el) => {
-      el.id = el.id || neueId("filter");
-      return h("div", { class: "feld" }, h("label", { for: el.id }, text), el);
-    };
-    const datum = (name) => {
-      const el = h("input", { type: "date", tid: `filter-${name}`, value: f[name] || "" });
-      el.addEventListener("change", () => this.filterSetzen(name, el.value));
-      return el;
-    };
-    const text = (name, testid, max = "200") => {
-      const el = h("input", { type: "text", tid: testid, value: f[name] || "", maxlength: max });
-      const setzen = () => this.filterSetzen(name, el.value.trim());
-      el.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); setzen(); } });
-      el.addEventListener("change", setzen);
-      return el;
-    };
-    const betrag = (name, testid) => {
-      const el = h("input", { type: "text", inputmode: "decimal", tid: testid,
-        value: f[name] !== undefined ? betragEingabeText(Number(f[name])) : "" });
-      const setzen = () => {
-        const c = betragLesen(el.value);
-        if (c === null) { el.setAttribute("aria-invalid", "true"); return; }
-        el.removeAttribute("aria-invalid");
-        this.filterSetzen(name, c === "" ? "" : String(c));
-      };
-      el.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); setzen(); } });
-      el.addEventListener("change", setzen);
-      return el;
-    };
-    const empf = h("select", { tid: "filter-empfaenger" }, h("option", { value: "" }, "– alle Empfänger –"),
-      h("option", { value: "ohne" }, "ohne Empfänger"),
-      stamm.empfaenger.map((e) => h("option", { value: String(e.id) }, e.name)));
-    empf.value = f.ohne_empfaenger ? "ohne" : (f.empfaenger_id || "");
-    empf.addEventListener("change", async () => {
-      const neu = { ...this.filter };
-      delete neu.empfaenger_id;
-      delete neu.ohne_empfaenger;
-      if (empf.value === "ohne") neu.ohne_empfaenger = "true";
-      else if (empf.value) neu.empfaenger_id = empf.value;
-      this.filter = neu;
-      this.auswahl.clear();
-      this.anker = null;
-      this.seiten = 1;
-      this.urlSchreiben();
-      await this.laden();
+    const platz = h("div", { class: "filter-baukasten-platz" });
+    this.bkHinweis = h("p", { class: "klein hinweis", tid: "filter-baukasten-hinweis", hidden: true });
+    sprache("filter").then((sp) => {
+      this.filterSp = sp;
+      this.filterBaukasten = new Baukasten(sp, () => {
+        this.ausBaukasten = true;
+        this.ausdruckEingabe.wert = this.filterBaukasten.text();
+      }, { filter: true, tid: "filter-baukasten" });
+      platz.replaceChildren(this.filterBaukasten.el);
+      this.baukastenAusAusdruck(this.ausdruckEingabe.ergebnis, true);
     });
-    // 22.2: In einer Kategorie filtert `filter-konto` über die Bestandskonten (REST kategorie_id).
-    const katListe = this.istKategorie
-      ? baumFolge(stamm.konten.filter((k) => BESTAND.has(k.art)))
-      : kategorien();
-    const kat = h("select", { tid: this.istKategorie ? "filter-konto" : "filter-kategorie" },
-      h("option", { value: "" }, this.istKategorie ? "– alle Konten –" : "– alle Kategorien –"),
-      katListe.map(({ konto }) => h("option", { value: String(konto.id) }, kontoPfad(konto))));
-    kat.value = f.kategorie_id || "";
-    kat.addEventListener("change", () => this.filterSetzen("kategorie_id", kat.value));
-    const unter = h("input", { type: "checkbox", tid: "filter-unterkategorien", checked: f.unterkategorien === "true" });
-    unter.addEventListener("change", () => this.filterSetzen("unterkategorien", unter.checked ? "true" : ""));
-    const unterkonten = h("input", { type: "checkbox", tid: "filter-unterkonten", checked: f.unterkonten === "true" });
-    unterkonten.addEventListener("change", () => this.filterSetzen("unterkonten", unterkonten.checked ? "true" : ""));
-    const tag = h("select", { tid: "filter-tag" }, h("option", { value: "" }, "– alle Tags –"),
-      stamm.tags.slice().sort((a, b) => a.name.localeCompare(b.name, "de"))
-        .map((t) => h("option", { value: String(t.id) }, t.name)));
-    tag.value = f.tag_id || "";
-    tag.addEventListener("change", () => this.filterSetzen("tag_id", tag.value));
-    const status = h("fieldset", { class: "status-filter" }, h("legend", null, "Status"),
-      STATUS.map((st) => {
-        const c = h("input", { type: "checkbox", tid: `filter-status-${st}`, value: st,
-          checked: (f.status || []).includes(st) });
-        c.addEventListener("change", () => {
-          const gew = [...leiste.querySelectorAll(".status-filter input:checked")].map((x) => x.value);
-          this.filterSetzen("status", gew);
-        });
-        return h("label", { class: "wahl" }, c, " " + STATUS_TEXT[st]);
-      }));
+    const option = (name, text, testid) => {
+      const c = h("input", { type: "checkbox", tid: testid, checked: f[name] === "true" });
+      c.addEventListener("change", () => this.filterSetzen(name, c.checked ? "true" : ""));
+      return h("label", { class: "wahl" }, c, " " + text);
+    };
+    const alte = Object.entries(ALTE_FILTER).filter(([k]) => f[k] !== undefined).map(([k, text]) => {
+      const wert = k.startsWith("betrag") ? betragText(Number(f[k])) : f[k];
+      return h("span", { class: "chip", tid: `filter-alt-${k}` }, `${text}: ${wert} `,
+        h("button", { type: "button", class: "knopf-flach", "aria-label": `${text} entfernen`,
+          onclick: () => this.filterSetzen(k, "").then(() => this.filterLeisteNeu()) }, "×"));
+    });
+    if (f.kategorie_id) {   // nur mit Unterkategorien bleibt die Kategorie ein Einzelfilter
+      alte.push(h("span", { class: "chip", tid: "filter-alt-kategorie_id" }, `${this.istKategorie ? "Konto" : "Kategorie"}: ${pfadVon(Number(f.kategorie_id))} `,
+        h("button", { type: "button", class: "knopf-flach", "aria-label": "Kategorie entfernen",
+          onclick: () => this.filterSetzen("kategorie_id", "").then(() => this.filterLeisteNeu()) }, "×")));
+    }
     const zurueck = knopf("Filter zurücksetzen", { tid: "filter-zuruecksetzen", onclick: async () => {
       const sort = this.filter.sortierung;
       this.filter = sort ? { sortierung: sort } : {};
+      this.ausBaukasten = false;
       if (this.ausdruckEingabe) this.ausdruckEingabe.wert = "";
       this.auswahl.clear();
       this.anker = null;
       this.seiten = 1;
       this.urlSchreiben();
-      const neu = this.filterAufbauen();
-      neu.hidden = this.filterLeiste.hidden;
-      this.filterLeiste.replaceWith(neu);
-      this.filterLeiste = neu;
+      this.filterLeisteNeu();
       await this.laden();
     } });
-    leiste.append(...[feld("Von", datum("von")), feld("Bis", datum("bis")),
-      feld("Betrag ab (€)", betrag("betrag_min", "filter-betrag-min")),
-      feld("Betrag bis (€)", betrag("betrag_max", "filter-betrag-max")),
-      feld("Empfänger", empf), feld("Verwendungszweck", text("verwendungszweck", "filter-verwendungszweck")),
-      f.zweck_gleich !== undefined ? feld("Verwendungszweck genau", text("zweck_gleich", "filter-zweck-gleich", "10000")) : null,
-      f.zweck_aehnlich !== undefined ? feld("Verwendungszweck ähnlich", text("zweck_aehnlich", "filter-zweck-aehnlich", "10000")) : null,
-      f.zweck_leer === "true" ? h("p", { tid: "filter-zweck-leer" }, "Verwendungszweck ist leer") : null,
-      f.empfaenger_aehnlich !== undefined ? feld("Empfänger ähnlich", text("empfaenger_aehnlich", "filter-empfaenger-aehnlich")) : null,
-      feld("Freitext", text("suche", "filter-freitext")), feld(this.istKategorie ? "Konto" : "Kategorie", kat),
-      this.istKategorie ? null : h("label", { class: "wahl" }, unter, " mit Unterkategorien"),
-      h("label", { class: "wahl" }, unterkonten, " mit Unterkonten"), feld("Tag", tag), status, zurueck].filter(Boolean));
+    leiste.append(platz, this.bkHinweis,
+      h("div", { class: "filter-optionen" },
+        this.istKategorie ? null : option("unterkategorien", "mit Unterkategorien", "filter-unterkategorien"),
+        option("unterkonten", "mit Unterkonten", "filter-unterkonten"),
+        alte.length ? h("span", { class: "filter-alte" }, h("span", { class: "klein" }, "Weitere Filter: "), alte) : null,
+        zurueck));
     return leiste;
+  }
+
+  /** Baukasten aus dem geprüften Ausdruck nachziehen (wenn der Ausdruck oben getippt wurde). */
+  baukastenAusAusdruck(e, start) {
+    if (!this.filterBaukasten || !this.bkHinweis) return;
+    if (!e || !this.ausdruckEingabe.wert.trim()) {
+      if (start || !this.filterBaukasten.text()) this.filterBaukasten.setzen(null);
+      else this.filterBaukasten.setzen(null);
+      this.bkHinweis.hidden = true;
+      this.filterBaukasten.el.hidden = false;
+      return;
+    }
+    if (!e.gueltig) return;
+    const m = e.baukasten_faehig ? baukastenAusBaum(e.baum, this.filterSp) : null;
+    this.bkHinweis.hidden = !!m;
+    this.filterBaukasten.el.hidden = !m;
+    if (m) this.filterBaukasten.setzen(m);
+    else this.bkHinweis.textContent = "Dieser Ausdruck passt nicht in den Baukasten. Bearbeiten Sie ihn oben als Text.";
   }
 
   // ---------------------------------------------------------------- Panels (15)
@@ -2033,7 +2051,7 @@ class Kontoansicht {
 
   filterLeisteTaste() {
     this.filterUmschalten();
-    if (this.filterSichtbar) this.filterFokus("filter-von");
+    if (this.filterSichtbar) this.filterFokus("bk-0-feld");
     else this.listeFokussieren();
   }
 
@@ -2056,18 +2074,6 @@ class Kontoansicht {
     const e = this.filterEintrag(b).kinder.find((k) => k.tid === testid);
     if (!e || e.aktiv === false) { melde("hinweis", "Die Buchung hat keinen Empfänger."); return undefined; }
     return e.tun();
-  }
-
-  zeitraum(art) {
-    const heute = new Date();
-    const zwei = (n) => String(n).padStart(2, "0");
-    const tag = (j, m, t) => `${j}-${zwei(m)}-${zwei(t)}`;
-    let j = heute.getFullYear();
-    let m = heute.getMonth() + 1;
-    if (art === "jahr") return this.filterAnwenden({ von: tag(j, 1, 1), bis: tag(j, 12, 31) });
-    if (art === "letzter") { m -= 1; if (m === 0) { m = 12; j -= 1; } }
-    const letzter = new Date(j, m, 0).getDate();
-    return this.filterAnwenden({ von: tag(j, m, 1), bis: tag(j, m, letzter) });
   }
 
   sortierungWechseln(umkehren) {
@@ -2096,16 +2102,14 @@ class Kontoansicht {
    * ähnlich ein gemeinsamer Namensanfang oder ein gemeinsames Wort (D-158). */
   filterEintrag(b) {
     const zweck = b ? b.verwendungszweck : "";
-    const genau = zweck
-      ? { zweck_gleich: zweck, zweck_aehnlich: "", zweck_leer: "", verwendungszweck: "" }
-      : { zweck_leer: "true", zweck_gleich: "", zweck_aehnlich: "", verwendungszweck: "" };
     const aehnlich = zweck
       ? { zweck_aehnlich: zweck, zweck_gleich: "", zweck_leer: "", verwendungszweck: "" }
       : { zweck_leer: "true", zweck_gleich: "", zweck_aehnlich: "", verwendungszweck: "" };
     return { tid: "km-filter", text: "Filter", aktiv: !!b, kinder: [
       { tid: "km-filter-empfaenger", text: "gleicher Empfänger", aktiv: !!(b && b.empfaenger),
-        tun: () => this.filterAnwenden({ empfaenger_id: String(b.empfaenger.id), ohne_empfaenger: "", empfaenger_aehnlich: "" }) },
-      { tid: "km-filter-zweck", text: "Gleicher Verwendungszweck", tun: () => this.filterAnwenden(genau) },
+        tun: () => this.ausdruckSetzen(this.mitTeil(/^(?:empf|empfänger|empfaenger)\s*==/, `empf == ${qText(b.empfaenger.name)}`)) },
+      { tid: "km-filter-zweck", text: "Gleicher Verwendungszweck",
+        tun: () => this.ausdruckSetzen(this.mitTeil(/^(?:vwz|verwendungszweck)\s*==/, `vwz == ${qText(zweck)}`)) },
       { tid: "km-filter-zweck-aehnlich", text: "ähnlicher Verwendungszweck", tun: () => this.filterAnwenden(aehnlich) },
       { tid: "km-filter-empfaenger-aehnlich", text: "ähnlicher Empfänger", aktiv: !!(b && b.empfaenger),
         tun: () => this.filterAnwenden({ empfaenger_aehnlich: b.empfaenger.name, empfaenger_id: "", ohne_empfaenger: "" }) },

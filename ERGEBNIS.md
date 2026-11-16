@@ -10,6 +10,8 @@ Stand: 2026-11-16, Implementierungs-Thread. Kontor-Ausdrücke für Regeln und de
 - **Abnahmetests nicht gelaufen:** kontor-tests war in dieser Sitzung nicht erreichbar (Klon ohne Zugangsdaten
   abgelehnt). Vor dem Merge muss der Volllauf nachgeholt werden; Risiken: Antworten von `/api/regeln` haben die
   neuen Felder `ausdruck` und `ausdruck_form`, der Regeldialog ist neu (Beschriftungen und Ablauf).
+- Seit D-187 ersetzt der Filter-Baukasten die Einzelfelder der Filterleiste; Abnahmetests, die diese Felder
+  bedienen, werden rot, bis die Meilenstein-Definition sie ablöst.
 - Neue Abhängigkeit `google-re2` (reguläre Ausdrücke mit linearer Laufzeit).
 
 ## Merge von `feature/detailansicht` (D-175 bis D-177) ohne Abnahme, gegen kontor-tests `c99b6ac`

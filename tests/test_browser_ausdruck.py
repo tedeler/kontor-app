@@ -81,3 +81,34 @@ def test_regeleditor_ohne_bedingung_und_uebernahme(tmp_path, browser):  # noqa: 
         page.locator('[data-testid^="test-uebernehmen-"]').first.click()
         expect(tid(page, "regel-ausdruck")).to_have_value('"Einkauf" in vwz and dir == "ausgabe"')
         expect(tid(page, "test-zahlen")).to_have_attribute("data-anzahl", "20")
+
+
+def test_filter_baukasten_und_alte_adressen(tmp_path, browser):  # noqa: F811
+    """D-187: Filter-Baukasten statt Einzelfelder; alte Parameter werden zum Ausdruck."""
+    with server(tmp_path) as (url, _), seite(browser, url, **DESKTOP) as page:
+        page.goto(url + "/")
+        bereit(page, "uebersicht")
+        page.locator('[data-testid^="uebersicht-konto-"] [data-feld="name"]', has_text="Giro").click()
+        bereit(page, "konto")
+        konto_url = page.url
+        zeilen = page.locator('[data-testid="buchungsliste"] [role="row"][data-id]')
+        tid(page, "filter-umschalten").click()
+        expect(tid(page, "filter-baukasten")).to_be_visible()
+        tid(page, "bk-0-feld").select_option(label="Betrag")
+        tid(page, "bk-0-op").select_option(label="mindestens")
+        tid(page, "bk-0-wert").fill("18")
+        expect(tid(page, "filter-ausdruck")).to_have_value("betrag >= 18")
+        expect(zeilen).to_have_count(3)
+        # Text oben → Baukasten folgt
+        tid(page, "filter-ausdruck").fill("einkauf dt < 3.1.2024")
+        expect(zeilen).to_have_count(2)
+        expect(tid(page, "bk-1-op")).to_have_value("<")
+        expect(tid(page, "bk-1-wert")).to_have_value("03.01.2024")
+        tid(page, "filter-schnell-dieses_jahr").click()
+        expect(tid(page, "filter-ausdruck")).to_have_value(re.compile(r"datum in dieses_jahr$"))
+        tid(page, "filter-zuruecksetzen").click()
+        expect(zeilen).to_have_count(20)
+        page.goto(konto_url.split("?")[0] + "?von=2024-01-18&verwendungszweck=Einkauf")
+        bereit(page, "konto")
+        expect(tid(page, "filter-ausdruck")).to_have_value('datum >= 2024-01-18 and "Einkauf" in vwz')
+        expect(zeilen).to_have_count(3)

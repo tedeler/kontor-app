@@ -1089,3 +1089,19 @@ html[data-thema="dunkel"] .wirkung-abweichend { background: #5a3412; color: #ffd
 .app[data-layout="mobil"] ~ .dialog-huelle .test-kopf { grid-template-columns: 4.6rem minmax(0, 1fr) auto; }
 .app[data-layout="mobil"] ~ .dialog-huelle .test-kopf .test-wirkung { display: none; }
 .test-details > * { grid-column: auto; grid-row: auto; text-align: left; }
+
+/* D-187: Filter-Baukasten statt Einzelfelder */
+.filter-leiste { display: block; }
+.filter-leiste .baukasten { margin-bottom: .4rem; }
+.filter-optionen { display: flex; flex-wrap: wrap; gap: .4rem 1rem; align-items: center; }
+.filter-optionen .knopf { margin-left: auto; }
+.filter-alte { display: inline-flex; flex-wrap: wrap; gap: .3rem; align-items: center; }
+[data-layout="mobil"] .filter-leiste, .app[data-layout="mobil"] .filter-leiste { display: block; grid-template-columns: none; }
+[data-layout="mobil"] .bk-zeile, .app[data-layout="mobil"] ~ .dialog-huelle .bk-zeile {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: .3rem; }
+[data-layout="mobil"] .bk-zeile > select, .app[data-layout="mobil"] ~ .dialog-huelle .bk-zeile > select { max-width: none; width: 100%; }
+[data-layout="mobil"] .bk-wert, .app[data-layout="mobil"] ~ .dialog-huelle .bk-wert { grid-column: 1 / 3; grid-row: 2; }
+[data-layout="mobil"] .bk-zeile > .knopf-flach, .app[data-layout="mobil"] ~ .dialog-huelle .bk-zeile > .knopf-flach { grid-column: 3; grid-row: 1 / 3; }
+[data-layout="mobil"] .bk-kopf select { width: auto; }
+.filter-leiste .bk-wert input[type="text"] { width: 100%; }
+.filter-leiste[hidden] { display: none; }

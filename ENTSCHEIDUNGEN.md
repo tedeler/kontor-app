@@ -2496,3 +2496,25 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - Treffer im Testbereich sind eine Zeile (`test-zeile-<id>`: Datum, Empfänger bzw. Verwendungszweck gekürzt, Betrag,
   Wirkung; auf dem Handy ohne Wirkung). Ein Klick klappt die Einzelheiten auf: Verwendungszweck, Kategorie
   vorher → nachher, „→ Bedingung“ und „Warum?“.
+
+## D-187 Kontoblatt-Filter wie bei den Regeln: Ausdruck oder Baukasten (ersetzt die Einzelfelder)
+
+- Die Filterleiste (`filter-leiste`, Umschalter `filter-umschalten`) enthält statt der Einzelfelder (Von, Bis,
+  Betrag, Empfänger, Verwendungszweck, Freitext, Kategorie, Tag, Status) den **Baukasten** (`filter-baukasten`,
+  Zeilen `bk-<n>-feld/op/wert`) wie im Regeleditor, zusätzlich mit „Freitext“ und „Datum“ (liegt in, nicht in, ab,
+  bis, nach, vor; Wert in der Schreibweise von 4.6, z. B. `-30d`, `2017`, `1.1. .. 31.3.`). Leere Zeilen zählen
+  nicht. Baukasten und Ausdrucksfeld darüber sind gekoppelt: Änderungen im Baukasten schreiben den Ausdruck, ein
+  getippter Ausdruck baut den Baukasten neu (passt er nicht hinein, erscheint `filter-baukasten-hinweis`).
+- Bleiben: „mit Unterkategorien“, „mit Unterkonten“, „Filter zurücksetzen“, die Zeitraum-Chips am Ausdrucksfeld.
+  Die Zahl am Umschalter zählt die Teile des Ausdrucks plus übrige Parameter.
+- **Alte Adressen und Kontextmenüs:** `von`, `bis`, `empfaenger_id`, `ohne_empfaenger`, `verwendungszweck`,
+  `zweck_gleich`, `zweck_leer`, `suche`, `kategorie_id` (ohne Unterkategorien), `tag_id` und `status` werden beim
+  Öffnen in den Ausdruck übernommen. „gleicher Empfänger“ und „gleicher Verwendungszweck“ setzen
+  `empf == "…"` bzw. `vwz == "…"`. Ohne Entsprechung im Ausdruck bleiben `betrag_min`/`betrag_max` (vorzeichen-
+  behaftet), `zweck_aehnlich`, `empfaenger_aehnlich` und `kategorie_id` mit Unterkategorien; sie erscheinen als
+  Chips „Weitere Filter“ mit ×.
+- **Tastenkürzel:** `f f` Baukasten ein/aus (Fokus auf die erste Zeile), `f a` Ausdruck, Zeiträume `f h` heute,
+  `f w` 7 Tage, `f d` 30 Tage, `f m` dieser Monat, `f l` letzter Monat, `f j` dieses Jahr, `f J` letztes Jahr,
+  `f x` Zeitraum entfernen. Die Kürzel für die Einzelfelder (`f v/b/z/e/k/t/s/r`) entfallen.
+- Auswirkung auf Abnahmetests: Tests, die die Einzelfelder der Filterleiste bedienen (M8, M12, M17 u. a.), passen
+  nicht mehr; das gehört in die Meilenstein-Definition dieses Features.
