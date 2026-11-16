@@ -460,6 +460,10 @@ def _entfernen(con, objekt: str, oid: int, schritt: set[tuple[str, int]]) -> Non
         for r in con.execute("SELECT buchung_id FROM buchung_tag WHERE tag_id = ?", (oid,)).fetchall():
             if ("buchung", r["buchung_id"]) not in schritt:
                 raise _konflikt("Ein Tag wird inzwischen von einer Buchung verwendet.")
+        # ebenso an Empfängern (Bestätigung, M27 3, D-171)
+        for r in con.execute("SELECT empfaenger_id FROM empfaenger_tag WHERE tag_id = ?", (oid,)).fetchall():
+            if ("empfaenger", r["empfaenger_id"]) not in schritt:
+                raise _konflikt("Ein Tag wird inzwischen von einem Empfänger verwendet.")
         con.execute("DELETE FROM tag WHERE id = ?", (oid,))
     elif objekt == "buchung":
         con.execute("DELETE FROM buchung WHERE id = ?", (oid,))
@@ -614,6 +618,7 @@ def bezuege_pruefen(con) -> None:
         "SELECT 1 FROM buchung b WHERE b.empfaenger_id IS NOT NULL"
         " AND NOT EXISTS (SELECT 1 FROM empfaenger e WHERE e.id = b.empfaenger_id)",
         "SELECT 1 FROM buchung_tag bt WHERE NOT EXISTS (SELECT 1 FROM tag t WHERE t.id = bt.tag_id)",
+        "SELECT 1 FROM empfaenger_tag et WHERE NOT EXISTS (SELECT 1 FROM tag t WHERE t.id = et.tag_id)",
         "SELECT 1 FROM konto k WHERE k.eltern_id IS NOT NULL"
         " AND NOT EXISTS (SELECT 1 FROM konto e WHERE e.id = k.eltern_id)",
         "SELECT 1 FROM regel r WHERE NOT EXISTS (SELECT 1 FROM konto k WHERE k.id = r.kategorie_id)",

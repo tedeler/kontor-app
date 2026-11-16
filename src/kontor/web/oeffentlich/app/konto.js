@@ -486,7 +486,7 @@ class Kontoansicht {
     const nr = (this.ladeNr = (this.ladeNr || 0) + 1);   // nur die jüngste Antwort zählt
     this.seite.dataset.geladen = "nein";
     const proSeite = this.gruppierung ? GRUPPE_SEITE : PRO_SEITE;
-    const basis = { konto_id: this.konto.id, ...this.filter, sortierung: this.sortierung, pro_seite: proSeite };
+    const basis = { konto_id: this.konto.id, ...this.filter, sortierung: this.sortierung, pro_seite: proSeite, verdacht: "ja" };
     delete basis.gruppierung;
     // D-130: Buchungen, die einer aus Mails erkannten Erwartung zugeordnet sind (Mail-Abgleich, D-128)
     const erwartungen = api("GET", "/api/erwartungen" + abfrage({ grund: MAIL_GRUENDE, zustand: ERWARTUNG_ZUSTAENDE }))
@@ -1223,8 +1223,11 @@ class Kontoansicht {
     const kinder = [];
     for (let i = von; i < bis; i++) {
       const s = this.slots[i];
-      kinder.push(s.typ === "balken" ? this.periodenBalken(s.gruppe) : this.zeile(s.buchung, kompakt));
+      const el = s.typ === "balken" ? this.periodenBalken(s.gruppe) : this.zeile(s.buchung, kompakt);
+      el.setAttribute("aria-rowindex", String(i + 2));   // Kopf = 1 (M28 7, D-170)
+      kinder.push(el);
     }
+    this.liste.setAttribute("aria-rowcount", String(this.slots.length + 1));
     const y = von < this.slots.length ? this.slots[von].top : 0;
     this.fensterInnen.style.transform = `translateY(${y}px)`;
     this.fensterInnen.replaceChildren(...kinder);

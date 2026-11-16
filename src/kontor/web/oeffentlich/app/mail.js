@@ -94,7 +94,7 @@ export async function mailSeite(seite, _param, suche) {
   }
 
   async function holen(nr) {
-    const q = { pro_seite: PRO_SEITE, seite: nr };
+    const q = { pro_seite: PRO_SEITE, seite: nr, reihenfolge: "neueste" };
     if (postfach) q.postfach_id = Number(postfach);
     if (filter !== "alle") q.zuordnung = filter;
     return api("GET", "/api/mail/nachrichten" + abfrage(q));

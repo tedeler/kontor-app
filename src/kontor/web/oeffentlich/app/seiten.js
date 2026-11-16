@@ -1420,7 +1420,7 @@ export async function suche(seite, _p, suchtext) {
   const q = new URLSearchParams(suchtext).get("q") || "";
   kopf(seite, "Suche");
   if (!q.trim()) { seite.append(h("p", { tid: "suche-anzahl", "data-anzahl": "0" }, "Bitte einen Suchbegriff eingeben.")); return { titel: "Suche" }; }
-  const e = await api("GET", "/api/suche" + abfrage({ q, limit: 200 }));
+  const e = await api("GET", "/api/suche" + abfrage({ q, limit: 200, verdacht: "ja" }));
   const feldEl = tid("suche-feld");
   if (feldEl && document.activeElement !== feldEl) feldEl.value = q;
   seite.append(h("p", { tid: "suche-anzahl", "data-anzahl": String(e.buchungen_gesamt) }, `Suche nach „${q}“: ${e.buchungen_gesamt} Buchungen`));
@@ -1581,7 +1581,7 @@ function appPasswortAbschnitt(id, p) {
 
 // ------------------------------------------------------------------ Buchung (Link aus split_abweichung)
 export async function buchung(seite, id) {
-  const b = await api("GET", `/api/buchungen/${id}`);
+  const b = await api("GET", `/api/buchungen/${id}?verdacht=ja`);
   kopf(seite, `Buchung vom ${datumText(b.datum)}`);
   const konto = b.splits.map((s) => kontoNach(s.konto_id)).find((k) => k && BESTAND.has(k.art));
   seite.append(abschnitt("Einzelheiten", h("p", null, b.empfaenger ? b.empfaenger.name : "ohne Empfänger", " · ", b.verwendungszweck,

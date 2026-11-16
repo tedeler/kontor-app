@@ -38,6 +38,8 @@ def test_nur_unbestaetigt_und_weg_nach_bestaetigung(tmp_path):
     c = _client(tmp_path)
     giro, kat = _geruest(c)
     _, b = _buchung(c, giro, kat, "Neue Firma", 4200, "importiert")
+    assert "verdacht" not in b   # nie in Antworten schreibender Aufrufe (D-171)
+    b = c.get(f"/api/buchungen/{b['id']}", params={"verdacht": "ja"}).json()
     assert b["verdacht"]["grund"] == "empfaenger"
     assert "Neue Firma" in b["verdacht"]["text"]
     assert "nur in unbestätigten" in b["verdacht"]["text"]
@@ -52,7 +54,7 @@ def test_gleicher_betrag_ist_nicht_verdaechtig(tmp_path):
     for monat in ("02", "03", "04"):
         _an(c, giro, kat, empf, 80000, "bestaetigt", f"2024-{monat}-01")
     neu = _an(c, giro, kat, empf, 80000, "importiert", "2024-05-01")
-    assert "verdacht" not in c.get(f"/api/buchungen/{neu['id']}").json()
+    assert "verdacht" not in c.get(f"/api/buchungen/{neu['id']}", params={"verdacht": "ja"}).json()
 
 
 def test_starker_abweichender_betrag(tmp_path):
@@ -62,13 +64,13 @@ def test_starker_abweichender_betrag(tmp_path):
     for monat in ("02", "03", "04"):
         _an(c, giro, kat, empf, 80000, "bestaetigt", f"2024-{monat}-01")
     neu = _an(c, giro, kat, empf, 250000, "vorlaeufig", "2024-05-01")
-    v = c.get(f"/api/buchungen/{neu['id']}").json()["verdacht"]
+    v = c.get(f"/api/buchungen/{neu['id']}", params={"verdacht": "ja"}).json()["verdacht"]
     assert v["grund"] == "betrag"
     assert "2.500,00 €" in v["text"] and "800,00 €" in v["text"]
     klein = _an(c, giro, kat, empf, 81000, "importiert", "2024-05-02")
-    assert "verdacht" not in c.get(f"/api/buchungen/{klein['id']}").json()
+    assert "verdacht" not in c.get(f"/api/buchungen/{klein['id']}", params={"verdacht": "ja"}).json()
     c.patch(f"/api/buchungen/{neu['id']}", json={"status": "abgeglichen"})
-    assert "verdacht" not in c.get(f"/api/buchungen/{neu['id']}").json()
+    assert "verdacht" not in c.get(f"/api/buchungen/{neu['id']}", params={"verdacht": "ja"}).json()
 
 
 def test_streuung_mit_robustem_z(tmp_path):
@@ -78,8 +80,8 @@ def test_streuung_mit_robustem_z(tmp_path):
     for i, cent in enumerate((10000, 12000, 8000, 11000, 9000)):
         _an(c, giro, kat, empf, cent, "bestaetigt", f"2024-01-{i + 1:02d}")
     neu = _an(c, giro, kat, empf, 80000, "importiert", "2024-02-01")
-    v = neu["verdacht"]
+    v = c.get(f"/api/buchungen/{neu['id']}", params={"verdacht": "ja"}).json()["verdacht"]
     assert v["grund"] == "betrag" and "robustes z" in v["text"]
-    liste = c.get("/api/buchungen", params={"empfaenger_id": empf, "pro_seite": 20}).json()["eintraege"]
+    liste = c.get("/api/buchungen", params={"empfaenger_id": empf, "pro_seite": 20, "verdacht": "ja"}).json()["eintraege"]
     markiert = [b for b in liste if "verdacht" in b]
     assert [b["id"] for b in markiert] == [neu["id"]]

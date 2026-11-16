@@ -7,6 +7,7 @@ Transaktion. Mehrere Apps im selben Prozess teilen keinen Zustand.
 
 from __future__ import annotations
 
+import hashlib
 import contextlib
 import datetime as dt
 import functools
@@ -542,6 +543,7 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
             "vorschlag": q.wahrheitswert("vorschlag"),
             "abgestimmt": q.wahrheitswert("abgestimmt"),
             "sortierung": q.auswahl("sortierung", buch.SORTIERUNGEN) or "datum",
+            "verdacht": q.auswahl("verdacht", ("ja", "nein")) == "ja",   # M27 1.1 (D-171)
         }
         if seiten:
             f["seite"] = q.ganzzahl("seite", minimum=1)
@@ -604,7 +606,10 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
 
     @endpunkt("GET", "/api/buchungen/{buchung_id:int}")
     async def buchung_lesen(request: Request):
-        return await lesen(buch.buchung_lesen, pid(request, "buchung_id"))
+        q = Query(request.query_params)
+        mit_verdacht = q.auswahl("verdacht", ("ja", "nein")) == "ja"   # M27 1.1 (D-171)
+        q.pruefen()
+        return await lesen(buch.buchung_lesen, pid(request, "buchung_id"), mit_verdacht)
 
     @endpunkt("PATCH", "/api/buchungen/{buchung_id:int}")
     async def buchung_aendern(request: Request):
@@ -948,9 +953,10 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
         seite = q.ganzzahl("seite", minimum=1)
         pro_seite = q.ganzzahl("pro_seite", minimum=1, maximum=500)
         zuordnung = q.auswahl("zuordnung", ("zugeordnet", "erwartet", "keine"))
+        neueste = q.auswahl("reihenfolge", ("aelteste", "neueste")) == "neueste"   # M27 5 (D-171)
         q.pruefen()
         return await lesen(maildienst.nachrichten_liste, postfach_id, seite or 1, pro_seite or 50,
-                           sync.heute().isoformat(), zuordnung)
+                           sync.heute().isoformat(), zuordnung, neueste)
 
     @app.get("/oauth2/rueckruf", include_in_schema=False)
     async def oauth_rueckruf(request: Request):
@@ -1102,8 +1108,9 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
             q.fehler_melden("q", "Pflichtparameter fehlt.")
         elif text is not None and (len(text) > 200 or not text.split()):
             q.fehler_melden("q", "1–200 Zeichen mit mindestens einem Wort.")
+        mit_verdacht = q.auswahl("verdacht", ("ja", "nein")) == "ja"
         q.pruefen()
-        return await lesen(pflege.suche, text, limit or 50)
+        return await lesen(pflege.suche, text, limit or 50, mit_verdacht)
 
     # ------------------------------------------------- M4: Lernmodell
     @endpunkt("GET", "/api/lernmodell")
@@ -1868,9 +1875,14 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
                         headers={"Cache-Control": "no-cache"})
 
     @app.get("/oeffentlich/manifest.webmanifest", include_in_schema=False)
-    async def manifest():
-        return Response((WEB / "oeffentlich" / "manifest.webmanifest").read_bytes(),
-                        media_type="application/manifest+json", headers={"Cache-Control": "no-cache"})
+    async def manifest(request: Request):
+        # wie alle statischen Dateien: no-cache mit ETag und 304 (M26 36.8.1, D-172)
+        daten = (WEB / "oeffentlich" / "manifest.webmanifest").read_bytes()
+        etag = '"' + hashlib.sha256(daten).hexdigest()[:32] + '"'
+        koepfe = {"Cache-Control": "no-cache", "ETag": etag}
+        if etag in [x.strip() for x in request.headers.get("if-none-match", "").split(",")]:
+            return Response(status_code=304, headers=koepfe)
+        return Response(daten, media_type="application/manifest+json", headers=koepfe)
 
     app.mount("/oeffentlich", StaticFiles(directory=str(WEB / "oeffentlich")), name="oeffentlich")
 

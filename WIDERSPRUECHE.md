@@ -226,3 +226,19 @@ Stand: Meilenstein 8 (getestet gegen kontor-tests `bf35445`); kein offener Eintr
 - **Widerspruch:** Bei 1280 px mit Detailpanel ist die Liste schon im Vorgaberaster waagerecht blätterbar; nach dem
   Verbreitern liegt der Trenner außerhalb des sichtbaren Bereichs, unter dem Größengriff des Detailpanels. Dem
   Test-Thread am 2026-11-13 als Text gemeldet.
+
+## W-013 M28: `navlink-erwartet` mobil sichtbar erwartet
+
+- **Test:** `tests/app/m28/test_m28_person_navigation.py::test_navigation_in_gruppen[handy]`.
+- **Erwartung des Tests:** alle 16 Navigationslinks auch mobil sichtbar.
+- **Spezifikation:** `oberflaeche.md` 30 (M20): `navlink-erwartet` „mobil ausgeblendet“; M28 Abschnitt 2 hebt das
+  nicht auf. Dem Test-Thread am 2026-11-16 als Text gemeldet.
+
+## W-014 M28: Listenbreite am Rahmen der Liste gemessen
+
+- **Test:** `tests/app/m28/test_m28_kontoblatt.py::test_listenbreite_bei_langem_zweck`.
+- **Erwartung des Tests:** Rahmen von `buchungsliste` endet vor dem Panel Einzelheiten.
+- **Spezifikation:** M28 12.7 (wächst nicht nach dem Inhalt, liegt nicht unter dem Panel), M22 1 (zu breite Listen
+  werden waagerecht geblättert). Die Mindestbreiten der Spalten (~730 px) übersteigen den Bereich (~480 px) schon
+  ohne langen Text; die Liste wächst nicht nach dem Inhalt, der sichtbare Bereich endet vor dem Panel. Dem
+  Test-Thread am 2026-11-16 als Text gemeldet.

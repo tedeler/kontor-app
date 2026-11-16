@@ -2293,3 +2293,45 @@ D-123 bis D-127 sind auf den offenen Branches `dokumente` und `alfbanco-import` 
   Query-Parameter `vorschlaege=ja` (`ja`/`nein`, sonst 422). Ohne den Parameter enthält die Liste nur gespeicherte
   Verdachte. Kontoblatt und Seite Dubletten fragen mit `vorschlaege=ja`. Der Service-Worker-Cache heißt
   `kontor-huelle-28`.
+
+## D-170 Vorbereitung der Abnahme M26–M28: Korrekturen an `feature/sammel`
+
+- **Person ohne Browser-Speicher:** Die Wahl „Torsten“/„Tina“ gilt ohne Speicher bis zum Neuladen; Bestätigen
+  funktioniert (M17 1.6).
+- **Leere Werte:** Nur fehlende Werte (null, undefined, false) erscheinen nicht; echte Texte wie „None GmbH“ bleiben
+  unverändert (berichtigt D-168, das auch Wörter aus Daten entfernte).
+- **Ausschnitt langer Listen (D-151):** Die Liste trägt `aria-rowcount` (alle Einträge einschließlich Kopf), jede
+  gezeichnete Zeile `aria-rowindex` (Kopf = 1).
+- **Tastaturhilfe:** „Alt+1 … Alt+7“ (Navigation hat sieben Ziele).
+
+## D-171 Vorbereitung der Abnahme M27: Rückwärtskompatibilität der REST-Antworten
+
+- **`verdacht`** (D-157) nur auf Anfrage mit `verdacht=ja` an `GET /api/buchungen`, `GET /api/buchungen/{id}` und
+  `GET /api/suche`; Antworten schreibender Aufrufe nie. Vorher stand das Feld in jeder Buchungsantwort und änderte
+  so auch unbeteiligte Buchungen. Kontoblatt, Suche und Einzelansicht fragen mit `verdacht=ja`.
+- **Mail-Liste** (D-153): Vorgabe wieder aufsteigend nach Empfang; absteigend nur mit `reihenfolge=neueste` (das
+  Mail-Blatt fragt so). Eine Seite hinter dem Ende liefert wieder leere Einträge statt der letzten Seite.
+- **Rückgängig des Anlegens eines Tags:** Konflikt (409), wenn inzwischen ein Empfänger außerhalb der Änderung den
+  Tag trägt (Bestätigung D-156).
+- Service-Worker-Cache `kontor-huelle-29`.
+
+## D-172 Abnahme M26 (Handy): Startfokus und Manifest
+
+- Mobil liegt der Startfokus eines Dialogs nicht in einem Textfeld (D-141); ausdrücklich festgelegter Startfokus
+  bleibt (M26 36.5): Befehlspalette (`befehlspalette-eingabe`) und Entsperren (`entsperren-passwort`).
+- Das Web-App-Manifest antwortet wie alle statischen Dateien mit `Cache-Control: no-cache`, `ETag` und 304 bei
+  passendem `If-None-Match` (M26 36.8.1).
+
+## D-173 Abnahme M28: Alt+8 ohne Wirkung und ohne Skriptfehler
+
+- Nach dem Wegfall von „Wiederkehrende Buchungen“ in der Navigation (D-146) löste Alt+8 einen Skriptfehler aus
+  (Link nicht vorhanden). Alt+Ziffer wirkt nur noch, wenn es ein Ziel gibt; sonst geschieht nichts (M28 2).
+
+## D-174 Abnahme M26–M28: Meldungen und mobile Suche
+
+- **Meldungen** (unten rechts) lassen Klicks auf darunterliegende Bedienelemente durch; nur ihre eigenen Knöpfe
+  fangen Klicks. Vorher verdeckte eine Erfolgsmeldung z. B. den Knopf zum Lösen eines Dokuments im (seit M28
+  längeren) Panel Einzelheiten.
+- **Mobile Suche:** Das verzögerte Einklappen nach dem Verlassen des leeren Felds unterbleibt, wenn der Fokus
+  inzwischen wieder im Feld liegt (Wettlauf beim schnellen Öffnen über die Lupe).
+- Service-Worker-Cache `kontor-huelle-30`.

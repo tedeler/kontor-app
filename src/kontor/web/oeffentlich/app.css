@@ -357,12 +357,13 @@ html.zieht, html.zieht * { cursor: grabbing !important; }
 .meldungen { position: fixed; z-index: 2800; right: .8rem; bottom: .8rem; width: min(22rem, calc(100vw - 1.6rem)); display: flex;
   flex-direction: column; gap: .4rem; pointer-events: none; }
 [data-layout="mobil"] .meldungen { right: .5rem; left: .5rem; width: auto; bottom: 5.2rem; }
-.meldung { pointer-events: auto; display: flex; align-items: center; gap: .4rem; padding: .5rem .6rem; border-radius: 8px; background: var(--hg);
+.meldung { pointer-events: none; display: flex; align-items: center; gap: .4rem; padding: .5rem .6rem; border-radius: 8px; background: var(--hg);
   color: var(--text); border: 1px solid var(--rand); border-left: 5px solid var(--akzent); box-shadow: var(--schatten); }
 .meldung-text { flex: 1; overflow-wrap: anywhere; }
 .meldung-erfolg { border-left-color: var(--erfolg); }
 .meldung-fehler { border-left-color: var(--gefahr); }
 .meldung-hinweis { border-left-color: var(--hinweis); }
+.meldung button, .meldung a { pointer-events: auto; }   /* D-174: nur Knöpfe der Meldung fangen Klicks, der Rest lässt sie durch */
 .meldung-knopf { border: 1px solid var(--rand); background: var(--hg-2); color: var(--text); border-radius: 4px; cursor: pointer; min-height: 28px; }
 .offline-hinweis { position: fixed; z-index: 2700; top: 5.5rem; left: 50%; transform: translateX(-50%); width: min(30rem, calc(100vw - 1rem));
   background: var(--mock); color: var(--mock-text); border: 1px solid var(--rand); border-radius: 8px; padding: .6rem .8rem; box-shadow: var(--schatten); }

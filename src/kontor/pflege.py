@@ -409,7 +409,7 @@ def _trifft(woerter: list[str], felder: list[str]) -> bool:
     return all(any(w in f for f in felder) for w in woerter)
 
 
-def suche(con, q: str, limit: int) -> dict:
+def suche(con, q: str, limit: int, mit_verdacht: bool = False) -> dict:
     woerter = [snorm(w) for w in q.split()]
     konten = [k for k in buch.konten_liste(con)
               if _trifft(woerter, [snorm(k["name"]), snorm(k["iban"]), snorm(k["notiz"])])]
@@ -443,8 +443,9 @@ def suche(con, q: str, limit: int) -> dict:
         treffer = [bid for datum, bid in sorted(reihe, reverse=True)
                    if all(w in texte[bid] for w in woerter)]
     buchungen = buch.buchungen_laden(con, treffer[:limit])
-    from . import verdacht
-    verdacht.anreichern(con, buchungen)
+    if mit_verdacht:   # nur auf Anfrage (M27 1.1, D-171)
+        from . import verdacht
+        verdacht.anreichern(con, buchungen)
     return {"q": q, "konten": konten, "empfaenger": empfaenger, "tags": tags,
             "buchungen": buchungen, "buchungen_gesamt": len(treffer)}
 

@@ -471,7 +471,10 @@ sucheKnopf.addEventListener("click", () => {
 sucheFeld.addEventListener("focus", () => { if (istMobil()) sucheMobil(true); });
 sucheFeld.addEventListener("blur", () => {
   // Tippen auf die Lupe schließt selbst; sonst nach dem Verlassen des leeren Felds einklappen
-  setTimeout(() => { if (istMobil() && !sucheFeld.value && document.activeElement !== sucheKnopf) sucheMobil(false); }, 150);
+  setTimeout(() => {   // nicht schließen, wenn der Fokus inzwischen wieder im Feld liegt (D-174)
+    const a = document.activeElement;
+    if (istMobil() && !sucheFeld.value && a !== sucheKnopf && a !== sucheFeld) sucheMobil(false);
+  }, 150);
 });
 
 // Tabs mobil: statt der Leiste ein Knopf mit der Zahl offener Ansichten; er klappt die Leiste als Liste auf.
@@ -813,13 +816,14 @@ function palette(ausloeser) {
     });
     inhalt.append(eingabe, liste);
     zeichnen();
-  }, { ausloeser: ausloeser || document.activeElement, klasse: "dialog-palette" });
+  }, { ausloeser: ausloeser || document.activeElement, klasse: "dialog-palette",
+    fokus: (box) => box.querySelector("[data-testid=befehlspalette-eingabe]") });   // M26 36.5 (D-172)
 }
 
 function tastaturHilfe() {
   if (tid("tastatur-hilfe")) return;
   const K = [["Strg+K, ⌘+K, Strg+Umschalt+P", "Befehlspalette"], ["/", "Suche"], ["?", "diese Hilfe"],
-    ["Strg+Z", "Rückgängig"], ["Strg+Umschalt+Z, Strg+Y", "Wiederholen"], ["Alt+1 … Alt+8", "Finanzübersicht … Einstellungen"],
+    ["Strg+Z", "Rückgängig"], ["Strg+Umschalt+Z, Strg+Y", "Wiederholen"], ["Alt+1 … Alt+7", "Finanzübersicht … Einstellungen"],
     ["Esc", "Menü/Dialog schließen, sonst Auswahl leeren"], ["Pfeiltasten, Pos1, Ende, Bild↑, Bild↓", "Buchung wählen"],
     ["Umschalt+Pfeil", "Bereich auswählen"], ["Strg+Pfeil", "nur den Fokus bewegen"], ["Leertaste", "Buchung zur Auswahl hinzu/weg"],
     ["Strg+A", "alle Buchungen auswählen"], ["F2", "Verwendungszweck bearbeiten"], ["Entf", "Auswahl löschen (mit Rückfrage)"],
@@ -869,10 +873,10 @@ document.addEventListener("keydown", (e) => {
     e.preventDefault();
     return;
   }
-  if (e.altKey && !strg && /^Digit[1-8]$/.test(e.code)) {
-    e.preventDefault();
-    const z = NAV_ZIELE[Number(e.code.slice(5)) - 1];
-    tid(`nav-${z}`).click();
+  if (e.altKey && !strg && /^Digit[1-9]$/.test(e.code)) {
+    const z = NAV_ZIELE[Number(e.code.slice(5)) - 1];   // Alt+1 … Alt+7; Alt+8 ohne Wirkung (M28 2, D-173)
+    const link = z ? tid(`nav-${z}`) : null;
+    if (link) { e.preventDefault(); link.click(); }
     return;
   }
   if (strg || e.altKey) return;
@@ -941,7 +945,7 @@ export function entsperrDialog(ausloeser) {
     pw.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); los(); } });
     inhalt.append(h("p", null, "Nach einem Neustart liegen Bank-PIN und Mail-Zugänge verschlüsselt vor. Das Login-Passwort öffnet sie bis zum nächsten Neustart."),
       feld("Login-Passwort", pw), knopfLeiste(ok, knopf("Abbrechen", { onclick: () => d.schliessen(null) })));
-  }, { ausloeser });
+  }, { ausloeser, fokus: (box) => box.querySelector("[data-testid=entsperren-passwort]") });   // M26 36.5 (D-172)
 }
 
 async function start() {
