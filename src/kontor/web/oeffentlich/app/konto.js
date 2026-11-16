@@ -3,7 +3,7 @@
 import {
   BESTAND, STATUS_TEXT, abfrage, aktion, anhaengen, api, baumFolge, betragEingabe, betragEl, betragLesen, betragText, datumEl,
   datumText, h, kategorien, klasse,
-  kontoNach, kontoPfad, melde, neueId, oberflaeche, personLesen, pfadVon, stamm, tid,
+  kontoNach, kontoPfad, melde, nameAnzeige, neueId, oberflaeche, personLesen, pfadVon, stamm, tid,
 } from "./kern.js";
 import {
   bestaetigen, dialog, dubletteDialog, erfassenDialog, feld, imDialog, kategorieAuswahl, kontextmenue, knopf, knopfLeiste,
@@ -13,6 +13,7 @@ import { kategorienBaum, langeBeruehrung, ziehbar } from "./baum.js";
 import { ablageEinrichten, betrachter, dateiWaehlen, detailsAbschnitt, mailDialog } from "./dokumente.js";
 import { AusdruckEingabe, markiert } from "./ausdruck.js";
 import { ausdruckFeld, regelEditor } from "./regeleditor.js";
+import { zweckZerlegen } from "./zweck.js";
 
 const PRO_SEITE = 200;
 const GRUPPE_SEITE = 500;          // Höchstwert der Buchungsliste; beim Gruppieren eine Seite statt vieler kleiner
@@ -27,6 +28,35 @@ function periodeText(schluessel) {
     return name ? `${name} ${schluessel.slice(0, 4)}` : schluessel;
   }
   return datumText(schluessel);
+}
+
+const WOCHENTAGE = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
+function wochentag(iso) {
+  const d = new Date(`${(iso || "").slice(0, 10)}T12:00:00Z`);
+  return Number.isNaN(d.getTime()) ? "" : `${WOCHENTAGE[d.getUTCDay()]}, `;
+}
+
+/** Verwendungszweck gegliedert (zweck.js): Wichtiges sichtbar, technische Kennungen und Originaltext aufklappbar. */
+const ZWECK_SICHTBAR = new Set(["karte", "zeitpunkt", "bestellung", "verfahren"]);
+function zweckAnsicht(text) {
+  if (!text) return h("span", { class: "leer" }, "–");
+  const z = zweckZerlegen(text);
+  const karte = z.angaben.find((a) => a.art === "karte");
+  const kartenart = z.angaben.find((a) => a.art === "kartenart");
+  const liste = (angaben) => h("dl", { class: "dk-angaben" }, angaben.flatMap((a) => [
+    h("dt", null, a.name),
+    h("dd", { class: a.mono ? "dk-mono" : null, title: a.wert },
+      a.wert, a === karte && kartenart ? h("span", { class: "dk-kartenart" }, " · ", kartenart.wert) : null)]));
+  const sichtbar = z.angaben.filter((a) => ZWECK_SICHTBAR.has(a.art) || (a === kartenart && !karte));
+  const kennungen = z.angaben.filter((a) => !sichtbar.includes(a) && a !== kartenart);
+  return h("div", { class: "dk-zweck" },
+    z.arten.length ? h("div", { class: "dk-chips" }, z.arten.map((a) => h("span", { class: "dk-chip dk-art" }, a))) : null,
+    z.texte.length ? h("div", { class: "dk-zweck-text" }, z.texte.map((t) => h("div", null, t))) : null,
+    sichtbar.length ? liste(sichtbar) : null,
+    kennungen.length ? h("details", { class: "dk-original klein" },
+      h("summary", null, kennungen.length === 1 ? kennungen[0].name : `Referenzen (${kennungen.length})`), liste(kennungen)) : null,
+    z.erkannt ? h("details", { class: "dk-original klein" }, h("summary", null, "Originaltext"),
+      h("p", { class: "dk-mono" }, text)) : null);
 }
 
 /** Jahr → Monat → Tag. Jeder Knoten trägt die Buchungen seiner Periode. */
@@ -994,10 +1024,11 @@ class Kontoansicht {
       onclick: (e) => { e.stopPropagation(); tun(e.currentTarget); } }, "✎");
   }
 
-  detailZeile(b, feld, name, wert, gesperrt) {
+  /** Bestandteil der Einzelheiten mit Stift; wert ist Text oder Knoten. Optional eigene Klasse und verborgener Name. */
+  detailZeile(b, feld, name, wert, gesperrt, art) {
     const wertEl = h("span", { class: "details-wert" }, wert);
-    return h("div", { class: "details-feld", "data-feld": feld },
-      h("span", { class: "details-name" }, name), wertEl,
+    return h("div", { class: `details-feld${art && art.klasse ? " " + art.klasse : ""}`, "data-feld": feld },
+      h("span", { class: `details-name${art && art.ohneName ? " nur-vorlesen" : ""}` }, name), wertEl,
       this.stift(feld, `${name} bearbeiten`, () => this.detailBearbeiten(b, feld, wertEl), gesperrt));
   }
 
@@ -1061,25 +1092,57 @@ class Kontoansicht {
     if (!b) return [h("p", { class: "leer" }, "Keine Buchung gewählt.")];
     const gesperrt = !!(b.abgestimmt || b.status === "abgeglichen");
     return [
+      this.detailsKopf(b, gesperrt),
       b.verdacht ? h("p", { class: "verdacht-erklaerung", tid: "verdacht-erklaerung" }, b.verdacht.text) : null,
       b.vorschlag ? this.vorschlagDetails(b) : null,
-      this.detailZeile(b, "datum", "Datum", datumText(b.datum), gesperrt),
-      this.detailZeile(b, "empfaenger", "Empfänger", b.empfaenger ? b.empfaenger.name : "ohne Empfänger", gesperrt),
-      this.detailZeile(b, "verwendungszweck", "Verwendungszweck", b.verwendungszweck || "–", gesperrt),
-      h("div", { class: "details-feld" },
-        h("span", { class: "details-name" }, "Buchungssätze"),
-        this.stift("splits", "Buchungssätze bearbeiten", (el) => splitDialog(b, el), gesperrt)),
-      h("ul", { class: "details-splits" }, b.splits.map((s) => h("li", { tid: `details-split-${s.id}`, class: "details-split" },
-        h("span", null, pfadVon(s.konto_id)), " ", betragEl("span", s.betrag), s.memo ? h("small", null, " " + s.memo) : null))),
-      h("div", { class: "details-feld", "data-feld": "tags" },
-        h("span", { class: "details-name" }, "Tags"),
-        h("span", { class: "details-wert" }, b.tags.length ? b.tags.map((t) => t.name).join(", ") : "keine"),
-        this.stift("tags", "Tags bearbeiten", (el) => tagAuswahl([b.id], el), false)),
-      b.extern_ids.length ? h("p", { class: "klein" }, "Herkunft: ", b.extern_ids.join(", ")) : null,
-      this.detailZeile(b, "status", "Status", (STATUS_TEXT[b.status] || b.status) + (b.abgestimmt ? " · abgestimmt" : ""), false),
-      this.bestaetigungZeile(b),
+      h("section", { class: "dk-abschnitt" },
+        this.detailZeile(b, "verwendungszweck", "Verwendungszweck", zweckAnsicht(b.verwendungszweck), gesperrt,
+          { klasse: "dk-block" })),
+      h("section", { class: "dk-abschnitt" },
+        h("div", { class: "details-feld dk-block" },
+          h("span", { class: "details-name" }, "Buchungssätze"),
+          this.stift("splits", "Buchungssätze bearbeiten", (el) => splitDialog(b, el), gesperrt)),
+        this.splitListe(b)),
+      h("section", { class: "dk-abschnitt" },
+        h("div", { class: "details-feld dk-block", "data-feld": "tags" },
+          h("span", { class: "details-name" }, "Tags"),
+          h("span", { class: "details-wert dk-tags" }, b.tags.length
+            ? b.tags.map((t) => h("span", { class: "dk-chip dk-tag" }, t.name))
+            : h("span", { class: "leer" }, "keine")),
+          this.stift("tags", "Tags bearbeiten", (el) => tagAuswahl([b.id], el), false)),
+        this.bestaetigungZeile(b)),
       detailsAbschnitt(b),
+      b.extern_ids.length ? h("p", { class: "dk-herkunft klein", title: b.extern_ids.join("\n") },
+        "Herkunft: ", h("span", { class: "dk-mono" }, b.extern_ids.join(", "))) : null,
     ];
+  }
+
+  /** Kopf der Einzelheiten: Empfänger und Betrag groß, darunter Datum und Status. */
+  detailsKopf(b, gesperrt) {
+    const eigen = b.splits.filter((s) => s.konto_id === this.konto.id);
+    const betrag = eigen.length ? eigen.reduce((n, s) => n + s.betrag, 0) : null;
+    const status = h("span", { class: `dk-status dk-status-${b.status}` },
+      (STATUS_TEXT[b.status] || b.status) + (b.abgestimmt ? " · abgestimmt" : ""));
+    return h("header", { class: `dk-kopf${betrag === null ? "" : betrag < 0 ? " dk-aus" : " dk-ein"}` },
+      h("div", { class: "dk-kopf-oben" },
+        this.detailZeile(b, "empfaenger", "Empfänger", b.empfaenger ? nameAnzeige(b.empfaenger.name) : h("span", { class: "leer" }, "ohne Empfänger"),
+          gesperrt, { klasse: "dk-empfaenger", ohneName: true }),
+        betrag === null ? null : betragEl("span", betrag, { class: "dk-betrag", tid: "details-betrag" })),
+      h("div", { class: "dk-kopf-unten" },
+        this.detailZeile(b, "datum", "Datum", h("span", null, h("span", { class: "dk-wochentag" }, wochentag(b.datum)), datumText(b.datum)),
+          gesperrt, { klasse: "dk-datum", ohneName: true }),
+        this.detailZeile(b, "status", "Status", status, false, { klasse: "dk-status-feld", ohneName: true }),
+        gesperrt ? h("span", { class: "dk-schloss", title: "Abgestimmt bzw. abgeglichen – nur Status und Tags änderbar" }, "🔒") : null));
+  }
+
+  splitListe(b) {
+    const unk = stamm.konten.find((k) => k.extern_id === UNKATEGORISIERT);
+    return h("ul", { class: "details-splits" }, b.splits.map((s) => {
+      const art = s.konto_id === this.konto.id ? " dk-split-eigen" : unk && s.konto_id === unk.id ? " dk-split-offen" : "";
+      return h("li", { tid: `details-split-${s.id}`, class: `details-split${art}` },
+        h("span", { class: "dk-split-konto" }, pfadVon(s.konto_id), s.memo ? h("small", null, " " + s.memo) : null),
+        betragEl("span", s.betrag));
+    }));
   }
 
   detailsZeichnen() {
@@ -1449,7 +1512,7 @@ class Kontoansicht {
         h("button", { type: "button", class: "mini-knopf", tid: `vorschlag-ablehnen-${b.id}`, "data-nicht-ziehen": "",
           "aria-label": "Vorschlag ablehnen", onclick: (e) => this.vorschlag(e, [b.id], "ablehnen") }, "✗")));
     }
-    const empfName = b.empfaenger ? b.empfaenger.name : "";
+    const empfName = b.empfaenger ? nameAnzeige(b.empfaenger.name) : "";
     const empf = h("div", { role: "gridcell", class: "zelle zelle-empfaenger", "data-feld": "empfaenger",
       "data-empfaenger-id": b.empfaenger ? String(b.empfaenger.id) : "" },
     empfName ? markiert(empfName, b.markierungen, "empfänger")

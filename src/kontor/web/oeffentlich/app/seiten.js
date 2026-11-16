@@ -1,7 +1,7 @@
 /* Kontor – Seiten außer der Kontoansicht (oberflaeche.md 6, 13, 14). */
 import {
   BESTAND, STATUS_TEXT, abfrage, aktion, anmeldung, api, baumFolge, betragEl, betragLesen, betragText, datumEl,
-  datumText, h, kategorien, kontoNach, kontoPfad, melde, mobilKarten, nachName, neueId, oberflaeche, personLesen, pfadVon, sichtbar, stamm, tid, zeitEl,
+  datumText, h, kategorien, kontoNach, kontoPfad, melde, mobilKarten, nachName, nameAnzeige, neueId, oberflaeche, personLesen, pfadVon, sichtbar, stamm, tid, zeitEl,
   zeitText,
 } from "./kern.js";
 import {
@@ -544,7 +544,7 @@ function buchungsTabelle(liste, gewaehlt, praefix) {
       const konten = [...new Set(e.splits.map((s) => s.konto_id))]
         .sort((a, b) => Number(gewaehlt.has(b)) - Number(gewaehlt.has(a)));
       return h("tr", { tid: `${praefix}-buchung-${e.id}`, "data-id": String(e.id) },
-        datumEl("td", e.datum), h("td", null, e.empfaenger ? e.empfaenger.name : "–"), h("td", null, e.verwendungszweck || ""),
+        datumEl("td", e.datum), h("td", null, e.empfaenger ? nameAnzeige(e.empfaenger.name) : "–"), h("td", null, e.verwendungszweck || ""),
         betragEl("td", e.splits.filter(zaehlt).reduce((n, s) => n + s.betrag, 0), { class: "zahl" }),
         h("td", { class: "konto-knoepfe" }, konten.map((kid) => {
           const k = kontoNach(kid);
@@ -1385,7 +1385,7 @@ export async function suche(seite, _p, suchtext) {
     e.buchungen.map((b) => {
       const z = h("div", { role: "row", tid: `buchung-${b.id}`, class: "zeile", tabindex: "0", "data-status": b.status, "aria-selected": "false" },
         datumEl("div", b.datum, { role: "gridcell", class: "zelle", "data-feld": "datum" }),
-        h("div", { role: "gridcell", class: "zelle", "data-feld": "empfaenger" }, b.empfaenger ? b.empfaenger.name : "",
+        h("div", { role: "gridcell", class: "zelle", "data-feld": "empfaenger" }, b.empfaenger ? nameAnzeige(b.empfaenger.name) : "",
           b.verdacht ? h("span", { class: "tag tag-verdacht", tid: "verdacht", "data-grund": b.verdacht.grund,
             title: b.verdacht.text, "aria-label": b.verdacht.text }, "Verdächtig") : null),
         h("div", { role: "gridcell", class: "zelle", "data-feld": "verwendungszweck" }, b.verwendungszweck),

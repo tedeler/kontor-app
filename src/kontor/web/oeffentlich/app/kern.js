@@ -118,6 +118,40 @@ export function zeitEl(tag, wert, attrs) {
   return h(tag, { ...(attrs || {}), "data-zeitpunkt": wert || "" }, zeitText(wert));
 }
 
+// ---------------------------------------------------------------- Empfängernamen in der Anzeige (D-177)
+/** Abkürzungen und Rechtsformen in ihrer üblichen Schreibweise (Schlüssel in Großbuchstaben). */
+const NAME_FEST = new Map(["GmbH", "mbH", "AG", "KG", "KGaA", "SE", "UG", "OHG", "GbR", "e.V.", "eG", "Co.", "Co", "Inc.",
+  "Ltd.", "Ltd", "S.A.", "S.A", "R.L.", "S.à.r.l.", "SARL", "B.V.", "DE", "EU", "USA", "UK", "ADAC", "AOK", "BKK", "DAK", "HUK", "BMW", "VW", "DB",
+  "BVG", "HVV", "MVG", "KVB", "VRR", "DKB", "ING", "DHL", "DPD", "GLS", "UPS", "OBI", "REWE", "IKEA", "EDEKA", "ALDI",
+  "LIDL", "dm", "C&A", "H&M", "TK", "IBAN", "PIN", "ARD", "ZDF", "GEZ", "II", "III", "IV"].map((w) => [w.toUpperCase(), w === "R.L." ? "r.l." : w]));
+/** Kleine Wörter mitten im Namen bleiben klein („Cafe am Markt“). */
+const NAME_KLEIN = new Set(["am", "an", "auf", "aus", "bei", "beim", "das", "dem", "den", "der", "des", "die", "für",
+  "im", "in", "mit", "und", "u.", "von", "vom", "zu", "zum", "zur", "of", "the", "and"]);
+
+function nameTeil(teil, ersterTeil) {
+  const fest = NAME_FEST.get(teil.toUpperCase());
+  if (fest) return fest;
+  if (teil.replace(/[^A-Za-zÄÖÜäöüßÀ-ÿ]/g, "").length < 2) return teil;
+  const klein = teil.toLowerCase();
+  if (!ersterTeil && NAME_KLEIN.has(klein)) return klein;
+  return klein.replace(/[a-zäöüßà-ÿ]/, (c) => c.toUpperCase());
+}
+
+/** Empfängername lesbar: Namen ganz in Groß- oder ganz in Kleinbuchstaben werden normal geschrieben
+ *  („AMAZON“/„amazon“ → „Amazon“, bekannte Abkürzungen und Rechtsformen in üblicher Form). Gemischt geschriebene
+ *  Namen („eBay GmbH“, „Café Bohne“) hat jemand bewusst so erfasst; sie bleiben unverändert. Nur Anzeige. */
+export function nameAnzeige(name) {
+  if (!name) return name;
+  const buchstaben = String(name).replace(/[^A-Za-zÄÖÜäöüßÀ-ÿ]/g, "");
+  if (buchstaben !== buchstaben.toUpperCase() && buchstaben !== buchstaben.toLowerCase()) return name;
+  let erster = true;
+  return String(name).replace(/[^\s\-/]+/g, (teil) => {
+    const aus = nameTeil(teil, erster);
+    erster = false;
+    return aus;
+  });
+}
+
 export const STATUS_TEXT = { importiert: "Importiert", vorlaeufig: "Vorläufig", bestaetigt: "Bestätigt",
   abgeglichen: "Abgeglichen" };
 /** Haushalt: ein Passwort, zwei Personen. Die Bestätigung einer Buchung trägt diesen Namen. */
