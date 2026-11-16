@@ -7,6 +7,7 @@ Transaktion. Mehrere Apps im selben Prozess teilen keinen Zustand.
 
 from __future__ import annotations
 
+import hashlib
 import contextlib
 import datetime as dt
 import functools
@@ -1874,9 +1875,14 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
                         headers={"Cache-Control": "no-cache"})
 
     @app.get("/oeffentlich/manifest.webmanifest", include_in_schema=False)
-    async def manifest():
-        return Response((WEB / "oeffentlich" / "manifest.webmanifest").read_bytes(),
-                        media_type="application/manifest+json", headers={"Cache-Control": "no-cache"})
+    async def manifest(request: Request):
+        # wie alle statischen Dateien: no-cache mit ETag und 304 (M26 36.8.1, D-172)
+        daten = (WEB / "oeffentlich" / "manifest.webmanifest").read_bytes()
+        etag = '"' + hashlib.sha256(daten).hexdigest()[:32] + '"'
+        koepfe = {"Cache-Control": "no-cache", "ETag": etag}
+        if etag in [x.strip() for x in request.headers.get("if-none-match", "").split(",")]:
+            return Response(status_code=304, headers=koepfe)
+        return Response(daten, media_type="application/manifest+json", headers=koepfe)
 
     app.mount("/oeffentlich", StaticFiles(directory=str(WEB / "oeffentlich")), name="oeffentlich")
 

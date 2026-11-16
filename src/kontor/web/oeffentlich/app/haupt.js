@@ -813,7 +813,8 @@ function palette(ausloeser) {
     });
     inhalt.append(eingabe, liste);
     zeichnen();
-  }, { ausloeser: ausloeser || document.activeElement, klasse: "dialog-palette" });
+  }, { ausloeser: ausloeser || document.activeElement, klasse: "dialog-palette",
+    fokus: (box) => box.querySelector("[data-testid=befehlspalette-eingabe]") });   // M26 36.5 (D-172)
 }
 
 function tastaturHilfe() {
@@ -941,7 +942,7 @@ export function entsperrDialog(ausloeser) {
     pw.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); los(); } });
     inhalt.append(h("p", null, "Nach einem Neustart liegen Bank-PIN und Mail-Zugänge verschlüsselt vor. Das Login-Passwort öffnet sie bis zum nächsten Neustart."),
       feld("Login-Passwort", pw), knopfLeiste(ok, knopf("Abbrechen", { onclick: () => d.schliessen(null) })));
-  }, { ausloeser });
+  }, { ausloeser, fokus: (box) => box.querySelector("[data-testid=entsperren-passwort]") });   // M26 36.5 (D-172)
 }
 
 async function start() {
