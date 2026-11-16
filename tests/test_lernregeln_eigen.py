@@ -138,9 +138,9 @@ def test_sicherung_enthaelt_vermerk_und_sperre(auto, tmp_path):
 
 def test_empfaenger_mit_zwei_kategorien_bekommt_keine_regel(auto):
     c, buchen, _kat, _emp = auto
+    buchen("Glanz", "Lebensmittel", 500)  # 1 von 16: Anteil Drogerie bleibt unter 95 %
     for i in range(12):
         buchen("Glanz", "Drogerie", 400 + 7 * i)
-    buchen("Glanz", "Lebensmittel", 500)  # 1 von 13: Anteil Drogerie unter 95 %
     for i in range(3):
         buchen("Glanz", "Drogerie", 10 + i)
     assert automatische(c) == []

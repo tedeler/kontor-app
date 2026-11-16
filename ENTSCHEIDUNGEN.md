@@ -2398,3 +2398,15 @@ D-123 bis D-127 sind auf den offenen Branches `dokumente` und `alfbanco-import` 
   Lernmodells ab 1 % mit „Übernehmen“ (`details-einschaetzung`, `details-einschaetzung-grund`,
   `details-einschaetzung-kandidaten`, `details-kandidat-<id>`). Lesezugriff über `POST /api/lernmodell/vorhersage`.
   Service-Worker-Cache `kontor-huelle-32`.
+
+## D-180 Mock-Lerndaten eingecheckt; automatische Regeln mit Toleranz im letzten Jahr
+
+- Die 3000 Lerndaten (D-177) gehören zum Mock: Generator `kontor/mock_lerndaten.py`, eingecheckt als
+  `kontor/mockdaten/lerndaten-3000.csv` (Paketdaten). `POST /api/mock/lerndaten` lädt sie im Mock-Modus in einen
+  Bestand ohne Buchungen (sonst 409 `bestand_nicht_leer`; außerhalb des Mock-Modus 409 `nur_mock_modus`), als eine
+  Änderung `quelle = "import"`, `aktion = "mock_lerndaten"` (rückgängig zu machen). Die Seite Import bietet im
+  Mock-Modus den Knopf „Lerndaten laden (3.000 Buchungen)“.
+- **Ersetzt in D-175 die Bedingung „in den letzten 365 Tagen nie anders“:** in den 365 Tagen bis zur jüngsten
+  Buchung des Empfängers in der Trainingsmenge (bzw. bis heute, falls früher) ebenfalls mindestens 95 %. Das
+  Fenster hängt damit an der Geschichte des Empfängers, nicht an der Uhr. Beim Laden auf einmal verhinderte sonst ein einzelner Fehlgriff (3 % der Lerndaten) die Regel für
+  häufige Empfänger wie den Supermarkt, während sie beim schrittweisen Erfassen früh entstand.

@@ -67,9 +67,10 @@ def _promille(p: Fraction) -> int:
 
 
 class Modell:
-    """Zählungen über die Trainingsmenge (lernmodell.md 3)."""
+    """Zählungen über die Trainingsmenge (lernmodell.md 3); ``schwelle_promille`` siehe D-179."""
 
-    def __init__(self, beispiele: list[tuple[frozenset[str], int]]) -> None:
+    def __init__(self, beispiele: list[tuple[frozenset[str], int]], schwelle_promille: int = SCHWELLE_PROMILLE) -> None:
+        self.schwelle = Fraction(schwelle_promille, 1000)
         self.n = len(beispiele)
         self.nk: Counter[int] = Counter()
         self.nf: Counter[str] = Counter()
@@ -80,10 +81,11 @@ class Modell:
                 self.nf[f] += 1
                 self.nkf[f][c] += 1
 
-    def vorhersage(self, m: frozenset[str]) -> Vorhersage:
+    def rangfolge(self, m: frozenset[str]) -> list[tuple[Fraction, int]]:
+        """Alle Kategorien nach P absteigend (lernmodell.md 4, Schritte 1–5); leer ohne bekanntes E/V-Merkmal."""
         bekannt = [f for f in m if self.nf[f] > 0]
         if not any(f[0] in "ev" for f in bekannt):
-            return KEINE
+            return []
         s: dict[int, Fraction] = {}
         for c, nc in self.nk.items():
             zaehler, nenner = nc, self.n
@@ -92,10 +94,15 @@ class Modell:
                 nenner *= nc + 2
             s[c] = Fraction(zaehler, nenner)
         summe = sum(s.values())
-        reihe = sorted(((p / summe, c) for c, p in s.items()), key=lambda x: (-x[0], x[1]))
+        return sorted(((p / summe, c) for c, p in s.items()), key=lambda x: (-x[0], x[1]))
+
+    def vorhersage(self, m: frozenset[str]) -> Vorhersage:
+        reihe = self.rangfolge(m)
+        if not reihe:
+            return KEINE
         kandidaten = tuple((c, _promille(p)) for p, c in reihe[:MAX_KANDIDATEN])
         p, c = reihe[0]
-        if p >= SCHWELLE:
+        if p >= self.schwelle:
             return Vorhersage(c, _promille(p), kandidaten)
         return Vorhersage(None, None, kandidaten)
 
@@ -133,17 +140,23 @@ def buchungsmerkmale(con, ids: list[int] | None = None) -> dict[int, tuple[froze
     return aus
 
 
+def schwelle_promille(con) -> int:
+    """Schwelle der Instanz (D-179): Einstellung in ``meta``, sonst 700 (lernmodell.md 4)."""
+    r = con.execute("SELECT wert FROM meta WHERE schluessel = 'lern_schwelle_promille'").fetchone()
+    return int(r["wert"]) if r is not None else SCHWELLE_PROMILLE
+
+
 def trainieren(con) -> Modell:
     """Trainingsmenge T: kategorie_id ≠ null und vorschlag = null (lernmodell.md 3)."""
     beispiele = [(m, kat) for _bid, (m, kat, offen) in sorted(buchungsmerkmale(con).items())
                  if kat is not None and not offen]
-    return Modell(beispiele)
+    return Modell(beispiele, schwelle_promille(con))
 
 
 def zustand(con, automatisch: bool) -> dict:
     m = trainieren(con)
     return {"trainingsbuchungen": m.n, "kategorien": len(m.nk), "merkmale": sum(1 for f in m.nf if m.nf[f] > 0),
-            "automatisch": automatisch, "schwelle_promille": SCHWELLE_PROMILLE}
+            "automatisch": automatisch, "schwelle_promille": schwelle_promille(con)}
 
 
 def vorhersagen(con, eintraege: list[dict]) -> dict:

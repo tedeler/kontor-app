@@ -90,7 +90,7 @@ BESCHREIBUNG = {
     "rueckgaengig": "Rückgängig gemacht",
     "vorlage_anlegen": "Split-Vorlage angelegt", "vorlage_aendern": "Split-Vorlage geändert",
     "vorlage_loeschen": "Split-Vorlage gelöscht", "vorlagen_anwenden": "Split-Vorlagen angewendet",
-    "lernmodell_anwenden": "Lernmodell angewendet", "regel_automatisch": "Regel automatisch angelegt",
+    "lernmodell_anwenden": "Lernmodell angewendet", "regel_automatisch": "Regel automatisch angelegt", "mock_lerndaten": "Lerndaten (Mock) geladen",
     "sicherung_einspielen": "Sicherung eingespielt",
     "kredit_anlegen": "Kredit angelegt", "kredit_aendern": "Kredit geändert", "kredit_loeschen": "Kredit gelöscht",
     "kredit_zuordnen": "Kreditraten aufgeteilt", "kredit_jahresabgleich": "Jahresabgleich eines Kredits",

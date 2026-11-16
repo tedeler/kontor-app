@@ -1,4 +1,7 @@
-"""Synthetische Lerndaten nach echten Mustern deutscher Kontoauszüge (Feature `lernmodell-transparenz`).
+"""Mock-Lerndaten: 3000 synthetische Buchungen nach echten Mustern deutscher Kontoauszüge (D-177, D-180).
+
+Eingecheckt als ``mockdaten/lerndaten-3000.csv`` (erzeugt mit ``python -m kontor.mock_lerndaten``); im Mock-Modus
+lädt ``POST /api/mock/lerndaten`` sie in einen leeren Buchbestand.
 
 Erzeugt reproduzierbar (fester Startwert) genau ``ANZAHL`` Buchungen eines Girokontos mit wechselnden
 Verwendungszwecken (Uhrzeiten, Terminals, Bestell-, Kunden- und Mandatsnummern), wie sie Banken liefern.
@@ -24,6 +27,7 @@ from __future__ import annotations
 import csv
 import datetime as dt
 import io
+import pathlib
 import random
 import string
 
@@ -232,49 +236,73 @@ def als_csv(buchungen: list[dict]) -> str:
         e, c = divmod(abs(b["betrag"]), 100)
         w.writerow((b["datum"].isoformat(), b["empfaenger"], b["verwendungszweck"],
                     f"{'-' if b['betrag'] < 0 else ''}{e},{c:02d}",
-                    b["erfasst"] if b["teil"] == "training" else "", b["wahr"], b["teil"]))
+                    b["erfasst"] if b["teil"] == "training" or b["erfasst"] in EIGENE else "", b["wahr"], b["teil"]))
     return f.getvalue()
 
 
-def laden(client, buchungen: list[dict]) -> dict:
-    """Legt Konten, Kategorien, Empfänger und Buchungen über die REST-Schnittstelle an.
+DATEI = pathlib.Path(__file__).parent / "mockdaten" / "lerndaten-3000.csv"
 
-    Trainingsbuchungen erhalten ihre erfasste Kategorie, Prüfbuchungen stehen auf „Unkategorisiert“.
-    Gibt ``{"ids": {nr: buchung_id}, "kategorien": {name: id}, "konten": {name: id}}`` zurück.
+
+def lesen(pfad: pathlib.Path = DATEI) -> list[dict]:
+    """Liest die eingecheckte CSV (Format von ``als_csv``); Beträge als ganze Cent."""
+    aus = []
+    with open(pfad, encoding="utf-8", newline="") as f:
+        for i, z in enumerate(csv.DictReader(f, delimiter=";")):
+            euro, cent = z["Betrag"].lstrip("-").split(",")
+            betrag = int(euro) * 100 + int(cent)
+            aus.append({"nr": i + 1, "datum": dt.date.fromisoformat(z["Datum"]), "empfaenger": z["Empfänger/Sender"],
+                        "verwendungszweck": z["Verwendungszweck"],
+                        "betrag": -betrag if z["Betrag"].startswith("-") else betrag,
+                        "erfasst": z["Kategorie"] or None, "wahr": z["Richtige Kategorie"], "teil": z["Teil"]})
+    return aus
+
+
+def laden(con, buchungen: list[dict] | None = None) -> dict:
+    """Legt Konten, Kategorien, Empfänger und Buchungen im Buchbestand an (innerhalb einer Änderung).
+
+    Trainingsbuchungen erhalten ihre erfasste Kategorie, Prüfbuchungen stehen auf „Unkategorisiert“, Umbuchungen
+    gehen auf das eigene Konto. Gibt ``{"ids": {nr: buchung_id}, "kategorien": {…}, "konten": {…}}`` zurück.
     """
-    def konto(name, art):
-        r = client.post("/api/konten", json={"name": name, "art": art})
-        assert r.status_code == 201, r.text
-        return r.json()["id"]
+    from . import buch, pflege
 
+    if buchungen is None:
+        buchungen = lesen()
+    konto = lambda name, art: buch.konto_anlegen(con, {"name": name, "art": art})["id"]  # noqa: E731
     giro = konto("Girokonto", "girokonto")
     eigene = {n: konto(n, a) for n, a in EIGENE.items()}
     kat = {n: konto(n, "aufwand") for n in AUFWAND} | {n: konto(n, "ertrag") for n in ERTRAG}
     unk = konto("Unkategorisiert", "eigenkapital")
     anfang = konto("Anfangsbestand", "eigenkapital")
-    client.post("/api/buchungen", json={"datum": buchungen[0]["datum"].isoformat(), "verwendungszweck": "Anfangsbestand",
-                                        "splits": [{"konto_id": giro, "betrag": 500000},
-                                                   {"konto_id": anfang, "betrag": -500000}]})
+    buch.buchung_einfuegen(con, buchungen[0]["datum"].isoformat(), None, "Anfangsbestand", "bestaetigt",
+                           [{"konto_id": giro, "betrag": 500000}, {"konto_id": anfang, "betrag": -500000}], [])
     empf: dict[str, int] = {}
     ids = {}
     for b in buchungen:
         if b["empfaenger"] not in empf:
-            r = client.post("/api/empfaenger", json={"name": b["empfaenger"]})
-            assert r.status_code == 201, r.text
-            empf[b["empfaenger"]] = r.json()["id"]
-        if b["erfasst"] in eigene:
-            gegen = eigene[b["erfasst"]]
+            empf[b["empfaenger"]] = pflege.empfaenger_anlegen(con, {"name": b["empfaenger"]})["id"]
+        erfasst = b["erfasst"]
+        if erfasst in eigene:
+            gegen = eigene[erfasst]
         else:
-            gegen = kat[b["erfasst"]] if b["teil"] == "training" else unk
-        r = client.post("/api/buchungen", json={
-            "datum": b["datum"].isoformat(), "empfaenger_id": empf[b["empfaenger"]],
-            "verwendungszweck": b["verwendungszweck"],
-            "splits": [{"konto_id": giro, "betrag": b["betrag"]}, {"konto_id": gegen, "betrag": -b["betrag"]}]})
-        assert r.status_code == 201, r.text
-        ids[b["nr"]] = r.json()["id"]
+            gegen = kat[erfasst] if b["teil"] == "training" and erfasst else unk
+        ids[b["nr"]] = buch.buchung_einfuegen(
+            con, b["datum"].isoformat(), empf[b["empfaenger"]], b["verwendungszweck"], "bestaetigt",
+            [{"konto_id": giro, "betrag": b["betrag"]}, {"konto_id": gegen, "betrag": -b["betrag"]}], [])
     return {"ids": ids, "kategorien": kat, "konten": {"Girokonto": giro, **eigene, "Unkategorisiert": unk}}
 
 
-if __name__ == "__main__":  # pragma: no cover - Hilfe zum Ansehen: CSV auf die Standardausgabe
-    import sys
-    sys.stdout.write(als_csv(erzeugen()))
+def mock_laden(con) -> dict:
+    """``POST /api/mock/lerndaten``: nur in einen Buchbestand ohne Buchungen."""
+    from .buch import ApiFehler
+
+    if con.execute("SELECT 1 FROM buchung LIMIT 1").fetchone() is not None:
+        raise ApiFehler(409, "bestand_nicht_leer",
+                        "Die Lerndaten lassen sich nur in einen Bestand ohne Buchungen laden.")
+    daten = lesen()
+    erg = laden(con, daten)
+    return {"buchungen": len(erg["ids"]) + 1, "konten": len(erg["kategorien"]) + len(erg["konten"]) + 1,
+            "pruefbuchungen": sum(b["teil"] == "pruefung" for b in daten)}
+
+
+if __name__ == "__main__":  # pragma: no cover - erzeugt die eingecheckte Datei neu
+    DATEI.write_text(als_csv(erzeugen()), encoding="utf-8")
