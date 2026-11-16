@@ -220,6 +220,7 @@ export class AusdruckEingabe {
       const f = r.fehler[0];
       const ort = this.eingabe.value.includes("\n") ? `Zeile ${f.zeile}, Spalte ${f.spalte}: ` : `Spalte ${f.spalte}: `;
       this.fehlerEl.textContent = ort + f.meldung;
+      this.fehlerEl.title = ort + f.meldung;   // vollständig als Tooltip, falls die Zeile gekürzt ist
       this.fehlerEl.dataset.art = "fehler";
       this.fehlerEl.dataset.code = f.code;
     }

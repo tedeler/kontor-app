@@ -2439,3 +2439,13 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 
 - Der Platzhalter (Beispielausdruck) erscheint kursiv mit 40 % Deckkraft, damit er im leeren Feld nicht wie eine
   eingegebene Bedingung wirkt.
+
+## D-182 Regelfenster ruhig und sofort aktuell
+
+- Das Regelfenster hat eine feste Höhe (höchstens 56 rem). Links rollt der Editor, rechts nur die Trefferliste;
+  Treffer verändern die Fenstergröße nicht mehr. Fehlerzeile des Ausdrucks und Statuszeile des Tests haben einen
+  festen Platz (gekürzt, voller Text als Tooltip). Der Baukasten-Hinweis erscheint nicht mehr beim Tippen; der
+  gesperrte Reiter erklärt sich per Tooltip. Schmale Fenster und Handy: wie bisher untereinander, rollt als Ganzes.
+- Der Test lädt sofort nach jeder erfolgreichen Prüfung des Ausdrucks (vorher zusätzlich 400 ms). Ab dem ersten
+  Tastendruck ist das alte Ergebnis abgeblendet (`data-veraltet="ja"`) mit „aktualisiere …“ in `test-status`. Bei
+  ungültigem Ausdruck oder unvollständigem Baukasten bleibt das letzte gültige Ergebnis abgeblendet stehen.

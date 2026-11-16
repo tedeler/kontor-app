@@ -986,3 +986,29 @@ html[data-thema="dunkel"] .wirkung-abweichend { background: #5a3412; color: #ffd
 .ausdruck-vorschlaege .klein { margin-left: .6em; color: var(--text-2); }
 .test-knoepfe { grid-column: 4; grid-row: 2; display: inline-flex; gap: .25rem; }
 #regel-uebernehmen, [data-testid="regel-uebernehmen"] { margin-bottom: .4rem; max-width: 100%; }
+
+/* D-182: Regelfenster mit fester Höhe; links und die Trefferliste rollen je für sich, das Fenster springt nicht */
+.dialog-regel { height: min(56rem, calc(100% - 1rem)); }
+.dialog-regel .dialog-inhalt { flex: 1 1 auto; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+.dialog-regel .regel-editor { flex: 1 1 auto; min-height: 0; }
+.dialog-regel .regel-editor-links { min-height: 0; overflow: auto; padding-right: .3rem; }
+.dialog-regel .regel-test { min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.dialog-regel .regel-test > * { flex: none; }
+.dialog-regel .test-liste { flex: 1 1 auto; min-height: 6rem; max-height: none; }
+.test-zahlen { min-height: 1.4em; }
+.test-status { font-size: .8rem; color: var(--text-2); margin-left: .5rem; font-weight: 400; }
+.regel-test[data-veraltet="ja"] .test-liste, .regel-test[data-veraltet="ja"] .test-chips { opacity: .5; transition: opacity .15s; }
+@media (max-width: 900px) {
+  .dialog-regel { height: calc(100% - 1rem); }
+  .dialog-regel .dialog-inhalt { overflow: auto; display: block; }
+  .dialog-regel .regel-editor-links, .dialog-regel .regel-test { overflow: visible; }
+  .dialog-regel .test-liste { max-height: 26rem; }
+}
+.app[data-layout="mobil"] ~ .dialog-huelle .dialog-regel .dialog-inhalt { overflow: auto; display: block; }
+.app[data-layout="mobil"] ~ .dialog-huelle .dialog-regel .regel-editor-links,
+.app[data-layout="mobil"] ~ .dialog-huelle .dialog-regel .regel-test { overflow: visible; }
+.test-liste { align-content: start; }
+/* D-182: feste Zeilen für Fehler- und Statustexte im Regelfenster, damit beim Tippen nichts springt */
+.dialog-regel .ausdruck-fehler:empty { display: block; visibility: hidden; }
+.dialog-regel .ausdruck-fehler { min-height: 1.25em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dialog-regel .test-status { display: block; margin-left: 0; min-height: 1.2em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

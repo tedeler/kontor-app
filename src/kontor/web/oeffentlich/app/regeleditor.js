@@ -362,11 +362,12 @@ export async function regelEditor(r, ausloeser) {
       wert: r ? (r.ausdruck || "") : "",
       beschriftung: "Bedingungen (Ausdruck)",
       platzhalter: '"REWE" in empf and dir == "ausgabe"',
-      beiErgebnis: (e) => { umschalterPruefen(e); testPlanen(); } });
+      beiErgebnis: (e) => { umschalterPruefen(e); testNachPruefung(e); } });
     const baukasten = new Baukasten(sp, () => {
       const t = baukasten.text();
       vorschau.replaceChildren(t ? hervorgehoben(t, feldMenge(sp)) : h("span", { class: "klein" }, "(unvollständig)"));
-      if (t !== null && t !== ausdruckEl.wert) { ausdruckEl.wert = t; }
+      if (t !== null && t !== ausdruckEl.wert) { ausdruckEl.wert = t; test.veraltet(); }
+      else if (t === null) test.veraltet("Baukasten unvollständig – Ergebnis vom letzten vollständigen Stand");
       geaendert = true;
     });
     const vorschau = h("div", { class: "bk-vorschau", tid: "regel-baukasten-ausdruck" });
@@ -389,17 +390,20 @@ export async function regelEditor(r, ausloeser) {
         ", Methoden ", h("code", null, '.startswith("…") .endswith("…") .search(r"…")'), ". Kurzformen: ",
         h("code", null, "empf vwz bet dir"), ". Regeln kennen kein Datum; dafür monatstag, monat, wochentag."),
       knopfLeiste(kopierKnopf(), testKnopf()));
+    // Beim Tippen nur den Reiter sperren (mit Tooltip); der Hinweistext erscheint erst beim Versuch umzuschalten,
+    // damit links nichts springt (D-182).
     const umschalterPruefen = (e) => {
       const ok = !e || (e.gueltig && e.baukasten_faehig);
       tabBk.disabled = !ok && modus === "ausdruck";
-      bkHinweis.hidden = ok;
+      tabBk.title = ok ? "" : (e && !e.gueltig ? "Erst den Ausdruck korrigieren" : "Ausdruck zu verschachtelt für den Baukasten");
+      if (ok) bkHinweis.hidden = true;
       bkHinweis.textContent = e && !e.gueltig ? "Der Ausdruck ist ungültig; im Baukasten geht es erst nach der Korrektur weiter."
         : "Dieser Ausdruck ist zu verschachtelt für den Baukasten. Bearbeiten Sie ihn als Text.";
     };
     const zeigen = async (m) => {
       if (m === "baukasten") {
         const e = ausdruckEl.wert.trim() ? await ausdruckEl.pruefen() : null;
-        if (e && (!e.gueltig || !e.baukasten_faehig)) { umschalterPruefen(e); return; }
+        if (e && (!e.gueltig || !e.baukasten_faehig)) { umschalterPruefen(e); bkHinweis.hidden = false; return; }
         baukasten.setzen(e ? baukastenAusBaum(e.baum, sp) : null);
         if (e && !baukastenAusBaum(e.baum, sp)) {
           bkHinweis.hidden = false;
@@ -445,7 +449,14 @@ export async function regelEditor(r, ausloeser) {
       if (x) bedingungSetzen(x.ausdruck, x.kategorie_id);
     });
     let testUhr;
-    const testPlanen = () => { clearTimeout(testUhr); testUhr = setTimeout(() => test.laden(), 400); };
+    const testPlanen = () => { clearTimeout(testUhr); test.veraltet(); testUhr = setTimeout(() => test.laden(), 150); };
+    // Nach jeder Prüfung sofort testen; ungültig → letztes Ergebnis bleibt sichtbar, als veraltet markiert (D-182)
+    const testNachPruefung = (e) => {
+      clearTimeout(testUhr);
+      if (e && !e.gueltig) test.veraltet("Ausdruck ungültig – Ergebnis vom letzten gültigen Stand");
+      else test.laden();
+    };
+    ausdruckEl.eingabe.addEventListener("input", () => test.veraltet());
     kat.addEventListener("change", () => { geaendert = true; testPlanen(); });
     ausdruckEl.eingabe.addEventListener("input", () => { geaendert = true; });
 
@@ -499,9 +510,10 @@ class Testbereich {
     this.wirkung = "";
     this.zaehlung = null;
     this.nr = 0;
-    this.menge = new AusdruckEingabe({ kontext: "filter", tid: "regel-testmenge", wert: testmenge || "datum in -12m",
+    this.menge = new AusdruckEingabe({ kontext: "filter", tid: "regel-testmenge", wert: testmenge ?? "datum in -12m",
       beschriftung: "Testmenge", beiEnter: () => this.laden(), beiErgebnis: (e) => { if (e && e.gueltig) this.planen(); } });
-    this.zahlenEl = h("div", { class: "test-zahlen", tid: "test-zahlen", role: "status" });
+    this.zahlenEl = h("span", { tid: "test-zahlen" });
+    this.statusEl = h("span", { class: "test-status", tid: "test-status" });
     this.chipsEl = h("div", { class: "test-chips", role: "group", "aria-label": "Nach Wirkung filtern" });
     this.listeEl = h("ul", { class: "test-liste", tid: "test-liste" });
     this.erfasstEl = h("p", { class: "klein", tid: "test-nicht-erfasst" });
@@ -517,14 +529,20 @@ class Testbereich {
       feld("Quellkonto", this.konto),
       ausdruckFeld("Testmenge (Filter)", this.menge),
       h("div", { class: "test-schnell" }, schnell.map(([t, w]) => knopf(t, { class: "chip", onclick: () => { this.menge.wert = w; this.laden(); } }))),
-      this.zahlenEl, this.leerHinweis, this.chipsEl, this.listeEl, this.erfasstEl, knopfLeiste(this.anwendenKnopf));
+      h("div", { class: "test-zahlen", role: "status" }, this.zahlenEl, this.statusEl), this.leerHinweis, this.chipsEl, this.listeEl, this.erfasstEl, knopfLeiste(this.anwendenKnopf));
   }
 
   testmengeText() { return this.menge.wert; }
 
   kontoId() { return this.konto.value ? Number(this.konto.value) : undefined; }
 
-  planen() { clearTimeout(this.uhr); this.uhr = setTimeout(() => this.laden(), 400); }
+  planen() { clearTimeout(this.uhr); this.veraltet(); this.uhr = setTimeout(() => this.laden(), 300); }
+
+  /** Ergebnis gilt nicht mehr für die aktuelle Eingabe: abgeblendet, mit Hinweis (D-182). */
+  veraltet(text) {
+    this.el.dataset.veraltet = "ja";
+    this.statusEl.textContent = text || "aktualisiere …";
+  }
 
   async laden() {
     const r = this.regel();
@@ -539,19 +557,26 @@ class Testbereich {
     };
     const ohne = !r.ausdruck.trim();   // ohne Bedingung: Buchungen der Testmenge zeigen (Bedingung „True“)
     if (alt && !(r.regel_id && !r.geaendert)) { leer("Alte Zeilenform: zum Testen speichern oder als Ausdruck schreiben."); return; }
-    if (!ohne && !alt && r.ergebnis && !r.ergebnis.gueltig) { leer("Erst einen gültigen Ausdruck eingeben."); return; }
+    if (!ohne && !alt && r.ergebnis && !r.ergebnis.gueltig) {
+      if (!this.listeEl.children.length) leer("Erst einen gültigen Ausdruck eingeben.");
+      this.veraltet("Ausdruck ungültig – Ergebnis vom letzten gültigen Stand");
+      return;
+    }
     const body = { kategorie_id: ohne ? undefined : r.kategorie_id, testmenge: this.menge.wert, pro_seite: 100, konto_id: this.kontoId() };
     if (ohne) body.ausdruck = "True";
     else if (!alt) body.ausdruck = r.ausdruck;
     if (r.regel_id && !ohne) body.regel_id = r.regel_id;
     if (this.wirkung && !ohne) body.wirkung = [this.wirkung];
     this.el.dataset.geladen = "nein";
+    if (!this.statusEl.textContent) this.veraltet();
     let t;
     try { t = await api("POST", "/api/regeln/test", body); } catch (e) {
-      if (nr === this.nr) { this.zahlenEl.textContent = e.message || "Test nicht möglich."; this.el.dataset.geladen = "ja"; }
+      if (nr === this.nr) { this.veraltet(e.message || "Test nicht möglich."); this.el.dataset.geladen = "ja"; }
       return;
     }
     if (nr !== this.nr) return;
+    this.el.dataset.veraltet = "nein";
+    this.statusEl.textContent = "";
     this.zaehlung = t.zaehlung;
     this.leerHinweis.hidden = t.testmenge_anzahl > 0;
     this.ohneBedingung = ohne;
