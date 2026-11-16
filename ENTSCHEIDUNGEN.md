@@ -2335,3 +2335,56 @@ D-123 bis D-127 sind auf den offenen Branches `dokumente` und `alfbanco-import` 
 - **Mobile Suche:** Das verzögerte Einklappen nach dem Verlassen des leeren Felds unterbleibt, wenn der Fokus
   inzwischen wieder im Feld liegt (Wettlauf beim schnellen Öffnen über die Lupe).
 - Service-Worker-Cache `kontor-huelle-30`.
+
+## D-175 Kontor-Ausdrücke: gemeinsame Sprache für Regeln und Kontoblatt-Filter (Feature `ausdruecke`)
+
+Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abgestimmt am 2026-11-16).
+- **Modul `ausdruck.py`:** Lexer, Parser (Python-Ausdrücke, C-Aliase `&&`, `||`, `!`), Typprüfung zu einem
+  JSON-Baum mit Verweisen als IDs, kanonischer Text (`drucken`), Auswertung, „Warum?“-Baum, Markierungen.
+  Ausgewertet wird nie mit `eval`.
+- **Felder** deutsch nach dem Kontoblatt, Kurzformen `empf`, `vwz`, `bet`, `dir`, `dt` (vom Auftraggeber
+  bestätigt). Kanonisch wird der volle Name gedruckt. `betrag` ohne Vorzeichen, Richtung in `richtung`
+  (`ausgabe`, `einnahme`, `umbuchung` = alle Splits auf Bestandskonten). Auswahlwerte ohne Umlaute
+  (`"bestaetigt"`); Eingaben mit Umlaut werden angenommen.
+- **Textvergleiche** wie die Volltextsuche: Groß-/Kleinschreibung egal und Umlaute angeglichen (`text.norm`).
+  `case=True` unterscheidet Groß-/Kleinschreibung, `fold=False` schaltet das Angleichen der Umlaute ab. Mehrfache
+  Leerzeichen werden (anders als im Konzept skizziert) nicht zusammengefasst, damit Filter und Volltextsuche
+  gleich zählen.
+- **Reguläre Ausdrücke** über RE2 (`google-re2`, neue Abhängigkeit): lineare Laufzeit, keine Rückverweise oder
+  Lookarounds. Vorprüfung mit `re` für die Fehlerstelle; RE2 ohne Fehlerausgabe auf stderr.
+- **Kontexte:** `regel` (ohne `datum`, `jahr`, `kw`, Freitext) und `filter`. Datumsangaben nach Konzept 4.6;
+  `-5d` ist Kurzform für `heute - 5d` (Zeitraum bis heute). `29.2.` ohne Jahr gilt in Nichtschaltjahren als
+  28.02. Bezugstag ist `SyncDienst.heute()` (Mock-Uhr), über `stichtag` übersteuerbar.
+- **Freitext im Filter:** unbekannte Wörter und allein stehende Texte sind Volltextsuche (Empfänger,
+  Verwendungszweck, Notiz, Tags); Nebeneinander wirkt wie `and`. Ist der Text kein Ausdruck und enthält er keine
+  Operatorzeichen, wird er als Suche aller Wörter gelesen.
+
+## D-176 Regeln mit Ausdruck: Speicherung ohne Schemaänderung
+
+- Ein Ausdruck wird als einzige Bedingung `{"feld": "ausdruck", "operator": "ausdruck", "wert": <Baum>}` in
+  der vorhandenen Spalte `regel.bedingungen` gespeichert. Damit bleiben Datenbankschema, Sicherungsdatei
+  (Schemaversion 7) und Protokollform unverändert; die Sicherungsprüfung akzeptiert diese Form (`intern=True`).
+- API: `POST`/`PATCH /api/regeln` nehmen `ausdruck` (Text) statt `bedingungen` an (genau eines). Antworten
+  enthalten zusätzlich `ausdruck` (kanonischer Text, bei alten Regeln übersetzt) und `ausdruck_form`
+  (`ausdruck` | `bedingungen`). Alte Regeln bleiben unverändert gespeichert und werten wie bisher aus; die
+  Übersetzung (`bedingungen_als_baum`) ist gleichbedeutend, auch für den vorzeichenbehafteten Regelbetrag.
+- Verweise auf Konten und Kategorien im Ausdruck zählen wie `konto_id`-Bedingungen: Konto nicht löschbar,
+  Umleiten beim Löschen mit Buchungen und Zusammenführen ersetzt die ID, Rückgängig prüft den Bezug. Tags werden
+  per ID verwiesen; ein gelöschter Tag erscheint als `"#<id>"` und trifft nie.
+- Neu: `POST /api/regeln/reihenfolge` (vollständige ID-Liste → Priorität 10, 20, …; Aktion
+  `regeln_reihenfolge`), `POST /api/regeln/test`, `POST /api/regeln/erklaeren` (Lesezugriffe) und
+  `POST /api/regeln/{id}/anwenden` (Aktion `regeln_anwenden`, Quelle `regeln`, wie das bestehende Anwenden).
+  Das Anwenden ändert nur Buchungen, bei denen die Regel gewinnt (nicht „verdeckt“).
+- Aktionen bleiben vorerst bei „Kategorie vorschlagen“. „Tags hinzufügen“, „direkt bestätigen“ und „danach keine
+  weiteren Regeln“ (Konzept 3) brauchen eine Schemaänderung und warten auf die Entscheidung des Auftraggebers.
+
+## D-177 Filter in Buchungslisten
+
+- `GET /api/buchungen` (und damit Export) nimmt `filter` (Ausdruck, Kontext `filter`) und `stichtag` an.
+  Verknüpfung mit den übrigen Parametern per `and`. Ungültig → 422 `ausdruck_ungueltig` mit `details.fehler`.
+- Umsetzung: Die übrigen SQL-Bedingungen liefern die Kandidaten, der Ausdruck wird in Python ausgewertet, die
+  Treffer gehen als `json_each` zurück in die Abfrage (Sortierung, Seiten, Summe unverändert).
+- Im Kontoblatt bezieht sich `betrag`/`richtung` auf die Splits des angezeigten Kontos (wie die Spalte Betrag),
+  ohne Konto auf alle Bestandskonten (wie bei Regeln). Einträge tragen bei aktivem Filter `markierungen`.
+- `GET /api/ausdruck/sprache?kontext=…` und `POST /api/ausdruck/pruefen` (mit `datumsangaben`, `freitext`,
+  `zusammenfassung`, `hinweise`, `baukasten_faehig`).

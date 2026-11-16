@@ -585,7 +585,7 @@ def _inhalt_pruefen(zeilen: dict[str, list[tuple]]) -> dict[str, dict[int, dict]
                 bed = json.loads(r["bedingungen"])
                 regeln.regel_koerper(json.dumps({"name": r["name"], "aktiv": bool(r["aktiv"]),
                                                  "prioritaet": r["prioritaet"], "kategorie_id": r["kategorie_id"],
-                                                 "bedingungen": bed}).encode(), True)
+                                                 "bedingungen": bed}).encode(), True, intern=True)
             except (ValueError, ApiFehler):
                 schlecht("Regel")
         for r in mem.execute("SELECT * FROM vorlage").fetchall():

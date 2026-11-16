@@ -30,7 +30,7 @@ from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.staticfiles import StaticFiles
 
-from . import (__version__, berichte, buch, db, export, kredite, lernmodell, mail, pflege, protokoll, regeln,
+from . import (__version__, ausdruck, berichte, buch, db, export, kredite, lernmodell, mail, pflege, protokoll, regeln,
                sicherung, statistik, verschieben, vorlagen, wiederkehrend)
 from . import aktualisierung
 from . import abgleich, dokumente, erwartung
@@ -204,6 +204,18 @@ REGELN_ANWENDEN = {
     "nur_unkategorisiert": S("bool"),
     "trocken": S("bool"),
 }
+# D-175: Kontor-Ausdrücke
+AUSDRUCK_PRUEFEN = {"ausdruck": S("str", pflicht=True, max_len=4000), "kontext": S("enum", werte=("regel", "filter")),
+                    "stichtag": S("datum")}
+REGELN_REIHENFOLGE = {"regel_ids": S("int_liste", pflicht=True, eindeutig=True)}
+REGEL_TEST = {"ausdruck": S("str", min_len=1, max_len=4000), "regel_id": S("int"), "kategorie_id": S("int", nullbar=True),
+              "testmenge": S("str", max_len=4000), "stichtag": S("datum"),
+              "wirkung": S("str_liste"),
+              "seite": S("int"), "pro_seite": S("int")}
+REGEL_ERKLAEREN = {"ausdruck": S("str", min_len=1, max_len=4000), "regel_id": S("int"), "buchung_id": S("int", pflicht=True),
+                   "stichtag": S("datum")}
+REGEL_ANWENDEN_EINZELN = {"testmenge": S("str", max_len=4000), "buchung_ids": S("int_liste", min_items=1, eindeutig=True),
+                          "abweichende_ueberschreiben": S("bool"), "stichtag": S("datum")}
 SYNC_ANFRAGE = {"von": S("datum"), "bis": S("datum")}
 SYNC_ENTSCHEIDUNG = {"aktion": S("enum", pflicht=True, werte=("wiederherstellen", "ignorieren")),
                      "buchungen": S("enum", pflicht=True, werte=("alle", "nur_neue"))}
@@ -544,7 +556,10 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
             "abgestimmt": q.wahrheitswert("abgestimmt"),
             "sortierung": q.auswahl("sortierung", buch.SORTIERUNGEN) or "datum",
             "verdacht": q.auswahl("verdacht", ("ja", "nein")) == "ja",   # M27 1.1 (D-171)
+            "filter": q.text("filter", 1),                                # D-175: Ausdrucksfilter
         }
+        stichtag = q.datum("stichtag")
+        f["heute"] = dt.date.fromisoformat(stichtag) if stichtag else sync.heute()
         if seiten:
             f["seite"] = q.ganzzahl("seite", minimum=1)
             f["pro_seite"] = q.ganzzahl("pro_seite", minimum=1, maximum=500)
@@ -657,6 +672,48 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
         d = pruefe_koerper(roh if roh.strip() else b"{}", REGELN_ANWENDEN)
         return await aendern("regeln_anwenden", regeln.anwenden, d.get("buchung_ids"), d.get("regel_ids"),
                              d.get("nur_unkategorisiert", True), d.get("trocken", False), quelle="regeln")
+
+    # --------------------------------------------- Kontor-Ausdrücke (D-175)
+    def _bezugstag(d: dict) -> dt.date:
+        return dt.date.fromisoformat(d["stichtag"]) if d.get("stichtag") else sync.heute()
+
+    @endpunkt("GET", "/api/ausdruck/sprache")
+    async def ausdruck_sprache(request: Request):
+        q = Query(request.query_params)
+        kontext = q.auswahl("kontext", ausdruck.KONTEXTE) or "filter"
+        q.pruefen()
+        return ausdruck.sprache(kontext)
+
+    @endpunkt("POST", "/api/ausdruck/pruefen")
+    async def ausdruck_pruefen(request: Request):
+        d = await koerper(request, AUSDRUCK_PRUEFEN)
+        return await lesen(ausdruck.pruefen, d["ausdruck"], d.get("kontext") or "filter", _bezugstag(d))
+
+    @endpunkt("POST", "/api/regeln/reihenfolge")
+    async def regeln_reihenfolge(request: Request):
+        d = await koerper(request, REGELN_REIHENFOLGE)
+        return await aendern("regeln_reihenfolge", regeln.reihenfolge_setzen, d["regel_ids"])
+
+    @endpunkt("POST", "/api/regeln/test")
+    async def regeln_test(request: Request):
+        d = await koerper(request, REGEL_TEST)
+        if (d.get("seite") is not None and d["seite"] < 1) or (d.get("pro_seite") is not None and not 1 <= d["pro_seite"] <= 500):
+            raise ApiFehler(422, "validierung", "seite ≥ 1, pro_seite 1–500.")
+        if any(w not in regeln.WIRKUNGEN for w in d.get("wirkung") or []):
+            raise ApiFehler(422, "validierung", "Erlaubte Wirkungen: " + ", ".join(regeln.WIRKUNGEN) + ".")
+        return await lesen(regeln.testen, d, _bezugstag(d))
+
+    @endpunkt("POST", "/api/regeln/erklaeren")
+    async def regeln_erklaeren(request: Request):
+        d = await koerper(request, REGEL_ERKLAEREN)
+        return await lesen(regeln.erklaeren, d, _bezugstag(d))
+
+    @endpunkt("POST", "/api/regeln/{regel_id:int}/anwenden")
+    async def regel_einzeln_anwenden(request: Request):
+        roh = await request.body()
+        d = pruefe_koerper(roh if roh.strip() else b"{}", REGEL_ANWENDEN_EINZELN)
+        return await aendern("regeln_anwenden", regeln.regel_anwenden, pid(request, "regel_id"), d, _bezugstag(d),
+                             quelle="regeln")
 
     @endpunkt("GET", "/api/regeln/{regel_id:int}")
     async def regel_lesen(request: Request):

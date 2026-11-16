@@ -454,7 +454,7 @@ def suche(con, q: str, limit: int, mit_verdacht: bool = False) -> dict:
 
 
 def _regel_bezieht(r: dict, kid: int) -> bool:
-    return r["kategorie_id"] == kid or any(b["feld"] == "konto_id" and b["wert"] == kid for b in r["bedingungen"])
+    return r["kategorie_id"] == kid or kid in regeln.konto_verweise(r["bedingungen"])
 
 
 def konto_loeschen_mit_buchungen(con, kid: int, d: dict) -> dict:
@@ -531,8 +531,7 @@ def _loeschen_ausfuehren(con, k: dict, variante: str, konflikte: str, betroffen:
         if not _regel_bezieht(r, kid):
             continue
         if umleiten:
-            neu_b = [{**b, "wert": ziel} if b["feld"] == "konto_id" and b["wert"] == kid else b
-                     for b in r["bedingungen"]]
+            neu_b = regeln.konto_verweise_ersetzen(r["bedingungen"], kid, ziel)
             con.execute("UPDATE regel SET kategorie_id = ?, bedingungen = ? WHERE id = ?",
                         (ziel if r["kategorie_id"] == kid else r["kategorie_id"],
                          json.dumps(neu_b, ensure_ascii=False), r["id"]))

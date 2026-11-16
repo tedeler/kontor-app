@@ -168,7 +168,8 @@ def konto_in_regeln(con, konto_id: int) -> bool:
     for r in con.execute("SELECT kategorie_id, bedingungen FROM regel"):
         if r["kategorie_id"] == konto_id:
             return True
-        if any(b.get("feld") == "konto_id" and b.get("wert") == konto_id for b in json.loads(r["bedingungen"])):
+        from .regeln import konto_verweise  # spät: regeln importiert buch
+        if konto_id in konto_verweise(json.loads(r["bedingungen"])):
             return True
     return False
 
@@ -754,7 +755,10 @@ def _klemme(x: int) -> int:
 
 
 def buchungsliste(con, f: dict) -> dict:
-    """Filter laut openapi.yaml; alle UND-verknüpft."""
+    """Filter laut openapi.yaml; alle UND-verknüpft. ``filter``: Ausdruck im Kontext ``filter`` (D-175)."""
+    if isinstance(f.get("filter"), str):
+        from . import ausdruck
+        f = {**f, "filter": ausdruck.filter_baum(con, f["filter"])}
     konto_id = f.get("konto_id")
     par: list[Any] = []
     konten = _listenkonten(con, konto_id, bool(f.get("unterkonten")))
@@ -834,6 +838,16 @@ def buchungsliste(con, f: dict) -> dict:
         st = sorted(set(f["status"]))
         bed.append(f"b.status IN ({_platzhalter(len(st))})")
         par.extend(st)
+    if f.get("filter") is not None:   # D-175: Ausdrucksfilter (Konzept 5.4) auf die übrigen Bedingungen
+        from . import ausdruck
+        sql = "SELECT b.id AS id FROM buchung b LEFT JOIN empfaenger e ON e.id = b.empfaenger_id"
+        if bed:
+            sql += " WHERE " + " AND ".join(bed)
+        kandidaten = [r["id"] for r in con.execute(sql, _filter_par(par, konten))]
+        treffer = ausdruck.filtern(con, f["filter"], kandidaten, None if konten is None else set(konten),
+                                   f["heute"], buchungen_laden)
+        bed.append("b.id IN (SELECT value FROM json_each(?))")
+        par.append(json.dumps(treffer))
     innen = (f"SELECT b.id AS id, b.datum AS datum, {betrag_sql} AS betrag, norm(e.name) AS e_norm"
              f" FROM buchung b LEFT JOIN empfaenger e ON e.id = b.empfaenger_id")
     if bed:
@@ -867,10 +881,22 @@ def buchungsliste(con, f: dict) -> dict:
         zeilen = con.execute(f"{basis} ORDER BY {order} LIMIT ? OFFSET ?", alle_par + [pro_seite, offset])
         ids = [z["id"] for z in zeilen]
         eintraege = buchungen_laden(con, ids, konten=None if konten is None else set(konten))
+        if f.get("filter") is not None:
+            from . import ausdruck
+            art_von = kontoarten(con)
+            for e in eintraege:
+                e["markierungen"] = ausdruck.markierungen(
+                    f["filter"], ausdruck.sicht_aus_buchung(e, art_von, None if konten is None else set(konten)),
+                    f["heute"])
         if f.get("verdacht"):
             from . import verdacht
             verdacht.anreichern(con, eintraege)
     return {"eintraege": eintraege, "gesamt": gesamt, "seite": seite, "pro_seite": pro_seite, "summe": summe}
+
+
+def _filter_par(par: list, konten: list[int] | None) -> list:
+    """Parameter der WHERE-Bedingungen ohne die des Betrags-Teilausdrucks (der steht vorn, nur mit Konten)."""
+    return par[len(konten):] if konten is not None else par
 
 
 def _listenkonten(con, konto_id: int | None, unterkonten: bool) -> list[int] | None:

@@ -912,9 +912,10 @@ class SyncDienst:
                             (next(iter(exakt)), kennung))
                 z["buchungen_zusammengefuehrt"] += 1
                 continue
-            sicht = regeln.Sicht(name, u.verwendungszweck, u.betrag, {kid})
-            empf_id = buch.empfaenger_bestimmen(con, name) if name is not None else None
             gegen_iban = pflege.gegen_iban(u.gegenpartei_iban)
+            sicht = regeln.Sicht(name, u.verwendungszweck, u.betrag, {kid}, datum=u.buchungstag.isoformat(),
+                                 iban=gegen_iban, umbuchung=gegen_iban in eigene_ibans)
+            empf_id = buch.empfaenger_bestimmen(con, name) if name is not None else None
             # Stufenfolge (synchronisation.md 15.1): Vorlage → Regel → Standardkategorie → Lernmodell → Unkategorisiert
             rate = kredit_erkennung.erkennen(sicht, u.buchungstag, u.betrag) if kredit_erkennung else None
             erkennung = vorlagen.KEINE if rate is not None else vorlagen.erkennen(vorlagenliste, sicht)

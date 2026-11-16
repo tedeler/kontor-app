@@ -84,7 +84,7 @@ BESCHREIBUNG = {
     "umbuchung_zusammenfuehren": "Umbuchung zusammengeführt", "umbuchung_erkennen": "Umbuchungen erkannt",
     "import_kmymoney": "KMyMoney-Import", "import_gnucash": "GnuCash-Import", "import_alfbanco": "ALF-BanCo-Import",
     "kategorien_zusammenfuehren": "Kategorien zusammengeführt", "sync_kontozuordnung": "Synchronisation: Konten zugeordnet",
-    "sync_konto": "Synchronisation: Umsätze eines Kontos übernommen", "regeln_anwenden": "Regeln angewendet",
+    "sync_konto": "Synchronisation: Umsätze eines Kontos übernommen", "regeln_anwenden": "Regeln angewendet", "regeln_reihenfolge": "Regeln umsortiert",
     "rueckgaengig": "Rückgängig gemacht",
     "vorlage_anlegen": "Split-Vorlage angelegt", "vorlage_aendern": "Split-Vorlage geändert",
     "vorlage_loeschen": "Split-Vorlage gelöscht", "vorlagen_anwenden": "Split-Vorlagen angewendet",
@@ -639,9 +639,8 @@ def bezuege_pruefen(con) -> None:
             raise _konflikt("Der wiederhergestellte Zustand verweist auf nicht mehr vorhandene Objekte.")
     konten = {r["id"] for r in con.execute("SELECT id FROM konto")}
     for r in con.execute("SELECT bedingungen FROM regel"):
-        for b in json.loads(r["bedingungen"]):
-            if b.get("feld") == "konto_id" and b.get("wert") not in konten:
-                raise _konflikt("Eine Regel verweist auf ein nicht mehr vorhandenes Konto.")
+        if regeln.konto_verweise(json.loads(r["bedingungen"])) - konten:
+            raise _konflikt("Eine Regel verweist auf ein nicht mehr vorhandenes Konto.")
     for v in vorlagen.vorlagen_liste(con):  # M4 (protokoll.md 9.1)
         if any(t["kategorie_id"] not in konten for t in v["teile"]) or any(
                 b["feld"] == "konto_id" and b["wert"] not in konten for b in v["bedingungen"]):
