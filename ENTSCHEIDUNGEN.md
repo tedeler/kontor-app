@@ -2361,3 +2361,16 @@ D-123 bis D-127 sind auf den offenen Branches `dokumente` und `alfbanco-import` 
   maskiert) als Bestellnummer. Kennungen, die schon als Angabe stehen, erscheinen nicht noch einmal im Text.
 - Sichtbar bleiben Karte, Zeitpunkt, Bestellnummer und Verfahren; technische Kennungen (Referenzen, Mandat,
   Gläubiger-ID, PayPal) sind unter „Referenzen (n)“ aufklappbar.
+
+## D-177 Empfängernamen in normaler Schreibweise (nur Anzeige)
+
+- Namen, die ganz in Groß- oder ganz in Kleinbuchstaben vorliegen („AMAZON“, „amazon“), zeigt die Oberfläche in
+  normaler Schreibweise („Amazon“): erster Buchstabe je Wort groß (auch nach Bindestrich und Schrägstrich),
+  kleine Wörter mitten im Namen klein („Cafe am Markt“), bekannte Abkürzungen und Rechtsformen in üblicher Form
+  (GmbH, KG, e.V., Co., DB, ADAC …; Liste `NAME_FEST` in `kern.js`). Gemischt geschriebene Namen („eBay GmbH“)
+  bleiben unverändert, weil sie bewusst so erfasst sind.
+- Nur Anzeige (`nameAnzeige`): Buchungsliste der Kontoansicht, Kopf der Einzelheiten, Suchergebnisse und
+  Einzelbuchungen der Berichte. Gespeichert, gesucht, gefiltert und in Auswahllisten/Empfängerverwaltung wird
+  der Name wie erfasst; Texte vom Server (z. B. Verdachtshinweis) bleiben unverändert.
+- Verwendungszweck (Frage aus D-175): bleibt beim Import unverändert; die Gliederung erfolgt nur in der Anzeige,
+  damit alte und neue Buchungen für Regeln, Lernmodell und Dublettenerkennung gleich aussehen.

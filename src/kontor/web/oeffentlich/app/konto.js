@@ -3,7 +3,7 @@
 import {
   BESTAND, STATUS_TEXT, abfrage, aktion, anhaengen, api, baumFolge, betragEingabe, betragEl, betragLesen, betragText, datumEl,
   datumText, h, kategorien, klasse,
-  kontoNach, kontoPfad, melde, neueId, oberflaeche, personLesen, pfadVon, stamm, tid,
+  kontoNach, kontoPfad, melde, nameAnzeige, neueId, oberflaeche, personLesen, pfadVon, stamm, tid,
 } from "./kern.js";
 import {
   bestaetigen, dialog, dubletteDialog, erfassenDialog, feld, imDialog, kategorieAuswahl, kontextmenue, knopf, knopfLeiste,
@@ -1044,7 +1044,7 @@ class Kontoansicht {
       (STATUS_TEXT[b.status] || b.status) + (b.abgestimmt ? " · abgestimmt" : ""));
     return h("header", { class: `dk-kopf${betrag === null ? "" : betrag < 0 ? " dk-aus" : " dk-ein"}` },
       h("div", { class: "dk-kopf-oben" },
-        this.detailZeile(b, "empfaenger", "Empfänger", b.empfaenger ? b.empfaenger.name : h("span", { class: "leer" }, "ohne Empfänger"),
+        this.detailZeile(b, "empfaenger", "Empfänger", b.empfaenger ? nameAnzeige(b.empfaenger.name) : h("span", { class: "leer" }, "ohne Empfänger"),
           gesperrt, { klasse: "dk-empfaenger", ohneName: true }),
         betrag === null ? null : betragEl("span", betrag, { class: "dk-betrag", tid: "details-betrag" })),
       h("div", { class: "dk-kopf-unten" },
@@ -1431,7 +1431,7 @@ class Kontoansicht {
         h("button", { type: "button", class: "mini-knopf", tid: `vorschlag-ablehnen-${b.id}`, "data-nicht-ziehen": "",
           "aria-label": "Vorschlag ablehnen", onclick: (e) => this.vorschlag(e, [b.id], "ablehnen") }, "✗")));
     }
-    const empfName = b.empfaenger ? b.empfaenger.name : "";
+    const empfName = b.empfaenger ? nameAnzeige(b.empfaenger.name) : "";
     const empf = h("div", { role: "gridcell", class: "zelle zelle-empfaenger", "data-feld": "empfaenger",
       "data-empfaenger-id": b.empfaenger ? String(b.empfaenger.id) : "" },
     empfName || (kompakt ? h("span", { class: "ersatz" }, b.verwendungszweck) : ""));

@@ -56,3 +56,19 @@ def test_ausgeschriebene_schluessel_paypal_amazon():
     assert paypal["arten"] == ["Lastschrift / Belastung", "PayPal"]
     assert paypal["texte"] == ["Einkauf bei BEISPIEL-VERLAG GMBH"]
     assert [a["name"] for a in paypal["angaben"]] == ["PayPal-Referenz", "Ende-zu-Ende-Referenz", "Mandatsreferenz"]
+
+
+@pytest.mark.skipif(not NODE, reason="node nicht installiert")
+def test_name_anzeige():
+    kern = ZWECK.parent / "kern.js"
+    quelle = kern.read_text(encoding="utf-8")
+    teil = quelle[quelle.index("// ---------------------------------------------------------------- Empfängernamen"):
+                  quelle.index("export const STATUS_TEXT")]
+    faelle = {"AMAZON": "Amazon", "amazon": "Amazon", "CAFE AM MARKT": "Cafe am Markt",
+              "SUPERMARKT-MUSTER HA": "Supermarkt-Muster Ha", "BEISPIEL-VERLAG GMBH + CO. KG": "Beispiel-Verlag GmbH + Co. KG",
+              "VEREIN DER FREUNDE E.V.": "Verein der Freunde e.V.", "eBay GmbH": "eBay GmbH",
+              "None GmbH (fiktiv)": "None GmbH (fiktiv)", "DB Vertrieb GmbH": "DB Vertrieb GmbH", "1&1 TELECOM GMBH": "1&1 Telecom GmbH"}
+    skript = (f"import('data:text/javascript,' + encodeURIComponent({json.dumps(teil)})).then(m => console.log("
+              f"JSON.stringify({json.dumps(list(faelle))}.map(m.nameAnzeige))))")
+    aus = subprocess.run([NODE, "--input-type=module", "-e", skript], capture_output=True, text=True, check=True)
+    assert json.loads(aus.stdout) == list(faelle.values())
