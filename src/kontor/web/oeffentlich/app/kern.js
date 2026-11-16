@@ -24,17 +24,11 @@ export function h(tag, attrs, ...kinder) {
   return el;
 }
 
-/** Sichtbarer Text. Leere Werte erscheinen nicht als die Wörter null, nul, None oder undefined. */
+/** Sichtbarer Text. Leere Werte (null, undefined, false) erscheinen nicht als Wörter; echte Texte bleiben
+ *  unverändert, auch wenn sie „None“ oder „null“ enthalten (D-170, berichtigt D-168). */
 export function sichtbar(wert) {
   if (wert === null || wert === undefined || wert === false) return "";
-  if (typeof wert === "number" || typeof wert === "bigint") return String(wert);
-  const roh = String(wert);
-  if (!/(?:null|nul|None|undefined)/.test(roh)) return roh;
-  return roh
-    .replace(/(^|[\s·,:;()<>„"'/])(?:null|nul|None|undefined)(?=$|[\s·,:;()<>„"'/.])/g, "$1")
-    .replace(/\s*<>\s*/g, " ")
-    .replace(/(?:\s*·\s*){2,}/g, " · ")
-    .replace(/[ \t]{2,}/g, " ");
+  return String(wert);
 }
 
 export function anhaengen(el, kinder) {
@@ -129,17 +123,21 @@ export const STATUS_TEXT = { importiert: "Importiert", vorlaeufig: "Vorläufig",
 /** Haushalt: ein Passwort, zwei Personen. Die Bestätigung einer Buchung trägt diesen Namen. */
 export const PERSONEN = ["Torsten", "Tina"];
 const PERSON_SCHLUESSEL = "kontor.person";
+let personImSpeicher = "";   // ohne Browser-Speicher gilt die Wahl bis zum Neuladen (M17 1.6, D-170)
 export function personLesen() {
   try {
     const w = localStorage.getItem(PERSON_SCHLUESSEL);
-    return PERSONEN.includes(w) ? w : "";
-  } catch { return ""; }
+    if (PERSONEN.includes(w)) return w;
+  } catch { /* ohne Speicher */ }
+  return personImSpeicher;
 }
 export function personSchreiben(name) {
   if (!PERSONEN.includes(name)) return;
+  personImSpeicher = name;
   try { localStorage.setItem(PERSON_SCHLUESSEL, name); } catch { /* ohne Speicher */ }
 }
 export function personLoeschen() {
+  personImSpeicher = "";
   try { localStorage.removeItem(PERSON_SCHLUESSEL); } catch { /* ohne Speicher */ }
 }
 export const ART_TEXT = { girokonto: "Girokonto", sparkonto: "Sparkonto", kreditkonto: "Kreditkonto",

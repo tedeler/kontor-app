@@ -2293,3 +2293,13 @@ D-123 bis D-127 sind auf den offenen Branches `dokumente` und `alfbanco-import` 
   Query-Parameter `vorschlaege=ja` (`ja`/`nein`, sonst 422). Ohne den Parameter enthält die Liste nur gespeicherte
   Verdachte. Kontoblatt und Seite Dubletten fragen mit `vorschlaege=ja`. Der Service-Worker-Cache heißt
   `kontor-huelle-28`.
+
+## D-170 Vorbereitung der Abnahme M26–M28: Korrekturen an `feature/sammel`
+
+- **Person ohne Browser-Speicher:** Die Wahl „Torsten“/„Tina“ gilt ohne Speicher bis zum Neuladen; Bestätigen
+  funktioniert (M17 1.6).
+- **Leere Werte:** Nur fehlende Werte (null, undefined, false) erscheinen nicht; echte Texte wie „None GmbH“ bleiben
+  unverändert (berichtigt D-168, das auch Wörter aus Daten entfernte).
+- **Ausschnitt langer Listen (D-151):** Die Liste trägt `aria-rowcount` (alle Einträge einschließlich Kopf), jede
+  gezeichnete Zeile `aria-rowindex` (Kopf = 1).
+- **Tastaturhilfe:** „Alt+1 … Alt+7“ (Navigation hat sieben Ziele).

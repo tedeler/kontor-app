@@ -1223,8 +1223,11 @@ class Kontoansicht {
     const kinder = [];
     for (let i = von; i < bis; i++) {
       const s = this.slots[i];
-      kinder.push(s.typ === "balken" ? this.periodenBalken(s.gruppe) : this.zeile(s.buchung, kompakt));
+      const el = s.typ === "balken" ? this.periodenBalken(s.gruppe) : this.zeile(s.buchung, kompakt);
+      el.setAttribute("aria-rowindex", String(i + 2));   // Kopf = 1 (M28 7, D-170)
+      kinder.push(el);
     }
+    this.liste.setAttribute("aria-rowcount", String(this.slots.length + 1));
     const y = von < this.slots.length ? this.slots[von].top : 0;
     this.fensterInnen.style.transform = `translateY(${y}px)`;
     this.fensterInnen.replaceChildren(...kinder);

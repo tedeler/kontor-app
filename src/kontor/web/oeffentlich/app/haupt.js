@@ -819,7 +819,7 @@ function palette(ausloeser) {
 function tastaturHilfe() {
   if (tid("tastatur-hilfe")) return;
   const K = [["Strg+K, ⌘+K, Strg+Umschalt+P", "Befehlspalette"], ["/", "Suche"], ["?", "diese Hilfe"],
-    ["Strg+Z", "Rückgängig"], ["Strg+Umschalt+Z, Strg+Y", "Wiederholen"], ["Alt+1 … Alt+8", "Finanzübersicht … Einstellungen"],
+    ["Strg+Z", "Rückgängig"], ["Strg+Umschalt+Z, Strg+Y", "Wiederholen"], ["Alt+1 … Alt+7", "Finanzübersicht … Einstellungen"],
     ["Esc", "Menü/Dialog schließen, sonst Auswahl leeren"], ["Pfeiltasten, Pos1, Ende, Bild↑, Bild↓", "Buchung wählen"],
     ["Umschalt+Pfeil", "Bereich auswählen"], ["Strg+Pfeil", "nur den Fokus bewegen"], ["Leertaste", "Buchung zur Auswahl hinzu/weg"],
     ["Strg+A", "alle Buchungen auswählen"], ["F2", "Verwendungszweck bearbeiten"], ["Entf", "Auswahl löschen (mit Rückfrage)"],
