@@ -1,7 +1,7 @@
 """Automatisch angelegte Regeln aus dem Gelernten (Feature `lernmodell-transparenz`, D-175).
 
-Wurde ein Empfänger mindestens ``MINDESTANZAHL``-mal derselben Kategorie zugeordnet und in den letzten
-``FENSTER_TAGE`` Tagen nie anders, legt Kontor die Regel „Empfänger ist <Name>“ → Kategorie an. Grundlage ist
+Wurde ein Empfänger mindestens ``MINDESTANZAHL``-mal derselben Kategorie zugeordnet, betrifft diese Kategorie
+mindestens 95 % seiner Buchungen und wurde er in den letzten ``FENSTER_TAGE`` Tagen nie anders zugeordnet, legt Kontor die Regel „Empfänger ist <Name>“ → Kategorie an. Grundlage ist
 dieselbe Trainingsmenge wie beim Lernmodell (lernmodell.md 3: Kategorie gesetzt, kein offener Vorschlag).
 
 Die Regel steht am Ende der Regelliste, ist in ``regel_automatisch`` als automatisch angelegt vermerkt und sonst
@@ -19,6 +19,7 @@ from . import buch, lernmodell, regeln
 from .buch import BESTAND
 
 MINDESTANZAHL = 5
+MINDESTANTEIL = (95, 100)  # Anteil der Kategorie an allen Buchungen des Empfängers in der Trainingsmenge
 FENSTER_TAGE = 365
 AKTION = "regel_automatisch"
 
@@ -55,7 +56,7 @@ def _trainingsbuchungen(con, empfaenger_ids: list[int]) -> dict[int, list[tuple[
 def _kategorie(beispiele: list[tuple[str, int, int]], heute: dt.date) -> int | None:
     """Die eindeutige gelernte Kategorie oder None (Bedingungen siehe Modulbeschreibung)."""
     kat, anzahl = Counter(k for _d, _b, k in beispiele).most_common(1)[0]
-    if anzahl < MINDESTANZAHL:
+    if anzahl < MINDESTANZAHL or anzahl * MINDESTANTEIL[1] < len(beispiele) * MINDESTANTEIL[0]:
         return None
     grenze = (heute - dt.timedelta(days=FENSTER_TAGE)).isoformat()
     juengere = [k for d, _b, k in beispiele if d >= grenze]

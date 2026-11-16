@@ -2343,7 +2343,9 @@ D-123 bis D-127 sind auf den offenen Branches `dokumente` und `alfbanco-import` 
   Genauigkeit 98,40 % und Abdeckung 84,94 % mit und ohne automatische Regeln; 1.373 Prüfbuchungen liefen über eine
   automatische Regel, alle richtig.
 - **Auslöser:** Ein Empfänger hat in der Trainingsmenge (lernmodell.md 3) mindestens 5 Buchungen derselben
-  Kategorie, und alle seine Buchungen der Trainingsmenge aus den letzten 365 Tagen (App-Uhr) haben diese Kategorie
+  Kategorie, diese Kategorie hat mindestens 95 % seiner Buchungen in der Trainingsmenge (nachgeschärft nach der
+  Messung mit `tests/lerndaten.py`: ohne diese Bedingung entstand für eine Tankstelle mit Kraftstoff und Shop eine
+  Regel „Tanken“, die das am Verwendungszweck unterscheidende Lernmodell verdeckte), und alle seine Buchungen der Trainingsmenge aus den letzten 365 Tagen (App-Uhr) haben diese Kategorie
   (mindestens eine). Keine Regel, wenn der Empfänger eine Standardkategorie hat, wenn schon eine automatische Regel
   für ihn besteht oder gesperrt ist, oder wenn eine aktive Regel seine jüngste Buchung bereits trifft.
 - **Regel:** Name = Empfängername (die Liste zeigt die Kategorie dahinter), Bedingung `empfaenger gleich <Name>`, aktiv, Priorität wie beim
@@ -2371,3 +2373,14 @@ D-123 bis D-127 sind auf den offenen Branches `dokumente` und `alfbanco-import` 
   wie D-175: Genauigkeit unverändert 98,40 %, Abdeckung 84,94 % → 84,63 %. Die Sicherheit ist auf diesen Daten
   nicht überhöht (Vorhersagen mit 50–60 % stimmen zu 90 %). Das Verfahren aus lernmodell.md 4 bleibt daher
   unverändert; die Verlässlichkeit der Prozentangabe soll stattdessen auf echten Daten angezeigt werden.
+
+## D-177 Lerndaten nach echten Kontoauszugsmustern (`tests/lerndaten.py`)
+
+- 3000 synthetische Buchungen eines Girokontos (09/2022–10/2026) nach Mustern des Auftraggebers: Miete, Gehalt,
+  Supermärkte mit Uhrzeit/Terminal/Kartennummer, PayPal mit Händler im Zweck, Amazon ohne Artikel, Tankstelle
+  (Kraftstoff/Shop), Lastschriften mit Mandat, Abos, Gutschriften, Umbuchungen auf eigene Konten, drei neue
+  Empfänger in der Prüfzeit, etwa 3 % falsch erfasste Kategorien. Ältere 80 % kategorisiert, neueste 20 % auf
+  „Unkategorisiert“ mit bekannter Wahrheit. Alle Namen und Nummern erfunden bzw. Beispielwerte.
+- Messung 2026-11-16 (574 Prüfbuchungen mit Kategorie): Lernmodell allein 89,0 % Abdeckung, 99,2 % Genauigkeit;
+  mit automatischen Regeln (16 Regeln) 89,5 % Abdeckung, 99,2 % Genauigkeit. Amazon bleibt erwartungsgemäß meist
+  ohne Vorschlag (3 von 47), PayPal wird über den Händler im Zweck erkannt.

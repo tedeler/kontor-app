@@ -60,8 +60,8 @@ def test_abweichung_im_letzten_jahr_verhindert_regel(auto):
 
 def test_alte_abweichung_stoert_nicht(auto):
     c, buchen, kat, _emp = auto
-    buchen("Glanz", "Lebensmittel", 500)
-    for i in range(5):
+    buchen("Glanz", "Lebensmittel", 500)  # alter Fehlgriff: 1 von 21, Anteil Drogerie über 95 %
+    for i in range(20):
         buchen("Glanz", "Drogerie", 20 + i)
     (r,) = automatische(c)
     assert r["kategorie_id"] == kat["Drogerie"]
@@ -134,3 +134,13 @@ def test_sicherung_enthaelt_vermerk_und_sperre(auto, tmp_path):
     z.post("/api/buchungen", json={"datum": dt.date.today().isoformat(), "empfaenger_id": emp["Glanz"],
                                    "splits": [{"konto_id": gid, "betrag": -5}, {"konto_id": did, "betrag": 5}]})
     assert len(automatische(z)) == 1
+
+
+def test_empfaenger_mit_zwei_kategorien_bekommt_keine_regel(auto):
+    c, buchen, _kat, _emp = auto
+    for i in range(12):
+        buchen("Glanz", "Drogerie", 400 + 7 * i)
+    buchen("Glanz", "Lebensmittel", 500)  # 1 von 13: Anteil Drogerie unter 95 %
+    for i in range(3):
+        buchen("Glanz", "Drogerie", 10 + i)
+    assert automatische(c) == []
