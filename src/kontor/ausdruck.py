@@ -1,4 +1,4 @@
-"""Kontor-Ausdrücke: gemeinsame Ausdruckssprache für Regeln und den Filter im Kontoblatt (D-179).
+"""Kontor-Ausdrücke: gemeinsame Ausdruckssprache für Regeln und den Filter im Kontoblatt (D-185).
 
 Syntax nach Python-Ausdrücken (``and``, ``or``, ``not``, ``in``, ``is None``, verkettete Vergleiche,
 ``.startswith()``, ``.endswith()``, ``.search(r"…")``), C-Operatoren ``&&``, ``||``, ``!`` als Alias.

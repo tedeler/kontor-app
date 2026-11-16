@@ -1,4 +1,4 @@
-"""Browser-Rauchtests Kontor-Ausdrücke (D-179): Filterausdruck im Kontoblatt, Regeleditor mit Baukasten und Test."""
+"""Browser-Rauchtests Kontor-Ausdrücke (D-185): Filterausdruck im Kontoblatt, Regeleditor mit Baukasten und Test."""
 
 from __future__ import annotations
 
@@ -77,14 +77,14 @@ def test_regeleditor_ohne_bedingung_und_uebernahme(tmp_path, browser):  # noqa: 
         bereit(page, "regeln")
         tid(page, "regel-anlegen").click()
         expect(tid(page, "test-zahlen")).to_contain_text("20 Buchungen der Testmenge")
-        page.locator('[data-testid^="test-zeile-"]').first.click()   # Einzelheiten aufklappen (D-187)
+        page.locator('[data-testid^="test-zeile-"]').first.click()   # Einzelheiten aufklappen (D-193)
         page.locator('[data-testid^="test-uebernehmen-"]').first.click()
         expect(tid(page, "regel-ausdruck")).to_have_value('"Einkauf" in vwz and dir == "ausgabe"')
         expect(tid(page, "test-zahlen")).to_have_attribute("data-anzahl", "20")
 
 
 def test_filter_baukasten_und_alte_adressen(tmp_path, browser):  # noqa: F811
-    """D-188: Filter-Baukasten statt Einzelfelder; alte Parameter werden zum Ausdruck."""
+    """D-194: Filter-Baukasten statt Einzelfelder; alte Parameter werden zum Ausdruck."""
     with server(tmp_path) as (url, _), seite(browser, url, **DESKTOP) as page:
         page.goto(url + "/")
         bereit(page, "uebersicht")
@@ -92,7 +92,7 @@ def test_filter_baukasten_und_alte_adressen(tmp_path, browser):  # noqa: F811
         bereit(page, "konto")
         konto_url = page.url
         zeilen = page.locator('[data-testid="buchungsliste"] [role="row"][data-id]')
-        expect(tid(page, "filter-leiste")).to_be_hidden()            # D-189: eingeklappt
+        expect(tid(page, "filter-leiste")).to_be_hidden()            # D-195: eingeklappt
         tid(page, "filter-baukasten-umschalten").click()
         expect(tid(page, "filter-baukasten-umschalten")).to_have_attribute("aria-expanded", "true")
         expect(tid(page, "filter-baukasten")).to_be_visible()

@@ -1,7 +1,7 @@
 # Ergebnis der Implementierung
 
 
-## Merge von `feature/ausdruecke` (D-179 bis D-190) ohne Abnahme
+## Merge von `feature/ausdruecke` (D-185 bis D-196) ohne Abnahme
 
 Stand: 2026-11-16, Implementierungs-Thread. Auf ausdrückliche Anweisung des Auftraggebers auf main gemergt, bevor es
 eine Meilenstein-Definition und Abnahmetests gibt (wie D-144, `feature/sammel`). main (0.18) war vorher eingemergt.
@@ -12,7 +12,7 @@ eine Meilenstein-Definition und Abnahmetests gibt (wie D-144, `feature/sammel`).
   `filter-bis`, `filter-empfaenger` …) und des Knopfs `filter-umschalten` (M8, M12, M17, UXMobile), der neu
   aufgebaute Regeldialog; Antworten von `/api/regeln` haben die zusätzlichen Felder `ausdruck` und `ausdruck_form`.
 
-## Feature `ausdruecke` (Branch `feature/ausdruecke`, iterative Phase, D-179 bis D-182)
+## Feature `ausdruecke` (Branch `feature/ausdruecke`, iterative Phase, D-185 bis D-188)
 
 Stand: 2026-11-16, Implementierungs-Thread. Kontor-Ausdrücke für Regeln und den Kontoblatt-Filter nach dem Konzept
 `claude/feature-regeln.md` im Projekt. Noch keine Meilenstein-Definition und keine Abnahmetests.
@@ -21,7 +21,7 @@ Stand: 2026-11-16, Implementierungs-Thread. Kontor-Ausdrücke für Regeln und de
 - **Abnahmetests nicht gelaufen:** kontor-tests war in dieser Sitzung nicht erreichbar (Klon ohne Zugangsdaten
   abgelehnt). Vor dem Merge muss der Volllauf nachgeholt werden; Risiken: Antworten von `/api/regeln` haben die
   neuen Felder `ausdruck` und `ausdruck_form`, der Regeldialog ist neu (Beschriftungen und Ablauf).
-- Seit D-188 ersetzt der Filter-Baukasten die Einzelfelder der Filterleiste; Abnahmetests, die diese Felder
+- Seit D-194 ersetzt der Filter-Baukasten die Einzelfelder der Filterleiste; Abnahmetests, die diese Felder
   bedienen, werden rot, bis die Meilenstein-Definition sie ablöst.
 - Neue Abhängigkeit `google-re2` (reguläre Ausdrücke mit linearer Laufzeit).
 ## Nachtrag: D-178 von `feature/detailansicht` auf main, gegen kontor-tests `c99b6ac`

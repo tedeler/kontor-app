@@ -1,7 +1,7 @@
 """Regel-Kategorisierung und Vorschläge (kategorisierung.md, Meilenstein 2).
 
 Regeln: feste Zuordnungen mit UND-verknüpften Bedingungen auf Empfänger,
-Verwendungszweck, Regelbetrag und Konto – oder (D-179) mit einem Ausdruck der Kontor-Ausdruckssprache
+Verwendungszweck, Regelbetrag und Konto – oder (D-185) mit einem Ausdruck der Kontor-Ausdruckssprache
 (``ausdruck.py``). Ein Ausdruck wird als einzige Bedingung ``{"feld": "ausdruck", "operator": "ausdruck",
 "wert": <Baum>}`` in ``bedingungen`` gespeichert; der Baum hält Verweise als IDs. Reihenfolge: ``prioritaet``
 aufsteigend, dann ``id``; die erste passende aktive Regel gewinnt. Gesetzte
@@ -94,7 +94,7 @@ def konto_verweise_ersetzen(bedingungen: list, alt: int, neu: int) -> list:
 def regel_koerper(roh: bytes, neu: bool, intern: bool = False) -> dict:
     """Prüft den Körper von POST/PATCH /api/regeln streng (422 ``validierung``).
 
-    ``ausdruck`` (Text) ersetzt ``bedingungen`` (D-179); genau eines von beiden. ``intern``: Prüfung einer
+    ``ausdruck`` (Text) ersetzt ``bedingungen`` (D-185); genau eines von beiden. ``intern``: Prüfung einer
     Sicherung, dort darf ``bedingungen`` die gespeicherte Ausdrucksform enthalten."""
     d = json_koerper(roh)
     fehler: list[dict] = []
@@ -322,7 +322,7 @@ def reihenfolge_setzen(con, ids: list[int]) -> list[dict]:
 # =============================================================== Auswertung
 
 
-Sicht = ausdruck.Sicht   # Was eine Regel von einer Buchung sieht (kategorisierung.md 4, D-179)
+Sicht = ausdruck.Sicht   # Was eine Regel von einer Buchung sieht (kategorisierung.md 4, D-185)
 
 
 def _trifft(b: dict, s: Sicht) -> bool:
@@ -461,7 +461,7 @@ def mehrfach_vorschlag(con, ids: list[int], aktion: str) -> dict:
     return {"geaendert": sorted(ids), "anzahl": len(ids)}
 
 
-# ======================================================= Testbereich (D-179)
+# ======================================================= Testbereich (D-185)
 
 WIRKUNGEN = ("neu", "abweichend", "bereits_so", "verdeckt", "uebersprungen", "treffer")
 TESTMENGE_VORGABE = "datum in -12m"

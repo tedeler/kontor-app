@@ -1,4 +1,4 @@
-/* Kontor – Regelliste, Regeleditor (Baukasten und Ausdruck) und Testbereich (D-179, Konzept 5.1–5.3). */
+/* Kontor – Regelliste, Regeleditor (Baukasten und Ausdruck) und Testbereich (D-185, Konzept 5.1–5.3). */
 import {
   BESTAND, aktion, api, baumFolge, betragEl, betragLesen, datumText, h, kategorien, kontoPfad, melde, neueId, pfadVon,
   stamm,
@@ -125,7 +125,7 @@ const OPS = {
   bool: [["wahr", "ja"], ["falsch", "nein"]],
 };
 OPS.int = OPS.betrag;
-// nur im Filter (D-188): Datum mit Zeitangaben nach Konzept 4.6, Freitext wie die Volltextsuche
+// nur im Filter (D-194): Datum mit Zeitangaben nach Konzept 4.6, Freitext wie die Volltextsuche
 OPS.datum = [["in", "liegt in"], ["not in", "nicht in"], [">=", "ab"], ["<=", "bis"], [">", "nach"], ["<", "vor"]];
 OPS.frei = [["enthaelt", "enthält"]];
 export const FREITEXT = { name: "__frei", kurz: null, typ: "frei", bezeichnung: "Freitext (Empfänger, Zweck, Notiz, Tags)" };
@@ -189,7 +189,7 @@ export function baukastenText(m, sp, leereAuslassen = false) {
     return zeileText(x, sp);
   };
   let t = m.teile.map(teil);
-  if (leereAuslassen) {   // im Filter: leere Zeilen zählen nicht (D-188)
+  if (leereAuslassen) {   // im Filter: leere Zeilen zählen nicht (D-194)
     t = t.filter((x) => x);
     return t.join(` ${m.verkn} `);
   }
@@ -313,7 +313,7 @@ function wertEingabe(f, z, tidBasis, aenderung) {
 }
 
 export class Baukasten {
-  /** `filter`: mit Freitext und Datum, leere Zeilen werden ausgelassen (D-188). */
+  /** `filter`: mit Freitext und Datum, leere Zeilen werden ausgelassen (D-194). */
   constructor(sp, beiAenderung, optionen) {
     this.sp = sp;
     this.beiAenderung = beiAenderung;
@@ -429,7 +429,7 @@ export async function regelEditor(r, ausloeser) {
         h("code", null, "empf vwz bet dir"), ". Regeln kennen kein Datum; dafür monatstag, monat, wochentag."),
       knopfLeiste(kopierKnopf(), testKnopf()));
     // Beim Tippen nur den Reiter sperren (mit Tooltip); der Hinweistext erscheint erst beim Versuch umzuschalten,
-    // damit links nichts springt (D-186).
+    // damit links nichts springt (D-192).
     const umschalterPruefen = (e) => {
       const ok = !e || (e.gueltig && e.baukasten_faehig);
       tabBk.disabled = !ok && modus === "ausdruck";
@@ -488,7 +488,7 @@ export async function regelEditor(r, ausloeser) {
     });
     let testUhr;
     const testPlanen = () => { clearTimeout(testUhr); test.veraltet(); testUhr = setTimeout(() => test.laden(), 150); };
-    // Nach jeder Prüfung sofort testen; ungültig → letztes Ergebnis bleibt sichtbar, als veraltet markiert (D-186)
+    // Nach jeder Prüfung sofort testen; ungültig → letztes Ergebnis bleibt sichtbar, als veraltet markiert (D-192)
     const testNachPruefung = (e) => {
       clearTimeout(testUhr);
       if (e && !e.gueltig) test.veraltet("Ausdruck ungültig – Ergebnis vom letzten gültigen Stand");
@@ -576,7 +576,7 @@ class Testbereich {
 
   planen() { clearTimeout(this.uhr); this.veraltet(); this.uhr = setTimeout(() => this.laden(), 300); }
 
-  /** Ergebnis gilt nicht mehr für die aktuelle Eingabe: abgeblendet, mit Hinweis (D-186). */
+  /** Ergebnis gilt nicht mehr für die aktuelle Eingabe: abgeblendet, mit Hinweis (D-192). */
   veraltet(text) {
     this.el.dataset.veraltet = "ja";
     this.statusEl.textContent = text || "aktualisiere …";
@@ -637,7 +637,7 @@ class Testbereich {
     this.el.dataset.geladen = "ja";
   }
 
-  /** Kompakte Trefferzeile (D-187): Datum, Empfänger, Betrag, Wirkung in einer Zeile; Klick klappt die Einzelheiten
+  /** Kompakte Trefferzeile (D-193): Datum, Empfänger, Betrag, Wirkung in einer Zeile; Klick klappt die Einzelheiten
    *  (Verwendungszweck, Kategorie, „→ Bedingung“, „Warum?“) auf. */
   zeile(z) {
     const vorher = z.kategorie_vorher ? pfadVon(z.kategorie_vorher) : "—";

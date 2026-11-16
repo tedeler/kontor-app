@@ -106,10 +106,10 @@ const STATUS = ["importiert", "vorlaeufig", "bestaetigt", "abgeglichen"];
 const PARAMETER = ["von", "bis", "betrag_min", "betrag_max", "empfaenger_id", "ohne_empfaenger", "verwendungszweck",
   "zweck_gleich", "zweck_aehnlich", "zweck_leer", "empfaenger_aehnlich",
   "suche", "kategorie_id", "unterkategorien", "unterkonten", "tag_id", "status", "sortierung", "filter"];
-// Schnellauswahl Zeitraum des Filterausdrucks (D-179, Konzept 4.6.11): [Datumsangabe, Beschriftung]
+// Schnellauswahl Zeitraum des Filterausdrucks (D-185, Konzept 4.6.11): [Datumsangabe, Beschriftung]
 const SCHNELL = [["heute", "Heute"], ["-7d", "7 Tage"], ["-30d", "30 Tage"], ["dieser_monat", "Dieser Monat"],
   ["letzter_monat", "Letzter Monat"], ["dieses_jahr", "Dieses Jahr"], ["letztes_jahr", "Letztes Jahr"]];
-// Alte Einzelfilter, die es als Ausdruck nicht gibt: bleiben Parameter und erscheinen als Chips (D-188)
+// Alte Einzelfilter, die es als Ausdruck nicht gibt: bleiben Parameter und erscheinen als Chips (D-194)
 const ALTE_FILTER = { betrag_min: "Betrag ab", betrag_max: "Betrag bis", zweck_aehnlich: "Verwendungszweck ähnlich",
   empfaenger_aehnlich: "Empfänger ähnlich" };
 const qText = (s) => JSON.stringify(String(s));
@@ -610,7 +610,7 @@ class Kontoansicht {
   aufbauen() {
     const s = this.seite;
     const mobil = oberflaeche.istMobil();
-    // D-190: einziger Umschalter des Filters ist „Baukasten“ am Ausdrucksfeld (mit Zahl aktiver Filter)
+    // D-196: einziger Umschalter des Filters ist „Baukasten“ am Ausdrucksfeld (mit Zahl aktiver Filter)
     this.filterZahl = h("span", { class: "zahl-marke sichtbar", tid: "filter-anzahl", "data-anzahl": "0" }, "0");
     this.bkPfeil = h("span", { class: "bk-pfeil", "aria-hidden": "true" }, this.filterSichtbar ? "▾" : "▸");
     this.bkKnopf = h("button", { type: "button", class: "knopf klein bk-umschalter", tid: "filter-baukasten-umschalten",
@@ -670,7 +670,7 @@ class Kontoansicht {
     this.bkPfeil.textContent = this.filterSichtbar ? "▾" : "▸";
   }
 
-  // ------------------------------------------------- Filterausdruck (D-179, Konzept 5.4)
+  // ------------------------------------------------- Filterausdruck (D-185, Konzept 5.4)
   ausdruckFilterAufbauen() {
     let uhr;
     const anwenden = () => {
@@ -761,7 +761,7 @@ class Kontoansicht {
     } catch (e) { melde("fehler", e.message); }
   }
 
-  /** Filter-Baukasten (D-188): dieselben Zeilen wie im Regeleditor, dazu Datum und Freitext; erzeugt den
+  /** Filter-Baukasten (D-194): dieselben Zeilen wie im Regeleditor, dazu Datum und Freitext; erzeugt den
    *  Filterausdruck oben. Dazu „mit Unterkonten/-kategorien“, Chips für alte Einzelfilter und Zurücksetzen. */
   filterAufbauen() {
     const f = this.filter;
@@ -2134,7 +2134,7 @@ class Kontoansicht {
     this.anker = null;
     this.seiten = 1;
     this.urlSchreiben();
-    const leiste = this.filterAufbauen();   // bleibt eingeklappt; die Zusammenfassung nennt den Filter (D-189)
+    const leiste = this.filterAufbauen();   // bleibt eingeklappt; die Zusammenfassung nennt den Filter (D-195)
     leiste.hidden = !this.filterSichtbar;
     this.filterLeiste.replaceWith(leiste);
     this.filterLeiste = leiste;
