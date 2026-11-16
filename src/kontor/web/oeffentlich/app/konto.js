@@ -610,17 +610,20 @@ class Kontoansicht {
   aufbauen() {
     const s = this.seite;
     const mobil = oberflaeche.istMobil();
-    this.filterKnopf = h("button", { type: "button", class: "knopf", tid: "filter-umschalten",
+    // D-189: einziger Umschalter des Filters ist „Baukasten“ am Ausdrucksfeld (mit Zahl aktiver Filter)
+    this.filterZahl = h("span", { class: "zahl-marke sichtbar", tid: "filter-anzahl", "data-anzahl": "0" }, "0");
+    this.bkPfeil = h("span", { class: "bk-pfeil", "aria-hidden": "true" }, this.filterSichtbar ? "▾" : "▸");
+    this.bkKnopf = h("button", { type: "button", class: "knopf klein bk-umschalter", tid: "filter-baukasten-umschalten",
       "aria-controls": "filter-leiste", "aria-expanded": String(this.filterSichtbar),
-      onclick: () => this.filterUmschalten() }, "Filter ",
-    this.filterZahl = h("span", { class: "zahl-marke sichtbar", tid: "filter-anzahl", "data-anzahl": "0" }, "0"));
+      title: "Filter im Baukasten bearbeiten (f f)", onclick: () => this.filterUmschalten() },
+    "Baukasten ", this.filterZahl, " ", this.bkPfeil);
     this.anzahlEl = h("span", { tid: "buchungsliste-anzahl", "data-anzahl": "0" });
     this.summeEl = h("span", { tid: "buchungsliste-summe", "data-betrag": "0", class: "betrag" });
     this.auswahlEl = h("span", { tid: "auswahl-anzahl", "data-anzahl": "0", class: "auswahl-anzahl" });
     const erfassen = knopf("Buchung erfassen", { tid: "buchung-erfassen",
       onclick: (e) => erfassenDialog(this.konto.id, e.currentTarget) });
     s.append(h("div", { class: "seiten-kopf" }, h("h1", null, this.konto.name),
-      h("div", { class: "werkzeuge" }, this.filterKnopf, erfassen,
+      h("div", { class: "werkzeuge" }, erfassen,
         knopf("Einstellungen…", { tid: "konto-einstellungen-oeffnen", onclick: (e) => kontoEinstellungen(this.konto, e.currentTarget) }))),
     h("div", { class: "listen-info" }, this.anzahlEl, " · Summe ", this.summeEl, h("span", { class: "auswahl-trenner" }, " · "),
       this.auswahlEl, this.gruppierungLeiste()));
@@ -663,11 +666,8 @@ class Kontoansicht {
   filterUmschalten() {
     this.filterSichtbar = !this.filterSichtbar;
     this.filterLeiste.hidden = !this.filterSichtbar;
-    this.filterKnopf.setAttribute("aria-expanded", String(this.filterSichtbar));
-    if (this.bkKnopf) {   // Umschalter am Ausdrucksfeld (D-188)
-      this.bkKnopf.setAttribute("aria-expanded", String(this.filterSichtbar));
-      this.bkKnopf.textContent = this.filterSichtbar ? "Baukasten ▾" : "Baukasten ▸";
-    }
+    this.bkKnopf.setAttribute("aria-expanded", String(this.filterSichtbar));
+    this.bkPfeil.textContent = this.filterSichtbar ? "▾" : "▸";
   }
 
   // ------------------------------------------------- Filterausdruck (D-178, Konzept 5.4)
@@ -707,10 +707,7 @@ class Kontoansicht {
         onclick: () => this.zeitraumSetzen(w) }, text)));
     return h("div", { class: "ausdruck-filter", tid: "ausdruck-filter", role: "search", "aria-label": "Filterausdruck" },
       h("div", { class: "ausdruck-filter-zeile" }, ausdruckFeld("Filter", this.ausdruckEingabe), leeren, menue,
-        this.bkKnopf = h("button", { type: "button", class: "knopf klein bk-umschalter", tid: "filter-baukasten-umschalten",
-          "aria-controls": "filter-leiste", "aria-expanded": String(this.filterSichtbar),
-          title: "Filter im Baukasten bearbeiten (f f)", onclick: () => this.filterUmschalten() },
-        this.filterSichtbar ? "Baukasten ▾" : "Baukasten ▸")),
+        this.bkKnopf),
       this.zusammenfassungEl, chips);
   }
 

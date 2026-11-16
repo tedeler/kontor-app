@@ -2527,3 +2527,11 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   Verwendungszweck“ aus dem Kontextmenü.
 - Die Zusammenfassung unter dem Ausdruck nennt auch die übrigen Filter („Weitere Filter“, D-187), damit ein
   eingeklappter Baukasten nichts verbirgt.
+
+## D-189 Ein einziger Umschalter für den Filter
+
+- Der Knopf `filter-umschalten` („Filter“) im Seitenkopf der Kontoansicht entfällt (Auftraggeber, 2026-11-16).
+  Einziger Umschalter ist `filter-baukasten-umschalten` am Ausdrucksfeld; er trägt jetzt die Zahl aktiver Filter
+  (`filter-anzahl`, `data-anzahl`) und den Pfeil ▸/▾. `f f` wirkt wie bisher.
+- Abnahmetests mit `filter-umschalten` (u. a. M12 23, M17, UXMobile 3.6) passen nicht mehr; sie gehören in die
+  Meilenstein-Definition dieses Features.
