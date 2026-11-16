@@ -2346,7 +2346,7 @@ D-123 bis D-127 sind auf den offenen Branches `dokumente` und `alfbanco-import` 
   Kategorie, und alle seine Buchungen der Trainingsmenge aus den letzten 365 Tagen (App-Uhr) haben diese Kategorie
   (mindestens eine). Keine Regel, wenn der Empfänger eine Standardkategorie hat, wenn schon eine automatische Regel
   für ihn besteht oder gesperrt ist, oder wenn eine aktive Regel seine jüngste Buchung bereits trifft.
-- **Regel:** Name „<Empfänger> → <Kategorie>“, Bedingung `empfaenger gleich <Name>`, aktiv, Priorität wie beim
+- **Regel:** Name = Empfängername (die Liste zeigt die Kategorie dahinter), Bedingung `empfaenger gleich <Name>`, aktiv, Priorität wie beim
   Anlegen ohne Angabe (ans Ende). Vermerk in `regel_automatisch` (Objektart `regel`); die Regel trägt in API und
   Protokollform zusätzlich `automatisch: true` und `empfaenger_id` (nur bei automatischen Regeln, sonst fehlen die
   Felder). Sonst eine gewöhnliche Regel: bearbeitbar, abschaltbar, löschbar.

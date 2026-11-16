@@ -74,9 +74,6 @@ def _schon_erfasst(con, regelliste: list[dict], name: str, buchung_id: int) -> b
     return regeln.erste_regel(regelliste, sicht) is not None
 
 
-def _regelname(name: str, kategorie: str) -> str:
-    text = f"{name} → {kategorie}"
-    return text if len(text) <= 200 else text[:199] + "…"
 
 
 def anlegen(con, empfaenger_ids: set[int], heute: dt.date) -> list[dict]:
@@ -114,8 +111,7 @@ def anlegen(con, empfaenger_ids: set[int], heute: dt.date) -> list[dict]:
         juengste = max(bsp)[1]
         if _schon_erfasst(con, aktive, name, juengste):
             continue
-        kat_name = buch.konto_zeile(con, kat)["name"]
-        r = regeln.regel_anlegen(con, {"name": _regelname(name, kat_name), "kategorie_id": kat,
+        r = regeln.regel_anlegen(con, {"name": name, "kategorie_id": kat,
                                        "bedingungen": [{"feld": "empfaenger", "operator": "gleich", "wert": name}]})
         con.execute("INSERT INTO regel_automatisch (regel_id, empfaenger_id) VALUES (?, ?)", (r["id"], eid))
         neu.append(regeln.regel_lesen(con, r["id"]))
@@ -123,7 +119,7 @@ def anlegen(con, empfaenger_ids: set[int], heute: dt.date) -> list[dict]:
     return neu
 
 
-def beschreibung(neu: list[dict]) -> str:
+def beschreibung(con, neu: list[dict]) -> str:
     if len(neu) == 1:
-        return f"Regel „{neu[0]['name']}“ automatisch angelegt"
+        return f"Regel „{neu[0]['name']} → {buch.konto_zeile(con, neu[0]['kategorie_id'])['name']}“ automatisch angelegt"
     return f"{len(neu)} Regeln automatisch angelegt"

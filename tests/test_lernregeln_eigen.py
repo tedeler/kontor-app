@@ -44,7 +44,7 @@ def test_fuenfte_gleiche_zuordnung_legt_regel_an(auto):
     (r,) = automatische(c)
     assert r["kategorie_id"] == kat["Lebensmittel"] and r["empfaenger_id"] == emp["Frischekorb"]
     assert r["bedingungen"] == [{"feld": "empfaenger", "operator": "gleich", "wert": "Frischekorb"}]
-    assert r["name"] == "Frischekorb → Lebensmittel" and r["aktiv"]
+    assert r["name"] == "Frischekorb" and r["aktiv"]
     a = c.get("/api/aenderungen", params={"pro_seite": 1}).json()["eintraege"][0]
     assert a["quelle"] == "lernmodell" and a["aktion"] == "regel_automatisch"
     assert "Frischekorb → Lebensmittel" in a["beschreibung"]

@@ -441,7 +441,7 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
         with protokoll.protokolliert(con, "lernmodell", lernregeln.AKTION, sync.jetzt_text()) as k:
             neu = lernregeln.anlegen(con, empfaenger, sync.heute())
             if neu:
-                k.beschreibung = lernregeln.beschreibung(neu)
+                k.beschreibung = lernregeln.beschreibung(con, neu)
 
     async def aendern(aktion: str, f: Callable, *args, quelle: str = "manuell"):
         """Schreibende Operation auf dem Buchbestand: eine Transaktion, eine Änderung im Protokoll."""
