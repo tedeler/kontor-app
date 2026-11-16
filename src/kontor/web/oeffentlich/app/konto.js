@@ -34,20 +34,25 @@ function wochentag(iso) {
   return Number.isNaN(d.getTime()) ? "" : `${WOCHENTAGE[d.getUTCDay()]}, `;
 }
 
-/** Verwendungszweck gegliedert (zweck.js); der Originaltext bleibt aufklappbar. */
+/** Verwendungszweck gegliedert (zweck.js): Wichtiges sichtbar, technische Kennungen und Originaltext aufklappbar. */
+const ZWECK_SICHTBAR = new Set(["karte", "zeitpunkt", "bestellung", "verfahren"]);
 function zweckAnsicht(text) {
   if (!text) return h("span", { class: "leer" }, "–");
   const z = zweckZerlegen(text);
   const karte = z.angaben.find((a) => a.art === "karte");
   const kartenart = z.angaben.find((a) => a.art === "kartenart");
-  const angaben = z.angaben.filter((a) => a !== kartenart || !karte);
+  const liste = (angaben) => h("dl", { class: "dk-angaben" }, angaben.flatMap((a) => [
+    h("dt", null, a.name),
+    h("dd", { class: a.mono ? "dk-mono" : null, title: a.wert },
+      a.wert, a === karte && kartenart ? h("span", { class: "dk-kartenart" }, " · ", kartenart.wert) : null)]));
+  const sichtbar = z.angaben.filter((a) => ZWECK_SICHTBAR.has(a.art) || (a === kartenart && !karte));
+  const kennungen = z.angaben.filter((a) => !sichtbar.includes(a) && a !== kartenart);
   return h("div", { class: "dk-zweck" },
     z.arten.length ? h("div", { class: "dk-chips" }, z.arten.map((a) => h("span", { class: "dk-chip dk-art" }, a))) : null,
     z.texte.length ? h("div", { class: "dk-zweck-text" }, z.texte.map((t) => h("div", null, t))) : null,
-    angaben.length ? h("dl", { class: "dk-angaben" }, angaben.flatMap((a) => [
-      h("dt", null, a.name),
-      h("dd", { class: a.mono ? "dk-mono" : null, title: a.wert },
-        a.wert, a === karte && kartenart ? h("span", { class: "dk-kartenart" }, " · ", kartenart.wert) : null)])) : null,
+    sichtbar.length ? liste(sichtbar) : null,
+    kennungen.length ? h("details", { class: "dk-original klein" },
+      h("summary", null, kennungen.length === 1 ? kennungen[0].name : `Referenzen (${kennungen.length})`), liste(kennungen)) : null,
     z.erkannt ? h("details", { class: "dk-original klein" }, h("summary", null, "Originaltext"),
       h("p", { class: "dk-mono" }, text)) : null);
 }

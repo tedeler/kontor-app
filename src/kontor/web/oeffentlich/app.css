@@ -285,6 +285,8 @@ fieldset { border: 1px solid var(--rand); border-radius: var(--radius); padding:
 .dk-kartenart { font-family: system-ui, sans-serif; font-size: .95em; color: var(--text-2); }
 .details-dokumente h3 { font-size: .75rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text-2); margin: 0 0 .2rem; }
 .dk-original summary { cursor: pointer; width: max-content; }
+.dk-original .dk-angaben { margin-top: .3rem; }
+.dk-zweck > details + details { margin-top: -.25rem; }
 .dk-original p { margin: .3rem 0 0; padding: .4rem .5rem; background: var(--hg-2); border-radius: var(--radius); color: var(--text-2); }
 .details-splits { list-style: none; padding: 0; margin: .3rem 0 0; display: flex; flex-direction: column; gap: .25rem; }
 .details-split { display: flex; justify-content: space-between; align-items: baseline; gap: .5rem; flex-wrap: wrap;

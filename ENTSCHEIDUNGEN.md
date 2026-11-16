@@ -2350,3 +2350,14 @@ D-123 bis D-127 sind auf den offenen Branches `dokumente` und `alfbanco-import` 
 - Buchungssätze als Karten (eigenes Konto zurückgenommen, „Unkategorisiert“ hervorgehoben), Tags als Marken,
   Verdachtshinweis mit Warnsymbol (vorher wirkungslose Hintergrundfarbe wegen `--hg-1`).
 - Service-Worker-Cache `kontor-huelle-31`, neues Modul in `DATEIEN`.
+
+## D-176 Verwendungszweck: ausgeschriebene Schlüssel, PayPal, Amazon (ergänzt D-175)
+
+- Ausgeschriebene Schlüssel wie bei comdirect („END-TO-END-REF.:“, „MANDATSREF.:“, „GLÄUBIGER-ID:“,
+  „KUNDENREFERENZ:“) gliedern wie SEPA-Schlüssel; „Ref.“ beendet den Wert davor. Ein „CORE“/„B2B“/„COR1“ direkt
+  vor „ / “ ist das Lastschriftverfahren und wird eigene Angabe. Leere Werte und „NOTPROVIDED“ entfallen.
+- PayPal („<Kennung>/PP.<Nr>.PP/. <Händler>, IHR EINKAUF BEI <Händler>“): Marke „PayPal“, Kennung als
+  PayPal-Referenz, Text „Einkauf bei <Händler>“. Amazon-Bestellnummern (`ddd-ddddddd-ddddddd`, auch mit x
+  maskiert) als Bestellnummer. Kennungen, die schon als Angabe stehen, erscheinen nicht noch einmal im Text.
+- Sichtbar bleiben Karte, Zeitpunkt, Bestellnummer und Verfahren; technische Kennungen (Referenzen, Mandat,
+  Gläubiger-ID, PayPal) sind unter „Referenzen (n)“ aufklappbar.

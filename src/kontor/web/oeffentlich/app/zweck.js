@@ -10,7 +10,25 @@ const SEPA = {
   DEBT: "Zahler-ID", ABWA: "Abweichender Auftraggeber", ABWE: "Abweichender Empfänger", IBAN: "IBAN",
   BIC: "BIC", PURP: "Zweck-Code", COAM: "Zinskompensation", OAMT: "Ursprungsbetrag", SVWZ: "",
 };
-const SEPA_RE = new RegExp(`(?<![A-Za-z])(${Object.keys(SEPA).join("|")})\\+`, "g");
+/** Ausgeschriebene Schlüssel, wie manche Banken (z. B. comdirect) sie in den Text setzen. */
+const WORTSCHLUESSEL = [
+  ["END-TO-END-REF\\.?:", "Ende-zu-Ende-Referenz"], ["MANDATSREF\\.?:", "Mandatsreferenz"],
+  ["GLÄUBIGER-ID:", "Gläubiger-ID"], ["GLAEUBIGER-ID:", "Gläubiger-ID"], ["KUNDENREFERENZ:", "Kundenreferenz"],
+];
+// Schlüssel trennen den Text in Abschnitte; „Ref.“ der Bank steht meist am Ende und beendet den Wert davor.
+const SCHLUESSEL_RE = new RegExp([
+  `(?<![A-Za-z])(${Object.keys(SEPA).join("|")})\\+`,
+  ...WORTSCHLUESSEL.map(([re]) => `(${re})`),
+  "(?<![A-Za-z])(Ref\\.)\\s?",
+].join("|"), "g");
+const WERTLOS = new Set(["NOTPROVIDED", "NICHT ANGEGEBEN"]);
+const VERFAHREN = { CORE: "Basislastschrift (CORE)", B2B: "Firmenlastschrift (B2B)", COR1: "Basislastschrift (COR1)" };
+
+function schluesselName(m) {
+  if (m[1]) return { sepa: m[1], name: SEPA[m[1]] };
+  for (let i = 0; i < WORTSCHLUESSEL.length; i += 1) if (m[i + 2]) return { name: WORTSCHLUESSEL[i][1] };
+  return { name: "Referenz", ref: true };
+}
 
 /** Buchungsarten, wie Banken sie dem Zweck voranstellen (längere zuerst). */
 const ARTEN = [
@@ -31,11 +49,11 @@ const MUSTER = [
   { art: "kartenart", re: /(?<![A-Za-z])[A-ZÄÖÜ][A-ZÄÖÜ ]{0,30}?(?:VISA|MASTERCARD|GIROCARD|MAESTRO|V PAY|DEBITKARTE)[A-Z-]*/g },
   // ISO-Zeitpunkt: „2026-11-11 00:00:00“
   { art: "zeitpunkt", re: /(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::\d{2})?)?/g },
-  // Referenz: „Ref. 452C29KP0Y9FG39D/60142“
-  { art: "referenz", re: /(?<![A-Za-z])Ref\.?\s?([A-Za-z0-9][A-Za-z0-9/.\-]{4,})/g },
+  // Amazon-Bestellnummer „302-1234567-1234567“ (auch teilweise maskiert)
+  { art: "bestellung", re: /(?<![\dx])[\dx]{3}-[\dx]{7,8}-[\dx]{7}(?![\dx])/g },
 ];
 
-const LABEL = { karte: "Karte", kartenart: "Kartenart", zeitpunkt: "Zeitpunkt", referenz: "Referenz" };
+const LABEL = { karte: "Karte", kartenart: "Kartenart", zeitpunkt: "Zeitpunkt", bestellung: "Bestellnummer" };
 
 function artText(s) {
   return s.toLowerCase().replace(/(^|[\s/,-])([a-zäöü])/g, (_, a, b) => a + b.toUpperCase());
@@ -72,14 +90,37 @@ const nurZeichen = (s) => !/[A-Za-z0-9ÄÖÜäöüß]/.test(s);
 function abschnitt(text, aus) {
   let pos = 0;
   for (const x of bereiche(text)) {
-    const davor = text.slice(pos, x.von).trim();
+    const davor = paypal(text.slice(pos, x.von), aus).trim();
     if (davor && !nurZeichen(davor)) aus.texte.push(davor);
     if (x.art === "buchungsart") { if (!aus.arten.includes(x.wert)) aus.arten.push(x.wert); }
-    else aus.angaben.push({ art: x.art, name: LABEL[x.art], wert: x.wert, mono: x.art === "referenz" || x.art === "karte" });
+    else aus.angaben.push({ art: x.art, name: LABEL[x.art], wert: x.wert, mono: x.art === "karte" || x.art === "bestellung" });
     pos = x.bis;
   }
-  const rest = text.slice(pos).trim();
+  const rest = paypal(text.slice(pos), aus).trim();
   if (rest && !nurZeichen(rest)) aus.texte.push(rest);
+}
+
+/** PayPal: „<Kennung>/PP.<Nr>.PP/. <Händler>, IHR EINKAUF BEI <Händler>“. */
+function paypal(text, aus) {
+  const m = /^\s*(\S+)\/PP\.(\S+?)\.PP\/\.\s*/.exec(text);
+  if (!m) return text;
+  if (!aus.arten.includes("PayPal")) aus.arten.push("PayPal");
+  aus.angaben.push({ art: "paypal", name: "PayPal-Referenz", wert: `${m[1]} / ${m[2]}`, mono: true });
+  let rest = text.slice(m[0].length);
+  const einkauf = /^(.+?),?\s*IHR EINKAUF BEI\s+(.+)$/i.exec(rest);
+  if (einkauf) rest = einkauf[1].trim() === einkauf[2].trim() ? `Einkauf bei ${einkauf[2].trim()}` : rest;
+  return rest;
+}
+
+/** Wert hinter einem Schlüssel: Trenner „ / “ am Ende ab, Lastschriftverfahren (CORE, B2B) als eigene Angabe. */
+function schluesselWert(roh, aus) {
+  let wert = roh.trim().replace(/\s*\/\s*$/, "");
+  const v = /^(.*?)(CORE|B2B|COR1)$/.exec(wert);
+  if (v && /\/\s*$/.test(roh.trim())) {
+    wert = v[1].trim();
+    aus.verfahren = { art: "verfahren", name: "Lastschriftverfahren", wert: VERFAHREN[v[2]], mono: false };
+  }
+  return wert;
 }
 
 /**
@@ -90,17 +131,28 @@ export function zweckZerlegen(original) {
   const text = (original || "").replace(/\s+/g, " ").trim();
   const aus = { arten: [], texte: [], angaben: [], erkannt: false };
   if (!text) return aus;
-  const schluessel = [...text.matchAll(SEPA_RE)];
+  const schluessel = [...text.matchAll(SCHLUESSEL_RE)];
+  const frei = (t) => abschnitt(t, aus);
   if (schluessel.length) {
-    abschnitt(text.slice(0, schluessel[0].index), aus);
+    frei(text.slice(0, schluessel[0].index));
+    const angaben = [];
     schluessel.forEach((m, i) => {
-      const wert = text.slice(m.index + m[0].length, i + 1 < schluessel.length ? schluessel[i + 1].index : text.length).trim();
-      if (!wert || wert === "NOTPROVIDED") return;
-      if (m[1] === "SVWZ") abschnitt(wert, aus);
-      else aus.angaben.push({ art: m[1].toLowerCase(), name: SEPA[m[1]], wert, mono: m[1] !== "ABWA" && m[1] !== "ABWE" });
+      const roh = text.slice(m.index + m[0].length, i + 1 < schluessel.length ? schluessel[i + 1].index : text.length);
+      const s = schluesselName(m);
+      if (s.sepa === "SVWZ") { frei(roh.trim()); return; }
+      const wert = schluesselWert(roh, aus);
+      if (!wert || WERTLOS.has(wert.toUpperCase())) return;
+      angaben.push({ art: s.sepa ? s.sepa.toLowerCase() : s.ref ? "referenz" : "schluessel", name: s.name, wert,
+        mono: s.sepa !== "ABWA" && s.sepa !== "ABWE" });
     });
+    aus.angaben.push(...angaben);
+    if (aus.verfahren) aus.angaben.push(aus.verfahren);
+    delete aus.verfahren;
+    // Kennungen, die schon als Angabe erscheinen, nicht noch einmal im Text zeigen (z. B. Ende-zu-Ende-Referenz)
+    const werte = new Set(angaben.map((a) => a.wert).filter((w) => w.length >= 8));
+    aus.texte = aus.texte.map((t) => t.split(" ").filter((w) => !werte.has(w)).join(" ")).filter((t) => t && !nurZeichen(t));
   } else {
-    abschnitt(text, aus);
+    frei(text);
   }
   aus.erkannt = aus.arten.length > 0 || aus.angaben.length > 0;
   if (!aus.erkannt) aus.texte = [text];   // nichts erkannt: Text unverändert (nur Leerraum vereinheitlicht)
