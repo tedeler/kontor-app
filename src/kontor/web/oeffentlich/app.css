@@ -84,6 +84,12 @@ html[data-thema="dunkel"] [aria-labelledby="nav-gruppe-betrieb"] { --nav-ton: #4
   padding: .5rem .9rem; min-height: 36px; color: var(--text-2, var(--text)); font: inherit; font-size: .85em; cursor: pointer; }
 .version-knopf:hover, .version-knopf:focus-visible { background: var(--hg-3); text-decoration: underline; }
 [data-layout="mobil"] .version-knopf { min-height: 44px; }
+/* D-178: Branch statt Version (Entwicklungsstand außerhalb von main) */
+.version-fuss { margin-top: auto; display: flex; align-items: stretch; border-top: 1px solid var(--rand); }
+.version-fuss .version-knopf { margin-top: 0; border-top: 0; align-self: auto; flex: 0 0 auto; text-align: center; padding: .5rem .7rem; }
+.zweig-link { flex: 1 1 auto; min-width: 0; padding: .5rem .9rem; font-size: .85em; color: var(--akzent);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; align-self: center; }
+.zweig-link:hover, .zweig-link:focus-visible { text-decoration: underline; }
 /* D-107: neuere Version verfügbar */
 .version-knopf[data-update="verfuegbar"]::after, .menue-knopf[data-update="verfuegbar"]::after { content: ""; display: inline-block;
   width: .55em; height: .55em; margin-left: .45em; border-radius: 50%; background: var(--akzent); vertical-align: middle; }

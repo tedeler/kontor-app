@@ -105,6 +105,7 @@ async function ueberOeffnen() {
       h("p", { class: "ueber-version" }, h("strong", { tid: "ueber-version" }, `Version ${info.version}`)),
       h("table", { class: "ueber-tabelle" }, h("tbody", null,
         zeile("ueber-build", "Build", build),
+        zweigZeile(),
         zeile("ueber-modus", "Modus", info.modus === "mock" ? "Mock-Modus" : "Echtbetrieb"),
         zeile("ueber-python", "Python", info.python),
         zeile("ueber-datenbank", "Datenbank", info.datenbank),
@@ -116,6 +117,14 @@ async function ueberOeffnen() {
   }, { ausloeser: istMobil() ? menueKnopf : versionKnopf, schliessenKnopf: "ueber-x", fokus: (box) => box.querySelector("[data-testid=ueber-schliessen]") });
 }
 versionKnopf.addEventListener("click", ueberOeffnen);
+
+/** D-178: Entwicklungsstand außerhalb von main – Branch mit Link (vom Server in den Fuß geschrieben). */
+function zweigZeile() {
+  const link = tid("zweig-link");
+  if (!link) return null;
+  return h("tr", null, h("th", { scope: "row" }, "Branch"), h("td", { tid: "ueber-zweig" },
+    h("a", { href: link.href, target: "_blank", rel: "noopener noreferrer" }, link.dataset.zweig)));
+}
 
 // ------------------------------------------------------------------ Aktualisierung (D-107)
 const UPDATE_ABFRAGE_MS = 60 * 60 * 1000;

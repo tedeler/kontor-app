@@ -2374,6 +2374,20 @@ D-123 bis D-127 sind auf den offenen Branches `dokumente` und `alfbanco-import` 
   der Name wie erfasst; Texte vom Server (z. B. Verdachtshinweis) bleiben unverändert.
 - Verwendungszweck (Frage aus D-175): bleibt beim Import unverändert; die Gliederung erfolgt nur in der Anzeige,
   damit alte und neue Buchungen für Regeln, Lernmodell und Dublettenerkennung gleich aussehen.
+
+## D-178 Branch statt Version außerhalb von main
+
+- **Anlass:** Auf einem Entwicklungsstand soll man sofort sehen, welcher Branch läuft, und ihn im Repository öffnen
+  können.
+- **Entscheidung:** `version.zweig()` liest den Branch aus `.git/HEAD` des Quellbaums. Git wird dabei nicht
+  aufgerufen, Worktrees mit einer `.git`-Datei werden unterstützt. Für Releases (mit `build.json`), bei losgelöstem
+  HEAD und für Namen außerhalb von `[A-Za-z0-9._/-]` liefert sie None.
+- Ist der Branch nicht `main`, schreibt der Server beim Ausliefern der Hülle statt „Version x.yy“ den Link
+  `zweig-link` („⎇ Branch“, auf `<Repository>/tree/<Branch>`, neues Fenster) in den Fuß der Navigation. Der Knopf
+  `version-knopf` heißt dann „Über“ und öffnet weiter das About-Fenster. Dort steht zusätzlich die Zeile „Branch“
+  (`ueber-zweig`). Auf main und in Releases bleibt alles wie bisher.
+- `GET /api/version` bleibt unverändert, der Branch steht nur in der Hülle. Der Service-Worker-Cache heißt
+  `kontor-huelle-32`.
 ## D-179 Kontor-Ausdrücke: gemeinsame Sprache für Regeln und Kontoblatt-Filter (Feature `ausdruecke`)
 
 Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abgestimmt am 2026-11-16).

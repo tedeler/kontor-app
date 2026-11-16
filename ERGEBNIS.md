@@ -1,6 +1,17 @@
 # Ergebnis der Implementierung
 
 
+## Merge von `feature/ausdruecke` (D-179 bis D-190) ohne Abnahme
+
+Stand: 2026-11-16, Implementierungs-Thread. Auf ausdrückliche Anweisung des Auftraggebers auf main gemergt, bevor es
+eine Meilenstein-Definition und Abnahmetests gibt (wie D-144, `feature/sammel`). main (0.18) war vorher eingemergt.
+
+- Eigene Tests: **340 / 340** grün (inkl. Browser-Rauchtests).
+- Abnahmetests aus kontor-tests **nicht gelaufen**: kein Lesezugriff auf kontor-tests in dieser Sitzung.
+- Erwartet rot, bis die Meilenstein-Definition sie ablöst: Tests der Einzelfelder der Filterleiste (`filter-von`,
+  `filter-bis`, `filter-empfaenger` …) und des Knopfs `filter-umschalten` (M8, M12, M17, UXMobile), der neu
+  aufgebaute Regeldialog; Antworten von `/api/regeln` haben die zusätzlichen Felder `ausdruck` und `ausdruck_form`.
+
 ## Feature `ausdruecke` (Branch `feature/ausdruecke`, iterative Phase, D-179 bis D-182)
 
 Stand: 2026-11-16, Implementierungs-Thread. Kontor-Ausdrücke für Regeln und den Kontoblatt-Filter nach dem Konzept
@@ -13,6 +24,16 @@ Stand: 2026-11-16, Implementierungs-Thread. Kontor-Ausdrücke für Regeln und de
 - Seit D-188 ersetzt der Filter-Baukasten die Einzelfelder der Filterleiste; Abnahmetests, die diese Felder
   bedienen, werden rot, bis die Meilenstein-Definition sie ablöst.
 - Neue Abhängigkeit `google-re2` (reguläre Ausdrücke mit linearer Laufzeit).
+## Nachtrag: D-178 von `feature/detailansicht` auf main, gegen kontor-tests `c99b6ac`
+
+Stand: 2026-11-16. Ein anderer Thread hatte nach dem ersten Merge D-178 (Branch mit Link statt Versionsnummer
+außerhalb von main) auf den Branch gepusht; auf Anweisung des Auftraggebers ebenfalls ohne eigene Abnahme gemergt,
+danach der Branch gelöscht.
+
+- Volllauf `--voll` (AqBanking installiert): **3494 / 3495**; rot nur der Leistungstest
+  `m7/test_m7_leistung.py::test_l7_suche_und_uebersicht` unter Last von 6 parallelen Workern, einzeln zweimal grün
+  (D-178 liest `.git/HEAD` nur beim Ausliefern der Hülle, nicht bei API-Anfragen).
+- Eigene Tests: **291 / 291**.
 
 ## Merge von `feature/detailansicht` (D-175 bis D-177) ohne Abnahme, gegen kontor-tests `c99b6ac`
 
