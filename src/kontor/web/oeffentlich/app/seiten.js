@@ -1162,7 +1162,7 @@ function zusammenfuehren(gewaehlt, ausloeser) {
   }, { ausloeser });
 }
 
-// ------------------------------------------------------------------ Regeln (D-175: regeleditor.js), Vorlagen (13.10)
+// ------------------------------------------------------------------ Regeln (D-178: regeleditor.js), Vorlagen (13.10)
 export async function regeln(seite) {
   return regelnSeite(seite, kopf);
 }

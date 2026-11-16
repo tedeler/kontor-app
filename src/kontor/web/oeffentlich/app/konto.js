@@ -76,7 +76,7 @@ const STATUS = ["importiert", "vorlaeufig", "bestaetigt", "abgeglichen"];
 const PARAMETER = ["von", "bis", "betrag_min", "betrag_max", "empfaenger_id", "ohne_empfaenger", "verwendungszweck",
   "zweck_gleich", "zweck_aehnlich", "zweck_leer", "empfaenger_aehnlich",
   "suche", "kategorie_id", "unterkategorien", "unterkonten", "tag_id", "status", "sortierung", "filter"];
-// Schnellauswahl Zeitraum des Filterausdrucks (D-175, Konzept 4.6.11): [Datumsangabe, Beschriftung]
+// Schnellauswahl Zeitraum des Filterausdrucks (D-178, Konzept 4.6.11): [Datumsangabe, Beschriftung]
 const SCHNELL = [["heute", "Heute"], ["-7d", "7 Tage"], ["-30d", "30 Tage"], ["dieser_monat", "Dieser Monat"],
   ["letzter_monat", "Letzter Monat"], ["dieses_jahr", "Dieses Jahr"], ["letztes_jahr", "Letztes Jahr"]];
 const SCHNELL_TEIL = /^(?:datum|dt)\s+(?:in|==)\s+(?:heute|[+-]\d+[dwmqy]|dieser_monat|letzter_monat|dieses_jahr|letztes_jahr|vorjahr)$/i;
@@ -601,7 +601,7 @@ class Kontoansicht {
     this.filterKnopf.setAttribute("aria-expanded", String(this.filterSichtbar));
   }
 
-  // ------------------------------------------------- Filterausdruck (D-175, Konzept 5.4)
+  // ------------------------------------------------- Filterausdruck (D-178, Konzept 5.4)
   ausdruckFilterAufbauen() {
     let uhr;
     const anwenden = () => {

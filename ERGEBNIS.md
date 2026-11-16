@@ -1,7 +1,7 @@
 # Ergebnis der Implementierung
 
 
-## Feature `ausdruecke` (Branch `feature/ausdruecke`, iterative Phase, D-175 bis D-178)
+## Feature `ausdruecke` (Branch `feature/ausdruecke`, iterative Phase, D-178 bis D-181)
 
 Stand: 2026-11-16, Implementierungs-Thread. Kontor-Ausdrücke für Regeln und den Kontoblatt-Filter nach dem Konzept
 `claude/feature-regeln.md` im Projekt. Noch keine Meilenstein-Definition und keine Abnahmetests.

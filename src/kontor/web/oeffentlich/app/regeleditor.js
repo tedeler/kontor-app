@@ -1,4 +1,4 @@
-/* Kontor – Regelliste, Regeleditor (Baukasten und Ausdruck) und Testbereich (D-175, Konzept 5.1–5.3). */
+/* Kontor – Regelliste, Regeleditor (Baukasten und Ausdruck) und Testbereich (D-178, Konzept 5.1–5.3). */
 import {
   BESTAND, aktion, api, baumFolge, betragEl, betragLesen, datumText, h, kategorien, kontoPfad, melde, neueId, pfadVon,
   stamm,
@@ -391,7 +391,7 @@ export async function regelEditor(r, ausloeser) {
         h("code", null, "empf vwz bet dir"), ". Regeln kennen kein Datum; dafür monatstag, monat, wochentag."),
       knopfLeiste(kopierKnopf(), testKnopf()));
     // Beim Tippen nur den Reiter sperren (mit Tooltip); der Hinweistext erscheint erst beim Versuch umzuschalten,
-    // damit links nichts springt (D-182).
+    // damit links nichts springt (D-185).
     const umschalterPruefen = (e) => {
       const ok = !e || (e.gueltig && e.baukasten_faehig);
       tabBk.disabled = !ok && modus === "ausdruck";
@@ -450,7 +450,7 @@ export async function regelEditor(r, ausloeser) {
     });
     let testUhr;
     const testPlanen = () => { clearTimeout(testUhr); test.veraltet(); testUhr = setTimeout(() => test.laden(), 150); };
-    // Nach jeder Prüfung sofort testen; ungültig → letztes Ergebnis bleibt sichtbar, als veraltet markiert (D-182)
+    // Nach jeder Prüfung sofort testen; ungültig → letztes Ergebnis bleibt sichtbar, als veraltet markiert (D-185)
     const testNachPruefung = (e) => {
       clearTimeout(testUhr);
       if (e && !e.gueltig) test.veraltet("Ausdruck ungültig – Ergebnis vom letzten gültigen Stand");
@@ -538,7 +538,7 @@ class Testbereich {
 
   planen() { clearTimeout(this.uhr); this.veraltet(); this.uhr = setTimeout(() => this.laden(), 300); }
 
-  /** Ergebnis gilt nicht mehr für die aktuelle Eingabe: abgeblendet, mit Hinweis (D-182). */
+  /** Ergebnis gilt nicht mehr für die aktuelle Eingabe: abgeblendet, mit Hinweis (D-185). */
   veraltet(text) {
     this.el.dataset.veraltet = "ja";
     this.statusEl.textContent = text || "aktualisiere …";
@@ -599,7 +599,7 @@ class Testbereich {
     this.el.dataset.geladen = "ja";
   }
 
-  /** Kompakte Trefferzeile (D-183): Datum, Empfänger, Betrag, Wirkung in einer Zeile; Klick klappt die Einzelheiten
+  /** Kompakte Trefferzeile (D-186): Datum, Empfänger, Betrag, Wirkung in einer Zeile; Klick klappt die Einzelheiten
    *  (Verwendungszweck, Kategorie, „→ Bedingung“, „Warum?“) auf. */
   zeile(z) {
     const vorher = z.kategorie_vorher ? pfadVon(z.kategorie_vorher) : "—";
