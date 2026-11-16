@@ -2434,3 +2434,8 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   ohne Empfänger das erste Wort ab vier Buchstaben aus dem Verwendungszweck (`"…" in vwz`).
 - Auswahl „Bedingung einer bestehenden Regel übernehmen …“ (`regel-uebernehmen`) übernimmt Ausdruck und Kategorie
   einer anderen Regel in den Editor; der Test läuft sofort.
+
+## D-181 Platzhalter im Ausdrucksfeld schwächer
+
+- Der Platzhalter (Beispielausdruck) erscheint kursiv mit 40 % Deckkraft, damit er im leeren Feld nicht wie eine
+  eingegebene Bedingung wirkt.

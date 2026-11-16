@@ -875,7 +875,8 @@ html[data-thema="dunkel"] .wisch-hinweis[data-bereit="ja"][data-richtung="links"
 .ausdruck-text { position: relative; display: block; resize: vertical; background: transparent; color: transparent;
   caret-color: var(--text); border-color: var(--rand); min-height: 2.1rem; }
 .ausdruck-eingabe:not(.mehrzeilig) .ausdruck-text { resize: none; overflow: hidden; }
-.ausdruck-text::placeholder { color: var(--text-2); }
+/* Platzhalter deutlich schwächer als echter Text, damit er nicht für eine Bedingung gehalten wird (D-181) */
+.ausdruck-text::placeholder { color: var(--text-2); opacity: .4; font-style: italic; }
 /* Markierung durchscheinend, damit die Schrift der Hervorhebungsschicht darunter lesbar bleibt */
 .ausdruck-text::selection { background: color-mix(in srgb, var(--akzent) 30%, transparent); color: transparent; }
 .ausdruck-text[aria-invalid="true"] { border-color: var(--gefahr); }
