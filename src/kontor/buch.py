@@ -476,12 +476,13 @@ def buchungen_laden(con, ids: list[int], konto_id: int | None = None,
     return aus
 
 
-def buchung_lesen(con, bid: int) -> dict:
+def buchung_lesen(con, bid: int, mit_verdacht: bool = False) -> dict:
     aus = buchungen_laden(con, [sichere_id(bid)])
     if not aus:
         raise nicht_gefunden("Die Buchung")
-    from . import verdacht
-    verdacht.anreichern(con, aus)
+    if mit_verdacht:   # nur auf Anfrage (M27 1.1, D-171); Antworten schreibender Aufrufe nie
+        from . import verdacht
+        verdacht.anreichern(con, aus)
     return aus[0]
 
 
@@ -866,8 +867,9 @@ def buchungsliste(con, f: dict) -> dict:
         zeilen = con.execute(f"{basis} ORDER BY {order} LIMIT ? OFFSET ?", alle_par + [pro_seite, offset])
         ids = [z["id"] for z in zeilen]
         eintraege = buchungen_laden(con, ids, konten=None if konten is None else set(konten))
-        from . import verdacht
-        verdacht.anreichern(con, eintraege)
+        if f.get("verdacht"):
+            from . import verdacht
+            verdacht.anreichern(con, eintraege)
     return {"eintraege": eintraege, "gesamt": gesamt, "seite": seite, "pro_seite": pro_seite, "summe": summe}
 
 

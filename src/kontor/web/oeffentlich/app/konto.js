@@ -486,7 +486,7 @@ class Kontoansicht {
     const nr = (this.ladeNr = (this.ladeNr || 0) + 1);   // nur die jüngste Antwort zählt
     this.seite.dataset.geladen = "nein";
     const proSeite = this.gruppierung ? GRUPPE_SEITE : PRO_SEITE;
-    const basis = { konto_id: this.konto.id, ...this.filter, sortierung: this.sortierung, pro_seite: proSeite };
+    const basis = { konto_id: this.konto.id, ...this.filter, sortierung: this.sortierung, pro_seite: proSeite, verdacht: "ja" };
     delete basis.gruppierung;
     // D-130: Buchungen, die einer aus Mails erkannten Erwartung zugeordnet sind (Mail-Abgleich, D-128)
     const erwartungen = api("GET", "/api/erwartungen" + abfrage({ grund: MAIL_GRUENDE, zustand: ERWARTUNG_ZUSTAENDE }))

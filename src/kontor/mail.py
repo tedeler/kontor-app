@@ -687,7 +687,7 @@ class MailDienst:
         return zeit_lesen(r) + dt.timedelta(minutes=self.config.mail_intervall_minuten) <= self._jetzt()
 
     def nachrichten_liste(self, con, postfach_id: int | None, seite: int, pro_seite: int,
-                          heute: str | None = None, zuordnung: str | None = None) -> dict:
+                          heute: str | None = None, zuordnung: str | None = None, neueste: bool = False) -> dict:
         wo, par = "", []
         if postfach_id is not None:
             wo, par = " WHERE p.id = ?", [buch.sichere_id(postfach_id)]
@@ -696,7 +696,7 @@ class MailDienst:
         reihen = con.execute(
             "SELECT n.id, n.adresse_cf, n.nachricht_id FROM mail_nachricht n"
             " JOIN postfach p ON p.adresse_cf = n.adresse_cf" + wo
-            + " ORDER BY n.empfangen DESC, p.id, n.nachricht_id", par).fetchall()
+            + f" ORDER BY n.empfangen{' DESC' if neueste else ''}, p.id, n.nachricht_id", par).fetchall()
         zaehler = {"zugeordnet": 0, "erwartet": 0, "keine": 0}
         gewaehlt: list[int] = []
         for r in reihen:
@@ -705,9 +705,7 @@ class MailDienst:
             if zuordnung is None or art == zuordnung:
                 gewaehlt.append(r["id"])
         gesamt = len(gewaehlt)
-        seiten = max(1, (gesamt + pro_seite - 1) // pro_seite)
-        seite = min(seite, seiten)
-        stueck = gewaehlt[(seite - 1) * pro_seite:seite * pro_seite]
+        stueck = gewaehlt[(seite - 1) * pro_seite:seite * pro_seite]   # hinter dem Ende: leer (mail.md 6.1)
         zeilen = _nachrichten_laden(con, stueck)
         return {"eintraege": [{"id": r["id"], "postfach_id": r["postfach_id"],
                                "postfach": r["postfach_bezeichnung"] or r["postfach_adresse"],

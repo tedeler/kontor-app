@@ -542,6 +542,7 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
             "vorschlag": q.wahrheitswert("vorschlag"),
             "abgestimmt": q.wahrheitswert("abgestimmt"),
             "sortierung": q.auswahl("sortierung", buch.SORTIERUNGEN) or "datum",
+            "verdacht": q.auswahl("verdacht", ("ja", "nein")) == "ja",   # M27 1.1 (D-171)
         }
         if seiten:
             f["seite"] = q.ganzzahl("seite", minimum=1)
@@ -604,7 +605,10 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
 
     @endpunkt("GET", "/api/buchungen/{buchung_id:int}")
     async def buchung_lesen(request: Request):
-        return await lesen(buch.buchung_lesen, pid(request, "buchung_id"))
+        q = Query(request.query_params)
+        mit_verdacht = q.auswahl("verdacht", ("ja", "nein")) == "ja"   # M27 1.1 (D-171)
+        q.pruefen()
+        return await lesen(buch.buchung_lesen, pid(request, "buchung_id"), mit_verdacht)
 
     @endpunkt("PATCH", "/api/buchungen/{buchung_id:int}")
     async def buchung_aendern(request: Request):
@@ -948,9 +952,10 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
         seite = q.ganzzahl("seite", minimum=1)
         pro_seite = q.ganzzahl("pro_seite", minimum=1, maximum=500)
         zuordnung = q.auswahl("zuordnung", ("zugeordnet", "erwartet", "keine"))
+        neueste = q.auswahl("reihenfolge", ("aelteste", "neueste")) == "neueste"   # M27 5 (D-171)
         q.pruefen()
         return await lesen(maildienst.nachrichten_liste, postfach_id, seite or 1, pro_seite or 50,
-                           sync.heute().isoformat(), zuordnung)
+                           sync.heute().isoformat(), zuordnung, neueste)
 
     @app.get("/oauth2/rueckruf", include_in_schema=False)
     async def oauth_rueckruf(request: Request):
@@ -1102,8 +1107,9 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
             q.fehler_melden("q", "Pflichtparameter fehlt.")
         elif text is not None and (len(text) > 200 or not text.split()):
             q.fehler_melden("q", "1–200 Zeichen mit mindestens einem Wort.")
+        mit_verdacht = q.auswahl("verdacht", ("ja", "nein")) == "ja"
         q.pruefen()
-        return await lesen(pflege.suche, text, limit or 50)
+        return await lesen(pflege.suche, text, limit or 50, mit_verdacht)
 
     # ------------------------------------------------- M4: Lernmodell
     @endpunkt("GET", "/api/lernmodell")

@@ -2303,3 +2303,14 @@ D-123 bis D-127 sind auf den offenen Branches `dokumente` und `alfbanco-import` 
 - **Ausschnitt langer Listen (D-151):** Die Liste trägt `aria-rowcount` (alle Einträge einschließlich Kopf), jede
   gezeichnete Zeile `aria-rowindex` (Kopf = 1).
 - **Tastaturhilfe:** „Alt+1 … Alt+7“ (Navigation hat sieben Ziele).
+
+## D-171 Vorbereitung der Abnahme M27: Rückwärtskompatibilität der REST-Antworten
+
+- **`verdacht`** (D-157) nur auf Anfrage mit `verdacht=ja` an `GET /api/buchungen`, `GET /api/buchungen/{id}` und
+  `GET /api/suche`; Antworten schreibender Aufrufe nie. Vorher stand das Feld in jeder Buchungsantwort und änderte
+  so auch unbeteiligte Buchungen. Kontoblatt, Suche und Einzelansicht fragen mit `verdacht=ja`.
+- **Mail-Liste** (D-153): Vorgabe wieder aufsteigend nach Empfang; absteigend nur mit `reihenfolge=neueste` (das
+  Mail-Blatt fragt so). Eine Seite hinter dem Ende liefert wieder leere Einträge statt der letzten Seite.
+- **Rückgängig des Anlegens eines Tags:** Konflikt (409), wenn inzwischen ein Empfänger außerhalb der Änderung den
+  Tag trägt (Bestätigung D-156).
+- Service-Worker-Cache `kontor-huelle-29`.
