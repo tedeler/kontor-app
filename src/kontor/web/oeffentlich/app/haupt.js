@@ -471,7 +471,10 @@ sucheKnopf.addEventListener("click", () => {
 sucheFeld.addEventListener("focus", () => { if (istMobil()) sucheMobil(true); });
 sucheFeld.addEventListener("blur", () => {
   // Tippen auf die Lupe schließt selbst; sonst nach dem Verlassen des leeren Felds einklappen
-  setTimeout(() => { if (istMobil() && !sucheFeld.value && document.activeElement !== sucheKnopf) sucheMobil(false); }, 150);
+  setTimeout(() => {   // nicht schließen, wenn der Fokus inzwischen wieder im Feld liegt (D-174)
+    const a = document.activeElement;
+    if (istMobil() && !sucheFeld.value && a !== sucheKnopf && a !== sucheFeld) sucheMobil(false);
+  }, 150);
 });
 
 // Tabs mobil: statt der Leiste ein Knopf mit der Zahl offener Ansichten; er klappt die Leiste als Liste auf.

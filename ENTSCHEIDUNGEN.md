@@ -2326,3 +2326,12 @@ D-123 bis D-127 sind auf den offenen Branches `dokumente` und `alfbanco-import` 
 
 - Nach dem Wegfall von „Wiederkehrende Buchungen“ in der Navigation (D-146) löste Alt+8 einen Skriptfehler aus
   (Link nicht vorhanden). Alt+Ziffer wirkt nur noch, wenn es ein Ziel gibt; sonst geschieht nichts (M28 2).
+
+## D-174 Abnahme M26–M28: Meldungen und mobile Suche
+
+- **Meldungen** (unten rechts) lassen Klicks auf darunterliegende Bedienelemente durch; nur ihre eigenen Knöpfe
+  fangen Klicks. Vorher verdeckte eine Erfolgsmeldung z. B. den Knopf zum Lösen eines Dokuments im (seit M28
+  längeren) Panel Einzelheiten.
+- **Mobile Suche:** Das verzögerte Einklappen nach dem Verlassen des leeren Felds unterbleibt, wenn der Fokus
+  inzwischen wieder im Feld liegt (Wettlauf beim schnellen Öffnen über die Lupe).
+- Service-Worker-Cache `kontor-huelle-30`.
