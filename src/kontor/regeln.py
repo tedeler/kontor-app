@@ -1,18 +1,20 @@
 """Regel-Kategorisierung und Vorschläge (kategorisierung.md, Meilenstein 2).
 
 Regeln: feste Zuordnungen mit UND-verknüpften Bedingungen auf Empfänger,
-Verwendungszweck, Regelbetrag und Konto. Reihenfolge: ``prioritaet``
+Verwendungszweck, Regelbetrag und Konto – oder (D-185) mit einem Ausdruck der Kontor-Ausdruckssprache
+(``ausdruck.py``). Ein Ausdruck wird als einzige Bedingung ``{"feld": "ausdruck", "operator": "ausdruck",
+"wert": <Baum>}`` in ``bedingungen`` gespeichert; der Baum hält Verweise als IDs. Reihenfolge: ``prioritaet``
 aufsteigend, dann ``id``; die erste passende aktive Regel gewinnt. Gesetzte
 Kategorien sind Vorschläge, bis sie bestätigt oder erledigt sind.
 """
 
 from __future__ import annotations
 
+import datetime as dt
 import json
-from dataclasses import dataclass, field
 from typing import Any
 
-from . import buch
+from . import ausdruck, buch
 from .buch import BESTAND, KATEGORIEARTEN, ApiFehler, kontoarten, nicht_gefunden, sichere_id
 from .text import norm
 from .validierung import BETRAG_MAX, Validierungsfehler, fehler_eintrag, ist_int, json_koerper
@@ -62,21 +64,64 @@ def _bedingung_pruefen(b: Any, ort: list, fehler: list[dict]) -> None:
         fehler.append(fehler_eintrag(ort + ["feld"], "Erlaubt sind: empfaenger, verwendungszweck, betrag, konto_id."))
 
 
-def regel_koerper(roh: bytes, neu: bool) -> dict:
-    """Prüft den Körper von POST/PATCH /api/regeln streng (422 ``validierung``)."""
+AUSDRUCK = "ausdruck"
+
+
+def ist_ausdruck(bedingungen: list) -> bool:
+    return len(bedingungen) == 1 and isinstance(bedingungen[0], dict) and bedingungen[0].get("feld") == AUSDRUCK
+
+
+def baum(bedingungen: list) -> dict | None:
+    return bedingungen[0]["wert"] if ist_ausdruck(bedingungen) else None
+
+
+def konto_verweise(bedingungen: list) -> set[int]:
+    """Alle Konten (Bestandskonten und Kategorien), auf die Bedingungen verweisen."""
+    b = baum(bedingungen)
+    if b is not None:
+        return ausdruck.verweise(b, "konto") | ausdruck.verweise(b, "kategorie")
+    return {x["wert"] for x in bedingungen if isinstance(x, dict) and x.get("feld") == "konto_id"}
+
+
+def konto_verweise_ersetzen(bedingungen: list, alt: int, neu: int) -> list:
+    b = baum(bedingungen)
+    if b is not None:
+        b = ausdruck.verweise_ersetzen(ausdruck.verweise_ersetzen(b, "konto", alt, neu), "kategorie", alt, neu)
+        return [{"feld": AUSDRUCK, "operator": AUSDRUCK, "wert": b}]
+    return [{**x, "wert": neu} if x["feld"] == "konto_id" and x["wert"] == alt else x for x in bedingungen]
+
+
+def regel_koerper(roh: bytes, neu: bool, intern: bool = False) -> dict:
+    """Prüft den Körper von POST/PATCH /api/regeln streng (422 ``validierung``).
+
+    ``ausdruck`` (Text) ersetzt ``bedingungen`` (D-185); genau eines von beiden. ``intern``: Prüfung einer
+    Sicherung, dort darf ``bedingungen`` die gespeicherte Ausdrucksform enthalten."""
     d = json_koerper(roh)
     fehler: list[dict] = []
     if not isinstance(d, dict):
         raise Validierungsfehler([fehler_eintrag(["body"], "JSON-Objekt erwartet.")])
-    erlaubt = ("name", "aktiv", "prioritaet", "kategorie_id", "bedingungen")
+    erlaubt = ("name", "aktiv", "prioritaet", "kategorie_id", "bedingungen", "ausdruck")
     for k in d:
         if k not in erlaubt:
             fehler.append(fehler_eintrag(["body", k], "Unbekanntes Feld."))
     if neu:
-        for k in ("name", "kategorie_id", "bedingungen"):
+        for k in ("name", "kategorie_id"):
             if k not in d:
                 fehler.append(fehler_eintrag(["body", k], "Pflichtfeld fehlt."))
+        if "bedingungen" not in d and "ausdruck" not in d:
+            fehler.append(fehler_eintrag(["body", "bedingungen"], "Pflichtfeld fehlt (oder „ausdruck“)."))
+    if "bedingungen" in d and "ausdruck" in d:
+        fehler.append(fehler_eintrag(["body", "ausdruck"], "Nur eines von „bedingungen“ und „ausdruck“."))
+    if "ausdruck" in d:
+        a = d["ausdruck"]
+        if not isinstance(a, str):
+            fehler.append(fehler_eintrag(["body", "ausdruck"], "Zeichenkette erwartet."))
+        elif not a.strip() or len(a) > ausdruck.MAX_AUSDRUCK:
+            fehler.append(fehler_eintrag(["body", "ausdruck"], f"1–{ausdruck.MAX_AUSDRUCK} Zeichen, nicht nur Leerraum."))
+
     aus: dict[str, Any] = {}
+    if "ausdruck" in d and isinstance(d["ausdruck"], str):
+        aus["ausdruck"] = d["ausdruck"]
     if "name" in d:
         n = d["name"]
         if not isinstance(n, str):
@@ -105,21 +150,45 @@ def regel_koerper(roh: bytes, neu: bool) -> dict:
         else:
             if not 1 <= len(bs) <= 20:
                 fehler.append(fehler_eintrag(["body", "bedingungen"], "1 bis 20 Bedingungen erforderlich."))
-            for i, b in enumerate(bs):
-                _bedingung_pruefen(b, ["body", "bedingungen", i], fehler)
-            aus["bedingungen"] = [{"feld": b["feld"], "operator": b["operator"], "wert": b["wert"]}
-                                  for b in bs if isinstance(b, dict) and len(b) == 3]
+            if intern and ist_ausdruck(bs):
+                if set(bs[0]) != {"feld", "operator", "wert"} or not isinstance(bs[0]["wert"], dict):
+                    fehler.append(fehler_eintrag(["body", "bedingungen", 0], "Ungültige Ausdrucksform."))
+                aus["bedingungen"] = bs
+            else:
+                for i, b in enumerate(bs):
+                    _bedingung_pruefen(b, ["body", "bedingungen", i], fehler)
+                aus["bedingungen"] = [{"feld": b["feld"], "operator": b["operator"], "wert": b["wert"]}
+                                      for b in bs if isinstance(b, dict) and len(b) == 3]
     if fehler:
         raise Validierungsfehler(fehler)
     return aus
 
 
+def ausdruck_uebersetzen(con, text: str) -> dict:
+    """Ausdruck (Kontext ``regel``) → gespeicherter Baum; 422 ``ausdruck_ungueltig`` mit ``details.fehler``."""
+    try:
+        return ausdruck.uebersetzen(text, "regel", ausdruck.Bezuege.laden(con)).baum
+    except ausdruck.AusdruckFehler as e:
+        raise ApiFehler(422, "ausdruck_ungueltig", e.fehler[0]["meldung"], {"fehler": e.fehler}) from None
+
+
 def _bezuege_pruefen(con, d: dict) -> None:
+    if "ausdruck" in d:
+        d["bedingungen"] = [{"feld": AUSDRUCK, "operator": AUSDRUCK, "wert": ausdruck_uebersetzen(con, d.pop("ausdruck"))}]
+        return _bezuege_pruefen(con, d)
     if "kategorie_id" in d:
         r = buch.konto_zeile(con, d["kategorie_id"])
         if r is None or r["art"] not in KATEGORIEARTEN:
             raise ApiFehler(422, "kategorie_ungueltig", "Die Kategorie muss ein Aufwands- oder Ertragskonto sein.")
-    if "bedingungen" in d:
+    if "bedingungen" in d and ist_ausdruck(d["bedingungen"]):
+        bz = ausdruck.Bezuege.laden(con)
+        b = baum(d["bedingungen"])
+        fehlt = sorted(ausdruck.verweise(b, "konto") - set(bz.konto_pfad)
+                       | ausdruck.verweise(b, "kategorie") - set(bz.kategorie_pfad))
+        if fehlt:
+            raise ApiFehler(422, "referenz_unbekannt", "Der Ausdruck verweist auf ein unbekanntes Konto.",
+                            {"konto_ids": fehlt})
+    elif "bedingungen" in d:
         unbekannt = []
         for b in d["bedingungen"]:
             if b["feld"] == "konto_id":
@@ -134,14 +203,18 @@ def _bezuege_pruefen(con, d: dict) -> None:
 # ===================================================================== CRUD
 
 
-def regel_dict(r) -> dict:
-    """Regel als Objekt; automatisch angelegte Regeln (D-179) tragen zusätzlich ``automatisch: true`` und den
-    Empfänger, aus dessen Buchungen sie entstanden sind."""
+def regel_dict(r, bez: ausdruck.Bezuege | None = None) -> dict:
+    """Regel als Objekt: Protokollform (ohne ``bez``) bzw. API-Form mit ``ausdruck`` (kanonischer Text, auch für alte
+    Regeln, D-185). Automatisch angelegte Regeln (D-179) tragen zusätzlich ``automatisch: true`` und den Empfänger,
+    aus dessen Buchungen sie entstanden sind."""
     d = {"id": r["id"], "name": r["name"], "aktiv": bool(r["aktiv"]), "prioritaet": r["prioritaet"],
          "kategorie_id": r["kategorie_id"], "bedingungen": json.loads(r["bedingungen"])}
-    if r["automatisch"]:
+    if "automatisch" in r.keys() and r["automatisch"]:
         d["automatisch"] = True
         d["empfaenger_id"] = r["auto_empfaenger_id"]
+    if bez is not None:
+        d["ausdruck"] = ausdruck_text(d["bedingungen"], bez)
+        d["ausdruck_form"] = "ausdruck" if ist_ausdruck(d["bedingungen"]) else "bedingungen"
     return d
 
 
@@ -153,15 +226,69 @@ def regel_zeilen(con, ids: list[int]) -> list:
     return con.execute(f"{_AUSWAHL} WHERE r.id IN ({buch._platzhalter(len(ids))})", ids).fetchall()
 
 
-def regeln_liste(con) -> list[dict]:
-    return [regel_dict(r) for r in con.execute(f"{_AUSWAHL} ORDER BY r.prioritaet, r.id")]
+def regeln_liste(con, mit_ausdruck: bool = True) -> list[dict]:
+    bez = ausdruck.Bezuege.laden(con) if mit_ausdruck else None
+    return [regel_dict(r, bez) for r in con.execute(f"{_AUSWAHL} ORDER BY r.prioritaet, r.id")]
 
 
 def regel_lesen(con, rid: int) -> dict:
     r = con.execute(f"{_AUSWAHL} WHERE r.id = ?", (sichere_id(rid),)).fetchone()
     if r is None:
         raise nicht_gefunden("Die Regel")
-    return regel_dict(r)
+    return regel_dict(r, ausdruck.Bezuege.laden(con))
+
+
+# ----------------------------------------------- alte Bedingungen als Ausdruck
+
+
+def bedingungen_als_baum(bedingungen: list) -> dict:
+    """Übersetzt alte Bedingungen in einen gleichbedeutenden Baum (Konzept 9; Regelbetrag mit Vorzeichen)."""
+    b = baum(bedingungen)
+    if b is not None:
+        return b
+    teile: list[dict] = []
+    for x in bedingungen:
+        f, op, w = x["feld"], x["operator"], x["wert"]
+        if f in TEXTFELDER:
+            feld = {"t": "feld", "name": "empfänger" if f == "empfaenger" else "verwendungszweck"}
+            if op == "enthaelt":
+                teile.append({"t": "kette", "terme": [{"t": "text", "wert": w}, feld], "ops": ["in"]})
+            elif op == "gleich":
+                teile.append({"t": "kette", "terme": [feld, {"t": "text", "wert": w}], "ops": ["=="]})
+            else:
+                teile.append({"t": "methode", "feld": feld["name"], "name": "startswith", "muster": w,
+                              "case": False, "fold": True})
+        elif f == "konto_id":
+            teile.append({"t": "kette", "terme": [{"t": "feld", "name": "konto"},
+                                                  {"t": "ref", "art": "konto", "id": w}], "ops": ["=="]})
+        else:
+            teile.append(_betrag_baum(op, w))
+    return teile[0] if len(teile) == 1 else {"t": "und", "teile": teile}
+
+
+def _betrag_baum(op: str, w: int) -> dict:
+    def vgl(o: str, cent: int) -> dict:
+        return {"t": "kette", "terme": [{"t": "feld", "name": "betrag"}, {"t": "betrag", "cent": cent}], "ops": [o]}
+
+    def rtg(o: str, wert: str) -> dict:
+        return {"t": "kette", "terme": [{"t": "feld", "name": "richtung"}, {"t": "auswahl", "wert": wert}], "ops": [o]}
+
+    a = abs(w)
+    if op == "gleich":
+        if w == 0:
+            return vgl("==", 0)
+        return {"t": "und", "teile": [rtg("==", "ausgabe" if w < 0 else "einnahme"), vgl("==", a)]}
+    if op == "mindestens":   # Regelbetrag >= w
+        if w <= 0:
+            return {"t": "oder", "teile": [rtg("!=", "ausgabe"), vgl("<=", a)]}
+        return {"t": "und", "teile": [rtg("==", "einnahme"), vgl(">=", a)]}
+    if w >= 0:               # hoechstens: Regelbetrag <= w
+        return {"t": "oder", "teile": [rtg("!=", "einnahme"), vgl("<=", a)]}
+    return {"t": "und", "teile": [rtg("==", "ausgabe"), vgl(">=", a)]}
+
+
+def ausdruck_text(bedingungen: list, bez: ausdruck.Bezuege) -> str:
+    return ausdruck.drucken(bedingungen_als_baum(bedingungen), bez)
 
 
 def regel_anlegen(con, d: dict) -> dict:
@@ -196,16 +323,23 @@ def regel_loeschen(con, rid: int) -> None:
     con.execute("DELETE FROM regel WHERE id = ?", (rid,))
 
 
+def reihenfolge_setzen(con, ids: list[int]) -> list[dict]:
+    """POST /api/regeln/reihenfolge (Konzept 6.3): vollständige ID-Liste → Priorität 10, 20, …"""
+    vorhanden = [r["id"] for r in con.execute("SELECT id FROM regel ORDER BY prioritaet, id")]
+    if sorted(ids) != sorted(vorhanden):
+        raise ApiFehler(422, "validierung", "Die Liste muss jede Regel genau einmal enthalten.",
+                        {"fehlend": sorted(set(vorhanden) - set(ids)), "unbekannt": sorted(set(ids) - set(vorhanden))})
+    if len(ids) * 10 > PRIO_MAX:
+        raise ApiFehler(422, "validierung", "Zu viele Regeln.")
+    for i, rid in enumerate(ids):
+        con.execute("UPDATE regel SET prioritaet = ? WHERE id = ? AND prioritaet <> ?", ((i + 1) * 10, rid, (i + 1) * 10))
+    return regeln_liste(con)
+
+
 # =============================================================== Auswertung
 
 
-@dataclass
-class Sicht:
-    """Was eine Regel von einer Buchung sieht (kategorisierung.md 4)."""
-    empfaenger: str | None
-    verwendungszweck: str
-    regelbetrag: int
-    konten: set[int] = field(default_factory=set)
+Sicht = ausdruck.Sicht   # Was eine Regel von einer Buchung sieht (kategorisierung.md 4, D-185)
 
 
 def _trifft(b: dict, s: Sicht) -> bool:
@@ -225,16 +359,23 @@ def _trifft(b: dict, s: Sicht) -> bool:
 
 
 def aktive_regeln(con, regel_ids: list[int] | None = None) -> list[dict]:
-    regeln = [r for r in regeln_liste(con) if r["aktiv"]]
+    regeln = [r for r in regeln_liste(con, mit_ausdruck=False) if r["aktiv"]]
     if regel_ids is not None:
         erlaubt = set(regel_ids)
         regeln = [r for r in regeln if r["id"] in erlaubt]
     return regeln
 
 
+def trifft(r: dict, s: Sicht) -> bool:
+    b = baum(r["bedingungen"])
+    if b is not None:
+        return ausdruck.auswerten(b, s, dt.date.today())
+    return all(_trifft(x, s) for x in r["bedingungen"])
+
+
 def erste_regel(regeln: list[dict], s: Sicht) -> dict | None:
     for r in regeln:
-        if all(_trifft(b, s) for b in r["bedingungen"]):
+        if trifft(r, s):
             return r
     return None
 
@@ -281,10 +422,7 @@ def anwenden(con, buchung_ids: list[int] | None, regel_ids: list[int] | None, nu
             if nur_unkategorisiert and b["kategorie_id"] is not None:
                 continue
             geprueft += 1
-            bestand = [s for s in b["splits"] if art_von[s["konto_id"]] in BESTAND]
-            sicht = Sicht(b["empfaenger"]["name"] if b["empfaenger"] else None, b["verwendungszweck"],
-                          sum(s["betrag"] for s in bestand), {s["konto_id"] for s in bestand})
-            r = erste_regel(regeln, sicht)
+            r = erste_regel(regeln, ausdruck.sicht_aus_buchung(b, art_von))
             if r is None or gegen["konto_id"] == r["kategorie_id"]:
                 continue
             aenderungen.append({"buchung_id": b["id"], "regel_id": r["id"], "kategorie_id": r["kategorie_id"]})
@@ -338,3 +476,137 @@ def mehrfach_vorschlag(con, ids: list[int], aktion: str) -> dict:
     for b in buchungen:
         _entscheiden(con, b, aktion, art_von)
     return {"geaendert": sorted(ids), "anzahl": len(ids)}
+
+
+# ======================================================= Testbereich (D-185)
+
+WIRKUNGEN = ("neu", "abweichend", "bereits_so", "verdeckt", "uebersprungen", "treffer")
+TESTMENGE_VORGABE = "datum in -12m"
+
+
+def _test_regel(con, d: dict) -> tuple[dict, int | None, int | None]:
+    """(Baum, Kategorie, ID der ersetzten Regel) aus dem Körper von /test bzw. /erklaeren."""
+    rid = d.get("regel_id")
+    gespeichert = regel_lesen(con, rid) if rid is not None else None
+    if d.get("ausdruck") is not None:
+        b = ausdruck_uebersetzen(con, d["ausdruck"])
+    elif gespeichert is not None:
+        b = bedingungen_als_baum(gespeichert["bedingungen"])
+    else:
+        raise ApiFehler(422, "validierung", "„ausdruck“ oder „regel_id“ angeben.")
+    kat = d.get("kategorie_id", gespeichert["kategorie_id"] if gespeichert else None)
+    if kat is not None:
+        r = buch.konto_zeile(con, kat)
+        if r is None or r["art"] not in KATEGORIEARTEN:
+            raise ApiFehler(422, "kategorie_ungueltig", "Die Kategorie muss ein Aufwands- oder Ertragskonto sein.")
+    return b, kat, rid
+
+
+def _testmenge(con, text: str | None, heute: dt.date, konto_id: int | None = None) -> list[int]:
+    """Buchungen der Testmenge (Filterausdruck), optional nur mit einem Split auf ``konto_id`` (Quellkonto)."""
+    if konto_id is not None:
+        r = buch.konto_zeile(con, konto_id)
+        if r is None or r["art"] not in BESTAND:
+            raise ApiFehler(422, "konto_ungueltig", "Das Quellkonto muss ein Bestandskonto sein.", {"feld": "konto_id"})
+        alle = [r["id"] for r in con.execute(
+            "SELECT id FROM buchung WHERE id IN (SELECT buchung_id FROM split WHERE konto_id = ?)"
+            " ORDER BY datum DESC, id DESC", (konto_id,))]
+    else:
+        alle = [r["id"] for r in con.execute("SELECT id FROM buchung ORDER BY datum DESC, id DESC")]
+    if text is None:
+        text = TESTMENGE_VORGABE
+    if not text.strip():
+        return alle
+    b = ausdruck.filter_baum(con, text)
+    return ausdruck.filtern(con, b, alle, None, heute, buch.buchungen_laden)
+
+
+def _bewerten(con, baum_: dict, kat: int | None, rid: int | None, ids: list[int], heute: dt.date,
+              mit_zeilen: bool = True) -> tuple[list[dict], list[int]]:
+    """Wirkung der (ungespeicherten) Regel je Buchung der Testmenge (Konzept 5.3)."""
+    art_von = kontoarten(con)
+    andere = [r for r in regeln_liste(con, mit_ausdruck=False) if r["aktiv"] and r["id"] != rid]
+    if rid is not None:
+        eigene = con.execute("SELECT prioritaet FROM regel WHERE id = ?", (rid,)).fetchone()["prioritaet"]
+        andere = [r for r in andere if (r["prioritaet"], r["id"]) < (eigene, rid)]
+    aw = ausdruck.Auswerter(heute, markieren=mit_zeilen)
+    zeilen: list[dict] = []
+    nicht_erfasst: list[int] = []
+    for teil in buch._stueckweise(ids):
+        for b in buch.buchungen_laden(con, teil, art_von=art_von):
+            s = ausdruck.sicht_aus_buchung(b, art_von)
+            aw.markierungen = []
+            if not aw.wahr(baum_, s):
+                if kat is not None and b["kategorie_id"] == kat:
+                    nicht_erfasst.append(b["id"])
+                continue
+            z: dict[str, Any] = {"buchung_id": b["id"], "datum": b["datum"], "betrag": s.regelbetrag,
+                                 "empfaenger": b["empfaenger"]["name"] if b["empfaenger"] else None,
+                                 "verwendungszweck": b["verwendungszweck"], "konto_ids": sorted(s.konten),
+                                 "kategorie_vorher": b["kategorie_id"], "kategorie_nachher": kat,
+                                 "verdeckt_von": None, "grund": None, "markierungen": list(aw.markierungen)}
+            gegen = buch._gegensplit(b, art_von)
+            if buch.ist_gesperrt(b) or b["status"] == "abgeglichen":
+                z["wirkung"], z["grund"] = "uebersprungen", "gesperrt"
+            elif gegen is None:
+                z["wirkung"], z["grund"] = "uebersprungen", "splitbuchung"
+            else:
+                vor = erste_regel(andere, s)
+                if vor is not None:
+                    z["wirkung"] = "verdeckt"
+                    z["verdeckt_von"] = {"id": vor["id"], "name": vor["name"]}
+                elif kat is None:
+                    z["wirkung"] = "treffer"
+                elif b["kategorie_id"] == kat:
+                    z["wirkung"] = "bereits_so"
+                elif b["kategorie_id"] is None:
+                    z["wirkung"] = "neu"
+                else:
+                    z["wirkung"] = "abweichend"
+            zeilen.append(z)
+    return zeilen, nicht_erfasst
+
+
+def testen(con, d: dict, heute: dt.date) -> dict:
+    """POST /api/regeln/test (Konzept 6.4): Lesezugriff, kein Protokolleintrag."""
+    baum_, kat, rid = _test_regel(con, d)
+    ids = _testmenge(con, d.get("testmenge"), heute, d.get("konto_id"))
+    zeilen, nicht_erfasst = _bewerten(con, baum_, kat, rid, ids, heute)
+    zaehlung = {w: 0 for w in WIRKUNGEN}
+    for z in zeilen:
+        zaehlung[z["wirkung"]] += 1
+    gewaehlt = [z for z in zeilen if not d.get("wirkung") or z["wirkung"] in d["wirkung"]]
+    seite, pro = d.get("seite") or 1, d.get("pro_seite") or 100
+    return {"testmenge_anzahl": len(ids), "anzahl": len(zeilen), "zaehlung": zaehlung,
+            "gesamt": len(gewaehlt), "seite": seite, "pro_seite": pro,
+            "treffer": gewaehlt[(seite - 1) * pro: seite * pro],
+            "nicht_erfasst": {"anzahl": len(nicht_erfasst), "buchung_ids": nicht_erfasst[:200]}}
+
+
+def erklaeren(con, d: dict, heute: dt.date) -> dict:
+    """POST /api/regeln/erklaeren (Konzept 6.5)."""
+    baum_, _kat, _rid = _test_regel(con, d)
+    b = buch.buchung_lesen(con, d["buchung_id"])
+    art_von = kontoarten(con)
+    bez = ausdruck.Bezuege.laden(con)
+    knoten = ausdruck.erklaeren(baum_, ausdruck.sicht_aus_buchung(b, art_von), heute, bez)
+    return {"buchung_id": b["id"], "ergebnis": knoten["ergebnis"], "baum": knoten}
+
+
+def regel_anwenden(con, rid: int, d: dict, heute: dt.date) -> dict:
+    """POST /api/regeln/{id}/anwenden (Konzept 6.6): wie der Testbereich zeigt; verdeckte Treffer nicht."""
+    regel = regel_lesen(con, rid)
+    baum_ = bedingungen_als_baum(regel["bedingungen"])
+    ids = d.get("buchung_ids") or _testmenge(con, d.get("testmenge"), heute, d.get("konto_id"))
+    zeilen, _ = _bewerten(con, baum_, regel["kategorie_id"], rid, ids, heute, mit_zeilen=False)
+    ziel = {"neu", "abweichend"} if d.get("abweichende_ueberschreiben") else {"neu"}
+    art_von = kontoarten(con)
+    geaendert = []
+    for z in zeilen:
+        if z["wirkung"] not in ziel:
+            continue
+        b = buch.buchung_lesen(con, z["buchung_id"])
+        gegen = buch._gegensplit(b, art_von)
+        vorschlag_setzen(con, b["id"], gegen["id"], gegen["konto_id"], regel)
+        geaendert.append(b["id"])
+    return {"geaendert": sorted(geaendert), "anzahl": len(geaendert)}

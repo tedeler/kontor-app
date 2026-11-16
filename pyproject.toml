@@ -17,6 +17,7 @@ dependencies = [
     "reportlab>=4.0",
     "fints>=5.0",
     "cryptography>=42",
+    "google-re2>=1.1",
 ]
 
 [project.optional-dependencies]

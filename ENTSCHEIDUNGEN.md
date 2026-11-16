@@ -2488,3 +2488,164 @@ D-123 bis D-127 sind auf den offenen Branches `dokumente` und `alfbanco-import` 
   Buchung des Empfängers in der Trainingsmenge (bzw. bis heute, falls früher) ebenfalls mindestens 95 %. Das
   Fenster hängt damit an der Geschichte des Empfängers, nicht an der Uhr. Beim Laden auf einmal verhinderte sonst ein einzelner Fehlgriff (3 % der Lerndaten) die Regel für
   häufige Empfänger wie den Supermarkt, während sie beim schrittweisen Erfassen früh entstand.
+## D-185 Kontor-Ausdrücke: gemeinsame Sprache für Regeln und Kontoblatt-Filter (Feature `ausdruecke`)
+
+Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abgestimmt am 2026-11-16).
+- **Modul `ausdruck.py`:** Lexer, Parser (Python-Ausdrücke, C-Aliase `&&`, `||`, `!`), Typprüfung zu einem
+  JSON-Baum mit Verweisen als IDs, kanonischer Text (`drucken`), Auswertung, „Warum?“-Baum, Markierungen.
+  Ausgewertet wird nie mit `eval`.
+- **Felder** deutsch nach dem Kontoblatt, Kurzformen `empf`, `vwz`, `bet`, `dir`, `dt` (vom Auftraggeber
+  bestätigt). Kanonisch wird der volle Name gedruckt. `betrag` ohne Vorzeichen, Richtung in `richtung`
+  (`ausgabe`, `einnahme`, `umbuchung` = alle Splits auf Bestandskonten). Auswahlwerte ohne Umlaute
+  (`"bestaetigt"`); Eingaben mit Umlaut werden angenommen.
+- **Textvergleiche** wie die Volltextsuche: Groß-/Kleinschreibung egal und Umlaute angeglichen (`text.norm`).
+  `case=True` unterscheidet Groß-/Kleinschreibung, `fold=False` schaltet das Angleichen der Umlaute ab. Mehrfache
+  Leerzeichen werden (anders als im Konzept skizziert) nicht zusammengefasst, damit Filter und Volltextsuche
+  gleich zählen.
+- **Reguläre Ausdrücke** über RE2 (`google-re2`, neue Abhängigkeit): lineare Laufzeit, keine Rückverweise oder
+  Lookarounds. Vorprüfung mit `re` für die Fehlerstelle; RE2 ohne Fehlerausgabe auf stderr.
+- **Kontexte:** `regel` (ohne `datum`, `jahr`, `kw`, Freitext) und `filter`. Datumsangaben nach Konzept 4.6;
+  `-5d` ist Kurzform für `heute - 5d` (Zeitraum bis heute). `29.2.` ohne Jahr gilt in Nichtschaltjahren als
+  28.02. Bezugstag ist `SyncDienst.heute()` (Mock-Uhr), über `stichtag` übersteuerbar.
+- **Freitext im Filter:** unbekannte Wörter und allein stehende Texte sind Volltextsuche (Empfänger,
+  Verwendungszweck, Notiz, Tags); Nebeneinander wirkt wie `and`. Ist der Text kein Ausdruck und enthält er keine
+  Operatorzeichen, wird er als Suche aller Wörter gelesen.
+
+## D-186 Regeln mit Ausdruck: Speicherung ohne Schemaänderung
+
+- Ein Ausdruck wird als einzige Bedingung `{"feld": "ausdruck", "operator": "ausdruck", "wert": <Baum>}` in
+  der vorhandenen Spalte `regel.bedingungen` gespeichert. Damit bleiben Datenbankschema, Sicherungsdatei
+  (Schemaversion 7) und Protokollform unverändert; die Sicherungsprüfung akzeptiert diese Form (`intern=True`).
+- API: `POST`/`PATCH /api/regeln` nehmen `ausdruck` (Text) statt `bedingungen` an (genau eines). Antworten
+  enthalten zusätzlich `ausdruck` (kanonischer Text, bei alten Regeln übersetzt) und `ausdruck_form`
+  (`ausdruck` | `bedingungen`). Alte Regeln bleiben unverändert gespeichert und werten wie bisher aus; die
+  Übersetzung (`bedingungen_als_baum`) ist gleichbedeutend, auch für den vorzeichenbehafteten Regelbetrag.
+- Verweise auf Konten und Kategorien im Ausdruck zählen wie `konto_id`-Bedingungen: Konto nicht löschbar,
+  Umleiten beim Löschen mit Buchungen und Zusammenführen ersetzt die ID, Rückgängig prüft den Bezug. Tags werden
+  per ID verwiesen; ein gelöschter Tag erscheint als `"#<id>"` und trifft nie.
+- Neu: `POST /api/regeln/reihenfolge` (vollständige ID-Liste → Priorität 10, 20, …; Aktion
+  `regeln_reihenfolge`), `POST /api/regeln/test`, `POST /api/regeln/erklaeren` (Lesezugriffe) und
+  `POST /api/regeln/{id}/anwenden` (Aktion `regeln_anwenden`, Quelle `regeln`, wie das bestehende Anwenden).
+  Das Anwenden ändert nur Buchungen, bei denen die Regel gewinnt (nicht „verdeckt“).
+- Aktionen bleiben vorerst bei „Kategorie vorschlagen“. „Tags hinzufügen“, „direkt bestätigen“ und „danach keine
+  weiteren Regeln“ (Konzept 3) brauchen eine Schemaänderung und warten auf die Entscheidung des Auftraggebers.
+
+## D-187 Filter in Buchungslisten
+
+- `GET /api/buchungen` (und damit Export) nimmt `filter` (Ausdruck, Kontext `filter`) und `stichtag` an.
+  Verknüpfung mit den übrigen Parametern per `and`. Ungültig → 422 `ausdruck_ungueltig` mit `details.fehler`.
+- Umsetzung: Die übrigen SQL-Bedingungen liefern die Kandidaten, der Ausdruck wird in Python ausgewertet, die
+  Treffer gehen als `json_each` zurück in die Abfrage (Sortierung, Seiten, Summe unverändert).
+- Im Kontoblatt bezieht sich `betrag`/`richtung` auf die Splits des angezeigten Kontos (wie die Spalte Betrag),
+  ohne Konto auf alle Bestandskonten (wie bei Regeln). Einträge tragen bei aktivem Filter `markierungen`.
+- `GET /api/ausdruck/sprache?kontext=…` und `POST /api/ausdruck/pruefen` (mit `datumsangaben`, `freitext`,
+  `zusammenfassung`, `hinweise`, `baukasten_faehig`).
+
+## D-188 Oberfläche der Kontor-Ausdrücke
+
+- **Neue Module** `app/ausdruck.js` (Ausdrucksfeld mit Hervorhebung als Schicht unter einem transparenten
+  Textfeld, Prüfung über `POST /api/ausdruck/pruefen` nach 300 ms, Fehlerstelle unterwellt, Vervollständigung von
+  Feldern, Kurzformen, Schlüsselwörtern und Datumswörtern, Markierungen) und `app/regeleditor.js` (Regelliste,
+  Editor, Baukasten, Testbereich). Kein eigener Code-Editor (kein CodeMirror): die Schicht reicht und braucht
+  keine Fremdbibliothek. Service-Worker-Cache `kontor-huelle-31`.
+- **Kontoblatt:** Über der Liste steht das Filterfeld `filter-ausdruck` (immer sichtbar) mit Zusammenfassung
+  `filter-zusammenfassung`, Zeitraum-Chips `filter-schnell-<wert>`, Leeren `filter-ausdruck-leeren` und Menü
+  `filter-ausdruck-menue` („Jahr festschreiben“, „Als Regel speichern…“). Gefiltert wird nach 400 ms Tipppause oder
+  Enter, nur mit gültigem Ausdruck; sonst bleibt die letzte Liste. Adresse `?filter=…`. Treffer in Empfänger und
+  Verwendungszweck sind mit `<mark class="treffer">` hervorgehoben. Kürzel `f a` fokussiert das Feld.
+- **Bisherige Filterleiste bleibt** unverändert (Einzelfelder, M8/M12/M17-Verträge); sie wirkt zusätzlich per
+  `and`. Ein Baukasten im Filter entfällt deshalb vorerst (Konzept 5.4 offen, Frage 9).
+- **Regelliste:** Reihenfolge per Ziehen oder Alt+↑/↓ am Griff (eine Änderung `regeln_reihenfolge`), Aktiv-Schalter
+  je Regel, Ausdruck hervorgehoben, Duplizieren. Testkennungen `regel-anlegen`, `regel-dialog`, `regel-<id>`,
+  `regeln-anwenden` bleiben.
+- **Editor:** Reiter Baukasten/Ausdruck (zuletzt gewählter Reiter im Browser-Speicher, Vorgabe Ausdruck). Der
+  Baukasten wird aus dem geprüften Baum erzeugt; passt ein Ausdruck nicht hinein, bleibt er als Text. Die alte
+  Zeilenform („empfaenger enthaelt Bäckerei“) wird weiter angenommen und als `bedingungen` gesendet. Kategorie,
+  Priorität unter „Weitere Einstellungen“ (leer = ans Ende).
+- **Testbereich:** Testmenge als Filterausdruck (Vorgabe `datum in -12m`, Chips), Zählung je Wirkung als Filter,
+  Treffer mit Markierung, „Warum?“ als Prüfbaum, „Nicht erfasst“, „Auf n Buchungen anwenden…“ mit Rückfrage
+  (abweichende überschreiben, Vorgabe aus).
+
+## D-189 Rückmeldungen zum Regeleditor (2026-11-16)
+
+- Markierter Text im Ausdrucksfeld ist durchscheinend hinterlegt (vorher verdeckte die Markierungsfarbe im dunklen
+  Design die Schrift der Hervorhebungsschicht).
+- „Kopieren“ funktioniert auch ohne sicheren Kontext (http im Heimnetz) über ein verstecktes Textfeld. Neu ist
+  „Als Testmenge übernehmen“ (`regel-in-testmenge`, im Baukasten und unter dem Ausdruck): setzt den Ausdruck als
+  Testmenge, damit der Test alle passenden Buchungen zeigt.
+- Testbereich mit **Quellkonto** (`regel-test-konto`, Vorgabe alle Konten): `POST /api/regeln/test` und
+  `/api/regeln/{id}/anwenden` nehmen `konto_id` (nur Bestandskonten, sonst 422 `konto_ungueltig`). Ist die
+  Testmenge leer (z. B. Mock-Daten älter als zwölf Monate), erscheint `test-leer` mit „Alle Buchungen testen“.
+- Die Vervollständigung öffnet sich nicht mehr bei Einheiten von Zeitangaben (`-12m`).
+
+## D-190 Testbereich ohne Bedingung, Übernahme aus Buchung und Regel (2026-11-16)
+
+- Ohne Bedingung zeigt der Testbereich die Buchungen der Testmenge (Abfrage mit der Bedingung `True`, ohne
+  Kategorie, ohne Wirkungsmarken), damit man die Daten sieht, bevor man eine Regel formuliert.
+- Je Buchung „→ Bedingung“ (`test-uebernehmen-<id>`): übernimmt `empf == "<Empfänger>" and dir == "<Richtung>"`,
+  ohne Empfänger das erste Wort ab vier Buchstaben aus dem Verwendungszweck (`"…" in vwz`).
+- Auswahl „Bedingung einer bestehenden Regel übernehmen …“ (`regel-uebernehmen`) übernimmt Ausdruck und Kategorie
+  einer anderen Regel in den Editor; der Test läuft sofort.
+
+## D-191 Platzhalter im Ausdrucksfeld schwächer
+
+- Der Platzhalter (Beispielausdruck) erscheint kursiv mit 40 % Deckkraft, damit er im leeren Feld nicht wie eine
+  eingegebene Bedingung wirkt.
+
+## D-192 Regelfenster ruhig und sofort aktuell
+
+- Das Regelfenster hat eine feste Höhe (höchstens 56 rem). Links rollt der Editor, rechts nur die Trefferliste;
+  Treffer verändern die Fenstergröße nicht mehr. Fehlerzeile des Ausdrucks und Statuszeile des Tests haben einen
+  festen Platz (gekürzt, voller Text als Tooltip). Der Baukasten-Hinweis erscheint nicht mehr beim Tippen; der
+  gesperrte Reiter erklärt sich per Tooltip. Schmale Fenster und Handy: wie bisher untereinander, rollt als Ganzes.
+- Der Test lädt sofort nach jeder erfolgreichen Prüfung des Ausdrucks (vorher zusätzlich 400 ms). Ab dem ersten
+  Tastendruck ist das alte Ergebnis abgeblendet (`data-veraltet="ja"`) mit „aktualisiere …“ in `test-status`. Bei
+  ungültigem Ausdruck oder unvollständigem Baukasten bleibt das letzte gültige Ergebnis abgeblendet stehen.
+
+## D-193 Ausdrucksfeld wächst mit, kompakte Trefferliste
+
+- Ausdrucksfelder (Regel, Testmenge, Kontoblatt-Filter) passen ihre Höhe dem Inhalt an; lange Ausdrücke brechen um
+  statt verdeckt zu werden. Mehrzeilige Felder wachsen bis etwa 16 Zeilen und rollen danach. Enter im einzeiligen
+  Feld wendet weiterhin an.
+- Treffer im Testbereich sind eine Zeile (`test-zeile-<id>`: Datum, Empfänger bzw. Verwendungszweck gekürzt, Betrag,
+  Wirkung; auf dem Handy ohne Wirkung). Ein Klick klappt die Einzelheiten auf: Verwendungszweck, Kategorie
+  vorher → nachher, „→ Bedingung“ und „Warum?“.
+
+## D-194 Kontoblatt-Filter wie bei den Regeln: Ausdruck oder Baukasten (ersetzt die Einzelfelder)
+
+- Die Filterleiste (`filter-leiste`, Umschalter `filter-umschalten`) enthält statt der Einzelfelder (Von, Bis,
+  Betrag, Empfänger, Verwendungszweck, Freitext, Kategorie, Tag, Status) den **Baukasten** (`filter-baukasten`,
+  Zeilen `bk-<n>-feld/op/wert`) wie im Regeleditor, zusätzlich mit „Freitext“ und „Datum“ (liegt in, nicht in, ab,
+  bis, nach, vor; Wert in der Schreibweise von 4.6, z. B. `-30d`, `2017`, `1.1. .. 31.3.`). Leere Zeilen zählen
+  nicht. Baukasten und Ausdrucksfeld darüber sind gekoppelt: Änderungen im Baukasten schreiben den Ausdruck, ein
+  getippter Ausdruck baut den Baukasten neu (passt er nicht hinein, erscheint `filter-baukasten-hinweis`).
+- Bleiben: „mit Unterkategorien“, „mit Unterkonten“, „Filter zurücksetzen“, die Zeitraum-Chips am Ausdrucksfeld.
+  Die Zahl am Umschalter zählt die Teile des Ausdrucks plus übrige Parameter.
+- **Alte Adressen und Kontextmenüs:** `von`, `bis`, `empfaenger_id`, `ohne_empfaenger`, `verwendungszweck`,
+  `zweck_gleich`, `zweck_leer`, `suche`, `kategorie_id` (ohne Unterkategorien), `tag_id` und `status` werden beim
+  Öffnen in den Ausdruck übernommen. „gleicher Empfänger“ und „gleicher Verwendungszweck“ setzen
+  `empf == "…"` bzw. `vwz == "…"`. Ohne Entsprechung im Ausdruck bleiben `betrag_min`/`betrag_max` (vorzeichen-
+  behaftet), `zweck_aehnlich`, `empfaenger_aehnlich` und `kategorie_id` mit Unterkategorien; sie erscheinen als
+  Chips „Weitere Filter“ mit ×.
+- **Tastenkürzel:** `f f` Baukasten ein/aus (Fokus auf die erste Zeile), `f a` Ausdruck, Zeiträume `f h` heute,
+  `f w` 7 Tage, `f d` 30 Tage, `f m` dieser Monat, `f l` letzter Monat, `f j` dieses Jahr, `f J` letztes Jahr,
+  `f x` Zeitraum entfernen. Die Kürzel für die Einzelfelder (`f v/b/z/e/k/t/s/r`) entfallen.
+- Auswirkung auf Abnahmetests: Tests, die die Einzelfelder der Filterleiste bedienen (M8, M12, M17 u. a.), passen
+  nicht mehr; das gehört in die Meilenstein-Definition dieses Features.
+
+## D-195 Filter-Baukasten ein- und ausklappbar am Ausdrucksfeld
+
+- Neben dem Filterausdruck steht der Umschalter `filter-baukasten-umschalten` („Baukasten ▸/▾“, `aria-expanded`,
+  `aria-controls="filter-leiste"`); er wirkt wie `filter-umschalten` und `f f`. Der Baukasten startet in jeder
+  Kontoansicht eingeklappt (wie E-172) und klappt nicht mehr von selbst auf, auch nicht bei „ähnlicher Empfänger/
+  Verwendungszweck“ aus dem Kontextmenü.
+- Die Zusammenfassung unter dem Ausdruck nennt auch die übrigen Filter („Weitere Filter“, D-194), damit ein
+  eingeklappter Baukasten nichts verbirgt.
+
+## D-196 Ein einziger Umschalter für den Filter
+
+- Der Knopf `filter-umschalten` („Filter“) im Seitenkopf der Kontoansicht entfällt (Auftraggeber, 2026-11-16).
+  Einziger Umschalter ist `filter-baukasten-umschalten` am Ausdrucksfeld; er trägt jetzt die Zahl aktiver Filter
+  (`filter-anzahl`, `data-anzahl`) und den Pfeil ▸/▾. `f f` wirkt wie bisher.
+- Abnahmetests mit `filter-umschalten` (u. a. M12 23, M17, UXMobile 3.6) passen nicht mehr; sie gehören in die
+  Meilenstein-Definition dieses Features.
