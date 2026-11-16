@@ -1105,3 +1105,6 @@ html[data-thema="dunkel"] .wirkung-abweichend { background: #5a3412; color: #ffd
 [data-layout="mobil"] .bk-kopf select { width: auto; }
 .filter-leiste .bk-wert input[type="text"] { width: 100%; }
 .filter-leiste[hidden] { display: none; }
+.bk-umschalter { white-space: nowrap; margin-top: .2rem; }
+[data-layout="mobil"] .ausdruck-filter-zeile { flex-wrap: wrap; }
+[data-layout="mobil"] .ausdruck-filter-zeile > .feld { flex-basis: 100%; }

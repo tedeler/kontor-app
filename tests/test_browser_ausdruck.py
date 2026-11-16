@@ -92,7 +92,9 @@ def test_filter_baukasten_und_alte_adressen(tmp_path, browser):  # noqa: F811
         bereit(page, "konto")
         konto_url = page.url
         zeilen = page.locator('[data-testid="buchungsliste"] [role="row"][data-id]')
-        tid(page, "filter-umschalten").click()
+        expect(tid(page, "filter-leiste")).to_be_hidden()            # D-188: eingeklappt
+        tid(page, "filter-baukasten-umschalten").click()
+        expect(tid(page, "filter-baukasten-umschalten")).to_have_attribute("aria-expanded", "true")
         expect(tid(page, "filter-baukasten")).to_be_visible()
         tid(page, "bk-0-feld").select_option(label="Betrag")
         tid(page, "bk-0-op").select_option(label="mindestens")

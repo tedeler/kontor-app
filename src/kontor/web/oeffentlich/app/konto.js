@@ -664,6 +664,10 @@ class Kontoansicht {
     this.filterSichtbar = !this.filterSichtbar;
     this.filterLeiste.hidden = !this.filterSichtbar;
     this.filterKnopf.setAttribute("aria-expanded", String(this.filterSichtbar));
+    if (this.bkKnopf) {   // Umschalter am Ausdrucksfeld (D-188)
+      this.bkKnopf.setAttribute("aria-expanded", String(this.filterSichtbar));
+      this.bkKnopf.textContent = this.filterSichtbar ? "Baukasten ▾" : "Baukasten ▸";
+    }
   }
 
   // ------------------------------------------------- Filterausdruck (D-178, Konzept 5.4)
@@ -702,7 +706,11 @@ class Kontoansicht {
       SCHNELL.map(([w, text]) => h("button", { type: "button", class: "chip", tid: `filter-schnell-${w}`,
         onclick: () => this.zeitraumSetzen(w) }, text)));
     return h("div", { class: "ausdruck-filter", tid: "ausdruck-filter", role: "search", "aria-label": "Filterausdruck" },
-      h("div", { class: "ausdruck-filter-zeile" }, ausdruckFeld("Filter", this.ausdruckEingabe), leeren, menue),
+      h("div", { class: "ausdruck-filter-zeile" }, ausdruckFeld("Filter", this.ausdruckEingabe), leeren, menue,
+        this.bkKnopf = h("button", { type: "button", class: "knopf klein bk-umschalter", tid: "filter-baukasten-umschalten",
+          "aria-controls": "filter-leiste", "aria-expanded": String(this.filterSichtbar),
+          title: "Filter im Baukasten bearbeiten (f f)", onclick: () => this.filterUmschalten() },
+        this.filterSichtbar ? "Baukasten ▾" : "Baukasten ▸")),
       this.zusammenfassungEl, chips);
   }
 
@@ -732,8 +740,10 @@ class Kontoansicht {
     if (!this.zusammenfassungEl) return;
     const e = this.ausdruckEingabe && this.ausdruckEingabe.ergebnis;
     const t = this.filter.filter;
-    if (!t) { this.zusammenfassungEl.textContent = ""; return; }
-    const teile = e && e.gueltig ? e.zusammenfassung : [];
+    const alte = Object.entries(ALTE_FILTER).filter(([k]) => this.filter[k] !== undefined)
+      .map(([k, text]) => `${text}: ${k.startsWith("betrag") ? betragText(Number(this.filter[k])) : this.filter[k]}`);
+    if (!t && !alte.length) { this.zusammenfassungEl.textContent = ""; return; }
+    const teile = [...(t && e && e.gueltig ? e.zusammenfassung : []), ...alte];
     this.zusammenfassungEl.textContent = [...teile, `${this.gesamt} Buchung${this.gesamt === 1 ? "" : "en"}`].join(" · ");
   }
 
@@ -2127,12 +2137,8 @@ class Kontoansicht {
     this.anker = null;
     this.seiten = 1;
     this.urlSchreiben();
-    if (!this.filterSichtbar) {
-      this.filterSichtbar = true;
-      this.filterKnopf.setAttribute("aria-expanded", "true");
-    }
-    const leiste = this.filterAufbauen();
-    leiste.hidden = false;
+    const leiste = this.filterAufbauen();   // bleibt eingeklappt; die Zusammenfassung nennt den Filter (D-188)
+    leiste.hidden = !this.filterSichtbar;
     this.filterLeiste.replaceWith(leiste);
     this.filterLeiste = leiste;
     await this.laden();

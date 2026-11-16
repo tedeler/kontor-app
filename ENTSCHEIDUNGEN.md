@@ -2518,3 +2518,12 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   `f x` Zeitraum entfernen. Die Kürzel für die Einzelfelder (`f v/b/z/e/k/t/s/r`) entfallen.
 - Auswirkung auf Abnahmetests: Tests, die die Einzelfelder der Filterleiste bedienen (M8, M12, M17 u. a.), passen
   nicht mehr; das gehört in die Meilenstein-Definition dieses Features.
+
+## D-188 Filter-Baukasten ein- und ausklappbar am Ausdrucksfeld
+
+- Neben dem Filterausdruck steht der Umschalter `filter-baukasten-umschalten` („Baukasten ▸/▾“, `aria-expanded`,
+  `aria-controls="filter-leiste"`); er wirkt wie `filter-umschalten` und `f f`. Der Baukasten startet in jeder
+  Kontoansicht eingeklappt (wie E-172) und klappt nicht mehr von selbst auf, auch nicht bei „ähnlicher Empfänger/
+  Verwendungszweck“ aus dem Kontextmenü.
+- Die Zusammenfassung unter dem Ausdruck nennt auch die übrigen Filter („Weitere Filter“, D-187), damit ein
+  eingeklappter Baukasten nichts verbirgt.
