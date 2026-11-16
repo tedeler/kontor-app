@@ -1,4 +1,4 @@
-"""Transparenz des Lernmodells (D-179): Erklärung je Buchung, Übersicht, Einstellungen der Instanz."""
+"""Transparenz des Lernmodells (D-183): Erklärung je Buchung, Übersicht, Einstellungen der Instanz."""
 
 from __future__ import annotations
 

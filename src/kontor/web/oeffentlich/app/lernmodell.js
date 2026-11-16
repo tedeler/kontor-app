@@ -1,4 +1,4 @@
-/* Kontor – Seite „Lernmodell“ (/lernmodell, D-179): Stand, Güte auf den eigenen Daten, Schwelle, Verlässlichkeit der
+/* Kontor – Seite „Lernmodell“ (/lernmodell, D-183): Stand, Güte auf den eigenen Daten, Schwelle, Verlässlichkeit der
  * Prozentangabe, Kategorien mit Verwechslungen und stärksten Merkmalen. Lesezugriffe; Einstellungen der Instanz über
  * PUT /api/lernmodell/einstellungen (nicht im Änderungsprotokoll, wie D-137). */
 import { aktion, api, datumText, h, melde, pfadVon } from "./kern.js";

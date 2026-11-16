@@ -192,7 +192,7 @@ def formen(con, objekt: str, ids: list[int]) -> dict[int, dict]:
                     aus[r["empfaenger_id"]] = dict(aus[r["empfaenger_id"]], wiederkehrend={
                         "modus": r["modus"], "toleranz_prozent": r["toleranz_prozent"],
                         "mindestbetrag": r["mindestbetrag"]})
-            # Sperre automatischer Regeln (D-175): nur in Formen gesperrter Empfänger
+            # Sperre automatischer Regeln (D-179): nur in Formen gesperrter Empfänger
             for r in con.execute("SELECT empfaenger_id FROM empfaenger_lernregel_sperre WHERE empfaenger_id IN"
                                  f" ({buch._platzhalter(len(teil))})", teil):
                 if r["empfaenger_id"] in aus:

@@ -1,4 +1,4 @@
-"""Transparenz des Lernmodells (Feature `lernmodell-transparenz`, D-179).
+"""Transparenz des Lernmodells (Feature `lernmodell-transparenz`, D-183).
 
 - ``erklaeren``: warum das Lernmodell für eine Buchung diese Kategorie vorschlägt (oder keine). Das Verfahren aus
   lernmodell.md 4 ist ein Produkt von Faktoren je Merkmal; jeder Faktor beruht auf Zählungen der Trainingsmenge.

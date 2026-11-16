@@ -468,7 +468,7 @@ CREATE TABLE IF NOT EXISTS empfaenger_wiederkehrend (
     CHECK ((modus = 'mindestschwelle') = (mindestbetrag IS NOT NULL))
 );
 
--- ------------------------------------------------------------ Automatische Regeln (D-175)
+-- ------------------------------------------------------------ Automatische Regeln (D-179)
 -- Vermerk „automatisch angelegt“ je Regel (gehört zur Objektart ``regel``) und Sperre je Empfänger nach dem
 -- Löschen einer automatischen Regel (gehört zur Objektart ``empfaenger``). Beides Buchbestand.
 CREATE TABLE IF NOT EXISTS regel_automatisch (

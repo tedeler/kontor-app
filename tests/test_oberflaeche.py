@@ -29,7 +29,7 @@ REST = ["/api/status", "/api/konten", "/api/kontenuebersicht", "/api/buchungen",
         "/api/export/buchungen.csv", "/api/export/buchungen.pdf", "/api/berichte/einnahmen-ausgaben", "/api/mock/zeit", "/api/geheimnisse", "/api/mail/postfaecher",
         "/api/mail/anmeldung/abschluss", "/api/mail/abruf", "/api/anmeldung", "/api/update",  # update: D-107
         "/api/dokumente", "/api/mail/nachrichten",  # Dokumente: D-123
-        "/api/mock/lerndaten",  # Mock-Lerndaten: D-180
+        "/api/mock/lerndaten",  # Mock-Lerndaten: D-184
         "/api/erwartungen",  # Mail-Abgleich: D-128
         "/api/statistik",  # experimentell, D-145, noch nicht im OpenAPI-Vertrag
         "/api/import/alfbanco", "/api/kategorien/zusammenfuehren"]  # ALF-BanCo: D-123, D-126

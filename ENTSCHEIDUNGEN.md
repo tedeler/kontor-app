@@ -2336,7 +2336,60 @@ D-123 bis D-127 sind auf den offenen Branches `dokumente` und `alfbanco-import` 
   inzwischen wieder im Feld liegt (Wettlauf beim schnellen Öffnen über die Lupe).
 - Service-Worker-Cache `kontor-huelle-30`.
 
-## D-175 Automatisch angelegte Regeln aus dem Gelernten (Feature `lernmodell-transparenz`, in Arbeit)
+## D-175 Einzelheiten: gegliederte Darstellung und lesbarer Verwendungszweck (feature/detailansicht, Entwurf)
+
+- **Kopf:** Empfänger und Betrag (Summe der Splits auf dem angezeigten Konto, `details-betrag`) groß, darunter
+  Wochentag/Datum und der Status als farbige Marke; Randfarbe nach Ein-/Ausgang, 🔒 bei gesperrten Buchungen.
+  Stifte, `data-feld` und Inline-Editoren bleiben wie in 37.8 (Namen nur für Vorleser verborgen).
+- **Verwendungszweck nur in der Anzeige zerlegt** (`app/zweck.js`), gespeichert bleibt der Originaltext:
+  Buchungsarten als Marken („Lastschrift / Belastung“, „Kartenzahlung“ …), SEPA-Schlüssel (EREF+, MREF+,
+  CRED+, SVWZ+ …) als benannte Angaben, dazu Karte (mit Kartenart), ISO-Zeitpunkt und „Ref.“. Auch an
+  zusammengeklebten Zeilen („BELASTUNGCAFE“) wird getrennt; Buchungsarten links nur nach Nicht-Buchstaben,
+  rechts nicht vor Kleinbuchstaben. Wird nichts erkannt, erscheint der Text unverändert; sonst ist der
+  Originaltext aufklappbar.
+- Buchungssätze als Karten (eigenes Konto zurückgenommen, „Unkategorisiert“ hervorgehoben), Tags als Marken,
+  Verdachtshinweis mit Warnsymbol (vorher wirkungslose Hintergrundfarbe wegen `--hg-1`).
+- Service-Worker-Cache `kontor-huelle-31`, neues Modul in `DATEIEN`.
+
+## D-176 Verwendungszweck: ausgeschriebene Schlüssel, PayPal, Amazon (ergänzt D-175)
+
+- Ausgeschriebene Schlüssel wie bei comdirect („END-TO-END-REF.:“, „MANDATSREF.:“, „GLÄUBIGER-ID:“,
+  „KUNDENREFERENZ:“) gliedern wie SEPA-Schlüssel; „Ref.“ beendet den Wert davor. Ein „CORE“/„B2B“/„COR1“ direkt
+  vor „ / “ ist das Lastschriftverfahren und wird eigene Angabe. Leere Werte und „NOTPROVIDED“ entfallen.
+- PayPal („<Kennung>/PP.<Nr>.PP/. <Händler>, IHR EINKAUF BEI <Händler>“): Marke „PayPal“, Kennung als
+  PayPal-Referenz, Text „Einkauf bei <Händler>“. Amazon-Bestellnummern (`ddd-ddddddd-ddddddd`, auch mit x
+  maskiert) als Bestellnummer. Kennungen, die schon als Angabe stehen, erscheinen nicht noch einmal im Text.
+- Sichtbar bleiben Karte, Zeitpunkt, Bestellnummer und Verfahren; technische Kennungen (Referenzen, Mandat,
+  Gläubiger-ID, PayPal) sind unter „Referenzen (n)“ aufklappbar.
+
+## D-177 Empfängernamen in normaler Schreibweise (nur Anzeige)
+
+- Namen, die ganz in Groß- oder ganz in Kleinbuchstaben vorliegen („AMAZON“, „amazon“), zeigt die Oberfläche in
+  normaler Schreibweise („Amazon“): erster Buchstabe je Wort groß (auch nach Bindestrich und Schrägstrich),
+  kleine Wörter mitten im Namen klein („Cafe am Markt“), bekannte Abkürzungen und Rechtsformen in üblicher Form
+  (GmbH, KG, e.V., Co., DB, ADAC …; Liste `NAME_FEST` in `kern.js`). Gemischt geschriebene Namen („eBay GmbH“)
+  bleiben unverändert, weil sie bewusst so erfasst sind.
+- Nur Anzeige (`nameAnzeige`): Buchungsliste der Kontoansicht, Kopf der Einzelheiten, Suchergebnisse und
+  Einzelbuchungen der Berichte. Gespeichert, gesucht, gefiltert und in Auswahllisten/Empfängerverwaltung wird
+  der Name wie erfasst; Texte vom Server (z. B. Verdachtshinweis) bleiben unverändert.
+- Verwendungszweck (Frage aus D-175): bleibt beim Import unverändert; die Gliederung erfolgt nur in der Anzeige,
+  damit alte und neue Buchungen für Regeln, Lernmodell und Dublettenerkennung gleich aussehen.
+
+## D-178 Branch statt Version außerhalb von main
+
+- **Anlass:** Auf einem Entwicklungsstand soll man sofort sehen, welcher Branch läuft, und ihn im Repository öffnen
+  können.
+- **Entscheidung:** `version.zweig()` liest den Branch aus `.git/HEAD` des Quellbaums. Git wird dabei nicht
+  aufgerufen, Worktrees mit einer `.git`-Datei werden unterstützt. Für Releases (mit `build.json`), bei losgelöstem
+  HEAD und für Namen außerhalb von `[A-Za-z0-9._/-]` liefert sie None.
+- Ist der Branch nicht `main`, schreibt der Server beim Ausliefern der Hülle statt „Version x.yy“ den Link
+  `zweig-link` („⎇ Branch“, auf `<Repository>/tree/<Branch>`, neues Fenster) in den Fuß der Navigation. Der Knopf
+  `version-knopf` heißt dann „Über“ und öffnet weiter das About-Fenster. Dort steht zusätzlich die Zeile „Branch“
+  (`ueber-zweig`). Auf main und in Releases bleibt alles wie bisher.
+- `GET /api/version` bleibt unverändert, der Branch steht nur in der Hülle. Der Service-Worker-Cache heißt
+  `kontor-huelle-32`.
+
+## D-179 Automatisch angelegte Regeln aus dem Gelernten (Feature `lernmodell-transparenz`, in Arbeit)
 
 - **Auftrag (2026-11-16):** Gelerntes wird automatisch zur sichtbaren Regel, sofern das System danach genauso gut
   kategorisiert. Messung auf dem M4-Lerndatensatz des Generators (30 Startwerte, rund 7.900 Prüfbuchungen):
@@ -2367,14 +2420,14 @@ D-123 bis D-127 sind auf den offenen Branches `dokumente` und `alfbanco-import` 
 - Schema: Datenbank 13, Sicherungsdatei 8 (neue Tabellen `regel_automatisch`, `empfaenger_lernregel_sperre`;
   ältere Sicherungen ohne sie). Service-Worker-Cache `kontor-huelle-31`.
 
-## D-176 Lernmodell: Doppelzählung Empfänger/Verwendungszweck bleibt
+## D-180 Lernmodell: Doppelzählung Empfänger/Verwendungszweck bleibt
 
 - Geprüft wurde, Zweckwörter, die auch im Empfängernamen stehen, nicht zusätzlich als Merkmal zu zählen. Messung
-  wie D-175: Genauigkeit unverändert 98,40 %, Abdeckung 84,94 % → 84,63 %. Die Sicherheit ist auf diesen Daten
+  wie D-179: Genauigkeit unverändert 98,40 %, Abdeckung 84,94 % → 84,63 %. Die Sicherheit ist auf diesen Daten
   nicht überhöht (Vorhersagen mit 50–60 % stimmen zu 90 %). Das Verfahren aus lernmodell.md 4 bleibt daher
   unverändert; die Verlässlichkeit der Prozentangabe soll stattdessen auf echten Daten angezeigt werden.
 
-## D-177 Lerndaten nach echten Kontoauszugsmustern (`tests/lerndaten.py`)
+## D-181 Lerndaten nach echten Kontoauszugsmustern (`tests/lerndaten.py`)
 
 - 3000 synthetische Buchungen eines Girokontos (09/2022–10/2026) nach Mustern des Auftraggebers: Miete, Gehalt,
   Supermärkte mit Uhrzeit/Terminal/Kartennummer, PayPal mit Händler im Zweck, Amazon ohne Artikel, Tankstelle
@@ -2385,7 +2438,7 @@ D-123 bis D-127 sind auf den offenen Branches `dokumente` und `alfbanco-import` 
   mit automatischen Regeln (16 Regeln) 89,5 % Abdeckung, 99,2 % Genauigkeit. Amazon bleibt erwartungsgemäß meist
   ohne Vorschlag (3 von 47), PayPal wird über den Händler im Zweck erkannt.
 
-## D-178 „Lernmodell anwenden“ heißt „Vorschläge für unkategorisierte Buchungen“; Einschätzung ohne Vorschlag
+## D-182 „Lernmodell anwenden“ heißt „Vorschläge für unkategorisierte Buchungen“; Einschätzung ohne Vorschlag
 
 - Der Knopf auf der Seite Regeln (`lernmodell-anwenden`, `POST /api/lernmodell/anwenden`) heißt jetzt
   „Vorschläge für unkategorisierte Buchungen“ und erklärt im Tooltip, was geschieht: nur Buchungen auf
@@ -2399,19 +2452,7 @@ D-123 bis D-127 sind auf den offenen Branches `dokumente` und `alfbanco-import` 
   `details-einschaetzung-kandidaten`, `details-kandidat-<id>`). Lesezugriff über `POST /api/lernmodell/vorhersage`.
   Service-Worker-Cache `kontor-huelle-32`.
 
-## D-180 Mock-Lerndaten eingecheckt; automatische Regeln mit Toleranz im letzten Jahr
-
-- Die 3000 Lerndaten (D-177) gehören zum Mock: Generator `kontor/mock_lerndaten.py`, eingecheckt als
-  `kontor/mockdaten/lerndaten-3000.csv` (Paketdaten). `POST /api/mock/lerndaten` lädt sie im Mock-Modus in einen
-  Bestand ohne Buchungen (sonst 409 `bestand_nicht_leer`; außerhalb des Mock-Modus 409 `nur_mock_modus`), als eine
-  Änderung `quelle = "import"`, `aktion = "mock_lerndaten"` (rückgängig zu machen). Die Seite Import bietet im
-  Mock-Modus den Knopf „Lerndaten laden (3.000 Buchungen)“.
-- **Ersetzt in D-175 die Bedingung „in den letzten 365 Tagen nie anders“:** in den 365 Tagen bis zur jüngsten
-  Buchung des Empfängers in der Trainingsmenge (bzw. bis heute, falls früher) ebenfalls mindestens 95 %. Das
-  Fenster hängt damit an der Geschichte des Empfängers, nicht an der Uhr. Beim Laden auf einmal verhinderte sonst ein einzelner Fehlgriff (3 % der Lerndaten) die Regel für
-  häufige Empfänger wie den Supermarkt, während sie beim schrittweisen Erfassen früh entstand.
-
-## D-179 Transparenz des Lernmodells: Erklärung je Buchung, Seite „Lernmodell“, Einstellungen der Instanz
+## D-183 Transparenz des Lernmodells: Erklärung je Buchung, Seite „Lernmodell“, Einstellungen der Instanz
 
 - **`GET /api/buchungen/{id}/lernmodell`** (Lesezugriff): `grund` (`vorschlag`, `unter_schwelle`, `unbekannt`,
   `kein_modell`), Vorhersage wie 5.3, `beste_kategorie_id`, `vergleich_kategorie_id` (zweitbeste), je Merkmal der
@@ -2434,4 +2475,16 @@ D-123 bis D-127 sind auf den offenen Branches `dokumente` und `alfbanco-import` 
   nächstbesten Kategorie), Verwendungszweck mit markierten Wörtern, ähnliche Buchungen (Links `/buchungen/<id>`).
   Neue Seite `/lernmodell` (Modul `lernmodell.js`), erreichbar über „Lernmodell …“ auf der Seite Regeln und den
   Link in der Erklärung. **Kein Eintrag in der Navigation**: die Navigation ist in oberflaeche.md 37.2 fest
-  aufgezählt (16 Links); ein Eintrag gehört in die Meilenstein-Definition. Service-Worker-Cache `kontor-huelle-33`.
+  aufgezählt (16 Links); ein Eintrag gehört in die Meilenstein-Definition. Service-Worker-Cache `kontor-huelle-34` (nach dem Zusammenführen mit main).
+
+## D-184 Mock-Lerndaten eingecheckt; automatische Regeln mit Toleranz im letzten Jahr
+
+- Die 3000 Lerndaten (D-181) gehören zum Mock: Generator `kontor/mock_lerndaten.py`, eingecheckt als
+  `kontor/mockdaten/lerndaten-3000.csv` (Paketdaten). `POST /api/mock/lerndaten` lädt sie im Mock-Modus in einen
+  Bestand ohne Buchungen (sonst 409 `bestand_nicht_leer`; außerhalb des Mock-Modus 409 `nur_mock_modus`), als eine
+  Änderung `quelle = "import"`, `aktion = "mock_lerndaten"` (rückgängig zu machen). Die Seite Import bietet im
+  Mock-Modus den Knopf „Lerndaten laden (3.000 Buchungen)“.
+- **Ersetzt in D-179 die Bedingung „in den letzten 365 Tagen nie anders“:** in den 365 Tagen bis zur jüngsten
+  Buchung des Empfängers in der Trainingsmenge (bzw. bis heute, falls früher) ebenfalls mindestens 95 %. Das
+  Fenster hängt damit an der Geschichte des Empfängers, nicht an der Uhr. Beim Laden auf einmal verhinderte sonst ein einzelner Fehlgriff (3 % der Lerndaten) die Regel für
+  häufige Empfänger wie den Supermarkt, während sie beim schrittweisen Erfassen früh entstand.

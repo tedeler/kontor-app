@@ -1,4 +1,4 @@
-"""Mock-Lerndaten (D-177, D-180): 3000 Buchungen nach echten Kontoauszugsmustern, Lernmodell und automatische Regeln."""
+"""Mock-Lerndaten (D-181, D-184): 3000 Buchungen nach echten Kontoauszugsmustern, Lernmodell und automatische Regeln."""
 
 from __future__ import annotations
 

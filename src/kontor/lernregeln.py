@@ -1,4 +1,4 @@
-"""Automatisch angelegte Regeln aus dem Gelernten (Feature `lernmodell-transparenz`, D-175).
+"""Automatisch angelegte Regeln aus dem Gelernten (Feature `lernmodell-transparenz`, D-179).
 
 Wurde ein Empfänger mindestens ``MINDESTANZAHL``-mal derselben Kategorie zugeordnet, betrifft diese Kategorie
 mindestens 95 % seiner Buchungen insgesamt und mindestens 95 % in den ``FENSTER_TAGE`` Tagen bis zu seiner jüngsten

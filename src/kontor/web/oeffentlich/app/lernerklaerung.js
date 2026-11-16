@@ -1,4 +1,4 @@
-/* Kontor – „Warum?“ des Lernmodells je Buchung (D-179). Lesezugriff über GET /api/buchungen/{id}/lernmodell.
+/* Kontor – „Warum?“ des Lernmodells je Buchung (D-183). Lesezugriff über GET /api/buchungen/{id}/lernmodell.
  * Die Beiträge sind exakt: Faktor je Merkmal der besten gegenüber der zweitbesten Kategorie (lernmodell.md 4). */
 import { api, betragEl, datumText, h, pfadVon } from "./kern.js";
 

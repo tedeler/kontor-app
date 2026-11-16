@@ -135,7 +135,7 @@ def _bezuege_pruefen(con, d: dict) -> None:
 
 
 def regel_dict(r) -> dict:
-    """Regel als Objekt; automatisch angelegte Regeln (D-175) tragen zusätzlich ``automatisch: true`` und den
+    """Regel als Objekt; automatisch angelegte Regeln (D-179) tragen zusätzlich ``automatisch: true`` und den
     Empfänger, aus dessen Buchungen sie entstanden sind."""
     d = {"id": r["id"], "name": r["name"], "aktiv": bool(r["aktiv"]), "prioritaet": r["prioritaet"],
          "kategorie_id": r["kategorie_id"], "bedingungen": json.loads(r["bedingungen"])}
@@ -188,7 +188,7 @@ def regel_aendern(con, rid: int, d: dict) -> dict:
 
 def regel_loeschen(con, rid: int) -> None:
     regel_lesen(con, rid)
-    # Gelöschte automatische Regel: Empfänger sperren, damit sie nicht wieder entsteht (D-175)
+    # Gelöschte automatische Regel: Empfänger sperren, damit sie nicht wieder entsteht (D-179)
     con.execute("INSERT OR IGNORE INTO empfaenger_lernregel_sperre (empfaenger_id)"
                 " SELECT empfaenger_id FROM regel_automatisch WHERE regel_id = ?"
                 " AND empfaenger_id IN (SELECT id FROM empfaenger)", (rid,))

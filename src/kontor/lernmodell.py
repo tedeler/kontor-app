@@ -67,7 +67,7 @@ def _promille(p: Fraction) -> int:
 
 
 class Modell:
-    """Zählungen über die Trainingsmenge (lernmodell.md 3); ``schwelle_promille`` siehe D-179."""
+    """Zählungen über die Trainingsmenge (lernmodell.md 3); ``schwelle_promille`` siehe D-183."""
 
     def __init__(self, beispiele: list[tuple[frozenset[str], int]], schwelle_promille: int = SCHWELLE_PROMILLE) -> None:
         self.schwelle = Fraction(schwelle_promille, 1000)
@@ -141,7 +141,7 @@ def buchungsmerkmale(con, ids: list[int] | None = None) -> dict[int, tuple[froze
 
 
 def schwelle_promille(con) -> int:
-    """Schwelle der Instanz (D-179): Einstellung in ``meta``, sonst 700 (lernmodell.md 4)."""
+    """Schwelle der Instanz (D-183): Einstellung in ``meta``, sonst 700 (lernmodell.md 4)."""
     r = con.execute("SELECT wert FROM meta WHERE schluessel = 'lern_schwelle_promille'").fetchone()
     return int(r["wert"]) if r is not None else SCHWELLE_PROMILLE
 

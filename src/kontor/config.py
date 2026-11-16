@@ -104,7 +104,7 @@ class KontorConfig:
     umbuchung_fenster_tage: int = 3
     # Meilenstein 4: Lernmodell bei neuen Buchungen (python-api.md 10.1)
     lernmodell_automatisch: bool = False
-    # D-175: aus dem Gelernten automatisch Regeln anlegen (Vorgabe aus; die ausgelieferte Umgebungsdatei schaltet ein)
+    # D-179: aus dem Gelernten automatisch Regeln anlegen (Vorgabe aus; die ausgelieferte Umgebungsdatei schaltet ein)
     regeln_automatisch: bool = False
     # Meilenstein 5: Prüfung auf unerwartete Buchungen nach jedem Lauf (python-api.md 12.1)
     wiederkehrend_automatisch: bool = False

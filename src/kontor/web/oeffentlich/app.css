@@ -84,6 +84,12 @@ html[data-thema="dunkel"] [aria-labelledby="nav-gruppe-betrieb"] { --nav-ton: #4
   padding: .5rem .9rem; min-height: 36px; color: var(--text-2, var(--text)); font: inherit; font-size: .85em; cursor: pointer; }
 .version-knopf:hover, .version-knopf:focus-visible { background: var(--hg-3); text-decoration: underline; }
 [data-layout="mobil"] .version-knopf { min-height: 44px; }
+/* D-178: Branch statt Version (Entwicklungsstand außerhalb von main) */
+.version-fuss { margin-top: auto; display: flex; align-items: stretch; border-top: 1px solid var(--rand); }
+.version-fuss .version-knopf { margin-top: 0; border-top: 0; align-self: auto; flex: 0 0 auto; text-align: center; padding: .5rem .7rem; }
+.zweig-link { flex: 1 1 auto; min-width: 0; padding: .5rem .9rem; font-size: .85em; color: var(--akzent);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; align-self: center; }
+.zweig-link:hover, .zweig-link:focus-visible { text-decoration: underline; }
 /* D-107: neuere Version verfügbar */
 .version-knopf[data-update="verfuegbar"]::after, .menue-knopf[data-update="verfuegbar"]::after { content: ""; display: inline-block;
   width: .55em; height: .55em; margin-left: .45em; border-radius: 50%; background: var(--akzent); vertical-align: middle; }
@@ -239,10 +245,64 @@ fieldset { border: 1px solid var(--rand); border-radius: var(--radius); padding:
 .details-name { flex: 0 0 8.2rem; color: var(--text-2); }
 .details-wert { flex: 1; min-width: 0; }
 .stift { flex: none; border: 0; background: transparent; color: var(--text-2); cursor: pointer;
-  font: inherit; line-height: 1; padding: .1rem .25rem; }
-.stift:hover, .stift:focus-visible { color: var(--text); }
-.details-splits { list-style: none; padding: 0; margin: .3rem 0; }
-.details-split { display: flex; justify-content: space-between; gap: .5rem; flex-wrap: wrap; padding: .2rem 0; border-bottom: 1px solid var(--hg-3); }
+  font: inherit; line-height: 1; padding: .1rem .25rem; border-radius: 4px; opacity: .55; }
+.stift:hover, .stift:focus-visible { color: var(--text); opacity: 1; background: var(--hg-3); }
+.stift:disabled { opacity: .2; cursor: default; background: none; }
+.nur-vorlesen { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* Einzelheiten: Kopf, Abschnitte, Verwendungszweck, Buchungssätze */
+.dk-kopf { margin: 0 0 .7rem; padding: .7rem .75rem .55rem; border-radius: 10px; background: var(--hg-2);
+  border: 1px solid var(--rand); border-left: 4px solid var(--rand); }
+.dk-kopf.dk-aus { border-left-color: var(--negativ); }
+.dk-kopf.dk-ein { border-left-color: var(--erfolg); }
+.dk-kopf-oben { display: flex; align-items: flex-start; gap: .6rem; }
+.dk-kopf-oben .dk-empfaenger { flex: 1 1 auto; min-width: 0; font-size: 1.15rem; font-weight: 650; line-height: 1.25; padding: 0; }
+.dk-kopf-oben .dk-empfaenger .details-wert { overflow-wrap: anywhere; }
+.dk-betrag { flex: none; font-size: 1.35rem; font-weight: 700; line-height: 1.2; }
+.dk-ein .dk-betrag { color: var(--erfolg); }
+.dk-kopf-unten { display: flex; align-items: center; flex-wrap: wrap; gap: .2rem .7rem; margin-top: .3rem; color: var(--text-2); }
+.dk-kopf-unten .details-feld { padding: 0; align-items: center; }
+.dk-wochentag { opacity: .75; }
+.dk-status { display: inline-flex; align-items: center; gap: .35em; font-size: .82rem; font-weight: 600; padding: .1rem .55rem;
+  border-radius: 999px; background: var(--hg-3); color: var(--text); white-space: nowrap; }
+.dk-status::before { content: ""; width: .5em; height: .5em; border-radius: 50%; background: currentColor; }
+.dk-status-importiert { background: color-mix(in srgb, var(--hinweis) 22%, transparent); color: var(--hinweis); }
+.dk-status-vorlaeufig { background: color-mix(in srgb, var(--text-2) 18%, transparent); color: var(--text-2); }
+.dk-status-bestaetigt { background: color-mix(in srgb, var(--erfolg) 22%, transparent); color: var(--erfolg); }
+.dk-status-abgeglichen { background: color-mix(in srgb, var(--akzent) 22%, transparent); color: var(--akzent); }
+.dk-schloss { font-size: .85rem; }
+
+.dk-abschnitt { padding: .55rem 0; border-top: 1px solid var(--hg-3); }
+.dk-abschnitt:first-of-type { border-top: 0; }
+.details-feld.dk-block { flex-wrap: wrap; }
+.dk-block > .details-name { flex: 1 1 auto; font-size: .75rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+.dk-block > .details-wert { order: 3; flex: 1 0 100%; }
+.dk-zweck { display: flex; flex-direction: column; gap: .4rem; }
+.dk-zweck-text { font-size: 1rem; line-height: 1.35; overflow-wrap: anywhere; }
+.dk-zweck-text > div + div { margin-top: .15rem; }
+.dk-chips, .dk-tags { display: flex; flex-wrap: wrap; gap: .3rem; }
+.dk-chip { font-size: .78rem; padding: .08rem .5rem; border-radius: 999px; background: var(--hg-3); color: var(--text); white-space: nowrap; }
+.dk-art { background: var(--akzent-hell); }
+.dk-tag::before { content: "# "; opacity: .55; }
+.dk-angaben { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: .15rem .7rem; margin: 0; font-size: .88rem; }
+.dk-angaben dt { color: var(--text-2); }
+.dk-angaben dd { margin: 0; overflow-wrap: anywhere; }
+.dk-mono { font-family: ui-monospace, "Cascadia Mono", "DejaVu Sans Mono", monospace; font-size: .86em; overflow-wrap: anywhere; }
+.dk-kartenart { font-family: system-ui, sans-serif; font-size: .95em; color: var(--text-2); }
+.details-dokumente h3 { font-size: .75rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text-2); margin: 0 0 .2rem; }
+.dk-original summary { cursor: pointer; width: max-content; }
+.dk-original .dk-angaben { margin-top: .3rem; }
+.dk-zweck > details + details { margin-top: -.25rem; }
+.dk-original p { margin: .3rem 0 0; padding: .4rem .5rem; background: var(--hg-2); border-radius: var(--radius); color: var(--text-2); }
+.details-splits { list-style: none; padding: 0; margin: .3rem 0 0; display: flex; flex-direction: column; gap: .25rem; }
+.details-split { display: flex; justify-content: space-between; align-items: baseline; gap: .5rem; flex-wrap: wrap;
+  padding: .3rem .55rem; border-radius: var(--radius); background: var(--hg-2); border-left: 3px solid var(--akzent); }
+.details-split.dk-split-eigen { border-left-color: var(--rand); color: var(--text-2); }
+.details-split.dk-split-offen { border-left-color: var(--hinweis); background: color-mix(in srgb, var(--hinweis) 10%, var(--hg-2)); }
+.dk-split-offen .dk-split-konto::after { content: " – noch zuordnen"; font-size: .8rem; color: var(--hinweis); }
+.dk-split-konto { min-width: 0; overflow-wrap: anywhere; }
+.bestaetigung { margin: .5rem 0 0; display: flex; align-items: center; flex-wrap: wrap; gap: .4rem; }
+.dk-herkunft { margin: .6rem 0 0; opacity: .75; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .buchungsliste { min-width: min-content; }   /* D-168: nicht nach dem längsten Text wachsen */
 .buchungsliste .liste-kopf, .buchungsliste .zeile { display: grid; grid-template-columns: 6.5rem minmax(7rem, 1.2fr) minmax(8rem, 1.8fr) minmax(9rem, 1.6fr) minmax(4rem, .7fr) 6.5rem 7.5rem;
@@ -265,8 +325,10 @@ html[data-thema="dunkel"] .tag-person[data-person="Torsten"] { background: #2c42
 html[data-thema="dunkel"] .tag-person[data-person="Tina"] { background: #4a2c3c; }
 .tag-verdacht { background: #f6e2b3; font-weight: 700; }
 html[data-thema="dunkel"] .tag-verdacht { background: #5a4314; }
-.verdacht-erklaerung { margin: 0 0 .6rem; padding: .45rem .6rem; background: color-mix(in srgb, #f6e2b3 55%, var(--hg-1)); border-radius: 6px; }
-html[data-thema="dunkel"] .verdacht-erklaerung { background: color-mix(in srgb, #5a4314 70%, var(--hg-1)); }
+.verdacht-erklaerung { margin: 0 0 .7rem; padding: .5rem .65rem .5rem 2.1rem; position: relative; border-radius: 8px;
+  background: color-mix(in srgb, #f6e2b3 55%, var(--hg)); border-left: 4px solid #d9a21b; }
+.verdacht-erklaerung::before { content: "⚠"; position: absolute; left: .65rem; top: .45rem; }
+html[data-thema="dunkel"] .verdacht-erklaerung { background: color-mix(in srgb, #5a4314 70%, var(--hg)); }
 .person-knopf { font-weight: 700; min-width: 5.2rem; }
 .mail-konto { display: inline-flex; align-items: center; gap: .35rem; font-size: .85rem; }
 .bestaetigung { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; }
@@ -483,7 +545,7 @@ td.aktionen { width: 2.5rem; text-align: right; }
   color: var(--text); border-radius: 3px; }
 .beleg-marke:hover, .beleg-marke:focus-visible { background: var(--hg-3); }
 .zeile[data-ablage="ja"] { outline: 2px dashed var(--akzent); outline-offset: -2px; background: var(--hg-3); }
-.details-dokumente { margin-top: .75rem; border-top: 1px solid var(--rand); padding-top: .5rem; }
+.details-dokumente { margin-top: .2rem; border-top: 1px solid var(--hg-3); padding-top: .55rem; }
 .details-dokumente-liste { list-style: none; padding: 0; margin: .25rem 0; }
 .details-dokument { display: flex; align-items: center; gap: .3rem; padding: .15rem 0; }
 .details-dokument .knopf-link { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -866,7 +928,7 @@ html[data-thema="dunkel"] .wisch-hinweis[data-bereit="ja"][data-richtung="links"
 [data-layout="mobil"] .person-knopf::before { content: attr(data-kurz); font-size: 1rem; font-weight: 600; width: 1.8rem; height: 1.8rem;
   line-height: 1.8rem; border-radius: 50%; background: var(--hg-3); text-align: center; }
 
-/* Lernmodell (D-179): Erklärung je Buchung und Seite /lernmodell */
+/* Lernmodell (D-183): Erklärung je Buchung und Seite /lernmodell */
 .lern-warum { margin: .4rem 0; }
 .lern-warum > summary { cursor: pointer; color: var(--akzent, #1f5f8b); }
 .lern-erklaerung { font-size: .85rem; }

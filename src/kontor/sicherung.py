@@ -122,7 +122,7 @@ SPALTEN: dict[str, list[tuple[str, str, bool]]] = {
     # Schemaversion 6 (D-137): Betragsfilter wiederkehrender Buchungen je Empfänger
     "empfaenger_wiederkehrend": [("empfaenger_id", "int", False), ("modus", "str", False),
                                  ("toleranz_prozent", "int", True), ("mindestbetrag", "int", True)],
-    # Schemaversion 8 (D-175): automatisch angelegte Regeln und Sperre je Empfänger
+    # Schemaversion 8 (D-179): automatisch angelegte Regeln und Sperre je Empfänger
     "regel_automatisch": [("regel_id", "int", False), ("empfaenger_id", "int", False)],
     "empfaenger_lernregel_sperre": [("empfaenger_id", "int", False)],
 }

@@ -1,4 +1,4 @@
-"""Eigene Entwicklungstests zum Feature „lernmodell-transparenz“: automatisch angelegte Regeln (D-175)."""
+"""Eigene Entwicklungstests zum Feature „lernmodell-transparenz“: automatisch angelegte Regeln (D-179)."""
 
 from __future__ import annotations
 

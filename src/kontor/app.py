@@ -250,8 +250,19 @@ def _index_html(config: KontorConfig) -> str:
         klasse = "mock"
     else:
         hinweis, klasse = "", "echt"
-    return (vorlage.replace("<!--MODUS-HINWEIS-->", hinweis).replace("{{MODUS}}", klasse)
-            .replace("{{VERSION}}", __version__))
+    seite = (vorlage.replace("<!--MODUS-HINWEIS-->", hinweis).replace("{{MODUS}}", klasse)
+             .replace("{{VERSION}}", __version__))
+    # D-178: Entwicklungsstand außerhalb von main zeigt statt der Version den Branch mit Link zum Repository
+    zweig = versionsinfo.zweig()
+    if zweig and zweig != "main":
+        link = (f'<a class="zweig-link" data-testid="zweig-link" data-zweig="{html.escape(zweig)}"'
+                f' href="{html.escape(versionsinfo.zweig_url(zweig))}" target="_blank" rel="noopener noreferrer"'
+                f' title="Branch {html.escape(zweig)} im Repository öffnen (Version {html.escape(__version__)})">'
+                f'⎇ {html.escape(zweig)}</a>')
+        seite = seite.replace("<!--ZWEIG-->", f'<div class="version-fuss" data-zweig="{html.escape(zweig)}">{link}', 1)
+        seite = seite.replace('title="Über Kontor">Version ' + __version__ + "</button>",
+                              'title="Über Kontor" aria-label="Über Kontor">Über</button></div>', 1)
+    return seite
 
 
 class _Antwort(Exception):
@@ -436,7 +447,7 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
         return ausfuehren
 
     def lernregeln_nachziehen(con, eintraege: list[dict]) -> None:
-        """D-175: nach einer Änderung an Buchungen fällige automatische Regeln als eigene Änderung anlegen."""
+        """D-179: nach einer Änderung an Buchungen fällige automatische Regeln als eigene Änderung anlegen."""
         empfaenger = lernregeln.betroffene_empfaenger(eintraege)
         if not empfaenger:
             return
@@ -1136,14 +1147,14 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
 
     @endpunkt("POST", "/api/mock/lerndaten")
     async def mock_lerndaten_laden(request: Request):
-        """D-180: 3000 Lerndaten (mockdaten/lerndaten-3000.csv) in einen leeren Mock-Bestand laden."""
+        """D-184: 3000 Lerndaten (mockdaten/lerndaten-3000.csv) in einen leeren Mock-Bestand laden."""
         if not config.mock_modus:
             raise ApiFehler(409, "nur_mock_modus", "Die Lerndaten gibt es nur im Mock-Modus.")
         q = Query(request.query_params)
         q.pruefen()
         return await aendern("mock_lerndaten", mock_lerndaten.mock_laden, quelle="import")
 
-    # D-179: Transparenz des Lernmodells (Erklärung je Buchung, Übersicht, Einstellungen der Instanz)
+    # D-183: Transparenz des Lernmodells (Erklärung je Buchung, Übersicht, Einstellungen der Instanz)
     @endpunkt("GET", "/api/buchungen/{buchung_id:int}/lernmodell")
     async def lernmodell_erklaeren(request: Request):
         q = Query(request.query_params)

@@ -1,4 +1,4 @@
-"""Mock-Lerndaten: 3000 synthetische Buchungen nach echten Mustern deutscher Kontoauszüge (D-177, D-180).
+"""Mock-Lerndaten: 3000 synthetische Buchungen nach echten Mustern deutscher Kontoauszüge (D-181, D-184).
 
 Eingecheckt als ``mockdaten/lerndaten-3000.csv`` (erzeugt mit ``python -m kontor.mock_lerndaten``); im Mock-Modus
 lädt ``POST /api/mock/lerndaten`` sie in einen leeren Buchbestand.

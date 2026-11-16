@@ -214,7 +214,7 @@ bzw. `EnvironmentFile`) ausführen.
 | `KONTOR_UMBUCHUNG_AUTOMATISCH` | Umbuchungen bei jeder Synchronisation automatisch erkennen und zusammenführen (Vorgabe nein; für den Betrieb empfohlen: `1`) |
 | `KONTOR_UMBUCHUNG_FENSTER_TAGE` | größter Datumsabstand der beiden Seiten einer Umbuchung (0–366, Vorgabe 3) |
 | `KONTOR_LERNMODELL_AUTOMATISCH` | Lernmodell bei neuen Buchungen (Synchronisation, Erfassen) als Vorschlag befragen (Vorgabe nein; für den Betrieb empfohlen: `1`) |
-| `KONTOR_REGELN_AUTOMATISCH` | aus dem Gelernten automatisch Regeln „Empfänger ist …“ anlegen: mindestens 5 gleiche Zuordnungen, in den letzten 12 Monaten keine abweichende (Vorgabe nein; für den Betrieb empfohlen: `1`, D-175) |
+| `KONTOR_REGELN_AUTOMATISCH` | aus dem Gelernten automatisch Regeln „Empfänger ist …“ anlegen: mindestens 5 gleiche Zuordnungen, in den letzten 12 Monaten keine abweichende (Vorgabe nein; für den Betrieb empfohlen: `1`, D-179) |
 | `KONTOR_WIEDERKEHREND_AUTOMATISCH` | nach jedem Synchronisationslauf auf unerwartete Buchungen prüfen (neuer Empfänger, geänderter Betrag, ausbleibende Zahlung; Vorgabe nein; für den Betrieb empfohlen: `1`) |
 
 ### Sicherheit und Betrieb (M7)
