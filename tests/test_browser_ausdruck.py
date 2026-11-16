@@ -77,6 +77,7 @@ def test_regeleditor_ohne_bedingung_und_uebernahme(tmp_path, browser):  # noqa: 
         bereit(page, "regeln")
         tid(page, "regel-anlegen").click()
         expect(tid(page, "test-zahlen")).to_contain_text("20 Buchungen der Testmenge")
+        page.locator('[data-testid^="test-zeile-"]').first.click()   # Einzelheiten aufklappen (D-183)
         page.locator('[data-testid^="test-uebernehmen-"]').first.click()
         expect(tid(page, "regel-ausdruck")).to_have_value('"Einkauf" in vwz and dir == "ausgabe"')
         expect(tid(page, "test-zahlen")).to_have_attribute("data-anzahl", "20")

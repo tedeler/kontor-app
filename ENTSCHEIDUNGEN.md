@@ -2449,3 +2449,12 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - Der Test lädt sofort nach jeder erfolgreichen Prüfung des Ausdrucks (vorher zusätzlich 400 ms). Ab dem ersten
   Tastendruck ist das alte Ergebnis abgeblendet (`data-veraltet="ja"`) mit „aktualisiere …“ in `test-status`. Bei
   ungültigem Ausdruck oder unvollständigem Baukasten bleibt das letzte gültige Ergebnis abgeblendet stehen.
+
+## D-183 Ausdrucksfeld wächst mit, kompakte Trefferliste
+
+- Ausdrucksfelder (Regel, Testmenge, Kontoblatt-Filter) passen ihre Höhe dem Inhalt an; lange Ausdrücke brechen um
+  statt verdeckt zu werden. Mehrzeilige Felder wachsen bis etwa 16 Zeilen und rollen danach. Enter im einzeiligen
+  Feld wendet weiterhin an.
+- Treffer im Testbereich sind eine Zeile (`test-zeile-<id>`: Datum, Empfänger bzw. Verwendungszweck gekürzt, Betrag,
+  Wirkung; auf dem Handy ohne Wirkung). Ein Klick klappt die Einzelheiten auf: Verwendungszweck, Kategorie
+  vorher → nachher, „→ Bedingung“ und „Warum?“.

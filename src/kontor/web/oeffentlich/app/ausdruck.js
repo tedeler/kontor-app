@@ -181,7 +181,19 @@ export class AusdruckEingabe {
     }
     kinder.push(span(null, "\u200b"));   // letzte Zeile mit Zeilenumbruch sichtbar halten
     this.schicht.replaceChildren(...kinder);
+    this.hoeheAnpassen();
     this.eingabe.dataset.leer = text.trim() ? "nein" : "ja";
+  }
+
+  /** Das Feld wächst mit dem Inhalt (D-183): einzeilige Felder brechen um statt zu verdecken, mehrzeilige bis ca.
+   *  16 Zeilen; danach rollt es. */
+  hoeheAnpassen() {
+    const e = this.eingabe;
+    if (!e.isConnected) { requestAnimationFrame(() => { if (e.isConnected) this.hoeheAnpassen(); }); return; }
+    e.style.height = "auto";
+    const max = parseFloat(getComputedStyle(e).lineHeight || "20") * 16 + 16;
+    e.style.height = `${Math.min(e.scrollHeight + 2, max)}px`;
+    e.style.overflowY = e.scrollHeight + 2 > max ? "auto" : "hidden";
   }
 
   async pruefen() {

@@ -599,25 +599,38 @@ class Testbereich {
     this.el.dataset.geladen = "ja";
   }
 
+  /** Kompakte Trefferzeile (D-183): Datum, Empfänger, Betrag, Wirkung in einer Zeile; Klick klappt die Einzelheiten
+   *  (Verwendungszweck, Kategorie, „→ Bedingung“, „Warum?“) auf. */
   zeile(z) {
     const vorher = z.kategorie_vorher ? pfadVon(z.kategorie_vorher) : "—";
     const nachher = z.kategorie_nachher ? pfadVon(z.kategorie_nachher) : "";
+    const katText = this.ohneBedingung ? vorher : z.wirkung === "verdeckt" ? `verdeckt durch „${z.verdeckt_von.name}“`
+      : z.wirkung === "uebersprungen" ? (z.grund === "gesperrt" ? "gesperrt" : "Splitbuchung") : `${vorher}${nachher ? ` → ${nachher}` : ""}`;
     const warum = h("div", { class: "test-warum", hidden: true });
-    const li = h("li", { class: "test-zeile", tid: `test-treffer-${z.buchung_id}`, "data-wirkung": z.wirkung },
-      h("span", { class: "test-datum" }, datumText(z.datum)),
-      h("span", { class: "test-empf" }, markiert(z.empfaenger || "", z.markierungen, "empfänger")),
-      betragEl("span", z.betrag, { class: "test-betrag" }),
-      this.ohneBedingung ? h("span") : h("span", { class: `test-wirkung wirkung-${z.wirkung}` }, WIRKUNG_TEXT[z.wirkung]),
-      h("span", { class: "test-zweck klein" }, markiert(z.verwendungszweck || "", z.markierungen, "verwendungszweck")),
-      h("span", { class: "test-kat klein" }, this.ohneBedingung ? vorher : z.wirkung === "verdeckt" ? `verdeckt durch „${z.verdeckt_von.name}“`
-        : z.wirkung === "uebersprungen" ? (z.grund === "gesperrt" ? "gesperrt" : "Splitbuchung") : `${vorher}${nachher ? ` → ${nachher}` : ""}`),
-      h("span", { class: "test-knoepfe" },
+    const details = h("div", { class: "test-details", hidden: true, id: neueId("test-details") },
+      h("div", { class: "test-zweck" }, markiert(z.verwendungszweck || "–", z.markierungen, "verwendungszweck")),
+      h("div", { class: "test-kat" }, katText),
+      knopfLeiste(
         knopf("→ Bedingung", { class: "knopf klein", tid: `test-uebernehmen-${z.buchung_id}`,
           title: "Empfänger dieser Buchung als Bedingung der Regel übernehmen", onclick: () => this.alsBedingung(bedingungAus(z)) }),
-        this.ohneBedingung ? "" : knopf("Warum?", { class: "knopf klein", tid: `test-warum-${z.buchung_id}`, onclick: () => this.warum(z.buchung_id, warum) })),
+        this.ohneBedingung ? null : knopf("Warum?", { class: "knopf klein", tid: `test-warum-${z.buchung_id}`, onclick: () => this.warum(z.buchung_id, warum) })),
       warum);
-    return li;
+    const kopf = h("button", { type: "button", class: "test-kopf", tid: `test-zeile-${z.buchung_id}`, "aria-expanded": "false",
+      "aria-controls": details.id, title: z.verwendungszweck || "" },
+    h("span", { class: "test-datum" }, datumText(z.datum)),
+    h("span", { class: "test-empf" }, markiert(z.empfaenger || z.verwendungszweck || "–", z.markierungen,
+      z.empfaenger ? "empfänger" : "verwendungszweck")),
+    betragEl("span", z.betrag, { class: "test-betrag" }),
+    this.ohneBedingung ? h("span", { class: "test-wirkung test-kat-kurz" }, vorher)
+      : h("span", { class: `test-wirkung wirkung-${z.wirkung}` }, WIRKUNG_TEXT[z.wirkung]));
+    kopf.addEventListener("click", () => {
+      const auf = details.hidden;
+      details.hidden = !auf;
+      kopf.setAttribute("aria-expanded", String(auf));
+    });
+    return h("li", { class: "test-zeile", tid: `test-treffer-${z.buchung_id}`, "data-wirkung": z.wirkung }, kopf, details);
   }
+
 
   async warum(id, el) {
     if (!el.hidden) { el.hidden = true; return; }
