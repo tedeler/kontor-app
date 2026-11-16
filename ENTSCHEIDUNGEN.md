@@ -2374,7 +2374,7 @@ D-123 bis D-127 sind auf den offenen Branches `dokumente` und `alfbanco-import` 
   der Name wie erfasst; Texte vom Server (z. B. Verdachtshinweis) bleiben unverändert.
 - Verwendungszweck (Frage aus D-175): bleibt beim Import unverändert; die Gliederung erfolgt nur in der Anzeige,
   damit alte und neue Buchungen für Regeln, Lernmodell und Dublettenerkennung gleich aussehen.
-## D-178 Kontor-Ausdrücke: gemeinsame Sprache für Regeln und Kontoblatt-Filter (Feature `ausdruecke`)
+## D-179 Kontor-Ausdrücke: gemeinsame Sprache für Regeln und Kontoblatt-Filter (Feature `ausdruecke`)
 
 Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abgestimmt am 2026-11-16).
 - **Modul `ausdruck.py`:** Lexer, Parser (Python-Ausdrücke, C-Aliase `&&`, `||`, `!`), Typprüfung zu einem
@@ -2397,7 +2397,7 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   Verwendungszweck, Notiz, Tags); Nebeneinander wirkt wie `and`. Ist der Text kein Ausdruck und enthält er keine
   Operatorzeichen, wird er als Suche aller Wörter gelesen.
 
-## D-179 Regeln mit Ausdruck: Speicherung ohne Schemaänderung
+## D-180 Regeln mit Ausdruck: Speicherung ohne Schemaänderung
 
 - Ein Ausdruck wird als einzige Bedingung `{"feld": "ausdruck", "operator": "ausdruck", "wert": <Baum>}` in
   der vorhandenen Spalte `regel.bedingungen` gespeichert. Damit bleiben Datenbankschema, Sicherungsdatei
@@ -2416,7 +2416,7 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - Aktionen bleiben vorerst bei „Kategorie vorschlagen“. „Tags hinzufügen“, „direkt bestätigen“ und „danach keine
   weiteren Regeln“ (Konzept 3) brauchen eine Schemaänderung und warten auf die Entscheidung des Auftraggebers.
 
-## D-180 Filter in Buchungslisten
+## D-181 Filter in Buchungslisten
 
 - `GET /api/buchungen` (und damit Export) nimmt `filter` (Ausdruck, Kontext `filter`) und `stichtag` an.
   Verknüpfung mit den übrigen Parametern per `and`. Ungültig → 422 `ausdruck_ungueltig` mit `details.fehler`.
@@ -2427,7 +2427,7 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - `GET /api/ausdruck/sprache?kontext=…` und `POST /api/ausdruck/pruefen` (mit `datumsangaben`, `freitext`,
   `zusammenfassung`, `hinweise`, `baukasten_faehig`).
 
-## D-181 Oberfläche der Kontor-Ausdrücke
+## D-182 Oberfläche der Kontor-Ausdrücke
 
 - **Neue Module** `app/ausdruck.js` (Ausdrucksfeld mit Hervorhebung als Schicht unter einem transparenten
   Textfeld, Prüfung über `POST /api/ausdruck/pruefen` nach 300 ms, Fehlerstelle unterwellt, Vervollständigung von
@@ -2452,7 +2452,7 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   Treffer mit Markierung, „Warum?“ als Prüfbaum, „Nicht erfasst“, „Auf n Buchungen anwenden…“ mit Rückfrage
   (abweichende überschreiben, Vorgabe aus).
 
-## D-182 Rückmeldungen zum Regeleditor (2026-11-16)
+## D-183 Rückmeldungen zum Regeleditor (2026-11-16)
 
 - Markierter Text im Ausdrucksfeld ist durchscheinend hinterlegt (vorher verdeckte die Markierungsfarbe im dunklen
   Design die Schrift der Hervorhebungsschicht).
@@ -2464,7 +2464,7 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   Testmenge leer (z. B. Mock-Daten älter als zwölf Monate), erscheint `test-leer` mit „Alle Buchungen testen“.
 - Die Vervollständigung öffnet sich nicht mehr bei Einheiten von Zeitangaben (`-12m`).
 
-## D-183 Testbereich ohne Bedingung, Übernahme aus Buchung und Regel (2026-11-16)
+## D-184 Testbereich ohne Bedingung, Übernahme aus Buchung und Regel (2026-11-16)
 
 - Ohne Bedingung zeigt der Testbereich die Buchungen der Testmenge (Abfrage mit der Bedingung `True`, ohne
   Kategorie, ohne Wirkungsmarken), damit man die Daten sieht, bevor man eine Regel formuliert.
@@ -2473,12 +2473,12 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - Auswahl „Bedingung einer bestehenden Regel übernehmen …“ (`regel-uebernehmen`) übernimmt Ausdruck und Kategorie
   einer anderen Regel in den Editor; der Test läuft sofort.
 
-## D-184 Platzhalter im Ausdrucksfeld schwächer
+## D-185 Platzhalter im Ausdrucksfeld schwächer
 
 - Der Platzhalter (Beispielausdruck) erscheint kursiv mit 40 % Deckkraft, damit er im leeren Feld nicht wie eine
   eingegebene Bedingung wirkt.
 
-## D-185 Regelfenster ruhig und sofort aktuell
+## D-186 Regelfenster ruhig und sofort aktuell
 
 - Das Regelfenster hat eine feste Höhe (höchstens 56 rem). Links rollt der Editor, rechts nur die Trefferliste;
   Treffer verändern die Fenstergröße nicht mehr. Fehlerzeile des Ausdrucks und Statuszeile des Tests haben einen
@@ -2488,7 +2488,7 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   Tastendruck ist das alte Ergebnis abgeblendet (`data-veraltet="ja"`) mit „aktualisiere …“ in `test-status`. Bei
   ungültigem Ausdruck oder unvollständigem Baukasten bleibt das letzte gültige Ergebnis abgeblendet stehen.
 
-## D-186 Ausdrucksfeld wächst mit, kompakte Trefferliste
+## D-187 Ausdrucksfeld wächst mit, kompakte Trefferliste
 
 - Ausdrucksfelder (Regel, Testmenge, Kontoblatt-Filter) passen ihre Höhe dem Inhalt an; lange Ausdrücke brechen um
   statt verdeckt zu werden. Mehrzeilige Felder wachsen bis etwa 16 Zeilen und rollen danach. Enter im einzeiligen
@@ -2497,7 +2497,7 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   Wirkung; auf dem Handy ohne Wirkung). Ein Klick klappt die Einzelheiten auf: Verwendungszweck, Kategorie
   vorher → nachher, „→ Bedingung“ und „Warum?“.
 
-## D-187 Kontoblatt-Filter wie bei den Regeln: Ausdruck oder Baukasten (ersetzt die Einzelfelder)
+## D-188 Kontoblatt-Filter wie bei den Regeln: Ausdruck oder Baukasten (ersetzt die Einzelfelder)
 
 - Die Filterleiste (`filter-leiste`, Umschalter `filter-umschalten`) enthält statt der Einzelfelder (Von, Bis,
   Betrag, Empfänger, Verwendungszweck, Freitext, Kategorie, Tag, Status) den **Baukasten** (`filter-baukasten`,
@@ -2519,16 +2519,16 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - Auswirkung auf Abnahmetests: Tests, die die Einzelfelder der Filterleiste bedienen (M8, M12, M17 u. a.), passen
   nicht mehr; das gehört in die Meilenstein-Definition dieses Features.
 
-## D-188 Filter-Baukasten ein- und ausklappbar am Ausdrucksfeld
+## D-189 Filter-Baukasten ein- und ausklappbar am Ausdrucksfeld
 
 - Neben dem Filterausdruck steht der Umschalter `filter-baukasten-umschalten` („Baukasten ▸/▾“, `aria-expanded`,
   `aria-controls="filter-leiste"`); er wirkt wie `filter-umschalten` und `f f`. Der Baukasten startet in jeder
   Kontoansicht eingeklappt (wie E-172) und klappt nicht mehr von selbst auf, auch nicht bei „ähnlicher Empfänger/
   Verwendungszweck“ aus dem Kontextmenü.
-- Die Zusammenfassung unter dem Ausdruck nennt auch die übrigen Filter („Weitere Filter“, D-187), damit ein
+- Die Zusammenfassung unter dem Ausdruck nennt auch die übrigen Filter („Weitere Filter“, D-188), damit ein
   eingeklappter Baukasten nichts verbirgt.
 
-## D-189 Ein einziger Umschalter für den Filter
+## D-190 Ein einziger Umschalter für den Filter
 
 - Der Knopf `filter-umschalten` („Filter“) im Seitenkopf der Kontoansicht entfällt (Auftraggeber, 2026-11-16).
   Einziger Umschalter ist `filter-baukasten-umschalten` am Ausdrucksfeld; er trägt jetzt die Zahl aktiver Filter

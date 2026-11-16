@@ -921,7 +921,7 @@ html[data-thema="dunkel"] .wisch-hinweis[data-bereit="ja"][data-richtung="links"
 [data-layout="mobil"] .person-knopf::before { content: attr(data-kurz); font-size: 1rem; font-weight: 600; width: 1.8rem; height: 1.8rem;
   line-height: 1.8rem; border-radius: 50%; background: var(--hg-3); text-align: center; }
 
-/* Kontor-Ausdrücke (D-178): Eingabe mit Hervorhebung, Filterausdruck, Regelliste, Regeleditor, Testbereich */
+/* Kontor-Ausdrücke (D-179): Eingabe mit Hervorhebung, Filterausdruck, Regelliste, Regeleditor, Testbereich */
 .ausdruck-eingabe { position: relative; min-width: 0; }
 .ausdruck-feld { position: relative; }
 .ausdruck-schicht, .ausdruck-text { font: .9rem/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -931,7 +931,7 @@ html[data-thema="dunkel"] .wisch-hinweis[data-bereit="ja"][data-richtung="links"
 .ausdruck-text { position: relative; display: block; resize: vertical; background: transparent; color: transparent;
   caret-color: var(--text); border-color: var(--rand); min-height: 2.1rem; }
 .ausdruck-eingabe:not(.mehrzeilig) .ausdruck-text { resize: none; overflow: hidden; }
-/* Platzhalter deutlich schwächer als echter Text, damit er nicht für eine Bedingung gehalten wird (D-184) */
+/* Platzhalter deutlich schwächer als echter Text, damit er nicht für eine Bedingung gehalten wird (D-185) */
 .ausdruck-text::placeholder { color: var(--text-2); opacity: .4; font-style: italic; }
 /* Markierung durchscheinend, damit die Schrift der Hervorhebungsschicht darunter lesbar bleibt */
 .ausdruck-text::selection { background: color-mix(in srgb, var(--akzent) 30%, transparent); color: transparent; }
@@ -1043,7 +1043,7 @@ html[data-thema="dunkel"] .wirkung-abweichend { background: #5a3412; color: #ffd
 .test-knoepfe { grid-column: 4; grid-row: 2; display: inline-flex; gap: .25rem; }
 #regel-uebernehmen, [data-testid="regel-uebernehmen"] { margin-bottom: .4rem; max-width: 100%; }
 
-/* D-185: Regelfenster mit fester Höhe; links und die Trefferliste rollen je für sich, das Fenster springt nicht */
+/* D-186: Regelfenster mit fester Höhe; links und die Trefferliste rollen je für sich, das Fenster springt nicht */
 .dialog-regel { height: min(56rem, calc(100% - 1rem)); }
 .dialog-regel .dialog-inhalt { flex: 1 1 auto; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
 .dialog-regel .regel-editor { flex: 1 1 auto; min-height: 0; }
@@ -1064,12 +1064,12 @@ html[data-thema="dunkel"] .wirkung-abweichend { background: #5a3412; color: #ffd
 .app[data-layout="mobil"] ~ .dialog-huelle .dialog-regel .regel-editor-links,
 .app[data-layout="mobil"] ~ .dialog-huelle .dialog-regel .regel-test { overflow: visible; }
 .test-liste { align-content: start; }
-/* D-185: feste Zeilen für Fehler- und Statustexte im Regelfenster, damit beim Tippen nichts springt */
+/* D-186: feste Zeilen für Fehler- und Statustexte im Regelfenster, damit beim Tippen nichts springt */
 .dialog-regel .ausdruck-fehler:empty { display: block; visibility: hidden; }
 .dialog-regel .ausdruck-fehler { min-height: 1.25em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dialog-regel .test-status { display: block; margin-left: 0; min-height: 1.2em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-/* D-186: Ausdrucksfeld wächst mit; kompakte Trefferzeilen mit aufklappbaren Einzelheiten */
+/* D-187: Ausdrucksfeld wächst mit; kompakte Trefferzeilen mit aufklappbaren Einzelheiten */
 .ausdruck-text { overflow: hidden; resize: none; }
 .ausdruck-eingabe:not(.mehrzeilig) .ausdruck-text { min-height: 2.1rem; }
 .ausdruck-eingabe.mehrzeilig .ausdruck-text { min-height: 6.2rem; }
@@ -1090,7 +1090,7 @@ html[data-thema="dunkel"] .wirkung-abweichend { background: #5a3412; color: #ffd
 .app[data-layout="mobil"] ~ .dialog-huelle .test-kopf .test-wirkung { display: none; }
 .test-details > * { grid-column: auto; grid-row: auto; text-align: left; }
 
-/* D-187: Filter-Baukasten statt Einzelfelder */
+/* D-188: Filter-Baukasten statt Einzelfelder */
 .filter-leiste { display: block; }
 .filter-leiste .baukasten { margin-bottom: .4rem; }
 .filter-optionen { display: flex; flex-wrap: wrap; gap: .4rem 1rem; align-items: center; }

@@ -755,7 +755,7 @@ def _klemme(x: int) -> int:
 
 
 def buchungsliste(con, f: dict) -> dict:
-    """Filter laut openapi.yaml; alle UND-verknüpft. ``filter``: Ausdruck im Kontext ``filter`` (D-178)."""
+    """Filter laut openapi.yaml; alle UND-verknüpft. ``filter``: Ausdruck im Kontext ``filter`` (D-179)."""
     if isinstance(f.get("filter"), str):
         from . import ausdruck
         f = {**f, "filter": ausdruck.filter_baum(con, f["filter"])}
@@ -838,7 +838,7 @@ def buchungsliste(con, f: dict) -> dict:
         st = sorted(set(f["status"]))
         bed.append(f"b.status IN ({_platzhalter(len(st))})")
         par.extend(st)
-    if f.get("filter") is not None:   # D-178: Ausdrucksfilter (Konzept 5.4) auf die übrigen Bedingungen
+    if f.get("filter") is not None:   # D-179: Ausdrucksfilter (Konzept 5.4) auf die übrigen Bedingungen
         from . import ausdruck
         sql = "SELECT b.id AS id FROM buchung b LEFT JOIN empfaenger e ON e.id = b.empfaenger_id"
         if bed:

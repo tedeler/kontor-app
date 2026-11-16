@@ -1,4 +1,4 @@
-/* Kontor – Ausdrucksfelder für Regeln und Kontoblatt-Filter (D-178): Hervorhebung, Prüfung über
+/* Kontor – Ausdrucksfelder für Regeln und Kontoblatt-Filter (D-179): Hervorhebung, Prüfung über
    POST /api/ausdruck/pruefen, Fehlerstelle, einfache Vervollständigung, Treffer-Markierungen. */
 import { api, h, neueId } from "./kern.js";
 
@@ -185,7 +185,7 @@ export class AusdruckEingabe {
     this.eingabe.dataset.leer = text.trim() ? "nein" : "ja";
   }
 
-  /** Das Feld wächst mit dem Inhalt (D-186): einzeilige Felder brechen um statt zu verdecken, mehrzeilige bis ca.
+  /** Das Feld wächst mit dem Inhalt (D-187): einzeilige Felder brechen um statt zu verdecken, mehrzeilige bis ca.
    *  16 Zeilen; danach rollt es. */
   hoeheAnpassen() {
     const e = this.eingabe;

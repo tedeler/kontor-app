@@ -1,7 +1,7 @@
 # Ergebnis der Implementierung
 
 
-## Feature `ausdruecke` (Branch `feature/ausdruecke`, iterative Phase, D-178 bis D-181)
+## Feature `ausdruecke` (Branch `feature/ausdruecke`, iterative Phase, D-179 bis D-182)
 
 Stand: 2026-11-16, Implementierungs-Thread. Kontor-Ausdrücke für Regeln und den Kontoblatt-Filter nach dem Konzept
 `claude/feature-regeln.md` im Projekt. Noch keine Meilenstein-Definition und keine Abnahmetests.
@@ -10,7 +10,7 @@ Stand: 2026-11-16, Implementierungs-Thread. Kontor-Ausdrücke für Regeln und de
 - **Abnahmetests nicht gelaufen:** kontor-tests war in dieser Sitzung nicht erreichbar (Klon ohne Zugangsdaten
   abgelehnt). Vor dem Merge muss der Volllauf nachgeholt werden; Risiken: Antworten von `/api/regeln` haben die
   neuen Felder `ausdruck` und `ausdruck_form`, der Regeldialog ist neu (Beschriftungen und Ablauf).
-- Seit D-187 ersetzt der Filter-Baukasten die Einzelfelder der Filterleiste; Abnahmetests, die diese Felder
+- Seit D-188 ersetzt der Filter-Baukasten die Einzelfelder der Filterleiste; Abnahmetests, die diese Felder
   bedienen, werden rot, bis die Meilenstein-Definition sie ablöst.
 - Neue Abhängigkeit `google-re2` (reguläre Ausdrücke mit linearer Laufzeit).
 

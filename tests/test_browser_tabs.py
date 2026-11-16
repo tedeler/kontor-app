@@ -70,7 +70,7 @@ def test_tab_behaelt_zustand_und_wird_wieder_geoeffnet(umgebung):
     # Zustand: Auswahl und aufgeklappte Filterleiste
     _zeile(page, zweck["Einkauf 3"]).locator('[data-feld="datum"]').click()
     _zeile(page, zweck["Einkauf 5"]).locator('[data-feld="datum"]').click(modifiers=["Control"])
-    tid(page, "filter-baukasten-umschalten").click()   # D-189: einziger Umschalter
+    tid(page, "filter-baukasten-umschalten").click()   # D-190: einziger Umschalter
     expect(tid(page, "filter-leiste")).to_be_visible()
     expect(tid(page, "auswahl-anzahl")).to_have_attribute("data-anzahl", "2")
     # anderes Konto über die Navigation: neuer Tab, nur eine Kontoansicht im Dokument

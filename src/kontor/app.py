@@ -204,7 +204,7 @@ REGELN_ANWENDEN = {
     "nur_unkategorisiert": S("bool"),
     "trocken": S("bool"),
 }
-# D-178: Kontor-Ausdrücke
+# D-179: Kontor-Ausdrücke
 AUSDRUCK_PRUEFEN = {"ausdruck": S("str", pflicht=True, max_len=4000), "kontext": S("enum", werte=("regel", "filter")),
                     "stichtag": S("datum"), "festschreiben": S("bool")}
 AUSDRUCK_ALS_REGEL = {"ausdruck": S("str", pflicht=True, min_len=1, max_len=4000),
@@ -558,7 +558,7 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
             "abgestimmt": q.wahrheitswert("abgestimmt"),
             "sortierung": q.auswahl("sortierung", buch.SORTIERUNGEN) or "datum",
             "verdacht": q.auswahl("verdacht", ("ja", "nein")) == "ja",   # M27 1.1 (D-171)
-            "filter": q.text("filter", 1),                                # D-178: Ausdrucksfilter
+            "filter": q.text("filter", 1),                                # D-179: Ausdrucksfilter
         }
         stichtag = q.datum("stichtag")
         f["heute"] = dt.date.fromisoformat(stichtag) if stichtag else sync.heute()
@@ -675,7 +675,7 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
         return await aendern("regeln_anwenden", regeln.anwenden, d.get("buchung_ids"), d.get("regel_ids"),
                              d.get("nur_unkategorisiert", True), d.get("trocken", False), quelle="regeln")
 
-    # --------------------------------------------- Kontor-Ausdrücke (D-178)
+    # --------------------------------------------- Kontor-Ausdrücke (D-179)
     def _bezugstag(d: dict) -> dt.date:
         return dt.date.fromisoformat(d["stichtag"]) if d.get("stichtag") else sync.heute()
 
