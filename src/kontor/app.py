@@ -249,8 +249,19 @@ def _index_html(config: KontorConfig) -> str:
         klasse = "mock"
     else:
         hinweis, klasse = "", "echt"
-    return (vorlage.replace("<!--MODUS-HINWEIS-->", hinweis).replace("{{MODUS}}", klasse)
-            .replace("{{VERSION}}", __version__))
+    seite = (vorlage.replace("<!--MODUS-HINWEIS-->", hinweis).replace("{{MODUS}}", klasse)
+             .replace("{{VERSION}}", __version__))
+    # D-178: Entwicklungsstand außerhalb von main zeigt statt der Version den Branch mit Link zum Repository
+    zweig = versionsinfo.zweig()
+    if zweig and zweig != "main":
+        link = (f'<a class="zweig-link" data-testid="zweig-link" data-zweig="{html.escape(zweig)}"'
+                f' href="{html.escape(versionsinfo.zweig_url(zweig))}" target="_blank" rel="noopener noreferrer"'
+                f' title="Branch {html.escape(zweig)} im Repository öffnen (Version {html.escape(__version__)})">'
+                f'⎇ {html.escape(zweig)}</a>')
+        seite = seite.replace("<!--ZWEIG-->", f'<div class="version-fuss" data-zweig="{html.escape(zweig)}">{link}', 1)
+        seite = seite.replace('title="Über Kontor">Version ' + __version__ + "</button>",
+                              'title="Über Kontor" aria-label="Über Kontor">Über</button></div>', 1)
+    return seite
 
 
 class _Antwort(Exception):
