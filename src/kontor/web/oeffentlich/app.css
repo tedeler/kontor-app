@@ -1151,3 +1151,9 @@ html[data-thema="dunkel"] .wirkung-abweichend { background: #5a3412; color: #ffd
 .lern-balken-wert { position: absolute; left: 0; top: 0; bottom: 0; background: #2e8b57; border-radius: 3px; }
 .lern-balken-soll { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--text, #222); }
 .lern-chip { display: inline-block; font-size: .75rem; background: var(--hg-3); border-radius: 4px; padding: 0 .35em; margin: 0 .2rem .2rem 0; }
+
+/* D-192: Bankzugang in den Einstellungen */
+.auswahlliste { list-style: none; padding: 0; margin: .4rem 0; }
+.auswahlliste li { padding: .2rem 0; overflow-wrap: anywhere; }
+[data-testid="bankzugang-meldung"][data-art="fehler"] { color: var(--gefahr); }
+[data-testid="bankzugang-tan"] { margin-top: .6rem; }
