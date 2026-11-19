@@ -1,5 +1,12 @@
 # Ergebnis der Implementierung
 
+## Merge von `feature/testinstanz` (D-205) ohne Abnahme, gegen kontor-tests `c99b6ac`
+
+Stand: 2026-11-19, Implementierungs-Thread. Auf ausdrückliche Anweisung des Auftraggebers auf main gemergt, noch ohne
+Meilenstein-Definition und eigene Abnahmetests. Stand der Prüfung wie im Abschnitt unten; unter systemd auf dem
+Server ist die Testinstanz noch nicht gelaufen. Auf main ist `test_huelle_zeigt_version_in_der_navigation` wieder
+grün (eigene Tests ohne Browser: 362 / 362; Browser-Rauchtests nicht gelaufen).
+
 ## Feature `testinstanz` (Branch `feature/testinstanz`, iterative Phase, D-205), gegen kontor-tests `c99b6ac`
 
 Stand: 2026-11-19, Implementierungs-Thread. Zweite Instanz für Entwicklungsbranches: `kontor-test.service`,
