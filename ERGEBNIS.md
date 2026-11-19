@@ -1,5 +1,12 @@
 # Ergebnis der Implementierung
 
+## Merge von `feature/berichte` (D-217) ohne Abnahme, gegen kontor-tests `c99b6ac`
+
+- Auf Anweisung vor Meilenstein-Definition und Abnahme gemergt. Eigene Tests auf main: **460 / 460** (inkl.
+  Browser-Rauchtests).
+- Abnahmetests: nur der Teillauf auf dem Branch (siehe nächster Abschnitt); kein Volllauf nach dem Merge. Die
+  beiden Palettentests aus dem Abschnitt zum Monatsbericht sind wieder grün.
+
 ## Feature `berichte` (Branch `feature/berichte`, iterative Phase, D-217), gegen kontor-tests `c99b6ac`
 
 Stand: 2026-11-19, Implementierungs-Thread. Berichtswahl auf `/berichte?art=…` und neun weitere Berichte (Verträge,
