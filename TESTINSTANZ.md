@@ -6,7 +6,7 @@ Port 8081. Die Hauptinstanz wird dabei nur gelesen; Änderungen in der
 Testinstanz kommen nie dorthin zurück.
 
 Für die wiederkehrenden Schritte gibt es das Bedienskript `kontor-test`
-(D-211). Es ruft `python -m kontor.testinstanz` auf, merkt sich den zuletzt
+(D-213). Es ruft `python -m kontor.testinstanz` auf, merkt sich den zuletzt
 benutzten Branch und zeigt Zustand, Protokoll und Adresse an.
 
 ## Voraussetzungen
