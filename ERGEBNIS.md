@@ -1,5 +1,20 @@
 # Ergebnis der Implementierung
 
+## Feature `berichte` (Branch `feature/berichte`, iterative Phase, D-217), gegen kontor-tests `c99b6ac`
+
+Stand: 2026-11-19, Implementierungs-Thread. Berichtswahl auf `/berichte?art=…` und neun weitere Berichte (Verträge,
+Jahr, Vorschau, Vermögen, Kategorien, Empfänger, Geldfluss, Datenqualität, Tags). Noch keine Meilenstein-Definition,
+keine Abnahmetests, nicht auf main.
+
+- Eigene Tests: **457 / 460**; neu `test_auswertungen_eigen.py` (10) und `test_browser_berichte.py` (4). Rot sind
+  `test_ueber_fenster` und `test_huelle_zeigt_version_in_der_navigation` (D-178, auf jedem Branch außerhalb von main)
+  sowie im parallelen Lauf einmal `test_tags_im_kontoblatt_bearbeiten`, einzeln grün.
+- Abnahmetests, Teillauf (`--voll -k "bericht or palette or test_m8_seiten or navigation"`): 58 bestanden, 11
+  fehlgeschlagen. Keiner der 11 betrifft Berichte oder Palette (Versionsknopf und Navigation wegen D-178,
+  Filterleiste, Einstellungen, Regel-Schema); sie stammen aus anderen Features. Die beiden Palettentests, die seit
+  dem Monatsbericht rot waren, sind wieder grün, weil der Palettenbefehl entfallen ist.
+- Nicht gelaufen: Volllauf der Abnahme (rund 25 Minuten).
+
 ## Testlauf auf main nach dem Merge von `feature/regel-tags` (D-214, D-215), Version 0.31, gegen kontor-tests `c99b6ac`
 
 Stand: 2026-11-19, Implementierungs-Thread. Stand von main: `380dc9a`.
