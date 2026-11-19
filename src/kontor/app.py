@@ -31,7 +31,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.staticfiles import StaticFiles
 
 from . import (__version__, ausdruck, auswertungen, berichte, buch, db, export, kredite, lernerklaerung, lernmodell, lernregeln, mock_lerndaten, mail, monatsbericht, pflege, protokoll, regeln,
-               sicherung, statistik, verschieben, vorlagen, wiederkehrend)
+               sicherung, verschieben, vorlagen, wiederkehrend)
 from . import aktualisierung
 from . import abgleich, bankzugang, dokumente, erwartung, kontonamen
 from . import anmeldung as anm
@@ -51,7 +51,7 @@ log = logging.getLogger("kontor")
 
 WEB = pathlib.Path(__file__).parent / "web"
 #: Routen der Oberfläche (oberflaeche.md 3) und Links aus Benachrichtigungen (/buchungen/<id>, /sync/konten)
-SPA_ROUTEN = ["/", "/konten", "/konten/{konto_id:int}", "/kategorien", "/erwartet", "/mail", "/statistik", "/kredite",
+SPA_ROUTEN = ["/", "/konten", "/konten/{konto_id:int}", "/kategorien", "/erwartet", "/mail", "/kredite",
               "/kredite/{kredit_id:int}", "/berichte", "/berichte/monat", "/import", "/einstellungen", "/protokoll", "/empfaenger", "/regeln", "/lernmodell",
               "/vorlagen", "/dubletten", "/sync", "/sync/konten", "/benachrichtigungen", "/suche", "/tan/{tan_id:int}",
               "/mail/postfaecher/{postfach_id:int}", "/buchungen/{buchung_id:int}"]
@@ -1416,19 +1416,6 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
         stichtag = q.datum("stichtag")
         q.pruefen()
         return await lesen(wiederkehrend.uebersicht, stichtag or sync.heute().isoformat())
-
-    @endpunkt("GET", "/api/statistik")
-    async def statistik_analyse(request: Request):
-        """Experimentell (D-145): regelmäßig, Rauschen, ungewöhnlich. Nicht im OpenAPI-Vertrag."""
-        q = Query(request.query_params)
-        konto_id = q.ganzzahl("konto_id", 1)
-        stichtag = q.datum("stichtag")
-        for name in sorted(set(request.query_params.keys()) - {"konto_id", "stichtag"}):
-            q.fehler_melden(name, "Unbekannter Parameter.")
-        if "konto_id" not in request.query_params:
-            q.fehler_melden("konto_id", "Pflichtparameter fehlt.")
-        q.pruefen()
-        return await lesen(statistik.analyse, konto_id, stichtag or sync.heute().isoformat())
 
     @endpunkt("GET", "/api/buchungen/{buchung_id:int}/wiederkehrend")
     async def wiederkehrend_begruendung(request: Request):

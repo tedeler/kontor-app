@@ -13,7 +13,6 @@ import * as S from "./seiten.js";
 import { einstellungen } from "./einstellungen.js";
 import { erwartetSeite } from "./erwartet.js";
 import { mailSeite } from "./mail.js";
-import { statistikSeite } from "./statistik.js";
 import { berichteSeite } from "./berichte.js";
 import { lernmodellSeite } from "./lernmodell.js";
 import { Tabs } from "./tabs.js";
@@ -244,7 +243,6 @@ const ROUTEN = [
   [/^\/kategorien$/, "kategorien", "kategorien", S.kategorienSeite],
   [/^\/erwartet$/, "erwartet", "erwartet", erwartetSeite],
   [/^\/mail$/, "mail", "mail", mailSeite],
-  [/^\/statistik$/, "statistik", "statistik", statistikSeite],
   [/^\/kredite$/, "kredite", "kredite", S.kredite],
   [/^\/kredite\/(\d+)$/, "kredit", "kredite", S.kredit],
   [/^\/berichte$/, "berichte", "berichte", berichteSeite],
@@ -403,7 +401,7 @@ async function zeigen(optionen) {
 }
 
 const TITEL = { uebersicht: "Finanzübersicht", konten: "Konten", konto: "Konto", kategorien: "Kategorien",
-  statistik: "Statistische Analyse", kredite: "Kredite", kredit: "Kredit", berichte: "Berichte", import: "Import",
+  kredite: "Kredite", kredit: "Kredit", berichte: "Berichte", import: "Import",
   einstellungen: "Einstellungen", protokoll: "Änderungsprotokoll", empfaenger: "Empfänger", regeln: "Regeln", lernmodell: "Lernmodell",
   vorlagen: "Split-Vorlagen", dubletten: "Dubletten", sync: "Synchronisation", benachrichtigungen: "Benachrichtigungen",
   suche: "Suche", tan: "TAN-Freigabe", postfach: "Postfach", buchung: "Buchung", erwartet: "Was kommt noch?",
@@ -775,7 +773,6 @@ const BEFEHLE = [
   ["gehe-sync", "Gehe zu: Synchronisation", () => gehe("/sync")],
   ["gehe-erwartet", "Gehe zu: Was kommt noch? (erwartete Zahlungen)", () => gehe("/erwartet")],
   ["gehe-mail", "Gehe zu: Mail-Blatt", () => gehe("/mail")],
-  ["gehe-statistik", "Gehe zu: Statistische Analyse", () => gehe("/statistik")],
   ["gehe-benachrichtigungen", "Gehe zu: Benachrichtigungen", () => gehe("/benachrichtigungen")],
   ["rueckgaengig", "Rückgängig", () => rueckgaengig()],
   ["wiederholen", "Wiederholen", () => wiederholen()],

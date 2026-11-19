@@ -545,21 +545,24 @@ function buchungsTabelle(liste, gewaehlt, praefix) {
       return h("tr", { tid: `${praefix}-buchung-${e.id}`, "data-id": String(e.id) },
         datumEl("td", e.datum), h("td", null, e.empfaenger ? nameAnzeige(e.empfaenger.name) : "–"), h("td", null, e.verwendungszweck || ""),
         betragEl("td", e.splits.filter(zaehlt).reduce((n, s) => n + s.betrag, 0), { class: "zahl" }),
-        h("td", { class: "konto-knoepfe" }, konten.map((kid) => {
-          const k = kontoNach(kid);
-          const a = h("a", { class: "knopf knopf-flach klein", href: `/konten/${kid}?buchung=${e.id}`,
-            tid: `${praefix}-buchung-${e.id}-konto-${kid}`, title: `Buchung im Konto ${k ? kontoPfad(k) : kid} zeigen` },
-          k ? k.name : `Konto ${kid}`);
-          // Wie „Gehe zur Gegenbuchung“: auch in einem schon offenen Tab des Kontos die Buchung wählen und fokussieren
-          // (der Abfrageteil wirkt nur beim ersten Laden). Mit Strg/Mittelklick bleibt es ein normaler Link.
-          a.addEventListener("click", (ev) => {
-            if (ev.button !== 0 || ev.ctrlKey || ev.metaKey || ev.shiftKey || ev.altKey) return;
-            ev.preventDefault();
-            oberflaeche.zurBuchung(kid, e.id);
-          });
-          return a;
-        })));
+        h("td", { class: "konto-knoepfe" }, konten.map((kid) => kontoSprung(e.id, kid, praefix))));
     }), ["info-", "titel", "zeile", "betrag", "aktion2"]);
+}
+
+/** Link „Buchung im Konto zeigen“ (Berichte, Dubletten). */
+function kontoSprung(buchungId, kid, praefix) {
+  const k = kontoNach(kid);
+  const a = h("a", { class: "knopf knopf-flach klein", href: `/konten/${kid}?buchung=${buchungId}`,
+    tid: `${praefix}-buchung-${buchungId}-konto-${kid}`, title: `Buchung im Konto ${k ? kontoPfad(k) : kid} zeigen` },
+  k ? k.name : `Konto ${kid}`);
+  // Wie „Gehe zur Gegenbuchung“: auch in einem schon offenen Tab des Kontos die Buchung wählen und fokussieren
+  // (der Abfrageteil wirkt nur beim ersten Laden). Mit Strg/Mittelklick bleibt es ein normaler Link.
+  a.addEventListener("click", (ev) => {
+    if (ev.button !== 0 || ev.ctrlKey || ev.metaKey || ev.shiftKey || ev.altKey) return;
+    ev.preventDefault();
+    oberflaeche.zurBuchung(kid, buchungId);
+  });
+  return a;
 }
 
 /** Zeitpunkt eines Plotly-Datums („2024-03-15“ oder „2024-03-15 12:30:00.5“) oder einer Zahl (ms) in Ortszeit. */
@@ -1148,6 +1151,13 @@ function betragEingabeText(c) {
 }
 
 // ------------------------------------------------------------------ Dubletten (13.10)
+/** Konten einer Buchung für den Sprung: Bestandskonten zuerst, sonst alle. */
+function sprungKonten(b) {
+  const alle = [...new Set((b.splits || []).map((s) => s.konto_id))];
+  const bestand = alle.filter((kid) => BESTAND.has((kontoNach(kid) || {}).art));
+  return bestand.length ? bestand : alle;
+}
+
 export async function dubletten(seite) {
   const liste = await api("GET", "/api/dubletten?status=offen&vorschlaege=ja");
   kopf(seite, "Dubletten", knopf("Umbuchungen erkennen", { onclick: async () => {
@@ -1167,8 +1177,11 @@ export async function dubletten(seite) {
     return h("li", { tid: schluessel, class: "karte", "data-vorschlag": vorschlag ? "ja" : "nein", "data-grund": v.grund },
       h("p", null, vorschlag ? "Vorschlag: gleicher Betrag, gleiches Datum, gleicher Empfänger"
         : `Verdacht ${v.id} (${v.grund})`),
-      h("ul", null, bs.filter(Boolean).map((b) => h("li", null, `${datumText(b.datum)} · ${b.empfaenger ? b.empfaenger.name : "ohne Empfänger"} · `,
-        betragEl("span", b.betrag), " ", knopf("Diese behalten", { "aria-label": `Buchung ${b.id} behalten`,
+      h("ul", null, bs.filter(Boolean).map((b) => h("li", { tid: `dublette-buchung-${b.id}` }, `${datumText(b.datum)} · ${b.empfaenger ? b.empfaenger.name : "ohne Empfänger"} · `,
+        betragEl("span", b.betrag), b.verwendungszweck ? ` · ${b.verwendungszweck}` : "", " ",
+        // D-222: zur Buchung springen, zuerst in ihre Bestandskonten
+        h("span", { class: "konto-knoepfe" }, "Zeigen in: ", sprungKonten(b).map((kid) => kontoSprung(b.id, kid, "dublette"))), " ",
+        knopf("Diese behalten", { "aria-label": `Buchung ${b.id} behalten`,
           onclick: () => aufloesen({ entscheidung: "zusammenfuehren", behalten_id: b.id }) })))),
       knopf("Keine Dublette", { onclick: () => aufloesen({ entscheidung: "keine_dublette" }) }));
   }));

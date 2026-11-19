@@ -32,7 +32,6 @@ REST = ["/api/status", "/api/ausdruck",  # D-185
         "/api/dokumente", "/api/mail/nachrichten",  # Dokumente: D-123
         "/api/mock/lerndaten",  # Mock-Lerndaten: D-184
         "/api/erwartungen",  # Mail-Abgleich: D-128
-        "/api/statistik",  # experimentell, D-145, noch nicht im OpenAPI-Vertrag
         "/api/berichte/monat",  # Monatsbericht: D-206, noch nicht im OpenAPI-Vertrag
         # weitere Berichte: D-217, noch nicht im OpenAPI-Vertrag
         "/api/berichte/vertraege",
