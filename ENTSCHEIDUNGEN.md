@@ -2649,3 +2649,105 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   (`filter-anzahl`, `data-anzahl`) und den Pfeil ▸/▾. `f f` wirkt wie bisher.
 - Abnahmetests mit `filter-umschalten` (u. a. M12 23, M17, UXMobile 3.6) passen nicht mehr; sie gehören in die
   Meilenstein-Definition dieses Features.
+
+## D-197 Umsatzabruf über camt in der Version, die die Bank anbietet (ergänzt D-069)
+
+- **Frage:** D-069 verlangt genau camt.052.001.08 und weicht sonst auf MT940 (`HKKAZ`) aus. Banken wie die
+  comdirect bieten camt.052.001.02 an; `HKKAZ` ist dort gestört und abgekündigt.
+- **Entscheidung:** Bietet die Bank `HKCAZ` an, wird immer camt abgerufen: zuerst .08, sonst die höchste
+  angebotene Version von .07 bis .02. Bietet sie nur unlesbare camt-Formate an, scheitert der Abruf mit
+  `BankFehler`; auf MT940 wird dann nie ausgewichen. MT940 bleibt nur für Banken ganz ohne `HKCAZ`. Die
+  Kontoverbindung im Auftrag trägt nur IBAN und BIC. Der Leser der Einträge ist für alle Versionen derselbe
+  (`Sts` als Text oder `Sts/Cd`, Partei mit oder ohne `Pty`).
+- **Begründung:** Auftrag vom 2026-11-19 (Totalausfall mit AqBanking bei der comdirect).
+
+## D-198 TAN schon beim Dialogbeginn (ersetzt D-071)
+
+- **Entscheidung:** Antwortet die Bank auf die Dialoginitialisierung mit 0030, werfen `konten()` und `umsaetze()`
+  `TanErforderlich`; der Dialog bleibt in der Plugin-Instanz offen. `konten(tan=…)` bzw. `umsaetze(…, tan=…)`
+  senden die TAN (HKTAN Prozess 2) und setzen im selben Dialog fort. In der Synchronisation läuft das über die
+  vorhandene TAN-Anforderung des ersten Kontos. Ohne gespeicherte Kontenauswahl scheitert ein Lauf, dessen
+  Kontenabruf eine TAN braucht, weiter nach D-023 – mit dem Hinweis, die Konten einmal in den Einstellungen
+  abzurufen. Entkoppelte Freigaben (3955) bleiben ein `BankFehler` (D-070).
+- **Offen:** Verlangt eine Bank die TAN bei jedem Dialog, braucht ein Lauf je Konto eine TAN, weil jeder Aufruf
+  einen eigenen Dialog führt (D-069). Erst nach einem Abruf bei der echten Bank zu beurteilen.
+
+## D-199 Bankzugang aus der Oberfläche
+
+- **Entscheidung:** Server-Adresse, Bankleitzahl, Benutzerkennung, Kunden-ID, Produkt-ID, TAN-Verfahren und die
+  abgerufenen Konten mit Auswahl liegen in `meta` (Betriebszustand, wie D-137: kein Protokoll, keine Sicherung).
+  Die PIN gehört nie dazu; sie bleibt im Arbeitsspeicher bzw. – nur auf Wunsch – verschlüsselt gemerkt (D-129,
+  am 2026-11-19 so bestätigt). `KONTOR_FINTS_*` ist Vorbelegung je Feld. Endpunkte: `GET/PUT /api/bank/zugang`,
+  `POST /api/bank/zugang/tan-verfahren`, `POST /api/bank/zugang/konten/abrufen` (mit `vorgang` und `tan` zum
+  Fortsetzen), `PUT /api/bank/zugang/konten`. Sind Konten gespeichert, synchronisiert ein Lauf genau die
+  gewählten und fragt die Kontenliste nicht mehr bei der Bank ab. Ändern sich Adresse, Bankleitzahl, Benutzer
+  oder Kunden-ID, entfallen die gespeicherten Konten. Alle Aufrufe mit Bankverbindung halten die Laufsperre;
+  während eine Synchronisation auf eine TAN wartet, sind sie mit 409 `tan_offen` gesperrt. Neue öffentliche
+  Plugin-Methode `FintsBankPlugin.tan_verfahren()`. Ein Zugang je Instanz.
+- **Begründung:** Auftrag vom 2026-11-19; der offene Dialog bleibt bewusst im Arbeitsspeicher (ein Prozess),
+  statt Dialogdaten zu serialisieren.
+
+## D-200 Übergang alter Bank-Kennungen
+
+- **Frage:** Dieselben Umsätze kommen nach der Umstellung mit anderer Kennung; der Abgleich (4.4) schließt
+  Buchungen mit Bank-Kennung als Kandidaten aus und würde den Überlappungszeitraum doppelt buchen.
+- **Entscheidung:** Beim ersten Start mit dieser Fassung werden alle vorhandenen `bank:`-Kennungen in
+  `sync_kennung_alt` vermerkt (`meta.bank_uebergang`). Ein unbekannter Umsatz wird einer Buchung zugeordnet,
+  die auf demselben Konto denselben Betrag und Buchungstag hat, nur alte Kennungen trägt und deren Kennung die
+  Bank in diesem Abruf nicht wieder geliefert hat. Je Betrag und Tag so viele Zuordnungen wie solche Buchungen,
+  bei Auswahl zuerst nach Empfängername; der Rest wird neu gebucht. Zählt als `buchungen_zusammengefuehrt`.
+  Die Tabelle ist Betriebszustand (nicht gesichert): Nach dem Einspielen einer älteren Sicherung greift die
+  Regel für deren Buchungen nicht.
+- **Begründung:** Zählen statt Raten: Bei gleichem Betrag am selben Tag stimmt danach die Anzahl in jedem Fall;
+  ein Dublettenverdacht wäre hier nur Mehrarbeit.
+
+## D-201 AqBanking-Plugin entfernt (hebt D-099 und die M10-Teile auf)
+
+- **Entscheidung:** `plugins/aqbanking.py`, die Felder `aqbanking_*`, die Fehlerklasse
+  `BankTanNichtUnterstuetzt` und die eigenen M10-Tests entfallen. `KontorConfig(bank_plugin="aqbanking")` ist
+  ein Konfigurationsfehler; nur beim Lesen der Umgebung gilt `KONTOR_BANK_PLUGIN=aqbanking` als `fints` (mit
+  Warnung im Log), damit eine vorhandene Umgebungsdatei den Dienst nicht am Start hindert.
+- **Folge für die Abnahme:** Die Tests von M10 und die M6-/M11-Tests zu camt.052.001.08-Zwang, TAN beim
+  Dialogbeginn, AqBanking-Saldo und den öffentlichen Plugin-Methoden passen nicht mehr; das klärt der
+  Test-Thread mit der Meilenstein-Definition dieses Features.
+
+## D-202 Kontenliste aus der SEPA-Kontoverbindung, Benutzerparameter nur ergänzend (ergänzt fints.md 3.2)
+
+- **Frage:** Bisher zählte nur ein HIUPD-Eintrag mit IBAN, Währung EUR und bekannter Kontoart. Beim ersten Abruf
+  gegen die comdirect (2026-11-19) kamen so 0 Konten, obwohl die Bank SEPA-Konten meldet.
+- **Entscheidung:** Grundlage ist jedes Konto aus HISPA mit IBAN. Der passende HIUPD-Eintrag wird über die IBAN,
+  ersatzweise über die Kontonummer gesucht und liefert Name, Inhaber und Kontoart. Fehlt er oder fehlt die
+  Kontoart, gilt `girokonto`. Ausgeschlossen bleibt ein Konto nur, wenn HIUPD ausdrücklich eine andere Währung
+  als EUR oder eine Kontoart außerhalb der Tabelle (Depot usw., K 15) nennt.
+- **Begründung:** Was in den Benutzerparametern steht, ist je Bank verschieden; die SEPA-Kontoverbindung ist das,
+  womit der Umsatzabruf arbeitet. Für Banken mit vollständigem HIUPD ändert sich nichts (M6-Tests unverändert grün).
+
+## D-203 Diagnoseprotokoll des FinTS-Plugins ohne persönliche Daten
+
+- **Frage:** Für die Fehlersuche gegen eine echte Bank braucht es Einblick in den Austausch; fints.md 3.8 verbietet
+  zu Recht jedes Protokoll der Nachrichten (PIN, TAN, Kennungen).
+- **Entscheidung:** Ein abschaltbares Diagnoseprotokoll (Vorgabe aus; Einstellungen → Bankzugang, gespeichert als
+  Betriebszustand `meta.bank_diagnose`). Es arbeitet mit einer Positivliste (`plugins/fints_diagnose.py`): je
+  Nachricht die Segmentarten und -versionen, Rückmeldecodes mit bereinigtem Text, angebotene Formate und
+  TAN-Verfahren, je Konto nur „Konto n“ mit Kontoart, Währung und der Angabe, welche Felder gefüllt sind,
+  Längen und Anzahlen, HTTP-Status und Dauer, dazu die Entscheidungen des Plugins (Konto übernommen/ausgelassen
+  mit Grund, gewähltes Format, TAN nötig, Ausgang jedes Aufrufs). Nie enthalten: PIN, TAN, Auftragsreferenz,
+  Benutzerkennung, Kunden-ID, Kundensystem-ID, Produkt-ID, IBAN, Kontonummer, Inhaber, Kontobezeichnung, Beträge,
+  Umsätze, Wortlaut der TAN-Anforderung, Server-Adresse. Freitexte der Bank: bekannte Kennungen, IBANs und
+  Ziffernfolgen ab fünf Stellen werden ersetzt, höchstens 160 Zeichen; Parameter von Rückmeldungen nur als Anzahl
+  (Ausnahme 3920: dreistellige Verfahrensnummern). Ablage: Ringpuffer mit 600 Zeilen im Arbeitsspeicher
+  (`GET/PUT /api/bank/zugang/diagnose`) und, solange eingeschaltet, im Log des Dienstes (Logger
+  `kontor.fints.diagnose`, Stufe INFO). Der Logger `fints` der Bibliothek bleibt stillgelegt.
+
+## D-204 camt-Datum mit Zeitzone oder Zeitanteil
+
+- **Anlass:** Erster Abruf gegen die comdirect (2026-11-19): Kontenliste und `HKCAZ` mit camt.052.001.02 liefen,
+  die Umsatzdaten waren aber „unlesbar“ (`ValueError`), sobald Einträge enthalten waren.
+- **Entscheidung:** Buchungs- und Wertstellungsdatum werden aus `Dt` oder `DtTm` gelesen; ausgewertet werden nur
+  Jahr, Monat und Tag am Anfang (`2024-06-03+02:00`, `2024-06-03T10:11:12+02:00`). Beträge müssen die Form
+  `Ziffern[.Ziffern]` haben. Hat ein Feld eine andere Form, scheitert der Abruf weiter als Ganzes (kein
+  stilles Auslassen einzelner Umsätze); das Diagnoseprotokoll nennt dann Feld und Form (`9999-99-99`), nie den
+  Wert. Außerdem nennt es, warum ein Saldo nicht abgefragt wurde.
+- **Hinweis:** Dass die Zeitzone die Ursache war, ist aus dem Protokoll geschlossen (nur `ValueError` sichtbar),
+  nicht an den Daten der Bank gesehen.
+

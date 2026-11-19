@@ -18,7 +18,8 @@ from dataclasses import dataclass
 
 import json
 
-from . import abgleich, buch, db, kredite, lernmodell, pflege, protokoll, regeln, vorlagen, wiederkehrend
+from .plugins.fints_diagnose import Diagnose
+from . import abgleich, bankzugang, buch, db, kredite, lernmodell, pflege, protokoll, regeln, vorlagen, wiederkehrend
 from .buch import BESTAND, ApiFehler
 from .config import KontorConfig
 from .fehler import (BankPinFalsch, BankZugangGesperrt, KontorFehler, TanAbgelaufen, TanErforderlich, TanUngueltig)
@@ -76,6 +77,8 @@ class SyncDienst:
         self._pin: str | None = None
         self._simuliert: dt.datetime | None = None
         self._tan: dict[int, _TanKontext] = {}
+        self.diagnose = Diagnose()   # D-203: FinTS-Diagnoseprotokoll, nur Arbeitsspeicher
+        self.zugang_tan: tuple[str, str] | None = None   # D-199: (Vorgang, interne Kennung), nur Arbeitsspeicher
         self._thread: threading.Thread | None = None
         self._stopp = threading.Event()
         # M7 (betrieb.md 5.2): Beenden der App; _abbruch = nach Fristablauf nichts mehr schreiben
@@ -208,8 +211,40 @@ class SyncDienst:
         """Erzeugt das Bank-Plugin beim ersten Lauf und verwendet es danach weiter (python-api.md 8.4)."""
         if self._plugin is None:
             from .plugins import erzeuge_bank_plugin
-            self._plugin = erzeuge_bank_plugin(self.config, pin_quelle=self._pin_quelle)
+            config = self.config
+            if config.bank_plugin == "fints":  # D-199: Bankzugang aus der Oberfläche vor der Vorbelegung
+                con = self._con()
+                try:
+                    config = bankzugang.wirksame_config(con, config)
+                    self.diagnose.einschalten(bankzugang.diagnose_an(con))
+                finally:
+                    con.close()
+            self._plugin = erzeuge_bank_plugin(config, pin_quelle=self._pin_quelle)
+            if hasattr(self._plugin, "diagnose"):
+                # Kennungen des Zugangs werden aus Freitexten der Bank entfernt, falls sie dort vorkommen
+                self.diagnose.geheim = tuple(x for x in (config.fints_benutzer, config.fints_kunden_id) if x)
+                self._plugin.diagnose = self.diagnose
         return self._plugin
+
+    def plugin_verwerfen(self) -> None:
+        """Nach einer Änderung des Bankzugangs: offene Dialoge beenden, beim nächsten Aufruf neu erzeugen."""
+        with self._zustand:
+            plugin, self._plugin, self.zugang_tan = self._plugin, None, None
+        if plugin is not None:
+            with contextlib.suppress(Exception):
+                plugin.schliessen()
+
+    def tan_offen(self) -> bool:
+        with self._zustand:
+            return bool(self._tan)
+
+    def _bankkonten(self, con, plugin) -> list:
+        """Konten des Laufs: die in der Oberfläche gewählten (D-199), sonst alle, die die Bank meldet."""
+        if getattr(plugin, "name", None) == "fints":
+            gewaehlt = bankzugang.aktive_bankkonten(con)
+            if gewaehlt is not None:
+                return gewaehlt
+        return plugin.konten()
 
     def _vor_aufruf(self, plugin) -> None:
         if self.config.mock_modus and getattr(plugin, "ist_mock", False) and hasattr(plugin, "setze_heute"):
@@ -484,9 +519,12 @@ class SyncDienst:
         try:
             plugin = self._plugin_holen()
             self._vor_aufruf(plugin)
-            bankkonten = plugin.konten()
+            bankkonten = self._bankkonten(con, plugin)
         except TanErforderlich as e:  # D-023: TAN beim Kontenabruf ist ein Fehler des Laufs
-            self._lauf_scheitert(con, lid, *_fehler_von(e))
+            code, meldung = _fehler_von(e)
+            if getattr(plugin, "name", None) == "fints":  # D-198: der Weg, auf dem die TAN eingegeben werden kann
+                meldung += " Bitte in den Einstellungen unter „Bankzugang“ einmal die Konten abrufen."
+            self._lauf_scheitert(con, lid, code, meldung)
             return
         except Exception as e:  # noqa: BLE001 - Pluginfehler führen nie zu 5xx
             self._lauf_scheitert(con, lid, *self._pluginfehler(e))
@@ -795,6 +833,8 @@ class SyncDienst:
                     continue
                 gesehen.add(kennung)
                 offen.append((u, kennung))
+            geliefert = {f"bank:{iban}:{u.umsatz_id}" for u in reihe}
+            offen = self._uebergang_abgleichen(con, kid, iban, offen, geliefert, z)
             neue = self._abgleichen_und_buchen(con, kid, iban, offen, z)
             con.execute("UPDATE sync_lauf_konto SET status = 'erfolgreich', von = ?, bis = ?, fehler_code = NULL,"
                         " fehler_meldung = NULL, umsaetze_gesamt = ?, vormerkungen_ignoriert = ?,"
@@ -820,6 +860,59 @@ class SyncDienst:
         self._saldo_abgleichen(con, lid, iban, kid, umsaetze)
 
     # ======================================================= Kontostand (M11)
+    def _uebergang_abgleichen(self, con, kid: int, iban: str, offen: list, geliefert: set[str], z: dict) -> list:
+        """D-200: Übergang des Bankabrufs (AqBanking/MT940 → camt). Dieselben Umsätze kommen danach mit anderer
+        Kennung. Ein noch unbekannter Umsatz gehört zu einer vorhandenen Buchung, wenn diese auf demselben Konto
+        denselben Betrag und Buchungstag hat, nur Kennungen aus der Zeit vor der Umstellung trägt und die Bank
+        keine dieser Kennungen in diesem Abruf wieder geliefert hat. Je Betrag und Tag werden so viele Umsätze
+        zugeordnet, wie es solche Buchungen gibt (bei Auswahl zuerst nach Empfängername); der Rest wird neu
+        gebucht. Ergebnis: die Umsätze, die danach noch offen sind."""
+        praefix = f"bank:{iban}:"
+        n = len(praefix)
+        if not offen or con.execute("SELECT 1 FROM sync_kennung_alt WHERE substr(kennung, 1, ?) = ? LIMIT 1",
+                                    (n, praefix)).fetchone() is None:
+            return offen
+        gruppen: dict[tuple[int, str], list] = {}
+        for u, kennung in offen:
+            gruppen.setdefault((u.betrag, u.buchungstag.isoformat()), []).append((u, kennung))
+        erledigt: set[str] = set()
+        for (betrag, tag), eintraege in gruppen.items():
+            kandidaten: dict[int, str | None] = {}
+            for r in con.execute(
+                    "SELECT b.id AS id, e.name AS name, x.extern_id AS alt FROM buchung b"
+                    " JOIN buchung_extern x ON x.buchung_id = b.id"
+                    " JOIN sync_kennung_alt a ON a.kennung = x.extern_id"
+                    " LEFT JOIN empfaenger e ON e.id = b.empfaenger_id"
+                    " WHERE b.datum = ? AND substr(x.extern_id, 1, ?) = ?"
+                    " AND EXISTS (SELECT 1 FROM split s WHERE s.buchung_id = b.id AND s.konto_id = ? AND s.betrag = ?)"
+                    " AND NOT EXISTS (SELECT 1 FROM buchung_extern y WHERE y.buchung_id = b.id"
+                    "                 AND substr(y.extern_id, 1, ?) = ?"
+                    "                 AND y.extern_id NOT IN (SELECT kennung FROM sync_kennung_alt))"
+                    " ORDER BY b.id", (tag, n, praefix, kid, betrag, n, praefix)):
+                if r["alt"] in geliefert:
+                    kandidaten[r["id"]] = None   # die Bank kennt diese Buchung weiter unter der alten Kennung
+                elif kandidaten.get(r["id"], "") is not None:
+                    kandidaten[r["id"]] = r["name"] or ""
+            frei = {bid: name for bid, name in kandidaten.items() if name is not None}
+            paare: list[tuple[str, int]] = []
+            for nach_name in (True, False):
+                for u, kennung in eintraege:
+                    if not frei:
+                        break
+                    if any(k == kennung for k, _ in paare):
+                        continue
+                    name = (u.gegenpartei_name or "").strip() or None
+                    bid = next((b for b, c in frei.items() if not nach_name or passend(name, c or None)), None)
+                    if bid is not None:
+                        del frei[bid]
+                        paare.append((kennung, bid))
+            for kennung, bid in paare:
+                con.execute("INSERT OR IGNORE INTO sync_kennung (kennung) VALUES (?)", (kennung,))
+                con.execute("INSERT OR IGNORE INTO buchung_extern (buchung_id, extern_id) VALUES (?, ?)", (bid, kennung))
+                z["buchungen_zusammengefuehrt"] += 1
+                erledigt.add(kennung)
+        return [(u, kennung) for u, kennung in offen if kennung not in erledigt]
+
     def _saldo_abgleichen(self, con, lid: int, iban: str, kid: int, umsaetze: object) -> None:
         """kontostand.md 2: Saldo der Bank mit dem Kontor-Saldo vergleichen, bei Differenz ausgleichen."""
         from .plugins.bank import BankSaldo

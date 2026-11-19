@@ -268,7 +268,10 @@ def test_serien_erscheinen_als_grund(app_c):
 
 
 def test_mock_modus_ende_zu_ende(tmp_path):
-    cfg = KontorConfig(datenbank=tmp_path / "m.sqlite3", mock_modus=True, mail_abgleich=True, planer_starten=False)
+    # Fester Tag: Die eingebauten Mails kommen am 20., die Umsätze am 22.; mit dem echten Datum fällt die Mail
+    # zwischen dem 19. (12:40 UTC) und dem 22. aus dem Abruffenster und der Test wäre an diesen Tagen rot.
+    cfg = KontorConfig(datenbank=tmp_path / "m.sqlite3", mock_modus=True, mail_abgleich=True, planer_starten=False,
+                       mock_heute=dt.date(2024, 6, 28))
     c = TestClient(create_app(cfg))
     for a in ("haushalt.eins@example.invalid", "haushalt.zwei@example.invalid"):
         assert c.post("/api/mail/postfaecher", json={"adresse": a}).status_code == 201

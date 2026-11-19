@@ -1,5 +1,31 @@
 # Ergebnis der Implementierung
 
+## Feature `fints-camt` (Branch `feature/fints-camt`, iterative Phase, D-197 bis D-201), gegen kontor-tests `c99b6ac`
+
+Stand: 2026-11-19, Implementierungs-Thread. Bankabruf nur noch über FinTS/camt, Bankzugang in der Oberfläche, TAN beim
+Dialogbeginn, Übergang alter Kennungen, AqBanking-Plugin entfernt. Noch keine Meilenstein-Definition, keine
+Abnahmetests; **gegen eine echte Bank nicht geprüft** (nur Loopback-Attrappen).
+
+- Eigene Tests: **361 / 363**; neu `test_fints_camt_eigen.py` (14 Fälle), entfallen `test_m10_eigen.py`. Die 2 roten
+  (`test_ueber_fenster`, `test_huelle_zeigt_version_in_der_navigation`) stammen aus D-178 (außerhalb von main zeigt
+  die Hülle den Branch) und sind auf dem Branch auch ohne diese Änderungen rot.
+- Abnahmetests, Schnelllauf (`python -m pytest -n auto`, ohne `browser`, `langsam`, `leistung`): 2713 bestanden,
+  161 fehlgeschlagen, 43 Fehler, 28 übersprungen. Derselbe Lauf gegen main `68b53a6`: 2741 / 133 / 43 / 28 – main ist
+  also schon vorher rot (M2 Regeln/Vorschläge, M3 Protokoll, M15, M19, M9 u. a.; nicht Teil dieses Features).
+- Nur auf dem Branch rot (28): M10 vollständig (20, Plugin entfernt), `m11/test_m11_aqbanking_saldo.py` (1),
+  `m6/test_m6_paket.py::test_oeffentliche_methoden` und `test_plugins.py::test_nur_lesende_oeffentliche_methoden[echt]`
+  (neue öffentliche Methode `tan_verfahren`), dazu M13 (4) und `m8/test_m8_auslieferung.py` (1) wegen D-178. Kein
+  Test ist nur auf main rot. Die FinTS-Tests von M6 (camt.052.001.08, MT940-Profil, TAN zum Abruf) bleiben grün.
+- Nicht in kontor-tests abgedeckt und nur ad hoc geprüft (veränderte Kopie der FinTS-Attrappe, außerhalb der
+  Repositories): camt.052.001.02 über REST bis zur Buchung (90 Umsätze), TAN beim Dialogbeginn für Kontenabruf und
+  Synchronisation, Oberfläche „Bankzugang“ im Browser (Speichern, PIN, TAN-Verfahren, TAN-Grafik, Kontenauswahl).
+- Nachtrag 15:45 (D-202 Kontenliste aus HISPA, D-203 Diagnoseprotokoll): eigene Tests 364 / 367. Neu rot ist
+  `test_mail_abgleich_eigen.py::test_mock_modus_ende_zu_ende`; der Test ist auf main `68b53a6` zur selben Zeit
+  ebenfalls rot und um 13:45 noch grün gewesen (hängt offenbar von der Uhrzeit ab, nicht von diesem Feature).
+  M6-Abnahme unverändert: nur `test_oeffentliche_methoden` rot.
+- Offen: entkoppelte Freigabe (3955) weiter `BankFehler`; verlangt die Bank bei jedem Dialog eine TAN, braucht ein
+  Lauf je Konto eine TAN (D-198). Browsertests und Volllauf (`--voll`) der Abnahme nicht gelaufen.
+
 
 ## Merge von `feature/ausdruecke` (D-185 bis D-196) ohne Abnahme
 

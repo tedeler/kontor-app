@@ -190,6 +190,13 @@ CREATE TABLE IF NOT EXISTS sync_kennung (
     kennung TEXT PRIMARY KEY
 );
 
+-- D-200: Bank-Kennungen, die es vor der Umstellung des Bankabrufs auf camt schon gab (AqBanking, MT940). Liefert
+-- die Bank denselben Umsatz danach mit anderer Kennung, erkennt der Abgleich die vorhandene Buchung daran.
+-- Betriebszustand: einmal beim ersten Start mit dieser Fassung gefüllt (meta ``bank_uebergang``).
+CREATE TABLE IF NOT EXISTS sync_kennung_alt (
+    kennung TEXT PRIMARY KEY
+);
+
 -- TAN-Anforderungen (synchronisation.md 7). Die interne Kennung des Plugins,
 -- die TAN und die PIN werden hier nie gespeichert.
 CREATE TABLE IF NOT EXISTS tan_anforderung (
@@ -540,6 +547,11 @@ _NACH_MIGRATION = (
 
 def _migrieren(con: sqlite3.Connection) -> None:
     """Bringt eine Datenbank früherer Schemaversion auf den aktuellen Stand (Daten bleiben erhalten)."""
+    if con.execute("SELECT 1 FROM meta WHERE schluessel = 'bank_uebergang'").fetchone() is None:
+        # D-200: alle bis hierher vergebenen Bank-Kennungen stammen aus dem bisherigen Abruf
+        con.execute("INSERT OR IGNORE INTO sync_kennung_alt (kennung) SELECT extern_id FROM buchung_extern"
+                    " WHERE substr(extern_id, 1, 5) = 'bank:'")
+        con.execute("INSERT INTO meta (schluessel, wert) VALUES ('bank_uebergang', '1')")
     for tabelle, spalte, typ in _NEUE_SPALTEN:
         vorhanden = {r["name"] for r in con.execute(f"PRAGMA table_info({tabelle})")}
         if spalte not in vorhanden:
