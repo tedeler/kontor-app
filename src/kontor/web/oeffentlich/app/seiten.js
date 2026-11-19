@@ -9,7 +9,7 @@ import {
   kontoDialog, menuePosition, zuordnungDialog,
 } from "./ui.js";
 import { kategorienBaum, kontoMenue, langeBeruehrung } from "./baum.js";
-import { regelnSeite } from "./regeleditor.js";
+import { regelEditor, regelnSeite } from "./regeleditor.js";
 
 const kopf = (seite, titel, ...werkzeuge) => {
   seite.append(h("div", { class: "seiten-kopf" }, h("h1", null, titel),
@@ -842,10 +842,17 @@ export async function empfaenger(seite) {
     else { auswahl.clear(); auswahl.add(id); anker = id; }
     fokussieren(id);
   };
-  const menue = (e, x, y, ausloeser) => {
+  const menue = async (e, x, y, ausloeser) => {
     allein(e.id);
     fokussieren(e.id, false);
     const ziele = auswahl.size > 1 ? gewaehlt() : [e];
+    // „Anzeigen im Konto“ (D-220): Bestandskonten mit Buchungen dieses Empfängers, die meistbenutzten zuerst
+    let konten = [];
+    if (ziele.length === 1) {
+      try { konten = await api("GET", `/api/empfaenger/${e.id}/konten`); } catch { konten = []; }
+    }
+    const imKonto = (k) => oberflaeche.gehe(`/konten/${k.konto_id}${abfrage({ empfaenger_id: e.id })}`);
+    const kontoText = (k) => `${pfadVon(k.konto_id) || `Konto ${k.konto_id}`} (${k.anzahl})`;
     const wer = personLesen();
     const alle = !!(wer && ziele.every((z) => personTags(z).some((t) => t.name === wer)));
     kontextmenue(x, y, [
@@ -854,6 +861,11 @@ export async function empfaenger(seite) {
       wer ? { tid: "em-bestaetigen", text: alle ? `Bestätigung von ${wer} zurücknehmen` : `Als ${wer} bestätigen`,
         tun: () => empfaengerMarkieren(ziele, !alle) } : null,
       ziele.length === 1 ? { tid: "em-bearbeiten", text: "Bearbeiten…", tun: () => empfaengerDialog(e, ausloeser) } : null,
+      ziele.length === 1 ? { tid: "em-regel", text: "Regel erstellen…", tun: () => regelFuerEmpfaenger(e, ausloeser) } : null,
+      ziele.length !== 1 ? null
+        : konten.length === 1 ? { tid: "em-im-konto", text: `Anzeigen im Konto ${kontoText(konten[0])}`, tun: () => imKonto(konten[0]) }
+          : { tid: "em-im-konto", text: "Anzeigen im Konto", aktiv: konten.length > 0,
+            kinder: konten.map((k) => ({ tid: `em-im-konto-${k.konto_id}`, text: kontoText(k), tun: () => imKonto(k) })) },
     ].filter(Boolean), ausloeser);
   };
   markieren.addEventListener("click", () => empfaengerMarkieren(gewaehlt(), markieren.dataset.zurueck !== "ja"));
@@ -862,9 +874,9 @@ export async function empfaenger(seite) {
   seite.append(h("p", { class: "klein" }, anzahl, " · Markieren wie im Kontoblatt: Klick, Strg/⌘-Klick, Umschalt-Klick, "
     + "Pfeiltasten, Leertaste, Strg+A; Rechtsklick für das Menü (ab zwei markierten: Zusammenführen)."));
   const tab = tabelle({ class: "tabelle empfaenger-liste", tid: "empfaenger-liste", "aria-multiselectable": "true" },
-    ["", "Name", "Bestätigt", "Aliase", "Standardkategorie", ""],
+    ["", "Name", "Bestätigt", "Aliase", ""],
     liste.map((e) => zeileEmpfaenger(e)),
-    ["auswahl", "titel", "info:Bestätigt", "info:Aliase", "info:Kategorie", "aktion"]);
+    ["auswahl", "titel", "info:Bestätigt", "info:Aliase", "aktion"]);
   const zeileVon = (t) => t && t.closest && t.closest("tr[data-id]");
   tab.addEventListener("mousedown", (e) => { if (e.shiftKey && zeileVon(e.target)) e.preventDefault(); });   // keine Textauswahl
   tab.addEventListener("click", (e) => {
@@ -935,7 +947,6 @@ export async function empfaenger(seite) {
       h("td", { "data-feld": "bestaetigt" }, namen.map((n) => h("span", { class: "tag tag-person", tid: "tag",
         "data-person": n, title: `Bestätigt von ${n}` }, n))),
       h("td", null, (e.aliase || []).join(", ")),
-      h("td", null, e.standardkategorie_id ? pfadVon(e.standardkategorie_id) : ""),
       h("td", null, knopf(hat ? `Bestätigung von ${name} zurücknehmen` : `Als ${name || "…"} bestätigen`, {
         tid: `empfaenger-bestaetigen-${e.id}`, disabled: !name,
         "aria-label": hat ? `Bestätigung von ${name} für ${e.name} zurücknehmen` : `${e.name} als ${name || "Person"} bestätigen`,
@@ -967,19 +978,23 @@ async function empfaengerMarkieren(liste, hinzu) {
   } catch { /* gemeldet */ }
 }
 
+/** Regel für einen Empfänger und seine Aliase (D-219): öffnet den Regeleditor mit vorbelegter Bedingung. */
+function regelFuerEmpfaenger(e, ausloeser) {
+  const namen = [e.name, ...(e.aliase || [])].filter((n, i, a) => n && a.indexOf(n) === i);
+  const ausdruck = namen.map((n) => `empf == ${JSON.stringify(n)}`).join(" or ");
+  return regelEditor({ id: null, name: e.name, ausdruck, aktiv: true, tag_ids: [] }, ausloeser);
+}
+
 function empfaengerDialog(e, ausloeser) {
   dialog("empfaenger-dialog", `Empfänger „${e.name}“`, (inhalt, d) => {
     const name = h("input", { type: "text", value: e.name, maxlength: "200" });
     const aliase = h("input", { type: "text", value: (e.aliase || []).join(", ") });
-    const kat = h("select", null, h("option", { value: "" }, "– keine –"),
-      kategorien().map(({ konto }) => h("option", { value: String(konto.id), selected: konto.id === e.standardkategorie_id }, kontoPfad(konto))));
     const speichern = knopf("Speichern", { class: "knopf knopf-haupt" });
     speichern.addEventListener("click", () => imDialog(d, speichern, async () => {
-      const body = { name: name.value.trim(), aliase: aliase.value.split(",").map((x) => x.trim()).filter(Boolean),
-        standardkategorie_id: kat.value ? Number(kat.value) : null };
+      const body = { name: name.value.trim(), aliase: aliase.value.split(",").map((x) => x.trim()).filter(Boolean) };
       await aktion(() => api("PATCH", `/api/empfaenger/${e.id}`, body), { stillBeiFehler: true, danach: () => d.schliessen(true), erfolg: "Empfänger gespeichert." });
     }));
-    inhalt.append(feld("Name", name), feld("Aliase (durch Komma getrennt)", aliase), feld("Standardkategorie", kat),
+    inhalt.append(feld("Name", name), feld("Aliase (durch Komma getrennt)", aliase),
       knopfLeiste(speichern, knopf("Abbrechen", { onclick: () => d.schliessen(null) })));
   }, { ausloeser });
 }

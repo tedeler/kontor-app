@@ -514,8 +514,9 @@ def _einfuegen(con, objekt: str, f: dict) -> None:
                     (f["id"], f["name"], f["art"], f["eltern_id"], f["iban"], 1 if f["geschlossen"] else 0,
                      f["eroeffnet_am"], f["notiz"], f["extern_id"]))
     elif objekt == "empfaenger":
-        con.execute("INSERT INTO empfaenger (id, name, extern_id, standardkategorie_id) VALUES (?, ?, ?, ?)",
-                    (f["id"], f["name"], f["extern_id"], f["standardkategorie_id"]))
+        # D-219: die Standardkategorie ist entfallen; ältere Einträge stellen sie nicht wieder her
+        con.execute("INSERT INTO empfaenger (id, name, extern_id) VALUES (?, ?, ?)",
+                    (f["id"], f["name"], f["extern_id"]))
         con.executemany("INSERT INTO empfaenger_alias (empfaenger_id, alias, ekey) VALUES (?, ?, ?)",
                         [(f["id"], a, buch.ekey(a)) for a in f["aliase"]])
         if f.get("wiederkehrend"):

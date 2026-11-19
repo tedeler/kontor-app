@@ -352,6 +352,7 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     pfad = config.aktive_datenbank
     protokolle_absichern()
     db.schema_anlegen(pfad)  # vor der Rückkehr: Datei und Schema existieren
+    pflege.altbestand_umwandeln(pfad)  # D-219: Standardkategorien früherer Versionen werden Regeln
     kontonamen.altbestand_bereinigen(pfad)  # D-218: gleichnamige Konten früherer Versionen
     modus = "mock" if config.mock_modus else "echt"
     if config.anmeldung:
@@ -1153,6 +1154,11 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     @endpunkt("GET", "/api/empfaenger")
     async def empfaenger_liste(request: Request):
         return await lesen(buch.empfaenger_liste)
+
+    @endpunkt("GET", "/api/empfaenger/{empfaenger_id:int}/konten")
+    async def empfaenger_konten(request: Request):
+        """D-220: Bestandskonten mit Buchungen dieses Empfängers (für „Anzeigen im Konto“)."""
+        return await lesen(pflege.empfaenger_konten, pid(request, "empfaenger_id"))
 
     @endpunkt("POST", "/api/empfaenger", 201)
     async def empfaenger_anlegen(request: Request):

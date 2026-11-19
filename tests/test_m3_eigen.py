@@ -50,7 +50,7 @@ def test_migration_von_schemaversion_2_ohne_datenverlust(tmp_path):
     assert c.get("/api/empfaenger/1").json() == {"id": 1, "name": "Markt", "extern_id": None, "aliase": [],
                                                  "standardkategorie_id": None}
     # Neue Funktionen arbeiten auf der migrierten Datenbank
-    assert c.patch("/api/empfaenger/1", json={"aliase": ["MARKT GMBH"], "standardkategorie_id": 2}).status_code == 200
+    assert c.patch("/api/empfaenger/1", json={"aliase": ["MARKT GMBH"]}).status_code == 200
     r = c.post("/api/abstimmungen", json={"konto_id": 1, "stichtag": "2024-01-31", "saldo": -500}).json()
     assert r["abgestimmt"] is True
     alle = c.get("/api/aenderungen").json()

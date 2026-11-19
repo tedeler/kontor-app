@@ -7,7 +7,7 @@ dieselbe Trainingsmenge wie beim Lernmodell (lernmodell.md 3: Kategorie gesetzt,
 
 Die Regel steht am Ende der Regelliste, ist in ``regel_automatisch`` als automatisch angelegt vermerkt und sonst
 eine gewöhnliche Regel. Löscht der Nutzer sie, sperrt ``empfaenger_lernregel_sperre`` den Empfänger, damit sie
-nicht wieder entsteht. Keine Regel entsteht, wenn der Empfänger eine Standardkategorie hat oder eine aktive Regel
+nicht wieder entsteht. Keine Regel entsteht, wenn eine aktive Regel
 seine jüngste Buchung schon trifft.
 """
 
