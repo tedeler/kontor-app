@@ -1,5 +1,22 @@
 # Ergebnis der Implementierung
 
+## Feature `testinstanz` (Branch `feature/testinstanz`, iterative Phase, D-205), gegen kontor-tests `c99b6ac`
+
+Stand: 2026-11-19, Implementierungs-Thread. Zweite Instanz für Entwicklungsbranches: `kontor-test.service`,
+`kontor-test.env`, Kommandozeile `python -m kontor.testinstanz`. Keine Änderung am Verhalten der Anwendung, noch keine
+Meilenstein-Definition, keine Abnahmetests.
+
+- Eigene Tests: `tests/test_testinstanz_eigen.py` **31 / 31**. Übrige eigene Tests ohne Browser: 361 bestanden,
+  1 fehlgeschlagen (`test_huelle_zeigt_version_in_der_navigation` – erwartet „Version x.yy“, auf einem Feature-Branch
+  zeigt die Hülle nach D-178 den Branch; auf main grün). Browser-Rauchtests nicht gelaufen.
+- Abnahmetests: nur die Betriebs- und Pakettests von M7 (84 bestanden); kein Gesamtlauf, weil kein Anwendungscode
+  geändert wurde.
+- Von Hand geprüft (ohne systemd, in einem Wegwerfverzeichnis): `einrichten feature/testinstanz` mit echtem
+  `git clone`, eigener virtueller Umgebung und `pip install --editable`; die so installierte Instanz startet mit
+  der ausgelieferten Umgebungsdatei im Mock-Modus auf der Kopie, die Hülle zeigt Hinweisbalken und Branch.
+- **Nicht geprüft:** die Unit unter systemd (Härtung, `InaccessiblePaths` im unprivilegierten LXC), Rechte des
+  Benutzers `kontor` an der Kopie, `systemctl`-Aufrufe.
+
 ## Merge von `feature/fints-camt` (D-197 bis D-204) ohne Abnahme, gegen kontor-tests `c99b6ac`
 
 Stand: 2026-11-19, Implementierungs-Thread. Auf ausdrückliche Anweisung des Auftraggebers auf main gemergt, nachdem
