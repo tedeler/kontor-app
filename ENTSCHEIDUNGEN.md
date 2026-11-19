@@ -2751,3 +2751,33 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - **Hinweis:** Dass die Zeitzone die Ursache war, ist aus dem Protokoll geschlossen (nur `ValueError` sichtbar),
   nicht an den Daten der Bank gesehen.
 
+
+## D-205 Monatsbericht: Ausgaben eines Monats rein statistisch (Feature `monatsbericht`)
+
+- **Anlass:** Auftrag vom 2026-11-19: ein Bericht, der ohne Kategorien eine bessere Übersicht über die Ausgaben
+  eines Monats gibt; Tabellen und Grafiken ansprechend und interaktiv.
+- **Entscheidung:** Neuer lesender Endpunkt `GET /api/berichte/monat` (`monat=JJJJ-MM`, Vorgabe der laufende
+  Monat der App-Uhr; `konto_id` mehrfach, nur Bestandskonten, Vorgabe alle Bestandskonten ohne Darlehenskonten)
+  und die Seite `/berichte/monat`. Kein Zustand, kein Protokoll, nichts in der Sicherung. Noch nicht im
+  OpenAPI-Vertrag; das folgt mit der Meilenstein-Definition.
+- **Was eine Ausgabe ist:** Die Wirkung einer Buchung ist die negierte Summe ihrer Splits auf Konten, die keine
+  Bestandskonten sind. Wirkung 0 ist eine Umbuchung zwischen eigenen Konten und zählt nicht (die Anzahl wird
+  genannt); von einer Kreditrate zählt so nur der Zinsanteil. Negative Wirkung ist eine Ausgabe, positive eine
+  Einnahme. Ein Eingang, der nur gegen Aufwandskonten gebucht ist, gilt als Erstattung und mindert die Ausgaben
+  (wie im Bericht Einnahmen und Ausgaben). Das ist die einzige Stelle, an der die Kontoart der Gegenseite
+  eingeht; eine nicht kategorisierte Erstattung zählt als Einnahme.
+- **Fest und variabel:** Fest sind Ausgaben, die zu einer Serie der Erkennung wiederkehrender Buchungen gehören
+  (`wiederkehrend.serie` zum Stichtag, mit den Betragsfiltern). Alles andere ist variabel.
+- **Laufender Monat:** Stichtag ist heute. Vergleiche in der Kachel „Ausgaben“ beziehen sich dann auf den Stand
+  des Vormonats und des Schnitts am selben Tag, nicht auf deren Monatssumme. Hochrechnung = bisherige Ausgaben
+  + noch fällige feste Zahlungen aktiver Serien + variabler Tagesschnitt der 90 Tage vor Monatsbeginn mal
+  Resttage (ohne Vorgeschichte der Tagesschnitt des laufenden Monats).
+- **Vergleiche:** Verlaufsschnitt über die letzten sechs Monate mit Daten; Monatsvergleich über zwölf Monate;
+  „üblich“ je Empfänger ist der Monatsschnitt der letzten sechs Monate mit Daten. Ausreißer: Ausgabe außerhalb
+  einer Serie, robustes z ≥ 3,5 gegenüber mindestens vier früheren Ausgaben an denselben Empfänger in zwölf
+  Monaten und mindestens 5 € über deren Median. Neue Empfänger: keine Buchung in den zwölf Monaten davor.
+  Größenklassen fest: unter 10 €, 10–50 €, 50–200 €, 200–1 000 €, ab 1 000 €.
+- **Oberfläche:** Kein neuer Eintrag in der Navigation (die Abnahmetests zählen deren Einträge auf); erreichbar
+  über den Knopf „Monatsbericht“ auf der Seite Berichte und die Befehlspalette. Monat und Konten stehen in der
+  Adresse (`?monat=`, `?konto=`), der Tab merkt sie sich. Diagramme mit dem vorhandenen Plotly-Paket; Kalender,
+  Balken und Anteile sind HTML, damit sie ohne Plotly und mit Tastatur bedienbar bleiben.

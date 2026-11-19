@@ -33,6 +33,7 @@ REST = ["/api/status", "/api/ausdruck",  # D-185
         "/api/mock/lerndaten",  # Mock-Lerndaten: D-184
         "/api/erwartungen",  # Mail-Abgleich: D-128
         "/api/statistik",  # experimentell, D-145, noch nicht im OpenAPI-Vertrag
+        "/api/berichte/monat",  # Monatsbericht: D-205, noch nicht im OpenAPI-Vertrag
         "/api/bank/zugang",  # Bankzugang: D-199, noch nicht im OpenAPI-Vertrag
         "/api/import/alfbanco", "/api/kategorien/zusammenfuehren"]  # ALF-BanCo: D-123, D-126
 

@@ -73,6 +73,7 @@ Commit-Nachrichten sind auf Deutsch.
 | `src/kontor/pflege.py` | M3: Empfängerverwaltung, Erfassungshilfe, Umbuchungen, Kontenabstimmung, Volltextsuche, Konto mit Buchungen löschen |
 | `src/kontor/kredite.py` | M5: Kredite (Validierung, CRUD, Tilgungsplan mit Ganzzahlarithmetik, Ratenerkennung für Synchronisation und Zuordnen, Jahresabgleich, Bezüge, `verwaiste_entfernen`) |
 | `src/kontor/wiederkehrend.py` | M5: Erkennung wiederkehrender Buchungen (ohne Zustand), Ereignisse und Benachrichtigungen |
+| `src/kontor/monatsbericht.py` | Feature monatsbericht (D-205): Ausgaben eines Monats rein statistisch (`GET /api/berichte/monat`), nur lesend; Seite `app/monatsbericht.js` unter `/berichte/monat` |
 | `src/kontor/berichte.py`, `export.py` | M5: Kontostandsverlauf, Einnahmen/Ausgaben; CSV- und PDF-Export (reportlab) der Buchungsliste |
 | `src/kontor/sicherung.py` | M9: Datensicherung (eigenes Schema der Sicherungsdatei `SPALTEN`, Version `SCHEMAVERSION`), Prüfung nach sicherung.md 5.1, Inhaltsprüfung in einer App-Datenbank im Arbeitsspeicher, Probelauf, Einspielen |
 | `src/kontor/db.py` | SQLite-Schema (Version 9), WAL, Migration früherer Versionen ohne Datenverlust, Verbindungen, `checkpoint` |

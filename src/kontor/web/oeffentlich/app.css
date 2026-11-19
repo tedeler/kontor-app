@@ -1159,3 +1159,140 @@ html[data-thema="dunkel"] .wirkung-abweichend { background: #5a3412; color: #ffd
 [data-testid="bankzugang-tan"] { margin-top: .6rem; }
 .diagnose { max-height: 24rem; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: .8rem;
   padding: .5rem; border: 1px solid var(--rand, currentColor); border-radius: .3rem; }
+
+/* Monatsbericht (Feature monatsbericht, D-205) */
+.nur-vorleser { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.seite-monatsbericht { --mb-fix: var(--akzent); --mb-variabel: #c9781e; --mb-mehr: var(--gefahr); --mb-weniger: var(--erfolg); max-width: 78rem; }
+html[data-thema="dunkel"] .seite-monatsbericht { --mb-variabel: #e0a458; }
+.mb-steuerung { align-items: center; }
+.mb-monatswahl { display: inline-flex; gap: .25rem; align-items: center; }
+.mb-monatswahl select { min-height: var(--knopf-h); min-width: 10.5rem; font-weight: 600; }
+.mb-monatswahl .knopf { min-width: var(--knopf-h); padding: 0 .5rem; font-size: 1.15rem; line-height: 1; }
+.mb-stand { margin: 0 0 .8rem; }
+.mb-konten { position: relative; }
+.mb-konten > summary { list-style: none; cursor: pointer; }
+.mb-konten > summary::-webkit-details-marker { display: none; }
+.mb-konten > summary::after { content: "▾"; margin-left: .3rem; font-size: .8em; }
+.mb-konten-liste { position: absolute; right: 0; top: calc(100% + .3rem); z-index: 30; min-width: 16rem; max-height: 60vh; overflow: auto;
+  display: flex; flex-direction: column; gap: .15rem; padding: .6rem .7rem; background: var(--hg); border: 1px solid var(--rand);
+  border-radius: var(--radius); box-shadow: var(--schatten); }
+.mb-konto { display: flex; align-items: center; gap: .45rem; min-height: 28px; cursor: pointer; }
+.mb-konten-liste .knopf-link { align-self: flex-start; margin-top: .4rem; font-size: .85rem; }
+.mb-konten-liste .knopf-link:disabled { color: var(--text-2); text-decoration: none; cursor: default; }
+
+.mb-kacheln { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: .8rem; margin-bottom: .8rem; }
+.mb-kachel { display: flex; flex-direction: column; gap: .15rem; padding: .75rem .9rem; border: 1px solid var(--rand); border-radius: 10px; background: var(--hg-2); min-width: 0; }
+.mb-kachel-titel { font-size: .8rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--text-2); }
+.mb-kachel-wert { font-size: 1.55rem; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.mb-kachel-zusatz { display: flex; flex-direction: column; gap: .1rem; font-size: .85rem; color: var(--text-2); }
+[data-testid="mb-kachel-ausgaben"] { border-left: 4px solid var(--mb-fix); }
+.mb-delta { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mb-kachel .mb-delta { white-space: normal; }
+.mb-mehr { color: var(--mb-mehr); }
+.mb-weniger { color: var(--mb-weniger); }
+.mb-gleich { color: var(--text-2); }
+
+.mb-raster { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8rem; align-items: start; }
+.mb-raster > .mb-breit { grid-column: 1 / -1; }
+.mb-raster .karte { margin: 0; height: 100%; }
+.mb-karte { padding: .9rem 1rem; border-radius: 10px; }
+.mb-karte > h2 { margin-bottom: .15rem; }
+.mb-karte h3 { font-size: .8rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--text-2); margin: .9rem 0 .3rem; }
+.mb-hinweis { margin: 0 0 .7rem; max-width: 60rem; }
+.mb-diagramm { height: auto; min-height: 260px; background: none; }
+.mb-diagramm.mb-klickbar .bars .point path, .mb-diagramm.mb-klickbar .barlayer { cursor: pointer; }
+[data-testid="mb-verlauf-diagramm"] .nsewdrag { cursor: pointer; }
+
+.mb-tabelle { margin: 0; }
+.mb-tabelle th, .mb-tabelle td { vertical-align: middle; padding: .4rem .5rem; }
+.mb-tabelle thead th { font-size: .8rem; font-weight: 600; color: var(--text-2); border-bottom-color: var(--rand); }
+.mb-tabelle tbody th { font-weight: 500; white-space: nowrap; }
+.mb-tabelle .zahl, .mb-tabelle td:first-child, .mb-tabelle .mb-marke, .mb-tabelle thead th { white-space: nowrap; }
+.mb-tabelle td:first-child:has(.mb-name) { white-space: normal; }
+.mb-tabelle tbody tr:last-child > * { border-bottom: 0; }
+.mb-tabelle tr.klickbar:focus-visible { outline: 3px solid var(--fokus); outline-offset: -3px; }
+.mb-tabelle td:has(> .mb-balken), .mb-tabelle td:has(> .mb-doppel) { width: 26%; min-width: 3.5rem; }
+.mb-name { display: flex; align-items: center; gap: .35rem; font-weight: 500; }
+.mb-zweck { display: block; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 22rem; }
+.mb-marke { font-size: .75rem; font-weight: 600; background: var(--hg-3); border-radius: 4px; padding: 0 .35em; white-space: nowrap; }
+.mb-marke-fix { background: color-mix(in srgb, var(--mb-fix) 18%, var(--hg)); color: var(--text); }
+.mb-balken { display: block; height: .7rem; border-radius: 999px; background: var(--hg-3); overflow: hidden; }
+.mb-balken-fuell { display: block; height: 100%; width: var(--w, 0%); min-width: 2px; border-radius: 999px; background: var(--mb-fix); }
+.mb-doppel { display: flex; flex-direction: column; gap: 3px; }
+.mb-doppel .mb-balken { height: .5rem; }
+.mb-fuell-fix, .mb-fuell-summe { background: var(--mb-fix); }
+.mb-fuell-variabel, .mb-fuell-anzahl { background: var(--mb-variabel); }
+.mb-legende { display: inline-flex; align-items: center; gap: .3rem; font-weight: 400; }
+.mb-punkt { display: inline-block; width: .7rem; height: .7rem; border-radius: 50%; background: currentColor; }
+.mb-legende .mb-punkt + .mb-punkt, .mb-legende .mb-punkt:nth-of-type(2) { margin-left: .5rem; }
+
+.mb-anteil { display: flex; height: 1.6rem; border-radius: 8px; overflow: hidden; background: var(--hg-3); gap: 2px; }
+.mb-anteil > span { display: block; width: var(--w, 0%); }
+.mb-anteil-fix { background: var(--mb-fix); }
+.mb-anteil-variabel { background: var(--mb-variabel); }
+.mb-teile { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; margin-top: .6rem; }
+.mb-teil { display: flex; flex-direction: column; align-items: flex-start; gap: .1rem; padding: .55rem .7rem; border: 1px solid var(--rand); border-radius: 8px;
+  background: var(--hg); color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.mb-teil:hover { background: var(--hg-2); }
+.mb-teil strong { font-size: 1.2rem; font-variant-numeric: tabular-nums; }
+.mb-teil-name { display: inline-flex; align-items: center; gap: .4rem; font-size: .85rem; color: var(--text-2); }
+.mb-teil.mb-fix .mb-punkt { color: var(--mb-fix); }
+.mb-teil.mb-variabel .mb-punkt { color: var(--mb-variabel); }
+.mb-liste { list-style: none; margin: 0; padding: 0; }
+.mb-liste li { display: flex; justify-content: space-between; gap: .8rem; padding: .3rem 0; border-bottom: 1px solid var(--rand); }
+.mb-liste li:last-child { border-bottom: 0; }
+.mb-auffaellig-liste li { justify-content: flex-start; align-items: baseline; gap: .5rem; }
+.mb-auffaellig .knopf-link { text-align: left; text-decoration: none; color: var(--text); }
+.mb-auffaellig .knopf-link:hover { text-decoration: underline; }
+.mb-zeichen { flex: none; width: 1.2rem; text-align: center; font-weight: 700; color: var(--text-2); }
+.mb-auf-hoch .mb-zeichen, .mb-auf-fehlt .mb-zeichen { color: var(--mb-mehr); }
+.mb-auf-tief .mb-zeichen { color: var(--mb-weniger); }
+.mb-auf-neu .mb-zeichen { color: var(--akzent); }
+
+.mb-kalender-rahmen { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 1.4rem; align-items: start; }
+.mb-kalender { width: 100%; border-collapse: separate; border-spacing: 4px; table-layout: fixed; }
+.mb-kalender th { font-size: .8rem; font-weight: 600; color: var(--text-2); text-align: center; padding: 0 0 .1rem; }
+.mb-kalender td { padding: 0; }
+.mb-kal-tag { display: flex; flex-direction: column; justify-content: space-between; width: 100%; min-height: 3.3rem; padding: .25rem .4rem; border: 1px solid transparent;
+  border-radius: 8px; background: var(--hg-2); color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.mb-kal-tag:disabled { cursor: default; color: var(--text-2); }
+.mb-kal-tag:not(:disabled):hover { border-color: var(--text); }
+.mb-kal-nr { font-size: .8rem; }
+.mb-kal-summe { font-size: .85rem; font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; min-height: 1.2em; }
+.mb-hitze-1 { background: color-mix(in srgb, var(--mb-fix) 16%, var(--hg)); }
+.mb-hitze-2 { background: color-mix(in srgb, var(--mb-fix) 34%, var(--hg)); }
+.mb-hitze-3 { background: color-mix(in srgb, var(--mb-fix) 62%, var(--hg)); color: var(--akzent-text); }
+.mb-hitze-4 { background: var(--mb-fix); color: var(--akzent-text); }
+html[data-thema="dunkel"] .mb-hitze-3 { color: var(--text); }
+.mb-kal-spaeter { background: none; border: 1px dashed var(--rand); }
+.mb-kal-heute { box-shadow: 0 0 0 2px var(--fokus); }
+.mb-wochentage tbody th { font-weight: 400; }
+
+.mb-dialog { width: min(56rem, 100%); }
+.mb-dialog-rollen { overflow: auto; max-height: 60vh; }
+.mb-dialog-tabelle { margin: 0; }
+.mb-dialog-tabelle .mb-marke { margin-left: .35rem; }
+.mb-dialog-tabelle .mb-zweck { display: table-cell; white-space: normal; }
+
+@media (max-width: 1000px) { .mb-raster { grid-template-columns: minmax(0, 1fr); } .mb-kalender-rahmen { grid-template-columns: minmax(0, 1fr); } }
+[data-layout="mobil"] .mb-raster { grid-template-columns: minmax(0, 1fr); }
+[data-layout="mobil"] .mb-kalender-rahmen { grid-template-columns: minmax(0, 1fr); }
+[data-layout="mobil"] .mb-kacheln { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; }
+[data-layout="mobil"] .mb-kachel-wert { font-size: 1.2rem; }
+[data-layout="mobil"] .mb-kachel[data-testid="mb-kachel-ausgaben"] { grid-column: 1 / -1; }
+[data-layout="mobil"] .mb-steuerung { width: 100%; }
+[data-layout="mobil"] .mb-monatswahl { flex: 1 1 100%; }
+[data-layout="mobil"] .mb-monatswahl select { flex: 1 1 auto; min-width: 0; }
+[data-layout="mobil"] .mb-konten-liste { left: 0; right: auto; }
+[data-layout="mobil"] .mb-kalender { border-spacing: 2px; }
+[data-layout="mobil"] .mb-kal-tag { min-height: 44px; min-width: 0; padding: .15rem .2rem; }
+[data-layout="mobil"] .mb-kal-summe { font-size: .68rem; font-weight: 500; }
+[data-layout="mobil"] .mb-tabelle td:has(> .mb-balken), [data-layout="mobil"] .mb-tabelle td:has(> .mb-doppel) { width: 22%; }
+[data-layout="mobil"] .mb-zweck { max-width: 11rem; }
+[data-layout="mobil"] .mb-teile { grid-template-columns: 1fr; }
+[data-layout="mobil"] .mb-tabelle .zahl .klein, [data-layout="mobil"] .mb-legende { display: none; }
+[data-layout="mobil"] .mb-tabelle th, [data-layout="mobil"] .mb-tabelle td { padding: .4rem .3rem; }
+[data-layout="mobil"] .mb-karte { padding: .7rem .7rem; }
+.mb-tabelle td, .mb-tabelle th { overflow-wrap: break-word; }
+[data-layout="mobil"] .mb-tabelle tbody th { white-space: normal; }
+[data-layout="mobil"] .mb-tabelle td:has(> .mb-balken), [data-layout="mobil"] .mb-tabelle td:has(> .mb-doppel) { width: 16%; min-width: 2.2rem; }

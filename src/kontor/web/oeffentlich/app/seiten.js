@@ -298,7 +298,7 @@ export async function kredit(seite, id) {
 
 // ------------------------------------------------------------------ Berichte (13.6)
 export async function berichte(seite) {
-  kopf(seite, "Berichte");
+  kopf(seite, "Berichte", h("a", { class: "knopf", href: "/berichte/monat", tid: "bericht-monat-link" }, "Monatsbericht"));
   const bestand = baumFolge(stamm.konten.filter((k) => BESTAND.has(k.art)));
   const konten = h("select", { tid: "bericht-konten", multiple: true, size: String(Math.min(6, Math.max(2, bestand.length))) },
     bestand.map(({ konto }) => h("option", { value: String(konto.id) }, kontoPfad(konto))));
@@ -373,7 +373,7 @@ export async function berichte(seite) {
 // plotly.js (Basis-Paket, MIT) liegt unter /oeffentlich/vendor und wird erst auf der Berichtsseite geladen. Beträge
 // bleiben ganze Cent: Plotly bekommt Cent-Werte, die Achsenbeschriftung entsteht mit betragText (Ganzzahlarithmetik).
 let plotlyVersprechen = null;
-function plotlyLaden() {
+export function plotlyLaden() {
   if (window.Plotly) return Promise.resolve(window.Plotly);
   if (!plotlyVersprechen) {
     plotlyVersprechen = new Promise((ok, fehler) => {
@@ -388,7 +388,7 @@ function plotlyLaden() {
 }
 
 /** Ganzzahlige, „runde“ Achsenteilung in Cent (1, 2, 5 · 10^k) mit höchstens etwa sechs Strichen. */
-function centAchse(werte) {
+export function centAchse(werte) {
   const min = Math.min(0, ...werte);
   const max = Math.max(0, ...werte) === min ? min + 100 : Math.max(0, ...werte);
   const striche = (st) => Math.ceil(max / st) - Math.floor(min / st);
@@ -404,14 +404,14 @@ function centAchse(werte) {
   return { tickvals: vals, ticktext: vals.map((v) => betragText(v)), range: [unten, oben] };
 }
 
-function farben() {
+export function farben() {
   const cs = getComputedStyle(document.documentElement);
   const v = (n, x) => (cs.getPropertyValue(n) || "").trim() || x;
   return { text: v("--text", "#1a1d21"), text2: v("--text-2", "#4a525c"), rand: v("--rand", "#c9d0d9"),
     hg: v("--hg", "#ffffff"), erfolg: v("--erfolg", "#1e6b34"), gefahr: v("--gefahr", "#a8231d"), akzent: v("--akzent", "#1f5f8b") };
 }
 
-function plotlyLayout(f, achse, extra) {
+export function plotlyLayout(f, achse, extra) {
   return {
     margin: { l: 100, r: 16, t: 36, b: 40 }, height: 320, separators: ",.", paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
     font: { color: f.text, family: "inherit" }, hovermode: "x unified", showlegend: true,
@@ -425,7 +425,7 @@ function plotlyLayout(f, achse, extra) {
   };
 }
 
-const PLOTLY_OPTIONEN = { displaylogo: false, responsive: true, showSendToCloud: false, showEditInChartStudio: false,
+export const PLOTLY_OPTIONEN = { displaylogo: false, responsive: true, showSendToCloud: false, showEditInChartStudio: false,
   showLink: false, plotlyServerURL: "", topojsonURL: "/oeffentlich/vendor/",
   modeBarButtonsToRemove: ["select2d", "lasso2d", "autoScale2d", "toggleSpikelines"] };
 
