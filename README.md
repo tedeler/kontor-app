@@ -323,7 +323,8 @@ und `KONTOR_AQBANKING_*` in `/etc/kontor/kontor.env` können entfernt werden.
 
 Kontor liefert alle Betriebsdateien im Paket `kontor.betrieb` aus
 (`kontor.service`, `kontor-sicherung.service`, `kontor-sicherung.timer`,
-`kontor-update.path`, `kontor-update.service`, `kontor-test.service`, `kontor-test.env`, `kontor.sysusers`, `kontor.env`,
+`kontor-update.path`, `kontor-update.service`, `kontor-test.service`, `kontor-test.env`, `kontor-test.sh`,
+`kontor.sysusers`, `kontor.env`,
 `pin-eingabe.conf`). Schritt für Schritt
 (als root im Container, z. B. Debian 13 mit systemd):
 
@@ -402,6 +403,8 @@ es weiterhin mit `/opt/kontor/venv/bin/pip install --upgrade /opt/kontor/src`
 **Testinstanz für Entwicklungsbranches (D-205):** Einen Branch probiert man nicht
 über den Update-Dienst aus, sondern in einer zweiten, getrennten Instanz. Die
 Hauptinstanz läuft dabei unverändert weiter.
+Schritt-für-Schritt-Anleitung und das Bedienskript `kontor-test` für die
+wiederkehrenden Schritte: [TESTINSTANZ.md](TESTINSTANZ.md) (D-211).
 
 ```bash
 # als root; holt den Branch, installiert ihn nach /opt/kontor-test, kopiert die Daten und startet die Testinstanz
