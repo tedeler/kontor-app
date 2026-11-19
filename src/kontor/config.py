@@ -114,6 +114,9 @@ class KontorConfig:
     # Vorgabe aus (bestehende Abläufe bleiben unverändert); die ausgelieferte Umgebungsdatei schaltet ein.
     mail_abgleich: bool = False
     mail_abgleich_frist_tage: int = 5
+    # Feature amazon-bestellnummer (D-208): Mails mit der Amazon-Bestellnummer einer Buchung als Dokumente an
+    # diese Buchung hängen. Vorgabe aus; die ausgelieferte Umgebungsdatei schaltet ein.
+    mail_bestellnummer: bool = False
     # Meilenstein 6: echte Anbindungen und Benachrichtigungen (python-api.md 13.1). Keine Geheimnisse.
     bank_pin_quelle: str = "eingabe"
     credentials_verzeichnis: pathlib.Path | None = None
@@ -182,6 +185,8 @@ class KontorConfig:
         if not isinstance(self.wiederkehrend_automatisch, bool):
             raise KonfigurationsFehler("wiederkehrend_automatisch muss wahr oder falsch sein.",
                                        feld="wiederkehrend_automatisch")
+        if not isinstance(self.mail_bestellnummer, bool):
+            raise KonfigurationsFehler("mail_bestellnummer muss wahr oder falsch sein.", feld="mail_bestellnummer")
         if not isinstance(self.mail_abgleich, bool):
             raise KonfigurationsFehler("mail_abgleich muss wahr oder falsch sein.", feld="mail_abgleich")
         f = self.mail_abgleich_frist_tage
@@ -399,6 +404,7 @@ class KontorConfig:
         wiederkehrend_automatisch = _wahrheitswert(wert("KONTOR_WIEDERKEHREND_AUTOMATISCH"),
                                                    "KONTOR_WIEDERKEHREND_AUTOMATISCH", False)
         mail_abgleich = _wahrheitswert(wert("KONTOR_MAIL_ABGLEICH"), "KONTOR_MAIL_ABGLEICH", False)
+        mail_bestellnummer = _wahrheitswert(wert("KONTOR_MAIL_BESTELLNUMMER"), "KONTOR_MAIL_BESTELLNUMMER", False)
         text = wert("KONTOR_MAIL_ABGLEICH_FRIST_TAGE")
         if text:
             if not text.isascii() or not text.isdigit() or int(text) > 366:
@@ -441,6 +447,7 @@ class KontorConfig:
             wiederkehrend_automatisch=wiederkehrend_automatisch,
             sync_konten_anlegen=sync_konten_anlegen,
             mail_abgleich=mail_abgleich,
+            mail_bestellnummer=mail_bestellnummer,
             **ganz,
             **m6,
             **m7,

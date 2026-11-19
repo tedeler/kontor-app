@@ -2854,7 +2854,53 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   Das klärt der Test-Thread mit der Meilenstein-Definition. Die übrigen Browsertests verhalten sich wie auf main
   (dort schlagen 49 unabhängig von diesem Feature fehl).
 
-## D-208 Gruppierung nach Datum: vier feste Abschnitte je Monat (Feature `kontoblatt-gruppierung`, in Arbeit)
+## D-208 Mails über die Amazon-Bestellnummer an die Buchung, erwartete Zahlungen vorerst aus (Feature `amazon-bestellnummer`)
+
+- **Auftrag (2026-11-19):** Die erwarteten Zahlungen (D-128) sind dem Auftraggeber noch zu fehleranfällig und
+  werden vorerst abgeschaltet. Stattdessen: Trägt eine Buchung eine Amazon-Bestellnummer, hängen alle Mails mit
+  dieser Nummer im Betreff oder Text an dieser Buchung.
+- **Erwartete Zahlungen:** Der Code bleibt unverändert hinter `mail_abgleich`. Die ausgelieferten
+  Umgebungsdateien (`kontor.env`, `kontor-test.env`) setzen `KONTOR_MAIL_ABGLEICH=0`. Vorhandene erwartete
+  Zahlungen und ihre Zuordnungen bleiben in der Datenbank, es entstehen keine neuen und keine Meldungen
+  „überfällig“. Eine schon installierte `/etc/kontor/kontor.env` ändert sich durch ein Update nicht; dort muss
+  die Zeile von Hand umgestellt werden.
+- **Neue Einstellung** `mail_bestellnummer` (`KONTOR_MAIL_BESTELLNUMMER`, Wahrheitswert wie die anderen Schalter,
+  Vorgabe aus, ausgeliefert an). Vorgabe aus, damit bestehende Abläufe und Abnahmetests unverändert bleiben.
+- **Regel:** Bestellnummer = `ddd-ddddddd-ddddddd` ohne angrenzende Ziffer. Gesucht wird in Verwendungszweck und
+  Empfängername jeder Buchung (zusätzlich ohne Leerraum, weil Bankzeilen die Nummer umbrechen) und in Betreff und
+  Text jeder gespiegelten Mail, unabhängig vom Absender. Je Treffer hängt die ganze Mail und jeder PDF-Anhang als
+  Dokument (Quelle `mail`) an der Buchung. Beträge, Datum und Anbietername spielen keine Rolle. Mehrere Buchungen
+  mit derselben Nummer (Teillieferungen) bekommen alle dieselben Mails; dieselbe Mail in zwei Postfächern zählt
+  einmal. Hängt ein Dokument gleichen Inhalts schon an der Buchung, entsteht kein zweites.
+- **Wann:** nach jedem Mail-Abruf und nach jedem Synchronisationslauf mit Endstatus, nach den erwarteten
+  Zahlungen. Eine Änderung im Protokoll (Quelle `mail`, Aktion `bestellmail_anhaengen`) entsteht nur, wenn etwas
+  angehängt wurde; sie lässt sich rückgängig machen.
+- **Gemerkt wird** je (Buchung, Nachrichten-ID), dass die Mail behandelt ist (Tabelle `bestellmail`,
+  Betriebszustand: nicht protokolliert, nicht in der Sicherung). Löst der Anwender ein so angehängtes Dokument
+  oder macht er die Änderung rückgängig, kommt die Mail nicht von selbst wieder. Nach dem Einspielen einer
+  Sicherung wird das Gemerkte geleert und neu geprüft.
+- **Mail-Liste:** Mit `mail_bestellnummer` trägt jeder Eintrag von `GET /api/mail/nachrichten` das Feld
+  `angehaengt` (Buchungen mit `id`, `datum`, `konto_id`, `empfaenger`, `verwendungszweck`, `nummer`, `warum`);
+  solche Mails zählen in `stand` und im Filter als `zugeordnet`. Ohne die Einstellung fehlt das Feld (Vertrag
+  `openapi.yaml` unverändert). Die Seite `/mail` zeigt die Buchung mit der Marke „Bestellnummer“.
+- **Abnahmetests:** `tests/app/m20/test_m20_erkennung.py::test_ausgelieferte_umgebungsdatei` erwartet
+  `KONTOR_MAIL_ABGLEICH=1` und ist damit bewusst rot, bis die Meilenstein-Definition dieses Features übernommen
+  ist. Alle übrigen Tests von M6, M9, M18, M20, M24 und M27 verhalten sich wie auf main.
+
+## D-209 Bestellnummer auch im Quelltext der Mail suchen (ergänzt D-208)
+
+- **Anlass:** Eine Buchung mit Amazon-Bestellnummer bekam keine Mails, obwohl das Postfach sieben Mails mit der
+  Nummer enthält (Bestellt, Versendet, In Zustellung, Zugestellt).
+- **Vermutete Ursache (an echten Mails nicht prüfbar):** Der gespiegelte Text einer Mail ist nur ihr erster
+  Klartextteil (mail.md 3.3). Steht die Nummer nur im HTML-Teil oder in der Adresse eines Verweises, fand D-208 sie
+  nicht.
+- **Entscheidung:** Zusätzlich zu Betreff und gespiegeltem Text werden alle Textteile der Rohfassung im Quelltext
+  durchsucht (Klartext und HTML samt Verweisadressen). Jede Mail wird einmal durchsucht; die gefundenen Nummern
+  stehen in `bestellmail_nummer` (Betriebszustand). Mails ohne Rohfassung (Mock, zu große Mails) zählen wie
+  bisher nur mit Betreff und Text.
+- Jeder Lauf schreibt eine Zeile ins Log (`kontor.bestellmail`, Stufe INFO) mit der Zahl der angehängten Mails.
+
+## D-210 Gruppierung nach Datum: vier feste Abschnitte je Monat (Feature `kontoblatt-gruppierung`)
 
 - **Anlass:** Zwischen Monat und Tag fehlte eine Ebene; ein Monat mit vielen Buchungen zerfiel sofort in bis zu
   31 Tagesbalken. Kalenderwochen scheiden aus, weil sie am Monatswechsel geteilt werden müssten.
@@ -2872,9 +2918,9 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - **Folge für die Abnahme:** Abnahmetests, die die Folge oder Anzahl der Balken unter einem Monat fest erwarten
   (Monat direkt gefolgt von Tagen), brauchen die neue Ebene; das klärt der Test-Thread mit der Meilenstein-Definition.
 
-## D-209 Tiefe der Gruppierung wählbar (Feature `kontoblatt-gruppierung`, in Arbeit)
+## D-211 Tiefe der Gruppierung wählbar (Feature `kontoblatt-gruppierung`)
 
-- **Anlass:** Mit D-208 hat die Gruppierung vier Ebenen. Auf ruhigen Konten ist das zu viel, und ein Tag mit einer
+- **Anlass:** Mit D-210 hat die Gruppierung vier Ebenen. Auf ruhigen Konten ist das zu viel, und ein Tag mit einer
   einzigen Buchung belegt zwei Zeilen (Tagesbalken und Buchung).
 - **Entscheidung** (mit dem Auftraggeber am 2026-11-19 abgestimmt): Die Leiste über der Liste heißt jetzt
   „Keine | Jahr | Monat | Abschnitt | Tag“ und ersetzt „Keine | nach Datum“ (ergänzt D-152). Die gewählte Ebene ist

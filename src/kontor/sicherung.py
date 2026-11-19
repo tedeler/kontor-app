@@ -742,6 +742,7 @@ def einspielen(con, s: Sicherung, zeitpunkt: str) -> dict:
             con.execute("PRAGMA defer_foreign_keys = ON")
             for tabelle in _LOESCHEN:
                 con.execute(f"DELETE FROM {tabelle}")
+            con.execute("DELETE FROM bestellmail")   # D-208: nach dem Einspielen neu prüfen (Dubletten verhindert der Inhalt)
             laden(con, s.zeilen)
             # gemerkte Kennungen ersetzen (über die Protokoll-Trigger: Rückgängig stellt sie wieder her)
             soll = {k_ for (k_,) in s.zeilen["sync_kennung"]}

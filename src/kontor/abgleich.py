@@ -10,11 +10,18 @@ import datetime as dt
 import logging
 import threading
 
-from . import db, erwartung, protokoll
+from . import bestellmail, db, erwartung, protokoll
 from .config import KontorConfig
 
 log = logging.getLogger("kontor.abgleich")
 _SPERRE = threading.Lock()
+
+
+def nach_ereignis(config: KontorConfig, jetzt: dt.datetime) -> None:
+    """Nach jedem Mail-Abruf und jedem Synchronisationslauf: erst erwartete Zahlungen (hängen ihre Mails selbst
+    an), dann Mails über die Amazon-Bestellnummer (D-208, überspringt schon Angehängtes)."""
+    laufen(config, jetzt)
+    bestellmail.laufen(config, jetzt)
 
 
 def laufen(config: KontorConfig, jetzt: dt.datetime) -> dict | None:

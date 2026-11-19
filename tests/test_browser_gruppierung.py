@@ -1,4 +1,4 @@
-"""Browser-Rauchtest zu D-208: Gruppierung nach Datum mit vier festen Abschnitten je Monat (1.–7., 8.–14., 15.–21.,
+"""Browser-Rauchtest zu D-210: Gruppierung nach Datum mit vier festen Abschnitten je Monat (1.–7., 8.–14., 15.–21.,
 22.–Monatsende) zwischen Monat und Tag. Synthetische Daten, eigener Server auf einem freien Loopback-Port."""
 
 from __future__ import annotations
@@ -65,7 +65,7 @@ def test_vier_abschnitte_je_monat(tmp_path, browser):  # noqa: F811
 
 
 def test_tiefe_der_gruppierung(tmp_path, browser):  # noqa: F811
-    """D-209: Die gewählte Ebene ist die tiefste; sie steht in der Adresse, die volle Tiefe ist die Vorgabe."""
+    """D-211: Die gewählte Ebene ist die tiefste; sie steht in der Adresse, die volle Tiefe ist die Vorgabe."""
     with server(tmp_path, daten=False) as (url, _), seite(browser, url, **DESKTOP) as page:
         g, ids = _daten(url)
         page.goto(f"{url}/konten/{g}?gruppierung=datum&tiefe=abschnitt")

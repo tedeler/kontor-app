@@ -11,7 +11,9 @@ const FILTER = [["alle", "Alle"], ["zugeordnet", "Buchung zugeordnet"], ["erwart
   ["keine", "Nicht erkannt"]];
 const PRO_SEITE = 100;
 
+const haengt = (m) => m.angehaengt || [];   // D-208: über die Bestellnummer an Buchungen gehängt
 const art = (m) => {
+  if (haengt(m).length) return "zugeordnet";
   if (!m.zuordnung.length) return "keine";
   return m.zuordnung.some((z) => z.buchungen.length) ? "zugeordnet" : "erwartet";
 };
@@ -258,13 +260,16 @@ function abrufErgebnis(erg) {
 }
 
 function zuordnungKurz(m) {
-  if (!m.zuordnung.length) return h("span", { class: "klein" }, "Nicht erkannt");
-  return m.zuordnung.map((z) => h("div", { class: "mail-zuordnung", "data-zustand": z.ueberfaellig ? "ueberfaellig" : z.zustand },
+  if (!m.zuordnung.length && !haengt(m).length) return h("span", { class: "klein" }, "Nicht erkannt");
+  return [haengt(m).length ? h("div", { class: "mail-zuordnung", "data-zustand": "erfuellt" },
+    h("span", { class: "grund-marke" }, "Bestellnummer"),
+    h("div", { class: "klein" }, haengt(m).map((b) => h("div", null, buchungsKnopf(b))))) : null,
+  ...m.zuordnung.map((z) => h("div", { class: "mail-zuordnung", "data-zustand": z.ueberfaellig ? "ueberfaellig" : z.zustand },
     h("span", { class: "grund-marke" }, z.ueberfaellig ? "überfällig" : (ZUSTAND[z.zustand] || z.zustand)),
     " ", z.haendler || GRUND[z.grund] || z.grund, " ",
     betragEl("span", z.vorzeichen_betrag),
     z.buchungen.length ? h("div", { class: "klein" }, z.buchungen.map((b) => h("div", null,
-      buchungsKnopf(b), b.warum ? h("div", { class: "mail-warum" }, b.warum) : null))) : null));
+      buchungsKnopf(b), b.warum ? h("div", { class: "mail-warum" }, b.warum) : null))) : null))];
 }
 
 function buchungsKnopf(b) {
@@ -291,15 +296,30 @@ function lesen(m) {
 
 function standDerMail(m) {
   const a = art(m);
-  if (a === "keine") return "Nicht erkannt. Die Mail begründet keine erwartete Zahlung.";
+  if (a === "keine") return "Nicht zugeordnet. Keine Buchung trägt eine Bestellnummer aus dieser Mail.";
+  if (haengt(m).length) return "Über die Bestellnummer an eine Buchung gehängt.";
   if (a === "erwartet") return "Erwartet. Eine Zahlung ist vorgemerkt, aber noch keiner Buchung zugeordnet.";
   return "Einer Buchung zugeordnet.";
 }
 
+function angehaengtAusfuehrlich(m) {
+  return h("ul", { class: "mail-zuordnung-liste", tid: "mail-angehaengt" }, haengt(m).map((b) => h("li", {
+    tid: `mail-angehaengt-${b.id}`, "data-zustand": "erfuellt",
+  },
+  buchungsKnopf(b),
+  h("p", { class: "mail-warum" }, b.warum),
+  b.verwendungszweck ? h("span", { class: "klein" }, b.verwendungszweck) : null)));
+}
+
 function zuordnungAusfuehrlich(m) {
+  if (haengt(m).length) return [angehaengtAusfuehrlich(m), m.zuordnung.length ? erwartungenAusfuehrlich(m) : null];
   if (!m.zuordnung.length) {
-    return h("p", { tid: "mail-ohne-zuordnung" }, "Diese Mail begründet keine erwartete Zahlung.");
+    return h("p", { tid: "mail-ohne-zuordnung" }, "Diese Mail ist keiner Buchung zugeordnet.");
   }
+  return erwartungenAusfuehrlich(m);
+}
+
+function erwartungenAusfuehrlich(m) {
   return h("ul", { class: "mail-zuordnung-liste", tid: "mail-zuordnungen" }, m.zuordnung.map((z) => h("li", {
     tid: `mail-erwartung-${z.erwartung_id}`, "data-zustand": z.ueberfaellig ? "ueberfaellig" : z.zustand,
   },
