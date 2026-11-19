@@ -89,7 +89,7 @@ class SyncDienst:
         self._pin_gesperrt = False
         self.geheimnisse = Geheimnisspeicher(config, self.jetzt_text)
         self.mail = MailDienst(config, self.jetzt, self.geheimnisse)
-        self.mail.nach_abruf = lambda: abgleich.laufen(self.config, self.jetzt())
+        self.mail.nach_abruf = lambda: abgleich.nach_ereignis(self.config, self.jetzt())
         self.zustellung = Zustelldienst(config, self.jetzt, self._ntfy_token)
 
     def __repr__(self) -> str:
@@ -682,7 +682,7 @@ class SyncDienst:
         """Nach jedem Lauf mit Endstatus (erfolgreich, fehlgeschlagen, abgebrochen, TAN abgelaufen): unerwartete
         wiederkehrende Buchungen prüfen, danach neue Bankbuchungen erwarteten Zahlungen zuordnen (D-128, D-133)."""
         self._wiederkehrend_nach_lauf(con, lid)
-        abgleich.laufen(self.config, self.jetzt())
+        abgleich.nach_ereignis(self.config, self.jetzt())
 
     def _wiederkehrend_nach_lauf(self, con, lid: int) -> None:
         """wiederkehrend.md 5 / synchronisation.md 17.3: nach einem Lauf mit Endstatus auf unerwartete Buchungen

@@ -74,6 +74,7 @@ Commit-Nachrichten sind auf Deutsch.
 | `src/kontor/kredite.py` | M5: Kredite (Validierung, CRUD, Tilgungsplan mit Ganzzahlarithmetik, Ratenerkennung für Synchronisation und Zuordnen, Jahresabgleich, Bezüge, `verwaiste_entfernen`) |
 | `src/kontor/wiederkehrend.py` | M5: Erkennung wiederkehrender Buchungen (ohne Zustand), Ereignisse und Benachrichtigungen |
 | `src/kontor/monatsbericht.py` | Feature monatsbericht (D-206): Ausgaben eines Monats rein statistisch (`GET /api/berichte/monat`), nur lesend; Seite `app/monatsbericht.js` unter `/berichte/monat` |
+| `src/kontor/bestellmail.py` | Feature amazon-bestellnummer (D-208): Mails mit der Amazon-Bestellnummer einer Buchung als Dokumente anhängen (`mail_bestellnummer`), Tabelle `bestellmail` als Betriebszustand; Aufruf über `abgleich.nach_ereignis` |
 | `src/kontor/berichte.py`, `export.py` | M5: Kontostandsverlauf, Einnahmen/Ausgaben; CSV- und PDF-Export (reportlab) der Buchungsliste |
 | `src/kontor/sicherung.py` | M9: Datensicherung (eigenes Schema der Sicherungsdatei `SPALTEN`, Version `SCHEMAVERSION`), Prüfung nach sicherung.md 5.1, Inhaltsprüfung in einer App-Datenbank im Arbeitsspeicher, Probelauf, Einspielen |
 | `src/kontor/db.py` | SQLite-Schema (Version 9), WAL, Migration früherer Versionen ohne Datenverlust, Verbindungen, `checkpoint` |
