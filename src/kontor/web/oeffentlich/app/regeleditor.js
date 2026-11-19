@@ -575,11 +575,11 @@ export async function regelEditor(r, ausloeser) {
     speichern.addEventListener("click", () => imDialog(d, speichern, () => speichernUnd(null)));
     const speichernAnwenden = knopf("Speichern und anwenden…", { tid: "regel-speichern-anwenden" });
     speichernAnwenden.addEventListener("click", () => imDialog(d, speichernAnwenden, () => speichernUnd((neu) =>
-      anwendenFrage(neu, test.testmengeText(), test.kontoId(), test.zaehlung, ausloeser))));
+      anwendenFrage(neu, test, ausloeser))));
     const anwendenDialog = async () => {
       if (!gespeichert || geaendert) { speichernAnwenden.click(); return; }
       d.schliessen(true);
-      await anwendenFrage(gespeichert, test.testmengeText(), test.kontoId(), test.zaehlung, ausloeser);
+      await anwendenFrage(gespeichert, test, ausloeser);
     };
 
     const links = h("div", { class: "regel-editor-links" },
@@ -862,26 +862,41 @@ export function erklaerungEl(k) {
 }
 
 /** Rückfrage „Auf n Buchungen anwenden“ (5.3) und POST /api/regeln/{id}/anwenden. */
-async function anwendenFrage(regel, testmenge, kontoId, zaehlung, ausloeser) {
+async function anwendenFrage(regel, test, ausloeser) {
+  const testmenge = test.testmengeText();
+  const kontoId = test.kontoId();
+  const zaehlung = test.zaehlung;
   const neu = zaehlung ? zaehlung.neu || 0 : null;
   const abw = zaehlung ? zaehlung.abweichend || 0 : null;
+  const mitKat = !!regel.kategorie_id;
+  const tags = regel.tag_ids || [];
+  const mitTags = zaehlung ? test.tagsAnzahl || 0 : null;
   dialog("regel-anwenden-dialog", `Regel „${regel.name}“ anwenden`, (inhalt, d) => {
     const ueber = h("input", { type: "checkbox", tid: "regel-anwenden-abweichende" });
     const ok = knopf("Anwenden", { class: "knopf knopf-haupt", tid: "regel-anwenden-ok" });
     ok.addEventListener("click", () => imDialog(d, ok, async () => {
       const r = await aktion(() => api("POST", `/api/regeln/${regel.id}/anwenden`,
         { testmenge, konto_id: kontoId, abweichende_ueberschreiben: ueber.checked }), { stillBeiFehler: true, danach: () => d.schliessen(true) });
-      if (r) melde("erfolg", `${r.anzahl} Buchung(en) geändert. Rückgängig mit Strg+Z.`);
+      if (r) melde("erfolg", r.anzahl ? `${r.anzahl} Buchung(en) geändert. Rückgängig mit Strg+Z.` : "Keine Buchung geändert.");
     }));
-    inhalt.append(h("p", null, "Testmenge: ", h("code", null, testmenge || "alle Buchungen"),
-      kontoId ? ` · Quellkonto ${pfadVon(kontoId)}` : ""),
-      regel.kategorie_id ? h("p", null, neu === null ? "Unkategorisierte Buchungen erhalten einen Vorschlag." : `${neu} unkategorisierte Buchung(en) erhalten einen Vorschlag.`) : null,
-      regel.kategorie_id ? h("label", { class: "wahl" }, ueber, ` auch abweichende überschreiben${abw === null ? "" : ` (${abw})`}`) : null,
-      (regel.tag_ids || []).length ? h("p", { tid: "regel-anwenden-tags" }, "Alle passenden Buchungen erhalten: ",
-        regel.tag_ids.map((id) => h("span", { class: "tag" }, `+ ${tagName(id)}`)), " Vorhandene Tags bleiben.") : null,
-      h("p", { class: "klein" }, regel.kategorie_id ? "Verdeckte und gesperrte Buchungen behalten ihre Kategorie; gesperrte bekommen auch keine Tags. Eine Änderung im Protokoll."
-        : "Gesperrte Buchungen bleiben unverändert. Eine Änderung im Protokoll."),
-      knopfLeiste(ok, knopf("Abbrechen", { onclick: () => d.schliessen(null) })));
+    const nichts = zaehlung && !abw && !(mitKat && neu) && !(tags.length && mitTags);
+    // Nur vorhandene Teile anhängen: `append(null)` schriebe das Wort „null“ in das Fenster (D-216).
+    const teile = [
+      h("p", { tid: "regel-anwenden-umfang" }, `Zeitraum: ${test.zeitraum.text}`,
+        kontoId ? ` · Quellkonto ${pfadVon(kontoId)}` : ""),
+      nichts ? h("p", { tid: "regel-anwenden-nichts" }, "In diesem Umfang ändert die Regel nichts: Es gibt keine passende Buchung, die sie noch nicht erfasst hat.") : null,
+      mitKat && !nichts && neu !== 0 ? h("p", { tid: "regel-anwenden-kategorie" }, neu === null ? `Unkategorisierte Buchungen erhalten „${pfadVon(regel.kategorie_id)}“ als Vorschlag.`
+        : `${neu} unkategorisierte Buchung(en) erhalten „${pfadVon(regel.kategorie_id)}“ als Vorschlag.`) : null,
+      mitKat && (abw === null || abw > 0) ? h("label", { class: "wahl" }, ueber,
+        abw === null ? " auch Buchungen mit anderer Kategorie überschreiben" : ` auch ${abw} Buchung(en) mit anderer Kategorie überschreiben`) : null,
+      tags.length && !nichts ? h("p", { tid: "regel-anwenden-tags" }, mitTags === null ? "Passende Buchungen erhalten: " : `${mitTags} Buchung(en) erhalten: `,
+        tags.map((id) => h("span", { class: "tag" }, `+ ${tagName(id)}`)), " Vorhandene Tags bleiben.") : null,
+      h("p", { class: "klein" }, mitKat ? "Verdeckte und gesperrte Buchungen bleiben unverändert. Das Anwenden ist ein Schritt und lässt sich rückgängig machen."
+        : "Gesperrte Buchungen bleiben unverändert. Das Anwenden ist ein Schritt und lässt sich rückgängig machen."),
+      knopfLeiste(ok, knopf(nichts ? "Schließen" : "Abbrechen", { onclick: () => d.schliessen(null) })),
+    ];
+    ok.hidden = !!nichts;
+    inhalt.append(...teile.filter(Boolean));
   }, { ausloeser });
 }
 

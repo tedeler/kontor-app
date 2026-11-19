@@ -362,9 +362,47 @@ export function kategorieAuswahl(titel, ausloeser) {
 }
 
 // ------------------------------------------------------------------ Tag-Auswahl (9.2)
-/** Führt das Hinzufügen/Entfernen für `ids` selbst aus (in `aktion`, ein Rückgängig-Eintrag). */
-export function tagAuswahl(ids, ausloeser) {
+/** Führt das Hinzufügen/Entfernen für `ids` selbst aus (in `aktion`, ein Rückgängig-Eintrag). `tagsVon(id)` liefert,
+ *  soweit bekannt, die Tags einer Buchung; damit zeigt der Dialog die vorhandenen Tags zum Entfernen (D-216). */
+export function tagAuswahl(ids, ausloeser, tagsVon) {
   dialog("tag-auswahl", ids.length === 1 ? "Tags der Buchung" : `Tags für ${ids.length} Buchungen`, (inhalt, d) => {
+    // Vorhandene Tags der Auswahl: je Tag ein Chip mit ×; bei mehreren Buchungen mit der Zahl der Buchungen.
+    const vorhanden = h("div", { class: "tag-auswahl-vorhanden", tid: "tag-auswahl-vorhanden", role: "list",
+      "aria-label": "Vorhandene Tags", "data-geladen": "nein" });
+    const stand = new Map();   // Buchung → [{id, name}]
+    const zeichnen = () => {
+      const zahl = new Map();
+      for (const tags of stand.values()) for (const t of tags) zahl.set(t.id, { name: t.name, n: (zahl.get(t.id) || { n: 0 }).n + 1 });
+      const chips = [...zahl.entries()].sort((a, b) => a[1].name.localeCompare(b[1].name, "de")).map(([id, t]) =>
+        h("span", { class: "tag regel-tag", role: "listitem", "data-tag": String(id) }, t.name,
+          ids.length > 1 ? h("small", null, t.n === ids.length ? " (alle)" : ` (${t.n} von ${ids.length})`) : null,
+          h("button", { type: "button", class: "regel-tag-weg", tid: `tag-auswahl-weg-${id}`,
+            "aria-label": ids.length > 1 ? `Tag ${t.name} von allen gewählten Buchungen entfernen` : `Tag ${t.name} entfernen`,
+            onclick: (e) => entfernen(id, t.name, e.currentTarget) }, "×")));
+      const unbekannt = ids.length - stand.size;
+      vorhanden.replaceChildren(...(chips.length ? chips : [h("span", { class: "klein" }, unbekannt ? "" : "Noch keine Tags.")]),
+        unbekannt ? h("span", { class: "klein" }, ` Tags von ${unbekannt} weiteren Buchung(en) werden hier nicht gezeigt.`) : "");
+      vorhanden.dataset.geladen = "ja";
+    };
+    const entfernen = (id, tagname, knopfEl) => imDialog(d, knopfEl, async () => {
+      // Der Dialog bleibt offen, damit sich mehrere Tags nacheinander entfernen lassen.
+      await aktion(() => api("POST", "/api/buchungen/mehrfach/tags", { buchung_ids: ids, hinzufuegen: [], entfernen: [id] }),
+        { stillBeiFehler: true, erfolg: `Tag „${tagname}“ entfernt.` });
+      for (const [b, tags] of stand) stand.set(b, tags.filter((t) => t.id !== id));
+      zeichnen();
+      if (d.offen) name.focus();
+    });
+    (async () => {
+      const fehlend = [];
+      for (const id of ids) {
+        const tags = tagsVon ? tagsVon(id) : null;
+        if (tags) stand.set(id, tags.map((t) => ({ id: t.id, name: t.name }))); else fehlend.push(id);
+      }
+      for (const id of fehlend.slice(0, 50)) {   // nicht geladene Buchungen einzeln nachlesen (begrenzt)
+        try { stand.set(id, (await api("GET", `/api/buchungen/${id}`)).tags.map((t) => ({ id: t.id, name: t.name }))); } catch (e) { /* bleibt unbekannt */ }
+      }
+      if (d.offen) zeichnen();
+    })();
     const listeId = neueId("tags");
     const name = h("input", { type: "text", tid: "tag-auswahl-name", list: listeId, autocomplete: "off",
       maxlength: "200" });
@@ -395,8 +433,9 @@ export function tagAuswahl(ids, ausloeser) {
         { buchung_ids: ids, hinzufuegen: [], entfernen: [t.id] }), { stillBeiFehler: true, danach: () => d.schliessen(true), erfolg: `Tag „${t.name}“ entfernt.` });
     }));
     name.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); hinzu.click(); } });
-    inhalt.append(feld("Tag", name), vorschlaege, knopfLeiste(hinzu, weg,
-      knopf("Abbrechen", { onclick: () => d.schliessen(null) })));
+    inhalt.append(h("div", { class: "feld" }, h("span", { class: "feld-titel" }, ids.length === 1 ? "Vorhandene Tags" : "Vorhandene Tags der Auswahl"), vorhanden),
+      feld("Tag hinzufügen oder entfernen", name, "vorhandenen Tag wählen oder neuen Namen eingeben; Enter fügt hinzu"), vorschlaege,
+      knopfLeiste(hinzu, weg, knopf("Schließen", { onclick: () => d.schliessen(null) })));
   }, { ausloeser });
 }
 

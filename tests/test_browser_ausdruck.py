@@ -170,3 +170,63 @@ def test_filter_baukasten_und_alte_adressen(tmp_path, browser):  # noqa: F811
         bereit(page, "konto")
         expect(tid(page, "filter-ausdruck")).to_have_value('datum >= 2024-01-18 and "Einkauf" in vwz')
         expect(zeilen).to_have_count(3)
+
+
+def test_anwenden_fenster_ohne_unsinn(tmp_path, browser):  # noqa: F811
+    """D-216: Das Fenster nach „Speichern und anwenden“ nennt Umfang und Wirkung in Worten, nie „null“."""
+    with server(tmp_path) as (url, _), seite(browser, url, **DESKTOP) as page:
+        page.goto(url + "/regeln")
+        bereit(page, "regeln")
+        tid(page, "regel-anlegen").click()
+        tid(page, "regel-ausdruck").fill('"Einkauf" in vwz and bet <= 3')
+        expect(tid(page, "test-zahlen")).to_have_attribute("data-anzahl", "3")
+        tid(page, "regel-speichern-anwenden").click()
+        fenster = tid(page, "regel-anwenden-dialog")
+        expect(fenster).to_be_visible()
+        expect(fenster).not_to_contain_text("null")
+        expect(fenster).not_to_contain_text("datum in")
+        expect(tid(page, "regel-anwenden-umfang")).to_have_text("Zeitraum: 12 Monate")
+        expect(tid(page, "regel-anwenden-nichts")).to_be_visible()     # alle drei haben die Kategorie schon
+        expect(tid(page, "regel-anwenden-ok")).to_be_hidden()
+
+
+def test_tags_im_kontoblatt_bearbeiten(tmp_path, browser):  # noqa: F811
+    """D-216: Der Tag-Dialog zeigt die vorhandenen Tags; entfernen per ×, auch für mehrere Buchungen."""
+    with server(tmp_path) as (url, _), seite(browser, url, **DESKTOP) as page:
+        page.goto(url + "/")
+        bereit(page, "uebersicht")
+        page.locator('[data-testid^="uebersicht-konto-"] [data-feld="name"]', has_text="Giro").click()
+        bereit(page, "konto")
+        zeilen = page.locator('[data-testid="buchungsliste"] [role="row"][data-id]')
+        zeilen.nth(0).locator('[data-feld="datum"]').click()
+        zeilen.nth(1).locator('[data-feld="datum"]').click(modifiers=["Control"])
+        zeilen.nth(2).locator('[data-feld="datum"]').click(modifiers=["Control"])
+        expect(tid(page, "auswahl-anzahl")).to_have_attribute("data-anzahl", "3")
+        tid(page, "mehrfach-tags").click()
+        expect(tid(page, "tag-auswahl-vorhanden")).to_have_text("Noch keine Tags.")
+        tid(page, "tag-auswahl-name").fill("Urlaub")
+        tid(page, "tag-auswahl-hinzufuegen").click()
+        expect(tid(page, "tag-auswahl")).to_be_hidden()
+        # eine der drei bekommt zusätzlich „Privat“
+        zeilen.nth(0).locator('[data-feld="datum"]').click()
+        page.keyboard.press("t")
+        expect(tid(page, "tag-auswahl-vorhanden")).to_have_text("Urlaub×")
+        tid(page, "tag-auswahl-name").fill("Privat")
+        tid(page, "tag-auswahl-name").press("Enter")
+        expect(tid(page, "tag-auswahl")).to_be_hidden()
+        # Mehrfachauswahl: beide Tags mit Anzahl, × entfernt von allen, der Dialog bleibt offen
+        zeilen.nth(1).locator('[data-feld="datum"]').click(modifiers=["Control"])
+        zeilen.nth(2).locator('[data-feld="datum"]').click(modifiers=["Control"])
+        tid(page, "mehrfach-tags").click()
+        vorhanden = tid(page, "tag-auswahl-vorhanden")
+        expect(vorhanden).to_contain_text("Urlaub (alle)")
+        expect(vorhanden).to_contain_text("Privat (1 von 3)")
+        vorhanden.locator('[role="listitem"]', has_text="Urlaub").get_by_role("button").click()
+        expect(vorhanden.locator('[role="listitem"]')).to_have_count(1)
+        expect(tid(page, "tag-auswahl")).to_be_visible()
+        vorhanden.locator('[role="listitem"]', has_text="Privat").get_by_role("button").click()
+        expect(vorhanden).to_have_text("Noch keine Tags.")
+        page.keyboard.press("Escape")
+        expect(page.locator('[data-testid="buchungsliste"] .tag', has_text="Urlaub")).to_have_count(0)
+        page.keyboard.press("Control+z")                              # letzter Schritt zurück: „Privat“ wieder da
+        expect(page.locator('[data-testid="buchungsliste"] .tag', has_text="Privat")).to_have_count(1)

@@ -1090,6 +1090,8 @@ html[data-thema="dunkel"] .wirkung-abweichend { background: #5a3412; color: #ffd
   border: 0; border-radius: var(--radius); background: var(--hg-2); color: var(--text); text-align: left; padding: .28rem .5rem;
   font: inherit; font-size: .86rem; cursor: pointer; }
 .test-kopf:hover, .test-kopf[aria-expanded="true"] { background: var(--hg-3); }
+.tag-auswahl-vorhanden { display: flex; flex-wrap: wrap; gap: .25rem; align-items: center; min-height: 1.6rem; }
+.feld-titel { display: block; font-size: .85rem; color: var(--text-2); margin-bottom: .15rem; }
 .regel-tags { display: flex; flex-wrap: wrap; gap: .25rem; margin: .1rem 0 .3rem; }
 .regel-tags:empty { display: none; }
 .regel-tag { display: inline-flex; align-items: center; gap: .2rem; font-size: .85rem; padding: .05rem .2rem .05rem .55em; }

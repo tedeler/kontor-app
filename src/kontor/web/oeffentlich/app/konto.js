@@ -185,7 +185,7 @@ const SCHNELL_TEIL = /^(?:datum|dt)\s+(?:in|==)\s+(?:heute|[+-]\d+[dwmqy]|dieser
 // markierten Buchungen; „f“ führt zu den Filtern, „v“ zur Ansicht. Groß-/Kleinschreibung zählt (Umschalt).
 const KUERZEL = [
   ["", "k", "Kategorie setzen…", (s) => s.mitZielen((ids, el) => s.kategorieWaehlen(ids, el))],
-  ["", "t", "Tags…", (s) => s.mitZielen((ids, el) => tagAuswahl(ids, el))],
+  ["", "t", "Tags…", (s) => s.mitZielen((ids, el) => s.tagsDialog(ids, el))],
   ["", "s", "Status setzen…", (s) => s.mitZielen((ids, el) => s.statusWaehlen(ids, el))],
   ["", "b", "Als ich bestätigen / zurücknehmen", (s) => s.mitZielen((ids) => {
     const e = s.bestaetigenEintrag(ids);
@@ -424,8 +424,8 @@ export async function wkFilterDialog(empfaenger, ausloeser) {
         imDialog(d, ok, () => aktion(anfrage, { stillBeiFehler: true, danach: () => d.schliessen(true),
           erfolg: "Betragsfilter gespeichert." }));
       });
-      inhalt.append(empfaenger ? null : feld("Empfänger", wahl), feld("Betragsfilter", modus), fProzent, fBetrag, hinweis,
-        knopfLeiste(ok, knopf("Abbrechen", { onclick: () => d.schliessen(null) })));
+      inhalt.append(...[empfaenger ? null : feld("Empfänger", wahl), feld("Betragsfilter", modus), fProzent, fBetrag, hinweis,
+        knopfLeiste(ok, knopf("Abbrechen", { onclick: () => d.schliessen(null) }))].filter(Boolean));
       laden();
     }, { ausloeser });
 }
@@ -1215,7 +1215,7 @@ class Kontoansicht {
           h("span", { class: "details-wert dk-tags" }, b.tags.length
             ? b.tags.map((t) => h("span", { class: "dk-chip dk-tag" }, t.name))
             : h("span", { class: "leer" }, "keine")),
-          this.stift("tags", "Tags bearbeiten", (el) => tagAuswahl([b.id], el), false)),
+          this.stift("tags", "Tags bearbeiten", (el) => this.tagsDialog([b.id], el), false)),
         this.bestaetigungZeile(b)),
       detailsAbschnitt(b),
       b.extern_ids.length ? h("p", { class: "dk-herkunft klein", title: b.extern_ids.join("\n") },
@@ -1986,6 +1986,11 @@ class Kontoansicht {
     });
   }
 
+  /** Tags der gewählten Buchungen bearbeiten; die geladenen Zeilen liefern die vorhandenen Tags (D-216). */
+  tagsDialog(ids, ausloeser) {
+    tagAuswahl(ids, ausloeser, (id) => { const b = this.eintraege.find((x) => x.id === id); return b ? b.tags : null; });
+  }
+
   // ---------------------------------------------------------------- Rückmeldung beim Wischen (D-141)
   wischZeigen(z, dx, dy) {
     if (dy > WISCH_QUER) { this.wischEnde(z); return; }
@@ -2249,7 +2254,7 @@ class Kontoansicht {
     const b = eine ? this.eintraege.find((x2) => x2.id === ids[0]) : null;
     kontextmenue(x, y, [
       { tid: "km-kategorie", kuerzel: "k", text: "Kategorie setzen…", tun: () => this.kategorieWaehlen(ids, ausloeser) },
-      { tid: "km-tags", kuerzel: "t", text: "Tags…", tun: () => tagAuswahl(ids, ausloeser) },
+      { tid: "km-tags", kuerzel: "t", text: "Tags…", tun: () => this.tagsDialog(ids, ausloeser) },
       { tid: "km-splitten", kuerzel: "x", text: "Splitten…", aktiv: eine, tun: () => splitDialog(b, ausloeser) },
       { tid: "km-dublette", kuerzel: "d", text: "Als Dublette markieren…", aktiv: !!dublette,
         tun: () => { if (dublette) dubletteDialog(dublette, ausloeser); } },
@@ -2342,7 +2347,7 @@ class Kontoansicht {
     return h("div", { class: "mehrfach-leiste", tid: "mehrfach-leiste", role: "toolbar", "aria-label": "Auswahl bearbeiten",
       hidden: true },
     k("mehrfach-kategorie", "Kategorie…", (el) => this.kategorieWaehlen(this.auswahlIds(), el)),
-    k("mehrfach-tags", "Tags…", (el) => tagAuswahl(this.auswahlIds(), el)),
+    k("mehrfach-tags", "Tags…", (el) => this.tagsDialog(this.auswahlIds(), el)),
     k("mehrfach-status", "Status…", (el) => this.statusWaehlen(this.auswahlIds(), el)),
     k("mehrfach-bearbeiten", "Bearbeiten…", (el) => this.mehrfachDialog(this.auswahlIds(), el)),
     k("mehrfach-vorschlag-annehmen", "Vorschläge annehmen", () => this.vorschlag(null, this.auswahlIds(), "annehmen")),
