@@ -1159,3 +1159,49 @@ html[data-thema="dunkel"] .wirkung-abweichend { background: #5a3412; color: #ffd
 [data-testid="bankzugang-tan"] { margin-top: .6rem; }
 .diagnose { max-height: 24rem; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: .8rem;
   padding: .5rem; border: 1px solid var(--rand, currentColor); border-radius: .3rem; }
+
+/* ------------------------------------------------------------------ Einstellungen: Bereiche, Suche, Erweitert (D-206) */
+.einst { display: grid; grid-template-columns: 17rem minmax(0, 1fr); gap: 1.4rem; align-items: start; max-width: 66rem; }
+.einst-seite { position: sticky; top: 0; }
+.einst-suche .feld { margin-bottom: .3rem; }
+.einst-suche input { width: 100%; }
+.einst-nav ul, .einst-treffer { list-style: none; margin: .5rem 0 0; padding: 0; display: flex; flex-direction: column; gap: .15rem; }
+.einst-nav a, .einst-treffer-knopf { display: block; width: 100%; padding: .45rem .6rem; border: 0; border-left: 3px solid transparent;
+  border-radius: var(--radius); background: none; color: var(--text); font: inherit; text-align: left; text-decoration: none; cursor: pointer; }
+.einst-nav a:hover, .einst-treffer-knopf:hover { background: var(--hg-2); }
+.einst-nav a[aria-current="page"] { background: var(--akzent-hell); border-left-color: var(--akzent); }
+.einst-nav a[aria-current="page"] .einst-nav-titel { font-weight: 600; }
+.einst-nav-titel { display: block; }
+.einst-status { display: block; font-size: .8rem; color: var(--text-2); overflow-wrap: anywhere; }
+.einst-status[data-zustand="ok"]::before, .einst-status[data-zustand="offen"]::before, .einst-status[data-zustand="fehler"]::before {
+  content: "●"; margin-right: .35em; }
+.einst-status[data-zustand="ok"]::before { color: var(--erfolg); }
+.einst-status[data-zustand="offen"]::before { color: var(--hinweis); }
+.einst-status[data-zustand="fehler"]::before { color: var(--gefahr); }
+.einst-inhalt { min-width: 0; }
+.einst-inhalt > h2 { font-size: 1.25rem; margin-bottom: .7rem; }
+.einst-inhalt > h2:focus { outline: none; }
+.einst-inhalt h3 { font-size: 1.05rem; margin: 0 0 .5rem; }
+.einst-inhalt h4 { font-size: .95rem; margin: 0 0 .4rem; }
+.einst-inhalt .feld input:not([type="file"]), .einst-inhalt .feld select { max-width: 28rem; }
+.einst-gruppe { border-top: 1px solid var(--rand); padding-top: .7rem; margin-top: .9rem; }
+.einst-gruppe .knopf-leiste { margin-bottom: .2rem; }
+.einst-pin-status { margin: 0 0 .5rem; }
+.einst-pin-status[data-vorhanden="ja"]::before { content: "✓ "; color: var(--erfolg); }
+.einst-erweitert { border: 1px dashed var(--rand); border-radius: var(--radius); padding: .1rem .8rem; margin: .9rem 0 .8rem; }
+.einst-erweitert > summary { cursor: pointer; padding: .45rem 0; color: var(--text-2); }
+.einst-erweitert-titel { font-weight: 600; color: var(--text); }
+.einst-erweitert[open] { padding-bottom: .7rem; }
+.einst-erweitert[open] > summary { margin-bottom: .4rem; }
+.einst-gefunden { outline: 3px solid var(--fokus); outline-offset: 4px; border-radius: var(--radius); }
+.einst-zurueck { display: none; }
+[data-layout="mobil"] .einst { display: block; }
+[data-layout="mobil"] .einst-seite { position: static; }
+[data-layout="mobil"] .einst[data-gewaehlt="ja"] .einst-seite, [data-layout="mobil"] .einst[data-gewaehlt="nein"] .einst-inhalt { display: none; }
+[data-layout="mobil"] .einst-zurueck { display: inline-flex; align-items: center; min-height: 44px; text-decoration: none; }
+[data-layout="mobil"] .einst-nav ul { gap: 0; }
+[data-layout="mobil"] .einst-nav a, [data-layout="mobil"] .einst-treffer-knopf { position: relative; padding: .65rem 1.6rem .65rem .4rem;
+  border-left: 0; border-bottom: 1px solid var(--rand); border-radius: 0; background: none; }
+[data-layout="mobil"] .einst-nav a::after { content: "›"; position: absolute; right: .5rem; top: 50%; transform: translateY(-50%); color: var(--text-2); font-size: 1.3rem; }
+[data-layout="mobil"] .einst-inhalt .feld input:not([type="file"]), [data-layout="mobil"] .einst-inhalt .feld select { max-width: none; }
+[data-layout="mobil"] .einst-nav a[aria-current="page"] .einst-nav-titel { font-weight: 400; }

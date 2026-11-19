@@ -2784,3 +2784,42 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - **Nicht im Umfang:** Rückweg von Änderungen aus der Testinstanz in die Hauptinstanz; Auswahl in der Oberfläche.
 - **Prüfung:** `tests/test_testinstanz_eigen.py` (Kopie, Bereinigung, Ablauf mit untergeschobenen Befehlen, Unit,
   Umgebungsdatei, Start im Mock-Modus auf der Kopie). Der Betrieb unter systemd ist hier nicht prüfbar.
+
+## D-206 Einstellungen in Bereichen mit Suche (Feature `einstellungen`, in Arbeit)
+
+- **Anlass:** Die Einstellungen waren eine lange Seite mit elf Abschnitten; einzelne Einstellungen waren schwer zu
+  finden, Seltenes (Diagnoseprotokoll, Produkt-ID, OAuth-Client-Secret) stand gleichrangig neben Alltäglichem.
+- **Entscheidung:**
+  - Sechs Bereiche: Allgemein (Design, Layout, Angaben zur Instanz), Bank (Bankzugang, PIN), Mail (Postfächer,
+    Abruf), Benachrichtigungen (Zustellung, Test, ntfy-Token), Sicherheit (Anmeldung, Schutz der Geheimnisse),
+    Daten und Sicherung (Datensicherung, Tags). Der Abschnitt „Geheimnisse“ entfällt: Jedes Geheimnis steht bei
+    seiner Aufgabe (ntfy-Token bei den Benachrichtigungen, OAuth-Client-Secret bei Mail).
+  - Navigation: am Desktop eine Spalte links neben dem Inhalt, am Handy eine Liste, die in den Bereich führt
+    (Rückweg „Alle Einstellungen“). Reiter scheiden aus (zu eng am Handy, wachsen schlecht). Gezeigt wird immer
+    genau ein Bereich; ohne Angabe am Desktop „Allgemein“, am Handy nur die Liste.
+  - Adresse: `/einstellungen?bereich=<name>`. Der Bereich steht im Abfrageteil und nicht im Pfad, damit die
+    Einstellungen ein einziger Tab bleiben (Tabs hängen am Pfad, D-119). Unbekannter Wert wie ohne Angabe. Der
+    Wechsel des Bereichs lädt nichts nach (alle Bereiche werden einmal aufgebaut, die übrigen sind `hidden`).
+  - Stand je Bereich in der Navigation (`einstellungen-status-<name>`, `data-zustand` = `ok`/`offen`/`fehler`/
+    `neutral`), z. B. „Bankzugang unvollständig“, „Zugang vollständig · 2 von 3 Konten ausgewählt · PIN fehlt“.
+    Die Bedeutung steht im Text; der farbige Punkt ist nur Beigabe.
+  - Suche über den Bereichen (`einstellungen-suche`): filtert beim Tippen ein festes Verzeichnis der Einstellungen
+    mit Synonymen („backup“ → Sicherung, „dunkelmodus“ → Design), Umlaute gefaltet wie in der Befehlspalette. Ein
+    Treffer führt in den Bereich, klappt „Erweitert“ auf, rollt hin, hebt kurz hervor und setzt den Fokus. Einträge,
+    die es in dieser Instanz nicht gibt (Bankzugang im Mock-Modus), erscheinen nicht.
+  - „Erweitert“ (`<details>`, eingeklappt, nennt im Titel seinen Inhalt): Kunden-ID und Produkt-ID, Diagnoseprotokoll,
+    OAuth-Client-Secret. Offen von Anfang an, wenn darin etwas fehlt oder läuft (Pflichtfeld Produkt-ID leer,
+    Diagnose eingeschaltet). Was aufgeklappt wurde, bleibt über das Neuladen nach einer Aktion offen (nur im
+    Arbeitsspeicher des Fensters).
+  - Bankzugang in vier Schritten (Zugangsdaten, Bank-PIN, TAN-Verfahren, Konten), jeder Knopf bei seinem Schritt,
+    die Meldung erscheint im Schritt der Aktion. Stand der PIN und „PIN verwerfen“ stehen im Schritt 2 (bisher
+    eigener Abschnitt); im Mock-Modus bleiben sie eine eigene Karte.
+  - Alle bisherigen `data-testid` bleiben unverändert; neu sind nur `einstellungen-…`, `passwort-alt`/`-neu`/
+    `-aendern`, `postfach-neu-adresse`/`-anlegen`, `mail-abrufen`. Keine Änderung an Endpunkten oder Datenmodell.
+  - Keine Einträge je Bereich in der Befehlspalette: Zwei Abnahmetests (M8, M28) prüfen deren Trefferlisten.
+- **Folge für die Abnahme:** Sieben Browsertests öffnen `/einstellungen` und bedienen Elemente, die jetzt in einem
+  anderen Bereich liegen (im Dokument vorhanden, aber nicht sichtbar): M8 `test_einstellungen_geheimnis_und_sicherung`,
+  `test_einstellungen_test_benachrichtigung_mock`/`_ntfy`, `test_pin_dialog`, `test_schreiben_mit_csrf_und_abmelden`;
+  M23 `test_einstellungen_schutz`; M28 `test_abmelden_vergisst_person`. Sie brauchen nur den Bereich in der Adresse.
+  Das klärt der Test-Thread mit der Meilenstein-Definition. Die übrigen Browsertests verhalten sich wie auf main
+  (dort schlagen 49 unabhängig von diesem Feature fehl).
