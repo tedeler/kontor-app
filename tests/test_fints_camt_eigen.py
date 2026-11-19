@@ -319,3 +319,89 @@ def test_konten_ohne_iban_oder_kontoart_in_den_benutzerparametern(monkeypatch):
     assert sorted((k.iban, k.art, k.name, k.bic, k.inhaber) for k in konten) == sorted([
         (a, "girokonto", "Produkt", "TESTDEFFXXX", "Erika Mustermann"),
         (b, "sparkonto", "Tagesgeld", "TESTDEFFXXX", "Erika Mustermann")])
+
+
+# ---------------------------------------------------------------- Diagnoseprotokoll (D-203)
+
+GEHEIM = {"pin": "PIN-GEHEIM-9431", "tan": "847261", "benutzer": "ZUGANG-55123377", "kunde": "KUNDE-88442211",
+          "system": "SYSTEMID-7781234", "iban": "DE57000000000532013000", "nummer": "0532013000",
+          "inhaber": "Erika Mustermann", "produkt": "Urlaubskasse Erika", "referenz": "AUFTRAG-REF-66120",
+          "challenge": "Bitte TAN für Konto 0532013000 eingeben"}
+
+
+def _nachrichten():
+    """Eine ausgehende und eine eingehende Nachricht, die an allen denkbaren Stellen persönliche Daten tragen."""
+    from fints.formals import KTI1, KTZ1, BankIdentifier, Response, SupportedMessageTypes
+    from fints.message import FinTSCustomerMessage, FinTSInstituteMessage
+    from fints.segments.accounts import HISPA1
+    from fints.segments.auth import HITAN6, HKIDN2, HKTAN6
+    from fints.segments.dialog import HIRMS2, HISYN4
+    from fints.segments.statement import HKCAZ1
+    blz = BankIdentifier(country_identifier="280", bank_code="00000000")
+    aus = FinTSCustomerMessage()
+    aus += HKIDN2(bank_identifier=blz, customer_id=GEHEIM["kunde"], system_id=GEHEIM["system"], system_id_status="1")
+    aus += HKCAZ1(account=KTI1(iban=GEHEIM["iban"], bic="TESTDEFFXXX"), all_accounts=False,
+                  date_start=dt.date(2024, 1, 1), date_end=dt.date(2024, 1, 31),
+                  supported_camt_messages=SupportedMessageTypes([CAMT + "02"]))
+    aus += HKTAN6(tan_process="2", task_reference=GEHEIM["referenz"], further_tan_follows=False)
+    ein = FinTSInstituteMessage()
+    ein += HIRMS2(responses=[
+        Response(code="9010", reference_element="3", text=f"Konto {GEHEIM['nummer']} von {GEHEIM['benutzer']} "
+                 f"({GEHEIM['iban']}) unbekannt", parameters=[GEHEIM["nummer"], GEHEIM["inhaber"]]),
+        Response(code="3920", reference_element="3", text="Zugelassene Verfahren", parameters=["902", "913"])])
+    ein += HISPA1(accounts=[KTZ1(is_sepa=True, iban=GEHEIM["iban"], bic="TESTDEFFXXX",
+                                 account_number=GEHEIM["nummer"], bank_identifier=blz)])
+    ein += HITAN6(tan_process="4", task_reference=GEHEIM["referenz"], challenge=GEHEIM["challenge"],
+                  challenge_hhduc=b"\x00\x09image/png\x00\x04BILD")
+    ein += HISYN4(system_id=GEHEIM["system"])
+    return aus, ein
+
+
+def test_diagnose_enthaelt_keine_persoenlichen_daten():
+    from kontor.plugins.fints_diagnose import Diagnose
+    d = Diagnose()
+    aus, ein = _nachrichten()
+    d.nachricht("→ Bank", aus)
+    assert d.zeilen() == []                      # ausgeschaltet: nichts
+    d.einschalten(True)
+    d.geheim = (GEHEIM["benutzer"], GEHEIM["kunde"])
+    d.nachricht("→ Bank", aus)
+    d.nachricht("← Bank", ein)
+    text = "\n".join(d.zeilen())
+    for name, wert in GEHEIM.items():
+        assert wert not in text, name
+    assert "0532013" not in text and "Mustermann" not in text
+    # das Nützliche steht drin
+    for erwartet in ("HKIDN2 HKCAZ1 HKTAN6", "Kontoverbindung mit IBAN+BIC", "camt.052.001.02", "9010",
+                     "Verfahren: 902,913", "HISPA 1 Kontoverbindungen", "Konto 1: SEPA ja", "Grafik/HHD: 17 Bytes",
+                     "Kundensystem-ID erhalten: ja", "HKTAN Prozess 2"):
+        assert erwartet in text, erwartet
+    assert "(2 Parameter)" in text               # Parameter anderer Rückmeldungen nur als Anzahl
+
+
+def test_diagnose_bereinigt_freitext():
+    from kontor.plugins.fints_diagnose import MAX_TEXT, bereinigen
+    t = bereinigen("Benutzer zugang-55123377: Konto 12345 / DE57000000000532013000 gesperrt\x07 seit 2024",
+                   ("ZUGANG-55123377",))
+    assert t == "Benutzer ‹entfernt›: Konto ‹Ziffern› / ‹IBAN› gesperrt  seit 2024"
+    assert len(bereinigen("x" * 1000)) == MAX_TEXT
+
+
+def test_diagnose_ueber_rest_schaltbar(tmp_path):
+    c = _fints(tmp_path)
+    assert c.get("/api/bank/zugang/diagnose").json() == {"aktiv": False, "zeilen": []}
+    assert c.put("/api/bank/zugang/diagnose", json={"aktiv": True}).json()["aktiv"] is True
+    c.put("/api/bank/zugang", json=ZUGANG)
+    c.put("/api/sync/pin", json={"pin": "SYNTH-PIN-4711"})
+    c.post("/api/bank/zugang/konten/abrufen")    # example.invalid: keine Verbindung, aber ein Protokoll
+    zeilen = c.get("/api/bank/zugang/diagnose").json()["zeilen"]
+    text = "\n".join(zeilen)
+    assert "Kontenabruf" in text and "Verbindung fehlgeschlagen" in text
+    assert "SYNTH-PIN-4711" not in text and ZUGANG["benutzer"] not in text and "example.invalid" not in text
+    # die Einstellung übersteht einen Neustart, das Protokoll (Arbeitsspeicher) nicht
+    neu = _fints(tmp_path)
+    neu.put("/api/sync/pin", json={"pin": "SYNTH-PIN-4711"})
+    neu.post("/api/bank/zugang/konten/abrufen")
+    assert neu.get("/api/bank/zugang/diagnose").json()["aktiv"] is True
+    assert c.put("/api/bank/zugang/diagnose", json={"aktiv": False}).json()["aktiv"] is False
+    assert _mock(tmp_path).put("/api/bank/zugang/diagnose", json={"aktiv": True}).status_code == 409

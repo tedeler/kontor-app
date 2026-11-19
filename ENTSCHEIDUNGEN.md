@@ -2722,3 +2722,20 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - **Begründung:** Was in den Benutzerparametern steht, ist je Bank verschieden; die SEPA-Kontoverbindung ist das,
   womit der Umsatzabruf arbeitet. Für Banken mit vollständigem HIUPD ändert sich nichts (M6-Tests unverändert grün).
 
+## D-203 Diagnoseprotokoll des FinTS-Plugins ohne persönliche Daten
+
+- **Frage:** Für die Fehlersuche gegen eine echte Bank braucht es Einblick in den Austausch; fints.md 3.8 verbietet
+  zu Recht jedes Protokoll der Nachrichten (PIN, TAN, Kennungen).
+- **Entscheidung:** Ein abschaltbares Diagnoseprotokoll (Vorgabe aus; Einstellungen → Bankzugang, gespeichert als
+  Betriebszustand `meta.bank_diagnose`). Es arbeitet mit einer Positivliste (`plugins/fints_diagnose.py`): je
+  Nachricht die Segmentarten und -versionen, Rückmeldecodes mit bereinigtem Text, angebotene Formate und
+  TAN-Verfahren, je Konto nur „Konto n“ mit Kontoart, Währung und der Angabe, welche Felder gefüllt sind,
+  Längen und Anzahlen, HTTP-Status und Dauer, dazu die Entscheidungen des Plugins (Konto übernommen/ausgelassen
+  mit Grund, gewähltes Format, TAN nötig, Ausgang jedes Aufrufs). Nie enthalten: PIN, TAN, Auftragsreferenz,
+  Benutzerkennung, Kunden-ID, Kundensystem-ID, Produkt-ID, IBAN, Kontonummer, Inhaber, Kontobezeichnung, Beträge,
+  Umsätze, Wortlaut der TAN-Anforderung, Server-Adresse. Freitexte der Bank: bekannte Kennungen, IBANs und
+  Ziffernfolgen ab fünf Stellen werden ersetzt, höchstens 160 Zeichen; Parameter von Rückmeldungen nur als Anzahl
+  (Ausnahme 3920: dreistellige Verfahrensnummern). Ablage: Ringpuffer mit 600 Zeilen im Arbeitsspeicher
+  (`GET/PUT /api/bank/zugang/diagnose`) und, solange eingeschaltet, im Log des Dienstes (Logger
+  `kontor.fints.diagnose`, Stufe INFO). Der Logger `fints` der Bibliothek bleibt stillgelegt.
+

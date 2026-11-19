@@ -13,12 +13,14 @@ Verbindung protokolliert nichts, der Logger ``fints`` wird beim Laden dieses Mod
 from __future__ import annotations
 
 import base64
+import contextlib
 import datetime as dt
 import hashlib
 import http.client
 import logging
 import re
 import threading
+import time
 import uuid
 import xml.etree.ElementTree as ET
 from collections.abc import Callable
@@ -227,9 +229,14 @@ class _Verbindung:
     """Ersatz für ``FinTSHTTPSConnection``: Zeitgrenze je Anfrage, eigene Vertrauensanker, keine Umleitungen,
     keine Proxys, kein Protokoll der Nachrichten."""
 
-    def __init__(self, config: KontorConfig) -> None:
+    def __init__(self, config: KontorConfig, diagnose=None) -> None:
         self._config = config
+        self._diagnose = diagnose
         self.letzte = None
+
+    def _diag(self, text: str) -> None:
+        if self._diagnose is not None:
+            self._diagnose.eintrag(text)
 
     def __repr__(self) -> str:
         return "_Verbindung()"
@@ -238,13 +245,20 @@ class _Verbindung:
         from fints.message import FinTSInstituteMessage
         c = self._config
         daten = base64.b64encode(msg.render_bytes())
+        if self._diagnose is not None:   # D-203: nur Strukturangaben, nie die Nachricht selbst
+            self._diagnose.nachricht("→ Bank", msg)
+        beginn = time.monotonic()
         try:
             antwort = http_anfrage(c, "POST", c.fints_url, daten, {"Content-Type": "text/plain"},
                                    c.fints_timeout_sekunden)
         except TimeoutError:
+            self._diag(f"✗ keine Antwort innerhalb von {c.fints_timeout_sekunden} s")
             raise BankZeitueberschreitung("Die Bank hat nicht rechtzeitig geantwortet.") from None
-        except (OSError, http.client.HTTPException):
+        except (OSError, http.client.HTTPException) as e:
+            self._diag(f"✗ Verbindung fehlgeschlagen ({type(e).__name__})")
             raise BankVerbindungsFehler("Die Verbindung zur Bank ist fehlgeschlagen.") from None
+        self._diag(f"← HTTP {antwort.status}, {len(antwort.koerper)} Bytes nach "
+                   f"{int((time.monotonic() - beginn) * 1000)} ms")
         if not 200 <= antwort.status <= 299:
             raise BankVerbindungsFehler(f"Die Bank hat mit HTTP-Status {antwort.status} geantwortet.",
                                         status=antwort.status)
@@ -252,7 +266,10 @@ class _Verbindung:
             roh = base64.b64decode(antwort.koerper.decode("iso-8859-1"), validate=False)
             nachricht = FinTSInstituteMessage(segments=roh)
         except Exception:  # noqa: BLE001 - jede unlesbare Antwort
+            self._diag("✗ Antwort der Bank ist unlesbar (kein FinTS)")
             raise BankVerbindungsFehler("Die Antwort der Bank ist unlesbar.") from None
+        if self._diagnose is not None:
+            self._diagnose.nachricht("← Bank", nachricht)
         self.letzte = nachricht
         return nachricht
 
@@ -339,9 +356,31 @@ class FintsBankPlugin(BankPlugin):
         self._daten: bytes | None = None      # BPD, UPD, System-ID (kein Geheimnis, nur Arbeitsspeicher)
         self._offen: dict[str, _Offen] = {}
         self._sperre = threading.RLock()
+        self.diagnose = None   # D-203: Diagnoseprotokoll ohne persönliche Daten (plugins/fints_diagnose.py)
 
     def __repr__(self) -> str:
         return "FintsBankPlugin()"
+
+    def _diag(self, text: str) -> None:
+        if self.diagnose is not None:
+            self.diagnose.eintrag(text)
+
+    @contextlib.contextmanager
+    def _vorgang(self, name: str):
+        """Rahmen eines Aufrufs im Diagnoseprotokoll: Beginn und – ohne Texte fremder Ausnahmen – der Ausgang."""
+        self._diag(f"── {name}")
+        try:
+            yield
+        except TanErforderlich:
+            raise
+        except KontorFehler as e:
+            self._diag(f"✗ {name} gescheitert: {type(e).__name__} ({getattr(e, 'code', '?')})")
+            raise
+        except Exception as e:
+            self._diag(f"✗ {name} gescheitert: unerwarteter Fehler {type(e).__name__}")
+            raise
+        else:
+            self._diag(f"✓ {name} abgeschlossen")
 
     __str__ = __repr__
 
@@ -349,7 +388,7 @@ class FintsBankPlugin(BankPlugin):
     def konten(self, *, tan: TanAntwort | None = None) -> list[BankKonto]:
         """Konten der Bank. Verlangt die Bank schon beim Dialogbeginn eine TAN, kommt ``TanErforderlich``;
         ``konten(tan=TanAntwort(...))`` setzt denselben Dialog fort (D-198)."""
-        with self._sperre:
+        with self._sperre, self._vorgang("Kontenabruf" + (" (Fortsetzung mit TAN)" if tan is not None else "")):
             self._konfiguriert()
             if tan is not None:
                 return self._mit_tan(_KONTEN, tan)
@@ -374,11 +413,11 @@ class FintsBankPlugin(BankPlugin):
 
         Braucht nur den Synchronisierungsdialog (PIN, keine TAN). Kein Geschäftsvorfall wird gesendet."""
         from fints.client import FinTS3PinTanClient
-        with self._sperre:
+        with self._sperre, self._vorgang("Abruf der TAN-Verfahren"):
             self._konfiguriert()
             c = self._config
             pin = self._pin()
-            verbindung = _Verbindung(c)
+            verbindung = _Verbindung(c, self.diagnose)
             try:
                 client = FinTS3PinTanClient(c.fints_blz, c.fints_benutzer, pin, c.fints_url,
                                             customer_id=c.fints_kunden_id or c.fints_benutzer,
@@ -392,6 +431,8 @@ class FintsBankPlugin(BankPlugin):
                 verfahren = client.get_tan_mechanisms()
             _fehler_aus_codes(_alle_codes(verbindung.letzte))
             erlaubt = [str(x) for x in (client.allowed_security_functions or [])]
+            self._diag(f"TAN-Verfahren: Bank kennt {','.join(str(k) for k in verfahren) or '-'}; "
+                       f"für diesen Zugang erlaubt: {','.join(erlaubt) or 'keine Angabe (3920 fehlt)'}")
             aus = []
             for code, p in verfahren.items():
                 code = str(code)
@@ -402,7 +443,8 @@ class FintsBankPlugin(BankPlugin):
 
     def umsaetze(self, iban: str, von: dt.date, bis: dt.date, *,
                  tan: TanAntwort | None = None) -> Umsatzliste:
-        with self._sperre:
+        with self._sperre, self._vorgang(f"Umsatzabruf {von} bis {bis}"
+                                         + (" (Fortsetzung mit TAN)" if tan is not None else "")):
             self._konfiguriert()
             if von > bis:
                 raise ValueError("von darf nicht nach bis liegen.")
@@ -424,6 +466,7 @@ class FintsBankPlugin(BankPlugin):
         konten = self._konten_im_dialog(d)
         konto = next((sepa for k, sepa in konten if k.iban == iban), None)
         if konto is None:
+            self._diag("✗ Das abzurufende Konto ist nicht in der Kontenliste der Bank")
             raise BankKontoUnbekannt("Das Konto ist der Bank unbekannt.")
         return self._abruf(d, iban, von, bis, konto)
 
@@ -460,7 +503,7 @@ class FintsBankPlugin(BankPlugin):
         from fints.client import FinTS3PinTanClient
         c = self._config
         pin = self._pin()  # höchstens einmal je Dialog, unmittelbar vor dessen Beginn
-        verbindung = _Verbindung(c)
+        verbindung = _Verbindung(c, self.diagnose)
         try:
             client = FinTS3PinTanClient(c.fints_blz, c.fints_benutzer, pin, c.fints_url,
                                         customer_id=c.fints_kunden_id or c.fints_benutzer,
@@ -477,6 +520,9 @@ class FintsBankPlugin(BankPlugin):
             antwort = dialog.init()
         beginn = client.init_tan_response
         client.init_tan_response = None
+        self._diag(f"Dialog eröffnet: TAN-Verfahren {client.selected_security_function or '-'} (eingestellt: "
+                   f"{c.fints_tan_verfahren or 'automatisch'}), TAN zur Anmeldung verlangt: "
+                   f"{'ja' if beginn is not None else 'nein'}")
         if beginn is not None and getattr(beginn, "decoupled", False):
             # Entkoppelte Freigabe (3955) wird nicht unterstützt (D-070 gilt weiter, D-198).
             self._dialog_verwerfen(_Dialog(client, dialog, verbindung))
@@ -575,13 +621,18 @@ class FintsBankPlugin(BankPlugin):
             if nummer:
                 nach_nummer.setdefault(str(nummer).lstrip("0"), u)
         aus = []
-        for n, k in sepa.items():
+        self._diag(f"Kontenliste: {len(sepa)} Kontoverbindungen mit IBAN aus HISPA, {len(nach_iban)} HIUPD mit IBAN, "
+                   f"{len(nach_nummer)} HIUPD mit Kontonummer")
+        for nr, (n, k) in enumerate(sepa.items(), 1):
             u = nach_iban.get(n)
+            wie = "IBAN"
             if u is None and getattr(k, "account_number", None):
                 u = nach_nummer.get(str(k.account_number).lstrip("0"))
+                wie = "Kontonummer"
             art, name, inhaber = "girokonto", "", ""
             if u is not None:
                 if str(getattr(u, "account_currency", "") or "EUR") != "EUR":
+                    self._diag(f"  Konto {nr}: ausgelassen, Währung {u.account_currency} (HIUPD über {wie})")
                     continue
                 if getattr(u, "account_type", None) is not None:
                     try:
@@ -589,12 +640,17 @@ class FintsBankPlugin(BankPlugin):
                     except (TypeError, ValueError):
                         art = None
                     if art is None:
+                        self._diag(f"  Konto {nr}: ausgelassen, Kontoart {u.account_type} wird nicht abgerufen "
+                                   f"(HIUPD über {wie})")
                         continue   # Depot, Fonds, Bausparen … (K 15)
                 name = str(u.account_product_name or "")
                 inhaber = " ".join(str(x) for x in (u.name_account_owner_1, u.name_account_owner_2) if x)
             konto = k.as_sepa_account()
             if konto is None:   # von der Bank nicht als SEPA-Konto geführt
+                self._diag(f"  Konto {nr}: ausgelassen, von der Bank nicht als SEPA-Konto gekennzeichnet")
                 continue
+            self._diag(f"  Konto {nr}: übernommen als {art} ("
+                       + (f"HIUPD über {wie}" if u is not None else "kein HIUPD-Eintrag") + ")")
             bic = str(k.bic) if k.bic else None
             aus.append((BankKonto(n, bic or None, name, art, inhaber, "EUR"), konto))
         aus.sort(key=lambda x: x[0].iban)
@@ -611,6 +667,7 @@ class FintsBankPlugin(BankPlugin):
             # abgekündigt oder gestört); KTI1 trägt dabei nur IBAN und BIC.
             angeboten = [str(x) for x in (hicazs.parameter.supported_camt_formats or [])]
             fmt = next((f for f in CAMT_FORMATE if f in angeboten), None)
+            self._diag("Umsatzabruf über HKCAZ, Format: " + (fmt.rsplit(":", 1)[-1] if fmt else "keines lesbar"))
             if fmt is None:
                 raise BankFehler("Die Bank bietet kein unterstütztes camt-Format an (camt.052.001.02 bis .08).")
             seg = HKCAZ1(account=HKCAZ1._fields["account"].type.from_sepa_account(konto), all_accounts=False,
@@ -726,15 +783,22 @@ class FintsBankPlugin(BankPlugin):
                     roh.extend(camt_eintraege(b))
             if mt940:
                 roh.extend(mt940_eintraege(mt940))
-        except (ET.ParseError, ValueError):
+        except (ET.ParseError, ValueError) as e:
+            self._diag(f"✗ Umsatzdaten unlesbar ({type(e).__name__})")
             raise BankFehler("Die Bank hat unlesbare Umsatzdaten geliefert.") from None
         aus = [u for u in kennungen_vergeben(iban, roh) if von <= u.buchungstag <= bis]
         aus.sort(key=lambda u: (u.buchungstag, u.umsatz_id))
+        self._diag(f"Umsätze: {sum(1 for a, _ in seiten if a == 'camt')} camt-Dokumente, "
+                   f"{sum(1 for a, _ in seiten if a == 'mt940')} MT940-Blöcke, {len(roh)} Einträge gelesen "
+                   f"({sum(1 for r in roh if r.vormerkung)} vorgemerkt, {sum(1 for r in roh if r.referenz)} mit "
+                   f"Bankreferenz), {len(aus)} im Zeitraum {von} bis {bis}")
         return aus
 
     # ------------------------------------------------------------ TAN (3.5)
     def _tan_anfordern(self, o: _Offen,
                        meldung: str = "Die Bank verlangt für den Umsatzabruf eine TAN.") -> TanErforderlich:
+        self._diag("TAN erforderlich: " + ("zur Anmeldung (Dialogbeginn)" if o.beginn else "zum Umsatzabruf")
+                   + "; der Dialog bleibt offen")
         h = o.hitan
         referenz = str(getattr(h, "task_reference", "") or "").strip()
         aid = referenz or ("TAN-" + uuid.uuid4().hex)

@@ -18,6 +18,7 @@ from dataclasses import dataclass
 
 import json
 
+from .plugins.fints_diagnose import Diagnose
 from . import abgleich, bankzugang, buch, db, kredite, lernmodell, pflege, protokoll, regeln, vorlagen, wiederkehrend
 from .buch import BESTAND, ApiFehler
 from .config import KontorConfig
@@ -76,6 +77,7 @@ class SyncDienst:
         self._pin: str | None = None
         self._simuliert: dt.datetime | None = None
         self._tan: dict[int, _TanKontext] = {}
+        self.diagnose = Diagnose()   # D-203: FinTS-Diagnoseprotokoll, nur Arbeitsspeicher
         self.zugang_tan: tuple[str, str] | None = None   # D-199: (Vorgang, interne Kennung), nur Arbeitsspeicher
         self._thread: threading.Thread | None = None
         self._stopp = threading.Event()
@@ -214,9 +216,14 @@ class SyncDienst:
                 con = self._con()
                 try:
                     config = bankzugang.wirksame_config(con, config)
+                    self.diagnose.einschalten(bankzugang.diagnose_an(con))
                 finally:
                     con.close()
             self._plugin = erzeuge_bank_plugin(config, pin_quelle=self._pin_quelle)
+            if hasattr(self._plugin, "diagnose"):
+                # Kennungen des Zugangs werden aus Freitexten der Bank entfernt, falls sie dort vorkommen
+                self.diagnose.geheim = tuple(x for x in (config.fints_benutzer, config.fints_kunden_id) if x)
+                self._plugin.diagnose = self.diagnose
         return self._plugin
 
     def plugin_verwerfen(self) -> None:

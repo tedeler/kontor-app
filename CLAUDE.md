@@ -192,6 +192,9 @@ Commit-Nachrichten sind auf Deutsch.
   jeder Änderung `plugin_verwerfen()`. Aufrufe mit Bankverbindung nur unter der Laufsperre (`bankzugang._Gesperrt`).
 - TAN beim Dialogbeginn: `konten(tan=…)`/`umsaetze(tan=…)` setzen denselben Dialog fort; die interne Kennung
   verlässt den Arbeitsspeicher nie (Oberfläche bekommt einen eigenen `vorgang`).
+- Diagnoseprotokoll (D-203): `plugins/fints_diagnose.py` arbeitet mit einer Positivliste. Neue Angaben nur
+  aufnehmen, wenn sie keine persönlichen Daten sind (nie Werte aus Kontoverbindungen, Kennungen, Referenzen,
+  Freitexte ohne `bereinigen`); der Test `test_diagnose_enthaelt_keine_persoenlichen_daten` muss sie abdecken.
 - Übergang alter Kennungen: `sync_kennung_alt` (einmal gefüllt, `meta.bank_uebergang`) und
   `SyncDienst._uebergang_abgleichen`.
 

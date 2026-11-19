@@ -847,6 +847,15 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
             raise Validierungsfehler([fehler_eintrag(["body"], "vorgang und tan gehören zusammen.")])
         return await run_in_threadpool(bankzugang.konten_abrufen, sync, d.get("vorgang"), d.get("tan"))
 
+    @endpunkt("GET", "/api/bank/zugang/diagnose")
+    async def bankzugang_diagnose_lesen(request: Request):
+        return bankzugang.diagnose_lesen(sync)
+
+    @endpunkt("PUT", "/api/bank/zugang/diagnose")
+    async def bankzugang_diagnose_setzen(request: Request):
+        d = await koerper(request, {"aktiv": S("bool", pflicht=True)})
+        return await run_in_threadpool(bankzugang.diagnose_setzen, sync, d["aktiv"])
+
     @endpunkt("PUT", "/api/bank/zugang/konten")
     async def bankzugang_konten_waehlen(request: Request):
         d = await koerper(request, BANKZUGANG_KONTEN)

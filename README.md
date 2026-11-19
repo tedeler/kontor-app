@@ -309,6 +309,11 @@ ist. Umsätze kommen als camt (`HKCAZ`); bietet die Bank camt an, weicht Kontor 
 Bank bei der Synchronisation eine TAN (bei der Anmeldung oder für lange Zeiträume), wartet der Lauf auf der
 TAN-Seite. Entkoppelte Freigaben in einer App (ohne TAN-Eingabe) werden nicht unterstützt.
 
+**Diagnose:** Unter „Bankzugang“ lässt sich ein Diagnoseprotokoll einschalten. Es zeigt, welche Segmente und
+Rückmeldecodes mit der Bank ausgetauscht werden und wie Kontor entscheidet (Konten, camt-Format, TAN) – ohne PIN,
+TAN, Zugangskennung, IBAN, Kontonummer, Namen, Beträge oder Umsätze. Es liegt im Arbeitsspeicher (Anzeige in der
+Oberfläche) und im Log des Dienstes (`journalctl -u kontor | grep kontor.fints.diagnose`).
+
 **Umstieg von AqBanking:** Beim ersten Start vermerkt Kontor alle vorhandenen Bank-Kennungen als „alt“. Liefert
 die Bank denselben Umsatz über camt mit anderer Kennung, wird er der vorhandenen Buchung zugeordnet (gleiches
 Konto, gleicher Betrag, gleicher Buchungstag) und nicht doppelt gebucht. Die Zeilen `KONTOR_BANK_PLUGIN=aqbanking`

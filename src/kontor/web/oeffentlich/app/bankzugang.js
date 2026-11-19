@@ -149,8 +149,37 @@ export async function bankzugangAbschnitt(pinVorhanden) {
   kontenKnopf.addEventListener("click", mitBank(kontenKnopf, async () => abrufErgebnis(await api("POST", "/api/bank/zugang/konten/abrufen"))));
   karte.append(h("div", { class: "knopf-leiste" }, pinKnopf, speicherKnopf, verfahrenKnopf, kontenKnopf), meldung, tanBereich,
     h("h3", null, "Konten"), kontenBereich);
+  karte.append(await diagnoseBereich(sagen));
   if (z.gespeichert.length === 0 && z.vollstaendig) {
     karte.append(h("p", { class: "klein" }, "Die Angaben stammen aus der Konfiguration des Dienstes (KONTOR_FINTS_…) und gelten, bis hier etwas gespeichert wird."));
   }
   return karte;
+}
+
+/* D-203: Diagnoseprotokoll des Austauschs mit der Bank – nur Strukturangaben, keine persönlichen Daten. */
+async function diagnoseBereich(sagen) {
+  const d = await api("GET", "/api/bank/zugang/diagnose");
+  const haken = h("input", { type: "checkbox", tid: "bankzugang-diagnose-aktiv" });
+  haken.checked = d.aktiv;
+  const ausgabe = h("pre", { tid: "bankzugang-diagnose-zeilen", class: "diagnose", tabindex: "0" });
+  const zeigen = (r) => {
+    ausgabe.textContent = r.zeilen.length ? r.zeilen.join("\n") : (r.aktiv
+      ? "Noch keine Einträge. Jetzt z. B. „Konten abrufen“ oder eine Synchronisation starten."
+      : "Das Diagnoseprotokoll ist ausgeschaltet.");
+    ausgabe.dataset.zeilen = String(r.zeilen.length);
+  };
+  zeigen(d);
+  haken.addEventListener("change", async () => {
+    try { zeigen(await api("PUT", "/api/bank/zugang/diagnose", { aktiv: haken.checked })); } catch (e) { haken.checked = !haken.checked; sagen(e.message, true); }
+  });
+  const laden = knopf("Protokoll aktualisieren", { tid: "bankzugang-diagnose-laden", onclick: async () => {
+    try { zeigen(await api("GET", "/api/bank/zugang/diagnose")); } catch (e) { sagen(e.message, true); }
+  } });
+  const kopieren = knopf("In die Zwischenablage", { tid: "bankzugang-diagnose-kopieren", onclick: async () => {
+    try { await navigator.clipboard.writeText(ausgabe.textContent); sagen("Protokoll kopiert."); } catch { sagen("Kopieren nicht möglich; bitte den Text markieren.", true); }
+  } });
+  return h("div", { tid: "bankzugang-diagnose" }, h("h3", null, "Diagnose"),
+    h("label", null, haken, " Diagnoseprotokoll führen (was mit der Bank ausgetauscht wird)"),
+    h("p", { class: "klein" }, "Das Protokoll enthält Segmente, Rückmeldecodes, Formate und Entscheidungen des Abrufs – nie PIN, TAN, Zugangskennung, IBAN, Kontonummer, Namen, Beträge oder Umsätze. Es liegt nur im Arbeitsspeicher und zusätzlich im Log des Dienstes."),
+    h("div", { class: "knopf-leiste" }, laden, kopieren), ausgabe);
 }

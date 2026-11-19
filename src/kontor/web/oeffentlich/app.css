@@ -1157,3 +1157,5 @@ html[data-thema="dunkel"] .wirkung-abweichend { background: #5a3412; color: #ffd
 .auswahlliste li { padding: .2rem 0; overflow-wrap: anywhere; }
 [data-testid="bankzugang-meldung"][data-art="fehler"] { color: var(--gefahr); }
 [data-testid="bankzugang-tan"] { margin-top: .6rem; }
+.diagnose { max-height: 24rem; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: .8rem;
+  padding: .5rem; border: 1px solid var(--rand, currentColor); border-radius: .3rem; }

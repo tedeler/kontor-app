@@ -81,6 +81,28 @@ def lesen(con, config: KontorConfig) -> dict:
             "gespeichert": sorted(g), "vollstaendig": all(w[f] for f in PFLICHT), "konten": konten(con)}
 
 
+def diagnose_an(con) -> bool:
+    return con.execute("SELECT 1 FROM meta WHERE schluessel = 'bank_diagnose' AND wert = '1'").fetchone() is not None
+
+
+def diagnose_lesen(dienst) -> dict:
+    """D-203: Diagnoseprotokoll des FinTS-Plugins (ohne persönliche Daten, nur Arbeitsspeicher)."""
+    return {"aktiv": dienst.diagnose.aktiv, "zeilen": dienst.diagnose.zeilen()}
+
+
+def diagnose_setzen(dienst, aktiv: bool) -> dict:
+    _nur_fints(dienst.config)
+
+    def schreiben(con) -> None:
+        con.execute("DELETE FROM meta WHERE schluessel = 'bank_diagnose'")
+        if aktiv:
+            con.execute("INSERT INTO meta (schluessel, wert) VALUES ('bank_diagnose', '1')")
+
+    _mit_con(dienst, schreiben)
+    dienst.diagnose.einschalten(aktiv)
+    return diagnose_lesen(dienst)
+
+
 def _nur_fints(config: KontorConfig) -> None:
     if config.bank_plugin != "fints":
         raise ApiFehler(409, "bankzugang_nicht_aenderbar",

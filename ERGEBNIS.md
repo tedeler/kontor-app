@@ -19,6 +19,10 @@ Abnahmetests; **gegen eine echte Bank nicht geprüft** (nur Loopback-Attrappen).
 - Nicht in kontor-tests abgedeckt und nur ad hoc geprüft (veränderte Kopie der FinTS-Attrappe, außerhalb der
   Repositories): camt.052.001.02 über REST bis zur Buchung (90 Umsätze), TAN beim Dialogbeginn für Kontenabruf und
   Synchronisation, Oberfläche „Bankzugang“ im Browser (Speichern, PIN, TAN-Verfahren, TAN-Grafik, Kontenauswahl).
+- Nachtrag 15:45 (D-202 Kontenliste aus HISPA, D-203 Diagnoseprotokoll): eigene Tests 364 / 367. Neu rot ist
+  `test_mail_abgleich_eigen.py::test_mock_modus_ende_zu_ende`; der Test ist auf main `68b53a6` zur selben Zeit
+  ebenfalls rot und um 13:45 noch grün gewesen (hängt offenbar von der Uhrzeit ab, nicht von diesem Feature).
+  M6-Abnahme unverändert: nur `test_oeffentliche_methoden` rot.
 - Offen: entkoppelte Freigabe (3955) weiter `BankFehler`; verlangt die Bank bei jedem Dialog eine TAN, braucht ein
   Lauf je Konto eine TAN (D-198). Browsertests und Volllauf (`--voll`) der Abnahme nicht gelaufen.
 
