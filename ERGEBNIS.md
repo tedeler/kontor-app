@@ -1,5 +1,23 @@
 # Ergebnis der Implementierung
 
+## Testlauf auf main nach dem Merge von `feature/regel-tags` (D-214, D-215), Version 0.31, gegen kontor-tests `c99b6ac`
+
+Stand: 2026-11-19, Implementierungs-Thread. Stand von main: `380dc9a`.
+
+- **Eigene Tests** (einschließlich Browser-Rauchtests): **444 / 444**.
+- **Abnahmetests, Schnelllauf** (`python -m pytest -n 2`, ohne `browser`, `leistung`, `langsam`): 2717 bestanden,
+  157 fehlgeschlagen, 43 Fehler, 28 übersprungen. Gegenüber dem Stand vor dem Merge kommt ein Fehlschlag dazu, der
+  nicht von diesem Merge stammt: `m20/test_m20_erkennung.py::test_ausgelieferte_umgebungsdatei` (Umgebungsdatei, D-208).
+  Alle übrigen schlugen schon vorher fehl, weit überwiegend am OpenAPI-Schema der Regel (`ausdruck`,
+  `ausdruck_form`, jetzt auch `tag_ids`).
+- **Abnahmetests im Browser** (`-m browser -n 2`, 425 Tests): 369 bestanden, 56 fehlgeschlagen. Dieselben 56 schlagen
+  auch auf dem Stand unmittelbar vor dem Merge (`696fc25`) fehl; sie betreffen vor allem die Filterleiste des
+  Kontoblatts (M8, M12, M17, M28; D-194, D-196).
+- **Nicht gelaufen:** Leistungstests (`leistung`) und Tests mit großen Fixtures (`langsam`).
+- **Nächster Schritt:** Meilenstein-Definition „Kontor-Ausdrücke, Filter im Kontoblatt, Regeleditor und Regel-Tags“
+  liegt als Entwurf im Projekt (`claude/meilenstein-ausdruecke-regeln.md`) und wartet auf die Freigabe; danach zieht
+  der Test-Thread Vertrag und Abnahmetests nach.
+
 ## Merge von `feature/regel-tags` mit `feature/regeleditor-feinschliff` (D-214, D-215) ohne eigene Abnahmetests, gegen kontor-tests `c99b6ac`
 
 Stand: 2026-11-19, Implementierungs-Thread. Auf ausdrückliche Anweisung des Auftraggebers auf main gemergt, noch ohne
