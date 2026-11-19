@@ -207,9 +207,11 @@ fieldset { border: 1px solid var(--rand); border-radius: var(--radius); padding:
   border-radius: var(--radius); }
 .perioden-balken[data-ebene="jahr"] { margin-top: .7rem; background: color-mix(in srgb, var(--akzent) 18%, var(--hg-2)); }
 .perioden-balken[data-ebene="monat"] { margin-left: 1rem; background: color-mix(in srgb, var(--akzent) 11%, var(--hg-2)); }
-.perioden-balken[data-ebene="tag"] { margin-left: 2rem; background: color-mix(in srgb, var(--akzent) 6%, var(--hg-2)); }
+.perioden-balken[data-ebene="abschnitt"] { margin-left: 2rem; background: color-mix(in srgb, var(--akzent) 7%, var(--hg-2)); }
+.perioden-balken[data-ebene="tag"] { margin-left: 3rem; background: color-mix(in srgb, var(--akzent) 3%, var(--hg-2)); }
 [data-layout="mobil"] .perioden-balken[data-ebene="monat"] { margin-left: .55rem; }
-[data-layout="mobil"] .perioden-balken[data-ebene="tag"] { margin-left: 1.1rem; }
+[data-layout="mobil"] .perioden-balken[data-ebene="abschnitt"] { margin-left: 1.1rem; }
+[data-layout="mobil"] .perioden-balken[data-ebene="tag"] { margin-left: 1.65rem; }
 .perioden-knopf { border: 0; background: none; font: inherit; font-weight: 700; color: var(--text); cursor: pointer; padding: .1rem .15rem; min-height: 28px; }
 .perioden-zahl { display: inline-flex; gap: .3rem; align-items: baseline; }
 .perioden-anzahl { margin-left: auto; }

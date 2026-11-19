@@ -2899,3 +2899,42 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   stehen in `bestellmail_nummer` (Betriebszustand). Mails ohne Rohfassung (Mock, zu große Mails) zählen wie
   bisher nur mit Betreff und Text.
 - Jeder Lauf schreibt eine Zeile ins Log (`kontor.bestellmail`, Stufe INFO) mit der Zahl der angehängten Mails.
+
+## D-210 Gruppierung nach Datum: vier feste Abschnitte je Monat (Feature `kontoblatt-gruppierung`)
+
+- **Anlass:** Zwischen Monat und Tag fehlte eine Ebene; ein Monat mit vielen Buchungen zerfiel sofort in bis zu
+  31 Tagesbalken. Kalenderwochen scheiden aus, weil sie am Monatswechsel geteilt werden müssten.
+- **Entscheidung** (mit dem Auftraggeber am 2026-11-19 abgestimmt): „nach Datum“ zeigt Jahr → Monat → Abschnitt →
+  Tag (ergänzt D-152). Jeder Monat hat vier feste Abschnitte: 1.–7., 8.–14., 15.–21. und 22. bis Monatsende
+  (7 bis 10 Tage). Die Grenzen sind in jedem Monat gleich, damit feste Zahlungen (Miete, Gehalt) immer im selben
+  Abschnitt stehen und die Abschnitte zusammen genau den Monat ergeben.
+  - Beschriftung ist nur der Datumsbereich mit dem tatsächlichen Monatsende („08.–14.11.“, „22.–29.02.“), kein
+    Wort wie „Woche“. Kalenderwochen bleiben als Filter (`kw46`) erhalten, nicht als Gruppierung.
+  - Schlüssel des Abschnitts: `JJJJ-MM-a1` … `-a4` (`data-periode`, `periode-…`, `periode-summe-…` usw. wie bei den
+    anderen Ebenen), `data-ebene="abschnitt"`. Abschnitte ohne Buchung erscheinen nicht.
+  - Balken, Zahlen, Klappen, Pfeiltasten und „Alles zusammenklappen/aufklappen“ wie bei den übrigen Ebenen. Keine
+    Änderung an Endpunkten, Adresse (`?gruppierung=datum`) oder Datenmodell.
+  - Der Service-Worker-Cache heißt jetzt `kontor-huelle-39`.
+- **Folge für die Abnahme:** Abnahmetests, die die Folge oder Anzahl der Balken unter einem Monat fest erwarten
+  (Monat direkt gefolgt von Tagen), brauchen die neue Ebene; das klärt der Test-Thread mit der Meilenstein-Definition.
+
+## D-211 Tiefe der Gruppierung wählbar (Feature `kontoblatt-gruppierung`)
+
+- **Anlass:** Mit D-210 hat die Gruppierung vier Ebenen. Auf ruhigen Konten ist das zu viel, und ein Tag mit einer
+  einzigen Buchung belegt zwei Zeilen (Tagesbalken und Buchung).
+- **Entscheidung** (mit dem Auftraggeber am 2026-11-19 abgestimmt): Die Leiste über der Liste heißt jetzt
+  „Keine | Jahr | Monat | Abschnitt | Tag“ und ersetzt „Keine | nach Datum“ (ergänzt D-152). Die gewählte Ebene ist
+  die tiefste, alle darüber bleiben; die Buchungen stehen direkt unter der tiefsten Ebene. Eine Ebene in der Mitte
+  lässt sich nicht auslassen (Monat → Tag ohne Abschnitt gibt es nicht); dem Auftraggeber reicht die Tiefe.
+  - Adresse: `?gruppierung=datum&tiefe=jahr|monat|abschnitt`. Ohne `tiefe` und bei unbekanntem Wert gilt „Tag“
+    (volle Tiefe), bestehende Adressen bleiben damit gültig; „Tag“ wird nicht in die Adresse geschrieben. `tiefe`
+    ist wie `gruppierung` Ansicht und kein Parameter der Buchungsliste.
+  - Kennungen: `gruppierung-keine` wie bisher, neu `gruppierung-jahr`, `gruppierung-monat`,
+    `gruppierung-abschnitt`. Der Knopf „Tag“ behält die bisherige Kennung `gruppierung-datum`, weil er dieselbe
+    Wirkung hat wie bisher „nach Datum“. Gedrückt (`aria-pressed`) ist immer genau ein Knopf.
+  - Kürzel `v g` schaltet der Reihe nach: keine → Jahr → Monat → Abschnitt → Tag → keine (bisher keine ↔ nach Datum).
+  - Zugeklappte Perioden bleiben beim Wechsel der Tiefe zugeklappt. Klappen, Summen und „Alles
+    zusammenklappen/aufklappen“ gelten für die sichtbaren Ebenen.
+  - Der Service-Worker-Cache heißt jetzt `kontor-huelle-40`.
+- **Folge für die Abnahme:** Tests, die die Beschriftung „nach Datum“ erwarten oder mit `v g` zweimal hin und zurück
+  schalten, brauchen die neue Leiste bzw. Reihenfolge; das klärt der Test-Thread mit der Meilenstein-Definition.
