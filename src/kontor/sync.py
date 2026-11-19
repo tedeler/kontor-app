@@ -19,7 +19,7 @@ from dataclasses import dataclass
 import json
 
 from .plugins.fints_diagnose import Diagnose
-from . import abgleich, bankzugang, buch, db, kredite, lernmodell, pflege, protokoll, regeln, vorlagen, wiederkehrend
+from . import abgleich, bankzugang, buch, db, kontonamen, kredite, lernmodell, pflege, protokoll, regeln, vorlagen, wiederkehrend
 from .buch import BESTAND, ApiFehler
 from .config import KontorConfig
 from .fehler import (BankPinFalsch, BankZugangGesperrt, KontorFehler, TanAbgelaufen, TanErforderlich, TanUngueltig)
@@ -566,7 +566,8 @@ class SyncDienst:
                     art = bk.art if bk.art in KONTOARTEN_BESTAND else "girokonto"
                     kid = con.execute(
                         "INSERT INTO konto (name, art, eltern_id, iban, geschlossen, eroeffnet_am, notiz, extern_id)"
-                        " VALUES (?, ?, NULL, ?, 0, NULL, '', NULL)", (name, art, iban)).lastrowid
+                        " VALUES (?, ?, NULL, ?, 0, NULL, '', NULL)",
+                        (kontonamen.freier_name(con, name, art, None), art, iban)).lastrowid
                     if z is not None:
                         wiederhergestellt.append(iban)
                         if z["entscheidung_buchungen"] == "alle":

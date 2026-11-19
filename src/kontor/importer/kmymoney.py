@@ -26,7 +26,7 @@ import xml.parsers.expat
 import zlib
 from dataclasses import dataclass, field
 
-from .. import db, protokoll
+from .. import db, kontonamen, protokoll
 from ..buch import BESTAND, KLASSE, buchung_einfuegen
 from ..text import ekey, iban_gueltig, iban_normalisieren, passend
 from ..validierung import BETRAG_MAX
@@ -60,6 +60,10 @@ MELDUNGEN = {
                              "wurde übersprungen.",
     "buchung_ausgeglichen": "Die Buchung war nicht ausgeglichen; ein Ausgleichssplit auf das Konto "
                             "„Unausgeglichen“ wurde ergänzt.",
+    "konto_zusammengefasst": "Eine Kategorie gleichen Namens gibt es auf dieser Ebene bereits; beide wurden "
+                             "zusammengefasst.",
+    "konto_umbenannt": "Ein Konto gleichen Namens gibt es auf dieser Ebene bereits; das Konto hat einen Zusatz "
+                       "erhalten.",
     "empfaenger_zusammengefasst": "Ein Empfänger gleichen Namens wurde bereits angelegt; beide wurden "
                                   "zusammengefasst.",
     "tag_zusammengefasst": "Ein Tag gleichen Namens wurde bereits angelegt; beide wurden zusammengefasst.",
@@ -640,6 +644,9 @@ def importiere_bytes(con: sqlite3.Connection, roh: bytes, dateiname: str | None,
     lauf = _Lauf()
     with protokoll.protokolliert(con, "import", "import_kmymoney", zeitpunkt or db.jetzt_utc()) as k:
         import_id = _anwenden(con, datei, lauf, roh, dateiname, format_)
+        for schritt in kontonamen.bereinigen(con):  # D-218: Namen je Ebene eindeutig
+            lauf.warn("konto_" + ("zusammengefasst" if schritt["art"] == "zusammengefuehrt" else "umbenannt"),
+                      schritt["name"])
         k.gruppe = f"import:{import_id}"
         ergebnis = ImportErgebnis(erfolgreich=True, format=format_, warnungen=tuple(lauf.warnungen),
                                   fehler=(), import_id=import_id, **lauf.z)

@@ -13,7 +13,7 @@ import functools
 import unicodedata
 from collections import defaultdict
 
-from . import buch, regeln
+from . import buch, kontonamen, regeln
 from .buch import BESTAND, KATEGORIEARTEN, ApiFehler, nicht_gefunden, sichere_id
 from .protokoll import abstimmung_dict
 from .text import ekey, iban_gueltig, iban_normalisieren, norm
@@ -144,12 +144,7 @@ def empfaenger_zusammenfuehren(con, ziel_id: int, quelle_ids: list[int], name: s
 
 
 def korrektur_id(con) -> int:
-    r = con.execute("SELECT id FROM konto WHERE extern_id = ?", (KORREKTUR,)).fetchone()
-    if r is None:
-        r = con.execute(
-            "INSERT INTO konto (name, art, eltern_id, iban, geschlossen, eroeffnet_am, notiz, extern_id)"
-            " VALUES ('Korrekturen', 'eigenkapital', NULL, NULL, 0, NULL, '', ?) RETURNING id", (KORREKTUR,)).fetchone()
-    return r["id"]
+    return buch.technisches_konto(con, "Korrekturen", KORREKTUR)
 
 
 def erfassen(con, d: dict, lernmodell_automatisch: bool = False) -> dict:
@@ -479,6 +474,7 @@ def konto_loeschen_mit_buchungen(con, kid: int, d: dict) -> dict:
         try:
             unk_vorher = con.execute("SELECT 1 FROM konto WHERE extern_id = ?", (buch.UNKATEGORISIERT,)).fetchone()
             erg = _loeschen_ausfuehren(con, k, variante, konflikte, betroffen, gesperrt)
+            kontonamen.pruefen(con)  # D-218: hochrutschende Unterkonten dürfen nicht kollidieren
             if variante == "unkategorisiert" and unk_vorher is None:
                 erg["ziel_konto_id"] = None
         finally:
@@ -648,6 +644,7 @@ def kategorien_zusammenfuehren(con, d: dict) -> dict:
     con.execute("SAVEPOINT probelauf")
     try:
         erg = _zusammenfuehren_ausfuehren(con, konten, quelle_ids, ziel_id, loeschen, betroffen, gesperrt)
+        kontonamen.pruefen(con)  # D-218: mitwandernde Unterkategorien dürfen nicht kollidieren
     finally:
         con.execute("ROLLBACK TO probelauf")
         con.execute("RELEASE probelauf")

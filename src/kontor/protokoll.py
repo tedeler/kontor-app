@@ -25,7 +25,7 @@ from collections import defaultdict
 from collections.abc import Iterator
 from typing import Any, Callable
 
-from . import buch, db, dokumente, erwartung, geheimnisse, kredite, mail, regeln, vorlagen
+from . import buch, db, dokumente, erwartung, geheimnisse, kontonamen, kredite, mail, regeln, vorlagen
 from .validierung import ApiFehler
 
 OBJEKTE = ("konto", "empfaenger", "tag", "buchung", "regel", "verdacht", "abstimmung", "vorlage", "kredit", "postfach",
@@ -319,6 +319,8 @@ def protokolliert(con, quelle: str, aktion: str, zeitpunkt: str, gruppe: str | N
         dokumente.verwaiste_entfernen(con)  # D-123: Dokumente ohne Buchung entfallen
         erwartung.verwaiste_entfernen(con)  # D-128: Zuordnungen gelöschter Buchungen/Dokumente entfallen
         eintraege = _nettowirkung(con)
+        if any(e["objekt"] == "konto" and e["nachher"] is not None for e in eintraege):
+            kontonamen.pruefen(con)  # D-218: Namen je Ebene eindeutig (auch nach Rückgängig, Löschen, Verschieben)
         if k.pruefung is not None:
             k.pruefung(eintraege)
         k.eintraege = eintraege

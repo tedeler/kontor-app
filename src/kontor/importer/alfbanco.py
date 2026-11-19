@@ -21,7 +21,7 @@ import re
 import sqlite3
 from dataclasses import dataclass, field
 
-from .. import buch, db, protokoll
+from .. import buch, db, kontonamen, protokoll
 from ..buch import BESTAND
 from ..text import passend
 from ..validierung import BETRAG_MAX, ApiFehler
@@ -611,6 +611,9 @@ def importiere_bytes(con: sqlite3.Connection, roh: bytes, dateiname: str | None,
     jetzt = zeitpunkt or db.jetzt_utc()
     with protokoll.protokolliert(con, "import", "import_alfbanco", jetzt) as k:
         import_id = _anwenden(con, datei, konto, lauf, roh, dateiname, jetzt)
+        for schritt in kontonamen.bereinigen(con):  # D-218: Namen je Ebene eindeutig
+            lauf.warn("konto_" + ("zusammengefasst" if schritt["art"] == "zusammengefuehrt" else "umbenannt"),
+                      schritt["name"])
         k.gruppe = f"import:{import_id}"
         ergebnis = ImportErgebnis(erfolgreich=True, format=FORMAT, warnungen=tuple(lauf.warnungen),
                                   fehler=(), import_id=import_id, **lauf.z)

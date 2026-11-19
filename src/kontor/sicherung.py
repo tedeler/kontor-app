@@ -34,7 +34,7 @@ import zipfile
 import zlib
 from typing import Any
 
-from . import __version__, buch, db, dokumente, erwartung, kredite, mail, protokoll, regeln, vorlagen
+from . import __version__, buch, db, dokumente, erwartung, kontonamen, kredite, mail, protokoll, regeln, vorlagen
 from .config import KontorConfig
 from .text import ekey
 from .validierung import ApiFehler, datum_gueltig
@@ -770,6 +770,7 @@ def einspielen(con, s: Sicherung, zeitpunkt: str) -> dict:
                     con.execute("INSERT INTO sqlite_sequence (name, seq) VALUES (?, ?)", (tabelle, neu))
                 elif neu != hier:
                     con.execute("UPDATE sqlite_sequence SET seq = ? WHERE name = ?", (neu, tabelle))
+            kontonamen.bereinigen(con)  # D-218: ältere Sicherungen können gleichnamige Konten enthalten
     aid = k.aenderung_id if erg["geaendert"] else None
     return _ergebnis(s, False, erg["geaendert"], aid, erg["unterschied"], erg["betroffen"])
 
