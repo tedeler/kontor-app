@@ -296,7 +296,7 @@ export async function kredit(seite, id) {
 
 // ------------------------------------------------------------------ Berichte (13.6)
 export async function berichte(seite) {
-  kopf(seite, "Berichte", h("a", { class: "knopf", href: "/berichte/monat", tid: "bericht-monat-link" }, "Monatsbericht"));
+  kopf(seite, "Berichte");
   const bestand = baumFolge(stamm.konten.filter((k) => BESTAND.has(k.art)));
   const konten = h("select", { tid: "bericht-konten", multiple: true, size: String(Math.min(6, Math.max(2, bestand.length))) },
     bestand.map(({ konto }) => h("option", { value: String(konto.id) }, kontoPfad(konto))));

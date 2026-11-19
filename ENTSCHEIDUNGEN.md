@@ -3041,3 +3041,41 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   Tags der übrigen nicht zeigt (Hinzufügen und Entfernen wirken trotzdem auf alle).
 - **Prüfung:** `tests/test_browser_ausdruck.py::test_anwenden_fenster_ohne_unsinn` und
   `::test_tags_im_kontoblatt_bearbeiten`.
+
+## D-217 Berichtswahl und neun weitere Berichte (Feature `berichte`)
+
+- **Anlass:** Auftrag vom 2026-11-19: alle vorgeschlagenen Berichte umsetzen; die Berichtsart wird auf der
+  Berichtsseite gewählt.
+- **Berichtswahl:** Alle Berichte liegen unter `/berichte?art=<name>` in einem Tab; eine Leiste oben wechselt die
+  Art. Ohne `art` (und mit `art=uebersicht`) erscheint die bisherige Seite mit Kontostandsverlauf und
+  Einnahmen/Ausgaben unverändert, damit bestehende Adressen und Abnahmetests gelten. Der Monatsbericht ist die Art
+  `monat`; die frühere Adresse `/berichte/monat` führt dorthin. Der Palettenbefehl „Gehe zu: Monatsbericht“ und
+  der Knopf auf der Berichtsseite (D-206) entfallen, die Leiste ersetzt beide. Kein neuer Eintrag in Navigation
+  oder Palette.
+- **Endpunkte** (alle lesend, kein Zustand, noch nicht im OpenAPI-Vertrag): `GET /api/berichte/vertraege`, `jahr`,
+  `vorschau`, `vermoegen`, `kategorien`, `empfaenger`, `geldfluss`, `qualitaet`, `tags`. Unbekannte Parameter sind
+  ein Validierungsfehler.
+- **Gemeinsame Grundlage:** die Wirkung einer Buchung wie in D-206. Neu, auch für den Monatsbericht: Splits auf
+  Eigenkapitalkonten außer „Unkategorisiert“ (Anfangsbestand, Korrekturen) sind neutral wie Bestandskonten; ein
+  Anfangsbestand ist also keine Einnahme.
+- **Verträge:** Serien der Erkennung wiederkehrender Buchungen. Eine Serie, deren letzte Buchung nur Bestands- und
+  Eigenkapitalkonten berührt, ist eine Umbuchung (Sparrate) und erscheint nicht. Jahreskosten = aktueller Betrag
+  mal Zahlungen je Jahr; „neu“ = erste Zahlung in den letzten 90 Tagen.
+- **Jahr:** Der Vergleich mit dem Vorjahr bis zum laufenden Monat erscheint nur, wenn das Vorjahr in jedem dieser
+  Monate Buchungen hat.
+- **Vorschau:** Vorgabe sind die offenen Girokonten. Ereignisse sind die fälligen Zahlungen aktiver Serien
+  (hier einschließlich Umbuchungen, weil sie das Konto verlassen) und die Raten aktiver Kredite, sofern nicht
+  schon eine Serie mit gleichem Betrag auf dem Zahlungskonto erkannt ist. Übliche Ausgaben: variabler Tagesschnitt
+  der letzten 90 Tage. „Frei bis zum nächsten Eingang“ = Stand heute minus feste Zahlungen und übliche Ausgaben
+  bis zum nächsten erkannten Eingang.
+- **Vermögen:** alle Bestandskonten zum Monatsende; Guthaben ist die Summe der positiven, Schulden die der
+  negativen Stände. Tilgung = Abstand zum höchsten Monatsendstand der Schuld.
+- **Kategorien und Geldfluss:** Unterkategorien zählen in ihre Hauptkategorie. „Unkategorisiert“ folgt der
+  Richtung der Buchung. Schnitt über die bis zu sechs Vormonate mit Buchungen. Im Geldfluss wandert eine im
+  Saldo negative Kategorie auf die andere Seite; die Lücke heißt „Übrig“ oder „Aus dem Bestand“. Das Flussbild
+  ist handgezeichnetes SVG (das vorhandene Plotly-Paket kennt kein Flussdiagramm); auf dem Handy stehen nur die
+  beiden Tabellen.
+- **Tags:** Eine Buchung trägt ihre eigenen Tags und die ihres Empfängers. Mit mehreren Tags zählt sie bei jedem
+  voll; deshalb gibt es keine Summe über alle Tags, nur „mit Tag“ und „ohne Tag“. Vergleich für zwei bis vier Tags.
+- **Datenqualität:** betrachtet die letzten zwölf Monate ohne Umbuchungen. Tags gelten als freiwillig und gehen
+  in keine Bewertung ein.

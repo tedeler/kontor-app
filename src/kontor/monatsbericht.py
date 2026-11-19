@@ -61,7 +61,8 @@ def klasse_von(betrag: int) -> int:
 
 
 class _Posten:
-    __slots__ = ("id", "datum", "betrag", "art", "empfaenger_id", "empfaenger", "zweck", "konto_id", "fix")
+    __slots__ = ("id", "datum", "betrag", "art", "empfaenger_id", "empfaenger", "zweck", "konto_id", "fix", "teile",
+                 "tags")
 
     def __init__(self, bid, datum, betrag, art, eid, ename, zweck, konto_id):
         self.id = bid
@@ -73,6 +74,8 @@ class _Posten:
         self.zweck = zweck
         self.konto_id = konto_id
         self.fix = False
+        self.teile: list[tuple[int, int]] = []   # (Konto, Wirkung) je Split außerhalb der Bestandskonten
+        self.tags: frozenset[int] = frozenset()
 
     @property
     def netto(self) -> int:
@@ -109,11 +112,15 @@ def _laden(con, gewaehlt: set[int], konten: dict[int, dict], von: dt.date, bis: 
         " ORDER BY b.datum, b.id, s.position", (von.isoformat(), bis.isoformat())).fetchall()
     posten: list[_Posten] = []
     umbuchungen: dict[str, int] = defaultdict(int)
+    # Eigenkapital (Anfangsbestand, Korrekturen) ist wie ein Bestandskonto neutral; „Unkategorisiert“ nicht
+    neutral = {k for k, v in konten.items() if v["art"] == "eigenkapital"} - {
+        r["id"] for r in con.execute("SELECT id FROM konto WHERE extern_id = ?", (buch.UNKATEGORISIERT,))}
     i, n = 0, len(zeilen)
     while i < n:
         kopf = zeilen[i]
         konto_id = None
         fremd = aufwand = ertrag = 0
+        teile: list[tuple[int, int]] = []
         while i < n and zeilen[i]["bid"] == kopf["bid"]:
             r = zeilen[i]
             i += 1
@@ -121,8 +128,9 @@ def _laden(con, gewaehlt: set[int], konten: dict[int, dict], von: dt.date, bis: 
             if r["kid"] in gewaehlt:
                 if konto_id is None:
                     konto_id = r["kid"]
-            elif art not in BESTAND:
+            elif art not in BESTAND and r["kid"] not in neutral:
                 fremd += r["betrag"]
+                teile.append((r["kid"], -r["betrag"]))
                 if art == "aufwand":
                     aufwand += r["betrag"]
                 elif art == "ertrag":
@@ -140,8 +148,9 @@ def _laden(con, gewaehlt: set[int], konten: dict[int, dict], von: dt.date, bis: 
             art = "erstattung"
         else:
             art = "einnahme"
-        posten.append(_Posten(kopf["bid"], datum, abs(wirkung), art, kopf["eid"], kopf["ename"], kopf["zweck"] or "",
-                              konto_id))
+        p = _Posten(kopf["bid"], datum, abs(wirkung), art, kopf["eid"], kopf["ename"], kopf["zweck"] or "", konto_id)
+        p.teile = teile
+        posten.append(p)
     return posten, umbuchungen
 
 

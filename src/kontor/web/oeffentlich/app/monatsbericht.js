@@ -1,82 +1,17 @@
 /* Monatsbericht (Feature monatsbericht, D-206): Ausgaben eines Monats rein statistisch. Liest nur GET /api/berichte/monat. */
+import { betragEl, betragText, datumText, h, oberflaeche } from "./kern.js";
+import { centAchse, plotlyLayout } from "./seiten.js";
 import {
-  BESTAND, abfrage, api, baumFolge, betragEl, betragText, datumEl, datumText, h, kontoNach, kontoPfad, mobilKarten,
-  nameAnzeige, oberflaeche, stamm,
-} from "./kern.js";
-import { dialog } from "./ui.js";
-import { PLOTLY_OPTIONEN, centAchse, farben, plotlyLaden, plotlyLayout } from "./seiten.js";
-
-const MONATE = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober",
-  "November", "Dezember"];
-const MONATE_KURZ = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
-const WOCHENTAGE = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"];
-const WOCHENTAGE_KURZ = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
-const RHYTHMUS = { monatlich: "monatlich", vierteljaehrlich: "vierteljährlich", jaehrlich: "jährlich" };
-const MONAT_MUSTER = /^\d{4}-(0[1-9]|1[0-2])$/;
-
-const monatText = (m) => `${MONATE[Number(m.slice(5)) - 1]} ${m.slice(0, 4)}`;
-function monatPlus(m, n) {
-  const i = Number(m.slice(0, 4)) * 12 + Number(m.slice(5)) - 1 + n;
-  return `${String(Math.floor(i / 12)).padStart(4, "0")}-${String((i % 12) + 1).padStart(2, "0")}`;
-}
-const tagKurz = (iso) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.`;
-const prozent = (teil, ganz) => (ganz > 0 ? Math.round((teil * 100) / ganz) : 0);
-/** Ganze Euro ohne Cent für enge Stellen (Kalender); der genaue Betrag steht immer daneben oder im Titel. */
-const euroKurz = (cent) => `${String(Math.round(cent / 100)).replace(/\B(?=(\d{3})+(?!\d))/g, ".")} €`;
-const mehrzahl = (n, eins, viele) => `${n} ${n === 1 ? eins : viele}`;
-const empfName = (e) => (e ? nameAnzeige(e.name) : "Ohne Empfänger");
-
-const karte = (tid, titel, hinweis, ...inhalt) => h("section", { class: "karte mb-karte", tid },
-  h("h2", null, titel), hinweis ? h("p", { class: "klein mb-hinweis" }, hinweis) : null, inhalt);
-const leer = (text) => h("p", { class: "leer" }, text);
-const balken = (anteil, klasse) => h("span", { class: "mb-balken", "aria-hidden": "true" },
-  h("span", { class: "mb-balken-fuell " + (klasse || ""), stil: { "--w": `${Math.max(0, Math.min(100, anteil))}%` } }));
+  MONATE_KURZ, MONAT_MUSTER, RHYTHMUS, WOCHENTAGE, WOCHENTAGE_KURZ, abweichung, balken, berichtRahmen, diagrammEl, empfName, euroKurz,
+  freieAchse, kachel, karte, klickbareZeilen, kontenAus, kontenFehler, kontenText, kontenWahl, leer, mehrzahl, mitBetrag, monatPlus,
+  monatText, monatsWahl, prozent, tagKurz, zeichnen,
+} from "./berichtsteile.js";
 
 function klassenText(k) {
   if (k.unter === null) return `ab ${euroKurz(k.ab)}`;
   return k.ab ? `${euroKurz(k.ab)} bis unter ${euroKurz(k.unter)}` : `unter ${euroKurz(k.unter)}`;
 }
 
-// ------------------------------------------------------------------ Einzelbuchungen (Dialog)
-function buchungenZeigen(titel, liste, ausloeser) {
-  const sortiert = [...liste].sort((a, b) => (a.datum < b.datum ? -1 : a.datum > b.datum ? 1 : a.id - b.id));
-  const summe = sortiert.reduce((n, e) => n + (e.art === "erstattung" ? -e.betrag : e.betrag), 0);
-  dialog("mb-buchungen-dialog", titel, (inhalt, d) => {
-    if (!sortiert.length) { inhalt.append(leer("Keine Ausgaben.")); return; }
-    const zeilen = sortiert.map((e) => h("tr", { tid: `mb-dialog-buchung-${e.id}` },
-      datumEl("td", e.datum),
-      h("td", null, empfName(e.empfaenger), e.fix ? h("span", { class: "mb-marke mb-marke-fix", title: "Teil einer wiederkehrenden Zahlung" }, "fest") : null,
-        e.art === "erstattung" ? h("span", { class: "mb-marke" }, "Erstattung") : null),
-      h("td", { class: "mb-zweck" }, e.verwendungszweck || ""),
-      betragEl("td", e.art === "erstattung" ? e.betrag : -e.betrag, { class: "zahl" }),
-      h("td", null, h("button", { type: "button", class: "knopf knopf-flach klein", tid: `mb-dialog-zeigen-${e.id}`,
-        title: "Buchung im Konto zeigen", onclick: () => { d.schliessen(null); oberflaeche.zurBuchung(e.konto_id, e.id); } },
-      (kontoNach(e.konto_id) || {}).name || "Konto"))));
-    const t = h("table", { class: "tabelle mb-dialog-tabelle" },
-      h("thead", null, h("tr", null, ["Datum", "Empfänger", "Verwendungszweck", "Betrag", "Im Konto zeigen"]
-        .map((s, i) => h("th", { scope: "col", class: i === 3 ? "zahl" : null }, s)))),
-      h("tbody", null, zeilen));
-    mobilKarten(t, ["info-", "titel", "zeile", "betrag", "aktion2"]);
-    inhalt.append(h("p", { class: "klein", tid: "mb-dialog-summe" }, `${mehrzahl(sortiert.length, "Buchung", "Buchungen")}, zusammen `,
-      h("strong", null, betragText(summe)), "."), h("div", { class: "mb-dialog-rollen" }, t));
-  }, { klasse: "dialog-breit mb-dialog", schliessenKnopf: "mb-dialog-schliessen", ausloeser,
-    fokus: (box) => box.querySelector("[data-testid='mb-dialog-schliessen']") });
-}
-
-// ------------------------------------------------------------------ Kacheln
-function abweichung(wert, basis, text) {
-  if (basis === null || basis === undefined || basis <= 0) return null;
-  const pz = Math.round(((wert - basis) * 100) / basis);
-  const art = pz > 0 ? "mehr" : pz < 0 ? "weniger" : "gleich";
-  const zeichen = pz > 0 ? "▲" : pz < 0 ? "▼" : "●";
-  return h("span", { class: `mb-delta mb-${art}`, title: `Vergleichswert: ${betragText(basis)}` },
-    pz === 0 ? `${zeichen} wie ${text}` : `${zeichen} ${Math.abs(pz)} % ${pz > 0 ? "mehr" : "weniger"} als ${text}`);
-}
-
-function kachel(tid, titel, wert, ...zusatz) {
-  return h("div", { class: "mb-kachel", tid }, h("span", { class: "mb-kachel-titel" }, titel),
-    h("strong", { class: "mb-kachel-wert" }, wert), h("span", { class: "mb-kachel-zusatz" }, zusatz));
-}
 
 function kacheln(b) {
   const kz = b.kennzahlen;
@@ -109,45 +44,6 @@ function kacheln(b) {
   return h("div", { class: "mb-kacheln", tid: "mb-kacheln" }, aus);
 }
 
-// ------------------------------------------------------------------ Diagramme
-function eigeneFarben(seite) {
-  const cs = getComputedStyle(seite);
-  const v = (n, x) => (cs.getPropertyValue(n) || "").trim() || x;
-  return { ...farben(), fix: v("--mb-fix", "#1f5f8b"), variabel: v("--mb-variabel", "#c9781e") };
-}
-
-/** Achse in Cent, die nicht bei 0 beginnen muss (Kontostand). */
-function freieAchse(werte) {
-  let min = Math.min(...werte);
-  let max = Math.max(...werte);
-  if (max - min < 1000) { min -= 500; max += 500; }
-  const roh = (max - min) / 5;
-  const pot = 10 ** Math.floor(Math.log10(roh));
-  const schritt = Math.max(100, Math.round([1, 2, 5, 10].map((f) => f * pot).find((s) => s >= roh)));
-  const unten = Math.floor(min / schritt) * schritt;
-  const oben = Math.ceil(max / schritt) * schritt;
-  const vals = [];
-  for (let w = unten; w <= oben; w += schritt) vals.push(w);
-  return { tickvals: vals, ticktext: vals.map((w) => betragText(w)), range: [unten, oben] };
-}
-
-function diagrammEl(tid, beschriftung) {
-  return h("div", { tid, role: "img", "aria-label": beschriftung, class: "diagramm plotly-diagramm mb-diagramm" });
-}
-
-async function zeichnen(el, spuren, layout) {
-  let Plotly = null;
-  try { Plotly = await plotlyLaden(); } catch (e) { /* ohne Netz: Hinweis statt Diagramm */ }
-  if (!Plotly || !el.isConnected) {
-    if (el.isConnected) el.replaceChildren(leer("Das Diagramm ist ohne Verbindung nicht verfügbar."));
-    return null;
-  }
-  await Plotly.newPlot(el, spuren, layout, { ...PLOTLY_OPTIONEN, displayModeBar: false });
-  el.dataset.gezeichnet = "ja";
-  return el;
-}
-
-const mitBetrag = (name) => `${name}: %{customdata}<extra></extra>`;
 
 async function verlaufZeichnen(el, b, f, beiTag) {
   const v = b.verlauf;
@@ -269,17 +165,8 @@ function karteKlassen(b, zeigen) {
     "Viele kleine Buchungen oder wenige große? Der obere Balken zeigt den Anteil an der Anzahl, der untere den Anteil an der Summe.", t);
 }
 
-function klickbareZeilen(tabelle, aktion) {
-  tabelle.addEventListener("click", (ev) => {
-    const tr = ev.target.closest("tr.klickbar");
-    if (tr && !ev.target.closest("a, button")) aktion(tr, tr);
-  });
-  tabelle.addEventListener("keydown", (ev) => {
-    if ((ev.key === "Enter" || ev.key === " ") && ev.target.matches("tr.klickbar")) { ev.preventDefault(); aktion(ev.target, ev.target); }
-  });
-}
 
-function karteTopBuchungen(b) {
+export function karteTopBuchungen(b) {
   const top = b.top_buchungen;
   if (!top.eintraege.length) return karte("mb-top-buchungen", "Größte Buchungen", null, leer("Keine Ausgaben."));
   const max = top.eintraege[0].betrag;
@@ -392,122 +279,55 @@ function karteKalender(b, zeigen) {
 }
 
 // ------------------------------------------------------------------ Seite
-export async function monatsberichtSeite(seite, _param, suche) {
-  const p = new URLSearchParams(suche || "");
-  const zustand = {
-    monat: MONAT_MUSTER.test(p.get("monat") || "") ? p.get("monat") : null,
-    konten: p.getAll("konto").map(Number).filter((n) => Number.isInteger(n) && n > 0),
-  };
-  const steuerung = h("div", { class: "werkzeuge mb-steuerung" });
-  const stand = h("p", { class: "klein mb-stand", tid: "mb-stand" });
-  const inhalt = h("div", { class: "mb-inhalt" });
-  seite.append(h("div", { class: "seiten-kopf" }, h("h1", null, "Monatsbericht"), steuerung), stand, inhalt);
-  let lauf = 0;
-  let kontenOffen = false;
-
-  function urlSchreiben() {
-    history.replaceState(history.state, "", "/berichte/monat" + abfrage({ monat: zustand.monat, konto: zustand.konten }));
-    if (oberflaeche.urlGeaendert) oberflaeche.urlGeaendert();
-  }
-  function wechseln(monat, heuteMonat) {
-    zustand.monat = monat === heuteMonat ? null : monat;
-    urlSchreiben();
-    return laden();
-  }
-
-  function steuerungBauen(b) {
-    const heuteMonat = b.heute.slice(0, 7);
-    const sorte = [b.monat, heuteMonat, b.erster_monat, b.letzter_monat].filter(Boolean).sort();
-    const optionen = [];
-    for (let m = sorte[sorte.length - 1]; m >= sorte[0] && optionen.length < 600; m = monatPlus(m, -1)) optionen.push(m);
-    const wahl = h("select", { tid: "mb-monat", "aria-label": "Monat" },
-      optionen.map((m) => h("option", { value: m, selected: m === b.monat }, monatText(m))));
-    wahl.addEventListener("change", () => wechseln(wahl.value, heuteMonat));
-    const zurueck = h("button", { type: "button", class: "knopf", tid: "mb-zurueck", "aria-label": "Vorheriger Monat", title: "Vorheriger Monat",
-      onclick: () => wechseln(monatPlus(b.monat, -1), heuteMonat) }, "‹");
-    const vor = h("button", { type: "button", class: "knopf", tid: "mb-vor", "aria-label": "Nächster Monat", title: "Nächster Monat",
-      disabled: b.monat >= sorte[sorte.length - 1], onclick: () => wechseln(monatPlus(b.monat, 1), heuteMonat) }, "›");
-    const heute = h("button", { type: "button", class: "knopf", tid: "mb-heute", disabled: b.monat === heuteMonat,
-      onclick: () => wechseln(heuteMonat, heuteMonat) }, "Aktueller Monat");
-    const bestand = baumFolge(stamm.konten.filter((k) => BESTAND.has(k.art)));
-    const gewaehlt = new Set(b.konten.map((k) => k.id));
-    const felder = bestand.map(({ konto }) => h("label", { class: "mb-konto" },
-      h("input", { type: "checkbox", value: String(konto.id), checked: gewaehlt.has(konto.id), tid: `mb-konto-${konto.id}` }), kontoPfad(konto)));
-    const kurz = zustand.konten.length ? (b.konten.length === 1 ? b.konten[0].name : `${b.konten.length} Konten`) : "alle";
-    const konten = h("details", { class: "mb-konten", tid: "mb-konten", open: kontenOffen },
-      h("summary", { class: "knopf" }, `Konten: ${kurz}`),
-      h("div", { class: "mb-konten-liste" }, felder,
-        h("button", { type: "button", class: "knopf-link", tid: "mb-konten-alle", disabled: !zustand.konten.length,
-          onclick: () => { zustand.konten = []; urlSchreiben(); laden(); } }, "Vorgabe: alle Konten ohne Darlehen")));
-    konten.addEventListener("toggle", () => { kontenOffen = konten.open; });
-    konten.addEventListener("change", () => {
-      const ids = [...konten.querySelectorAll("input:checked")].map((el) => Number(el.value));
-      if (!ids.length) return;   // mindestens ein Konto; die Vorgabe stellt der Knopf wieder her
-      zustand.konten = ids;
-      urlSchreiben();
-      laden();
-    });
-    konten.addEventListener("keydown", (ev) => { if (ev.key === "Escape" && konten.open) { ev.stopPropagation(); konten.open = false; konten.querySelector("summary").focus(); } });
-    steuerung.replaceChildren(h("div", { class: "mb-monatswahl", role: "group", "aria-label": "Monat wählen" }, zurueck, wahl, vor), heute, konten);
-  }
-
-  async function laden() {
-    const n = ++lauf;
-    seite.dataset.geladen = "nein";
-    let b;
-    try {
-      b = await api("GET", "/api/berichte/monat" + abfrage({ monat: zustand.monat, konto_id: zustand.konten }));
-    } catch (e) {
-      if (n !== lauf) return;
-      if (zustand.konten.length && e.code && e.code !== "validierung") { zustand.konten = []; urlSchreiben(); await laden(); return; }
-      inhalt.replaceChildren(h("p", { class: "fehler", role: "alert" }, e.message));
-      seite.dataset.geladen = "ja";
-      return;
-    }
-    if (n !== lauf) return;
-    const fokusTid = document.activeElement && seite.contains(document.activeElement) ? document.activeElement.dataset.testid : null;
-    steuerungBauen(b);
-    const heuteMonat = b.heute.slice(0, 7);
-    const umb = b.ausgeschlossen.umbuchungen;
-    stand.replaceChildren(b.zukunft ? "Dieser Monat liegt in der Zukunft." : b.laufend ? `Laufender Monat, Stand ${datumText(b.stichtag)}.` : "Abgeschlossener Monat.",
-      ` Konten: ${b.konten.map((k) => k.name).join(", ") || "keine"}.`,
-      umb ? ` ${mehrzahl(umb, "Umbuchung", "Umbuchungen")} zwischen eigenen Konten ${umb === 1 ? "zählt" : "zählen"} nicht mit.` : "");
-    const zeigen = (titel, liste, ausloeser) => buchungenZeigen(titel, liste, ausloeser);
-    const verlauf = diagrammEl("mb-verlauf-diagramm", `Aufgelaufene Ausgaben im ${monatText(b.monat)} je Tag, im Vergleich zum Vormonat und zum Schnitt`);
-    const monate = diagrammEl("mb-monate-diagramm", "Ausgaben der letzten zwölf Monate, geteilt in fest und variabel");
-    const kontostand = diagrammEl("mb-kontostand-diagramm", `Kontostand im ${monatText(b.monat)}`);
-    const tief = b.kontostand.tiefststand;
-    const hatAusgaben = b.buchungen.length > 0;
-    seite.dataset.monat = b.monat;
-    inhalt.replaceChildren(
-      kacheln(b),
-      h("div", { class: "mb-raster" },
-        h("div", { class: "mb-breit" }, karte("mb-verlauf", "Verlauf im Monat",
-          "So sind die Ausgaben Tag für Tag aufgelaufen. Liegt die dicke Linie unter den anderen, wurde bisher weniger ausgegeben als sonst. Ein Klick auf einen Tag zeigt dessen Buchungen.", verlauf)),
-        hatAusgaben ? karteFixVariabel(b, zeigen) : null,
-        karte("mb-monate", "Die letzten zwölf Monate", "Ein Klick auf einen Balken öffnet den Monat.", monate),
-        hatAusgaben ? karteTopBuchungen(b) : null,
-        hatAusgaben ? karteEmpfaenger(b, zeigen) : null,
-        hatAusgaben ? karteKlassen(b, zeigen) : null,
-        b.zukunft ? null : karteAuffaellig(b, zeigen),
-        hatAusgaben ? h("div", { class: "mb-breit" }, karteKalender(b, zeigen)) : null,
-        h("div", { class: "mb-breit" }, karte("mb-kontostand", "Kontostand",
-          tief ? `Tiefster Stand ${betragText(tief.betrag)} am ${datumText(tief.datum)}; Anfang ${betragText(b.kontostand.anfang)}, zuletzt ${betragText(b.kontostand.ende)}.` : null, kontostand))));
-    if (!hatAusgaben && !b.zukunft) inhalt.prepend(h("p", { class: "leer", tid: "mb-leer" }, "In diesem Monat gibt es auf den gewählten Konten keine Ausgaben."));
-    if (fokusTid) { const el = seite.querySelector(`[data-testid="${fokusTid}"]`); if (el && !el.disabled) el.focus(); }
-    const f = eigeneFarben(seite);
-    await Promise.all([
-      verlaufZeichnen(verlauf, b, f, (tag) => {
-        const datum = `${b.monat}-${String(tag).padStart(2, "0")}`;
-        const liste = b.buchungen.filter((e) => e.datum === datum);
-        if (liste.length) zeigen(`Ausgaben am ${datumText(datum)}`, liste, null);
-      }),
-      monateZeichnen(monate, b, f, (m) => { if (m !== b.monat) wechseln(m, heuteMonat); }),
-      kontostandZeichnen(kontostand, b, f),
-    ]);
-    if (n === lauf) seite.dataset.geladen = "ja";
-  }
-
-  await laden();
-  return { titel: "Monatsbericht", aktualisieren: laden };
+export function monatsberichtSeite(seite, _param, suche) {
+  return berichtRahmen(seite, suche, {
+    art: "monat", titel: "Monatsbericht", pfad: "/api/berichte/monat",
+    lesen: (p) => ({ monat: MONAT_MUSTER.test(p.get("monat") || "") ? p.get("monat") : null, konten: kontenAus(p) }),
+    anfrage: (z) => ({ monat: z.monat, konto_id: z.konten }),
+    adresse: (z) => ({ monat: z.monat, konto: z.konten }),
+    beiFehler: kontenFehler,
+    steuerung: (b, k) => [monatsWahl(b, b.monat, (monat) => k.setzen({ monat })),
+      kontenWahl(b.konten, k.zustand.konten, (konten) => k.setzen({ konten }), k.merker)],
+    stand: (b) => {
+      const umb = b.ausgeschlossen.umbuchungen;
+      return [b.zukunft ? "Dieser Monat liegt in der Zukunft." : b.laufend ? `Laufender Monat, Stand ${datumText(b.stichtag)}.` : "Abgeschlossener Monat.",
+        kontenText(b), umb ? ` ${mehrzahl(umb, "Umbuchung", "Umbuchungen")} zwischen eigenen Konten ${umb === 1 ? "zählt" : "zählen"} nicht mit.` : ""];
+    },
+    inhalt: (b, k) => {
+      const zeigen = k.zeigen;
+      k.verlauf = diagrammEl("mb-verlauf-diagramm", `Aufgelaufene Ausgaben im ${monatText(b.monat)} je Tag, im Vergleich zum Vormonat und zum Schnitt`);
+      k.monate = diagrammEl("mb-monate-diagramm", "Ausgaben der letzten zwölf Monate, geteilt in fest und variabel");
+      k.kontostand = diagrammEl("mb-kontostand-diagramm", `Kontostand im ${monatText(b.monat)}`);
+      const tief = b.kontostand.tiefststand;
+      const hatAusgaben = b.buchungen.length > 0;
+      k.seite.dataset.monat = b.monat;
+      return [
+        !hatAusgaben && !b.zukunft ? h("p", { class: "leer", tid: "mb-leer" }, "In diesem Monat gibt es auf den gewählten Konten keine Ausgaben.") : null,
+        kacheln(b),
+        h("div", { class: "mb-raster" },
+          h("div", { class: "mb-breit" }, karte("mb-verlauf", "Verlauf im Monat",
+            "So sind die Ausgaben Tag für Tag aufgelaufen. Liegt die dicke Linie unter den anderen, wurde bisher weniger ausgegeben als sonst. Ein Klick auf einen Tag zeigt dessen Buchungen.", k.verlauf)),
+          hatAusgaben ? karteFixVariabel(b, zeigen) : null,
+          karte("mb-monate", "Die letzten zwölf Monate", "Ein Klick auf einen Balken öffnet den Monat.", k.monate),
+          hatAusgaben ? karteTopBuchungen(b) : null,
+          hatAusgaben ? karteEmpfaenger(b, zeigen) : null,
+          hatAusgaben ? karteKlassen(b, zeigen) : null,
+          b.zukunft ? null : karteAuffaellig(b, zeigen),
+          hatAusgaben ? h("div", { class: "mb-breit" }, karteKalender(b, zeigen)) : null,
+          h("div", { class: "mb-breit" }, karte("mb-kontostand", "Kontostand",
+            tief ? `Tiefster Stand ${betragText(tief.betrag)} am ${datumText(tief.datum)}; Anfang ${betragText(b.kontostand.anfang)}, zuletzt ${betragText(b.kontostand.ende)}.` : null, k.kontostand)))];
+    },
+    danach: (b, k) => {
+      const heuteMonat = b.heute.slice(0, 7);
+      return Promise.all([
+        verlaufZeichnen(k.verlauf, b, k.farben, (tag) => {
+          const datum = `${b.monat}-${String(tag).padStart(2, "0")}`;
+          const liste = b.buchungen.filter((e) => e.datum === datum);
+          if (liste.length) k.zeigen(`Ausgaben am ${datumText(datum)}`, liste, null);
+        }),
+        monateZeichnen(k.monate, b, k.farben, (m) => { if (m !== b.monat) k.setzen({ monat: m === heuteMonat ? null : m }); }),
+        kontostandZeichnen(k.kontostand, b, k.farben),
+      ]);
+    },
+  });
 }

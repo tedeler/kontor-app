@@ -14,7 +14,7 @@ import { einstellungen } from "./einstellungen.js";
 import { erwartetSeite } from "./erwartet.js";
 import { mailSeite } from "./mail.js";
 import { statistikSeite } from "./statistik.js";
-import { monatsberichtSeite } from "./monatsbericht.js";
+import { berichteSeite } from "./berichte.js";
 import { lernmodellSeite } from "./lernmodell.js";
 import { Tabs } from "./tabs.js";
 
@@ -247,8 +247,12 @@ const ROUTEN = [
   [/^\/statistik$/, "statistik", "statistik", statistikSeite],
   [/^\/kredite$/, "kredite", "kredite", S.kredite],
   [/^\/kredite\/(\d+)$/, "kredit", "kredite", S.kredit],
-  [/^\/berichte$/, "berichte", "berichte", S.berichte],
-  [/^\/berichte\/monat$/, "monatsbericht", "berichte", monatsberichtSeite],
+  [/^\/berichte$/, "berichte", "berichte", berichteSeite],
+  // frühere Adresse des Monatsberichts (D-206): führt auf die Berichtswahl
+  [/^\/berichte\/monat$/, "berichte", "berichte", (el, _p, suche) => {
+    history.replaceState(null, "", "/berichte?art=monat" + (suche ? "&" + suche.slice(1) : ""));
+    return berichteSeite(el, null, location.search);
+  }],
   [/^\/import$/, "import", "import", S.importSeite],
   [/^\/einstellungen$/, "einstellungen", "einstellungen", einstellungen],
   [/^\/protokoll$/, "protokoll", "protokoll", S.protokoll],
@@ -399,7 +403,7 @@ async function zeigen(optionen) {
 }
 
 const TITEL = { uebersicht: "Finanzübersicht", konten: "Konten", konto: "Konto", kategorien: "Kategorien",
-  statistik: "Statistische Analyse", kredite: "Kredite", kredit: "Kredit", berichte: "Berichte", monatsbericht: "Monatsbericht", import: "Import",
+  statistik: "Statistische Analyse", kredite: "Kredite", kredit: "Kredit", berichte: "Berichte", import: "Import",
   einstellungen: "Einstellungen", protokoll: "Änderungsprotokoll", empfaenger: "Empfänger", regeln: "Regeln", lernmodell: "Lernmodell",
   vorlagen: "Split-Vorlagen", dubletten: "Dubletten", sync: "Synchronisation", benachrichtigungen: "Benachrichtigungen",
   suche: "Suche", tan: "TAN-Freigabe", postfach: "Postfach", buchung: "Buchung", erwartet: "Was kommt noch?",
@@ -761,7 +765,6 @@ const BEFEHLE = [
   ["gehe-kategorien", "Gehe zu: Kategorien", () => gehe("/kategorien")],
   ["gehe-kredite", "Gehe zu: Kredite", () => gehe("/kredite")],
   ["gehe-berichte", "Gehe zu: Berichte", () => gehe("/berichte")],
-  ["gehe-monatsbericht", "Gehe zu: Monatsbericht", () => gehe("/berichte/monat")],
   ["gehe-import", "Gehe zu: Import", () => gehe("/import")],
   ["gehe-einstellungen", "Gehe zu: Einstellungen", () => gehe("/einstellungen")],
   ["gehe-protokoll", "Gehe zu: Änderungsprotokoll", () => gehe("/protokoll")],

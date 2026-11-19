@@ -1177,8 +1177,9 @@ html[data-thema="dunkel"] .wirkung-abweichend { background: #5a3412; color: #ffd
 
 /* Monatsbericht (Feature monatsbericht, D-206) */
 .nur-vorleser { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-.seite-monatsbericht { --mb-fix: var(--akzent); --mb-variabel: #c9781e; --mb-mehr: var(--gefahr); --mb-weniger: var(--erfolg); max-width: 78rem; }
-html[data-thema="dunkel"] .seite-monatsbericht { --mb-variabel: #e0a458; }
+.seite-berichte { --mb-fix: var(--akzent); --mb-variabel: #c9781e; --mb-mehr: var(--gefahr); --mb-weniger: var(--erfolg); --mb-gut: var(--erfolg); }
+.seite-berichte:not([data-art="uebersicht"]) { max-width: 78rem; }
+html[data-thema="dunkel"] .seite-berichte { --mb-variabel: #e0a458; }
 .mb-steuerung { align-items: center; }
 .mb-monatswahl { display: inline-flex; gap: .25rem; align-items: center; }
 .mb-monatswahl select { min-height: var(--knopf-h); min-width: 10.5rem; font-weight: 600; }
@@ -1356,3 +1357,69 @@ html[data-thema="dunkel"] .mb-hitze-3 { color: var(--text); }
 [data-layout="mobil"] .einst-nav a::after { content: "›"; position: absolute; right: .5rem; top: 50%; transform: translateY(-50%); color: var(--text-2); font-size: 1.3rem; }
 [data-layout="mobil"] .einst-inhalt .feld input:not([type="file"]), [data-layout="mobil"] .einst-inhalt .feld select { max-width: none; }
 [data-layout="mobil"] .einst-nav a[aria-current="page"] .einst-nav-titel { font-weight: 400; }
+
+/* Berichte (Feature berichte, D-217): Wahl der Berichtsart und weitere Bausteine */
+.bericht-wahl { display: flex; flex-wrap: wrap; gap: .35rem; margin: 0 0 .9rem; padding-bottom: .7rem; border-bottom: 1px solid var(--rand); }
+.bericht-art { display: inline-flex; align-items: center; min-height: 28px; padding: .15rem .7rem; border: 1px solid var(--rand); border-radius: 999px; background: var(--hg);
+  color: var(--text); text-decoration: none; font-size: .9rem; white-space: nowrap; }
+.bericht-art:hover { background: var(--hg-2); text-decoration: none; }
+.bericht-art[aria-current="page"] { background: var(--akzent); border-color: var(--akzent); color: var(--akzent-text); font-weight: 600; }
+.mb-stufen { display: inline-flex; }
+.mb-stufen .knopf { border-radius: 0; margin-left: -1px; }
+.mb-stufen .knopf:first-child { border-radius: var(--radius) 0 0 var(--radius); margin-left: 0; }
+.mb-stufen .knopf:last-child { border-radius: 0 var(--radius) var(--radius) 0; }
+.mb-stufen .knopf[aria-pressed="true"] { background: var(--akzent); border-color: var(--akzent); color: var(--akzent-text); position: relative; }
+.mb-suche { min-height: var(--knopf-h); min-width: 14rem; }
+.mb-inhalt > .karte, .mb-inhalt > .mb-raster { margin-bottom: .8rem; }
+.mb-inhalt > .karte { margin-top: 0; }
+.mb-rollen { overflow-x: auto; }
+.mb-sortier { display: inline-flex; align-items: center; gap: .2rem; padding: 0; border: 0; background: none; color: inherit; font: inherit; font-weight: 600; cursor: pointer; }
+.mb-sortier:hover { color: var(--text); text-decoration: underline; }
+.mb-sortier-pfeil::after { content: "↕"; opacity: .35; font-size: .85em; }
+th[aria-sort="ascending"] .mb-sortier-pfeil::after { content: "▲"; opacity: 1; }
+th[aria-sort="descending"] .mb-sortier-pfeil::after { content: "▼"; opacity: 1; }
+.mb-blass { color: var(--text-2); }
+.mb-marke-warn { background: color-mix(in srgb, var(--gefahr) 18%, var(--hg)); color: var(--text); }
+.mb-fuell-aus { background: var(--text-2); opacity: .5; }
+.mb-fuell-gut { background: var(--mb-gut); }
+.mb-fuell-schlecht { background: var(--gefahr); }
+.mb-gut-text { color: var(--mb-gut); }
+.mb-funke { display: block; width: 6rem; height: 1.5rem; }
+.mb-funke polyline { fill: none; stroke: var(--mb-fix); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; }
+.mb-funke circle { fill: var(--mb-fix); }
+.mb-warnung { margin: 0 0 .8rem; padding: .6rem .8rem; border: 1px solid var(--gefahr); border-left-width: 4px; border-radius: 8px; background: color-mix(in srgb, var(--gefahr) 8%, var(--hg)); }
+.mb-jahresraster { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
+.mb-monatskachel { min-height: 4.6rem; }
+.mb-monatskachel .mb-kal-nr { font-size: .85rem; font-weight: 600; }
+.mb-monatskachel .mb-kal-summe { font-size: 1rem; }
+.mb-kal-zusatz { font-size: .72rem; text-align: right; opacity: .85; }
+.mb-zwei { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; }
+.mb-zwei h3 { margin-top: 0; }
+.mb-bewegung { display: flex; flex-direction: column; gap: .2rem; flex: 1 1 auto; min-width: 0; }
+.mb-bewegung .mb-balken { height: .4rem; }
+.mb-baum .mb-name { padding-left: calc(var(--stufe, 0) * 1.1rem); }
+.mb-baum tr.mb-ebene-0 .mb-name { font-weight: 600; }
+.mb-baum tr:not(.mb-ebene-0) .mb-name { font-weight: 400; }
+.mb-baum tr:not(.mb-ebene-0) td { color: var(--text-2); }
+.mb-tilgung li { flex-direction: column; gap: .25rem; }
+.mb-tilgung-kopf { display: flex; justify-content: space-between; gap: .8rem; flex-wrap: wrap; }
+.mb-fluss-rahmen { width: 100%; overflow: hidden; }
+.mb-fluss { display: block; width: 100%; height: auto; }
+.mb-fluss-band { opacity: .38; }
+.mb-fluss-band:hover { opacity: .65; }
+.mb-fluss-name { font-size: 13px; font-weight: 600; fill: var(--text); }
+.mb-fluss-zahl { font-size: 12px; fill: var(--text-2); font-variant-numeric: tabular-nums; }
+.mb-kachel-farbig { border-left: 4px solid var(--mb-fix); }
+.mb-kachel-farbig .mb-balken { margin-top: .3rem; height: .4rem; }
+.mb-karte > .werkzeuge { margin-top: .6rem; }
+.mb-karte a.mb-marke { margin-left: .3rem; text-decoration: none; color: var(--text); }
+p > a.mb-marke { margin-left: .3rem; text-decoration: none; color: var(--text); }
+@media (max-width: 1000px) { .mb-zwei { grid-template-columns: 1fr; } }
+[data-layout="mobil"] .bericht-wahl { flex-wrap: nowrap; overflow-x: auto; margin-left: -.5rem; margin-right: -.5rem; padding: 0 .5rem .6rem; scrollbar-width: none; }
+[data-layout="mobil"] .bericht-art { min-height: 36px; }
+[data-layout="mobil"] .mb-jahresraster { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+[data-layout="mobil"] .mb-zwei { grid-template-columns: 1fr; }
+[data-layout="mobil"] .mb-suche { flex: 1 1 100%; min-width: 0; }
+[data-layout="mobil"] .mb-fluss-rahmen { display: none; }
+[data-layout="mobil"] .mb-funke { width: 3.6rem; }
+[data-layout="mobil"] .mb-stufen .knopf { padding: 0 .6rem; }

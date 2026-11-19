@@ -587,10 +587,20 @@ Single-Page-App ohne Build-Schritt, Framework und externe Ressourcen (ES-Module 
   ihn wieder her. Die Seite Änderungsprotokoll bietet Rückgängig je Änderung.
 - **Kategorien:** Baum mit Ausgaben/Einnahmen; Kategorie auf eine andere ziehen = Unterkategorie, auf die
   Gruppenüberschrift = oberste Ebene.
-- **Monatsbericht** (`/berichte/monat`, Knopf auf der Seite Berichte, Befehlspalette): Ausgaben eines Monats ohne
-  Kategorien – Kennzahlen, Verlauf gegen Vormonat und Schnitt mit Hochrechnung, fest und variabel, größte
-  Buchungen, Empfänger, Größenklassen, Auffälligkeiten, Kalender und Kontostand. Balken, Tage und Zeilen
-  öffnen die Einzelbuchungen.
+- **Berichte** (`/berichte`, ein Tab): oben wählt man die Berichtsart, die Adresse merkt sie sich (`?art=…`).
+  - *Einnahmen und Ausgaben:* Kontostandsverlauf und Summen je Kategorie für einen freien Zeitraum (wie bisher).
+  - *Monat:* Ausgaben eines Monats ohne Kategorien – Verlauf gegen Vormonat und Schnitt mit Hochrechnung, fest und
+    variabel, größte Buchungen, Empfänger, Größenklassen, Auffälligkeiten, Kalender, Kontostand.
+  - *Jahr:* zwölf Monate mit Vorjahr, Jahresraster, aufgelaufene Ausgaben, größte Buchungen und Empfänger.
+  - *Kategorien:* je Kategorie der Monat gegen den eigenen Schnitt, mit Verlauf über 13 Monate.
+  - *Empfänger:* Rangliste; je Empfänger Monate, einzelne Beträge, Jahre, Kategorien, Buchungen.
+  - *Tags:* Übersicht, Einzelauswertung und Vergleich von zwei bis vier Tags; Tags am Empfänger zählen mit.
+  - *Verträge und Abos:* erkannte wiederkehrende Zahlungen mit Jahreskosten und Preisänderungen.
+  - *Geldfluss:* Flussbild von den Einnahmequellen zu den Ausgabenblöcken, je Monat oder Jahr.
+  - *Vorschau:* erwarteter Kontostand der nächsten 30, 60 oder 90 Tage.
+  - *Vermögen:* Guthaben, Schulden, Nettovermögen und Sparquote über die Zeit.
+  - *Datenqualität:* Anteil kategorisierter Buchungen, fehlende Empfänger, offene Verdachte, Abstimmungen.
+  Zeilen, Balken, Tage und Monate öffnen die Einzelbuchungen oder den passenden Bericht.
 - **Weitere Seiten:** Kredite mit Tilgungsplan und Jahresabgleich (Prüfen, dann Buchen), Berichte
   (Kontostandsverlauf als SVG und Tabelle, Einnahmen/Ausgaben, Export CSV/PDF), Import (KMyMoney/GnuCash),
   Einstellungen (Design, Test-Benachrichtigung, PIN verwerfen, Geheimnisse, Datensicherung, Postfächer, Tags,

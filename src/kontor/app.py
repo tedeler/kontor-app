@@ -30,7 +30,7 @@ from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.staticfiles import StaticFiles
 
-from . import (__version__, ausdruck, berichte, buch, db, export, kredite, lernerklaerung, lernmodell, lernregeln, mock_lerndaten, mail, monatsbericht, pflege, protokoll, regeln,
+from . import (__version__, ausdruck, auswertungen, berichte, buch, db, export, kredite, lernerklaerung, lernmodell, lernregeln, mock_lerndaten, mail, monatsbericht, pflege, protokoll, regeln,
                sicherung, statistik, verschieben, vorlagen, wiederkehrend)
 from . import aktualisierung
 from . import abgleich, bankzugang, dokumente, erwartung
@@ -1505,6 +1505,22 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
             q.fehler_melden(name, "Unbekannter Parameter.")
         q.pruefen()
         return await lesen(monatsbericht.bericht, monat, konto_ids, heute)
+
+    def _auswertung(name: str):
+        funktion, erlaubt, lesen_argumente = auswertungen.BERICHTE[name]
+
+        @endpunkt("GET", f"/api/berichte/{name}")
+        async def bericht(request: Request):
+            """Weitere Berichte (Feature berichte, D-217). Noch nicht im OpenAPI-Vertrag."""
+            q = Query(request.query_params)
+            argumente = lesen_argumente(q, sync.heute().isoformat())
+            for unbekannt in sorted(set(request.query_params.keys()) - set(erlaubt)):
+                q.fehler_melden(unbekannt, "Unbekannter Parameter.")
+            q.pruefen()
+            return await lesen(funktion, *argumente)
+
+    for _name in auswertungen.BERICHTE:
+        _auswertung(_name)
 
     def _exportname(endung: str) -> str:
         return f"kontor-buchungen-{sync.heute().strftime('%Y%m%d')}.{endung}"

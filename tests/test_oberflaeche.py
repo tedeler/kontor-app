@@ -34,6 +34,16 @@ REST = ["/api/status", "/api/ausdruck",  # D-185
         "/api/erwartungen",  # Mail-Abgleich: D-128
         "/api/statistik",  # experimentell, D-145, noch nicht im OpenAPI-Vertrag
         "/api/berichte/monat",  # Monatsbericht: D-206, noch nicht im OpenAPI-Vertrag
+        # weitere Berichte: D-217, noch nicht im OpenAPI-Vertrag
+        "/api/berichte/vertraege",
+        "/api/berichte/jahr",
+        "/api/berichte/vorschau",
+        "/api/berichte/vermoegen",
+        "/api/berichte/kategorien",
+        "/api/berichte/empfaenger",
+        "/api/berichte/geldfluss",
+        "/api/berichte/qualitaet",
+        "/api/berichte/tags",
         "/api/bank/zugang",  # Bankzugang: D-199, noch nicht im OpenAPI-Vertrag
         "/api/import/alfbanco", "/api/kategorien/zusammenfuehren"]  # ALF-BanCo: D-123, D-126
 
