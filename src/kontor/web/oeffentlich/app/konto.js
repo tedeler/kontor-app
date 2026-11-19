@@ -80,8 +80,14 @@ function zweckAnsicht(text) {
       h("p", { class: "dk-mono" }, text)) : null);
 }
 
-/** Jahr → Monat → Abschnitt → Tag. Jeder Knoten trägt die Buchungen seiner Periode. */
-function datumBaum(eintraege, sortierung) {
+// D-209: Tiefe der Gruppierung nach Datum; die gewählte Ebene ist die tiefste, alle darüber bleiben.
+const EBENEN = ["jahr", "monat", "abschnitt", "tag"];
+const EBENE_TEXT = { jahr: "Jahr", monat: "Monat", abschnitt: "Abschnitt", tag: "Tag" };
+// Kennung des Knopfs je Tiefe; die volle Tiefe behält die bisherige Kennung `gruppierung-datum`.
+const tiefeTid = (tiefe) => (tiefe === "tag" ? "gruppierung-datum" : `gruppierung-${tiefe}`);
+
+/** Jahr → Monat → Abschnitt → Tag, höchstens bis `tiefe`. Jeder Knoten trägt die Buchungen seiner Periode. */
+function datumBaum(eintraege, sortierung, tiefe = "tag") {
   const aufsteigend = sortierung === "datum";
   const cmp = (a, b) => (aufsteigend ? a.schluessel.localeCompare(b.schluessel) : b.schluessel.localeCompare(a.schluessel));
   const jahre = new Map();
@@ -103,7 +109,8 @@ function datumBaum(eintraege, sortierung) {
     if (!t) abschnitt.tage.set(tag, (t = { schluessel: tag, buchungen: [] }));
     t.buchungen.push(b);
   }
-  return [...jahre.values()].sort(cmp).map((jahr) => ({
+  const kuerzen = (knoten) => knoten.map((k) => (k.ebene === tiefe ? { ...k, kinder: [] } : { ...k, kinder: kuerzen(k.kinder) }));
+  return kuerzen([...jahre.values()].sort(cmp).map((jahr) => ({
     schluessel: jahr.schluessel, ebene: "jahr", buchungen: jahr.buchungen,
     kinder: [...jahr.monate.values()].sort(cmp).map((monat) => ({
       schluessel: monat.schluessel, ebene: "monat", buchungen: monat.buchungen,
@@ -114,7 +121,7 @@ function datumBaum(eintraege, sortierung) {
         })),
       })),
     })),
-  }));
+  })));
 }
 
 function periodenBilanz(buchungen) {
@@ -218,7 +225,7 @@ const KUERZEL = [
   ["f", "x", "Zeitraum entfernen", (s) => s.zeitraumSetzen(null)],
   ["f", "a", "Filterausdruck", (s) => { if (s.ausdruckEingabe) s.ausdruckEingabe.eingabe.focus(); }],
   ["f", "0", "alle Filter zurücksetzen", (s) => { const k = tid("filter-zuruecksetzen", s.filterLeiste); if (k) k.click(); }],
-  ["v", "g", "Gruppierung: keine ↔ nach Datum", (s) => s.gruppierungSetzen(s.gruppierung ? "" : "datum")],
+  ["v", "g", "Gruppierung: nächste Tiefe (keine → Jahr → Monat → Abschnitt → Tag)", (s) => s.gruppierungWeiter()],
   ["v", "+", "alle Gruppen aufklappen", (s) => s.alleKlappen(false)],
   ["v", "-", "alle Gruppen zuklappen", (s) => s.alleKlappen(true)],
   ["v", "o", "Sortierspalte wechseln", (s) => s.sortierungWechseln(false)],
@@ -489,6 +496,7 @@ class Kontoansicht {
     this.titel = konto.name;
     this.filter = this.filterAusUrl(suche);
     this.gruppierung = this.gruppierungAusUrl(suche);
+    this.tiefe = this.tiefeAusUrl(suche);
     this.zugeklappt = new Set();
     this.eintraege = [];
     this.gesamt = 0;
@@ -528,6 +536,11 @@ class Kontoansicht {
     return g === "datum" || g === "tag" || g === "monat" ? "datum" : "";
   }
 
+  tiefeAusUrl(suche) {
+    const t = new URLSearchParams(suche || "").get("tiefe");
+    return EBENEN.includes(t) ? t : "tag";
+  }
+
   get sortierung() { return this.filter.sortierung || "-datum"; }
 
   filterAnzahl() {
@@ -539,6 +552,7 @@ class Kontoansicht {
   urlSchreiben() {
     const f = { ...this.filter };   // nur gesetzte Filter und eine gewählte Sortierung (7.1)
     if (this.gruppierung) f.gruppierung = this.gruppierung;   // Ansicht, kein Parameter der Buchungsliste
+    if (this.gruppierung && this.tiefe !== "tag") f.tiefe = this.tiefe;   // D-209: volle Tiefe ist die Vorgabe
     history.replaceState(history.state, "", `/konten/${this.konto.id}${abfrage(f)}`);
     if (oberflaeche.urlGeaendert) oberflaeche.urlGeaendert();   // Tab merkt sich Filter und Sortierung
   }
@@ -1260,23 +1274,34 @@ class Kontoansicht {
 
   // ---------------------------------------------------------------- Gruppierung (D-150)
   gruppierungLeiste() {
-    const knopfArt = (art, text) => h("button", { type: "button", class: "gruppierung-knopf",
-      tid: art ? `gruppierung-${art}` : "gruppierung-keine", "aria-pressed": String(this.gruppierung === art),
-      onclick: () => this.gruppierungSetzen(art) }, text);
+    const stufe = (art, tiefe, text, titel) => h("button", { type: "button", class: "gruppierung-knopf",
+      tid: art ? tiefeTid(tiefe) : "gruppierung-keine", title: titel,
+      "aria-pressed": String(this.gruppierung === art && (!art || this.tiefe === tiefe)),
+      onclick: () => this.gruppierungSetzen(art, tiefe) }, text);
     return h("div", { class: "gruppierung-zeile" },
-      h("div", { class: "gruppierung", role: "group", "aria-label": "Buchungen gruppieren" },
-        knopfArt("", "Keine"), knopfArt("datum", "nach Datum")),
+      h("div", { class: "gruppierung", role: "group", "aria-label": "Buchungen nach Datum gruppieren bis" },
+        stufe("", null, "Keine", "Nicht gruppieren"),
+        EBENEN.map((t, i) => stufe("datum", t, EBENE_TEXT[t],
+          `Gruppieren bis ${EBENE_TEXT[t]}: ${EBENEN.slice(0, i + 1).map((e) => EBENE_TEXT[e]).join(" → ")}`))),
       knopf("Alles zusammenklappen", { tid: "gruppierung-zu", disabled: true, onclick: () => this.alleKlappen(true) }),
       knopf("Alles aufklappen", { tid: "gruppierung-auf", disabled: true, onclick: () => this.alleKlappen(false) }));
   }
 
-  async gruppierungSetzen(art) {
-    if ((art !== "" && art !== "datum") || art === this.gruppierung) return;
+  async gruppierungSetzen(art, tiefe) {
+    const t = art && EBENEN.includes(tiefe) ? tiefe : this.tiefe;
+    if ((art !== "" && art !== "datum") || (art === this.gruppierung && t === this.tiefe)) return;
     this.gruppierung = art;
+    this.tiefe = t;
     this._gruppen = null;
     this.urlSchreiben();
     if (art && this.eintraege.length < this.gesamt) await this.laden();
     else this.listeZeichnen();
+  }
+
+  /** Kürzel `v g`: keine → Jahr → Monat → Abschnitt → Tag → keine. */
+  gruppierungWeiter() {
+    const i = this.gruppierung ? EBENEN.indexOf(this.tiefe) : -1;
+    return i + 1 < EBENEN.length ? this.gruppierungSetzen("datum", EBENEN[i + 1]) : this.gruppierungSetzen("");
   }
 
   alleKlappen(zu) {
@@ -1287,9 +1312,11 @@ class Kontoansicht {
   }
 
   gruppierungKnopfZustand() {
-    for (const art of ["", "datum"]) {
-      const el = tid(art ? `gruppierung-${art}` : "gruppierung-keine", this.seite);
-      if (el) el.setAttribute("aria-pressed", String(this.gruppierung === art));
+    const keine = tid("gruppierung-keine", this.seite);
+    if (keine) keine.setAttribute("aria-pressed", String(!this.gruppierung));
+    for (const t of EBENEN) {
+      const el = tid(tiefeTid(t), this.seite);
+      if (el) el.setAttribute("aria-pressed", String(Boolean(this.gruppierung) && this.tiefe === t));
     }
     const schluessel = this.gruppierung ? this.alleSchluessel() : [];
     const zu = tid("gruppierung-zu", this.seite);
@@ -1305,11 +1332,11 @@ class Kontoansicht {
     const b = this.eintraege.find((x) => x.id === id);
     if (!b) return [];
     const tag = String(b.datum || "").slice(0, 10);
-    return [tag.slice(0, 4), tag.slice(0, 7), abschnittSchluessel(tag), tag];
+    return [tag.slice(0, 4), tag.slice(0, 7), abschnittSchluessel(tag), tag].slice(0, EBENEN.indexOf(this.tiefe) + 1);
   }
 
   gruppen() {
-    if (!this._gruppen) this._gruppen = this.gruppierung ? datumBaum(this.eintraege, this.sortierung) : [];
+    if (!this._gruppen) this._gruppen = this.gruppierung ? datumBaum(this.eintraege, this.sortierung, this.tiefe) : [];
     return this._gruppen;
   }
 
