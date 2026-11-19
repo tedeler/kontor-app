@@ -582,6 +582,10 @@ Single-Page-App ohne Build-Schritt, Framework und externe Ressourcen (ES-Module 
   ihn wieder her. Die Seite Änderungsprotokoll bietet Rückgängig je Änderung.
 - **Kategorien:** Baum mit Ausgaben/Einnahmen; Kategorie auf eine andere ziehen = Unterkategorie, auf die
   Gruppenüberschrift = oberste Ebene.
+- **Monatsbericht** (`/berichte/monat`, Knopf auf der Seite Berichte, Befehlspalette): Ausgaben eines Monats ohne
+  Kategorien – Kennzahlen, Verlauf gegen Vormonat und Schnitt mit Hochrechnung, fest und variabel, größte
+  Buchungen, Empfänger, Größenklassen, Auffälligkeiten, Kalender und Kontostand. Balken, Tage und Zeilen
+  öffnen die Einzelbuchungen.
 - **Weitere Seiten:** Kredite mit Tilgungsplan und Jahresabgleich (Prüfen, dann Buchen), Berichte
   (Kontostandsverlauf als SVG und Tabelle, Einnahmen/Ausgaben, Export CSV/PDF), Import (KMyMoney/GnuCash),
   Einstellungen (Design, Test-Benachrichtigung, PIN verwerfen, Geheimnisse, Datensicherung, Postfächer, Tags,

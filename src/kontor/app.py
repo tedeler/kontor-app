@@ -30,7 +30,7 @@ from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.staticfiles import StaticFiles
 
-from . import (__version__, ausdruck, berichte, buch, db, export, kredite, lernerklaerung, lernmodell, lernregeln, mock_lerndaten, mail, pflege, protokoll, regeln,
+from . import (__version__, ausdruck, berichte, buch, db, export, kredite, lernerklaerung, lernmodell, lernregeln, mock_lerndaten, mail, monatsbericht, pflege, protokoll, regeln,
                sicherung, statistik, verschieben, vorlagen, wiederkehrend)
 from . import aktualisierung
 from . import abgleich, bankzugang, dokumente, erwartung
@@ -52,7 +52,7 @@ log = logging.getLogger("kontor")
 WEB = pathlib.Path(__file__).parent / "web"
 #: Routen der Oberfläche (oberflaeche.md 3) und Links aus Benachrichtigungen (/buchungen/<id>, /sync/konten)
 SPA_ROUTEN = ["/", "/konten", "/konten/{konto_id:int}", "/kategorien", "/erwartet", "/mail", "/statistik", "/kredite",
-              "/kredite/{kredit_id:int}", "/berichte", "/import", "/einstellungen", "/protokoll", "/empfaenger", "/regeln", "/lernmodell",
+              "/kredite/{kredit_id:int}", "/berichte", "/berichte/monat", "/import", "/einstellungen", "/protokoll", "/empfaenger", "/regeln", "/lernmodell",
               "/vorlagen", "/dubletten", "/sync", "/sync/konten", "/benachrichtigungen", "/suche", "/tan/{tan_id:int}",
               "/mail/postfaecher/{postfach_id:int}", "/buchungen/{buchung_id:int}"]
 MOCK_HINWEIS = "Mock-Modus: Es werden ausschließlich synthetische Testdaten verwendet (eigene Mock-Datenbank)."
@@ -1487,6 +1487,23 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     async def bericht_einnahmen_ausgaben(request: Request):
         f = berichtsfilter(request)
         return await lesen(berichte.einnahmen_ausgaben, f, sync.heute().isoformat())
+
+    @endpunkt("GET", "/api/berichte/monat")
+    async def bericht_monat(request: Request):
+        """Monatsbericht (Feature monatsbericht, D-206). Noch nicht im OpenAPI-Vertrag."""
+        q = Query(request.query_params)
+        konto_ids = q.ganzzahlen("konto_id")
+        text = q.text("monat")
+        heute = sync.heute().isoformat()
+        monat = None
+        try:
+            monat = monatsbericht.monat_lesen(text, heute)
+        except ValueError:
+            q.fehler_melden("monat", "Erwartet wird ein Monat der Form JJJJ-MM.")
+        for name in sorted(set(request.query_params.keys()) - {"konto_id", "monat"}):
+            q.fehler_melden(name, "Unbekannter Parameter.")
+        q.pruefen()
+        return await lesen(monatsbericht.bericht, monat, konto_ids, heute)
 
     def _exportname(endung: str) -> str:
         return f"kontor-buchungen-{sync.heute().strftime('%Y%m%d')}.{endung}"
