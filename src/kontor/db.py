@@ -435,6 +435,16 @@ CREATE TABLE IF NOT EXISTS dokument_buchung (
 CREATE INDEX IF NOT EXISTS dokument_buchung_buchung ON dokument_buchung(buchung_id, dokument_id);
 CREATE INDEX IF NOT EXISTS dokument_sha256 ON dokument(sha256);
 
+-- Mails, die über die Amazon-Bestellnummer an eine Buchung gehängt wurden (D-208): Betriebszustand, nicht
+-- protokolliert, nicht gesichert. Merkt je (Buchung, Nachrichten-ID), dass die Mail behandelt ist.
+CREATE TABLE IF NOT EXISTS bestellmail (
+    buchung_id INTEGER NOT NULL,
+    nachricht_id TEXT NOT NULL,
+    nummer TEXT NOT NULL,
+    dokument_id INTEGER NOT NULL,
+    PRIMARY KEY (buchung_id, nachricht_id)
+) WITHOUT ROWID;
+
 -- ------------------------------------------------------------ Mail-Abgleich (D-128)
 -- Erwartete Zahlungen (Buchbestand, Objektart ``erwartung``). Beträge in Cent, immer >= 0; die Richtung sagt,
 -- ob Geld abgeht oder eingeht. Zuordnungen (``buchung_ids``), Mails (``mails``: Postfach + Nachrichten-ID im

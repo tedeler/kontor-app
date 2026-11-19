@@ -691,8 +691,10 @@ class MailDienst:
         wo, par = "", []
         if postfach_id is not None:
             wo, par = " WHERE p.id = ?", [buch.sichere_id(postfach_id)]
-        from . import erwartung
+        from . import bestellmail, erwartung
         zuord = erwartung.zuordnungen_nach_mail(con, heute) if heute else {}
+        # D-208: über die Bestellnummer angehaengte Mails; das Feld gibt es nur mit ``mail_bestellnummer``
+        haengt = bestellmail.angehaengt_nach_mail(con) if self.config.mail_bestellnummer else None
         reihen = con.execute(
             "SELECT n.id, n.adresse_cf, n.nachricht_id FROM mail_nachricht n"
             " JOIN postfach p ON p.adresse_cf = n.adresse_cf" + wo
@@ -701,6 +703,8 @@ class MailDienst:
         gewaehlt: list[int] = []
         for r in reihen:
             art = _zuordnung_art(zuord.get((r["adresse_cf"], r["nachricht_id"]), []))
+            if art != "zugeordnet" and haengt and haengt.get(r["nachricht_id"]):
+                art = "zugeordnet"
             zaehler[art] += 1
             if zuordnung is None or art == zuordnung:
                 gewaehlt.append(r["id"])
@@ -711,7 +715,9 @@ class MailDienst:
                                "postfach": r["postfach_bezeichnung"] or r["postfach_adresse"],
                                "nachricht_id": r["nachricht_id"], "empfangen": r["empfangen"],
                                "absender": r["absender"], "betreff": r["betreff"], "text": r["text"],
-                               "zuordnung": zuord.get((r["adresse_cf"], r["nachricht_id"]), [])} for r in zeilen],
+                               "zuordnung": zuord.get((r["adresse_cf"], r["nachricht_id"]), []),
+                               **({} if haengt is None else {"angehaengt": haengt.get(r["nachricht_id"], [])})}
+                              for r in zeilen],
                 "gesamt": gesamt, "seite": seite, "pro_seite": pro_seite,
                 "stand": {"gesamt": len(reihen), **zaehler,
                           "postfaecher": [self._postfach_stand(con, p)
