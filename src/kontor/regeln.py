@@ -657,6 +657,7 @@ def testen(con, d: dict, heute: dt.date) -> dict:
     seite, pro = d.get("seite") or 1, d.get("pro_seite") or 100
     return {"testmenge_anzahl": len(ids), "anzahl": len(zeilen), "zaehlung": zaehlung,
             "tags_anzahl": sum(1 for z in zeilen if z["tags_neu"]),
+            "gesperrt_anzahl": sum(1 for z in zeilen if z["grund"] == "gesperrt"),
             "gesamt": len(gewaehlt), "seite": seite, "pro_seite": pro,
             "treffer": gewaehlt[(seite - 1) * pro: seite * pro],
             "nicht_erfasst": {"anzahl": len(nicht_erfasst), "buchung_ids": nicht_erfasst[:200]}}

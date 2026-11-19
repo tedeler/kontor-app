@@ -2835,3 +2835,37 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   vorgeschlagen (erster Text der Bedingung, „REWE → Lebensmittel“, Konzept 3), als Platzhalter sichtbar und
   beim Speichern übernommen.
 - **Prüfung:** `tests/test_browser_ausdruck.py` (Zeitraum-Auswahl, Namensvorschlag, Editor ohne Kategorie).
+
+## D-208 Regeln vergeben Tags; Kategorie optional (Feature `regel-tags`)
+
+- **Anlass:** Auftrag vom 2026-11-19: Im Regeleditor lassen sich neben der Kategorie Tags vergeben. Tags sind
+  additiv, eine Regel kann mehrere vergeben, und Tags lassen sich dabei neu anlegen. Mit dem Auftraggeber
+  abgestimmt: Kategorie optional, Tags sofort ohne Bestätigung, Tags aller passenden Regeln.
+- **Datenmodell:** Schema 14. `regel.kategorie_id` darf NULL sein (Tabelle wird bei der Migration neu aufgebaut,
+  `regel_automatisch` und der ID-Zähler bleiben erhalten). Neue Tabelle `regel_tag (regel_id, tag_id)`, gehört
+  zur Objektart `regel`. Eine Regel braucht beim Anlegen und Ändern mindestens eine Aktion (Kategorie oder Tag),
+  sonst 422 (`validierung` bzw. beim Ändern `regel_ohne_aktion`). Höchstens 20 Tags je Regel.
+- **Schnittstelle:** Regeln tragen `tag_ids` (aufsteigend, in Antworten immer vorhanden) und `kategorie_id` kann
+  `null` sein. `POST /api/regeln/test` nimmt `tag_ids` an und liefert je Treffer `tags_neu` sowie `tags_anzahl`
+  und `gesperrt_anzahl`. `POST /api/regeln/anwenden` liefert zusätzlich `tags` (je Buchung die neu vergebenen
+  Tags), aber nur, wenn es welche gibt; sonst bleibt die Antwort wie bisher.
+- **Auswertung:** Für die Kategorie gilt weiter die erste passende Regel **mit** Kategorie; Regeln ohne Kategorie
+  verdecken nichts. Die Tags aller passenden aktiven Regeln werden der Buchung hinzugefügt, nie entfernt:
+  bei der Synchronisation an jede neue Buchung (unabhängig davon, welche Stufe die Kategorie bestimmt hat),
+  beim Sammel-Anwenden an jede nicht gesperrte Buchung im Umfang (auch Splitbuchungen und bereits
+  kategorisierte, auch mit `nur_unkategorisiert`), beim Anwenden einer Regel an jeden nicht gesperrten Treffer
+  (auch verdeckte und abweichende). Tags sind keine Vorschläge; sie gelten sofort und sind über Rückgängig
+  bzw. an der Buchung wieder entfernbar. Gesperrte Buchungen bleiben unberührt.
+- **Tag löschen:** Die Regel bleibt und verliert den Tag (in derselben Änderung, mit Rückgängig wiederhergestellt).
+  Hatte sie nur diesen Tag und keine Kategorie, bleibt sie ohne Wirkung stehen und wird in der Liste als
+  „(keine Aktion)“ gezeigt; die Prüfung einer Sicherung lässt solche Regeln zu.
+- **Protokoll und Sicherung:** `regel_tag` in `protokoll._TABELLEN`; die Protokollform einer Regel enthält
+  `tag_ids` nur, wenn sie Tags hat (bisherige Formen bleiben unverändert). Sicherungsdatei Schemaversion 9 mit
+  `regel_tag`; ältere Sicherungen werden ohne die Tabelle gelesen.
+- **Oberfläche:** Im Regeleditor steht unter „Dann“ die Kategorie mit dem Eintrag „– keine Kategorie –“ (Vorgabe
+  bleibt die erste Kategorie) und das Feld „Tags hinzufügen“ (vorhandene Tags zur Auswahl, unbekannte Namen
+  werden beim Speichern in derselben Aktion angelegt; Abbrechen legt nichts an). Der Testbereich zeigt je Treffer
+  die Tags, die dazukämen; die Regelliste zeigt sie hinter der Kategorie.
+- **Nicht im Umfang:** Tags entfernen per Regel, „Danach keine weiteren Regeln“, „direkt bestätigen“. Regeln wirken
+  wie bisher nicht beim Import und nicht bei von Hand angelegten Buchungen.
+- **Prüfung:** `tests/test_regel_tags_eigen.py`, `tests/test_browser_ausdruck.py::test_regeleditor_tags`.

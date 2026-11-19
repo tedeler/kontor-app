@@ -1086,6 +1086,15 @@ html[data-thema="dunkel"] .wirkung-abweichend { background: #5a3412; color: #ffd
   border: 0; border-radius: var(--radius); background: var(--hg-2); color: var(--text); text-align: left; padding: .28rem .5rem;
   font: inherit; font-size: .86rem; cursor: pointer; }
 .test-kopf:hover, .test-kopf[aria-expanded="true"] { background: var(--hg-3); }
+.regel-tags { display: flex; flex-wrap: wrap; gap: .25rem; margin: .1rem 0 .3rem; }
+.regel-tags:empty { display: none; }
+.regel-tag { display: inline-flex; align-items: center; gap: .2rem; font-size: .85rem; padding: .05rem .2rem .05rem .55em; }
+.regel-tag[data-neu="true"] { outline: 1px dashed var(--rand); }
+.regel-tag-weg { border: 0; background: none; color: inherit; cursor: pointer; padding: 0 .3rem; font-size: 1rem; line-height: 1; border-radius: 50%; }
+.regel-tag-weg:hover, .regel-tag-weg:focus-visible { background: var(--hg); }
+.regel-tag-zeile { display: flex; gap: .4rem; align-items: center; }
+.regel-tag-zeile input { flex: 1; min-width: 0; }
+.test-tags { margin-top: .2rem; }
 .test-kopf .test-empf { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .test-kopf .test-betrag { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .test-kopf .test-wirkung { justify-self: start; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
