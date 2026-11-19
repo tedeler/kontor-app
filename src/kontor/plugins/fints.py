@@ -445,8 +445,9 @@ class FintsBankPlugin(BankPlugin):
     def _konfiguriert(self) -> None:
         c = self._config
         if c is None or not (c.fints_url and c.fints_blz and c.fints_benutzer and c.fints_produkt_id):
-            raise PluginNichtVerfuegbar("Der FinTS-Zugang ist nicht konfiguriert (fints_url, fints_blz, "
-                                        "fints_benutzer, fints_produkt_id).")
+            raise PluginNichtVerfuegbar("Der Bankzugang ist noch nicht eingerichtet. Bitte unter Einstellungen → "
+                                        "Bankzugang (FinTS) Server-Adresse, Bankleitzahl, Benutzerkennung und "
+                                        "Produkt-ID eintragen und speichern.")
 
     def _pin(self) -> str:
         pin = self._pin_quelle() if self._pin_quelle is not None else None
