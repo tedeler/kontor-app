@@ -28,7 +28,27 @@ function periodeText(schluessel) {
     const name = MONATE[Number(schluessel.slice(5, 7)) - 1];
     return name ? `${name} ${schluessel.slice(0, 4)}` : schluessel;
   }
+  const a = /^(\d{4})-(\d{2})-a([1-4])$/.exec(schluessel);
+  if (a) {
+    const [von, bis] = abschnittTage(Number(a[1]), Number(a[2]), Number(a[3]));
+    const zwei = (n) => String(n).padStart(2, "0");
+    return `${zwei(von)}.–${zwei(bis)}.${a[2]}.`;
+  }
   return datumText(schluessel);
+}
+
+// D-208: vier feste Abschnitte je Monat (1.–7., 8.–14., 15.–21., 22.–Monatsende) zwischen Monat und Tag.
+const ABSCHNITT_BEGINN = [1, 8, 15, 22];
+function abschnittNr(tagImMonat) {
+  return tagImMonat >= 22 ? 4 : tagImMonat >= 15 ? 3 : tagImMonat >= 8 ? 2 : 1;
+}
+function abschnittTage(jahr, monat, nr) {
+  const letzter = new Date(Date.UTC(jahr, monat, 0)).getUTCDate();
+  return [ABSCHNITT_BEGINN[nr - 1], nr === 4 ? letzter : ABSCHNITT_BEGINN[nr] - 1];
+}
+/** Schlüssel des Monatsabschnitts zu einem Tag `JJJJ-MM-TT`: `JJJJ-MM-a1` … `-a4`. */
+function abschnittSchluessel(tag) {
+  return `${tag.slice(0, 7)}-a${abschnittNr(Number(tag.slice(8, 10)) || 1)}`;
 }
 
 const WOCHENTAGE = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
@@ -60,7 +80,7 @@ function zweckAnsicht(text) {
       h("p", { class: "dk-mono" }, text)) : null);
 }
 
-/** Jahr → Monat → Tag. Jeder Knoten trägt die Buchungen seiner Periode. */
+/** Jahr → Monat → Abschnitt → Tag. Jeder Knoten trägt die Buchungen seiner Periode. */
 function datumBaum(eintraege, sortierung) {
   const aufsteigend = sortierung === "datum";
   const cmp = (a, b) => (aufsteigend ? a.schluessel.localeCompare(b.schluessel) : b.schluessel.localeCompare(a.schluessel));
@@ -73,18 +93,25 @@ function datumBaum(eintraege, sortierung) {
     if (!jahr) jahre.set(jahrK, (jahr = { schluessel: jahrK, monate: new Map(), buchungen: [] }));
     jahr.buchungen.push(b);
     let monat = jahr.monate.get(monatK);
-    if (!monat) jahr.monate.set(monatK, (monat = { schluessel: monatK, tage: new Map(), buchungen: [] }));
+    if (!monat) jahr.monate.set(monatK, (monat = { schluessel: monatK, abschnitte: new Map(), buchungen: [] }));
     monat.buchungen.push(b);
-    let t = monat.tage.get(tag);
-    if (!t) monat.tage.set(tag, (t = { schluessel: tag, buchungen: [] }));
+    const abschnittK = abschnittSchluessel(tag);
+    let abschnitt = monat.abschnitte.get(abschnittK);
+    if (!abschnitt) monat.abschnitte.set(abschnittK, (abschnitt = { schluessel: abschnittK, tage: new Map(), buchungen: [] }));
+    abschnitt.buchungen.push(b);
+    let t = abschnitt.tage.get(tag);
+    if (!t) abschnitt.tage.set(tag, (t = { schluessel: tag, buchungen: [] }));
     t.buchungen.push(b);
   }
   return [...jahre.values()].sort(cmp).map((jahr) => ({
     schluessel: jahr.schluessel, ebene: "jahr", buchungen: jahr.buchungen,
     kinder: [...jahr.monate.values()].sort(cmp).map((monat) => ({
       schluessel: monat.schluessel, ebene: "monat", buchungen: monat.buchungen,
-      kinder: [...monat.tage.values()].sort(cmp).map((tag) => ({
-        schluessel: tag.schluessel, ebene: "tag", buchungen: tag.buchungen, kinder: [],
+      kinder: [...monat.abschnitte.values()].sort(cmp).map((abschnitt) => ({
+        schluessel: abschnitt.schluessel, ebene: "abschnitt", buchungen: abschnitt.buchungen,
+        kinder: [...abschnitt.tage.values()].sort(cmp).map((tag) => ({
+          schluessel: tag.schluessel, ebene: "tag", buchungen: tag.buchungen, kinder: [],
+        })),
       })),
     })),
   }));
@@ -1278,7 +1305,7 @@ class Kontoansicht {
     const b = this.eintraege.find((x) => x.id === id);
     if (!b) return [];
     const tag = String(b.datum || "").slice(0, 10);
-    return [tag.slice(0, 4), tag.slice(0, 7), tag];
+    return [tag.slice(0, 4), tag.slice(0, 7), abschnittSchluessel(tag), tag];
   }
 
   gruppen() {
@@ -1288,13 +1315,8 @@ class Kontoansicht {
 
   alleSchluessel() {
     const aus = [];
-    for (const jahr of this.gruppen()) {
-      aus.push(jahr.schluessel);
-      for (const monat of jahr.kinder) {
-        aus.push(monat.schluessel);
-        for (const tag of monat.kinder) aus.push(tag.schluessel);
-      }
-    }
+    const sammeln = (knoten) => { for (const k of knoten) { aus.push(k.schluessel); sammeln(k.kinder); } };
+    sammeln(this.gruppen());
     return aus;
   }
 
@@ -1304,19 +1326,15 @@ class Kontoansicht {
       for (const b of this.eintraege) rueckruf({ typ: "zeile", buchung: b });
       return;
     }
-    for (const jahr of this.gruppen()) {
-      rueckruf({ typ: "balken", gruppe: jahr });
-      if (this.zugeklappt.has(jahr.schluessel)) continue;
-      for (const monat of jahr.kinder) {
-        rueckruf({ typ: "balken", gruppe: monat });
-        if (this.zugeklappt.has(monat.schluessel)) continue;
-        for (const tag of monat.kinder) {
-          rueckruf({ typ: "balken", gruppe: tag });
-          if (this.zugeklappt.has(tag.schluessel)) continue;
-          for (const b of tag.buchungen) rueckruf({ typ: "zeile", buchung: b });
-        }
+    const gehen = (knoten) => {
+      for (const k of knoten) {
+        rueckruf({ typ: "balken", gruppe: k });
+        if (this.zugeklappt.has(k.schluessel)) continue;
+        if (k.kinder.length) gehen(k.kinder);
+        else for (const b of k.buchungen) rueckruf({ typ: "zeile", buchung: b });
       }
-    }
+    };
+    gehen(this.gruppen());
   }
 
   sichtbareIds() {

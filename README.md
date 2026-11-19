@@ -563,7 +563,8 @@ Single-Page-App ohne Build-Schritt, Framework und externe Ressourcen (ES-Module 
   eine eigene Adresse (Lesezeichen, Zurück/Vor, Neuladen), z. B. `/konten/5?von=2024-03-01&status=bestaetigt`.
 - **Kontoansicht** (`/konten/<id>`): Filterleiste (Zeitraum, Betrag, Empfänger, Verwendungszweck, Freitext,
   Kategorie mit Unterkategorien, Tag, Status; in der Adresse gespeichert), sortierbare Spalten, 200 Buchungen je
-  Seite mit „Weitere laden“. „nach Datum“ gruppiert hierarchisch nach Jahr, Monat und Tag. Jede Ebene ist
+  Seite mit „Weitere laden“. „nach Datum“ gruppiert hierarchisch nach Jahr, Monat, Monatsabschnitt
+  (1.–7., 8.–14., 15.–21., 22.–Monatsende) und Tag. Jede Ebene ist
   ein einklappbarer Balken mit Eingang, Ausgang, Summe und Anzahl; „Alles zusammenklappen“ und
   „Alles aufklappen“ gelten für alle Ebenen. Dafür lädt das Blatt die ganze Filtermenge und zeichnet bei
   vielen Zeilen nur den sichtbaren Ausschnitt. Vorschläge mit ✓/✗,

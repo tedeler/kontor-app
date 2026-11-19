@@ -2853,3 +2853,21 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   M23 `test_einstellungen_schutz`; M28 `test_abmelden_vergisst_person`. Sie brauchen nur den Bereich in der Adresse.
   Das klärt der Test-Thread mit der Meilenstein-Definition. Die übrigen Browsertests verhalten sich wie auf main
   (dort schlagen 49 unabhängig von diesem Feature fehl).
+
+## D-208 Gruppierung nach Datum: vier feste Abschnitte je Monat (Feature `kontoblatt-gruppierung`, in Arbeit)
+
+- **Anlass:** Zwischen Monat und Tag fehlte eine Ebene; ein Monat mit vielen Buchungen zerfiel sofort in bis zu
+  31 Tagesbalken. Kalenderwochen scheiden aus, weil sie am Monatswechsel geteilt werden müssten.
+- **Entscheidung** (mit dem Auftraggeber am 2026-11-19 abgestimmt): „nach Datum“ zeigt Jahr → Monat → Abschnitt →
+  Tag (ergänzt D-152). Jeder Monat hat vier feste Abschnitte: 1.–7., 8.–14., 15.–21. und 22. bis Monatsende
+  (7 bis 10 Tage). Die Grenzen sind in jedem Monat gleich, damit feste Zahlungen (Miete, Gehalt) immer im selben
+  Abschnitt stehen und die Abschnitte zusammen genau den Monat ergeben.
+  - Beschriftung ist nur der Datumsbereich mit dem tatsächlichen Monatsende („08.–14.11.“, „22.–29.02.“), kein
+    Wort wie „Woche“. Kalenderwochen bleiben als Filter (`kw46`) erhalten, nicht als Gruppierung.
+  - Schlüssel des Abschnitts: `JJJJ-MM-a1` … `-a4` (`data-periode`, `periode-…`, `periode-summe-…` usw. wie bei den
+    anderen Ebenen), `data-ebene="abschnitt"`. Abschnitte ohne Buchung erscheinen nicht.
+  - Balken, Zahlen, Klappen, Pfeiltasten und „Alles zusammenklappen/aufklappen“ wie bei den übrigen Ebenen. Keine
+    Änderung an Endpunkten, Adresse (`?gruppierung=datum`) oder Datenmodell.
+  - Der Service-Worker-Cache heißt jetzt `kontor-huelle-39`.
+- **Folge für die Abnahme:** Abnahmetests, die die Folge oder Anzahl der Balken unter einem Monat fest erwarten
+  (Monat direkt gefolgt von Tagen), brauchen die neue Ebene; das klärt der Test-Thread mit der Meilenstein-Definition.
