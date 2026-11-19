@@ -37,7 +37,7 @@ function periodeText(schluessel) {
   return datumText(schluessel);
 }
 
-// D-210: vier feste Abschnitte je Monat (1.–7., 8.–14., 15.–21., 22.–Monatsende) zwischen Monat und Tag.
+// D-211: vier feste Abschnitte je Monat (1.–7., 8.–14., 15.–21., 22.–Monatsende) zwischen Monat und Tag.
 const ABSCHNITT_BEGINN = [1, 8, 15, 22];
 function abschnittNr(tagImMonat) {
   return tagImMonat >= 22 ? 4 : tagImMonat >= 15 ? 3 : tagImMonat >= 8 ? 2 : 1;
@@ -80,7 +80,7 @@ function zweckAnsicht(text) {
       h("p", { class: "dk-mono" }, text)) : null);
 }
 
-// D-211: Tiefe der Gruppierung nach Datum; die gewählte Ebene ist die tiefste, alle darüber bleiben.
+// D-212: Tiefe der Gruppierung nach Datum; die gewählte Ebene ist die tiefste, alle darüber bleiben.
 const EBENEN = ["jahr", "monat", "abschnitt", "tag"];
 const EBENE_TEXT = { jahr: "Jahr", monat: "Monat", abschnitt: "Abschnitt", tag: "Tag" };
 // Kennung des Knopfs je Tiefe; die volle Tiefe behält die bisherige Kennung `gruppierung-datum`.
@@ -552,7 +552,7 @@ class Kontoansicht {
   urlSchreiben() {
     const f = { ...this.filter };   // nur gesetzte Filter und eine gewählte Sortierung (7.1)
     if (this.gruppierung) f.gruppierung = this.gruppierung;   // Ansicht, kein Parameter der Buchungsliste
-    if (this.gruppierung && this.tiefe !== "tag") f.tiefe = this.tiefe;   // D-211: volle Tiefe ist die Vorgabe
+    if (this.gruppierung && this.tiefe !== "tag") f.tiefe = this.tiefe;   // D-212: volle Tiefe ist die Vorgabe
     history.replaceState(history.state, "", `/konten/${this.konto.id}${abfrage(f)}`);
     if (oberflaeche.urlGeaendert) oberflaeche.urlGeaendert();   // Tab merkt sich Filter und Sortierung
   }

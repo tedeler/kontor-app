@@ -214,3 +214,18 @@ def test_nachtraeglich_verknuepfen_und_zur_buchung(umgebung):
     tid(page, f"betrachter-zur-buchung-{b}").click()
     expect(tid(page, "dokument-betrachter")).to_have_count(0)
     expect(tid(page, f"buchung-{b}")).to_have_attribute("aria-selected", "true")
+
+
+def test_mail_zeigt_ihr_datum_in_den_einzelheiten(umgebung):
+    """D-210: Neben einer angehängten E-Mail steht das Datum der Mail, neben anderen Dokumenten nichts."""
+    url, page, konten, zweck = umgebung
+    bid = zweck["Einkauf 3"]
+    r = _post(url + "/api/dokumente", params={"buchung_id": bid}, files={"datei": ("rechnung.eml", mail_bytes(), "message/rfc822")})
+    assert r.status_code == 201, r.text
+    p = _post(url + "/api/dokumente", params={"buchung_id": bid}, files={"datei": ("beleg.pdf", PDF, "application/pdf")})
+    assert p.status_code == 201, p.text
+    _oeffnen(page, url, konten["Giro"], bid)
+    datum = tid(page, f"dokument-datum-{r.json()['id']}")
+    expect(datum).to_have_text("05.03.2024")
+    expect(datum).to_have_attribute("data-zeitpunkt", "2024-03-05T09:15:00Z")
+    expect(tid(page, f"dokument-datum-{p.json()['id']}")).to_have_count(0)

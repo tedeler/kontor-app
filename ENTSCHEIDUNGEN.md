@@ -2900,7 +2900,18 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   bisher nur mit Betreff und Text.
 - Jeder Lauf schreibt eine Zeile ins Log (`kontor.bestellmail`, Stufe INFO) mit der Zahl der angehängten Mails.
 
-## D-210 Gruppierung nach Datum: vier feste Abschnitte je Monat (Feature `kontoblatt-gruppierung`)
+## D-210 Datum der E-Mail in den Einzelheiten (Feature `mail-datum`)
+
+- **Auftrag (2026-11-19):** Im Abschnitt „Dokumente“ der Einzelheiten soll bei angehängten E-Mails das Datum der
+  Mail stehen.
+- **Entscheidung:** Neben jeder angehängten E-Mail steht ihr Datum (`dokument-datum-<id>`, Tag.Monat.Jahr in
+  Ortszeit, voller Zeitpunkt im Tooltip und in `data-zeitpunkt`), vor der Größe. Andere Dokumente bekommen kein
+  Datum. Mails ohne lesbares Datum zeigen nichts.
+- **Quelle:** das Feld `datum` der vorhandenen Mail-Ansicht `GET /api/dokumente/{id}/mail` (Kopfzeile `Date`),
+  je Dokument einmal gelesen und für die Sitzung gemerkt. Kein neues Feld in `belege` oder im Dokument, damit der
+  Vertrag `openapi.yaml` unverändert bleibt.
+
+## D-211 Gruppierung nach Datum: vier feste Abschnitte je Monat (Feature `kontoblatt-gruppierung`)
 
 - **Anlass:** Zwischen Monat und Tag fehlte eine Ebene; ein Monat mit vielen Buchungen zerfiel sofort in bis zu
   31 Tagesbalken. Kalenderwochen scheiden aus, weil sie am Monatswechsel geteilt werden müssten.
@@ -2918,9 +2929,9 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - **Folge für die Abnahme:** Abnahmetests, die die Folge oder Anzahl der Balken unter einem Monat fest erwarten
   (Monat direkt gefolgt von Tagen), brauchen die neue Ebene; das klärt der Test-Thread mit der Meilenstein-Definition.
 
-## D-211 Tiefe der Gruppierung wählbar (Feature `kontoblatt-gruppierung`)
+## D-212 Tiefe der Gruppierung wählbar (Feature `kontoblatt-gruppierung`)
 
-- **Anlass:** Mit D-210 hat die Gruppierung vier Ebenen. Auf ruhigen Konten ist das zu viel, und ein Tag mit einer
+- **Anlass:** Mit D-211 hat die Gruppierung vier Ebenen. Auf ruhigen Konten ist das zu viel, und ein Tag mit einer
   einzigen Buchung belegt zwei Zeilen (Tagesbalken und Buchung).
 - **Entscheidung** (mit dem Auftraggeber am 2026-11-19 abgestimmt): Die Leiste über der Liste heißt jetzt
   „Keine | Jahr | Monat | Abschnitt | Tag“ und ersetzt „Keine | nach Datum“ (ergänzt D-152). Die gewählte Ebene ist

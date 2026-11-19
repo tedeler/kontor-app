@@ -550,6 +550,8 @@ td.aktionen { width: 2.5rem; text-align: right; }
 .details-dokumente { margin-top: .2rem; border-top: 1px solid var(--hg-3); padding-top: .55rem; }
 .details-dokumente-liste { list-style: none; padding: 0; margin: .25rem 0; }
 .details-dokument { display: flex; align-items: center; gap: .3rem; padding: .15rem 0; }
+.details-dokument-datum { flex: none; white-space: nowrap; }
+.details-dokument-datum:empty { display: none; }
 .details-dokument .knopf-link { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   text-align: left; }
 .knopf-link { border: 0; background: none; padding: 0; color: var(--akzent); cursor: pointer; text-decoration: underline;

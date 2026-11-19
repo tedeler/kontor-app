@@ -340,6 +340,27 @@ export function betrachter(dokumente, index, ausloeser) {
 
 // ---------------------------------------------------------------- Abschnitt im Detailpanel
 
+/* Datum einer angehängten E-Mail (D-210): steht nicht in der Buchung, sondern in der Mail selbst. Es wird je
+ * Dokument einmal über die Mail-Ansicht gelesen und für die Sitzung gemerkt. */
+const mailDatum = new Map();
+
+function mailDatumEl(d) {
+  if (d.mime_typ !== "message/rfc822") return null;
+  const el = h("small", { class: "klein details-dokument-datum", tid: `dokument-datum-${d.id}`, title: "Datum der E-Mail" });
+  const zeigen = (wert) => {
+    if (!wert) return;
+    el.dataset.zeitpunkt = wert;
+    el.textContent = zeitText(wert).slice(0, 10);
+    el.title = `E-Mail vom ${zeitText(wert)}`;
+  };
+  if (mailDatum.has(d.id)) zeigen(mailDatum.get(d.id));
+  else {
+    api("GET", `/api/dokumente/${d.id}/mail`).then((m) => { mailDatum.set(d.id, m.datum || null); zeigen(m.datum); })
+      .catch(() => {});
+  }
+  return el;
+}
+
 /** Abschnitt „Dokumente“ der Einzelheiten einer Buchung. */
 export function detailsAbschnitt(b) {
   const belege = b.belege || [];
@@ -347,6 +368,7 @@ export function detailsAbschnitt(b) {
     tid: `details-dokument-${d.id}`, class: "details-dokument" },
   h("button", { type: "button", class: "knopf-link", tid: `dokument-ansehen-${d.id}`, title: d.dateiname,
     onclick: (e) => betrachter(belege, i, e.currentTarget) }, symbol(d.mime_typ), " ", d.dateiname),
+  mailDatumEl(d),
   h("small", { class: "klein" }, " ", groesseText(d.groesse)),
   h("button", { type: "button", class: "mini-knopf", tid: `dokument-loesen-${d.id}`, "aria-label": `„${d.dateiname}“ von der Buchung lösen`,
     title: "Von dieser Buchung lösen", onclick: () => loesen(d, b.id) }, "×"))))
