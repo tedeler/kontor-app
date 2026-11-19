@@ -50,6 +50,7 @@ _TABELLEN = {
     "vorschlag": ("buchung", "buchung_id"),
     "regel": ("regel", "id"),
     "regel_automatisch": ("regel", "regel_id"),
+    "regel_tag": ("regel", "regel_id"),
     "empfaenger_lernregel_sperre": ("empfaenger", "empfaenger_id"),
     "dublettenverdacht": ("verdacht", "id"),
     "verdacht_kandidat": ("verdacht", "verdacht_id"),
@@ -474,6 +475,10 @@ def _entfernen(con, objekt: str, oid: int, schritt: set[tuple[str, int]]) -> Non
         for r in con.execute("SELECT empfaenger_id FROM empfaenger_tag WHERE tag_id = ?", (oid,)).fetchall():
             if ("empfaenger", r["empfaenger_id"]) not in schritt:
                 raise _konflikt("Ein Tag wird inzwischen von einem Empfänger verwendet.")
+        # ebenso an Regeln (D-208)
+        for r in con.execute("SELECT regel_id FROM regel_tag WHERE tag_id = ?", (oid,)).fetchall():
+            if ("regel", r["regel_id"]) not in schritt:
+                raise _konflikt("Ein Tag wird inzwischen von einer Regel verwendet.")
         con.execute("DELETE FROM tag WHERE id = ?", (oid,))
     elif objekt == "buchung":
         con.execute("DELETE FROM buchung WHERE id = ?", (oid,))
@@ -548,6 +553,8 @@ def _einfuegen(con, objekt: str, f: dict) -> None:
         if f.get("automatisch"):
             con.execute("INSERT INTO regel_automatisch (regel_id, empfaenger_id) VALUES (?, ?)",
                         (f["id"], f["empfaenger_id"]))
+        con.executemany("INSERT INTO regel_tag (regel_id, tag_id) VALUES (?, ?)",
+                        [(f["id"], t) for t in f.get("tag_ids", ())])
     elif objekt == "verdacht":
         con.execute("INSERT INTO dublettenverdacht (id, buchung_id, grund, status, erstellt_am) VALUES (?, ?, ?, ?, ?)",
                     (f["id"], f["buchung_id"], f["grund"], f["status"], f["erstellt_am"]))
@@ -636,7 +643,9 @@ def bezuege_pruefen(con) -> None:
         "SELECT 1 FROM empfaenger_tag et WHERE NOT EXISTS (SELECT 1 FROM tag t WHERE t.id = et.tag_id)",
         "SELECT 1 FROM konto k WHERE k.eltern_id IS NOT NULL"
         " AND NOT EXISTS (SELECT 1 FROM konto e WHERE e.id = k.eltern_id)",
-        "SELECT 1 FROM regel r WHERE NOT EXISTS (SELECT 1 FROM konto k WHERE k.id = r.kategorie_id)",
+        "SELECT 1 FROM regel r WHERE r.kategorie_id IS NOT NULL"
+        " AND NOT EXISTS (SELECT 1 FROM konto k WHERE k.id = r.kategorie_id)",
+        "SELECT 1 FROM regel_tag rt WHERE NOT EXISTS (SELECT 1 FROM tag t WHERE t.id = rt.tag_id)",
         "SELECT 1 FROM vorschlag v WHERE v.regel_id IS NOT NULL"
         " AND NOT EXISTS (SELECT 1 FROM regel r WHERE r.id = v.regel_id)",
         "SELECT 1 FROM empfaenger e WHERE e.standardkategorie_id IS NOT NULL"

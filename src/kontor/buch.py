@@ -381,6 +381,7 @@ def tag_loeschen(con, tid: int) -> None:
     tag_lesen(con, tid)
     con.execute("DELETE FROM buchung_tag WHERE tag_id = ?", (tid,))
     con.execute("DELETE FROM empfaenger_tag WHERE tag_id = ?", (tid,))
+    con.execute("DELETE FROM regel_tag WHERE tag_id = ?", (tid,))   # D-208: die Regel bleibt, verliert nur den Tag
     con.execute("DELETE FROM tag WHERE id = ?", (tid,))
 
 

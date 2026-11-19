@@ -6,6 +6,9 @@ Verwendungszweck, Regelbetrag und Konto – oder (D-185) mit einem Ausdruck der 
 "wert": <Baum>}`` in ``bedingungen`` gespeichert; der Baum hält Verweise als IDs. Reihenfolge: ``prioritaet``
 aufsteigend, dann ``id``; die erste passende aktive Regel gewinnt. Gesetzte
 Kategorien sind Vorschläge, bis sie bestätigt oder erledigt sind.
+
+Tags (D-208): Eine Regel kann zusätzlich oder statt der Kategorie Tags vergeben (``regel_tag``). Tags sind additiv:
+die Tags aller passenden aktiven Regeln werden der Buchung sofort hinzugefügt, nie entfernt.
 """
 
 from __future__ import annotations
@@ -20,6 +23,7 @@ from .text import norm
 from .validierung import BETRAG_MAX, Validierungsfehler, fehler_eintrag, ist_int, json_koerper
 
 PRIO_MAX = 1_000_000
+TAGS_MAX = 20
 TEXTFELDER = ("empfaenger", "verwendungszweck")
 TEXT_OPS = ("enthaelt", "gleich", "beginnt_mit")
 BETRAG_OPS = ("gleich", "mindestens", "hoechstens")
@@ -100,14 +104,17 @@ def regel_koerper(roh: bytes, neu: bool, intern: bool = False) -> dict:
     fehler: list[dict] = []
     if not isinstance(d, dict):
         raise Validierungsfehler([fehler_eintrag(["body"], "JSON-Objekt erwartet.")])
-    erlaubt = ("name", "aktiv", "prioritaet", "kategorie_id", "bedingungen", "ausdruck")
+    erlaubt = ("name", "aktiv", "prioritaet", "kategorie_id", "bedingungen", "ausdruck", "tag_ids")
     for k in d:
         if k not in erlaubt:
             fehler.append(fehler_eintrag(["body", k], "Unbekanntes Feld."))
     if neu:
-        for k in ("name", "kategorie_id"):
-            if k not in d:
-                fehler.append(fehler_eintrag(["body", k], "Pflichtfeld fehlt."))
+        if "name" not in d:
+            fehler.append(fehler_eintrag(["body", "name"], "Pflichtfeld fehlt."))
+        # Mindestens eine Aktion (D-208). Nicht beim Prüfen einer Sicherung: Eine Regel kann ihre letzte Aktion
+        # verloren haben, wenn ihr einziger Tag gelöscht wurde.
+        if not intern and d.get("kategorie_id") is None and not d.get("tag_ids"):
+            fehler.append(fehler_eintrag(["body", "kategorie_id"], "Pflichtfeld fehlt (oder „tag_ids“)."))
         if "bedingungen" not in d and "ausdruck" not in d:
             fehler.append(fehler_eintrag(["body", "bedingungen"], "Pflichtfeld fehlt (oder „ausdruck“)."))
     if "bedingungen" in d and "ausdruck" in d:
@@ -140,9 +147,17 @@ def regel_koerper(roh: bytes, neu: bool, intern: bool = False) -> dict:
             fehler.append(fehler_eintrag(["body", "prioritaet"], f"Ganzzahl von 0 bis {PRIO_MAX} erwartet."))
         aus["prioritaet"] = p
     if "kategorie_id" in d:
-        if not ist_int(d["kategorie_id"]):
-            fehler.append(fehler_eintrag(["body", "kategorie_id"], "Ganzzahl erwartet."))
+        if d["kategorie_id"] is not None and not ist_int(d["kategorie_id"]):
+            fehler.append(fehler_eintrag(["body", "kategorie_id"], "Ganzzahl oder null erwartet."))
         aus["kategorie_id"] = d["kategorie_id"]
+    if "tag_ids" in d:
+        ts = d["tag_ids"]
+        if not isinstance(ts, list) or not all(ist_int(t) for t in ts):
+            fehler.append(fehler_eintrag(["body", "tag_ids"], "Liste von Ganzzahlen erwartet."))
+        elif len(ts) > TAGS_MAX or len(set(ts)) != len(ts):
+            fehler.append(fehler_eintrag(["body", "tag_ids"], f"Höchstens {TAGS_MAX} verschiedene Tags."))
+        else:
+            aus["tag_ids"] = sorted(ts)
     if "bedingungen" in d:
         bs = d["bedingungen"]
         if not isinstance(bs, list):
@@ -176,10 +191,16 @@ def _bezuege_pruefen(con, d: dict) -> None:
     if "ausdruck" in d:
         d["bedingungen"] = [{"feld": AUSDRUCK, "operator": AUSDRUCK, "wert": ausdruck_uebersetzen(con, d.pop("ausdruck"))}]
         return _bezuege_pruefen(con, d)
-    if "kategorie_id" in d:
+    if d.get("kategorie_id") is not None:
         r = buch.konto_zeile(con, d["kategorie_id"])
         if r is None or r["art"] not in KATEGORIEARTEN:
             raise ApiFehler(422, "kategorie_ungueltig", "Die Kategorie muss ein Aufwands- oder Ertragskonto sein.")
+    if d.get("tag_ids"):
+        vorhanden = {r["id"] for r in con.execute(
+            f"SELECT id FROM tag WHERE id IN ({buch._platzhalter(len(d['tag_ids']))})", d["tag_ids"])}
+        fehlt = sorted(set(d["tag_ids"]) - vorhanden)
+        if fehlt:
+            raise ApiFehler(422, "referenz_unbekannt", "Unbekannte Tags.", {"tag_ids": fehlt})
     if "bedingungen" in d and ist_ausdruck(d["bedingungen"]):
         bz = ausdruck.Bezuege.laden(con)
         b = baum(d["bedingungen"])
@@ -212,13 +233,18 @@ def regel_dict(r, bez: ausdruck.Bezuege | None = None) -> dict:
     if "automatisch" in r.keys() and r["automatisch"]:
         d["automatisch"] = True
         d["empfaenger_id"] = r["auto_empfaenger_id"]
+    # Tags (D-208): in der Protokollform nur bei Regeln mit Tags, damit bisherige Formen unverändert bleiben
+    tags = [int(t) for t in r["tag_liste"].split(",")] if "tag_liste" in r.keys() and r["tag_liste"] else []
+    if tags or bez is not None:
+        d["tag_ids"] = sorted(tags)
     if bez is not None:
         d["ausdruck"] = ausdruck_text(d["bedingungen"], bez)
         d["ausdruck_form"] = "ausdruck" if ist_ausdruck(d["bedingungen"]) else "bedingungen"
     return d
 
 
-_AUSWAHL = ("SELECT r.*, (ra.regel_id IS NOT NULL) AS automatisch, ra.empfaenger_id AS auto_empfaenger_id FROM regel r"
+_AUSWAHL = ("SELECT r.*, (ra.regel_id IS NOT NULL) AS automatisch, ra.empfaenger_id AS auto_empfaenger_id,"
+            " (SELECT group_concat(rt.tag_id) FROM regel_tag rt WHERE rt.regel_id = r.id) AS tag_liste FROM regel r"
             " LEFT JOIN regel_automatisch ra ON ra.regel_id = r.id")
 
 
@@ -298,15 +324,29 @@ def regel_anlegen(con, d: dict) -> dict:
         r = con.execute("SELECT MAX(prioritaet) AS m FROM regel").fetchone()
         prio = 100 if r["m"] is None else min(r["m"] + 10, PRIO_MAX)
     cur = con.execute("INSERT INTO regel (name, aktiv, prioritaet, kategorie_id, bedingungen) VALUES (?, ?, ?, ?, ?)",
-                      (d["name"], 1 if d.get("aktiv", True) else 0, prio, d["kategorie_id"],
+                      (d["name"], 1 if d.get("aktiv", True) else 0, prio, d.get("kategorie_id"),
                        json.dumps(d["bedingungen"], ensure_ascii=False)))
+    tags_speichern(con, cur.lastrowid, d.get("tag_ids") or [])
     return regel_lesen(con, cur.lastrowid)
+
+
+def tags_speichern(con, rid: int, tag_ids: list[int]) -> None:
+    """Setzt die Tags der Regel auf genau ``tag_ids``; unveränderte Zeilen bleiben stehen."""
+    alt = {r["tag_id"] for r in con.execute("SELECT tag_id FROM regel_tag WHERE regel_id = ?", (rid,))}
+    for t in sorted(alt - set(tag_ids)):
+        con.execute("DELETE FROM regel_tag WHERE regel_id = ? AND tag_id = ?", (rid, t))
+    for t in sorted(set(tag_ids) - alt):
+        con.execute("INSERT INTO regel_tag (regel_id, tag_id) VALUES (?, ?)", (rid, t))
 
 
 def regel_aendern(con, rid: int, d: dict) -> dict:
     alt = regel_lesen(con, rid)
     _bezuege_pruefen(con, d)
     neu = {**alt, **d}
+    if neu["kategorie_id"] is None and not neu["tag_ids"]:
+        raise ApiFehler(422, "regel_ohne_aktion", "Die Regel braucht eine Kategorie oder mindestens einen Tag.")
+    if "tag_ids" in d:
+        tags_speichern(con, rid, d["tag_ids"])
     con.execute("UPDATE regel SET name = ?, aktiv = ?, prioritaet = ?, kategorie_id = ?, bedingungen = ? WHERE id = ?",
                 (neu["name"], 1 if neu["aktiv"] else 0, neu["prioritaet"], neu["kategorie_id"],
                  json.dumps(neu["bedingungen"], ensure_ascii=False), rid))
@@ -374,10 +414,29 @@ def trifft(r: dict, s: Sicht) -> bool:
 
 
 def erste_regel(regeln: list[dict], s: Sicht) -> dict | None:
+    """Erste passende Regel mit Kategorie; Regeln, die nur Tags vergeben, verdecken nichts (D-208)."""
     for r in regeln:
-        if trifft(r, s):
+        if r["kategorie_id"] is not None and trifft(r, s):
             return r
     return None
+
+
+def tags_der_regeln(regeln: list[dict], s: Sicht) -> list[int]:
+    """Tags aller passenden Regeln (D-208), aufsteigend."""
+    aus: set[int] = set()
+    for r in regeln:
+        if r.get("tag_ids") and trifft(r, s):
+            aus.update(r["tag_ids"])
+    return sorted(aus)
+
+
+def tags_hinzufuegen(con, buchung_id: int, tag_ids: list[int], vorhanden: set[int] | None = None) -> list[int]:
+    """Hängt die fehlenden Tags an die Buchung (additiv, nie entfernen); Rückgabe: die neu vergebenen."""
+    if vorhanden is None:
+        vorhanden = {r["tag_id"] for r in con.execute("SELECT tag_id FROM buchung_tag WHERE buchung_id = ?", (buchung_id,))}
+    neu = [t for t in tag_ids if t not in vorhanden]
+    con.executemany("INSERT INTO buchung_tag (buchung_id, tag_id) VALUES (?, ?)", [(buchung_id, t) for t in neu])
+    return neu
 
 
 def vorschlag_setzen(con, buchung_id: int, split_id: int, bisheriges_konto: int, regel: dict) -> None:  # noqa: D401
@@ -412,23 +471,36 @@ def anwenden(con, buchung_ids: list[int] | None, regel_ids: list[int] | None, nu
         ids = sorted(set(buchung_ids))
     geprueft = 0
     aenderungen = []
+    tags = []
+    mit_tags = any(r.get("tag_ids") for r in regeln)
     for teil in buch._stueckweise(ids):
         for b in buch.buchungen_laden(con, teil, art_von=art_von):
             if buch.ist_gesperrt(b):
                 continue
+            sicht = ausdruck.sicht_aus_buchung(b, art_von)
+            if mit_tags:   # Tags sind additiv: auch für Splitbuchungen und bereits kategorisierte (D-208)
+                vorhanden = {t["id"] for t in b["tags"]}
+                neu = [t for t in tags_der_regeln(regeln, sicht) if t not in vorhanden]
+                if neu:
+                    tags.append({"buchung_id": b["id"], "tag_ids": neu})
+                    if not trocken:
+                        tags_hinzufuegen(con, b["id"], neu, vorhanden)
             gegen = buch._gegensplit(b, art_von)
             if gegen is None:
                 continue
             if nur_unkategorisiert and b["kategorie_id"] is not None:
                 continue
             geprueft += 1
-            r = erste_regel(regeln, ausdruck.sicht_aus_buchung(b, art_von))
+            r = erste_regel(regeln, sicht)
             if r is None or gegen["konto_id"] == r["kategorie_id"]:
                 continue
             aenderungen.append({"buchung_id": b["id"], "regel_id": r["id"], "kategorie_id": r["kategorie_id"]})
             if not trocken:
                 vorschlag_setzen(con, b["id"], gegen["id"], gegen["konto_id"], r)
-    return {"geprueft": geprueft, "anzahl": len(aenderungen), "trocken": trocken, "aenderungen": aenderungen}
+    aus = {"geprueft": geprueft, "anzahl": len(aenderungen), "trocken": trocken, "aenderungen": aenderungen}
+    if tags:   # nur wenn Regeln Tags vergeben haben; sonst bleibt die Antwort wie bisher
+        aus["tags"] = tags
+    return aus
 
 
 # ================================================================ Vorschläge
@@ -484,8 +556,8 @@ WIRKUNGEN = ("neu", "abweichend", "bereits_so", "verdeckt", "uebersprungen", "tr
 TESTMENGE_VORGABE = "datum in -12m"
 
 
-def _test_regel(con, d: dict) -> tuple[dict, int | None, int | None]:
-    """(Baum, Kategorie, ID der ersetzten Regel) aus dem Körper von /test bzw. /erklaeren."""
+def _test_regel(con, d: dict) -> tuple[dict, int | None, int | None, list[int]]:
+    """(Baum, Kategorie, ID der ersetzten Regel, Tags) aus dem Körper von /test bzw. /erklaeren."""
     rid = d.get("regel_id")
     gespeichert = regel_lesen(con, rid) if rid is not None else None
     if d.get("ausdruck") is not None:
@@ -499,7 +571,9 @@ def _test_regel(con, d: dict) -> tuple[dict, int | None, int | None]:
         r = buch.konto_zeile(con, kat)
         if r is None or r["art"] not in KATEGORIEARTEN:
             raise ApiFehler(422, "kategorie_ungueltig", "Die Kategorie muss ein Aufwands- oder Ertragskonto sein.")
-    return b, kat, rid
+    tags = sorted(set(d.get("tag_ids", gespeichert["tag_ids"] if gespeichert else None) or []))
+    _bezuege_pruefen(con, {"tag_ids": tags})
+    return b, kat, rid, tags
 
 
 def _testmenge(con, text: str | None, heute: dt.date, konto_id: int | None = None) -> list[int]:
@@ -522,8 +596,9 @@ def _testmenge(con, text: str | None, heute: dt.date, konto_id: int | None = Non
 
 
 def _bewerten(con, baum_: dict, kat: int | None, rid: int | None, ids: list[int], heute: dt.date,
-              mit_zeilen: bool = True) -> tuple[list[dict], list[int]]:
-    """Wirkung der (ungespeicherten) Regel je Buchung der Testmenge (Konzept 5.3)."""
+              mit_zeilen: bool = True, tags: list[int] | None = None) -> tuple[list[dict], list[int]]:
+    """Wirkung der (ungespeicherten) Regel je Buchung der Testmenge (Konzept 5.3). ``tags_neu``: Tags der Regel, die
+    der Buchung noch fehlen (D-208); gesperrte Buchungen bekommen keine."""
     art_von = kontoarten(con)
     andere = [r for r in regeln_liste(con, mit_ausdruck=False) if r["aktiv"] and r["id"] != rid]
     if rid is not None:
@@ -546,8 +621,13 @@ def _bewerten(con, baum_: dict, kat: int | None, rid: int | None, ids: list[int]
                                  "kategorie_vorher": b["kategorie_id"], "kategorie_nachher": kat,
                                  "verdeckt_von": None, "grund": None, "markierungen": list(aw.markierungen)}
             gegen = buch._gegensplit(b, art_von)
-            if buch.ist_gesperrt(b) or b["status"] == "abgeglichen":
+            gesperrt = buch.ist_gesperrt(b) or b["status"] == "abgeglichen"
+            hat = {t["id"] for t in b["tags"]}
+            z["tags_neu"] = [] if gesperrt else [t for t in (tags or []) if t not in hat]
+            if gesperrt:
                 z["wirkung"], z["grund"] = "uebersprungen", "gesperrt"
+            elif kat is None:   # Regel ohne Kategorie: nichts zu verdecken, Splitbuchungen zählen mit
+                z["wirkung"] = "treffer"
             elif gegen is None:
                 z["wirkung"], z["grund"] = "uebersprungen", "splitbuchung"
             else:
@@ -555,8 +635,6 @@ def _bewerten(con, baum_: dict, kat: int | None, rid: int | None, ids: list[int]
                 if vor is not None:
                     z["wirkung"] = "verdeckt"
                     z["verdeckt_von"] = {"id": vor["id"], "name": vor["name"]}
-                elif kat is None:
-                    z["wirkung"] = "treffer"
                 elif b["kategorie_id"] == kat:
                     z["wirkung"] = "bereits_so"
                 elif b["kategorie_id"] is None:
@@ -569,15 +647,16 @@ def _bewerten(con, baum_: dict, kat: int | None, rid: int | None, ids: list[int]
 
 def testen(con, d: dict, heute: dt.date) -> dict:
     """POST /api/regeln/test (Konzept 6.4): Lesezugriff, kein Protokolleintrag."""
-    baum_, kat, rid = _test_regel(con, d)
+    baum_, kat, rid, tags = _test_regel(con, d)
     ids = _testmenge(con, d.get("testmenge"), heute, d.get("konto_id"))
-    zeilen, nicht_erfasst = _bewerten(con, baum_, kat, rid, ids, heute)
+    zeilen, nicht_erfasst = _bewerten(con, baum_, kat, rid, ids, heute, tags=tags)
     zaehlung = {w: 0 for w in WIRKUNGEN}
     for z in zeilen:
         zaehlung[z["wirkung"]] += 1
     gewaehlt = [z for z in zeilen if not d.get("wirkung") or z["wirkung"] in d["wirkung"]]
     seite, pro = d.get("seite") or 1, d.get("pro_seite") or 100
     return {"testmenge_anzahl": len(ids), "anzahl": len(zeilen), "zaehlung": zaehlung,
+            "tags_anzahl": sum(1 for z in zeilen if z["tags_neu"]),
             "gesamt": len(gewaehlt), "seite": seite, "pro_seite": pro,
             "treffer": gewaehlt[(seite - 1) * pro: seite * pro],
             "nicht_erfasst": {"anzahl": len(nicht_erfasst), "buchung_ids": nicht_erfasst[:200]}}
@@ -585,7 +664,7 @@ def testen(con, d: dict, heute: dt.date) -> dict:
 
 def erklaeren(con, d: dict, heute: dt.date) -> dict:
     """POST /api/regeln/erklaeren (Konzept 6.5)."""
-    baum_, _kat, _rid = _test_regel(con, d)
+    baum_, _kat, _rid, _tags = _test_regel(con, d)
     b = buch.buchung_lesen(con, d["buchung_id"])
     art_von = kontoarten(con)
     bez = ausdruck.Bezuege.laden(con)
@@ -594,19 +673,25 @@ def erklaeren(con, d: dict, heute: dt.date) -> dict:
 
 
 def regel_anwenden(con, rid: int, d: dict, heute: dt.date) -> dict:
-    """POST /api/regeln/{id}/anwenden (Konzept 6.6): wie der Testbereich zeigt; verdeckte Treffer nicht."""
+    """POST /api/regeln/{id}/anwenden (Konzept 6.6): wie der Testbereich zeigt; verdeckte Treffer nicht.
+    Die Tags der Regel kommen an jeden nicht gesperrten Treffer, auch an verdeckte und abweichende (D-208)."""
     regel = regel_lesen(con, rid)
     baum_ = bedingungen_als_baum(regel["bedingungen"])
     ids = d.get("buchung_ids") or _testmenge(con, d.get("testmenge"), heute, d.get("konto_id"))
-    zeilen, _ = _bewerten(con, baum_, regel["kategorie_id"], rid, ids, heute, mit_zeilen=False)
+    zeilen, _ = _bewerten(con, baum_, regel["kategorie_id"], rid, ids, heute, mit_zeilen=False, tags=regel["tag_ids"])
     ziel = {"neu", "abweichend"} if d.get("abweichende_ueberschreiben") else {"neu"}
     art_von = kontoarten(con)
     geaendert = []
     for z in zeilen:
-        if z["wirkung"] not in ziel:
+        if z["wirkung"] not in ziel or regel["kategorie_id"] is None:
             continue
         b = buch.buchung_lesen(con, z["buchung_id"])
         gegen = buch._gegensplit(b, art_von)
         vorschlag_setzen(con, b["id"], gegen["id"], gegen["konto_id"], regel)
         geaendert.append(b["id"])
-    return {"geaendert": sorted(geaendert), "anzahl": len(geaendert)}
+    for z in zeilen:
+        if z["tags_neu"]:
+            tags_hinzufuegen(con, z["buchung_id"], z["tags_neu"])
+            geaendert.append(z["buchung_id"])
+    geaendert = sorted(set(geaendert))
+    return {"geaendert": geaendert, "anzahl": len(geaendert)}

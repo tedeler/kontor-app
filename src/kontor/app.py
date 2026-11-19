@@ -211,6 +211,7 @@ AUSDRUCK_ALS_REGEL = {"ausdruck": S("str", pflicht=True, min_len=1, max_len=4000
                       "freitext_feld": S("enum", werte=("empfänger", "verwendungszweck"))}
 REGELN_REIHENFOLGE = {"regel_ids": S("int_liste", pflicht=True, eindeutig=True)}
 REGEL_TEST = {"ausdruck": S("str", min_len=1, max_len=4000), "regel_id": S("int"), "kategorie_id": S("int", nullbar=True),
+              "tag_ids": S("int_liste", eindeutig=True),
               "testmenge": S("str", max_len=4000), "konto_id": S("int"), "stichtag": S("datum"),
               "wirkung": S("str_liste"),
               "seite": S("int"), "pro_seite": S("int")}

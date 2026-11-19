@@ -991,6 +991,7 @@ class SyncDienst:
             for c in exakt:
                 zaehler[c] = zaehler.get(c, 0) + 1
         regelliste = regeln.aktive_regeln(con)
+        regel_tags = any(r.get("tag_ids") for r in regelliste)
         vorlagenliste = vorlagen.aktive(con)
         # M4 (lernmodell.md 5.1): Trainingsmenge zu Beginn der Verarbeitung des Kontos
         modell = (lernmodell.trainieren(con) if self.config.lernmodell_automatisch and bewertung else None)
@@ -1046,6 +1047,8 @@ class SyncDienst:
                                          splits, (), [kennung], gegen_iban=gegen_iban)
             neue.add(bid)
             z["buchungen_neu"] += 1
+            if regel_tags:   # D-208: Tags aller passenden Regeln, unabhängig von der Stufe der Kategorie
+                regeln.tags_hinzufuegen(con, bid, regeln.tags_der_regeln(regelliste, sicht), set())
             if rate is not None:
                 plan.vergeben.add(zeile["faelligkeit"])
                 kredite.zuordnung_eintragen(con, plan.kredit["id"], zeile["faelligkeit"], bid)
