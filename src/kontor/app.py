@@ -33,7 +33,7 @@ from starlette.staticfiles import StaticFiles
 from . import (__version__, ausdruck, auswertungen, berichte, buch, db, export, kredite, lernerklaerung, lernmodell, lernregeln, mock_lerndaten, mail, monatsbericht, pflege, protokoll, regeln,
                sicherung, verschieben, vorlagen, wiederkehrend)
 from . import aktualisierung
-from . import abgleich, bankzugang, dokumente, erwartung, kontonamen
+from . import abgleich, bankzugang, bestellmail, dokumente, erwartung, kontonamen
 from . import anmeldung as anm
 from . import version as versionsinfo
 from .geheimnisse import REST_NAMEN
@@ -1091,9 +1091,20 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
         pro_seite = q.ganzzahl("pro_seite", minimum=1, maximum=500)
         zuordnung = q.auswahl("zuordnung", ("zugeordnet", "erwartet", "keine"))
         neueste = q.auswahl("reihenfolge", ("aelteste", "neueste")) == "neueste"   # M27 5 (D-171)
+        suche = q.text("suche", 1)   # D-226
         q.pruefen()
         return await lesen(maildienst.nachrichten_liste, postfach_id, seite or 1, pro_seite or 50,
-                           sync.heute().isoformat(), zuordnung, neueste)
+                           sync.heute().isoformat(), zuordnung, neueste, suche)
+
+    @endpunkt("POST", "/api/mail/nachrichten/{nachricht_id:int}/buchung", 201)
+    async def mail_an_buchung(request: Request):
+        """D-226: Mail von Hand als Dokument an eine Buchung hängen."""
+        d = json_koerper(await request.body())
+        if not isinstance(d, dict) or type(d.get("buchung_id")) is not int or set(d) - {"buchung_id"}:
+            raise Validierungsfehler([fehler_eintrag(["body", "buchung_id"], "Genau das Feld 'buchung_id' (ganze Zahl).")])
+        nid = pid(request, "nachricht_id")
+        return await aendern("dokument_aus_mail", mit_uhr(
+            lambda con, z: bestellmail.von_hand(con, nid, d["buchung_id"], z)))
 
     @app.get("/oauth2/rueckruf", include_in_schema=False)
     async def oauth_rueckruf(request: Request):

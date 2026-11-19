@@ -1,6 +1,6 @@
 /* Mail-Blatt: abgerufene Mails und ihre Zuordnung zu erwarteten Zahlungen und Buchungen. */
-import { abfrage, api, betragEl, datumText, h, oberflaeche, zeitEl, zeitText } from "./kern.js";
-import { knopf } from "./ui.js";
+import { BESTAND, abfrage, aktion, api, betragEl, datumText, h, kontoNach, nameAnzeige, oberflaeche, zeitEl, zeitText } from "./kern.js";
+import { dialog, feld, imDialog, knopf, knopfLeiste } from "./ui.js";
 
 const GRUND = { bestellung: "Bestellung", paypal: "PayPal", rueckerstattung: "Rückerstattung", manuell: "Manuell" };
 const ZUSTAND = {
@@ -26,6 +26,8 @@ export async function mailSeite(seite, _param, suche) {
   let postfach = /^\d+$/.test(p.get("postfach") || "") ? p.get("postfach") : "";
   let seiteNr = /^\d+$/.test(p.get("seite") || "") ? Number(p.get("seite")) : 1;
   let gewaehlt = p.get("id");
+  let suchtext = (p.get("suche") || "").trim();
+  let suchUhr = null;
   let stand = null;
   let gesamt = 0;
   let seiten = 1;
@@ -40,11 +42,22 @@ export async function mailSeite(seite, _param, suche) {
     "aria-label": "Inhalt der ausgewählten Mail" });
   const blaetterEl = h("div", { class: "mail-blaetter", tid: "mail-blaetter" });
   const abrufKnopf = knopf("Mails abrufen", { tid: "mail-abrufen", onclick: abrufen });
+  // D-226: einfache Suche in Absender, Betreff und Text (alle Wörter müssen vorkommen)
+  const suchFeld = h("input", { type: "search", tid: "mail-suche", class: "mail-suche", placeholder: "Absender, Betreff, Text …",
+    "aria-label": "Mails durchsuchen", value: suchtext, maxlength: "200" });
+  const suchen = () => {
+    const neu = suchFeld.value.trim();
+    if (neu === suchtext) return;
+    suchtext = neu; seiteNr = 1; gewaehlt = ""; laden();
+  };
+  suchFeld.addEventListener("input", () => { clearTimeout(suchUhr); suchUhr = setTimeout(suchen, 300); });
+  suchFeld.addEventListener("keydown", (ev) => { if (ev.key === "Enter") { clearTimeout(suchUhr); suchen(); } });
+  suchFeld.addEventListener("search", () => { clearTimeout(suchUhr); suchen(); });
   seite.append(
     h("div", { class: "seiten-kopf" }, h("h1", null, "Mail-Blatt"),
       h("div", { class: "werkzeuge" }, abrufKnopf)),
     standEl,
-    h("div", { class: "chip-leiste", tid: "mail-filter" }),
+    h("div", { class: "mail-werkzeug" }, suchFeld, h("div", { class: "chip-leiste", tid: "mail-filter" })),
     blaetterEl,
     h("div", { class: "mail-blatt" }, listeEl, leseEl));
   seite.addEventListener("keydown", (ev) => {
@@ -61,6 +74,7 @@ export async function mailSeite(seite, _param, suche) {
     const q = {};
     if (postfach) q.postfach = postfach;
     if (filter !== "alle") q.filter = filter;
+    if (suchtext) q.suche = suchtext;
     if (seiteNr > 1) q.seite = seiteNr;
     if (gewaehlt) q.id = gewaehlt;
     history.replaceState(null, "", "/mail" + abfrage(q));
@@ -99,6 +113,7 @@ export async function mailSeite(seite, _param, suche) {
     const q = { pro_seite: PRO_SEITE, seite: nr, reihenfolge: "neueste" };
     if (postfach) q.postfach_id = Number(postfach);
     if (filter !== "alle") q.zuordnung = filter;
+    if (suchtext) q.suche = suchtext;
     return api("GET", "/api/mail/nachrichten" + abfrage(q));
   }
 
@@ -120,7 +135,7 @@ export async function mailSeite(seite, _param, suche) {
       knopf("Ältere", { tid: "mail-aelter", disabled: seiteNr >= seiten, onclick: () => { seiteNr += 1; laden(); } }));
     listeEl.replaceChildren(mails.length
       ? h("table", { class: "tabelle", tid: "mail-tabelle" },
-        h("thead", null, h("tr", null, ["Empfangen", "Absender", "Betreff", "Zuordnung"].map((s) =>
+        h("thead", null, h("tr", null, ["Empfangen", "Absender und Betreff", "Zuordnung"].map((s) =>
           h("th", { scope: "col" }, s)))),
         h("tbody", null, mails.map(zeile)))
       : h("p", { class: "leer", tid: "mail-leer" }, leerText()));
@@ -130,7 +145,8 @@ export async function mailSeite(seite, _param, suche) {
 
   function inhaltZeigen() {
     const mail = mails.find((m) => String(m.id) === gewaehlt);
-    leseEl.replaceChildren(...(mail ? lesen(mail) : [h("p", { class: "leer" }, "Keine Mail ausgewählt.")]));
+    leseEl.replaceChildren(...(mail ? lesen(mail, (ausloeser) => zuordnenDialog(mail, ausloeser, laden))
+      : [h("p", { class: "leer" }, "Keine Mail ausgewählt.")]));
   }
 
   function auswahlSetzen(id, fokus) {
@@ -182,6 +198,7 @@ export async function mailSeite(seite, _param, suche) {
   }
 
   function leerText() {
+    if (gesamt === 0 && suchtext) return `Keine Mail enthält „${suchtext}“.`;
     if (gesamt === 0 && filter !== "alle") return "Keine Mail in dieser Auswahl.";
     if (!stand || !stand.postfaecher || !stand.postfaecher.length) {
       return "Keine abgerufenen Mails. Postfächer stehen unter Einstellungen.";
@@ -216,10 +233,14 @@ export async function mailSeite(seite, _param, suche) {
     const an = String(m.id) === gewaehlt;
     const tr = h("tr", { tid: `mail-${m.id}`, tabindex: an ? "0" : "-1", "aria-selected": an ? "true" : "false",
       class: "klickbar" + (an ? " gewaehlt" : ""), "data-zuordnung": art(m) },
-    zeitEl("td", m.empfangen),
-    h("td", null, h("div", null, m.absender), h("small", { class: "klein" }, m.postfach)),
-    h("td", null, m.betreff || "(ohne Betreff)"),
-    h("td", null, zuordnungKurz(m)));
+    // Datum und Uhrzeit je in einer Zeile, ohne Umbruch mitten im Datum; Absender und Betreff untereinander
+    h("td", { class: "mail-zeit", "data-zeitpunkt": m.empfangen || "", title: zeitText(m.empfangen) },
+      h("div", null, tagText(m.empfangen)), h("div", { class: "klein" }, uhrText(m.empfangen))),
+    h("td", { class: "mail-wer" },
+      h("div", { class: "mail-absender", title: m.absender }, absenderName(m.absender)),
+      h("div", { class: "mail-betreff" }, m.betreff || "(ohne Betreff)"),
+      mehrerePostfaecher() ? h("div", { class: "klein mail-postfach" }, m.postfach) : null),
+    h("td", { class: "mail-zuordnung-zelle" }, zuordnungKurz(m)));
     tr.addEventListener("click", () => auswahlSetzen(m.id, false));
     tr.addEventListener("keydown", (ev) => {
       if (ev.target !== tr || ev.key !== "Enter") return;
@@ -227,6 +248,10 @@ export async function mailSeite(seite, _param, suche) {
       leseEl.focus({ preventScroll: true });
     });
     return tr;
+  }
+
+  function mehrerePostfaecher() {
+    return !postfach && ((stand && stand.postfaecher) || []).length > 1;
   }
 
   async function abrufen() {
@@ -262,7 +287,7 @@ function abrufErgebnis(erg) {
 function zuordnungKurz(m) {
   if (!m.zuordnung.length && !haengt(m).length) return h("span", { class: "klein" }, "Nicht erkannt");
   return [haengt(m).length ? h("div", { class: "mail-zuordnung", "data-zustand": "erfuellt" },
-    h("span", { class: "grund-marke" }, "Bestellnummer"),
+    h("span", { class: "grund-marke" }, haengt(m).some((b) => b.nummer) ? "Bestellnummer" : "Von Hand"),
     h("div", { class: "klein" }, haengt(m).map((b) => h("div", null, buchungsKnopf(b))))) : null,
   ...m.zuordnung.map((z) => h("div", { class: "mail-zuordnung", "data-zustand": z.ueberfaellig ? "ueberfaellig" : z.zustand },
     h("span", { class: "grund-marke" }, z.ueberfaellig ? "überfällig" : (ZUSTAND[z.zustand] || z.zustand)),
@@ -279,7 +304,116 @@ function buchungsKnopf(b) {
   `${datumText(b.datum)} ${name}`);
 }
 
-function lesen(m) {
+const zwei = (n) => String(n).padStart(2, "0");
+/** „Heute“, „Gestern“ oder das Datum; die Uhrzeit steht in der Zeile darunter. */
+function tagText(wert) {
+  const d = new Date(wert);
+  if (!wert || Number.isNaN(d.getTime())) return wert || "";
+  const tag = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const abstand = Math.round((tag(new Date()) - tag(d)) / 86400000);
+  if (abstand === 0) return "Heute";
+  if (abstand === 1) return "Gestern";
+  return `${zwei(d.getDate())}.${zwei(d.getMonth() + 1)}.${d.getFullYear()}`;
+}
+function uhrText(wert) {
+  const d = new Date(wert);
+  return !wert || Number.isNaN(d.getTime()) ? "" : `${zwei(d.getHours())}:${zwei(d.getMinutes())}`;
+}
+/** Anzeigename des Absenders („Name <adresse>“ → Name); die volle Angabe steht im Tooltip und im Lesebereich. */
+function absenderName(absender) {
+  const m = /^\s*"?([^"<]*?)"?\s*<[^>]*>\s*$/.exec(absender || "");
+  return (m && m[1].trim()) || absender || "(ohne Absender)";
+}
+
+/** Beträge im Betreff und Text einer Mail („12,34 €“, „EUR 1.234,56“) in Cent. */
+function betraegeDerMail(m) {
+  const aus = new Set();
+  const text = `${m.betreff || ""} ${m.text || ""}`;
+  for (const t of text.matchAll(/(?:€|EUR)\s*(\d{1,3}(?:\.\d{3})*|\d+),(\d{2})(?!\d)|(\d{1,3}(?:\.\d{3})*|\d+),(\d{2})\s*(?:€|EUR)/g)) {
+    const ganz = (t[1] || t[3]).replace(/\./g, "");
+    aus.add(Number(ganz) * 100 + Number(t[2] || t[4]));
+  }
+  return aus;
+}
+
+const tageVersetzt = (iso, tage) => {
+  const d = new Date(`${iso}T12:00:00`);
+  d.setDate(d.getDate() + tage);
+  return `${d.getFullYear()}-${zwei(d.getMonth() + 1)}-${zwei(d.getDate())}`;
+};
+
+/** D-226: Mail von Hand an eine Buchung hängen. Vorschläge: Buchungen um das Maildatum, passende Beträge zuerst. */
+function zuordnenDialog(m, ausloeser, danach) {
+  const d0 = new Date(m.empfangen);
+  const mailTag = Number.isNaN(d0.getTime()) ? new Date().toISOString().slice(0, 10)
+    : `${d0.getFullYear()}-${zwei(d0.getMonth() + 1)}-${zwei(d0.getDate())}`;
+  const betraege = betraegeDerMail(m);
+  dialog("mail-zuordnen-dialog", "Mail einer Buchung zuordnen", (inhalt, d) => {
+    const von = h("input", { type: "date", value: tageVersetzt(mailTag, -14), tid: "mail-zuordnen-von" });
+    const bis = h("input", { type: "date", value: tageVersetzt(mailTag, 30), tid: "mail-zuordnen-bis" });
+    const text = h("input", { type: "search", placeholder: "Empfänger, Verwendungszweck, Betrag …", tid: "mail-zuordnen-suche" });
+    const liste = h("div", { class: "mail-zuordnen-liste", tid: "mail-zuordnen-liste", role: "listbox", "aria-label": "Buchungen" });
+    const ok = knopf("Zuordnen", { class: "knopf knopf-haupt", tid: "mail-zuordnen-ok", disabled: true });
+    let buchungen = [];
+    let wahl = null;
+    let nr = 0;
+    const betragVon = (b) => b.splits.filter((s) => BESTAND.has((kontoNach(s.konto_id) || {}).art)).reduce((n, s) => n + s.betrag, 0);
+    const zeichnen = () => {
+      const woerter = text.value.toLowerCase().split(/\s+/).filter(Boolean);
+      const passt = (b) => {
+        const heu = `${b.empfaenger ? b.empfaenger.name : ""} ${b.verwendungszweck || ""} ${(Math.abs(betragVon(b)) / 100).toFixed(2).replace(".", ",")}`.toLowerCase();
+        return woerter.every((w) => heu.includes(w));
+      };
+      const sicht = buchungen.filter(passt)
+        .sort((a, b) => Number(betraege.has(Math.abs(betragVon(b)))) - Number(betraege.has(Math.abs(betragVon(a)))));
+      if (!sicht.some((b) => b.id === wahl)) wahl = null;
+      ok.disabled = wahl === null;
+      liste.replaceChildren(...(sicht.length ? sicht.map((b) => {
+        const treffer = betraege.has(Math.abs(betragVon(b)));
+        const el = h("div", { class: "mail-zuordnen-zeile" + (b.id === wahl ? " gewaehlt" : ""), role: "option", tabindex: "0",
+          tid: `mail-zuordnen-buchung-${b.id}`, "aria-selected": b.id === wahl ? "true" : "false", "data-betrag-passt": treffer ? "ja" : "nein" },
+        h("span", { class: "mail-zuordnen-datum" }, datumText(b.datum)),
+        h("span", { class: "mail-zuordnen-text" }, h("strong", null, b.empfaenger ? nameAnzeige(b.empfaenger.name) : "ohne Empfänger"),
+          b.verwendungszweck ? ` · ${b.verwendungszweck}` : ""),
+        treffer ? h("span", { class: "grund-marke" }, "Betrag passt") : null,
+        betragEl("span", betragVon(b), { class: "zahl" }));
+        const waehlen = () => { wahl = b.id; zeichnen(); };
+        el.addEventListener("click", waehlen);
+        el.addEventListener("dblclick", () => { wahl = b.id; ok.disabled = false; ok.click(); });
+        el.addEventListener("keydown", (ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); waehlen(); } });
+        return el;
+      }) : [h("p", { class: "leer" }, buchungen.length ? "Keine Buchung passt zur Suche." : "Keine Buchungen in diesem Zeitraum.")]));
+    };
+    const holen = async () => {
+      const lauf = ++nr;
+      liste.replaceChildren(h("p", { class: "leer" }, "Buchungen werden geladen…"));
+      try {
+        const r = await api("GET", `/api/buchungen${abfrage({ von: von.value, bis: bis.value, sortierung: "-datum", pro_seite: 500 })}`);
+        if (lauf !== nr) return;
+        buchungen = r.eintraege;
+        zeichnen();
+      } catch (e) {
+        if (lauf === nr) liste.replaceChildren(h("p", { class: "fehler", role: "alert" }, e.message));
+      }
+    };
+    von.addEventListener("change", holen);
+    bis.addEventListener("change", holen);
+    text.addEventListener("input", zeichnen);
+    ok.addEventListener("click", () => imDialog(d, ok, async () => {
+      await aktion(() => api("POST", `/api/mail/nachrichten/${m.id}/buchung`, { buchung_id: wahl }),
+        { stillBeiFehler: true, danach: () => d.schliessen(true), erfolg: "Mail an die Buchung gehängt." });
+      if (danach) danach();
+    }));
+    inhalt.append(
+      h("p", { class: "klein" }, `„${m.betreff || "(ohne Betreff)"}“ von ${absenderName(m.absender)}, ${zeitText(m.empfangen)}. `
+        + "Die Mail wird als Dokument an die gewählte Buchung gehängt."),
+      h("div", { class: "formular-zeile" }, feld("Buchungen von", von), feld("bis", bis), feld("Suchen", text)),
+      liste, knopfLeiste(ok, knopf("Abbrechen", { onclick: () => d.schliessen(null) })));
+    holen();
+  }, { ausloeser, klasse: "dialog-breit" });
+}
+
+function lesen(m, zuordnen) {
   return [
     h("h2", null, m.betreff || "(ohne Betreff)"),
     h("dl", { class: "mail-kopf" },
@@ -288,7 +422,8 @@ function lesen(m) {
       h("dt", null, "Empfangen"), h("dd", null, zeitEl("span", m.empfangen)),
       h("dt", null, "Stand"), h("dd", null, standDerMail(m))),
     h("h3", null, "Zuordnung"),
-    zuordnungAusfuehrlich(m),
+    h("div", null, zuordnungAusfuehrlich(m)),
+    zuordnen ? h("p", null, knopf("Buchung zuordnen…", { tid: "mail-zuordnen", onclick: (ev) => zuordnen(ev.currentTarget) })) : null,
     h("h3", null, "Text"),
     h("pre", { class: "mail-text", tid: "mail-text" }, m.text || ""),
   ];
@@ -297,7 +432,7 @@ function lesen(m) {
 function standDerMail(m) {
   const a = art(m);
   if (a === "keine") return "Nicht zugeordnet. Keine Buchung trägt eine Bestellnummer aus dieser Mail.";
-  if (haengt(m).length) return "Über die Bestellnummer an eine Buchung gehängt.";
+  if (haengt(m).length) return haengt(m).some((b) => b.nummer) ? "Über die Bestellnummer an eine Buchung gehängt." : "Von Hand an eine Buchung gehängt.";
   if (a === "erwartet") return "Erwartet. Eine Zahlung ist vorgemerkt, aber noch keiner Buchung zugeordnet.";
   return "Einer Buchung zugeordnet.";
 }

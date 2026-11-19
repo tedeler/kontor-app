@@ -687,14 +687,23 @@ class MailDienst:
         return zeit_lesen(r) + dt.timedelta(minutes=self.config.mail_intervall_minuten) <= self._jetzt()
 
     def nachrichten_liste(self, con, postfach_id: int | None, seite: int, pro_seite: int,
-                          heute: str | None = None, zuordnung: str | None = None, neueste: bool = False) -> dict:
-        wo, par = "", []
+                          heute: str | None = None, zuordnung: str | None = None, neueste: bool = False,
+                          suche: str | None = None) -> dict:
+        teile, par = [], []
         if postfach_id is not None:
-            wo, par = " WHERE p.id = ?", [buch.sichere_id(postfach_id)]
+            teile.append("p.id = ?")
+            par.append(buch.sichere_id(postfach_id))
+        for wort in (suche or "").split():   # D-226: jedes Wort muss in Absender, Betreff oder Text vorkommen
+            teile.append("instr(norm(COALESCE(n.absender, '') || ' ' || COALESCE(n.betreff, '') || ' '"
+                         " || COALESCE(n.text, '')), norm(?)) > 0")
+            par.append(wort)
+        wo = (" WHERE " + " AND ".join(teile)) if teile else ""
         from . import bestellmail, erwartung
         zuord = erwartung.zuordnungen_nach_mail(con, heute) if heute else {}
         # D-208: über die Bestellnummer angehaengte Mails; das Feld gibt es nur mit ``mail_bestellnummer``
-        haengt = bestellmail.angehaengt_nach_mail(con) if self.config.mail_bestellnummer else None
+        # (D-226: auch ohne die Einstellung, sobald eine Mail von Hand an eine Buchung gehängt wurde)
+        haengt = bestellmail.angehaengt_nach_mail(con) if (
+            self.config.mail_bestellnummer or bestellmail.von_hand_vorhanden(con)) else None
         reihen = con.execute(
             "SELECT n.id, n.adresse_cf, n.nachricht_id FROM mail_nachricht n"
             " JOIN postfach p ON p.adresse_cf = n.adresse_cf" + wo

@@ -141,3 +141,40 @@ def test_tags_seite_und_dubletten_sprung(tmp_path, browser):
         page.locator(f"[data-testid^=dublette-buchung-{ids[1]}-konto-]").first.click()
         bereit(page, "konto")
         expect(tid(page, f"buchung-{ids[1]}")).to_have_attribute("aria-selected", "true")
+
+
+def test_mailblatt_suche_und_zuordnen(tmp_path, browser):
+    import httpx
+    with server(tmp_path, mail_abgleich=False) as (url, _), seite(browser, url, **DESKTOP) as page:
+        c = httpx.Client(base_url=url, trust_env=False, timeout=60)
+        assert c.post("/api/mail/postfaecher", json={"adresse": "haushalt.eins@example.invalid"}).status_code == 201
+        assert c.post("/api/mail/abruf").status_code == 200
+        mails = c.get("/api/mail/nachrichten", params={"pro_seite": 100, "reihenfolge": "neueste"}).json()
+        assert mails["gesamt"] > 2
+        ziel = mails["eintraege"][-1]
+        wort = ziel["absender"].split("@")[0].split("<")[-1]
+        # Suche über die REST-Schnittstelle: jedes Wort muss vorkommen
+        treffer = c.get("/api/mail/nachrichten", params={"suche": wort}).json()
+        assert 0 < treffer["gesamt"] < mails["gesamt"]
+        assert c.get("/api/mail/nachrichten", params={"suche": wort + " gibtsnichtxyz"}).json()["gesamt"] == 0
+        buchung = c.get("/api/buchungen", params={"pro_seite": 1, "sortierung": "-datum"}).json()["eintraege"][0]
+        page.goto(url + "/mail")
+        bereit(page, "mail")
+        zeilen = page.locator("[data-testid=mail-tabelle] tbody tr")
+        expect(zeilen).to_have_count(min(100, mails["gesamt"]))
+        # Datum bricht nicht mitten in der Zahl um
+        assert zeilen.first.locator("td.mail-zeit div").first.bounding_box()["height"] < 30
+        tid(page, "mail-suche").fill(wort)
+        expect(zeilen).to_have_count(min(100, treffer["gesamt"]))
+        assert "suche=" in page.url
+        tid(page, f"mail-{ziel['id']}").click()
+        tid(page, "mail-zuordnen").click()
+        expect(tid(page, "mail-zuordnen-dialog")).to_be_visible()
+        tid(page, "mail-zuordnen-von").fill("2024-01-01")
+        tid(page, "mail-zuordnen-von").dispatch_event("change")
+        tid(page, f"mail-zuordnen-buchung-{buchung['id']}").click()
+        tid(page, "mail-zuordnen-ok").click()
+        expect(tid(page, "mail-zuordnen-dialog")).to_be_hidden()
+        expect(tid(page, f"mail-angehaengt-{buchung['id']}")).to_contain_text("Von Hand zugeordnet")
+        dann = c.get("/api/mail/nachrichten", params={"suche": wort, "zuordnung": "zugeordnet"}).json()
+        assert any(m["id"] == ziel["id"] for m in dann["eintraege"])

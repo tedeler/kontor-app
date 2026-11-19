@@ -178,8 +178,27 @@ def angehaengt_nach_mail(con) -> dict[str, list[dict]]:
         aus.setdefault(r["nachricht_id"], []).append({
             "id": r["id"], "datum": r["datum"], "konto_id": r["konto_id"], "empfaenger": r["empfaenger"],
             "verwendungszweck": r["verwendungszweck"], "nummer": r["nummer"],
-            "warum": f"Die Bestellnummer „{r['nummer']}“ steht in der Buchung."})
+            "warum": (f"Die Bestellnummer „{r['nummer']}“ steht in der Buchung." if r["nummer"]
+                      else "Von Hand zugeordnet.")})
     return aus
+
+
+def von_hand_vorhanden(con) -> bool:
+    return con.execute("SELECT 1 FROM bestellmail WHERE nummer = '' LIMIT 1").fetchone() is not None
+
+
+def von_hand(con, nachricht_db_id: int, buchung_id: int, zeitpunkt: str) -> dict:
+    """D-226: eine gespiegelte Mail von Hand als Dokument an eine Buchung hängen. Der Vermerk in ``bestellmail``
+    (leere Nummer) lässt das Mail-Blatt die Zuordnung zeigen; er entfällt mit dem Dokument an der Buchung."""
+    from . import buch
+    r = con.execute("SELECT nachricht_id FROM mail_nachricht WHERE id = ?", (buch.sichere_id(nachricht_db_id),)).fetchone()
+    if r is None:
+        raise buch.nicht_gefunden("Die E-Mail")
+    dok = dokumente.aus_mail(con, nachricht_db_id, [buchung_id], zeitpunkt)
+    con.execute("INSERT INTO bestellmail (buchung_id, nachricht_id, nummer, dokument_id) VALUES (?, ?, '', ?)"
+                " ON CONFLICT(buchung_id, nachricht_id) DO UPDATE SET dokument_id = excluded.dokument_id",
+                (buchung_id, r["nachricht_id"], dok["id"]))
+    return dok
 
 
 def laufen(config: KontorConfig, jetzt: dt.datetime) -> dict | None:
