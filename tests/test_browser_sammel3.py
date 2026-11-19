@@ -106,3 +106,38 @@ def test_personentags_werden_umbenannt(tmp_path):
     c.post("/api/tags", json={"name": "B-Tina"})
     c = TestClient(create_app(config))
     assert sorted(t["name"] for t in c.get("/api/tags").json()) == ["B-Tina", "B-Torsten"]
+
+
+def test_tags_seite_und_dubletten_sprung(tmp_path, browser):
+    import httpx
+    with server(tmp_path) as (url, _), seite(browser, url, **DESKTOP) as page:
+        c = httpx.Client(base_url=url, trust_env=False)
+        tag = c.post("/api/tags", json={"name": "Urlaub"}).json()["id"]
+        buchungen = c.get("/api/buchungen", params={"pro_seite": 5, "sortierung": "datum"}).json()["eintraege"]
+        ids = [b["id"] for b in buchungen[:2]]
+        assert c.post("/api/buchungen/mehrfach/tags", json={"buchung_ids": ids, "hinzufuegen": [tag], "entfernen": []}).status_code == 200
+        assert c.post("/api/dubletten", json={"buchung_ids": ids}).status_code == 201
+        page.goto(url + "/")
+        bereit(page, "uebersicht")
+        tid(page, "navlink-tags").click()
+        bereit(page, "tags")
+        expect(tid(page, f"tag-zeile-{tag}")).to_contain_text("Urlaub")
+        tid(page, f"tag-zeile-{tag}").locator("td").first.click()
+        expect(tid(page, "tag-summe")).to_contain_text("2 Buchungen")
+        expect(page.locator("[data-testid=tag-buchungen] tbody tr")).to_have_count(2)
+        assert page.url.endswith(f"/tags?tag={tag}")
+        # neues Tag anlegen
+        tid(page, "tag-anlegen").click()
+        tid(page, "tag-name").fill("Steuer")
+        tid(page, "tag-speichern").click()
+        expect(tid(page, "tag-liste")).to_contain_text("Steuer")
+        # von der Buchung des Tags ins Kontoblatt
+        page.locator(f"[data-testid^=tag-buchung-{ids[0]}-konto-]").first.click()
+        bereit(page, "konto")
+        expect(tid(page, f"buchung-{ids[0]}")).to_have_attribute("aria-selected", "true")
+        # Dubletten: zur Buchung springen (D-222)
+        page.goto(url + "/dubletten")
+        bereit(page, "dubletten")
+        page.locator(f"[data-testid^=dublette-buchung-{ids[1]}-konto-]").first.click()
+        bereit(page, "konto")
+        expect(tid(page, f"buchung-{ids[1]}")).to_have_attribute("aria-selected", "true")

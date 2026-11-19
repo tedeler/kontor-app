@@ -184,6 +184,73 @@ export async function kategorienSeite(seite) {
   return { titel: "Kategorien" };
 }
 
+// ------------------------------------------------------------------ Tags (D-225)
+function tagDialog(t, ausloeser) {
+  dialog("tag-dialog", t ? `Tag „${t.name}“ umbenennen` : "Tag anlegen", (inhalt, d) => {
+    const n = h("input", { type: "text", value: t ? t.name : "", maxlength: "100", tid: "tag-name" });
+    const ok = knopf("Speichern", { class: "knopf knopf-haupt", tid: "tag-speichern" });
+    ok.addEventListener("click", () => imDialog(d, ok, () => aktion(
+      () => (t ? api("PATCH", `/api/tags/${t.id}`, { name: n.value.trim() }) : api("POST", "/api/tags", { name: n.value.trim() })),
+      { stillBeiFehler: true, danach: () => d.schliessen(true), erfolg: t ? "Tag umbenannt." : "Tag angelegt." })));
+    n.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); ok.click(); } });
+    inhalt.append(feld("Name", n), knopfLeiste(ok, knopf("Abbrechen", { onclick: () => d.schliessen(null) })));
+  }, { ausloeser });
+}
+
+/** Tags wie die Kategorien als eigene Ansicht: Liste aller Tags, darunter die Buchungen des gewählten Tags. */
+export async function tagsSeite(seite, _p, suche) {
+  kopf(seite, "Tags", knopf("Tag anlegen", { tid: "tag-anlegen", onclick: (e) => tagDialog(null, e.currentTarget) }));
+  const liste = stamm.tags.slice().sort(nachName);
+  if (!liste.length) { seite.append(leer("Noch keine Tags.")); return { titel: "Tags" }; }
+  let gewaehlt = Number(new URLSearchParams(suche || "").get("tag")) || null;
+  if (!liste.some((t) => t.id === gewaehlt)) gewaehlt = null;
+  const inhalt = h("section", { class: "karte", tid: "tag-buchungen", "aria-live": "polite" });
+  const zeilen = new Map();
+  const zeigen = async () => {
+    for (const [id, tr] of zeilen) {
+      tr.classList.toggle("gewaehlt", id === gewaehlt);
+      tr.setAttribute("aria-selected", id === gewaehlt ? "true" : "false");
+    }
+    history.replaceState(null, "", "/tags" + abfrage(gewaehlt ? { tag: gewaehlt } : {}));
+    if (oberflaeche.urlGeaendert) oberflaeche.urlGeaendert();
+    const t = liste.find((x) => x.id === gewaehlt);
+    if (!t) { inhalt.replaceChildren(h("p", { class: "leer" }, "Ein Tag wählen, um seine Buchungen zu sehen.")); return; }
+    inhalt.replaceChildren(h("h2", null, `Buchungen mit „${t.name}“`), h("p", { class: "leer" }, "Buchungen werden geladen…"));
+    try {
+      const r = await api("GET", `/api/buchungen${abfrage({ tag_id: t.id, sortierung: "-datum", pro_seite: MAX_EINZELBUCHUNGEN })}`);
+      if (gewaehlt !== t.id) return;
+      const summe = r.eintraege.reduce((n, b) => n + b.splits.filter((s) => BESTAND.has((kontoNach(s.konto_id) || {}).art))
+        .reduce((m, s) => m + s.betrag, 0), 0);
+      inhalt.replaceChildren(h("h2", null, `Buchungen mit „${t.name}“`),
+        h("p", { class: "klein", tid: "tag-summe" }, `${r.gesamt} ${r.gesamt === 1 ? "Buchung" : "Buchungen"} · Summe `, betragEl("span", summe),
+          r.gesamt > r.eintraege.length ? ` (der neuesten ${r.eintraege.length})` : ""),
+        r.eintraege.length ? buchungsTabelle(r.eintraege, new Set(), "tag") : h("p", { class: "leer" }, "Keine Buchung trägt dieses Tag."));
+    } catch (e) {
+      inhalt.replaceChildren(h("p", { class: "fehler", role: "alert" }, e.message));
+    }
+  };
+  const tab = tabelle({ class: "tabelle tag-liste", tid: "tag-liste" }, ["Tag", "Buchungen", ""], liste.map((t) => {
+    const person = personVonTag(t.name);
+    const tr = h("tr", { tid: `tag-zeile-${t.id}`, "data-id": String(t.id), class: "klickbar", tabindex: "0", "aria-selected": "false" },
+      h("td", null, h("span", { class: person ? "tag tag-person" : "tag", "data-person": person }, t.name)),
+      h("td", { class: "zahl" }, String(t.anzahl_buchungen)),
+      h("td", null, knopf("Umbenennen…", { "aria-label": `Tag ${t.name} umbenennen`, onclick: (e) => tagDialog(t, e.currentTarget) }),
+        knopf("Löschen", { "aria-label": `Tag ${t.name} löschen`, onclick: async (e) => {
+          if (!(await bestaetigen(`Tag „${t.name}“ löschen? Es wird von ${t.anzahl_buchungen} Buchungen entfernt.`,
+            { ja: "Löschen", ausloeser: e.currentTarget }))) return;
+          try { await aktion(() => api("DELETE", `/api/tags/${t.id}`), { erfolg: "Tag gelöscht." }); } catch (f) { /* gemeldet */ }
+        } })));
+    const waehlen = () => { gewaehlt = gewaehlt === t.id ? null : t.id; zeigen(); };
+    tr.addEventListener("click", (e) => { if (!e.target.closest("button")) waehlen(); });
+    tr.addEventListener("keydown", (e) => { if (e.target === tr && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); waehlen(); } });
+    zeilen.set(t.id, tr);
+    return tr;
+  }), ["titel", "info:Buchungen", "aktion"]);
+  seite.append(h("p", { class: "klein" }, "Ein Tag anklicken zeigt seine Buchungen; von dort führt „Im Konto zeigen“ ins Kontoblatt."), tab, inhalt);
+  await zeigen();
+  return { titel: "Tags" };
+}
+
 // ------------------------------------------------------------------ Kredite (13.4)
 const zinsText = (millionstel) => {
   const ganz = Math.trunc(millionstel / 10000);
