@@ -1,0 +1,255 @@
+"""Testinstanz für Entwicklungsbranches (D-205).
+
+Eine zweite, getrennte Kontor-Instanz auf demselben Server: eigenes Programmverzeichnis mit dem Quellbaum eines
+Branches, eigenes Datenverzeichnis mit einer Kopie der Datenbank, eigener Port, Mock-Modus. Die Hauptinstanz wird
+dabei nur gelesen (konsistente Kopie über die Online-Sicherung von SQLite) und sonst nicht berührt.
+
+Aufruf als root mit dem Python der Hauptinstanz::
+
+    /opt/kontor/venv/bin/python -m kontor.testinstanz einrichten feature/<kurzname>
+    /opt/kontor/venv/bin/python -m kontor.testinstanz stoppen [--loeschen]
+
+Aus der Kopie werden alle Geheimnisse (Chiffretexte, verpackter Datenschlüssel), offene TAN-Anforderungen und der
+gespeicherte Bankzugang entfernt, bevor die Testinstanz sie zu sehen bekommt.
+"""
+
+from __future__ import annotations
+
+import argparse
+import contextlib
+import os
+import pathlib
+import re
+import shutil
+import sqlite3
+import subprocess
+import sys
+from collections.abc import Callable
+from dataclasses import dataclass
+from importlib import resources
+
+from . import version as versionsinfo
+
+DIENST = "kontor-test.service"
+DATENBANK = "kontor-test.sqlite3"
+_BRANCH = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$")
+# Tabellen, deren Inhalt die Testinstanz nie bekommt (nur falls in dieser Schemaversion vorhanden)
+_LEEREN = ("geheimnis", "geheimnis_huelle", "tan_anforderung")
+# Betriebszustand in ``meta``, der zum echten Bankzugang gehört
+_META_ENTFERNEN = ("bank!_fints!_%", "bank!_diagnose")
+
+
+class TestinstanzFehler(Exception):
+    __test__ = False  # kein pytest-Testfall
+
+
+@dataclass(frozen=True)
+class Orte:
+    """Pfade der Haupt- und der Testinstanz (in Tests auf ein temporäres Verzeichnis umgebogen)."""
+
+    haupt_env: pathlib.Path = pathlib.Path("/etc/kontor/kontor.env")
+    programm: pathlib.Path = pathlib.Path("/opt/kontor-test")
+    daten: pathlib.Path = pathlib.Path("/var/lib/kontor-test")
+    env: pathlib.Path = pathlib.Path("/etc/kontor/kontor-test.env")
+    unit: pathlib.Path = pathlib.Path("/etc/systemd/system") / DIENST
+    benutzer: str | None = "kontor"
+
+    @property
+    def quelle(self) -> pathlib.Path:
+        return self.programm / "src"
+
+    @property
+    def venv(self) -> pathlib.Path:
+        return self.programm / "venv"
+
+    @property
+    def datenbank(self) -> pathlib.Path:
+        return self.daten / DATENBANK
+
+
+Befehl = Callable[[list[str]], None]
+
+
+def _ausfuehren(args: list[str]) -> None:
+    umgebung = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
+    r = subprocess.run(args, capture_output=True, text=True, timeout=1800, check=False, env=umgebung)  # noqa: S603
+    if r.returncode != 0:
+        letzte = (r.stderr or "").strip().splitlines()[-1:] or [""]
+        raise TestinstanzFehler(f"„{' '.join(args[:3])} …“ schlug fehl (Rückgabecode {r.returncode}). {letzte[0]}"
+                                .strip())
+
+
+def branch_pruefen(name: str) -> str:
+    """Nur gewöhnliche Branchnamen; nichts, was Git oder die Shell als Option oder Pfad deuten könnte."""
+    if not _BRANCH.match(name) or ".." in name or "//" in name or name.endswith(("/", ".", ".lock")):
+        raise TestinstanzFehler(f"„{name}“ ist kein gültiger Branchname.")
+    return name
+
+
+def hauptdatenbank(haupt_env: pathlib.Path) -> pathlib.Path:
+    """Pfad der Datenbank der Hauptinstanz aus deren Umgebungsdatei (``KONTOR_DATENBANK``)."""
+    try:
+        zeilen = haupt_env.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        raise TestinstanzFehler(f"Die Umgebungsdatei der Hauptinstanz ({haupt_env}) ist nicht lesbar.") from None
+    for zeile in zeilen:
+        schluessel, trenner, wert = zeile.strip().partition("=")
+        if trenner and schluessel.strip() == "KONTOR_DATENBANK" and wert.strip():
+            return pathlib.Path(wert.strip().strip("\"'"))
+    raise TestinstanzFehler(f"In {haupt_env} steht kein KONTOR_DATENBANK.")
+
+
+def bereinigen(con: sqlite3.Connection) -> None:
+    """Geheimnisse, offene TAN-Anforderungen und den gespeicherten Bankzugang aus der Kopie entfernen."""
+    vorhanden = {r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+    for tabelle in _LEEREN:
+        if tabelle in vorhanden:
+            con.execute(f"DELETE FROM {tabelle}")  # noqa: S608 – feste Tabellennamen aus _LEEREN
+    if "meta" in vorhanden:
+        for muster in _META_ENTFERNEN:
+            con.execute("DELETE FROM meta WHERE schluessel LIKE ? ESCAPE '!'", (muster,))
+    con.commit()
+
+
+def daten_kopieren(quelle: pathlib.Path, ziel: pathlib.Path) -> None:
+    """Konsistente Kopie der laufenden Datenbank; die Quelle wird nur lesend geöffnet.
+
+    Die Kopie entsteht neben dem Ziel, wird bereinigt und neu geschrieben (``VACUUM``, damit gelöschte Geheimnisse
+    auch nicht in freien Seiten stehen bleiben) und ersetzt erst dann eine frühere Kopie.
+    """
+    if not quelle.is_file():
+        raise TestinstanzFehler(f"Die Datenbank der Hauptinstanz ({quelle}) gibt es nicht.")
+    if ziel.exists() and ziel.resolve() == quelle.resolve():
+        raise TestinstanzFehler("Die Testinstanz darf nicht die Datenbank der Hauptinstanz benutzen.")
+    ziel.parent.mkdir(parents=True, exist_ok=True)
+    neu = ziel.with_name(ziel.name + ".neu")
+    _weg(neu)
+    try:
+        con_q = sqlite3.connect(f"{quelle.resolve().as_uri()}?mode=ro", uri=True, timeout=30)
+        con_z = sqlite3.connect(neu, isolation_level=None)
+        try:
+            con_q.backup(con_z)
+            # WAL der Quelle übernimmt die Kopie als Vorgabe; für VACUUM und das Ersetzen braucht es eine Datei
+            con_z.execute("PRAGMA journal_mode = DELETE")
+            bereinigen(con_z)
+            con_z.execute("VACUUM")
+        finally:
+            con_z.close()
+            con_q.close()
+    except sqlite3.Error as e:
+        _weg(neu)
+        raise TestinstanzFehler(f"Die Datenbank ließ sich nicht kopieren ({type(e).__name__}).") from None
+    _weg(ziel)
+    os.replace(neu, ziel)
+    os.chmod(ziel, 0o600)
+
+
+def _weg(datenbank: pathlib.Path) -> None:
+    for datei in (datenbank, datenbank.with_name(datenbank.name + "-wal"),
+                  datenbank.with_name(datenbank.name + "-shm"), datenbank.with_name(datenbank.name + "-journal")):
+        with contextlib.suppress(FileNotFoundError):
+            datei.unlink()
+
+
+def _besitz(pfad: pathlib.Path, benutzer: str | None) -> None:
+    if benutzer is not None:
+        try:
+            shutil.chown(pfad, user=benutzer, group=benutzer)
+        except (LookupError, OSError):
+            raise TestinstanzFehler(f"{pfad} ließ sich nicht dem Benutzer {benutzer} übergeben.") from None
+
+
+def betriebsdateien(orte: Orte) -> None:
+    """Unit immer aktualisieren, die Umgebungsdatei nur anlegen (eigene Anpassungen bleiben erhalten)."""
+    b = resources.files("kontor.betrieb")
+    orte.unit.parent.mkdir(parents=True, exist_ok=True)
+    orte.unit.write_text(b.joinpath(DIENST).read_text(encoding="utf-8"), encoding="utf-8")
+    os.chmod(orte.unit, 0o644)
+    if not orte.env.exists():
+        orte.env.parent.mkdir(parents=True, exist_ok=True)
+        orte.env.write_text(b.joinpath("kontor-test.env").read_text(encoding="utf-8"), encoding="utf-8")
+        os.chmod(orte.env, 0o640)
+        if orte.benutzer is not None:
+            with contextlib.suppress(LookupError, OSError):
+                shutil.chown(orte.env, user="root", group=orte.benutzer)
+
+
+def einrichten(branch: str, orte: Orte | None = None, befehl: Befehl | None = None,
+               repository: str = versionsinfo.REPOSITORY) -> str:
+    """Branch holen, installieren, Daten kopieren und die Testinstanz starten. Gibt eine Meldung zurück.
+
+    Reihenfolge: prüfen → Branch in ein neues Verzeichnis klonen (scheitert das, bleibt eine laufende Testinstanz
+    unberührt) → Testinstanz stoppen → Quellbaum ersetzen und installieren → Datenkopie ersetzen → starten.
+    """
+    orte = orte or Orte()
+    befehl = befehl or _ausfuehren
+    branch_pruefen(branch)
+    quelle_db = hauptdatenbank(orte.haupt_env)
+    if not quelle_db.is_file():
+        raise TestinstanzFehler(f"Die Datenbank der Hauptinstanz ({quelle_db}) gibt es nicht.")
+    orte.programm.mkdir(parents=True, exist_ok=True)
+    neu = orte.programm / "src.neu"
+    shutil.rmtree(neu, ignore_errors=True)
+    try:
+        befehl(["git", "clone", "--quiet", "--depth", "1", "--single-branch", "--branch", branch, repository,
+                str(neu)])
+    except TestinstanzFehler:
+        shutil.rmtree(neu, ignore_errors=True)
+        raise
+    betriebsdateien(orte)
+    befehl(["systemctl", "daemon-reload"])
+    befehl(["systemctl", "stop", DIENST])
+    shutil.rmtree(orte.quelle, ignore_errors=True)
+    os.replace(neu, orte.quelle)
+    if not (orte.venv / "bin" / "pip").exists():
+        befehl([sys.executable, "-m", "venv", str(orte.venv)])
+    # Editierbar installieren: so findet Kontor den Branch in .git/HEAD und zeigt ihn statt der Version (D-178)
+    befehl([str(orte.venv / "bin" / "pip"), "install", "--no-input", "--disable-pip-version-check", "--editable",
+            str(orte.quelle)])
+    orte.daten.mkdir(parents=True, exist_ok=True)
+    os.chmod(orte.daten, 0o700)
+    daten_kopieren(quelle_db, orte.datenbank)
+    _besitz(orte.daten, orte.benutzer)
+    _besitz(orte.datenbank, orte.benutzer)
+    befehl(["systemctl", "start", DIENST])
+    return (f"Die Testinstanz läuft mit dem Branch {branch} und einer Kopie der Daten (Mock-Modus). "
+            f"Port und Einstellungen: {orte.env}.")
+
+
+def stoppen(orte: Orte | None = None, befehl: Befehl | None = None, loeschen: bool = False) -> str:
+    """Testinstanz stoppen; mit ``loeschen`` auch die Datenkopie entfernen."""
+    orte = orte or Orte()
+    befehl = befehl or _ausfuehren
+    befehl(["systemctl", "stop", DIENST])
+    if not loeschen:
+        return "Die Testinstanz ist gestoppt. Die Datenkopie bleibt bis zum nächsten Einrichten liegen."
+    _weg(orte.datenbank)
+    _weg(orte.datenbank.with_name(orte.datenbank.name + ".neu"))
+    return "Die Testinstanz ist gestoppt, die Datenkopie ist gelöscht."
+
+
+def main(argv: list[str] | None = None) -> int:
+    p = argparse.ArgumentParser(prog="python -m kontor.testinstanz",
+                                description="Zweite Kontor-Instanz für einen Entwicklungsbranch (Mock-Modus, Kopie "
+                                            "der Daten). Die Hauptinstanz bleibt unberührt.")
+    sub = p.add_subparsers(dest="aktion", required=True)
+    e = sub.add_parser("einrichten", help="Branch installieren, Daten kopieren, Testinstanz starten")
+    e.add_argument("branch", help="Branch im Repository, z. B. feature/kurzname")
+    s = sub.add_parser("stoppen", help="Testinstanz stoppen")
+    s.add_argument("--loeschen", action="store_true", help="auch die Datenkopie löschen")
+    args = p.parse_args(argv)
+    if os.geteuid() != 0:
+        print("Bitte als root ausführen.", file=sys.stderr)
+        return 2
+    try:
+        meldung = einrichten(args.branch) if args.aktion == "einrichten" else stoppen(loeschen=args.loeschen)
+    except (TestinstanzFehler, OSError, subprocess.SubprocessError) as fehler:
+        text = str(fehler) if isinstance(fehler, TestinstanzFehler) else f"Fehlgeschlagen ({type(fehler).__name__})."
+        print(text, file=sys.stderr)
+        return 1
+    print(meldung)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
