@@ -1,0 +1,53 @@
+# Kontor – Testinstanz für Entwicklungsbranches (D-205). Ziel: /etc/systemd/system/kontor-test.service
+# Zweite, getrennte Instanz: eigenes Programmverzeichnis (/opt/kontor-test), eigenes Datenverzeichnis
+# (/var/lib/kontor-test), eigener Port (8081), Mock-Modus. Sie bekommt keine Geheimnisse (keine Credentials) und
+# sieht das Datenverzeichnis der Hauptinstanz nicht. Eingerichtet und gestartet wird sie mit
+# „python -m kontor.testinstanz einrichten <Branch>“; sie startet nicht von selbst beim Hochfahren.
+[Unit]
+Description=Kontor – Testinstanz für einen Entwicklungsbranch (Mock-Modus, Kopie der Daten)
+Documentation=file:///opt/kontor/README.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=exec
+User=kontor
+Group=kontor
+EnvironmentFile=/etc/kontor/kontor-test.env
+ExecStart=/opt/kontor-test/venv/bin/python -m kontor
+StateDirectory=kontor-test
+StateDirectoryMode=0700
+UMask=0077
+# Die echten Daten und die Einstellungen der Hauptinstanz sind für die Testinstanz unsichtbar
+InaccessiblePaths=-/var/lib/kontor
+InaccessiblePaths=-/etc/kontor/kontor.env
+Restart=on-failure
+RestartSec=5
+# Rückgabecode 2 = Konfigurationsfehler: nicht endlos neu starten
+RestartPreventExitStatus=2
+TimeoutStopSec=40
+# Härtung wie kontor.service
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectHome=yes
+ProtectSystem=strict
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+LimitCORE=0
+ProcSubset=pid
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+RestrictNamespaces=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+LockPersonality=yes
+RemoveIPC=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+CapabilityBoundingSet=
+AmbientCapabilities=

@@ -2751,3 +2751,36 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - **Hinweis:** Dass die Zeitzone die Ursache war, ist aus dem Protokoll geschlossen (nur `ValueError` sichtbar),
   nicht an den Daten der Bank gesehen.
 
+## D-205 Testinstanz für Entwicklungsbranches statt Branch-Wechsel im Update-Dienst
+
+- **Anlass:** Ein Entwicklungsbranch soll sich mit den echten Daten ausprobieren lassen. Der Update-Dienst (D-107)
+  installiert nur Releases mit Prüfsumme, und ein Branch kann das Schema migrieren; ein Zurück auf main gäbe es nur
+  über Sicherung und Wiederherstellung. Mit dem Auftraggeber abgestimmt (2026-11-19): kein Branch-Wechsel im
+  Update-Dienst, sondern eine zweite, getrennte Instanz. M14 und der About-Dialog bleiben unverändert.
+- **Entscheidung:** Ausgeliefert werden `kontor-test.service` und `kontor-test.env` sowie die Kommandozeile
+  `python -m kontor.testinstanz` (`einrichten <Branch>`, `stoppen [--loeschen]`, als root mit dem Python der
+  Hauptinstanz). Programm unter `/opt/kontor-test` (Quellbaum `src`, eigene virtuelle Umgebung `venv`), Daten unter
+  `/var/lib/kontor-test`, Port 8081.
+- **Mock-Modus:** Die Testinstanz läuft mit `KONTOR_MOCK_MODUS=1`; ihre Mock-Datenbank ist die Datenkopie. Damit
+  sind Bank-, Mail- und Benachrichtigungs-Plugin Attrappen, die Update-Suche entfällt, und die Oberfläche zeigt den
+  Hinweisbalken. Zeitgesteuerter Abruf und Mail-Abruf sind zusätzlich abgeschaltet. Folge: Ein Branch, der am
+  echten Bankabruf arbeitet, lässt sich so nicht gegen die Bank prüfen – das ist gewollt.
+- **Datenkopie:** Online-Sicherung von SQLite aus der laufenden Hauptdatenbank (nur lesend geöffnet, Pfad aus
+  `KONTOR_DATENBANK` in `/etc/kontor/kontor.env`). Vor der Übergabe werden `geheimnis`, `geheimnis_huelle`,
+  `tan_anforderung` geleert und `meta.bank_fints_…` sowie `meta.bank_diagnose` entfernt; danach `VACUUM`, damit die
+  Chiffretexte auch nicht in freien Seiten bleiben. Die Kopie ersetzt eine frühere erst, wenn sie fertig ist.
+- **Anmeldung:** Haushaltspasswort und Sitzungen bleiben in der Kopie (nur Hashes). Das Sitzungs-Cookie gilt je
+  Rechnername, nicht je Port; mit übernommenen Sitzungen ist man in beiden Instanzen angemeldet, statt sich
+  gegenseitig abzumelden.
+- **Installation des Branches:** `git clone --depth 1 --branch` in ein neues Verzeichnis, dann editierbar
+  installieren. Nur so findet `version.zweig()` (D-178) `.git/HEAD` und zeigt den Branch statt der Version. Ein
+  Git-Archiv oder Wheel hätte keinen Branchnamen. Schlägt das Klonen fehl (Branch unbekannt, kein Netz), bleibt
+  eine laufende Testinstanz unberührt. Branchnamen werden streng geprüft (kein führendes `-`, kein `..`).
+- **Benutzer:** dasselbe Systemkonto `kontor`, kein zweites. Die Trennung leistet die Unit:
+  `StateDirectory=kontor-test`, `ProtectSystem=strict` und `InaccessiblePaths` für `/var/lib/kontor` und
+  `/etc/kontor/kontor.env`; keine `LoadCredentialEncrypted`-Zeile, gleiche Härtung wie `kontor.service`.
+- **Betrieb:** Kein `[Install]`-Abschnitt (startet nicht beim Hochfahren), keine Sicherungs-Unit, kein
+  Update-Verzeichnis. Die Unit wird bei jedem Einrichten erneuert, die Umgebungsdatei nur angelegt.
+- **Nicht im Umfang:** Rückweg von Änderungen aus der Testinstanz in die Hauptinstanz; Auswahl in der Oberfläche.
+- **Prüfung:** `tests/test_testinstanz_eigen.py` (Kopie, Bereinigung, Ablauf mit untergeschobenen Befehlen, Unit,
+  Umgebungsdatei, Start im Mock-Modus auf der Kopie). Der Betrieb unter systemd ist hier nicht prüfbar.

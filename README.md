@@ -323,7 +323,8 @@ und `KONTOR_AQBANKING_*` in `/etc/kontor/kontor.env` können entfernt werden.
 
 Kontor liefert alle Betriebsdateien im Paket `kontor.betrieb` aus
 (`kontor.service`, `kontor-sicherung.service`, `kontor-sicherung.timer`,
-`kontor-update.path`, `kontor-update.service`, `kontor.sysusers`, `kontor.env`, `pin-eingabe.conf`). Schritt für Schritt
+`kontor-update.path`, `kontor-update.service`, `kontor-test.service`, `kontor-test.env`, `kontor.sysusers`, `kontor.env`,
+`pin-eingabe.conf`). Schritt für Schritt
 (als root im Container, z. B. Debian 13 mit systemd):
 
 1. **Container:** unprivilegierter LXC mit `nesting=1` (Vorgabe neuer
@@ -397,6 +398,42 @@ einmal nach Schritt 3 und 5 ein (Units kopieren, `KONTOR_UPDATE_PRUEFEN=1` und
 `systemctl enable --now kontor-update.path`, Kontor neu starten). Von Hand geht
 es weiterhin mit `/opt/kontor/venv/bin/pip install --upgrade /opt/kontor/src`
 (nach `git pull`) und `systemctl restart kontor`.
+
+**Testinstanz für Entwicklungsbranches (D-205):** Einen Branch probiert man nicht
+über den Update-Dienst aus, sondern in einer zweiten, getrennten Instanz. Die
+Hauptinstanz läuft dabei unverändert weiter.
+
+```bash
+# als root; holt den Branch, installiert ihn nach /opt/kontor-test, kopiert die Daten und startet die Testinstanz
+/opt/kontor/venv/bin/python -m kontor.testinstanz einrichten feature/<kurzname>
+# danach im Browser: http://<container-ip>:8081  (Anmeldung mit dem Haushaltspasswort)
+/opt/kontor/venv/bin/python -m kontor.testinstanz stoppen             # Testinstanz anhalten
+/opt/kontor/venv/bin/python -m kontor.testinstanz stoppen --loeschen  # … und die Datenkopie löschen
+journalctl -u kontor-test -f
+```
+
+- Die Testinstanz (`kontor-test.service`, `/etc/kontor/kontor-test.env`) läuft im
+  **Mock-Modus** auf Port 8081 mit einer Kopie der Datenbank in
+  `/var/lib/kontor-test`. Sie verbindet sich weder mit Bank, Mailserver, ntfy noch
+  GitHub; der Hinweisbalken „Mock-Modus“ und der Branchname unten in der
+  Navigation zeigen, wo man ist.
+- Die Kopie entsteht aus der laufenden Hauptinstanz (Online-Sicherung von SQLite,
+  die Hauptdatenbank wird nur gelesen). Geheimnisse (gemerkte PIN, Tokens,
+  verpackter Datenschlüssel), offene TAN-Anforderungen und der gespeicherte
+  Bankzugang werden aus der Kopie entfernt. Die Unit bekommt keine Credentials
+  und sieht `/var/lib/kontor` nicht.
+- Jedes `einrichten` ersetzt Branch **und** Datenkopie; was in der Testinstanz
+  geändert wurde, geht dabei verloren und kommt nie in die Hauptinstanz zurück.
+  Migriert der Branch das Schema, betrifft das nur die Kopie.
+- Die Testinstanz startet nicht von selbst beim Hochfahren, hat keine tägliche
+  Sicherung und wird vom Update-Dienst nicht angefasst. Der Port lässt sich in
+  `/etc/kontor/kontor-test.env` ändern (die Datei bleibt bei erneutem Einrichten
+  erhalten).
+- Haupt- und Testinstanz teilen sich im Browser das Sitzungs-Cookie (gleicher
+  Rechner, anderer Port): Wer angemeldet ist, ist es in beiden; eine neue
+  Anmeldung in der einen meldet in diesem Browser die andere ab.
+- Voraussetzung: `git` und Netzzugang zu GitHub und PyPI auf dem Server; das
+  erste Einrichten legt eine eigene virtuelle Umgebung an und dauert länger.
 
 HTTPS: Kontor selbst spricht kein TLS. Wer es will, setzt einen Reverse-Proxy
 auf demselben Host davor (Kontor dann auf `127.0.0.1` binden) und
