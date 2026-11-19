@@ -2886,3 +2886,16 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - **Abnahmetests:** `tests/app/m20/test_m20_erkennung.py::test_ausgelieferte_umgebungsdatei` erwartet
   `KONTOR_MAIL_ABGLEICH=1` und ist damit bewusst rot, bis die Meilenstein-Definition dieses Features übernommen
   ist. Alle übrigen Tests von M6, M9, M18, M20, M24 und M27 verhalten sich wie auf main.
+
+## D-209 Bestellnummer auch im Quelltext der Mail suchen (ergänzt D-208)
+
+- **Anlass:** Eine Buchung mit Amazon-Bestellnummer bekam keine Mails, obwohl das Postfach sieben Mails mit der
+  Nummer enthält (Bestellt, Versendet, In Zustellung, Zugestellt).
+- **Vermutete Ursache (an echten Mails nicht prüfbar):** Der gespiegelte Text einer Mail ist nur ihr erster
+  Klartextteil (mail.md 3.3). Steht die Nummer nur im HTML-Teil oder in der Adresse eines Verweises, fand D-208 sie
+  nicht.
+- **Entscheidung:** Zusätzlich zu Betreff und gespiegeltem Text werden alle Textteile der Rohfassung im Quelltext
+  durchsucht (Klartext und HTML samt Verweisadressen). Jede Mail wird einmal durchsucht; die gefundenen Nummern
+  stehen in `bestellmail_nummer` (Betriebszustand). Mails ohne Rohfassung (Mock, zu große Mails) zählen wie
+  bisher nur mit Betreff und Text.
+- Jeder Lauf schreibt eine Zeile ins Log (`kontor.bestellmail`, Stufe INFO) mit der Zahl der angehängten Mails.

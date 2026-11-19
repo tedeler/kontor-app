@@ -15,6 +15,7 @@ er die Änderung rückgängig, kommt die Mail deshalb nicht von selbst wieder.
 from __future__ import annotations
 
 import datetime as dt
+import email
 import hashlib
 import logging
 import re
@@ -29,7 +30,6 @@ _SPERRE = threading.Lock()
 
 NUMMER = re.compile(r"(?<!\d)\d{3}-\d{7}-\d{7}(?!\d)")
 # Grobfilter in SQL, damit nur Texte mit einer möglichen Nummer gelesen werden
-_GLOB = "*[0-9][0-9][0-9]-[0-9][0-9][0-9][0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9][0-9][0-9][0-9]*"
 _GLOB_GROB = "*[0-9]-*[0-9]*-*[0-9]*"
 
 
@@ -47,16 +47,49 @@ def nummern(*texte: str | None) -> list[str]:
     return aus
 
 
+def nummern_der_mail(betreff: str | None, text: str | None, roh: bytes | None) -> list[str]:
+    """Bestellnummern einer Mail: Betreff, gespiegelter Text und – mit Rohfassung – alle Textteile im Quelltext.
+    Der gespiegelte Text ist nur der erste Klartextteil; Amazon nennt die Nummer oft nur im HTML-Teil oder in
+    den Adressen der Verweise (``orderId=…``), die beim Entfernen der Auszeichnung verloren gehen."""
+    texte = [betreff, text]
+    if roh:
+        try:
+            for teil in email.message_from_bytes(bytes(roh)).walk():
+                if teil.get_content_maintype() != "text":
+                    continue
+                inhalt = teil.get_payload(decode=True) or b""
+                try:
+                    texte.append(inhalt.decode(teil.get_content_charset() or "utf-8", errors="replace"))
+                except LookupError:
+                    texte.append(inhalt.decode("utf-8", errors="replace"))
+        except Exception:  # noqa: BLE001 - eine unlesbare Rohfassung zählt nur mit Betreff und Text
+            pass
+    aus: list[str] = []
+    for t in texte:
+        for n in NUMMER.findall(t or ""):
+            if n not in aus:
+                aus.append(n)
+    return aus
+
+
 def _mails_je_nummer(con) -> dict[str, list]:
-    """Bestellnummer → gespiegelte Mails (je Nachrichten-ID einmal, auch bei zwei Postfächern)."""
+    """Bestellnummer → gespiegelte Mails (je Nachrichten-ID einmal, auch bei zwei Postfächern). Jede Mail wird
+    nur einmal durchsucht; das Ergebnis steht in ``bestellmail_nummer`` (leere Nummer = durchsucht)."""
+    con.execute("DELETE FROM bestellmail_nummer WHERE NOT EXISTS"
+                " (SELECT 1 FROM mail_nachricht m WHERE m.id = bestellmail_nummer.spiegel_id)")
+    neu = con.execute("SELECT id, betreff, text, roh FROM mail_nachricht WHERE id NOT IN"
+                      " (SELECT spiegel_id FROM bestellmail_nummer)").fetchall()
+    for r in neu:
+        con.executemany("INSERT INTO bestellmail_nummer (spiegel_id, nummer) VALUES (?, ?)",
+                        [(r["id"], n) for n in ["", *nummern_der_mail(r["betreff"], r["text"], r["roh"])]])
     aus: dict[str, list] = {}
     gesehen: set[tuple[str, str]] = set()
-    for r in con.execute("SELECT id, adresse_cf, nachricht_id, betreff, text FROM mail_nachricht"
-                         " WHERE betreff GLOB ? OR text GLOB ? ORDER BY empfangen, id", (_GLOB, _GLOB)):
-        for n in NUMMER.findall(f"{r['betreff']}\n{r['text']}"):
-            if (n, r["nachricht_id"]) not in gesehen:
-                gesehen.add((n, r["nachricht_id"]))
-                aus.setdefault(n, []).append(r)
+    for r in con.execute("SELECT x.nummer, m.id, m.nachricht_id FROM bestellmail_nummer x"
+                         " JOIN mail_nachricht m ON m.id = x.spiegel_id WHERE x.nummer <> ''"
+                         " ORDER BY m.empfangen, m.id"):
+        if (r["nummer"], r["nachricht_id"]) not in gesehen:
+            gesehen.add((r["nummer"], r["nachricht_id"]))
+            aus.setdefault(r["nummer"], []).append(r)
     return aus
 
 
@@ -157,7 +190,9 @@ def laufen(config: KontorConfig, jetzt: dt.datetime) -> dict | None:
         con = db.verbinde(config.aktive_datenbank)
         try:
             with protokoll.protokolliert(con, "mail", "bestellmail_anhaengen", zeit):
-                return zuordnen(con, zeit)
+                erg = zuordnen(con, zeit)
+            log.info("Bestellmails: %d Mails an %d Buchungen gehängt", erg["mails"], erg["buchungen"])
+            return erg
         except Exception:  # noqa: BLE001 - darf Abruf, Lauf und Planer nie scheitern lassen
             log.exception("Anhängen der Bestellmails fehlgeschlagen")
             return None

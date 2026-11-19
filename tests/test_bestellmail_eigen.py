@@ -164,3 +164,22 @@ def test_aus_ohne_einstellung(tmp_path):
     abgleich.nach_ereignis(cfg, c.app.state.sync.jetzt())
     assert belege(c, b) == []
     assert "angehaengt" not in c.get("/api/mail/nachrichten").json()["eintraege"][0]
+
+
+def test_nummer_nur_im_html_teil_oder_in_einem_verweis(app_c):
+    """Der Spiegeltext ist nur der Klartextteil; die Nummer steht bei Amazon oft nur im HTML (D-209)."""
+    c, cfg, giro, kat = app_c
+    b = buchung(c, giro, kat, -1857, f"AMZN MKTP DE {NR}")
+    for nid, html in (("<h1@example.invalid>", f"<p>Bestellnr. <b>{NR}</b></p>"),
+                      ("<h2@example.invalid>", f'<a href="https://shop.example.invalid/o?orderId={NR}&x=1">Bestellung</a>'),
+                      ("<h3@example.invalid>", f"<p>Bestellnr. {NR2}</p>")):
+        m = EmailMessage()
+        m["From"], m["To"], m["Subject"] = "versand@amazon.example.invalid", "erika@example.invalid", "Versendet: Artikel (fiktiv)"
+        m["Message-ID"] = nid
+        m.set_content("Ihr Paket ist unterwegs.")
+        m.add_alternative(html, subtype="html")
+        spiegeln(cfg, "Versendet: Artikel (fiktiv)", "Ihr Paket ist unterwegs.", nid, roh=m.as_bytes())
+    lauf(c, cfg)
+    assert len(belege(c, b)) == 2
+    lauf(c, cfg)
+    assert len(belege(c, b)) == 2
