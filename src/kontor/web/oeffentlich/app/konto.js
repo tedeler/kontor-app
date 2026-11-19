@@ -3,7 +3,7 @@
 import {
   BESTAND, STATUS_TEXT, abfrage, aktion, anhaengen, api, baumFolge, betragEingabe, betragEl, betragLesen, betragText, datumEl,
   datumText, h, kategorien, klasse,
-  kontoNach, kontoPfad, melde, nameAnzeige, neueId, oberflaeche, personLesen, pfadVon, stamm, tid,
+  kontoNach, kontoPfad, melde, nameAnzeige, neueId, oberflaeche, personLesen, personTag, personVonTag, pfadVon, stamm, tid,
 } from "./kern.js";
 import {
   bestaetigen, dialog, dubletteDialog, erfassenDialog, feld, imDialog, kategorieAuswahl, kontextmenue, knopf, knopfLeiste,
@@ -280,6 +280,35 @@ function spaltenSpeichern(variante, breiten) {
   try { localStorage.setItem(SPALTEN_SCHLUESSEL, JSON.stringify(s)); } catch (e) { /* Speicher nicht verfügbar */ }
 }
 
+// Ausgeblendete Spalten (D-224): je Liste die Namen der ausgeblendeten Spalten, im Browser gemerkt. Die Zellen
+// bleiben im Dokument und werden per CSS versteckt; das Raster entsteht dann aus den sichtbaren Spalten.
+const SPALTEN_AUS_SCHLUESSEL = "kontor.spalten.aus";
+const SPALTEN_RASTER = { datum: "6.5rem", empfaenger: "minmax(7rem, 1.2fr)", verwendungszweck: "minmax(8rem, 1.8fr)",
+  kategorie: "minmax(9rem, 1.6fr)", konto: "minmax(7rem, 1.2fr)", tags: "minmax(4rem, .7fr)", status: "6.5rem",
+  betrag: "7.5rem" };
+
+function spaltenAusAlle() {
+  try {
+    const s = JSON.parse(localStorage.getItem(SPALTEN_AUS_SCHLUESSEL));
+    return s && typeof s === "object" && !Array.isArray(s) ? s : {};
+  } catch (e) {
+    return {};
+  }
+}
+
+function spaltenAusLaden(variante, spalten) {
+  const roh = spaltenAusAlle()[variante];
+  const aus = new Set(Array.isArray(roh) ? roh.filter((f) => spalten.some(([x]) => x === f)) : []);
+  if (aus.size >= spalten.length) aus.clear();   // mindestens eine Spalte bleibt sichtbar
+  return aus;
+}
+
+function spaltenAusSpeichern(variante, aus) {
+  const s = spaltenAusAlle();
+  if (aus.size) s[variante] = [...aus]; else delete s[variante];
+  try { localStorage.setItem(SPALTEN_AUS_SCHLUESSEL, JSON.stringify(s)); } catch (e) { /* Speicher nicht verfügbar */ }
+}
+
 const spalteBegrenzen = (w) => Math.min(SPALTE_MAX, Math.max(SPALTE_MIN, Math.round(w)));
 
 // ------------------------------------------------------------------ Markierung der Zeilen (D-130)
@@ -491,6 +520,7 @@ class Kontoansicht {
     this.spalten = this.istKategorie ? SPALTEN_KATEGORIE : SPALTEN;
     this.spaltenVariante = this.istKategorie ? "kategorie" : "konto";
     this.breiten = spaltenLaden(this.spaltenVariante);
+    this.spaltenAus = spaltenAusLaden(this.spaltenVariante, this.spalten);
     this.wiederkehrend = new Set();
     this.mailBestaetigt = new Map();
     this.titel = konto.name;
@@ -1650,15 +1680,15 @@ class Kontoansicht {
     this.istKategorie ? kontoZelle(b) : null,
     h("div", { role: "gridcell", class: "zelle zelle-tags", "data-feld": "tags" },
       b.tags.map((t) => {
-        const person = t.name === "Torsten" || t.name === "Tina";
+        const person = personVonTag(t.name);
         return h("span", { class: person ? "tag tag-person" : "tag", tid: "tag", "data-tag-id": String(t.id),
-          "data-person": person ? t.name : null, title: person ? `Bestätigt von ${t.name}` : t.name }, t.name);
+          "data-person": person, title: person ? `Bestätigt von ${person}` : t.name }, t.name);
       }),
       b.verdacht ? h("span", { class: "tag tag-verdacht", tid: "verdacht", "data-grund": b.verdacht.grund,
         title: b.verdacht.text, "aria-label": b.verdacht.text }, "Verdächtig") : null),
     h("div", { role: "gridcell", class: "zelle zelle-status", "data-feld": "status" }, STATUS_TEXT[b.status] || b.status),
     betragEl("div", b.betrag, { role: "gridcell", class: "zelle zelle-betrag", "data-feld": "betrag" }));
-    const bestaetigtVon = b.tags.filter((t) => t.name === "Torsten" || t.name === "Tina").map((t) => t.name);
+    const bestaetigtVon = b.tags.map((t) => personVonTag(t.name)).filter(Boolean);
     if (bestaetigtVon.length) zeile.dataset.bestaetigt = bestaetigtVon.join(" ");
     if (b.verdacht) zeile.dataset.verdacht = b.verdacht.grund;
     if (b.abgestimmt || b.status === "abgeglichen") zeile.dataset.gesperrt = "ja";
@@ -1716,19 +1746,43 @@ class Kontoansicht {
   breitenFestlegen() {
     const kopf = this.liste.querySelector(".liste-kopf");
     for (const [feld] of this.spalten) {
-      if (this.breiten[feld]) continue;
+      if (this.breiten[feld] || this.spaltenAus.has(feld)) continue;
       const z = kopf && kopf.querySelector(`.zelle-${feld}`);
       this.breiten[feld] = spalteBegrenzen(z ? z.getBoundingClientRect().width : SPALTE_ERSATZ);
     }
   }
 
   breitenAnwenden() {
-    const eigen = this.liste.dataset.kompakt !== "ja" && this.spalten.some(([f]) => this.breiten[f]);
-    this.liste.classList.toggle("spalten-eigen", eigen);
+    const breit = this.liste.dataset.kompakt !== "ja";
+    const aus = breit ? this.spalten.filter(([f]) => this.spaltenAus.has(f)).map(([f]) => f) : [];
+    const festgelegt = this.spalten.some(([f]) => this.breiten[f]);
+    const eigen = breit && (festgelegt || aus.length > 0);
+    this.liste.classList.toggle("spalten-eigen", breit && festgelegt);
+    this.liste.classList.toggle("spalten-raster", eigen && !festgelegt);   // nur ausgeblendet: Raster füllt die Breite
+    if (aus.length) this.liste.dataset.spaltenAus = aus.join(" "); else delete this.liste.dataset.spaltenAus;
     if (eigen) {
-      this.liste.style.setProperty("--spalten",
-        this.spalten.map(([f]) => `${this.breiten[f] || SPALTE_ERSATZ}px`).join(" "));
+      // mit festgelegten Breiten alles in Pixeln (wie bisher); sonst das Raster aus app.css ohne die ausgeblendeten
+      this.liste.style.setProperty("--spalten", this.spalten.filter(([f]) => !aus.includes(f))
+        .map(([f]) => (this.breiten[f] ? `${this.breiten[f]}px` : (festgelegt ? `${SPALTE_ERSATZ}px` : SPALTEN_RASTER[f]))).join(" "));
     } else this.liste.style.removeProperty("--spalten");
+  }
+
+  /** Spalte ein- oder ausblenden (D-224); mindestens eine bleibt sichtbar. */
+  spalteUmschalten(feld) {
+    if (this.spaltenAus.has(feld)) this.spaltenAus.delete(feld);
+    else if (this.spaltenAus.size < this.spalten.length - 1) this.spaltenAus.add(feld);
+    else return;
+    spaltenAusSpeichern(this.spaltenVariante, this.spaltenAus);
+    this.breitenAnwenden();
+  }
+
+  spaltenEintraege() {
+    const letzte = this.spaltenAus.size >= this.spalten.length - 1;
+    return this.spalten.map(([feld, text]) => {
+      const an = !this.spaltenAus.has(feld);
+      return { tid: `km-spalte-${feld}`, text: `${an ? "✓" : " "} ${text}`, aktiv: !(an && letzte),
+        tun: () => this.spalteUmschalten(feld) };
+    });
   }
 
   /** Doppelklick auf den Trenner (wie in Excel): Spalte so breit wie ihr breitester Inhalt (Kopf und geladene Zeilen). */
@@ -1764,8 +1818,9 @@ class Kontoansicht {
   kopfMenue(e) {
     e.preventDefault();
     kontextmenue(e.clientX, e.clientY, [
+      { tid: "km-spalten-wahl", text: "Spalten ein- und ausblenden", kinder: this.spaltenEintraege() },
       { tid: "km-spalten-anpassen", text: "Alle Spalten an den Inhalt anpassen",
-        tun: () => this.spalteAnpassen(this.spalten.map(([f]) => f)) },
+        tun: () => this.spalteAnpassen(this.spalten.map(([f]) => f).filter((f) => !this.spaltenAus.has(f))) },
       { tid: "km-spalten-zuruecksetzen", text: "Spaltenbreiten zurücksetzen", aktiv: this.spalten.some(([f]) => this.breiten[f]),
         tun: () => this.spaltenZuruecksetzen() },
     ], null);
@@ -2020,7 +2075,7 @@ class Kontoansicht {
   }
 
   // ---------------------------------------------------------------- Bestätigung durch Torsten oder Tina (D-155)
-  bestaetigt(b, name) { return !!(b && b.tags.some((t) => t.name === name)); }
+  bestaetigt(b, name) { return !!(b && b.tags.some((t) => t.name === personTag(name))); }
 
   bestaetigenEintrag(ids) {
     const name = personLesen();
@@ -2032,7 +2087,7 @@ class Kontoansicht {
 
   bestaetigungZeile(b) {
     const name = personLesen();
-    const namen = b.tags.filter((t) => t.name === "Torsten" || t.name === "Tina").map((t) => t.name);
+    const namen = b.tags.map((t) => personVonTag(t.name)).filter(Boolean);
     const hat = name && this.bestaetigt(b, name);
     return h("p", { class: "bestaetigung", tid: "buchung-bestaetigung" },
       namen.length ? ["Bestätigt von ", namen.join(" und "), ". "] : "Noch von niemandem bestätigt. ",
@@ -2046,8 +2101,8 @@ class Kontoansicht {
     if (!name) { melde("hinweis", "Bitte oben rechts wählen, wer du bist."); return; }
     try {
       await aktion(async () => {
-        let t = stamm.tags.find((x) => x.name === name);
-        if (!t && hinzu) t = await api("POST", "/api/tags", { name });
+        let t = stamm.tags.find((x) => x.name === personTag(name));
+        if (!t && hinzu) t = await api("POST", "/api/tags", { name: personTag(name) });
         if (!t) return null;
         await api("POST", "/api/buchungen/mehrfach/tags", {
           buchung_ids: ids, hinzufuegen: hinzu ? [t.id] : [], entfernen: hinzu ? [] : [t.id] });

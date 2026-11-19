@@ -1,7 +1,7 @@
 /* Kontor – Seiten außer der Kontoansicht (oberflaeche.md 6, 13, 14). */
 import {
   BESTAND, STATUS_TEXT, abfrage, aktion, anmeldung, api, baumFolge, betragEl, betragLesen, betragText, datumEl,
-  datumText, h, kategorien, kontoNach, kontoPfad, melde, mobilKarten, nachName, nameAnzeige, neueId, oberflaeche, personLesen, pfadVon, sichtbar, stamm, tid, zeitEl,
+  datumText, h, kategorien, kontoNach, kontoPfad, melde, mobilKarten, nachName, nameAnzeige, neueId, oberflaeche, personLesen, personTag, personVonTag, pfadVon, sichtbar, stamm, tid, zeitEl,
   zeitText,
 } from "./kern.js";
 import {
@@ -783,10 +783,9 @@ export async function protokoll(seite) {
 }
 
 // ------------------------------------------------------------------ Empfänger (13.10)
-const PERSON_NAMEN = ["Torsten", "Tina"];
-
+/** Personen, die den Empfänger bestätigt haben (Tags „B-<Name>“, D-223). */
 function personTags(e) {
-  return (e.tags || []).filter((t) => PERSON_NAMEN.includes(t.name));
+  return (e.tags || []).map((t) => personVonTag(t.name)).filter(Boolean).map((name) => ({ name }));
 }
 
 export async function empfaenger(seite) {
@@ -948,7 +947,7 @@ export async function empfaenger(seite) {
     const tr = h("tr", { tid: `empfaenger-${e.id}`, "data-id": String(e.id), class: "empfaenger-zeile", "aria-selected": "false", tabindex: "-1" },
       h("td", null, wahl), h("td", null, e.name),
       h("td", { "data-feld": "bestaetigt" }, namen.map((n) => h("span", { class: "tag tag-person", tid: "tag",
-        "data-person": n, title: `Bestätigt von ${n}` }, n))),
+        "data-person": n, title: `Bestätigt von ${n}` }, personTag(n)))),
       h("td", null, (e.aliase || []).join(", ")),
       h("td", null, knopf(hat ? `Bestätigung von ${name} zurücknehmen` : `Als ${name || "…"} bestätigen`, {
         tid: `empfaenger-bestaetigen-${e.id}`, disabled: !name,
@@ -967,8 +966,8 @@ async function empfaengerMarkieren(liste, hinzu) {
   if (!liste.length) return;
   try {
     await aktion(async () => {
-      let t = stamm.tags.find((x) => x.name === name);
-      if (!t && hinzu) t = await api("POST", "/api/tags", { name });
+      let t = stamm.tags.find((x) => x.name === personTag(name));
+      if (!t && hinzu) t = await api("POST", "/api/tags", { name: personTag(name) });
       if (!t) return null;
       for (const e of liste) {
         const ids = new Set((e.tags || []).map((x) => x.id));

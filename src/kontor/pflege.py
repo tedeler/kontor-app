@@ -67,11 +67,39 @@ def standardkategorien_umwandeln(con) -> list[dict]:
     return neu
 
 
+PERSONEN = ("Torsten", "Tina")
+
+
+def personentags_umbenennen(con) -> None:
+    """D-223: Die Bestätigung trägt das Tag „B-<Name>“; vorhandene Tags „Torsten“/„Tina“ werden umbenannt.
+    Gibt es das neue Tag schon, wandern die Zuordnungen dorthin und das alte entfällt."""
+    for name in PERSONEN:
+        alt = con.execute("SELECT id FROM tag WHERE name = ?", (name,)).fetchone()
+        if alt is None:
+            continue
+        neu = con.execute("SELECT id FROM tag WHERE name_cf = ?", (f"B-{name}".casefold(),)).fetchone()
+        if neu is None:
+            buch.tag_umbenennen(con, alt["id"], f"B-{name}")
+            continue
+        for tabelle, spalte in (("buchung_tag", "buchung_id"), ("empfaenger_tag", "empfaenger_id"),
+                                ("regel_tag", "regel_id")):
+            con.execute(f"INSERT OR IGNORE INTO {tabelle} ({spalte}, tag_id) SELECT {spalte}, ? FROM {tabelle}"
+                        " WHERE tag_id = ?", (neu["id"], alt["id"]))
+            con.execute(f"DELETE FROM {tabelle} WHERE tag_id = ?", (alt["id"],))
+        con.execute("DELETE FROM tag WHERE id = ?", (alt["id"],))
+
+
 def altbestand_umwandeln(pfad) -> None:
-    """Beim Start: Standardkategorien früherer Versionen einmalig in Regeln umwandeln (eine Änderung)."""
+    """Beim Start: Standardkategorien früherer Versionen einmalig in Regeln umwandeln (eine Änderung) und die
+    Bestätigungs-Tags umbenennen (eine Änderung)."""
     from . import db, protokoll
     con = db.verbinde(pfad)
     try:
+        ph = buch._platzhalter(len(PERSONEN))
+        if con.execute(f"SELECT 1 FROM tag WHERE name IN ({ph}) LIMIT 1", PERSONEN).fetchone():
+            with protokoll.protokolliert(con, "manuell", "tag_umbenennen", db.jetzt_utc(),
+                                         beschreibung="Bestätigungs-Tags in „B-<Name>“ umbenannt"):
+                personentags_umbenennen(con)
         if con.execute("SELECT 1 FROM empfaenger WHERE standardkategorie_id IS NOT NULL LIMIT 1").fetchone():
             with protokoll.protokolliert(con, "manuell", "regel_anlegen", db.jetzt_utc(),
                                          beschreibung="Standardkategorien in Regeln umgewandelt"):

@@ -651,6 +651,16 @@ tr.ueberfaellig td { color: var(--gefahr); }
 .spalten-trenner:hover, .spalten-trenner.aktiv { background: linear-gradient(var(--akzent), var(--akzent)) center / 2px 100% no-repeat; }
 .buchungsliste.spalten-eigen { width: max-content; min-width: 100%; }
 .buchungsliste.spalten-eigen .liste-kopf, .buchungsliste.spalten-eigen .zeile { grid-template-columns: var(--spalten); }
+/* ausgeblendete Spalten (D-224) */
+.buchungsliste.spalten-raster .liste-kopf, .buchungsliste.spalten-raster .zeile { grid-template-columns: var(--spalten); }
+.buchungsliste[data-spalten-aus~="datum"] [role="row"] > .zelle-datum { display: none; }
+.buchungsliste[data-spalten-aus~="empfaenger"] [role="row"] > .zelle-empfaenger { display: none; }
+.buchungsliste[data-spalten-aus~="verwendungszweck"] [role="row"] > .zelle-verwendungszweck { display: none; }
+.buchungsliste[data-spalten-aus~="kategorie"] [role="row"] > .zelle-kategorie { display: none; }
+.buchungsliste[data-spalten-aus~="konto"] [role="row"] > .zelle-konto { display: none; }
+.buchungsliste[data-spalten-aus~="tags"] [role="row"] > .zelle-tags { display: none; }
+.buchungsliste[data-spalten-aus~="status"] [role="row"] > .zelle-status { display: none; }
+.buchungsliste[data-spalten-aus~="betrag"] [role="row"] > .zelle-betrag { display: none; }
 .spalten-messer { position: absolute; left: 0; top: 0; visibility: hidden; pointer-events: none; height: 0; overflow: hidden; }
 .spalten-messer > .zelle { width: max-content; max-width: none; overflow: visible; }
 

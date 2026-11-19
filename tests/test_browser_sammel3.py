@@ -55,3 +55,54 @@ def test_empfaenger_menue_regel_und_konto(tmp_path, browser):
         tid(page, "em-regel").click()
         expect(tid(page, "regel-dialog")).to_be_visible()
         expect(tid(page, "regel-name")).to_have_value("Markt")
+
+
+def test_spalten_ausblenden_und_bestaetigen(tmp_path, browser):
+    with server(tmp_path) as (url, config), seite(browser, url, **DESKTOP) as page:
+        con = sqlite3.connect(config.aktive_datenbank)
+        giro, = con.execute("SELECT id FROM konto WHERE name = 'Giro'").fetchone()
+        con.close()
+        page.goto(f"{url}/konten/{giro}")
+        bereit(page, "konto")
+        kopf = page.locator(".liste-kopf")
+        expect(kopf.locator(".zelle-tags")).to_be_visible()
+        breite = kopf.locator(".zelle-betrag").bounding_box()
+        kopf.locator(".zelle-verwendungszweck").click(button="right", position={"x": 5, "y": 5})
+        tid(page, "km-spalten-wahl").hover()
+        tid(page, "km-spalte-status").click()
+        expect(kopf.locator(".zelle-status")).to_be_hidden()
+        expect(page.locator(".zeile .zelle-status").first).to_be_hidden()
+        expect(kopf.locator(".zelle-tags")).to_be_visible()
+        # das Raster besteht nur noch aus den sichtbaren Spalten: der Betrag schließt an die Tags an
+        neu = kopf.locator(".zelle-betrag").bounding_box()
+        tags = kopf.locator(".zelle-tags").bounding_box()
+        assert abs(neu["x"] - (tags["x"] + tags["width"])) < 2 and abs(neu["width"] - breite["width"]) < 2
+        # gemerkt über das Neuladen
+        page.reload()
+        bereit(page, "konto")
+        expect(page.locator(".liste-kopf .zelle-status")).to_be_hidden()
+        # wieder einblenden
+        page.locator(".liste-kopf .zelle-datum").click(button="right", position={"x": 5, "y": 5})
+        tid(page, "km-spalten-wahl").hover()
+        expect(tid(page, "km-spalte-status")).to_contain_text("Status")
+        tid(page, "km-spalte-status").click()
+        expect(page.locator(".liste-kopf .zelle-status")).to_be_visible()
+        # Bestätigen setzt das Tag „B-Torsten“ (D-223)
+        zeile = page.locator(".zeile").first
+        zeile.click(button="right", position={"x": 20, "y": 8})
+        tid(page, "km-bestaetigen").click()
+        expect(page.locator(".zeile[data-bestaetigt=Torsten] .tag-person").first).to_have_text("B-Torsten")
+
+
+def test_personentags_werden_umbenannt(tmp_path):
+    from fastapi.testclient import TestClient
+
+    from kontor.app import create_app
+    from kontor.config import KontorConfig
+    config = KontorConfig(datenbank=tmp_path / "k.sqlite3")
+    c = TestClient(create_app(config))
+    c.post("/api/tags", json={"name": "Torsten"})
+    c.post("/api/tags", json={"name": "Tina"})
+    c.post("/api/tags", json={"name": "B-Tina"})
+    c = TestClient(create_app(config))
+    assert sorted(t["name"] for t in c.get("/api/tags").json()) == ["B-Tina", "B-Torsten"]
