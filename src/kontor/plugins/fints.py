@@ -36,6 +36,9 @@ from .bank import BankKonto, BankPlugin, BankSaldo, BankUmsatz, TanAntwort, Umsa
 BERLIN = ZoneInfo("Europe/Berlin")
 UTC = dt.timezone.utc
 CAMT_052 = "urn:iso:std:iso:20022:tech:xsd:camt.052.001.08"
+# D-190: lesbare camt.052-Versionen in der Reihenfolge der Bevorzugung (zuerst .08 nach fints.md 3.3, sonst die
+# höchste von der Bank angebotene; die comdirect bietet z. B. nur camt.052.001.02 an).
+CAMT_FORMATE = tuple(f"urn:iso:std:iso:20022:tech:xsd:camt.052.001.{n:02d}" for n in (8, 7, 6, 5, 4, 3, 2))
 PIN_CODES = ("9931", "9340", "9910", "9930", "9942")
 
 
@@ -295,6 +298,7 @@ class _Dialog:
     client: object
     dialog: object
     verbindung: _Verbindung
+    beginn: object = None   # HITAN der Dialoginitialisierung, solange deren TAN aussteht (D-191)
 
     def __repr__(self) -> str:
         return "_Dialog()"
@@ -312,12 +316,15 @@ class _Offen:
     hitan: object
     camt: bool
     seiten: list = field(default_factory=list)
+    beginn: bool = False    # TAN zur Dialoginitialisierung: der eigentliche Auftrag folgt erst danach (D-191)
 
     def __repr__(self) -> str:
         return f"_Offen(von={self.von}, bis={self.bis})"
 
 
 # ================================================================ Plugin
+
+_KONTEN = ""  # „Konto“ einer offenen TAN-Anforderung, die zum Kontenabruf gehört
 
 
 class FintsBankPlugin(BankPlugin):
@@ -339,17 +346,59 @@ class FintsBankPlugin(BankPlugin):
     __str__ = __repr__
 
     # ------------------------------------------------------------ Schnittstelle
-    def konten(self) -> list[BankKonto]:
+    def konten(self, *, tan: TanAntwort | None = None) -> list[BankKonto]:
+        """Konten der Bank. Verlangt die Bank schon beim Dialogbeginn eine TAN, kommt ``TanErforderlich``;
+        ``konten(tan=TanAntwort(...))`` setzt denselben Dialog fort (D-191)."""
         with self._sperre:
             self._konfiguriert()
+            if tan is not None:
+                return self._mit_tan(_KONTEN, tan)
             d = self._dialog_beginnen()
             try:
-                konten = self._konten_im_dialog(d)
+                if d.beginn is not None:
+                    raise self._beginn_tan(d, _KONTEN, dt.date.min, dt.date.min)
+                return self._konten_abschluss(d)
+            except TanErforderlich:
+                raise
             except BaseException:
                 self._dialog_verwerfen(d)
                 raise
-            self._dialog_beenden(d)
-            return [k for k, _ in konten]
+
+    def _konten_abschluss(self, d: _Dialog) -> list[BankKonto]:
+        konten = self._konten_im_dialog(d)
+        self._dialog_beenden(d)
+        return [k for k, _ in konten]
+
+    def tan_verfahren(self) -> list[tuple[str, str]]:
+        """Zwei-Schritt-Verfahren, die die Bank diesem Zugang erlaubt: ``(Sicherheitsfunktion, Name)``.
+
+        Braucht nur den Synchronisierungsdialog (PIN, keine TAN). Kein Geschäftsvorfall wird gesendet."""
+        from fints.client import FinTS3PinTanClient
+        with self._sperre:
+            self._konfiguriert()
+            c = self._config
+            pin = self._pin()
+            verbindung = _Verbindung(c)
+            try:
+                client = FinTS3PinTanClient(c.fints_blz, c.fints_benutzer, pin, c.fints_url,
+                                            customer_id=c.fints_kunden_id or c.fints_benutzer,
+                                            product_id=c.fints_produkt_id)
+            except Exception:  # noqa: BLE001 - Texte der Bibliothek nie weitergeben
+                raise BankFehler("Der FinTS-Zugang konnte nicht vorbereitet werden.") from None
+            del pin
+            client.connection = verbindung
+            with self._bibliothek(verbindung):
+                client._ensure_system_id()
+                verfahren = client.get_tan_mechanisms()
+            _fehler_aus_codes(_alle_codes(verbindung.letzte))
+            erlaubt = [str(x) for x in (client.allowed_security_functions or [])]
+            aus = []
+            for code, p in verfahren.items():
+                code = str(code)
+                if code == "999" or (erlaubt and code not in erlaubt):
+                    continue
+                aus.append((code, str(getattr(p, "name", "") or code)))
+            return aus
 
     def umsaetze(self, iban: str, von: dt.date, bis: dt.date, *,
                  tan: TanAntwort | None = None) -> Umsatzliste:
@@ -362,16 +411,29 @@ class FintsBankPlugin(BankPlugin):
                 return self._mit_tan(n, tan)
             d = self._dialog_beginnen()
             try:
-                konten = self._konten_im_dialog(d)
-                konto = next((sepa for k, sepa in konten if k.iban == n), None)
-                if konto is None:
-                    raise BankKontoUnbekannt("Das Konto ist der Bank unbekannt.")
-                return self._abruf(d, n, von, bis, konto)
+                if d.beginn is not None:
+                    raise self._beginn_tan(d, n, von, bis)
+                return self._umsaetze_im_dialog(d, n, von, bis)
             except TanErforderlich:
                 raise
             except BaseException:
                 self._dialog_verwerfen(d)
                 raise
+
+    def _umsaetze_im_dialog(self, d: _Dialog, iban: str, von: dt.date, bis: dt.date) -> Umsatzliste:
+        konten = self._konten_im_dialog(d)
+        konto = next((sepa for k, sepa in konten if k.iban == iban), None)
+        if konto is None:
+            raise BankKontoUnbekannt("Das Konto ist der Bank unbekannt.")
+        return self._abruf(d, iban, von, bis, konto)
+
+    def _beginn_tan(self, d: _Dialog, iban: str, von: dt.date, bis: dt.date) -> TanErforderlich:
+        """TAN-Anforderung der Dialoginitialisierung (starke Kundenauthentifizierung, D-191)."""
+        hitan = d.beginn
+        if getattr(hitan, "task_reference", None) is None:
+            raise BankFehler("Die Bank verlangt eine TAN, hat aber keine TAN-Anforderung geliefert.")
+        return self._tan_anfordern(_Offen(d, iban, von, bis, None, None, hitan, False, beginn=True),
+                                   "Die Bank verlangt für die Anmeldung eine TAN.")
 
     def schliessen(self) -> None:
         with self._sperre:
@@ -412,17 +474,19 @@ class FintsBankPlugin(BankPlugin):
             client._ensure_system_id()
             dialog = client._new_dialog()
             antwort = dialog.init()
-        if client.init_tan_response is not None:
-            # Starke Kundenauthentifizierung schon beim Dialogbeginn wird nicht unterstützt (D-071).
-            d = _Dialog(client, dialog, verbindung)
-            self._dialog_verwerfen(d)
-            raise BankFehler("Die Bank verlangt schon beim Dialogbeginn eine Freigabe; das wird nicht unterstützt.")
+        beginn = client.init_tan_response
+        client.init_tan_response = None
+        if beginn is not None and getattr(beginn, "decoupled", False):
+            # Entkoppelte Freigabe (3955) wird nicht unterstützt (D-070 gilt weiter, D-191).
+            self._dialog_verwerfen(_Dialog(client, dialog, verbindung))
+            raise BankFehler("Die Bank verlangt eine Freigabe in einer App; unterstützt wird nur die Eingabe "
+                             "einer TAN (z. B. photoTAN). Bitte ein anderes TAN-Verfahren wählen.")
         try:
             _fehler_aus_codes(_alle_codes(antwort))
         except KontorFehler:
             self._dialog_verwerfen(_Dialog(client, dialog, verbindung))
             raise
-        return _Dialog(client, dialog, verbindung)
+        return _Dialog(client, dialog, verbindung, beginn.tan_request if beginn is not None else None)
 
     def _bibliothek(self, verbindung: _Verbindung):
         """Übersetzt Ausnahmen von python-fints in Fehlerklassen von Kontor (ohne Texte der Bibliothek)."""
@@ -529,10 +593,16 @@ class FintsBankPlugin(BankPlugin):
         from fints.segments.statement import HKCAZ1, HKKAZ5, HKKAZ6, HKKAZ7
         client = d.client
         hicazs = client.bpd.find_segment_first("HICAZS")
-        if hicazs is not None and CAMT_052 in [str(x) for x in (hicazs.parameter.supported_camt_formats or [])]:
+        if hicazs is not None:
+            # D-190: bietet die Bank camt an, wird nie auf MT940 ausgewichen (HKKAZ ist bei manchen Banken
+            # abgekündigt oder gestört); KTI1 trägt dabei nur IBAN und BIC.
+            angeboten = [str(x) for x in (hicazs.parameter.supported_camt_formats or [])]
+            fmt = next((f for f in CAMT_FORMATE if f in angeboten), None)
+            if fmt is None:
+                raise BankFehler("Die Bank bietet kein unterstütztes camt-Format an (camt.052.001.02 bis .08).")
             seg = HKCAZ1(account=HKCAZ1._fields["account"].type.from_sepa_account(konto), all_accounts=False,
                          date_start=von, date_end=bis, touchdown_point=aufsetzpunkt,
-                         supported_camt_messages=SupportedMessageTypes([CAMT_052]))
+                         supported_camt_messages=SupportedMessageTypes([fmt]))
             return seg, True
         try:
             klasse = client._find_highest_supported_command(HKKAZ5, HKKAZ6, HKKAZ7)
@@ -650,7 +720,8 @@ class FintsBankPlugin(BankPlugin):
         return aus
 
     # ------------------------------------------------------------ TAN (3.5)
-    def _tan_anfordern(self, o: _Offen) -> TanErforderlich:
+    def _tan_anfordern(self, o: _Offen,
+                       meldung: str = "Die Bank verlangt für den Umsatzabruf eine TAN.") -> TanErforderlich:
         h = o.hitan
         referenz = str(getattr(h, "task_reference", "") or "").strip()
         aid = referenz or ("TAN-" + uuid.uuid4().hex)
@@ -687,17 +758,17 @@ class FintsBankPlugin(BankPlugin):
                 gueltig = None
         if gueltig is None:
             gueltig = dt.datetime.now(UTC) + dt.timedelta(minutes=5)
-        return TanErforderlich("Die Bank verlangt für den Umsatzabruf eine TAN.", anforderung_id=aid,
+        return TanErforderlich(meldung, anforderung_id=aid,
                                gueltig_bis=gueltig, challenge=challenge, bild=bild, bild_mime_typ=mime)
 
-    def _mit_tan(self, iban: str, tan: TanAntwort) -> list[BankUmsatz]:
+    def _mit_tan(self, iban: str, tan: TanAntwort):
         aid = str(getattr(tan, "anforderung_id", ""))
         o = self._offen.get(aid)
         if o is None or o.iban != iban or not isinstance(getattr(tan, "tan", None), str):
             raise TanUngueltig("Zu dieser Kennung gibt es keine offene TAN-Anforderung.")
         d = o.d
         try:
-            tan_seg = d.client._get_tan_segment(o.segment, "2", o.hitan)
+            tan_seg = d.client._get_tan_segment(o.segment, "2", o.hitan)  # Prozess 2 braucht nur die Referenz
             d.client._pending_tan = tan.tan
             try:
                 antwort = self._senden(d, tan_seg)
@@ -718,6 +789,12 @@ class FintsBankPlugin(BankPlugin):
             raise TanAbgelaufen("Die TAN-Anforderung ist bei der Bank abgelaufen.")
         self._offen.pop(aid, None)
         try:
+            if o.beginn:
+                # Die Antwort auf die TAN vervollständigt die Dialoginitialisierung (BPD/UPD sind verarbeitet).
+                _fehler_aus_codes(_alle_codes(antwort))
+                if iban == _KONTEN:
+                    return self._konten_abschluss(d)
+                return self._umsaetze_im_dialog(d, iban, o.von, o.bis)
             _fehler_aus_codes(codes)
             aufsetzpunkt = self._seite_lesen(antwort, o.segment, o.camt, o.seiten)
             if aufsetzpunkt is None:

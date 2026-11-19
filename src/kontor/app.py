@@ -33,7 +33,7 @@ from starlette.staticfiles import StaticFiles
 from . import (__version__, ausdruck, berichte, buch, db, export, kredite, lernerklaerung, lernmodell, lernregeln, mock_lerndaten, mail, pflege, protokoll, regeln,
                sicherung, statistik, verschieben, vorlagen, wiederkehrend)
 from . import aktualisierung
-from . import abgleich, dokumente, erwartung
+from . import abgleich, bankzugang, dokumente, erwartung
 from . import anmeldung as anm
 from . import version as versionsinfo
 from .geheimnisse import REST_NAMEN
@@ -233,6 +233,11 @@ VORLAGEN_ANWENDEN = {
 }
 PIN_EINGABE = {"pin": S("str", pflicht=True, min_len=1, max_len=128)}
 TAN_EINGABE = {"tan": S("str", pflicht=True, min_len=1, max_len=64)}
+# D-192: Bankzugang; null oder leer entfernt den gespeicherten Wert (fachliche Prüfung in bankzugang.setzen)
+BANKZUGANG = {f: S("str", nullbar=True, max_len=2048, strip=True) for f in
+              ("url", "blz", "benutzer", "kunden_id", "produkt_id", "tan_verfahren")}
+BANKZUGANG_ABRUF = {"vorgang": S("str", min_len=1, max_len=64), "tan": S("str", min_len=1, max_len=64)}
+BANKZUGANG_KONTEN = {"ibans": S("str_liste", pflicht=True, max_items=100, max_len=42, strip=True)}
 MOCK_ZEIT = {"jetzt": S("str", pflicht=True)}
 GEHEIMNIS_EINGABE = {"wert": S("str", pflicht=True, min_len=1, max_len=4096)}
 _ZEITSTEMPEL = re.compile(r"^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):(\d{2})(\.\d+)?Z$")
@@ -819,6 +824,33 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     @endpunkt("DELETE", "/api/sync/pin", 204)
     async def pin_verwerfen(request: Request):
         sync.pin_verwerfen()
+
+    # D-192: Bankzugang (FinTS) aus der Oberfläche; die PIN gehört nie dazu
+    @endpunkt("GET", "/api/bank/zugang")
+    async def bankzugang_lesen(request: Request):
+        return await lesen(bankzugang.lesen, config)
+
+    @endpunkt("PUT", "/api/bank/zugang")
+    async def bankzugang_setzen(request: Request):
+        d = await koerper(request, BANKZUGANG)
+        return await run_in_threadpool(bankzugang.zugang_setzen, sync, d)
+
+    @endpunkt("POST", "/api/bank/zugang/tan-verfahren")
+    async def bankzugang_tan_verfahren(request: Request):
+        return await run_in_threadpool(bankzugang.tan_verfahren, sync)
+
+    @endpunkt("POST", "/api/bank/zugang/konten/abrufen")
+    async def bankzugang_konten_abrufen(request: Request):
+        roh = await request.body()
+        d = pruefe_koerper(roh if roh.strip() else b"{}", BANKZUGANG_ABRUF)
+        if ("vorgang" in d) != ("tan" in d):
+            raise Validierungsfehler([fehler_eintrag(["body"], "vorgang und tan gehören zusammen.")])
+        return await run_in_threadpool(bankzugang.konten_abrufen, sync, d.get("vorgang"), d.get("tan"))
+
+    @endpunkt("PUT", "/api/bank/zugang/konten")
+    async def bankzugang_konten_waehlen(request: Request):
+        d = await koerper(request, BANKZUGANG_KONTEN)
+        return await run_in_threadpool(bankzugang.zugang_konten_waehlen, sync, d["ibans"])
 
     @endpunkt("GET", "/api/tan-anforderungen")
     async def tan_liste(request: Request):
