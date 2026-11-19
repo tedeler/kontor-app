@@ -563,28 +563,40 @@ class FintsBankPlugin(BankPlugin):
             for k in s.accounts or []:
                 if k.iban:
                     sepa.setdefault(iban_normalisieren(str(k.iban)), k)
-        aus = []
-        gesehen = set()
+        # Benutzerparameter je Konto: über die IBAN, ersatzweise über die Kontonummer. D-202: Manche Banken
+        # (z. B. comdirect) liefern in HIUPD keine IBAN oder keine Kontoart; maßgeblich ist dann die
+        # SEPA-Kontoverbindung aus HISPA.
+        nach_iban: dict[str, object] = {}
+        nach_nummer: dict[str, object] = {}
         for u in d.client.upd.find_segments("HIUPD"):
-            iban = getattr(u, "iban", None)
-            if not iban:
+            if getattr(u, "iban", None):
+                nach_iban.setdefault(iban_normalisieren(str(u.iban)), u)
+            nummer = getattr(getattr(u, "account_information", None), "account_number", None)
+            if nummer:
+                nach_nummer.setdefault(str(nummer).lstrip("0"), u)
+        aus = []
+        for n, k in sepa.items():
+            u = nach_iban.get(n)
+            if u is None and getattr(k, "account_number", None):
+                u = nach_nummer.get(str(k.account_number).lstrip("0"))
+            art, name, inhaber = "girokonto", "", ""
+            if u is not None:
+                if str(getattr(u, "account_currency", "") or "EUR") != "EUR":
+                    continue
+                if getattr(u, "account_type", None) is not None:
+                    try:
+                        art = _art(int(u.account_type))
+                    except (TypeError, ValueError):
+                        art = None
+                    if art is None:
+                        continue   # Depot, Fonds, Bausparen … (K 15)
+                name = str(u.account_product_name or "")
+                inhaber = " ".join(str(x) for x in (u.name_account_owner_1, u.name_account_owner_2) if x)
+            konto = k.as_sepa_account()
+            if konto is None:   # von der Bank nicht als SEPA-Konto geführt
                 continue
-            n = iban_normalisieren(str(iban))
-            if n in gesehen or n not in sepa:
-                continue
-            if str(getattr(u, "account_currency", "") or "") != "EUR":
-                continue
-            try:
-                art = _art(int(u.account_type) if u.account_type is not None else None)
-            except (TypeError, ValueError):
-                art = None
-            if art is None:
-                continue
-            gesehen.add(n)
-            inhaber = " ".join(str(x) for x in (u.name_account_owner_1, u.name_account_owner_2) if x)
-            bic = str(sepa[n].bic) if sepa[n].bic else None
-            aus.append((BankKonto(n, bic or None, str(u.account_product_name or ""), art, inhaber, "EUR"),
-                        sepa[n].as_sepa_account()))
+            bic = str(k.bic) if k.bic else None
+            aus.append((BankKonto(n, bic or None, name, art, inhaber, "EUR"), konto))
         aus.sort(key=lambda x: x[0].iban)
         return aus
 

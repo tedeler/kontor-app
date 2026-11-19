@@ -134,7 +134,7 @@ export async function bankzugangAbschnitt(pinVorhanden) {
     tanBereich.hidden = true;
     tanBereich.replaceChildren();
     kontenZeigen(r.konten);
-    sagen(`${r.konten.length} Konten abgerufen.`);
+    sagen(r.konten.length ? `${r.konten.length} Konten abgerufen.` : "Die Bank hat keine abrufbaren Konten gemeldet.", !r.konten.length);
   };
 
   const speicherKnopf = knopf("Bankzugang speichern", { tid: "bankzugang-speichern", class: "knopf knopf-haupt" });

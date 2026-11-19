@@ -2711,3 +2711,14 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   Dialogbeginn, AqBanking-Saldo und den öffentlichen Plugin-Methoden passen nicht mehr; das klärt der
   Test-Thread mit der Meilenstein-Definition dieses Features.
 
+## D-202 Kontenliste aus der SEPA-Kontoverbindung, Benutzerparameter nur ergänzend (ergänzt fints.md 3.2)
+
+- **Frage:** Bisher zählte nur ein HIUPD-Eintrag mit IBAN, Währung EUR und bekannter Kontoart. Beim ersten Abruf
+  gegen die comdirect (2026-11-19) kamen so 0 Konten, obwohl die Bank SEPA-Konten meldet.
+- **Entscheidung:** Grundlage ist jedes Konto aus HISPA mit IBAN. Der passende HIUPD-Eintrag wird über die IBAN,
+  ersatzweise über die Kontonummer gesucht und liefert Name, Inhaber und Kontoart. Fehlt er oder fehlt die
+  Kontoart, gilt `girokonto`. Ausgeschlossen bleibt ein Konto nur, wenn HIUPD ausdrücklich eine andere Währung
+  als EUR oder eine Kontoart außerhalb der Tabelle (Depot usw., K 15) nennt.
+- **Begründung:** Was in den Benutzerparametern steht, ist je Bank verschieden; die SEPA-Kontoverbindung ist das,
+  womit der Umsatzabruf arbeitet. Für Banken mit vollständigem HIUPD ändert sich nichts (M6-Tests unverändert grün).
+

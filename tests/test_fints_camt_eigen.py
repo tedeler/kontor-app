@@ -278,3 +278,44 @@ def test_alte_kennungen_werden_einmal_beim_ersten_start_vermerkt(tmp_path):
     db.schema_anlegen(pfad)   # nur einmal
     assert con.execute("SELECT count(*) FROM sync_kennung_alt").fetchone()[0] == 0
     con.close()
+
+
+# ---------------------------------------------------------------- Kontenliste (D-202)
+
+
+def _konten(monkeypatch, sepa_konten, hiupd):
+    from kontor.plugins import fints as modul
+    antwort = SimpleNamespace(response_segments=lambda *_a: [SimpleNamespace(accounts=sepa_konten)],
+                              find_segments=lambda *_a: [])
+    monkeypatch.setattr(modul, "_codes", lambda *_a: [])
+    plugin = FintsBankPlugin()
+    monkeypatch.setattr(plugin, "_senden", lambda *_a: antwort)
+    d = SimpleNamespace(client=SimpleNamespace(upd=SimpleNamespace(find_segments=lambda _n: hiupd)))
+    return [k for k, _ in plugin._konten_im_dialog(d)]
+
+
+def _sepa(iban, nummer):
+    from fints.formals import KTZ1, BankIdentifier
+    return KTZ1(is_sepa=True, iban=iban, bic="TESTDEFFXXX", account_number=nummer,
+                bank_identifier=BankIdentifier(country_identifier="280", bank_code="00000000"))
+
+
+def _upd(nummer, iban=None, art=None, waehrung="EUR", name="Produkt"):
+    return SimpleNamespace(iban=iban, account_information=SimpleNamespace(account_number=nummer),
+                           account_currency=waehrung, account_type=art, account_product_name=name,
+                           name_account_owner_1="Erika Mustermann", name_account_owner_2=None)
+
+
+def test_konten_ohne_iban_oder_kontoart_in_den_benutzerparametern(monkeypatch):
+    a, b, c, e = ("DE57000000000532013000", "DE95000000000000006601", "DE68000000000000006602",
+                  "DE41000000000000006603")
+    sepa = [_sepa(a, "0532013000"), _sepa(b, "6601"), _sepa(c, "6602"), _sepa(e, "6603")]
+    # Benutzerparameter ganz ohne Konten: alle SEPA-Konten als Girokonto
+    assert [(k.iban, k.art, k.name) for k in _konten(monkeypatch, sepa, [])] == [
+        (i, "girokonto", "") for i in sorted((a, b, c, e))]
+    # ohne IBAN (Zuordnung über die Kontonummer) und ohne Kontoart; Depot und Fremdwährung bleiben draußen
+    konten = _konten(monkeypatch, sepa, [_upd("532013000"), _upd("6601", art=10, name="Tagesgeld"),
+                                         _upd("6602", art=30), _upd("6603", iban=e, art=1, waehrung="USD")])
+    assert sorted((k.iban, k.art, k.name, k.bic, k.inhaber) for k in konten) == sorted([
+        (a, "girokonto", "Produkt", "TESTDEFFXXX", "Erika Mustermann"),
+        (b, "sparkonto", "Tagesgeld", "TESTDEFFXXX", "Erika Mustermann")])
