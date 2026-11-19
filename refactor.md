@@ -44,10 +44,14 @@ SQL-Text eingesetzt werden.
 | 2026-11-11 | `698d2fa` | M16, M17 und Nachzug (0.09), vor Dokumente | 15 734 | 4 997² | 363 | 46 | 38 | 127 | 379 | 0 |
 | 2026-11-12 | `5191417` | Dokumente (Branch, noch nicht gemergt), vor Mail-Abgleich | 16 425 | 5 420² | 380 | 46 | 40 | 134 | 399 | 0 |
 | 2026-11-12 | `698d2fa` | M16, M17 (auf main, Version 0.09), vor ALF-BanCo-Import | 15 734 | 4 997² | 363 | 46 | 38 | 127 | 379 | 0 |
+| 2026-11-19 | `68b53a6` | Stand main nach M18–M28 und Folgefeatures, vor FinTS/CAMT-Umstellung (`feature/fints-camt`) | 23 095 | 10 036² | 567 | 67 | 55 | 168 | 564 | 0⁴ |
 
 ¹ `--select E,F,W,B,C90,SIM,UP,PL --line-length 120`.
 ² Ab M8 Summe der ES-Module `src/kontor/web/oeffentlich/app/*.js` (R-07, `app.js` gibt es nicht mehr).
 ³ Gemessen auf `feature/tabs-gegenbuchung` (Python identisch mit `7e3719c`; JS einschließlich der rund 330 Zeilen von M16).
+⁴ 84 Hinweise von `S608`; für diese Zeile nicht einzeln nachgeprüft (seit 2026-11-12 fehlen Zeilen für mehrere Features, die Sprünge
+  aller Kennzahlen stammen aus diesen und nicht aus einer einzelnen Änderung). Maßnahme R-neu: Zeilen je Feature nachtragen
+  und die S608-Hinweise der neuen Module durchsehen.
 
 ## Bewertung (2026-11-09)
 
