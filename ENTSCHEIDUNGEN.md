@@ -2814,3 +2814,24 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   über den Knopf „Monatsbericht“ auf der Seite Berichte und die Befehlspalette. Monat und Konten stehen in der
   Adresse (`?monat=`, `?konto=`), der Tab merkt sie sich. Diagramme mit dem vorhandenen Plotly-Paket; Kalender,
   Balken und Anteile sind HTML, damit sie ohne Plotly und mit Tastatur bedienbar bleiben.
+
+## D-207 Regeleditor: Zeitraum statt Testmengen-Ausdruck, Test ohne Kategorie, Fehler am Feld (Feature `regeleditor-feinschliff`)
+
+- **Anlass:** Rückmeldungen vom 2026-11-19: (1) Die Testliste zeigte ein altes Ergebnis, weil der Test ohne gültige
+  Kategorie mit 422 scheiterte und nur eine kleine Statuszeile darauf hinwies. (2) Das Feld „Testmenge (Filter)“
+  wurde für die Bedingung gehalten; die Bedingung filtert die rechte Seite ohnehin. (3) Speichern ohne Namen
+  ergab nur „Die Anfrage ist ungültig.“
+- **Testbereich:** Das freie Ausdrucksfeld für die Testmenge und der Knopf „Als Testmenge übernehmen“ entfallen
+  (ändert D-185/D-193 und Konzept 5.3). Es bleiben das Quellkonto und der Zeitraum als Auswahl (12 Monate,
+  dieses Jahr, Vorjahr, alle; Vorgabe 12 Monate), weil Regeln kein Datum kennen und der Zeitraum den Umfang von
+  „Anwenden…“ bestimmt. „Als Regel speichern…“ aus dem Kontoblatt übergibt den Filter nicht mehr als Testmenge.
+  Die Schnittstelle (`testmenge` in `/api/regeln/test` und `/anwenden`) bleibt unverändert.
+- **Test ohne Kategorie:** Die Oberfläche schickt nur eine gewählte Kategorie mit; ohne Kategorie zeigt der Test
+  die Treffer. Scheitert der Test dennoch, wird das alte Ergebnis entfernt und der Grund in der Zählzeile
+  genannt, statt die alte Liste stehen zu lassen (ergänzt D-192, das nur ungültige Ausdrücke betrifft).
+- **Fehlermeldungen:** `fehlerText` (`kern.js`) hängt bei `validierung` die Einzelheiten des Servers an (Feld und
+  Regel, nie Werte); Dialoge (`imDialog`) und Meldungen (`fehlerMelden`) verwenden es. Der Regeleditor prüft
+  vor dem Senden: Ohne Kategorie nennt er den Grund am Feld; ein leerer Name wird aus Bedingung und Kategorie
+  vorgeschlagen (erster Text der Bedingung, „REWE → Lebensmittel“, Konzept 3), als Platzhalter sichtbar und
+  beim Speichern übernommen.
+- **Prüfung:** `tests/test_browser_ausdruck.py` (Zeitraum-Auswahl, Namensvorschlag, Editor ohne Kategorie).

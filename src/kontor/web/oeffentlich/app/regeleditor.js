@@ -1,6 +1,6 @@
 /* Kontor – Regelliste, Regeleditor (Baukasten und Ausdruck) und Testbereich (D-185, Konzept 5.1–5.3). */
 import {
-  BESTAND, aktion, api, baumFolge, betragEl, betragLesen, datumText, h, kategorien, kontoPfad, melde, neueId, pfadVon,
+  BESTAND, aktion, api, baumFolge, betragEl, betragLesen, datumText, fehlerText, h, kategorien, kontoPfad, melde, neueId, pfadVon,
   stamm,
 } from "./kern.js";
 import { bestaetigen, dialog, feld, imDialog, knopf, knopfLeiste } from "./ui.js";
@@ -404,7 +404,7 @@ export class Baukasten {
 // ------------------------------------------------------------------ Regeleditor (5.2)
 /**
  * Öffnet den Regeleditor. `r`: bestehende Regel (mit id), Vorlage ohne id (Duplizieren, „Als Regel speichern“) oder
- * null. Optional `r.testmenge` als Vorgabe der Testmenge.
+ * null.
  */
 export async function regelEditor(r, ausloeser) {
   const sp = await sprache("regel");
@@ -434,22 +434,16 @@ export async function regelEditor(r, ausloeser) {
     const kopierKnopf = () => knopf("Kopieren", { class: "knopf klein", tid: "regel-ausdruck-kopieren", onclick: async () => {
       melde("hinweis", (await kopieren(ausdruckEl.wert)) ? "Ausdruck kopiert." : "Kopieren ist hier nicht möglich; bitte markieren und Strg+C.");
     } });
-    const testKnopf = () => knopf("Als Testmenge übernehmen", { class: "knopf klein", tid: "regel-in-testmenge",
-      title: "Zeigt im Test alle Buchungen, auf die der Ausdruck passt", onclick: () => {
-        if (!ausdruckEl.wert.trim()) { melde("hinweis", "Noch keine Bedingung."); return; }
-        test.menge.wert = ausdruckEl.wert;
-        test.laden();
-      } });
     const tabBk = h("button", { type: "button", role: "tab", tid: "regel-modus-baukasten", class: "reiter" }, "Baukasten");
     const tabAz = h("button", { type: "button", role: "tab", tid: "regel-modus-ausdruck", class: "reiter" }, "Ausdruck");
     const bkHinweis = h("p", { class: "klein hinweis", tid: "regel-baukasten-hinweis", hidden: true });
-    const bkBereich = h("div", { role: "tabpanel", class: "bk-bereich" }, baukasten.el, h("div", { class: "bk-unten" }, h("span", { class: "klein" }, "Ausdruck: "), vorschau, kopierKnopf(), testKnopf()));
+    const bkBereich = h("div", { role: "tabpanel", class: "bk-bereich" }, baukasten.el, h("div", { class: "bk-unten" }, h("span", { class: "klein" }, "Ausdruck: "), vorschau, kopierKnopf()));
     const azBereich = h("div", { role: "tabpanel", class: "az-bereich" }, ausdruckFeld(
       "Bedingungen (Ausdruck; die alte Zeilenform „empfaenger enthaelt Bäckerei“ geht weiterhin)", ausdruckEl),
       h("p", { class: "klein" }, "Python-Ausdrücke: ", h("code", null, "and or not in == != < <= > >= is None"),
         ", Methoden ", h("code", null, '.startswith("…") .endswith("…") .search(r"…")'), ". Kurzformen: ",
         h("code", null, "empf vwz bet dir"), ". Regeln kennen kein Datum; dafür monatstag, monat, wochentag."),
-      knopfLeiste(kopierKnopf(), testKnopf()));
+      knopfLeiste(kopierKnopf()));
     // Beim Tippen nur den Reiter sperren (mit Tooltip); der Hinweistext erscheint erst beim Versuch umzuschalten,
     // damit links nichts springt (D-192).
     const umschalterPruefen = (e) => {
@@ -494,7 +488,7 @@ export async function regelEditor(r, ausloeser) {
     };
     const test = new Testbereich(() => ({ ausdruck: ausdruckEl.wert, ergebnis: ausdruckEl.ergebnis,
       kategorie_id: Number(kat.value), regel_id: gespeichert ? gespeichert.id : undefined, geaendert }),
-    r && r.testmenge, async () => anwendenDialog(), (text) => bedingungSetzen(text));
+    async () => anwendenDialog(), (text) => bedingungSetzen(text));
     // Bestehende Regel in Bedingung und Test übernehmen
     const uebernehmen = h("select", { tid: "regel-uebernehmen", "aria-label": "Bedingung einer bestehenden Regel übernehmen" },
       h("option", { value: "" }, "Bedingung einer bestehenden Regel übernehmen …"));
@@ -512,6 +506,7 @@ export async function regelEditor(r, ausloeser) {
     const testPlanen = () => { clearTimeout(testUhr); test.veraltet(); testUhr = setTimeout(() => test.laden(), 150); };
     // Nach jeder Prüfung sofort testen; ungültig → letztes Ergebnis bleibt sichtbar, als veraltet markiert (D-192)
     const testNachPruefung = (e) => {
+      vorschlagZeigen();
       clearTimeout(testUhr);
       if (e && !e.gueltig) test.veraltet("Ausdruck ungültig – Ergebnis vom letzten gültigen Stand");
       else test.laden();
@@ -530,7 +525,33 @@ export async function regelEditor(r, ausloeser) {
       } else body.ausdruck = ausdruckEl.wert;
       return body;
     };
+    const vorschlag = () => {
+      const k = stamm.konten.find((x) => String(x.id) === kat.value);
+      return namensVorschlag(alteBedingungen(ausdruckEl.wert) ? "" : ausdruckEl.wert, k ? k.name : "");
+    };
+    const vorschlagZeigen = () => { name.placeholder = vorschlag(); };
+    ausdruckEl.eingabe.addEventListener("input", vorschlagZeigen);
+    kat.addEventListener("change", vorschlagZeigen);
+    vorschlagZeigen();
+    name.addEventListener("input", () => name.removeAttribute("aria-invalid"));
+    /** Eingaben, die der Server nur allgemein ablehnen würde, vorher am Feld melden (D-207). */
+    const eingabenPruefen = () => {
+      vorschlagZeigen();
+      for (const el of [name, kat]) el.removeAttribute("aria-invalid");
+      if (!kat.value) {
+        kat.setAttribute("aria-invalid", "true");
+        kat.focus();
+        throw new Error("Es gibt noch keine Kategorie. Bitte zuerst unter „Kategorien“ ein Aufwands- oder Ertragskonto anlegen.");
+      }
+      if (!name.value.trim()) name.value = vorschlag();   // leerer Name: Vorschlag aus Bedingung und Kategorie
+      if (!name.value.trim()) {
+        name.setAttribute("aria-invalid", "true");
+        name.focus();
+        throw new Error("Bitte einen Namen für die Regel eingeben.");
+      }
+    };
     const speichernUnd = async (danach) => {
+      eingabenPruefen();
       const body = koerper();
       const neu = await aktion(() => (gespeichert ? api("PATCH", `/api/regeln/${gespeichert.id}`, body) : api("POST", "/api/regeln", body)),
         { stillBeiFehler: true, danach: () => d.schliessen(true), erfolg: "Regel gespeichert." });
@@ -563,15 +584,28 @@ export async function regelEditor(r, ausloeser) {
 }
 
 // ------------------------------------------------------------------ Testbereich
+const ZEITRAEUME = [
+  { kurz: "12m", text: "12 Monate", filter: "datum in -12m" },
+  { kurz: "jahr", text: "dieses Jahr", filter: "datum in dieses_jahr" },
+  { kurz: "vorjahr", text: "Vorjahr", filter: "datum in vorjahr" },
+  { kurz: "alle", text: "alle", filter: "" },
+];
+
+/** Namensvorschlag aus Bedingung und Kategorie, z. B. „REWE → Lebensmittel“ (Konzept 3). */
+export function namensVorschlag(ausdruck, kategorie) {
+  const m = /(["'])((?:\\.|(?!\1)[^\\])+)\1/.exec(ausdruck || "");
+  const text = m ? m[2].replace(/\\(.)/g, "$1").trim().slice(0, 60) : "";
+  return [text, kategorie || ""].filter(Boolean).join(" → ");
+}
+
 class Testbereich {
-  constructor(regel, testmenge, anwenden, alsBedingung) {
+  constructor(regel, anwenden, alsBedingung) {
     this.regel = regel;
     this.alsBedingung = alsBedingung;
     this.wirkung = "";
     this.zaehlung = null;
     this.nr = 0;
-    this.menge = new AusdruckEingabe({ kontext: "filter", tid: "regel-testmenge", wert: testmenge ?? "datum in -12m",
-      beschriftung: "Testmenge", beiEnter: () => this.laden(), beiErgebnis: (e) => { if (e && e.gueltig) this.planen(); } });
+    this.zeitraum = ZEITRAEUME[0];   // Zeitraum der getesteten Buchungen; die Bedingung selbst filtert (D-207)
     this.zahlenEl = h("span", { tid: "test-zahlen" });
     this.statusEl = h("span", { class: "test-status", tid: "test-status" });
     this.chipsEl = h("div", { class: "test-chips", role: "group", "aria-label": "Nach Wirkung filtern" });
@@ -581,18 +615,24 @@ class Testbereich {
     this.konto = h("select", { tid: "regel-test-konto" }, h("option", { value: "" }, "– alle Konten –"),
       baumFolge(stamm.konten.filter((k) => BESTAND.has(k.art))).map(({ konto }) => h("option", { value: String(konto.id) }, kontoPfad(konto))));
     this.konto.addEventListener("change", () => this.laden());
-    this.leerHinweis = h("p", { class: "hinweis klein", tid: "test-leer", hidden: true }, "Die Testmenge enthält keine Buchungen. ",
-      knopf("Alle Buchungen testen", { class: "knopf klein", tid: "test-alle", onclick: () => { this.menge.wert = ""; this.laden(); } }));
-    const schnell = [["12 Monate", "datum in -12m"], ["dieses Jahr", "datum in dieses_jahr"], ["Vorjahr", "datum in vorjahr"], ["alle", ""]];
+    this.leerHinweis = h("p", { class: "hinweis klein", tid: "test-leer", hidden: true }, "In diesem Zeitraum gibt es keine Buchungen. ",
+      knopf("Alle Buchungen testen", { class: "knopf klein", tid: "test-alle", onclick: () => this.zeitraumSetzen(ZEITRAEUME[3]) }));
+    this.zeitraumChips = ZEITRAEUME.map((z) => knopf(z.text, { class: "chip", tid: `test-zeitraum-${z.kurz}`,
+      "aria-pressed": String(z === this.zeitraum), onclick: () => this.zeitraumSetzen(z) }));
     this.el = h("section", { class: "regel-test", tid: "regel-test", "aria-label": "Test" },
       h("h3", null, "Test an vorhandenen Buchungen"),
       feld("Quellkonto", this.konto),
-      ausdruckFeld("Testmenge (Filter)", this.menge),
-      h("div", { class: "test-schnell" }, schnell.map(([t, w]) => knopf(t, { class: "chip", onclick: () => { this.menge.wert = w; this.laden(); } }))),
+      h("div", { class: "test-schnell", role: "group", "aria-label": "Zeitraum der getesteten Buchungen" }, this.zeitraumChips),
       h("div", { class: "test-zahlen", role: "status" }, this.zahlenEl, this.statusEl), this.leerHinweis, this.chipsEl, this.listeEl, this.erfasstEl, knopfLeiste(this.anwendenKnopf));
   }
 
-  testmengeText() { return this.menge.wert; }
+  testmengeText() { return this.zeitraum.filter; }
+
+  zeitraumSetzen(z) {
+    this.zeitraum = z;
+    this.zeitraumChips.forEach((c, i) => c.setAttribute("aria-pressed", String(ZEITRAEUME[i] === z)));
+    this.laden();
+  }
 
   kontoId() { return this.konto.value ? Number(this.konto.value) : undefined; }
 
@@ -622,7 +662,9 @@ class Testbereich {
       this.veraltet("Ausdruck ungültig – Ergebnis vom letzten gültigen Stand");
       return;
     }
-    const body = { kategorie_id: ohne ? undefined : r.kategorie_id, testmenge: this.menge.wert, pro_seite: 100, konto_id: this.kontoId() };
+    // Ohne (gültige) Kategorie läuft der Test trotzdem und zeigt die Treffer (D-207).
+    const body = { kategorie_id: ohne || !r.kategorie_id ? undefined : r.kategorie_id, testmenge: this.zeitraum.filter,
+      pro_seite: 100, konto_id: this.kontoId() };
     if (ohne) body.ausdruck = "True";
     else if (!alt) body.ausdruck = r.ausdruck;
     if (r.regel_id && !ohne) body.regel_id = r.regel_id;
@@ -631,7 +673,14 @@ class Testbereich {
     if (!this.statusEl.textContent) this.veraltet();
     let t;
     try { t = await api("POST", "/api/regeln/test", body); } catch (e) {
-      if (nr === this.nr) { this.veraltet(e.message || "Test nicht möglich."); this.el.dataset.geladen = "ja"; }
+      if (nr === this.nr) {   // kein altes Ergebnis unter einer neuen Eingabe stehen lassen (D-207)
+        leer(`Test nicht möglich: ${fehlerText(e)}`);
+        this.zahlenEl.dataset.anzahl = "";
+        this.leerHinweis.hidden = true;
+        this.el.dataset.veraltet = "nein";
+        this.statusEl.textContent = "";
+        this.el.dataset.geladen = "ja";
+      }
       return;
     }
     if (nr !== this.nr) return;
@@ -641,8 +690,8 @@ class Testbereich {
     this.leerHinweis.hidden = t.testmenge_anzahl > 0;
     this.ohneBedingung = ohne;
     this.zahlenEl.textContent = ohne
-      ? `Noch keine Bedingung – ${t.testmenge_anzahl} Buchungen der Testmenge. „→ Bedingung“ übernimmt eine Buchung als Vorlage.`
-      : `${t.anzahl} Treffer in ${t.testmenge_anzahl} Buchungen der Testmenge`;
+      ? `Noch keine Bedingung – ${t.testmenge_anzahl} Buchungen (${this.zeitraum.text}). „→ Bedingung“ übernimmt eine Buchung als Vorlage.`
+      : `${t.anzahl} Treffer in ${t.testmenge_anzahl} Buchungen (${this.zeitraum.text})`;
     this.zahlenEl.dataset.anzahl = String(t.anzahl);
     this.chipsEl.replaceChildren(...(ohne ? [] : [["", "Alle", t.anzahl], ...Object.entries(t.zaehlung).filter(([, n]) => n > 0)
       .map(([w, n]) => [w, WIRKUNG_TEXT[w], n])].map(([w, text, n]) => h("button", { type: "button", class: "chip",
