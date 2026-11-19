@@ -2899,3 +2899,14 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   stehen in `bestellmail_nummer` (Betriebszustand). Mails ohne Rohfassung (Mock, zu große Mails) zählen wie
   bisher nur mit Betreff und Text.
 - Jeder Lauf schreibt eine Zeile ins Log (`kontor.bestellmail`, Stufe INFO) mit der Zahl der angehängten Mails.
+
+## D-210 Datum der E-Mail in den Einzelheiten (Feature `mail-datum`)
+
+- **Auftrag (2026-11-19):** Im Abschnitt „Dokumente“ der Einzelheiten soll bei angehängten E-Mails das Datum der
+  Mail stehen.
+- **Entscheidung:** Neben jeder angehängten E-Mail steht ihr Datum (`dokument-datum-<id>`, Tag.Monat.Jahr in
+  Ortszeit, voller Zeitpunkt im Tooltip und in `data-zeitpunkt`), vor der Größe. Andere Dokumente bekommen kein
+  Datum. Mails ohne lesbares Datum zeigen nichts.
+- **Quelle:** das Feld `datum` der vorhandenen Mail-Ansicht `GET /api/dokumente/{id}/mail` (Kopfzeile `Date`),
+  je Dokument einmal gelesen und für die Sitzung gemerkt. Kein neues Feld in `belege` oder im Dokument, damit der
+  Vertrag `openapi.yaml` unverändert bleibt.
