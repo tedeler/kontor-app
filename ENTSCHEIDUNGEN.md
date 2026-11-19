@@ -3020,3 +3020,24 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - **Nicht im Umfang:** Tags entfernen per Regel, „Danach keine weiteren Regeln“, „direkt bestätigen“. Regeln wirken
   wie bisher nicht beim Import und nicht bei von Hand angelegten Buchungen.
 - **Prüfung:** `tests/test_regel_tags_eigen.py`, `tests/test_browser_ausdruck.py::test_regeleditor_tags`.
+
+## D-216 Anwenden-Fenster verständlich, Tags an Buchungen sichtbar bearbeiten (Feature `regel-anwenden-fenster`)
+
+- **Anlass:** Rückmeldungen vom 2026-11-19. (1) Nach „Speichern und anwenden“ zeigte das Fenster das Wort „null“
+  und den rohen Ausdruck der Testmenge (`datum in -12m`). (2) Tags an Buchungen sollen bearbeitbar sein: hinzufügen,
+  neu anlegen, entfernen, auch für mehrere Buchungen im Kontoblatt.
+- **Anwenden-Fenster:** Ursache von „null“ war ein leerer Teil, der als Text in das Fenster geschrieben wurde; Teile
+  ohne Inhalt werden nicht mehr angehängt (derselbe Fehler im Fenster „Betragsfilter“ ist mit behoben). Das Fenster
+  nennt jetzt den Zeitraum in Worten statt des Ausdrucks, die Kategorie beim Namen, die Zahl der Buchungen, die Tags
+  erhalten, und bietet „abweichende überschreiben“ nur an, wenn es abweichende gibt. Ändert die Regel im gewählten
+  Umfang nichts, steht das dort (`regel-anwenden-nichts`) und es gibt nur „Schließen“. Der Umfang steht in
+  `regel-anwenden-umfang`.
+- **Tag-Dialog (`tag-auswahl`, ergänzt oberflaeche.md 9.2):** Der Dialog zeigt die vorhandenen Tags der gewählten
+  Buchungen (`tag-auswahl-vorhanden`, `data-geladen`), bei mehreren Buchungen mit „(alle)“ bzw. „(n von m)“. Ein ×
+  je Tag (`tag-auswahl-weg-<tag-id>`) entfernt ihn von allen gewählten Buchungen; das ist ein Rückgängig-Schritt,
+  und der Dialog bleibt offen, damit sich mehrere Tags entfernen lassen. Namensfeld, „Hinzufügen“ (legt unbekannte
+  Tags an) und „Entfernen“ verhalten sich wie bisher. Die Tags kommen aus den geladenen Zeilen des Kontoblatts;
+  für nicht geladene Buchungen werden höchstens 50 einzeln nachgelesen, darüber nennt der Dialog, dass er die
+  Tags der übrigen nicht zeigt (Hinzufügen und Entfernen wirken trotzdem auf alle).
+- **Prüfung:** `tests/test_browser_ausdruck.py::test_anwenden_fenster_ohne_unsinn` und
+  `::test_tags_im_kontoblatt_bearbeiten`.
