@@ -77,7 +77,7 @@ Commit-Nachrichten sind auf Deutsch.
 | `src/kontor/bestellmail.py` | Feature amazon-bestellnummer (D-208): Mails mit der Amazon-Bestellnummer einer Buchung als Dokumente anhängen (`mail_bestellnummer`), Tabelle `bestellmail` als Betriebszustand; Aufruf über `abgleich.nach_ereignis` |
 | `src/kontor/berichte.py`, `export.py` | M5: Kontostandsverlauf, Einnahmen/Ausgaben; CSV- und PDF-Export (reportlab) der Buchungsliste |
 | `src/kontor/sicherung.py` | M9: Datensicherung (eigenes Schema der Sicherungsdatei `SPALTEN`, Version `SCHEMAVERSION`), Prüfung nach sicherung.md 5.1, Inhaltsprüfung in einer App-Datenbank im Arbeitsspeicher, Probelauf, Einspielen |
-| `src/kontor/db.py` | SQLite-Schema (Version 9), WAL, Migration früherer Versionen ohne Datenverlust, Verbindungen, `checkpoint` |
+| `src/kontor/db.py` | SQLite-Schema (Version 14), WAL, Migration früherer Versionen ohne Datenverlust, Verbindungen, `checkpoint` |
 | `src/kontor/geheimnisse.py` | M6: verschlüsselter Geheimnisspeicher (AES-256-GCM, Schlüssel aus systemd-creds oder Schlüsseldatei), `verwaiste_entfernen` |
 | `src/kontor/mail.py` | M6: Postfächer (Buchbestand), Betriebszustand, OAuth2 mit PKCE, `zugang` (Token-Erneuerung, Ablauf, Widerruf), paralleler Abruf, Spiegel |
 | `src/kontor/zustellung.py` | M6: Zustellung der Benachrichtigungen über das Benachrichtigungs-Plugin (erster Versuch, Wiederholung, Status) |

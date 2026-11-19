@@ -1,6 +1,6 @@
 /* Kontor – Regelliste, Regeleditor (Baukasten und Ausdruck) und Testbereich (D-185, Konzept 5.1–5.3). */
 import {
-  BESTAND, aktion, api, baumFolge, betragEl, betragLesen, datumText, h, kategorien, kontoPfad, melde, neueId, pfadVon,
+  BESTAND, aktion, api, baumFolge, betragEl, betragLesen, datumText, fehlerText, h, kategorien, kontoPfad, melde, neueId, pfadVon,
   stamm,
 } from "./kern.js";
 import { bestaetigen, dialog, feld, imDialog, knopf, knopfLeiste } from "./ui.js";
@@ -69,7 +69,7 @@ export async function regelnSeite(seite, kopf) {
       } }),
     h("a", { href: "/lernmodell", class: "knopf", tid: "regeln-lernmodell" }, "Lernmodell …"));
   if (!liste.length) {
-    seite.append(h("p", { class: "leer" }, "Noch keine Regeln. Regeln ordnen neuen Buchungen eine Kategorie zu, bevor das Lernmodell gefragt wird."));
+    seite.append(h("p", { class: "leer" }, "Noch keine Regeln. Regeln ordnen neuen Buchungen eine Kategorie zu, bevor das Lernmodell gefragt wird, und können Tags vergeben."));
     return { titel: "Regeln" };
   }
   const ul = h("ol", { class: "regel-liste", tid: "regel-liste", "aria-label": "Regeln in der Reihenfolge ihrer Anwendung" });
@@ -103,7 +103,9 @@ export async function regelnSeite(seite, kopf) {
       "data-id": String(r.id) },
     griff, h("span", { class: "regel-nr" }, `${i + 1}.`), aktiv,
     h("div", { class: "regel-inhalt" },
-      h("strong", null, r.name), h("span", { class: "regel-ziel" }, ` → ${pfadVon(r.kategorie_id)}`),
+      h("strong", null, r.name), h("span", { class: "regel-ziel", tid: `regel-ziel-${r.id}` },
+        r.kategorie_id ? ` → ${pfadVon(r.kategorie_id)} ` : (r.tag_ids || []).length ? " → " : " → (keine Aktion) ",
+        (r.tag_ids || []).map((id) => h("span", { class: "tag" }, `+ ${tagName(id)}`))),
       r.automatisch ? h("span", { class: "regel-auto", tid: `regel-automatisch-${r.id}`,
         title: "Aus deinen Zuordnungen gelernt. Wird die Regel gelöscht, legt Kontor sie für diesen Empfänger nicht wieder an." },
       "automatisch angelegt") : null,
@@ -130,7 +132,7 @@ export async function regelnSeite(seite, kopf) {
     });
     ul.append(li);
   });
-  seite.append(h("p", { class: "hinweis klein" }, "Regeln wirken von oben nach unten; für die Kategorie gilt die erste passende Regel. "
+  seite.append(h("p", { class: "hinweis klein" }, "Regeln wirken von oben nach unten; für die Kategorie gilt die erste passende Regel, Tags vergeben alle passenden Regeln. "
     + "Reihenfolge per Ziehen oder Alt+↑/↓ am Griff."), ul);
   return { titel: "Regeln" };
 }
@@ -404,15 +406,20 @@ export class Baukasten {
 // ------------------------------------------------------------------ Regeleditor (5.2)
 /**
  * Öffnet den Regeleditor. `r`: bestehende Regel (mit id), Vorlage ohne id (Duplizieren, „Als Regel speichern“) oder
- * null. Optional `r.testmenge` als Vorgabe der Testmenge.
+ * null.
  */
 export async function regelEditor(r, ausloeser) {
   const sp = await sprache("regel");
   const gespeichert = r && r.id ? r : null;
   dialog("regel-dialog", gespeichert ? `Regel „${r.name}“` : "Regel anlegen", (inhalt, d) => {
     const name = h("input", { type: "text", maxlength: "200", tid: "regel-name", value: r ? r.name : "" });
-    const kat = h("select", { tid: "regel-kategorie" }, kategorien().map(({ konto }) => h("option", { value: String(konto.id),
-      selected: r && konto.id === r.kategorie_id }, kontoPfad(konto))));
+    // Kategorie optional (D-215). Vorgabe wie bisher die erste Kategorie; „keine“ nur bei Regeln, die nur Tags vergeben.
+    const alleKat = kategorien();
+    const ohneKat = !!(r && !r.kategorie_id && (r.tag_ids || []).length);
+    const gewaehlt = r && r.kategorie_id ? r.kategorie_id : (ohneKat || !alleKat.length ? null : alleKat[0].konto.id);
+    const kat = h("select", { tid: "regel-kategorie" }, h("option", { value: "", selected: gewaehlt === null }, "– keine Kategorie –"),
+      alleKat.map(({ konto }) => h("option", { value: String(konto.id), selected: konto.id === gewaehlt }, kontoPfad(konto))));
+    const tags = new TagFeld(r ? r.tag_ids || [] : [], () => { geaendert = true; vorschlagZeigen(); testPlanen(); });
     const aktiv = h("input", { type: "checkbox", tid: "regel-aktiv", checked: r ? r.aktiv !== false : true });
     const prio = h("input", { type: "number", step: "1", min: "0", tid: "regel-prioritaet",
       value: gespeichert ? String(r.prioritaet) : "" , placeholder: "am Ende" });
@@ -434,22 +441,16 @@ export async function regelEditor(r, ausloeser) {
     const kopierKnopf = () => knopf("Kopieren", { class: "knopf klein", tid: "regel-ausdruck-kopieren", onclick: async () => {
       melde("hinweis", (await kopieren(ausdruckEl.wert)) ? "Ausdruck kopiert." : "Kopieren ist hier nicht möglich; bitte markieren und Strg+C.");
     } });
-    const testKnopf = () => knopf("Als Testmenge übernehmen", { class: "knopf klein", tid: "regel-in-testmenge",
-      title: "Zeigt im Test alle Buchungen, auf die der Ausdruck passt", onclick: () => {
-        if (!ausdruckEl.wert.trim()) { melde("hinweis", "Noch keine Bedingung."); return; }
-        test.menge.wert = ausdruckEl.wert;
-        test.laden();
-      } });
     const tabBk = h("button", { type: "button", role: "tab", tid: "regel-modus-baukasten", class: "reiter" }, "Baukasten");
     const tabAz = h("button", { type: "button", role: "tab", tid: "regel-modus-ausdruck", class: "reiter" }, "Ausdruck");
     const bkHinweis = h("p", { class: "klein hinweis", tid: "regel-baukasten-hinweis", hidden: true });
-    const bkBereich = h("div", { role: "tabpanel", class: "bk-bereich" }, baukasten.el, h("div", { class: "bk-unten" }, h("span", { class: "klein" }, "Ausdruck: "), vorschau, kopierKnopf(), testKnopf()));
+    const bkBereich = h("div", { role: "tabpanel", class: "bk-bereich" }, baukasten.el, h("div", { class: "bk-unten" }, h("span", { class: "klein" }, "Ausdruck: "), vorschau, kopierKnopf()));
     const azBereich = h("div", { role: "tabpanel", class: "az-bereich" }, ausdruckFeld(
       "Bedingungen (Ausdruck; die alte Zeilenform „empfaenger enthaelt Bäckerei“ geht weiterhin)", ausdruckEl),
       h("p", { class: "klein" }, "Python-Ausdrücke: ", h("code", null, "and or not in == != < <= > >= is None"),
         ", Methoden ", h("code", null, '.startswith("…") .endswith("…") .search(r"…")'), ". Kurzformen: ",
         h("code", null, "empf vwz bet dir"), ". Regeln kennen kein Datum; dafür monatstag, monat, wochentag."),
-      knopfLeiste(kopierKnopf(), testKnopf()));
+      knopfLeiste(kopierKnopf()));
     // Beim Tippen nur den Reiter sperren (mit Tooltip); der Hinweistext erscheint erst beim Versuch umzuschalten,
     // damit links nichts springt (D-192).
     const umschalterPruefen = (e) => {
@@ -493,8 +494,9 @@ export async function regelEditor(r, ausloeser) {
       testPlanen();
     };
     const test = new Testbereich(() => ({ ausdruck: ausdruckEl.wert, ergebnis: ausdruckEl.ergebnis,
-      kategorie_id: Number(kat.value), regel_id: gespeichert ? gespeichert.id : undefined, geaendert }),
-    r && r.testmenge, async () => anwendenDialog(), (text) => bedingungSetzen(text));
+      kategorie_id: Number(kat.value), tag_ids: tags.ids(), tags_neu: tags.neue(),
+      regel_id: gespeichert ? gespeichert.id : undefined, geaendert }),
+    async () => anwendenDialog(), (text) => bedingungSetzen(text));
     // Bestehende Regel in Bedingung und Test übernehmen
     const uebernehmen = h("select", { tid: "regel-uebernehmen", "aria-label": "Bedingung einer bestehenden Regel übernehmen" },
       h("option", { value: "" }, "Bedingung einer bestehenden Regel übernehmen …"));
@@ -512,6 +514,7 @@ export async function regelEditor(r, ausloeser) {
     const testPlanen = () => { clearTimeout(testUhr); test.veraltet(); testUhr = setTimeout(() => test.laden(), 150); };
     // Nach jeder Prüfung sofort testen; ungültig → letztes Ergebnis bleibt sichtbar, als veraltet markiert (D-192)
     const testNachPruefung = (e) => {
+      vorschlagZeigen();
       clearTimeout(testUhr);
       if (e && !e.gueltig) test.veraltet("Ausdruck ungültig – Ergebnis vom letzten gültigen Stand");
       else test.laden();
@@ -522,7 +525,8 @@ export async function regelEditor(r, ausloeser) {
 
     const koerper = () => {
       const alt = alteBedingungen(ausdruckEl.wert);
-      const body = { name: name.value.trim(), kategorie_id: Number(kat.value), aktiv: aktiv.checked };
+      const body = { name: name.value.trim(), kategorie_id: kat.value ? Number(kat.value) : null, aktiv: aktiv.checked,
+        tag_ids: tags.ids() };
       if (prio.value !== "") body.prioritaet = Number(prio.value);
       if (alt) {   // alte Zeilenform weiter annehmen (Kompatibilität mit dem bisherigen Dialog)
         body.bedingungen = alt.map(([f, o, w]) => (f === "betrag" ? { feld: f, operator: o, wert: betragLesen(w) }
@@ -530,10 +534,41 @@ export async function regelEditor(r, ausloeser) {
       } else body.ausdruck = ausdruckEl.wert;
       return body;
     };
+    const vorschlag = () => {
+      const k = stamm.konten.find((x) => String(x.id) === kat.value);
+      return namensVorschlag(alteBedingungen(ausdruckEl.wert) ? "" : ausdruckEl.wert,
+        k ? k.name : tags.namen().map((n) => `#${n}`).join(" "));
+    };
+    const vorschlagZeigen = () => { name.placeholder = vorschlag(); };
+    ausdruckEl.eingabe.addEventListener("input", vorschlagZeigen);
+    kat.addEventListener("change", vorschlagZeigen);
+    vorschlagZeigen();
+    name.addEventListener("input", () => name.removeAttribute("aria-invalid"));
+    /** Eingaben, die der Server nur allgemein ablehnen würde, vorher am Feld melden (D-214). */
+    const eingabenPruefen = () => {
+      vorschlagZeigen();
+      for (const el of [name, kat]) el.removeAttribute("aria-invalid");
+      tags.uebernehmen();   // ein getippter, noch nicht hinzugefügter Tag zählt mit
+      if (!kat.value && !tags.namen().length) {
+        kat.setAttribute("aria-invalid", "true");
+        kat.focus();
+        throw new Error("Die Regel braucht eine Kategorie oder mindestens einen Tag.");
+      }
+      if (!name.value.trim()) name.value = vorschlag();   // leerer Name: Vorschlag aus Bedingung und Kategorie
+      if (!name.value.trim()) {
+        name.setAttribute("aria-invalid", "true");
+        name.focus();
+        throw new Error("Bitte einen Namen für die Regel eingeben.");
+      }
+    };
     const speichernUnd = async (danach) => {
-      const body = koerper();
-      const neu = await aktion(() => (gespeichert ? api("PATCH", `/api/regeln/${gespeichert.id}`, body) : api("POST", "/api/regeln", body)),
-        { stillBeiFehler: true, danach: () => d.schliessen(true), erfolg: "Regel gespeichert." });
+      eingabenPruefen();
+      // Neue Tags entstehen erst beim Speichern, in derselben Aktion (ein Rückgängig-Schritt).
+      const neu = await aktion(async () => {
+        await tags.anlegen();
+        const body = koerper();
+        return gespeichert ? api("PATCH", `/api/regeln/${gespeichert.id}`, body) : api("POST", "/api/regeln", body);
+      }, { stillBeiFehler: true, danach: () => d.schliessen(true), erfolg: "Regel gespeichert." });
       if (danach && neu) await danach(neu);
     };
     const speichern = knopf("Speichern", { class: "knopf knopf-haupt", tid: "regel-speichern" });
@@ -553,6 +588,7 @@ export async function regelEditor(r, ausloeser) {
       h("div", { role: "tablist", class: "reiter-leiste", "aria-label": "Eingabeart" }, tabBk, tabAz), bkHinweis, bkBereich, azBereich,
       h("h3", null, "Dann"),
       feld("Kategorie", kat, "wird als Vorschlag gesetzt, bis er bestätigt ist"),
+      tags.el,
       h("details", { class: "klein" }, h("summary", null, "Weitere Einstellungen"), feld("Priorität", prio, "kleiner = früher; leer = ans Ende")),
       knopfLeiste(speichern, speichernAnwenden, knopf("Abbrechen", { onclick: () => d.schliessen(null) })));
     inhalt.append(h("div", { class: "regel-editor" }, links, test.el));
@@ -562,16 +598,94 @@ export async function regelEditor(r, ausloeser) {
   }, { ausloeser, klasse: "dialog-breit dialog-regel" });
 }
 
+// ------------------------------------------------------------------ Tags einer Regel (D-215)
+const tagName = (id) => (stamm.tags.find((t) => t.id === id) || {}).name || `#${id}`;
+const gleichName = (a, b) => a.trim().toLocaleLowerCase("de") === b.trim().toLocaleLowerCase("de");
+
+/** Tags, die die Regel hinzufügt: Auswahl vorhandener Tags und neue Namen. Neue Tags entstehen erst mit
+ *  `anlegen()` beim Speichern der Regel; Abbrechen legt nichts an. */
+class TagFeld {
+  constructor(tagIds, geaendert) {
+    this.geaendert = geaendert;
+    this.liste = tagIds.map((id) => ({ id, name: tagName(id) }));   // {id | null, name}
+    const listeId = neueId("regel-tags");
+    this.eingabe = h("input", { type: "text", tid: "regel-tag-eingabe", list: listeId, autocomplete: "off", maxlength: "200",
+      placeholder: "Tag wählen oder neuen Namen eingeben" });
+    this.chips = h("span", { class: "regel-tags", tid: "regel-tags", role: "list", "aria-label": "Tags der Regel" });
+    const hinzu = knopf("Hinzufügen", { class: "knopf klein", tid: "regel-tag-hinzufuegen", onclick: () => { this.uebernehmen(); this.eingabe.focus(); } });
+    this.eingabe.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === ",") { e.preventDefault(); this.uebernehmen(); }
+      else if (e.key === "Backspace" && !this.eingabe.value && this.liste.length) this.entfernen(this.liste[this.liste.length - 1]);
+    });
+    this.el = h("div", { class: "feld" }, h("label", { for: (this.eingabe.id = neueId("regel-tag")) }, "Tags hinzufügen"),
+      this.chips, h("div", { class: "regel-tag-zeile" }, this.eingabe, hinzu),
+      h("datalist", { id: listeId }, stamm.tags.map((t) => h("option", { value: t.name }))),
+      h("small", { class: "hinweis" }, "werden sofort an jede passende Buchung gehängt; vorhandene Tags bleiben. Unbekannte Namen legt die Regel beim Speichern als neue Tags an."));
+    this.zeichnen();
+  }
+
+  ids() { return this.liste.filter((t) => t.id !== null).map((t) => t.id); }
+
+  neue() { return this.liste.filter((t) => t.id === null).map((t) => t.name); }
+
+  namen() { return this.liste.map((t) => t.name); }
+
+  /** Übernimmt den getippten Namen als Tag der Regel (vorhandener Tag oder neuer Name). */
+  uebernehmen() {
+    const n = this.eingabe.value.trim();
+    this.eingabe.value = "";
+    if (!n || this.liste.some((t) => gleichName(t.name, n))) return;
+    if (this.liste.length >= 20) { melde("hinweis", "Eine Regel vergibt höchstens 20 Tags."); return; }
+    const t = stamm.tags.find((x) => gleichName(x.name, n));
+    this.liste.push(t ? { id: t.id, name: t.name } : { id: null, name: n });
+    this.zeichnen();
+    this.geaendert();
+  }
+
+  entfernen(t) {
+    this.liste = this.liste.filter((x) => x !== t);
+    this.zeichnen();
+    this.geaendert();
+  }
+
+  zeichnen() {
+    this.chips.replaceChildren(...this.liste.map((t) => h("span", { class: "tag regel-tag", role: "listitem", "data-neu": String(t.id === null) },
+      t.name, t.id === null ? h("em", null, " (neu)") : null,
+      h("button", { type: "button", class: "regel-tag-weg", "aria-label": `Tag ${t.name} entfernen`, tid: `regel-tag-entfernen-${t.name}`,
+        onclick: () => this.entfernen(t) }, "×"))));
+  }
+
+  /** Legt die neuen Tags an (innerhalb der Speichern-Aktion). */
+  async anlegen() {
+    for (const t of this.liste) {
+      if (t.id === null) t.id = (await api("POST", "/api/tags", { name: t.name })).id;
+    }
+  }
+}
+
 // ------------------------------------------------------------------ Testbereich
+const ZEITRAEUME = [
+  { kurz: "12m", text: "12 Monate", filter: "datum in -12m" },
+  { kurz: "jahr", text: "dieses Jahr", filter: "datum in dieses_jahr" },
+  { kurz: "vorjahr", text: "Vorjahr", filter: "datum in vorjahr" },
+  { kurz: "alle", text: "alle", filter: "" },
+];
+
+/** Namensvorschlag aus Bedingung und Kategorie, z. B. „REWE → Lebensmittel“ (Konzept 3). */
+export function namensVorschlag(ausdruck, kategorie) {
+  const m = /(["'])((?:\\.|(?!\1)[^\\])+)\1/.exec(ausdruck || "");
+  const text = m ? m[2].replace(/\\(.)/g, "$1").trim().slice(0, 60) : "";
+  return [text, kategorie || ""].filter(Boolean).join(" → ");
+}
+
 class Testbereich {
-  constructor(regel, testmenge, anwenden, alsBedingung) {
+  constructor(regel, anwenden, alsBedingung) {
     this.regel = regel;
     this.alsBedingung = alsBedingung;
     this.wirkung = "";
     this.zaehlung = null;
     this.nr = 0;
-    this.menge = new AusdruckEingabe({ kontext: "filter", tid: "regel-testmenge", wert: testmenge ?? "datum in -12m",
-      beschriftung: "Testmenge", beiEnter: () => this.laden(), beiErgebnis: (e) => { if (e && e.gueltig) this.planen(); } });
+    this.zeitraum = ZEITRAEUME[0];   // Zeitraum der getesteten Buchungen; die Bedingung selbst filtert (D-214)
     this.zahlenEl = h("span", { tid: "test-zahlen" });
     this.statusEl = h("span", { class: "test-status", tid: "test-status" });
     this.chipsEl = h("div", { class: "test-chips", role: "group", "aria-label": "Nach Wirkung filtern" });
@@ -581,18 +695,24 @@ class Testbereich {
     this.konto = h("select", { tid: "regel-test-konto" }, h("option", { value: "" }, "– alle Konten –"),
       baumFolge(stamm.konten.filter((k) => BESTAND.has(k.art))).map(({ konto }) => h("option", { value: String(konto.id) }, kontoPfad(konto))));
     this.konto.addEventListener("change", () => this.laden());
-    this.leerHinweis = h("p", { class: "hinweis klein", tid: "test-leer", hidden: true }, "Die Testmenge enthält keine Buchungen. ",
-      knopf("Alle Buchungen testen", { class: "knopf klein", tid: "test-alle", onclick: () => { this.menge.wert = ""; this.laden(); } }));
-    const schnell = [["12 Monate", "datum in -12m"], ["dieses Jahr", "datum in dieses_jahr"], ["Vorjahr", "datum in vorjahr"], ["alle", ""]];
+    this.leerHinweis = h("p", { class: "hinweis klein", tid: "test-leer", hidden: true }, "In diesem Zeitraum gibt es keine Buchungen. ",
+      knopf("Alle Buchungen testen", { class: "knopf klein", tid: "test-alle", onclick: () => this.zeitraumSetzen(ZEITRAEUME[3]) }));
+    this.zeitraumChips = ZEITRAEUME.map((z) => knopf(z.text, { class: "chip", tid: `test-zeitraum-${z.kurz}`,
+      "aria-pressed": String(z === this.zeitraum), onclick: () => this.zeitraumSetzen(z) }));
     this.el = h("section", { class: "regel-test", tid: "regel-test", "aria-label": "Test" },
       h("h3", null, "Test an vorhandenen Buchungen"),
       feld("Quellkonto", this.konto),
-      ausdruckFeld("Testmenge (Filter)", this.menge),
-      h("div", { class: "test-schnell" }, schnell.map(([t, w]) => knopf(t, { class: "chip", onclick: () => { this.menge.wert = w; this.laden(); } }))),
+      h("div", { class: "test-schnell", role: "group", "aria-label": "Zeitraum der getesteten Buchungen" }, this.zeitraumChips),
       h("div", { class: "test-zahlen", role: "status" }, this.zahlenEl, this.statusEl), this.leerHinweis, this.chipsEl, this.listeEl, this.erfasstEl, knopfLeiste(this.anwendenKnopf));
   }
 
-  testmengeText() { return this.menge.wert; }
+  testmengeText() { return this.zeitraum.filter; }
+
+  zeitraumSetzen(z) {
+    this.zeitraum = z;
+    this.zeitraumChips.forEach((c, i) => c.setAttribute("aria-pressed", String(ZEITRAEUME[i] === z)));
+    this.laden();
+  }
 
   kontoId() { return this.konto.value ? Number(this.konto.value) : undefined; }
 
@@ -622,7 +742,10 @@ class Testbereich {
       this.veraltet("Ausdruck ungültig – Ergebnis vom letzten gültigen Stand");
       return;
     }
-    const body = { kategorie_id: ohne ? undefined : r.kategorie_id, testmenge: this.menge.wert, pro_seite: 100, konto_id: this.kontoId() };
+    // Ohne (gültige) Kategorie läuft der Test trotzdem und zeigt die Treffer (D-214).
+    const body = { kategorie_id: ohne ? undefined : r.kategorie_id || null, tag_ids: ohne ? undefined : r.tag_ids || [],
+      testmenge: this.zeitraum.filter, pro_seite: 100, konto_id: this.kontoId() };
+    this.tagsNeu = ohne ? [] : r.tags_neu || [];
     if (ohne) body.ausdruck = "True";
     else if (!alt) body.ausdruck = r.ausdruck;
     if (r.regel_id && !ohne) body.regel_id = r.regel_id;
@@ -631,7 +754,14 @@ class Testbereich {
     if (!this.statusEl.textContent) this.veraltet();
     let t;
     try { t = await api("POST", "/api/regeln/test", body); } catch (e) {
-      if (nr === this.nr) { this.veraltet(e.message || "Test nicht möglich."); this.el.dataset.geladen = "ja"; }
+      if (nr === this.nr) {   // kein altes Ergebnis unter einer neuen Eingabe stehen lassen (D-214)
+        leer(`Test nicht möglich: ${fehlerText(e)}`);
+        this.zahlenEl.dataset.anzahl = "";
+        this.leerHinweis.hidden = true;
+        this.el.dataset.veraltet = "nein";
+        this.statusEl.textContent = "";
+        this.el.dataset.geladen = "ja";
+      }
       return;
     }
     if (nr !== this.nr) return;
@@ -641,8 +771,8 @@ class Testbereich {
     this.leerHinweis.hidden = t.testmenge_anzahl > 0;
     this.ohneBedingung = ohne;
     this.zahlenEl.textContent = ohne
-      ? `Noch keine Bedingung – ${t.testmenge_anzahl} Buchungen der Testmenge. „→ Bedingung“ übernimmt eine Buchung als Vorlage.`
-      : `${t.anzahl} Treffer in ${t.testmenge_anzahl} Buchungen der Testmenge`;
+      ? `Noch keine Bedingung – ${t.testmenge_anzahl} Buchungen (${this.zeitraum.text}). „→ Bedingung“ übernimmt eine Buchung als Vorlage.`
+      : `${t.anzahl} Treffer in ${t.testmenge_anzahl} Buchungen (${this.zeitraum.text})`;
     this.zahlenEl.dataset.anzahl = String(t.anzahl);
     this.chipsEl.replaceChildren(...(ohne ? [] : [["", "Alle", t.anzahl], ...Object.entries(t.zaehlung).filter(([, n]) => n > 0)
       .map(([w, n]) => [w, WIRKUNG_TEXT[w], n])].map(([w, text, n]) => h("button", { type: "button", class: "chip",
@@ -654,8 +784,14 @@ class Testbereich {
     this.erfasstEl.textContent = ne && r.kategorie_id
       ? `Nicht erfasst: ${ne} Buchung(en) haben „${pfadVon(r.kategorie_id)}“, treffen aber nicht.` : "";
     const wirksam = (t.zaehlung.neu || 0) + (t.zaehlung.abweichend || 0);
-    this.anwendenKnopf.disabled = ohne || !wirksam;
-    this.anwendenKnopf.textContent = `Auf ${wirksam} Buchung(en) anwenden…`;
+    // Neu anzulegende Tags fehlen jeder nicht gesperrten Buchung.
+    const mitTags = this.tagsNeu.length ? t.anzahl - (t.gesperrt_anzahl || 0) : t.tags_anzahl || 0;
+    this.tagsAnzahl = mitTags;
+    this.zahlenEl.dataset.tags = String(mitTags);
+    this.anwendenKnopf.disabled = ohne || !(wirksam || mitTags);
+    const hatTags = (r.tag_ids || []).length || this.tagsNeu.length;
+    this.anwendenKnopf.textContent = !hatTags ? `Auf ${wirksam} Buchung(en) anwenden…`
+      : r.kategorie_id ? `Anwenden: ${wirksam} × Kategorie, ${mitTags} × Tags…` : `Tags an ${mitTags} Buchung(en) vergeben…`;
     this.el.dataset.geladen = "ja";
   }
 
@@ -667,9 +803,12 @@ class Testbereich {
     const katText = this.ohneBedingung ? vorher : z.wirkung === "verdeckt" ? `verdeckt durch „${z.verdeckt_von.name}“`
       : z.wirkung === "uebersprungen" ? (z.grund === "gesperrt" ? "gesperrt" : "Splitbuchung") : `${vorher}${nachher ? ` → ${nachher}` : ""}`;
     const warum = h("div", { class: "test-warum", hidden: true });
+    const gesperrt = z.wirkung === "uebersprungen" && z.grund === "gesperrt";
+    const tagsDazu = [...(z.tags_neu || []).map(tagName), ...(gesperrt ? [] : this.tagsNeu || [])];
     const details = h("div", { class: "test-details", hidden: true, id: neueId("test-details") },
       h("div", { class: "test-zweck" }, markiert(z.verwendungszweck || "–", z.markierungen, "verwendungszweck")),
       h("div", { class: "test-kat" }, katText),
+      tagsDazu.length ? h("div", { class: "test-tags" }, "Tags: ", tagsDazu.map((n) => h("span", { class: "tag" }, `+ ${n}`))) : null,
       knopfLeiste(
         knopf("→ Bedingung", { class: "knopf klein", tid: `test-uebernehmen-${z.buchung_id}`,
           title: "Empfänger dieser Buchung als Bedingung der Regel übernehmen", onclick: () => this.alsBedingung(bedingungAus(z)) }),
@@ -682,7 +821,8 @@ class Testbereich {
       z.empfaenger ? "empfänger" : "verwendungszweck")),
     betragEl("span", z.betrag, { class: "test-betrag" }),
     this.ohneBedingung ? h("span", { class: "test-wirkung test-kat-kurz" }, vorher)
-      : h("span", { class: `test-wirkung wirkung-${z.wirkung}` }, WIRKUNG_TEXT[z.wirkung]));
+      : h("span", { class: `test-wirkung wirkung-${z.wirkung}`, "data-tags": String(tagsDazu.length) },
+        z.wirkung === "treffer" && tagsDazu.length ? `+ ${tagsDazu.join(", ")}` : WIRKUNG_TEXT[z.wirkung]));
     kopf.addEventListener("click", () => {
       const auf = details.hidden;
       details.hidden = !auf;
@@ -735,9 +875,12 @@ async function anwendenFrage(regel, testmenge, kontoId, zaehlung, ausloeser) {
     }));
     inhalt.append(h("p", null, "Testmenge: ", h("code", null, testmenge || "alle Buchungen"),
       kontoId ? ` · Quellkonto ${pfadVon(kontoId)}` : ""),
-      h("p", null, neu === null ? "Unkategorisierte Buchungen erhalten einen Vorschlag." : `${neu} unkategorisierte Buchung(en) erhalten einen Vorschlag.`),
-      h("label", { class: "wahl" }, ueber, ` auch abweichende überschreiben${abw === null ? "" : ` (${abw})`}`),
-      h("p", { class: "klein" }, "Verdeckte und gesperrte Buchungen bleiben unverändert. Eine Änderung im Protokoll."),
+      regel.kategorie_id ? h("p", null, neu === null ? "Unkategorisierte Buchungen erhalten einen Vorschlag." : `${neu} unkategorisierte Buchung(en) erhalten einen Vorschlag.`) : null,
+      regel.kategorie_id ? h("label", { class: "wahl" }, ueber, ` auch abweichende überschreiben${abw === null ? "" : ` (${abw})`}`) : null,
+      (regel.tag_ids || []).length ? h("p", { tid: "regel-anwenden-tags" }, "Alle passenden Buchungen erhalten: ",
+        regel.tag_ids.map((id) => h("span", { class: "tag" }, `+ ${tagName(id)}`)), " Vorhandene Tags bleiben.") : null,
+      h("p", { class: "klein" }, regel.kategorie_id ? "Verdeckte und gesperrte Buchungen behalten ihre Kategorie; gesperrte bekommen auch keine Tags. Eine Änderung im Protokoll."
+        : "Gesperrte Buchungen bleiben unverändert. Eine Änderung im Protokoll."),
       knopfLeiste(ok, knopf("Abbrechen", { onclick: () => d.schliessen(null) })));
   }, { ausloeser });
 }

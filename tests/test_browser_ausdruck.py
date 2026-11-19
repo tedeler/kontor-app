@@ -39,20 +39,21 @@ def test_regeleditor_baukasten_und_test(tmp_path, browser):  # noqa: F811
         tid(page, "regel-name").fill("Kleinbeträge")
         tid(page, "regel-ausdruck").fill('bet <= 3 and dir == "ausgabe"')
         expect(tid(page, "regel-ausdruck-status")).to_have_attribute("data-status", "ok")
-        tid(page, "regel-testmenge").fill("")
-        tid(page, "regel-testmenge").press("Enter")
+        expect(tid(page, "regel-testmenge")).to_have_count(0)        # D-214: kein zweites Filterfeld
+        expect(tid(page, "regel-in-testmenge")).to_have_count(0)
+        expect(tid(page, "test-zeitraum-12m")).to_have_attribute("aria-pressed", "true")
         expect(tid(page, "test-zahlen")).to_have_attribute("data-anzahl", "3")
         tid(page, "regel-modus-baukasten").click()
         expect(tid(page, "bk-0-op")).to_have_value("<=")
         expect(tid(page, "bk-1-wert")).to_have_value("ausgabe")
         tid(page, "bk-0-wert").fill("4")
         expect(tid(page, "test-zahlen")).to_have_attribute("data-anzahl", "4")
-        tid(page, "regel-in-testmenge").first.click()
-        expect(tid(page, "regel-testmenge")).to_have_value('betrag <= 4 and richtung == "ausgabe"')
-        tid(page, "regel-testmenge").fill("datum in 1999")
-        tid(page, "regel-testmenge").press("Enter")
-        expect(tid(page, "test-leer")).to_be_visible()
+        tid(page, "test-zeitraum-vorjahr").click()
+        expect(tid(page, "test-zeitraum-vorjahr")).to_have_attribute("aria-pressed", "true")
+        expect(tid(page, "test-zahlen")).to_contain_text("(Vorjahr)")
+        expect(tid(page, "test-leer")).to_be_visible()               # Testdaten liegen in 2024
         tid(page, "test-alle").click()
+        expect(tid(page, "test-zeitraum-alle")).to_have_attribute("aria-pressed", "true")
         expect(tid(page, "test-zahlen")).to_have_attribute("data-anzahl", "4")
         tid(page, "regel-test-konto").select_option(label="Giro")
         expect(tid(page, "test-zahlen")).to_have_attribute("data-anzahl", "4")
@@ -76,11 +77,66 @@ def test_regeleditor_ohne_bedingung_und_uebernahme(tmp_path, browser):  # noqa: 
         page.goto(url + "/regeln")
         bereit(page, "regeln")
         tid(page, "regel-anlegen").click()
-        expect(tid(page, "test-zahlen")).to_contain_text("20 Buchungen der Testmenge")
+        expect(tid(page, "test-zahlen")).to_contain_text("20 Buchungen (12 Monate)")
         page.locator('[data-testid^="test-zeile-"]').first.click()   # Einzelheiten aufklappen (D-193)
         page.locator('[data-testid^="test-uebernehmen-"]').first.click()
         expect(tid(page, "regel-ausdruck")).to_have_value('"Einkauf" in vwz and dir == "ausgabe"')
         expect(tid(page, "test-zahlen")).to_have_attribute("data-anzahl", "20")
+        # D-214: leerer Name → Vorschlag aus Bedingung und Kategorie, statt „Die Anfrage ist ungültig.“
+        expect(tid(page, "regel-name")).to_have_attribute("placeholder", re.compile(r"^Einkauf → .+"))
+        tid(page, "regel-speichern").click()
+        expect(tid(page, "regel-dialog")).to_be_hidden()
+        expect(page.locator(".regel-zeile strong").first).to_have_text(re.compile(r"^Einkauf → .+"))
+
+
+def test_regeleditor_ohne_kategorie(tmp_path, browser):  # noqa: F811
+    """D-214: ohne Kategorie läuft der Test trotzdem; Speichern nennt den Grund am Feld."""
+    with server(tmp_path, daten=False) as (url, _), seite(browser, url, **DESKTOP) as page:
+        page.goto(url + "/regeln")
+        bereit(page, "regeln")
+        tid(page, "regel-anlegen").click()
+        expect(tid(page, "regel-kategorie")).to_have_value("")
+        tid(page, "regel-ausdruck").fill('"AMAZON" in empf')
+        expect(tid(page, "test-zahlen")).to_have_text("0 Treffer in 0 Buchungen (12 Monate)")
+        tid(page, "regel-speichern").click()
+        expect(tid(page, "dialog-fehler")).to_contain_text("Kategorie oder mindestens einen Tag")
+        expect(tid(page, "regel-kategorie")).to_have_attribute("aria-invalid", "true")
+
+
+def test_regeleditor_tags(tmp_path, browser):  # noqa: F811
+    """D-215: Regel vergibt Tags (auch ohne Kategorie); neue Tags entstehen beim Speichern."""
+    with server(tmp_path) as (url, _), seite(browser, url, **DESKTOP) as page:
+        page.goto(url + "/regeln")
+        bereit(page, "regeln")
+        tid(page, "regel-anlegen").click()
+        expect(tid(page, "regel-kategorie")).not_to_have_value("")   # Vorgabe bleibt die erste Kategorie
+        tid(page, "regel-ausdruck").fill('"Einkauf" in vwz and bet <= 3')
+        tid(page, "regel-tag-eingabe").fill("Urlaub")
+        tid(page, "regel-tag-eingabe").press("Enter")
+        tid(page, "regel-tag-eingabe").fill("Privat")
+        tid(page, "regel-tag-hinzufuegen").click()
+        tid(page, "regel-tag-eingabe").fill("urlaub")                 # doppelt: bleibt bei zwei
+        tid(page, "regel-tag-eingabe").press("Enter")
+        expect(tid(page, "regel-tags").locator('[role="listitem"]')).to_have_count(2)
+        tid(page, "regel-tag-entfernen-Privat").click()
+        expect(tid(page, "regel-tags")).to_have_text(re.compile(r"^Urlaub \(neu\)×$"))
+        tid(page, "regel-kategorie").select_option("")
+        expect(tid(page, "regel-name")).to_have_attribute("placeholder", "Einkauf → #Urlaub")
+        expect(tid(page, "test-zahlen")).to_have_attribute("data-tags", "3")
+        expect(tid(page, "regel-test-anwenden")).to_have_text("Tags an 3 Buchung(en) vergeben…")
+        tid(page, "regel-test-anwenden").click()                      # speichert und fragt nach
+        expect(tid(page, "regel-anwenden-tags")).to_contain_text("+ Urlaub")
+        tid(page, "regel-anwenden-ok").click()
+        expect(page.get_by_text("3 Buchung(en) geändert")).to_be_visible()
+        ziel = page.locator('[data-testid^="regel-ziel-"]').first
+        expect(ziel).to_contain_text("+ Urlaub")
+        expect(page.locator(".regel-zeile strong").first).to_have_text("Einkauf → #Urlaub")
+        # erneut öffnen: Tag ist jetzt vorhanden, Kategorie bleibt leer, nichts mehr zu vergeben
+        page.get_by_role("button", name="Regel Einkauf → #Urlaub bearbeiten").click()
+        expect(tid(page, "regel-kategorie")).to_have_value("")
+        expect(tid(page, "regel-tags")).to_have_text("Urlaub×")
+        expect(tid(page, "test-zahlen")).to_have_attribute("data-tags", "0")
+        expect(tid(page, "regel-test-anwenden")).to_be_disabled()
 
 
 def test_filter_baukasten_und_alte_adressen(tmp_path, browser):  # noqa: F811

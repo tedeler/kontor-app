@@ -15,7 +15,7 @@ from collections.abc import Iterator
 
 from .text import norm
 
-SCHEMA_VERSION = 13
+SCHEMA_VERSION = 14
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (
@@ -129,7 +129,7 @@ CREATE TABLE IF NOT EXISTS regel (
     name TEXT NOT NULL,
     aktiv INTEGER NOT NULL CHECK (aktiv IN (0, 1)),
     prioritaet INTEGER NOT NULL CHECK (typeof(prioritaet) = 'integer' AND prioritaet BETWEEN 0 AND 1000000),
-    kategorie_id INTEGER NOT NULL REFERENCES konto(id),
+    kategorie_id INTEGER REFERENCES konto(id),   -- NULL: Regel vergibt nur Tags (D-215)
     bedingungen TEXT NOT NULL
 );
 
@@ -502,6 +502,13 @@ CREATE TABLE IF NOT EXISTS regel_automatisch (
     empfaenger_id INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS regel_automatisch_empfaenger ON regel_automatisch(empfaenger_id);
+-- Tags, die eine Regel passenden Buchungen hinzufügt (gehört zur Objektart ``regel``, D-215).
+CREATE TABLE IF NOT EXISTS regel_tag (
+    regel_id INTEGER NOT NULL REFERENCES regel(id) ON DELETE CASCADE,
+    tag_id INTEGER NOT NULL REFERENCES tag(id) ON DELETE CASCADE,
+    PRIMARY KEY (regel_id, tag_id)
+);
+CREATE INDEX IF NOT EXISTS regel_tag_tag ON regel_tag(tag_id);
 CREATE TABLE IF NOT EXISTS empfaenger_lernregel_sperre (
     empfaenger_id INTEGER PRIMARY KEY REFERENCES empfaenger(id) ON DELETE CASCADE
 );
@@ -589,8 +596,33 @@ def _migrieren(con: sqlite3.Connection) -> None:
         con.execute("DROP TABLE vorschlag")
         con.execute("ALTER TABLE vorschlag_neu RENAME TO vorschlag")
         con.execute("CREATE INDEX IF NOT EXISTS vorschlag_regel ON vorschlag(regel_id)")
+    _regel_kategorie_optional(con)
     for sql in _NACH_MIGRATION:
         con.execute(sql)
+
+
+def _regel_kategorie_optional(con: sqlite3.Connection) -> None:
+    """Schema 14 (D-215): ``regel.kategorie_id`` darf NULL sein. SQLite kann NOT NULL nicht entfernen, also die
+    Tabelle neu aufbauen. Das Löschen der alten Tabelle räumt per Fremdschlüssel ``regel_automatisch`` ab, deshalb
+    wird deren Inhalt vorher gemerkt und danach wieder eingetragen (``regel_tag`` ist hier noch leer)."""
+    sql = con.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'regel'").fetchone()["sql"]
+    if "kategorie_id INTEGER NOT NULL" not in sql:
+        return
+    automatisch = [tuple(r) for r in con.execute("SELECT regel_id, empfaenger_id FROM regel_automatisch")]
+    con.execute("CREATE TABLE regel_neu (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL,"
+                " aktiv INTEGER NOT NULL CHECK (aktiv IN (0, 1)),"
+                " prioritaet INTEGER NOT NULL CHECK (typeof(prioritaet) = 'integer' AND prioritaet BETWEEN 0 AND 1000000),"
+                " kategorie_id INTEGER REFERENCES konto(id), bedingungen TEXT NOT NULL)")
+    con.execute("INSERT INTO regel_neu (id, name, aktiv, prioritaet, kategorie_id, bedingungen)"
+                " SELECT id, name, aktiv, prioritaet, kategorie_id, bedingungen FROM regel")
+    zaehler = con.execute("SELECT seq FROM sqlite_sequence WHERE name = 'regel'").fetchone()
+    con.execute("DROP TABLE regel")
+    con.execute("ALTER TABLE regel_neu RENAME TO regel")
+    if zaehler is not None:   # vergebene IDs nicht wiederverwenden
+        con.execute("DELETE FROM sqlite_sequence WHERE name = 'regel'")
+        con.execute("INSERT INTO sqlite_sequence (name, seq) VALUES ('regel', ?)", (zaehler["seq"],))
+    con.execute("DELETE FROM regel_automatisch")
+    con.executemany("INSERT INTO regel_automatisch (regel_id, empfaenger_id) VALUES (?, ?)", automatisch)
 
 
 

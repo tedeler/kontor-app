@@ -1,7 +1,7 @@
 /* Kontor – Dialoge (oberflaeche.md 9) und Kontextmenüs (8). */
 import {
   ApiFehler, BESTAND, aktion, anhaengen, api, betragEingabe, betragEl, betragLesen, betragText, datumText, ebeneOeffnen,
-  ebeneSchliessen, h, kategorien, klasse, kontoNach, kontoPfad, baumFolge, melde, neueId, oberflaeche, passt, stamm, tid,
+  ebeneSchliessen, fehlerText, h, kategorien, klasse, kontoNach, kontoPfad, baumFolge, melde, neueId, oberflaeche, passt, stamm, tid,
 } from "./kern.js";
 
 // ------------------------------------------------------------------ Dialog-Grundgerüst (9)
@@ -97,7 +97,7 @@ export async function imDialog(d, knopf, ausfuehren) {
     const erg = await ausfuehren();
     return erg;
   } catch (e) {
-    if (d.offen) d.fehler(e.message || String(e));
+    if (d.offen) d.fehler(fehlerText(e));
     return undefined;
   } finally {
     if (knopf && knopf.isConnected) knopf.disabled = false;

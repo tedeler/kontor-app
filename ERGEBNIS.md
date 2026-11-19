@@ -1,5 +1,27 @@
 # Ergebnis der Implementierung
 
+## Merge von `feature/regel-tags` mit `feature/regeleditor-feinschliff` (D-214, D-215) ohne eigene Abnahmetests, gegen kontor-tests `c99b6ac`
+
+Stand: 2026-11-19, Implementierungs-Thread. Auf ausdrückliche Anweisung des Auftraggebers auf main gemergt, noch ohne
+Meilenstein-Definition und ohne Abnahmetests für diese Features.
+
+- **Inhalt:** Regeleditor mit Zeitraum-Auswahl statt Testmengen-Ausdruck, Test ohne Kategorie, Validierungsfehler mit
+  Feld und Regel, Namensvorschlag (D-214). Regeln vergeben Tags, Kategorie optional; Schema 14, Sicherungsdatei
+  Schemaversion 9 (D-215).
+- **Eigene Tests** (nach Merge von main in den Branch, einschließlich Browser-Rauchtests): 442 bestanden,
+  2 fehlgeschlagen (`test_ueber_fenster`, `test_huelle_zeigt_version_in_der_navigation` – erwarten „Version x.yy“,
+  auf einem Feature-Branch zeigt die Hülle nach D-178 den Branch; auf main grün).
+- **Abnahmetests** ohne `m8`, vor dem Merge von main in den Branch, im Vergleich zum Ausgangsstand von main
+  (`6d97692`): Branch 195 fehlgeschlagen / 43 Fehler, main 188 / 43. Die Unterschiede sind sechs Versionstests von
+  M13 (Branch-Anzeige wie oben) und fünf Tests von M6 (FinTS/IMAP gegen Loopback-Attrappen), die unter der Last
+  zweier gleichzeitiger Läufe in beide Richtungen wechselten. Kein Unterschied bei Regeln, Protokoll oder Sicherung.
+- **Bekannt und unverändert:** Der Großteil der Fehlschläge auf main stammt daher, dass Regeln seit D-185 die Felder
+  `ausdruck` und `ausdruck_form` liefern, die der OpenAPI-Vertrag noch nicht kennt (M2, M3, M9 u. a.). Dieselben
+  Tests würden jetzt auch `tag_ids` beanstanden. Solange sie schon an der Antwort von `POST /api/regeln` scheitern,
+  prüfen sie das Verhalten der Regeln nicht; das decken nur die eigenen Tests ab.
+- **Nicht geprüft:** Abnahmetests `m8` (Browser) und ein Abnahmelauf nach dem Merge von main in den Branch; die
+  Migration auf Schema 14 nur an einer nachgebauten Datenbank der Version 13, nicht an echten Daten.
+
 ## Merge von `feature/monatsbericht` (D-206) ohne Abnahme, gegen kontor-tests `c99b6ac`
 
 - Auf Anweisung vor Meilenstein-Definition und Abnahme gemergt (Stand main `6d97692`). Die Entscheidung trägt auf

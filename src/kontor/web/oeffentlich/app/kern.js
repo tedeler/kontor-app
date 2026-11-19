@@ -411,7 +411,20 @@ export function melde(art, text, extra) {
 export function fehlerMelden(e) {
   if (e && e.offline) return;           // der Offline-Hinweis genügt (18)
   if (e && e.status === 401) return;    // Weiterleitung zur Anmeldung läuft
-  melde("fehler", e && e.message ? e.message : String(e));
+  melde("fehler", fehlerText(e));
+}
+
+/** Meldung eines Fehlers samt Einzelheiten der Validierung („Name: 1–200 Zeichen“), damit „Die Anfrage ist
+ *  ungültig.“ nie allein steht (D-214). Die Einzelheiten nennen nur Feld und Regel, nie übergebene Werte. */
+export function fehlerText(e) {
+  const text = e && e.message ? e.message : String(e);
+  if (!e || e.code !== "validierung" || !Array.isArray(e.details)) return text;
+  const teile = e.details.filter((x) => x && x.meldung).map((x) => {
+    const ort = Array.isArray(x.ort) ? x.ort.filter((o) => o !== "body" && o !== "query") : [];
+    const feld = ort.join(".").replace(/_/g, " ");
+    return feld ? `${feld.charAt(0).toUpperCase()}${feld.slice(1)}: ${x.meldung}` : x.meldung;
+  });
+  return teile.length ? `${text} ${teile.join(" ")}` : text;
 }
 
 // ------------------------------------------------------------------ Seitenbezug (vom Router gesetzt)

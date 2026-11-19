@@ -799,7 +799,7 @@ class Kontoansicht {
       if (!r.ausdruck) { melde("hinweis", "Der Filter enthält nur Teile, die es in Regeln nicht gibt (z. B. Datum)."); return; }
       if (r.entfernt.length && !(await bestaetigen(`Nicht übernommen: ${r.entfernt.join(", ")}. Datumsangaben gibt es nur im Filter. `
         + `Die Regel lautet: ${r.ausdruck}`, { ja: "Weiter", ausloeser }))) return;
-      regelEditor({ name: "", ausdruck: r.ausdruck, aktiv: true, testmenge: this.ausdruckEingabe.wert }, ausloeser);
+      regelEditor({ name: "", ausdruck: r.ausdruck, aktiv: true }, ausloeser);
     } catch (e) { melde("fehler", e.message); }
   }
 
