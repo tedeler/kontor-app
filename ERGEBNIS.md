@@ -1,5 +1,22 @@
 # Ergebnis der Implementierung
 
+## Merge von `feature/fints-camt` (D-197 bis D-204) ohne Abnahme, gegen kontor-tests `c99b6ac`
+
+Stand: 2026-11-19, Implementierungs-Thread. Auf ausdrückliche Anweisung des Auftraggebers auf main gemergt, nachdem
+der Abruf gegen seine Bank funktioniert hat (Konten, camt.052.001.02, Umsätze); noch ohne Meilenstein-Definition
+und eigene Abnahmetests. Seit dem Abschnitt unten dazugekommen: Kontenliste aus HISPA (D-202), Diagnoseprotokoll
+ohne persönliche Daten (D-203), camt-Datum mit Zeitzone (D-204).
+
+- Eigene Tests auf main: **374 / 374** (inkl. Browser-Rauchtests). `test_mock_modus_ende_zu_ende` (Mail-Abgleich)
+  hing am echten Datum und war vom 19. bis 22. eines Monats rot; er läuft jetzt mit festem Tag.
+- Abnahmetests, Schnelllauf nach dem Merge: 2718 bestanden, 156 fehlgeschlagen, 43 Fehler, 28 übersprungen.
+  Gegenüber main `68b53a6` (133 / 43) sind genau 23 Tests neu rot und keiner neu grün: M10 vollständig (20),
+  `m11/test_m11_aqbanking_saldo.py` (1), `m6/test_m6_paket.py::test_oeffentliche_methoden` und
+  `test_plugins.py::test_nur_lesende_oeffentliche_methoden[echt]` (neue Methode `tan_verfahren`). Sie bleiben
+  rot, bis ein Test-Thread die Meilenstein-Definition übernommen hat.
+- Nicht gelaufen: Browsertests und Volllauf (`--voll`) der Abnahme. Die übrigen roten Tests auf main (M2, M3, M9,
+  M15, M19 …) bestanden schon vor diesem Feature.
+
 ## Feature `fints-camt` (Branch `feature/fints-camt`, iterative Phase, D-197 bis D-201), gegen kontor-tests `c99b6ac`
 
 Stand: 2026-11-19, Implementierungs-Thread. Bankabruf nur noch über FinTS/camt, Bankzugang in der Oberfläche, TAN beim
