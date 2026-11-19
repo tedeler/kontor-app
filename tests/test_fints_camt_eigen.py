@@ -51,6 +51,35 @@ def test_camt_052_001_02_wird_gelesen():
     assert (b.betrag, b.gegenpartei_name, b.vormerkung, b.referenz) == (10000, "Arbeitgeber", True, "REF-1")
 
 
+def _camt_ein_eintrag(buchung: str, betrag: str = "12.30") -> bytes:
+    return (f'<Document xmlns="{CAMT}02"><BkToCstmrAcctRpt><Rpt><Ntry><Amt Ccy="EUR">{betrag}</Amt>'
+            f"<CdtDbtInd>DBIT</CdtDbtInd><Sts>BOOK</Sts>{buchung}<ValDt><Dt>2024-06-04+02:00</Dt></ValDt>"
+            "</Ntry></Rpt></BkToCstmrAcctRpt></Document>").encode()
+
+
+@pytest.mark.parametrize("buchung", [
+    "<BookgDt><Dt>2024-06-03+02:00</Dt></BookgDt>",                      # Datum mit Zeitzone (comdirect)
+    "<BookgDt><Dt>2024-06-03Z</Dt></BookgDt>",
+    "<BookgDt><DtTm>2024-06-03T10:11:12.000+02:00</DtTm></BookgDt>",     # Zeitpunkt statt Datum
+    "<BookgDt><Dt> 2024-06-03 </Dt></BookgDt>",
+])
+def test_camt_datum_mit_zeitzone_oder_zeit(buchung):
+    (u,) = camt_eintraege(_camt_ein_eintrag(buchung))
+    assert (u.buchungstag, u.valuta, u.betrag) == (dt.date(2024, 6, 3), dt.date(2024, 6, 4), -1230)
+
+
+@pytest.mark.parametrize("buchung, betrag, feld, form", [
+    ("<BookgDt><Dt>03.06.2024</Dt></BookgDt>", "1.00", "BookgDt", "99.99.9999"),
+    ("<BookgDt><Dt>2024-13-40</Dt></BookgDt>", "1.00", "BookgDt", "9999-99-99"),
+    ("<BookgDt><Dt>2024-06-03</Dt></BookgDt>", "1.234,56", "Amt", "9.999,99"),
+])
+def test_camt_unlesbares_feld_nennt_nur_die_form(buchung, betrag, feld, form):
+    from kontor.plugins.fints import _Unlesbar
+    with pytest.raises(_Unlesbar) as e:
+        camt_eintraege(_camt_ein_eintrag(buchung, betrag))
+    assert (e.value.feld, e.value.form) == (feld, form) and "2024" not in str(e.value)
+
+
 def _dialog(formate: list[str] | None):
     """Dialog-Stellvertreter, dessen Bankparameter die angegebenen camt-Formate anbieten (None: kein HKCAZ)."""
     hicazs = None if formate is None else SimpleNamespace(parameter=SimpleNamespace(supported_camt_formats=formate))

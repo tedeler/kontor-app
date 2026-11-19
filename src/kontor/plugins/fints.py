@@ -73,9 +73,41 @@ def _art(kontoart: int | None) -> str | None:
 # ================================================================ Formate (fints.md 3.4)
 
 
+class _Unlesbar(ValueError):
+    """Ein Feld der Umsatzdaten hat eine unerwartete Form. ``form`` beschreibt sie ohne den Wert (Ziffern als
+    ``9``, Buchstaben als ``a``), damit das Diagnoseprotokoll die Ursache nennen kann (D-203)."""
+
+    def __init__(self, feld: str, text: str | None) -> None:
+        super().__init__(feld)
+        self.feld = feld
+        self.form = "".join("9" if ch.isdigit() else "a" if ch.isalpha() else ch if ch in "-+.:,TZ /" else "?"
+                            for ch in (text or "").strip()[:32])
+
+
+_BETRAG = re.compile(r"^\s*([0-9]*)(?:\.([0-9]*))?\s*$")
+_DATUM = re.compile(r"^\s*([0-9]{4})-([0-9]{2})-([0-9]{2})(?:$|[T+\-Z\s])")
+
+
 def _cent_punkt(text: str) -> int:
-    ganz, _, rest = text.strip().partition(".")
-    return int(ganz or "0") * 100 + int((rest + "00")[:2])
+    m = _BETRAG.match(text or "")
+    if m is None or not (m[1] or m[2]):
+        raise _Unlesbar("Amt", text)
+    return int(m[1] or "0") * 100 + int(((m[2] or "") + "00")[:2])
+
+
+def _camt_datum(e: ET.Element | None, feld: str) -> dt.date | None:
+    """Datum aus ``Dt`` oder ``DtTm``; Zeitzonen- und Zeitanteile (``2024-06-03+02:00``, wie sie z. B. die
+    comdirect liefert) werden nicht ausgewertet (D-204)."""
+    text = _text(e, feld, "Dt") or _text(e, feld, "DtTm")
+    if not text or not text.strip():
+        return None
+    m = _DATUM.match(text)
+    try:
+        if m is None:
+            raise ValueError
+        return dt.date(int(m[1]), int(m[2]), int(m[3]))
+    except ValueError:
+        raise _Unlesbar(feld, text) from None
 
 
 def _cent_komma(text: str) -> int:
@@ -138,10 +170,10 @@ def camt_eintraege(dokument: bytes) -> list[_Roh]:
         sts = (_text(ntry, "Sts", "Cd") or _text(ntry, "Sts") or "").strip()
         if sts not in ("BOOK", "PDNG"):
             continue
-        bt = _text(ntry, "BookgDt", "Dt") or _text(ntry, "ValDt", "Dt")
-        if not bt:
+        valuta = _camt_datum(ntry, "ValDt")
+        bt = _camt_datum(ntry, "BookgDt") or valuta
+        if bt is None:
             continue
-        valuta = _text(ntry, "ValDt", "Dt")
         seite = ind if not storno else ("CRDT" if ind == "DBIT" else "DBIT")
         partei, konto = ("Cdtr", "CdtrAcct") if seite == "DBIT" else ("Dbtr", "DbtrAcct")
         tx = _kind(ntry, "NtryDtls", "TxDtls")
@@ -150,8 +182,7 @@ def camt_eintraege(dokument: bytes) -> list[_Roh]:
         rmt = _kind(tx, "RmtInf")
         zweck = "".join((k.text or "") for k in (rmt if rmt is not None else []) if _lokal(k) == "Ustrd")
         ref = (_text(ntry, "AcctSvcrRef") or "").strip()
-        aus.append(_Roh(dt.date.fromisoformat(bt.strip()), dt.date.fromisoformat(valuta.strip()) if valuta else None,
-                        cent if ind == "CRDT" else -cent, name, _iban_oder_none(_text(pt, konto, "Id", "IBAN")),
+        aus.append(_Roh(bt, valuta, cent if ind == "CRDT" else -cent, name, _iban_oder_none(_text(pt, konto, "Id", "IBAN")),
                         zweck, sts == "PDNG", storno, ref or None))
     return aus
 
@@ -736,6 +767,7 @@ class FintsBankPlugin(BankPlugin):
         """Genau ein HKSAL im Dialog des Umsatzabrufs; scheitert nur die Saldenabfrage, ist der Saldo None."""
         from fints.segments.saldo import HKSAL5, HKSAL6, HKSAL7
         if not self._saldo_angeboten(d, iban):
+            self._diag("Saldo: nicht abgefragt, HKSAL ist für dieses Konto laut Benutzerparametern nicht erlaubt")
             return None
         try:
             klasse = d.client._find_highest_supported_command(HKSAL5, HKSAL6, HKSAL7)
@@ -743,6 +775,7 @@ class FintsBankPlugin(BankPlugin):
         except Exception:  # noqa: BLE001 - FinTSUnsupportedOperation o. ä.: keine passende Version
             return None
         if self._tan_noetig(d, seg):
+            self._diag("Saldo: nicht abgefragt, die Bank verlangt für HKSAL eine TAN-Einreichung")
             return None  # für den Saldo nie eine TAN (kontostand.md 1)
         try:
             antwort = self._senden(d, seg)
@@ -784,7 +817,10 @@ class FintsBankPlugin(BankPlugin):
             if mt940:
                 roh.extend(mt940_eintraege(mt940))
         except (ET.ParseError, ValueError) as e:
-            self._diag(f"✗ Umsatzdaten unlesbar ({type(e).__name__})")
+            if isinstance(e, _Unlesbar):   # Form des Felds ohne den Wert
+                self._diag(f"✗ Umsatzdaten unlesbar: Feld {e.feld} hat die Form „{e.form}“")
+            else:
+                self._diag(f"✗ Umsatzdaten unlesbar ({type(e).__name__})")
             raise BankFehler("Die Bank hat unlesbare Umsatzdaten geliefert.") from None
         aus = [u for u in kennungen_vergeben(iban, roh) if von <= u.buchungstag <= bis]
         aus.sort(key=lambda u: (u.buchungstag, u.umsatz_id))

@@ -2739,3 +2739,15 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   (`GET/PUT /api/bank/zugang/diagnose`) und, solange eingeschaltet, im Log des Dienstes (Logger
   `kontor.fints.diagnose`, Stufe INFO). Der Logger `fints` der Bibliothek bleibt stillgelegt.
 
+## D-204 camt-Datum mit Zeitzone oder Zeitanteil
+
+- **Anlass:** Erster Abruf gegen die comdirect (2026-11-19): Kontenliste und `HKCAZ` mit camt.052.001.02 liefen,
+  die Umsatzdaten waren aber „unlesbar“ (`ValueError`), sobald Einträge enthalten waren.
+- **Entscheidung:** Buchungs- und Wertstellungsdatum werden aus `Dt` oder `DtTm` gelesen; ausgewertet werden nur
+  Jahr, Monat und Tag am Anfang (`2024-06-03+02:00`, `2024-06-03T10:11:12+02:00`). Beträge müssen die Form
+  `Ziffern[.Ziffern]` haben. Hat ein Feld eine andere Form, scheitert der Abruf weiter als Ganzes (kein
+  stilles Auslassen einzelner Umsätze); das Diagnoseprotokoll nennt dann Feld und Form (`9999-99-99`), nie den
+  Wert. Außerdem nennt es, warum ein Saldo nicht abgefragt wurde.
+- **Hinweis:** Dass die Zeitzone die Ursache war, ist aus dem Protokoll geschlossen (nur `ValueError` sichtbar),
+  nicht an den Daten der Bank gesehen.
+
