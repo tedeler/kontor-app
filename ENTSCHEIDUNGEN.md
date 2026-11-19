@@ -2949,3 +2949,19 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   - Der Service-Worker-Cache heißt jetzt `kontor-huelle-40`.
 - **Folge für die Abnahme:** Tests, die die Beschriftung „nach Datum“ erwarten oder mit `v g` zweimal hin und zurück
   schalten, brauchen die neue Leiste bzw. Reihenfolge; das klärt der Test-Thread mit der Meilenstein-Definition.
+
+## D-213 Bedienskript und Anleitung für die Testinstanz (ergänzt D-205)
+
+- **Auftrag (2026-11-19):** Eine Anleitung zum Starten der Testinstanz und ein Skript für die wiederkehrenden
+  Schritte; auf ausdrückliche Anweisung ohne Meilenstein-Definition und Abnahmetests auf main gemergt (Branch
+  `feature/testinstanz-skript`).
+- **Entscheidung:** `betrieb/kontor-test.sh` (Paketdaten, Ziel `/usr/local/bin/kontor-test`) mit den Befehlen
+  `start <branch>`, `neu`, `stop`, `loeschen`, `status`, `log`. Das Skript kopiert selbst nichts: Branch holen,
+  Daten kopieren und Starten bleibt allein Sache von `python -m kontor.testinstanz` (D-205); das Skript ruft es
+  auf, wartet bis zu 30 s auf den Port und zeigt die Adresse, bei Misserfolg die letzten Protokollzeilen.
+- Ein Branchname ohne `/` außer `main` wird zu `feature/<name>` ergänzt. Der zuletzt eingerichtete Branch steht
+  in `/root/.kontor-test-branch` (nur nach erfolgreichem Einrichten geschrieben); `neu` richtet ihn erneut ein.
+- Der Port kommt aus `KONTOR_PORT` in `/etc/kontor/kontor-test.env`, ersatzweise 8081.
+- Anleitung: `TESTINSTANZ.md` im Wurzelverzeichnis, Verweis in der README.
+- **Nicht geprüft:** Lauf unter systemd auf dem echten Server (wie bei D-205). Eigene Tests
+  `tests/test_testinstanz_skript_eigen.py` mit einer Attrappe statt des Programms.
