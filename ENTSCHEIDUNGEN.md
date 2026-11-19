@@ -3079,3 +3079,101 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   voll; deshalb gibt es keine Summe über alle Tags, nur „mit Tag“ und „ohne Tag“. Vergleich für zwei bis vier Tags.
 - **Datenqualität:** betrachtet die letzten zwölf Monate ohne Umbuchungen. Tags gelten als freiwillig und gehen
   in keine Bewertung ein.
+
+## D-218 Kontonamen je Hierarchieebene eindeutig (Sammelbranch `feature/sammel3`)
+
+- **Anlass:** Auftrag vom 2026-11-19: Kategorien dürfen auf ihrer Ebene nur einmal mit gleichem Namen vorkommen.
+  Abgestimmt: Vergleich ohne Groß-/Kleinschreibung, gilt für alle Konten, Altbestand automatisch zusammenführen,
+  Importe führen zusammen, alles andere wird abgelehnt. Ändert `datenmodell.md` („Keine Eindeutigkeit gefordert“).
+- **Regel:** Unter demselben Elternkonto ist ein Name nur einmal erlaubt; verglichen wird nach `strip()` und
+  `casefold()`. Auf der obersten Ebene gilt das je Kontoklasse (Bestand, Aufwand, Ertrag, Eigenkapital): „Zinsen“
+  als Aufwand und als Ertrag bleiben nebeneinander möglich, zwei Bestandskonten „Giro“ nicht.
+- **Ablehnen:** Anlegen, Umbenennen, Verschieben, Löschen mit hochrutschenden Unterkonten, Zusammenführen mit
+  mitwandernden Unterkategorien und Rückgängig enden mit 409 `konto_existiert` (`details.konto_ids`), auch im
+  Probelauf. Geprüft wird am Ende jeder protokollierten Änderung, die Konten berührt.
+- **Bereinigen** (Altbestand beim Start, nach jedem Import, nach dem Einspielen einer Sicherung): gleichnamige
+  Kategorien (Aufwand/Ertrag) werden in die mit der kleinsten ID zusammengeführt (Buchungen, Regeln, Vorlagen,
+  Unterkategorien wandern mit; entstehen dadurch neue Dubletten, werden auch sie bereinigt). Bestandskonten,
+  Eigenkapitalkonten und Kategorien mit Kreditbezug werden nicht zusammengeführt, sondern bekommen den Zusatz
+  „(2)“, „(3)“ …; zwei Bankkonten automatisch zu vereinen wäre nicht umkehrbar und fachlich falsch.
+- **Altbestand:** eine Änderung im Protokoll (Aktion `kategorien_zusammenfuehren`, Quelle `manuell`,
+  Beschreibung „Gleichnamige Konten bereinigt“); ihr Rückgängig wird nach obiger Regel abgelehnt.
+- **Importe:** Warnungen `konto_zusammengefasst` bzw. `konto_umbenannt` (Referenz: Name). Die zweite Kategorie
+  behält keine eigene `extern_id`; ein erneuter Import legt sie deshalb kurz an und führt sie wieder zusammen
+  (Bestand danach unverändert, der Zähler `kategorien_neu` nennt sie aber erneut).
+- **Technische Konten** („Unkategorisiert“, „Korrekturen“): gibt es beim ersten Bedarf schon ein gleichnamiges
+  Eigenkapitalkonto ohne Kennung auf der obersten Ebene, wird es übernommen statt ein zweites anzulegen.
+- **Synchronisation:** ein neu angelegtes Bankkonto bekommt bei Namensgleichheit den Zusatz „(2)“.
+- **Prüfung:** `tests/test_kontonamen_eigen.py`.
+
+## D-219 Standardkategorie je Empfänger entfällt; „Regel erstellen…“ im Empfänger-Tab
+
+- **Anlass:** Auftrag vom 2026-11-19; abgestimmt: ganz entfernen, vorhandene in Regeln umwandeln.
+- **Umwandlung:** Beim Start (eine Änderung „Standardkategorien in Regeln umgewandelt“, Aktion `regel_anlegen`)
+  und beim Einspielen älterer Sicherungen wird aus jeder Standardkategorie die Regel „Empfänger ist <Name>“ →
+  Kategorie, am Ende der Regelliste (entspricht der bisherigen Stufe nach den Regeln).
+- **Entfällt:** die Stufe „Standardkategorie“ bei Synchronisation und Erfassen (neu: Kreditrate → Vorlage → Regel →
+  Lernmodell → „Unkategorisiert“), Feld und Spalte im Empfänger-Tab. `standardkategorie_id` bleibt als Feld der
+  Empfängerform stehen und ist immer `null`, damit ältere Protokolleinträge und Sicherungen lesbar bleiben; ein
+  anderer Wert wird mit 422 `kategorie_ungueltig` abgelehnt. Die Spalte der Datenbank und der Sicherungsdatei
+  bleibt (leer). Alte Vorschläge mit Quelle `standardkategorie` bleiben gültig.
+- **Kontextmenü `em-regel` „Regel erstellen…“:** öffnet den Regeleditor mit dem Namen des Empfängers und dem
+  Ausdruck `empf == "<Name>" or empf == "<Alias>" …`; Kategorie und Tags wählt der Nutzer dort.
+- **Prüfung:** `tests/test_standardkategorie_eigen.py`, `tests/test_browser_sammel3.py`.
+
+## D-220 Empfänger-Tab: „Anzeigen im Konto …“
+
+- Kontextmenü `em-im-konto`: öffnet das Kontoblatt eines Bestandskontos mit dem Empfänger als Filter
+  (`/konten/<id>?empfaenger_id=<id>`). Mit Buchungen auf mehreren Konten ein Untermenü (`em-im-konto-<konto-id>`,
+  die meistbenutzten zuerst, mit Anzahl), ohne Buchungen ausgegraut. Neuer lesender Endpunkt
+  `GET /api/empfaenger/{id}/konten` → `[{konto_id, anzahl}]` (noch nicht im OpenAPI-Vertrag).
+
+## D-221 Statistische Analyse entfällt
+
+- Seite `/statistik` (jetzt 404), Navigationseintrag, Palettenbefehl und `GET /api/statistik` (D-145) sind
+  entfernt; die Aussagen stehen in den Berichten (D-217). `statistik.py` enthält nur noch Median, MAD und
+  robustes z für Monatsbericht, Berichte und Verdachtsprüfung.
+
+## D-222 Dubletten: zur Buchung springen
+
+- Jede Buchung eines Verdachts oder Vorschlags auf `/dubletten` zeigt ihren Verwendungszweck und je Bestandskonto
+  einen Verweis „Zeigen in: <Konto>“ (`dublette-buchung-<id>-konto-<konto-id>`), der wie in den Berichten ins
+  Kontoblatt springt und die Buchung markiert.
+
+## D-223 Bestätigung trägt das Tag „B-<Name>“
+
+- Abgestimmt: Die Bestätigung von Buchungen und Empfängern nutzt die Tags „B-Torsten“ / „B-Tina“ statt „Torsten“ /
+  „Tina“. Vorhandene Tags werden beim Start (eine Änderung, Aktion `tag_umbenennen`) und beim Einspielen älterer
+  Sicherungen umbenannt; gibt es das neue Tag schon, wandern die Zuordnungen dorthin. `data-bestaetigt` und
+  `data-person` nennen weiter den Namen der Person.
+
+## D-224 Kontoblatt: Spalten ein- und ausblenden
+
+- Kontextmenü der Kopfzeile: „Spalten ein- und ausblenden“ (`km-spalten-wahl`) mit einem Eintrag je Spalte
+  (`km-spalte-<feld>`, Haken = sichtbar). Mindestens eine Spalte bleibt. Gemerkt im Browser je Listenart (Konto,
+  Kategorie) unter `kontor.spalten.aus`; in der kompakten Ansicht (Handy) ohne Wirkung. Die Zellen bleiben im
+  Dokument (`data-spalten-aus` an der Liste, per CSS versteckt).
+
+## D-225 Tags als eigene Ansicht
+
+- Neue Seite `/tags` (Navigation `navlink-tags` nach „Kategorien“, Palette „Gehe zu: Tags“): Liste aller Tags mit
+  Zahl der Buchungen, Anlegen, Umbenennen, Löschen. Ein Klick auf ein Tag zeigt darunter seine Buchungen (höchstens
+  500, neueste zuerst) mit Summe und „Im Konto zeigen“; die Wahl steht in der Adresse (`?tag=<id>`). Anders als
+  bei Kategorien öffnet sich kein Kontoblatt, weil Tags kein Konto sind; die Tag-Verwaltung in den Einstellungen
+  bleibt.
+
+## D-226 Mail-Blatt: Darstellung, Suche, Mail von Hand zuordnen
+
+- **Darstellung:** drei Spalten (Empfangen, Absender und Betreff, Zuordnung). Datum („Heute“, „Gestern“ oder
+  Datum) und Uhrzeit stehen untereinander und brechen nicht um; Absender einzeilig, Betreff höchstens zweizeilig;
+  das Postfach erscheint nur, wenn mehrere Postfächer gemischt gezeigt werden.
+- **Suche** (`mail-suche`, REST `suche`): jedes Wort muss in Absender, Betreff oder Text vorkommen (ohne
+  Groß-/Kleinschreibung und Umlautunterschied); wirkt zusammen mit Postfach und Zuordnungsfilter, steht in der
+  Adresse.
+- **Zuordnen von Hand** (`mail-zuordnen` „Buchung zuordnen…“, `POST /api/mail/nachrichten/{id}/buchung` mit
+  `buchung_id`, Aktion `dokument_aus_mail`): Dialog mit Buchungen von 14 Tagen vor bis 30 Tage nach der Mail
+  (Zeitraum änderbar, Textsuche); Buchungen, deren Betrag in der Mail steht, zuerst und mit „Betrag passt“. Die
+  Mail wird als Dokument an die Buchung gehängt und gilt im Mail-Blatt als zugeordnet („Von Hand“). Der Vermerk
+  steht wie bei der Bestellnummer in `bestellmail` (leere Nummer, Betriebszustand); er entfällt, wenn das Dokument
+  von der Buchung gelöst wird.
+- Behoben: Der Lesebereich zeigte bei angehängten Mails „[object HTMLUListElement]“.
