@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import datetime as dt
 import ipaddress
+import logging
 import os
 import pathlib
 import re
@@ -13,7 +14,7 @@ from dataclasses import dataclass
 
 from .fehler import KonfigurationsFehler
 
-BANK_PLUGINS = ("mock", "fints", "aqbanking")
+BANK_PLUGINS = ("mock", "fints")
 MAIL_PLUGINS = ("mock", "imap")
 SZENARIEN = ("normal", "bankfehler", "zeitueberschreitung", "tan_erforderlich", "token_ablauf", "beitragsaenderung")
 
@@ -28,8 +29,6 @@ M7_GANZ = {
     "anfrage_max_kib": (16, 1_048_576), "port": (1, 65535), "beenden_frist_sekunden": (1, 600),
     "mock_verzoegerung_ms": (0, 60_000),
 }
-# M10 (python-api.md 16.1): Bereich der Zeitgrenze je AqBanking-Programmaufruf
-AQBANKING_TIMEOUT = (1, 3600)
 _THEMA = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 
 # M6 (python-api.md 13.1): Ganzzahlfelder mit Bereich (None = ohne Obergrenze)
@@ -166,12 +165,7 @@ class KontorConfig:
     log_stufe: str = "INFO"
     beenden_frist_sekunden: int = 20
     mock_verzoegerung_ms: int = 0
-    # Meilenstein 10: AqBanking-Plugin (python-api.md 16.1). Nur Pfade und Zeitgrenze, keine Geheimnisse.
-    aqbanking_verzeichnis: pathlib.Path | None = None
-    aqbanking_programme: pathlib.Path | None = None
-    aqbanking_timeout_sekunden: int = 120
     # Meilenstein 11: Kontostand bei der Synchronisation (python-api.md 17.1, kontostand.md)
-    aqbanking_saldo: bool = False
     sync_saldo_angleichen: bool = True
     # Feature update (D-107): Suche nach neuen Releases auf GitHub, Update-Dienst
     update_pruefen: bool = False
@@ -231,7 +225,9 @@ class KontorConfig:
         bank = self.bank_plugin if self.bank_plugin is not None else (standard or "fints")
         mail = self.mail_plugin if self.mail_plugin is not None else (standard or "imap")
         if bank not in BANK_PLUGINS:
-            raise KonfigurationsFehler(f"Unbekanntes Bank-Plugin {bank!r} (erlaubt: mock, fints, aqbanking).",
+            hinweis = (" Das AqBanking-Plugin gibt es nicht mehr; der Bankabruf läuft über FinTS (D-201)."
+                       if bank == "aqbanking" else "")
+            raise KonfigurationsFehler(f"Unbekanntes Bank-Plugin {bank!r} (erlaubt: mock, fints).{hinweis}",
                                        feld="bank_plugin")
         if mail not in MAIL_PLUGINS:
             raise KonfigurationsFehler(f"Unbekanntes Mail-Plugin {mail!r} (erlaubt: mock, imap).",
@@ -346,20 +342,10 @@ class KontorConfig:
             setze(self, "erlaubte_netze", tuple(kanonisch))
 
     def _m10_pruefen(self) -> None:
-        """python-api.md 16.1: Felder von Meilenstein 10 prüfen (ohne Verzeichnisse oder Programme anzusehen)."""
-        setze = object.__setattr__
-        for feld in ("aqbanking_verzeichnis", "aqbanking_programme"):
-            wert = getattr(self, feld)
-            if isinstance(wert, str) and not wert.strip():
-                wert = None  # leer → None (wie in der Umgebung)
-            setze(self, feld, None if wert is None else _als_pfad(wert, feld))
-        for feld in ("aqbanking_saldo", "sync_saldo_angleichen"):  # M11, python-api.md 17.1
-            if not isinstance(getattr(self, feld), bool):
-                raise KonfigurationsFehler(f"{feld} muss wahr oder falsch sein.", feld=feld)
-        t = self.aqbanking_timeout_sekunden
-        if type(t) is not int or not AQBANKING_TIMEOUT[0] <= t <= AQBANKING_TIMEOUT[1]:
-            raise KonfigurationsFehler("aqbanking_timeout_sekunden muss eine Ganzzahl von 1 bis 3600 sein.",
-                                       feld="aqbanking_timeout_sekunden")
+        """M11 (python-api.md 17.1); die AqBanking-Felder von Meilenstein 10 sind entfallen (D-201)."""
+        if not isinstance(self.sync_saldo_angleichen, bool):
+            raise KonfigurationsFehler("sync_saldo_angleichen muss wahr oder falsch sein.",
+                                       feld="sync_saldo_angleichen")
 
     def _aktualisierung_pruefen(self) -> None:
         if not isinstance(self.update_pruefen, bool):
@@ -443,7 +429,7 @@ class KontorConfig:
             datenbank=pathlib.Path(datenbank),
             mock_modus=mock_modus,
             mock_datenbank=pathlib.Path(wert("KONTOR_MOCK_DATENBANK")) if wert("KONTOR_MOCK_DATENBANK") else None,
-            bank_plugin=wert("KONTOR_BANK_PLUGIN") or None,
+            bank_plugin=_bank_plugin_aus_umgebung(wert("KONTOR_BANK_PLUGIN")),
             mail_plugin=wert("KONTOR_MAIL_PLUGIN") or None,
             mock_szenario=wert("KONTOR_MOCK_SZENARIO") or "normal",
             mock_daten=pathlib.Path(wert("KONTOR_MOCK_DATEN")) if wert("KONTOR_MOCK_DATEN") else None,
@@ -490,21 +476,20 @@ def _m6_aus_umgebung(wert) -> dict:
     return aus
 
 
+def _bank_plugin_aus_umgebung(text: str) -> str | None:
+    """D-201: Eine Umgebungsdatei aus der Zeit des AqBanking-Plugins darf den Start nicht verhindern – der Wert
+    ``aqbanking`` gilt als ``fints``; der Zugang wird dann in der Oberfläche unter „Bankzugang“ eingestellt."""
+    if text == "aqbanking":
+        logging.getLogger("kontor.config").warning(
+            "KONTOR_BANK_PLUGIN=aqbanking wird nicht mehr unterstützt; es gilt fints. Bitte den Bankzugang in den "
+            "Einstellungen eintragen und die Zeilen KONTOR_BANK_PLUGIN/KONTOR_AQBANKING_* entfernen.")
+        return "fints"
+    return text or None
+
+
 def _m10_aus_umgebung(wert: Callable[[str], str]) -> dict:
-    """python-api.md 16.1: Umgebungsvariablen von Meilenstein 10 (leer/fehlend → Vorgabe bzw. None)."""
+    """M11 (python-api.md 17.1). Die Variablen ``KONTOR_AQBANKING_*`` werden nicht mehr gelesen (D-201)."""
     aus: dict = {}
-    for feld in ("aqbanking_verzeichnis", "aqbanking_programme"):
-        text = wert("KONTOR_" + feld.upper())
-        if text:
-            aus[feld] = pathlib.Path(text)
-    variable = "KONTOR_AQBANKING_TIMEOUT_SEKUNDEN"
-    text = wert(variable)
-    if text:
-        if not text.isascii() or not text.isdigit():
-            raise KonfigurationsFehler(f"{variable} muss eine Ganzzahl von 1 bis 3600 sein.", variable=variable)
-        aus["aqbanking_timeout_sekunden"] = int(text)
-    # M11 (python-api.md 17.1)
-    aus["aqbanking_saldo"] = _wahrheitswert(wert("KONTOR_AQBANKING_SALDO"), "KONTOR_AQBANKING_SALDO", False)
     aus["sync_saldo_angleichen"] = _wahrheitswert(wert("KONTOR_SYNC_SALDO_ANGLEICHEN"),
                                                   "KONTOR_SYNC_SALDO_ANGLEICHEN", True)
     return aus

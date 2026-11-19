@@ -44,7 +44,7 @@ jobs:
         run: python -m pip install -e ".[test]" build
 
       - name: Eigene Tests
-        # Browser- und AqBanking-Tests werden ohne Chrome bzw. aqbanking-tools übersprungen.
+        # Browsertests werden ohne Chrome übersprungen.
         run: python -m pytest -q -p no:cacheprovider tests
 
       - name: Version erhöhen

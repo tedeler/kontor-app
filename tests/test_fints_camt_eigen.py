@@ -1,4 +1,4 @@
-"""Eigene Tests zur Umstellung des Bankabrufs auf FinTS/camt (Feature fints-camt, D-190 bis D-193): camt-Version,
+"""Eigene Tests zur Umstellung des Bankabrufs auf FinTS/camt (Feature fints-camt, D-197 bis D-200): camt-Version,
 Bankzugang über REST, Übergang alter Bank-Kennungen. Nur synthetische Daten, keine Verbindungen nach außen."""
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ def _mock(tmp_path) -> TestClient:
                                               mock_heute=dt.date(2024, 6, 30))))
 
 
-# ---------------------------------------------------------------- camt (D-190)
+# ---------------------------------------------------------------- camt (D-197)
 
 CAMT_02 = (f'<Document xmlns="{CAMT}02"><BkToCstmrAcctRpt><Rpt>'
            '<Ntry><Amt Ccy="EUR">12.34</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts>BOOK</Sts>'
@@ -96,7 +96,7 @@ def test_kein_stiller_rueckfall_auf_mt940():
     assert CAMT_FORMATE[0].endswith(".08") and CAMT_FORMATE[-1].endswith(".02")
 
 
-# ---------------------------------------------------------------- Bankzugang (D-192)
+# ---------------------------------------------------------------- Bankzugang (D-199)
 
 ZUGANG = {"url": "https://fints.example.invalid/fints", "blz": "00000000", "benutzer": "KONTOR-TEST-01",
           "produkt_id": "SYNTHETISCH"}
@@ -187,7 +187,7 @@ def test_bankzugang_im_mock_modus_nicht_aenderbar(tmp_path):
     assert (r.status_code, r.json()["fehler"]["code"]) == (409, "bankzugang_nicht_aenderbar")
 
 
-# ---------------------------------------------------------------- Übergang alter Kennungen (D-193)
+# ---------------------------------------------------------------- Übergang alter Kennungen (D-200)
 
 
 def _kennungen_altern(pfad) -> int:

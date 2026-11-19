@@ -76,7 +76,7 @@ class SyncDienst:
         self._pin: str | None = None
         self._simuliert: dt.datetime | None = None
         self._tan: dict[int, _TanKontext] = {}
-        self.zugang_tan: tuple[str, str] | None = None   # D-192: (Vorgang, interne Kennung), nur Arbeitsspeicher
+        self.zugang_tan: tuple[str, str] | None = None   # D-199: (Vorgang, interne Kennung), nur Arbeitsspeicher
         self._thread: threading.Thread | None = None
         self._stopp = threading.Event()
         # M7 (betrieb.md 5.2): Beenden der App; _abbruch = nach Fristablauf nichts mehr schreiben
@@ -210,7 +210,7 @@ class SyncDienst:
         if self._plugin is None:
             from .plugins import erzeuge_bank_plugin
             config = self.config
-            if config.bank_plugin == "fints":  # D-192: Bankzugang aus der Oberfläche vor der Vorbelegung
+            if config.bank_plugin == "fints":  # D-199: Bankzugang aus der Oberfläche vor der Vorbelegung
                 con = self._con()
                 try:
                     config = bankzugang.wirksame_config(con, config)
@@ -232,7 +232,7 @@ class SyncDienst:
             return bool(self._tan)
 
     def _bankkonten(self, con, plugin) -> list:
-        """Konten des Laufs: die in der Oberfläche gewählten (D-192), sonst alle, die die Bank meldet."""
+        """Konten des Laufs: die in der Oberfläche gewählten (D-199), sonst alle, die die Bank meldet."""
         if getattr(plugin, "name", None) == "fints":
             gewaehlt = bankzugang.aktive_bankkonten(con)
             if gewaehlt is not None:
@@ -515,7 +515,7 @@ class SyncDienst:
             bankkonten = self._bankkonten(con, plugin)
         except TanErforderlich as e:  # D-023: TAN beim Kontenabruf ist ein Fehler des Laufs
             code, meldung = _fehler_von(e)
-            if getattr(plugin, "name", None) == "fints":  # D-191: der Weg, auf dem die TAN eingegeben werden kann
+            if getattr(plugin, "name", None) == "fints":  # D-198: der Weg, auf dem die TAN eingegeben werden kann
                 meldung += " Bitte in den Einstellungen unter „Bankzugang“ einmal die Konten abrufen."
             self._lauf_scheitert(con, lid, code, meldung)
             return
@@ -854,7 +854,7 @@ class SyncDienst:
 
     # ======================================================= Kontostand (M11)
     def _uebergang_abgleichen(self, con, kid: int, iban: str, offen: list, geliefert: set[str], z: dict) -> list:
-        """D-193: Übergang des Bankabrufs (AqBanking/MT940 → camt). Dieselben Umsätze kommen danach mit anderer
+        """D-200: Übergang des Bankabrufs (AqBanking/MT940 → camt). Dieselben Umsätze kommen danach mit anderer
         Kennung. Ein noch unbekannter Umsatz gehört zu einer vorhandenen Buchung, wenn diese auf demselben Konto
         denselben Betrag und Buchungstag hat, nur Kennungen aus der Zeit vor der Umstellung trägt und die Bank
         keine dieser Kennungen in diesem Abruf wieder geliefert hat. Je Betrag und Tag werden so viele Umsätze

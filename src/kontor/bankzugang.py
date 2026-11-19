@@ -1,4 +1,4 @@
-"""Bankzugang (FinTS) aus der Weboberfläche: Speicherung und wirksame Konfiguration (D-192).
+"""Bankzugang (FinTS) aus der Weboberfläche: Speicherung und wirksame Konfiguration (D-199).
 
 Gespeichert werden nur Angaben ohne Geheimnischarakter – Server-URL, Bankleitzahl, Benutzerkennung, Kunden-ID,
 Produkt-ID, TAN-Verfahren und die bei der Bank abgerufenen Konten mit ihrer Auswahl. Die PIN gehört nie dazu.

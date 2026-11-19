@@ -233,7 +233,7 @@ VORLAGEN_ANWENDEN = {
 }
 PIN_EINGABE = {"pin": S("str", pflicht=True, min_len=1, max_len=128)}
 TAN_EINGABE = {"tan": S("str", pflicht=True, min_len=1, max_len=64)}
-# D-192: Bankzugang; null oder leer entfernt den gespeicherten Wert (fachliche Prüfung in bankzugang.setzen)
+# D-199: Bankzugang; null oder leer entfernt den gespeicherten Wert (fachliche Prüfung in bankzugang.setzen)
 BANKZUGANG = {f: S("str", nullbar=True, max_len=2048, strip=True) for f in
               ("url", "blz", "benutzer", "kunden_id", "produkt_id", "tan_verfahren")}
 BANKZUGANG_ABRUF = {"vorgang": S("str", min_len=1, max_len=64), "tan": S("str", min_len=1, max_len=64)}
@@ -825,7 +825,7 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     async def pin_verwerfen(request: Request):
         sync.pin_verwerfen()
 
-    # D-192: Bankzugang (FinTS) aus der Oberfläche; die PIN gehört nie dazu
+    # D-199: Bankzugang (FinTS) aus der Oberfläche; die PIN gehört nie dazu
     @endpunkt("GET", "/api/bank/zugang")
     async def bankzugang_lesen(request: Request):
         return await lesen(bankzugang.lesen, config)

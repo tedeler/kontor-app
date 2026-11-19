@@ -64,6 +64,7 @@ Commit-Nachrichten sind auf Deutsch.
 | `src/kontor/app.py` | App-Fabrik, alle REST-Endpunkte, Fehlerformat, Header `X-Kontor-Modus` |
 | `src/kontor/validierung.py` | strenge Prüfung von JSON-Körpern und Query-Parametern |
 | `src/kontor/buch.py` | Fachlogik: Konten, Buchungen, Splits, Tags, Empfänger, Liste, Dubletten, Benachrichtigungen |
+| `src/kontor/bankzugang.py` | Feature fints-camt: Bankzugang aus der Oberfläche (Speicherung, wirksame Konfiguration, TAN-Verfahren und Konten abrufen) |
 | `src/kontor/sync.py` | M2: `SyncDienst` je App (Läufe, Übernahme, Abgleich, TAN, PIN, App-Uhr, Planer), `planer_takt` |
 | `src/kontor/regeln.py` | M2: Regeln (Validierung, CRUD, Auswertung, Anwenden) und Vorschläge |
 | `src/kontor/protokoll.py` | M3: Änderungsprotokoll (temporäre Trigger, Protokollform, Nettowirkung über eine lesende Zweitverbindung), Rückgängig mit Zustands- und Bezugsprüfung, Wirksamkeit |
@@ -80,7 +81,7 @@ Commit-Nachrichten sind auf Deutsch.
 | `src/kontor/zustellung.py` | M6: Zustellung der Benachrichtigungen über das Benachrichtigungs-Plugin (erster Versuch, Wiederholung, Status) |
 | `src/kontor/netz.py` | M6: ausgehende HTTP-Anfragen ohne Umleitungen/Proxy, TLS-Kontext mit `tls_ca_datei` |
 | `src/kontor/importer/` | KMyMoney- und GnuCash-Import (`gnucash.py`: XML und SQLite, SQLite nur als Kopie im Arbeitsspeicher geöffnet) und `ImportErgebnis` |
-| `src/kontor/plugins/` | Bank-/Mail-/Benachrichtigungs-Schnittstellen, Mock-Plugins, FinTS (python-fints), AqBanking (M10, `aqbanking-cli` als Unterprozess), IMAP (imaplib, XOAUTH2), ntfy |
+| `src/kontor/plugins/` | Bank-/Mail-/Benachrichtigungs-Schnittstellen, Mock-Plugins, FinTS (python-fints, camt), IMAP (imaplib, XOAUTH2), ntfy |
 | `src/kontor/anmeldung.py` | M7: Haushaltskonto (scrypt), Sitzungen (nur SHA-256 des Tokens gespeichert, CSRF-Token per HMAC abgeleitet), Bremse, Einrichtungscode, Kommandozeile `passwort-setzen` |
 | `src/kontor/schutz.py` | M7: äußerste ASGI-Hülle: Netz → Sitzung → Herkunft → CSRF → Größe; Sicherheitsköpfe an jeder Antwort |
 | `src/kontor/betrieb/` | M7: ausgelieferte systemd-Units, sysusers, `kontor.env`, Drop-in (Paketdaten) |
@@ -182,14 +183,17 @@ Commit-Nachrichten sind auf Deutsch.
   eigene Rauchtests `tests/test_browser*.py`. Debug-Hilfe außerhalb des Repos: `/home/claude/impl/werkzeug/sicht.py`.
 - Maßstab: alle Tests einschließlich `m8` und `leistung`.
 
-## Hinweise ab Meilenstein 10 (AqBanking-Plugin)
+## Hinweise zum Bankabruf über FinTS/camt (Feature `fints-camt`, D-197 bis D-201)
 
-- `plugins/aqbanking.py` startet nur `aqbanking-cli` (`listaccs`, `request --transactions`) und
-  `aqhbci-tool4 listusers`, immer mit `-D <aqbanking_verzeichnis>`. Ausgaben von AqBanking nie loggen oder
-  weitergeben; die PIN nur über die Pipe (`-P /dev/fd/N`). Auswertung über `fehler_aus_ausgabe` (D-099).
-- Tests brauchen `aqbanking-tools` (`sudo apt-get install -y aqbanking-tools`); ohne werden 24 M10-Tests
-  übersprungen – das gilt nicht als grün.
-- Maßstab: alle Tests einschließlich `m10`.
+- Das AqBanking-Plugin (M10) ist entfallen; es gibt nur noch `mock` und `fints`. Umsätze kommen über `HKCAZ`
+  (camt.052.001.02–.08, `plugins/fints.CAMT_FORMATE`); bietet die Bank camt an, nie auf MT940 ausweichen.
+- Bankzugang aus der Oberfläche: `bankzugang.py` (Speicherung in `meta`, Schlüssel `bank_…`; Betriebszustand, nie
+  Protokoll oder Sicherung, nie die PIN). `SyncDienst._plugin_holen` nimmt die wirksame Konfiguration; nach
+  jeder Änderung `plugin_verwerfen()`. Aufrufe mit Bankverbindung nur unter der Laufsperre (`bankzugang._Gesperrt`).
+- TAN beim Dialogbeginn: `konten(tan=…)`/`umsaetze(tan=…)` setzen denselben Dialog fort; die interne Kennung
+  verlässt den Arbeitsspeicher nie (Oberfläche bekommt einen eigenen `vorgang`).
+- Übergang alter Kennungen: `sync_kennung_alt` (einmal gefüllt, `meta.bank_uebergang`) und
+  `SyncDienst._uebergang_abgleichen`.
 
 ## Hinweise ab Meilenstein 11 (Kontostand, Kategorien, Zusammenführen)
 
@@ -199,7 +203,7 @@ Commit-Nachrichten sind auf Deutsch.
 - Buchungsliste: `unterkonten` bildet die Kontenmenge über `buch._listenkonten`; `buchungen_laden(konten=…)`.
 - Oberfläche: Kontoansicht kennt `istKategorie` (Spalte `konto`, Filter `filter-konto`), URL ohne
   Vorgabesortierung (D-104).
-- Maßstab: alle Tests einschließlich `m11` (AqBanking- und Browsertests laufen, nicht übersprungen).
+- Maßstab: alle Tests einschließlich `m11` (Browsertests laufen, nicht übersprungen).
 
 ## Hinweise zur Versionierung (D-105)
 

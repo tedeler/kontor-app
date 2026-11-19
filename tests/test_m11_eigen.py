@@ -1,5 +1,5 @@
 """Eigene Tests zu Meilenstein 11 (ergänzend zu kontor-tests): Abbildung des Saldos aus FinTS (HISAL) und
-AqBanking (Kontextdatei), Migration von Schemaversion 8. Ohne Netz; nur synthetische Daten (BLZ 00000000)."""
+Migration von Schemaversion 8. Ohne Netz; nur synthetische Daten (BLZ 00000000)."""
 
 from __future__ import annotations
 
@@ -14,7 +14,6 @@ from fints.segments.saldo import HISAL5, HISAL7
 from kontor import db
 from kontor.app import create_app
 from kontor.config import KontorConfig
-from kontor.plugins.aqbanking import saldo_aus_kontext
 from kontor.plugins.bank import BankSaldo, Umsatzliste
 from kontor.plugins.fints import _saldo_aus_hisal
 
@@ -41,40 +40,6 @@ def test_hisal_version_5():
                            date=TAG)
     h = HISAL5(account_product="Giro", currency="EUR", balance_booked=bal)
     assert _saldo_aus_hisal(IBAN, h) == BankSaldo(IBAN, -9990, TAG)
-
-
-KONTEXT = """
-accountInfoList {
-  accountInfo {
-    char iban="{iban}"
-    balanceList {
-      balance {
-        char type="noted"
-        char date="20240630"
-        char value="999%2F1%3AEUR"
-      }
-      balance {
-        char type="booked"
-        char date="20240629"
-        char value="-150%2F100%3AEUR"
-      }
-      balance {
-        char type="booked"
-        char date="20240630"
-        char value="12345%2F100%3AEUR"
-      }
-    }
-  }
-}
-"""
-
-
-def test_aqbanking_saldo_aus_kontext():
-    text = KONTEXT.replace("{iban}", IBAN)
-    assert saldo_aus_kontext(text, IBAN) == BankSaldo(IBAN, 12345, TAG), "spätester Eintrag vom Typ booked"
-    assert saldo_aus_kontext(text.replace('"booked"', '"noted"'), IBAN) is None, "noted zählt nicht"
-    assert saldo_aus_kontext(text.replace("%3AEUR", "%3AUSD"), IBAN) is None
-    assert saldo_aus_kontext(text, "DE68000000000000004712") is None, "anderes Konto"
 
 
 def test_umsatzliste_wie_liste():

@@ -36,7 +36,7 @@ from .bank import BankKonto, BankPlugin, BankSaldo, BankUmsatz, TanAntwort, Umsa
 BERLIN = ZoneInfo("Europe/Berlin")
 UTC = dt.timezone.utc
 CAMT_052 = "urn:iso:std:iso:20022:tech:xsd:camt.052.001.08"
-# D-190: lesbare camt.052-Versionen in der Reihenfolge der Bevorzugung (zuerst .08 nach fints.md 3.3, sonst die
+# D-197: lesbare camt.052-Versionen in der Reihenfolge der Bevorzugung (zuerst .08 nach fints.md 3.3, sonst die
 # höchste von der Bank angebotene; die comdirect bietet z. B. nur camt.052.001.02 an).
 CAMT_FORMATE = tuple(f"urn:iso:std:iso:20022:tech:xsd:camt.052.001.{n:02d}" for n in (8, 7, 6, 5, 4, 3, 2))
 PIN_CODES = ("9931", "9340", "9910", "9930", "9942")
@@ -298,7 +298,7 @@ class _Dialog:
     client: object
     dialog: object
     verbindung: _Verbindung
-    beginn: object = None   # HITAN der Dialoginitialisierung, solange deren TAN aussteht (D-191)
+    beginn: object = None   # HITAN der Dialoginitialisierung, solange deren TAN aussteht (D-198)
 
     def __repr__(self) -> str:
         return "_Dialog()"
@@ -316,7 +316,7 @@ class _Offen:
     hitan: object
     camt: bool
     seiten: list = field(default_factory=list)
-    beginn: bool = False    # TAN zur Dialoginitialisierung: der eigentliche Auftrag folgt erst danach (D-191)
+    beginn: bool = False    # TAN zur Dialoginitialisierung: der eigentliche Auftrag folgt erst danach (D-198)
 
     def __repr__(self) -> str:
         return f"_Offen(von={self.von}, bis={self.bis})"
@@ -348,7 +348,7 @@ class FintsBankPlugin(BankPlugin):
     # ------------------------------------------------------------ Schnittstelle
     def konten(self, *, tan: TanAntwort | None = None) -> list[BankKonto]:
         """Konten der Bank. Verlangt die Bank schon beim Dialogbeginn eine TAN, kommt ``TanErforderlich``;
-        ``konten(tan=TanAntwort(...))`` setzt denselben Dialog fort (D-191)."""
+        ``konten(tan=TanAntwort(...))`` setzt denselben Dialog fort (D-198)."""
         with self._sperre:
             self._konfiguriert()
             if tan is not None:
@@ -428,7 +428,7 @@ class FintsBankPlugin(BankPlugin):
         return self._abruf(d, iban, von, bis, konto)
 
     def _beginn_tan(self, d: _Dialog, iban: str, von: dt.date, bis: dt.date) -> TanErforderlich:
-        """TAN-Anforderung der Dialoginitialisierung (starke Kundenauthentifizierung, D-191)."""
+        """TAN-Anforderung der Dialoginitialisierung (starke Kundenauthentifizierung, D-198)."""
         hitan = d.beginn
         if getattr(hitan, "task_reference", None) is None:
             raise BankFehler("Die Bank verlangt eine TAN, hat aber keine TAN-Anforderung geliefert.")
@@ -477,7 +477,7 @@ class FintsBankPlugin(BankPlugin):
         beginn = client.init_tan_response
         client.init_tan_response = None
         if beginn is not None and getattr(beginn, "decoupled", False):
-            # Entkoppelte Freigabe (3955) wird nicht unterstützt (D-070 gilt weiter, D-191).
+            # Entkoppelte Freigabe (3955) wird nicht unterstützt (D-070 gilt weiter, D-198).
             self._dialog_verwerfen(_Dialog(client, dialog, verbindung))
             raise BankFehler("Die Bank verlangt eine Freigabe in einer App; unterstützt wird nur die Eingabe "
                              "einer TAN (z. B. photoTAN). Bitte ein anderes TAN-Verfahren wählen.")
@@ -594,7 +594,7 @@ class FintsBankPlugin(BankPlugin):
         client = d.client
         hicazs = client.bpd.find_segment_first("HICAZS")
         if hicazs is not None:
-            # D-190: bietet die Bank camt an, wird nie auf MT940 ausgewichen (HKKAZ ist bei manchen Banken
+            # D-197: bietet die Bank camt an, wird nie auf MT940 ausgewichen (HKKAZ ist bei manchen Banken
             # abgekündigt oder gestört); KTI1 trägt dabei nur IBAN und BIC.
             angeboten = [str(x) for x in (hicazs.parameter.supported_camt_formats or [])]
             fmt = next((f for f in CAMT_FORMATE if f in angeboten), None)

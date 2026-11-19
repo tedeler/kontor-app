@@ -747,7 +747,7 @@ export async function einstellungen(seite, _p, _s, kontext) {
   seite.append(abschnitt("Benachrichtigungen", h("p", { tid: "zustellung-status", "data-plugin": zust.plugin },
     `Zustellung über: ${zust.plugin} · ausstehend ${zust.ausstehend}, zugestellt ${zust.zugestellt}, aufgegeben ${zust.aufgegeben}`),
   zust.letzter_fehler ? h("p", { class: "klein" }, "Letzter Fehler: ", zust.letzter_fehler.meldung || "") : null, test, testErgebnis));
-  // D-192: Bankzugang (FinTS)
+  // D-199: Bankzugang (FinTS)
   seite.append(await bankzugangAbschnitt(sync.pin_vorhanden));
   // PIN
   seite.append(abschnitt("Bank-PIN", h("p", { tid: "pin-status", "data-vorhanden": sync.pin_vorhanden ? "ja" : "nein" },

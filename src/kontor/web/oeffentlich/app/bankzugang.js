@@ -1,11 +1,11 @@
-/* Kontor – Abschnitt „Bankzugang (FinTS)“ der Einstellungen (D-192): Server-Adresse, Bankleitzahl, Benutzerkennung,
+/* Kontor – Abschnitt „Bankzugang (FinTS)“ der Einstellungen (D-199): Server-Adresse, Bankleitzahl, Benutzerkennung,
  * Kunden-ID, Produkt-ID, TAN-Verfahren und die Auswahl der Konten. Die PIN wird hier nur an den Arbeitsspeicher des
  * Servers übergeben (PUT /api/sync/pin) und nie gespeichert. Betriebszustand: kein Eintrag im Änderungsprotokoll. */
 import { api, h, melde, oberflaeche } from "./kern.js";
 import { feld, knopf } from "./ui.js";
 
 const FELDER = [
-  ["url", "FinTS-Server-Adresse", "url", "z. B. https://fints.beispielbank.example/fints"],
+  ["url", "FinTS-Server-Adresse", "url", "https-Adresse des FinTS-Servers der Bank"],
   ["blz", "Bankleitzahl", "text", "8 Ziffern"],
   ["benutzer", "Zugangsnummer / Benutzerkennung", "text", ""],
   ["kunden_id", "Kunden-ID (falls abweichend)", "text", "leer = wie Benutzerkennung"],
