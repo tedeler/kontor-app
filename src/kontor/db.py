@@ -445,6 +445,15 @@ CREATE TABLE IF NOT EXISTS bestellmail (
     PRIMARY KEY (buchung_id, nachricht_id)
 ) WITHOUT ROWID;
 
+-- Bestellnummern je gespiegelter Mail (D-209), einmal aus Betreff, Text und Rohfassung gelesen; die leere
+-- Nummer heißt „durchsucht“. Betriebszustand wie der Spiegel.
+CREATE TABLE IF NOT EXISTS bestellmail_nummer (
+    spiegel_id INTEGER NOT NULL,
+    nummer TEXT NOT NULL,
+    PRIMARY KEY (spiegel_id, nummer)
+) WITHOUT ROWID;
+CREATE INDEX IF NOT EXISTS bestellmail_nummer_nummer ON bestellmail_nummer(nummer);
+
 -- ------------------------------------------------------------ Mail-Abgleich (D-128)
 -- Erwartete Zahlungen (Buchbestand, Objektart ``erwartung``). Beträge in Cent, immer >= 0; die Richtung sagt,
 -- ob Geld abgeht oder eingeht. Zuordnungen (``buchung_ids``), Mails (``mails``: Postfach + Nachrichten-ID im
