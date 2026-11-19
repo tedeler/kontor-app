@@ -74,6 +74,7 @@ Commit-Nachrichten sind auf Deutsch.
 | `src/kontor/kredite.py` | M5: Kredite (Validierung, CRUD, Tilgungsplan mit Ganzzahlarithmetik, Ratenerkennung für Synchronisation und Zuordnen, Jahresabgleich, Bezüge, `verwaiste_entfernen`) |
 | `src/kontor/wiederkehrend.py` | M5: Erkennung wiederkehrender Buchungen (ohne Zustand), Ereignisse und Benachrichtigungen |
 | `src/kontor/monatsbericht.py` | Feature monatsbericht (D-206): Ausgaben eines Monats rein statistisch (`GET /api/berichte/monat`), nur lesend; Seite `app/monatsbericht.js` unter `/berichte/monat` |
+| `src/kontor/bestellmail.py` | Feature amazon-bestellnummer (D-208): Mails mit der Amazon-Bestellnummer einer Buchung als Dokumente anhängen (`mail_bestellnummer`), Tabelle `bestellmail` als Betriebszustand; Aufruf über `abgleich.nach_ereignis` |
 | `src/kontor/berichte.py`, `export.py` | M5: Kontostandsverlauf, Einnahmen/Ausgaben; CSV- und PDF-Export (reportlab) der Buchungsliste |
 | `src/kontor/sicherung.py` | M9: Datensicherung (eigenes Schema der Sicherungsdatei `SPALTEN`, Version `SCHEMAVERSION`), Prüfung nach sicherung.md 5.1, Inhaltsprüfung in einer App-Datenbank im Arbeitsspeicher, Probelauf, Einspielen |
 | `src/kontor/db.py` | SQLite-Schema (Version 14), WAL, Migration früherer Versionen ohne Datenverlust, Verbindungen, `checkpoint` |
@@ -86,9 +87,9 @@ Commit-Nachrichten sind auf Deutsch.
 | `src/kontor/anmeldung.py` | M7: Haushaltskonto (scrypt), Sitzungen (nur SHA-256 des Tokens gespeichert, CSRF-Token per HMAC abgeleitet), Bremse, Einrichtungscode, Kommandozeile `passwort-setzen` |
 | `src/kontor/schutz.py` | M7: äußerste ASGI-Hülle: Netz → Sitzung → Herkunft → CSRF → Größe; Sicherheitsköpfe an jeder Antwort |
 | `src/kontor/betrieb/` | M7: ausgelieferte systemd-Units, sysusers, `kontor.env`, Drop-in (Paketdaten) |
-| `src/kontor/testinstanz.py`, `betrieb/kontor-test.*` | Feature testinstanz (D-205): zweite Instanz für einen Entwicklungsbranch (Mock-Modus, bereinigte Datenkopie); Kommandozeile `python -m kontor.testinstanz` |
+| `src/kontor/testinstanz.py`, `betrieb/kontor-test.*` | Feature testinstanz (D-205): zweite Instanz für einen Entwicklungsbranch (Mock-Modus, bereinigte Datenkopie); Kommandozeile `python -m kontor.testinstanz`; Bedienskript `betrieb/kontor-test.sh` und Anleitung `TESTINSTANZ.md` (D-213) |
 | `src/kontor/__main__.py` | M7: Startmodul `python -m kontor` (ohne Argumente, Logging nach stderr, uvicorn) |
-| `src/kontor/web/` | M8: Hülle `index.html`, Service Worker `sw.js`, Anmeldeseite `anmelden.html`; unter `oeffentlich/` Stile `app.css`, Symbole, Manifest und die ES-Module `app/` (`kern`, `ui`, `baum`, `konto`, `seiten`, `haupt`), ohne externe Ressourcen |
+| `src/kontor/web/` | M8: Hülle `index.html`, Service Worker `sw.js`, Anmeldeseite `anmelden.html`; unter `oeffentlich/` Stile `app.css`, Symbole, Manifest und die ES-Module `app/` (`kern`, `ui`, `baum`, `konto`, `seiten`, `einstellungen`, `haupt`), ohne externe Ressourcen |
 | `src/kontor/VERSION`, `version.py`, `release.py` | Versionsnummer `MAJOR.MINOR`, Build-Angaben aus `build.json`, Kommandozeile der Release-CI (D-105) |
 | `.github/workflows/release.yml` | Release-CI: bei jedem Push auf main Minor + 1, Major nur von Hand (D-105) |
 | `tests/` | eigene Tests (ergänzend; ersetzen nicht die Tests aus kontor-tests) |
@@ -209,6 +210,13 @@ Commit-Nachrichten sind auf Deutsch.
 - Oberfläche: Kontoansicht kennt `istKategorie` (Spalte `konto`, Filter `filter-konto`), URL ohne
   Vorgabesortierung (D-104).
 - Maßstab: alle Tests einschließlich `m11` (Browsertests laufen, nicht übersprungen).
+
+## Hinweise zu den Einstellungen (Feature `einstellungen`, D-207)
+
+- `app/einstellungen.js`: Bereiche (`BEREICHE`), Adresse `/einstellungen?bereich=<name>` (ein Tab), Suche über
+  `VERZEICHNIS`. Eine neue Einstellung bekommt `data-einstellung="<schlüssel>"` und einen Eintrag im Verzeichnis
+  (Titel, Synonyme); Seltenes gehört in `erweitert(…)`. Stand des Bereichs in `staende()` nachführen.
+- Bisherige `data-testid` der Einstellungen nicht umbenennen. Eigener Rauchtest: `tests/test_browser_einstellungen.py`.
 
 ## Hinweise zur Versionierung (D-105)
 

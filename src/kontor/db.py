@@ -129,7 +129,7 @@ CREATE TABLE IF NOT EXISTS regel (
     name TEXT NOT NULL,
     aktiv INTEGER NOT NULL CHECK (aktiv IN (0, 1)),
     prioritaet INTEGER NOT NULL CHECK (typeof(prioritaet) = 'integer' AND prioritaet BETWEEN 0 AND 1000000),
-    kategorie_id INTEGER REFERENCES konto(id),   -- NULL: Regel vergibt nur Tags (D-208)
+    kategorie_id INTEGER REFERENCES konto(id),   -- NULL: Regel vergibt nur Tags (D-215)
     bedingungen TEXT NOT NULL
 );
 
@@ -435,6 +435,25 @@ CREATE TABLE IF NOT EXISTS dokument_buchung (
 CREATE INDEX IF NOT EXISTS dokument_buchung_buchung ON dokument_buchung(buchung_id, dokument_id);
 CREATE INDEX IF NOT EXISTS dokument_sha256 ON dokument(sha256);
 
+-- Mails, die über die Amazon-Bestellnummer an eine Buchung gehängt wurden (D-208): Betriebszustand, nicht
+-- protokolliert, nicht gesichert. Merkt je (Buchung, Nachrichten-ID), dass die Mail behandelt ist.
+CREATE TABLE IF NOT EXISTS bestellmail (
+    buchung_id INTEGER NOT NULL,
+    nachricht_id TEXT NOT NULL,
+    nummer TEXT NOT NULL,
+    dokument_id INTEGER NOT NULL,
+    PRIMARY KEY (buchung_id, nachricht_id)
+) WITHOUT ROWID;
+
+-- Bestellnummern je gespiegelter Mail (D-209), einmal aus Betreff, Text und Rohfassung gelesen; die leere
+-- Nummer heißt „durchsucht“. Betriebszustand wie der Spiegel.
+CREATE TABLE IF NOT EXISTS bestellmail_nummer (
+    spiegel_id INTEGER NOT NULL,
+    nummer TEXT NOT NULL,
+    PRIMARY KEY (spiegel_id, nummer)
+) WITHOUT ROWID;
+CREATE INDEX IF NOT EXISTS bestellmail_nummer_nummer ON bestellmail_nummer(nummer);
+
 -- ------------------------------------------------------------ Mail-Abgleich (D-128)
 -- Erwartete Zahlungen (Buchbestand, Objektart ``erwartung``). Beträge in Cent, immer >= 0; die Richtung sagt,
 -- ob Geld abgeht oder eingeht. Zuordnungen (``buchung_ids``), Mails (``mails``: Postfach + Nachrichten-ID im
@@ -483,7 +502,7 @@ CREATE TABLE IF NOT EXISTS regel_automatisch (
     empfaenger_id INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS regel_automatisch_empfaenger ON regel_automatisch(empfaenger_id);
--- Tags, die eine Regel passenden Buchungen hinzufügt (gehört zur Objektart ``regel``, D-208).
+-- Tags, die eine Regel passenden Buchungen hinzufügt (gehört zur Objektart ``regel``, D-215).
 CREATE TABLE IF NOT EXISTS regel_tag (
     regel_id INTEGER NOT NULL REFERENCES regel(id) ON DELETE CASCADE,
     tag_id INTEGER NOT NULL REFERENCES tag(id) ON DELETE CASCADE,
@@ -583,7 +602,7 @@ def _migrieren(con: sqlite3.Connection) -> None:
 
 
 def _regel_kategorie_optional(con: sqlite3.Connection) -> None:
-    """Schema 14 (D-208): ``regel.kategorie_id`` darf NULL sein. SQLite kann NOT NULL nicht entfernen, also die
+    """Schema 14 (D-215): ``regel.kategorie_id`` darf NULL sein. SQLite kann NOT NULL nicht entfernen, also die
     Tabelle neu aufbauen. Das Löschen der alten Tabelle räumt per Fremdschlüssel ``regel_automatisch`` ab, deshalb
     wird deren Inhalt vorher gemerkt und danach wieder eingetragen (``regel_tag`` ist hier noch leer)."""
     sql = con.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'regel'").fetchone()["sql"]

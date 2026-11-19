@@ -7,7 +7,7 @@ Verwendungszweck, Regelbetrag und Konto – oder (D-185) mit einem Ausdruck der 
 aufsteigend, dann ``id``; die erste passende aktive Regel gewinnt. Gesetzte
 Kategorien sind Vorschläge, bis sie bestätigt oder erledigt sind.
 
-Tags (D-208): Eine Regel kann zusätzlich oder statt der Kategorie Tags vergeben (``regel_tag``). Tags sind additiv:
+Tags (D-215): Eine Regel kann zusätzlich oder statt der Kategorie Tags vergeben (``regel_tag``). Tags sind additiv:
 die Tags aller passenden aktiven Regeln werden der Buchung sofort hinzugefügt, nie entfernt.
 """
 
@@ -111,7 +111,7 @@ def regel_koerper(roh: bytes, neu: bool, intern: bool = False) -> dict:
     if neu:
         if "name" not in d:
             fehler.append(fehler_eintrag(["body", "name"], "Pflichtfeld fehlt."))
-        # Mindestens eine Aktion (D-208). Nicht beim Prüfen einer Sicherung: Eine Regel kann ihre letzte Aktion
+        # Mindestens eine Aktion (D-215). Nicht beim Prüfen einer Sicherung: Eine Regel kann ihre letzte Aktion
         # verloren haben, wenn ihr einziger Tag gelöscht wurde.
         if not intern and d.get("kategorie_id") is None and not d.get("tag_ids"):
             fehler.append(fehler_eintrag(["body", "kategorie_id"], "Pflichtfeld fehlt (oder „tag_ids“)."))
@@ -233,7 +233,7 @@ def regel_dict(r, bez: ausdruck.Bezuege | None = None) -> dict:
     if "automatisch" in r.keys() and r["automatisch"]:
         d["automatisch"] = True
         d["empfaenger_id"] = r["auto_empfaenger_id"]
-    # Tags (D-208): in der Protokollform nur bei Regeln mit Tags, damit bisherige Formen unverändert bleiben
+    # Tags (D-215): in der Protokollform nur bei Regeln mit Tags, damit bisherige Formen unverändert bleiben
     tags = [int(t) for t in r["tag_liste"].split(",")] if "tag_liste" in r.keys() and r["tag_liste"] else []
     if tags or bez is not None:
         d["tag_ids"] = sorted(tags)
@@ -414,7 +414,7 @@ def trifft(r: dict, s: Sicht) -> bool:
 
 
 def erste_regel(regeln: list[dict], s: Sicht) -> dict | None:
-    """Erste passende Regel mit Kategorie; Regeln, die nur Tags vergeben, verdecken nichts (D-208)."""
+    """Erste passende Regel mit Kategorie; Regeln, die nur Tags vergeben, verdecken nichts (D-215)."""
     for r in regeln:
         if r["kategorie_id"] is not None and trifft(r, s):
             return r
@@ -422,7 +422,7 @@ def erste_regel(regeln: list[dict], s: Sicht) -> dict | None:
 
 
 def tags_der_regeln(regeln: list[dict], s: Sicht) -> list[int]:
-    """Tags aller passenden Regeln (D-208), aufsteigend."""
+    """Tags aller passenden Regeln (D-215), aufsteigend."""
     aus: set[int] = set()
     for r in regeln:
         if r.get("tag_ids") and trifft(r, s):
@@ -478,7 +478,7 @@ def anwenden(con, buchung_ids: list[int] | None, regel_ids: list[int] | None, nu
             if buch.ist_gesperrt(b):
                 continue
             sicht = ausdruck.sicht_aus_buchung(b, art_von)
-            if mit_tags:   # Tags sind additiv: auch für Splitbuchungen und bereits kategorisierte (D-208)
+            if mit_tags:   # Tags sind additiv: auch für Splitbuchungen und bereits kategorisierte (D-215)
                 vorhanden = {t["id"] for t in b["tags"]}
                 neu = [t for t in tags_der_regeln(regeln, sicht) if t not in vorhanden]
                 if neu:
@@ -598,7 +598,7 @@ def _testmenge(con, text: str | None, heute: dt.date, konto_id: int | None = Non
 def _bewerten(con, baum_: dict, kat: int | None, rid: int | None, ids: list[int], heute: dt.date,
               mit_zeilen: bool = True, tags: list[int] | None = None) -> tuple[list[dict], list[int]]:
     """Wirkung der (ungespeicherten) Regel je Buchung der Testmenge (Konzept 5.3). ``tags_neu``: Tags der Regel, die
-    der Buchung noch fehlen (D-208); gesperrte Buchungen bekommen keine."""
+    der Buchung noch fehlen (D-215); gesperrte Buchungen bekommen keine."""
     art_von = kontoarten(con)
     andere = [r for r in regeln_liste(con, mit_ausdruck=False) if r["aktiv"] and r["id"] != rid]
     if rid is not None:
@@ -675,7 +675,7 @@ def erklaeren(con, d: dict, heute: dt.date) -> dict:
 
 def regel_anwenden(con, rid: int, d: dict, heute: dt.date) -> dict:
     """POST /api/regeln/{id}/anwenden (Konzept 6.6): wie der Testbereich zeigt; verdeckte Treffer nicht.
-    Die Tags der Regel kommen an jeden nicht gesperrten Treffer, auch an verdeckte und abweichende (D-208)."""
+    Die Tags der Regel kommen an jeden nicht gesperrten Treffer, auch an verdeckte und abweichende (D-215)."""
     regel = regel_lesen(con, rid)
     baum_ = bedingungen_als_baum(regel["bedingungen"])
     ids = d.get("buchung_ids") or _testmenge(con, d.get("testmenge"), heute, d.get("konto_id"))

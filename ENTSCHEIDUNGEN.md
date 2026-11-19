@@ -2815,7 +2815,158 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   Adresse (`?monat=`, `?konto=`), der Tab merkt sie sich. Diagramme mit dem vorhandenen Plotly-Paket; Kalender,
   Balken und Anteile sind HTML, damit sie ohne Plotly und mit Tastatur bedienbar bleiben.
 
-## D-207 Regeleditor: Zeitraum statt Testmengen-Ausdruck, Test ohne Kategorie, Fehler am Feld (Feature `regeleditor-feinschliff`)
+## D-207 Einstellungen in Bereichen mit Suche (Feature `einstellungen`, in Arbeit)
+
+- **Anlass:** Die Einstellungen waren eine lange Seite mit elf Abschnitten; einzelne Einstellungen waren schwer zu
+  finden, Seltenes (Diagnoseprotokoll, Produkt-ID, OAuth-Client-Secret) stand gleichrangig neben Alltäglichem.
+- **Entscheidung:**
+  - Sechs Bereiche: Allgemein (Design, Layout, Angaben zur Instanz), Bank (Bankzugang, PIN), Mail (Postfächer,
+    Abruf), Benachrichtigungen (Zustellung, Test, ntfy-Token), Sicherheit (Anmeldung, Schutz der Geheimnisse),
+    Daten und Sicherung (Datensicherung, Tags). Der Abschnitt „Geheimnisse“ entfällt: Jedes Geheimnis steht bei
+    seiner Aufgabe (ntfy-Token bei den Benachrichtigungen, OAuth-Client-Secret bei Mail).
+  - Navigation: am Desktop eine Spalte links neben dem Inhalt, am Handy eine Liste, die in den Bereich führt
+    (Rückweg „Alle Einstellungen“). Reiter scheiden aus (zu eng am Handy, wachsen schlecht). Gezeigt wird immer
+    genau ein Bereich; ohne Angabe am Desktop „Allgemein“, am Handy nur die Liste.
+  - Adresse: `/einstellungen?bereich=<name>`. Der Bereich steht im Abfrageteil und nicht im Pfad, damit die
+    Einstellungen ein einziger Tab bleiben (Tabs hängen am Pfad, D-119). Unbekannter Wert wie ohne Angabe. Der
+    Wechsel des Bereichs lädt nichts nach (alle Bereiche werden einmal aufgebaut, die übrigen sind `hidden`).
+  - Stand je Bereich in der Navigation (`einstellungen-status-<name>`, `data-zustand` = `ok`/`offen`/`fehler`/
+    `neutral`), z. B. „Bankzugang unvollständig“, „Zugang vollständig · 2 von 3 Konten ausgewählt · PIN fehlt“.
+    Die Bedeutung steht im Text; der farbige Punkt ist nur Beigabe.
+  - Suche über den Bereichen (`einstellungen-suche`): filtert beim Tippen ein festes Verzeichnis der Einstellungen
+    mit Synonymen („backup“ → Sicherung, „dunkelmodus“ → Design), Umlaute gefaltet wie in der Befehlspalette. Ein
+    Treffer führt in den Bereich, klappt „Erweitert“ auf, rollt hin, hebt kurz hervor und setzt den Fokus. Einträge,
+    die es in dieser Instanz nicht gibt (Bankzugang im Mock-Modus), erscheinen nicht.
+  - „Erweitert“ (`<details>`, eingeklappt, nennt im Titel seinen Inhalt): Kunden-ID und Produkt-ID, Diagnoseprotokoll,
+    OAuth-Client-Secret. Offen von Anfang an, wenn darin etwas fehlt oder läuft (Pflichtfeld Produkt-ID leer,
+    Diagnose eingeschaltet). Was aufgeklappt wurde, bleibt über das Neuladen nach einer Aktion offen (nur im
+    Arbeitsspeicher des Fensters).
+  - Bankzugang in vier Schritten (Zugangsdaten, Bank-PIN, TAN-Verfahren, Konten), jeder Knopf bei seinem Schritt,
+    die Meldung erscheint im Schritt der Aktion. Stand der PIN und „PIN verwerfen“ stehen im Schritt 2 (bisher
+    eigener Abschnitt); im Mock-Modus bleiben sie eine eigene Karte.
+  - Alle bisherigen `data-testid` bleiben unverändert; neu sind nur `einstellungen-…`, `passwort-alt`/`-neu`/
+    `-aendern`, `postfach-neu-adresse`/`-anlegen`, `mail-abrufen`. Keine Änderung an Endpunkten oder Datenmodell.
+  - Keine Einträge je Bereich in der Befehlspalette: Zwei Abnahmetests (M8, M28) prüfen deren Trefferlisten.
+- **Folge für die Abnahme:** Sieben Browsertests öffnen `/einstellungen` und bedienen Elemente, die jetzt in einem
+  anderen Bereich liegen (im Dokument vorhanden, aber nicht sichtbar): M8 `test_einstellungen_geheimnis_und_sicherung`,
+  `test_einstellungen_test_benachrichtigung_mock`/`_ntfy`, `test_pin_dialog`, `test_schreiben_mit_csrf_und_abmelden`;
+  M23 `test_einstellungen_schutz`; M28 `test_abmelden_vergisst_person`. Sie brauchen nur den Bereich in der Adresse.
+  Das klärt der Test-Thread mit der Meilenstein-Definition. Die übrigen Browsertests verhalten sich wie auf main
+  (dort schlagen 49 unabhängig von diesem Feature fehl).
+
+## D-208 Mails über die Amazon-Bestellnummer an die Buchung, erwartete Zahlungen vorerst aus (Feature `amazon-bestellnummer`)
+
+- **Auftrag (2026-11-19):** Die erwarteten Zahlungen (D-128) sind dem Auftraggeber noch zu fehleranfällig und
+  werden vorerst abgeschaltet. Stattdessen: Trägt eine Buchung eine Amazon-Bestellnummer, hängen alle Mails mit
+  dieser Nummer im Betreff oder Text an dieser Buchung.
+- **Erwartete Zahlungen:** Der Code bleibt unverändert hinter `mail_abgleich`. Die ausgelieferten
+  Umgebungsdateien (`kontor.env`, `kontor-test.env`) setzen `KONTOR_MAIL_ABGLEICH=0`. Vorhandene erwartete
+  Zahlungen und ihre Zuordnungen bleiben in der Datenbank, es entstehen keine neuen und keine Meldungen
+  „überfällig“. Eine schon installierte `/etc/kontor/kontor.env` ändert sich durch ein Update nicht; dort muss
+  die Zeile von Hand umgestellt werden.
+- **Neue Einstellung** `mail_bestellnummer` (`KONTOR_MAIL_BESTELLNUMMER`, Wahrheitswert wie die anderen Schalter,
+  Vorgabe aus, ausgeliefert an). Vorgabe aus, damit bestehende Abläufe und Abnahmetests unverändert bleiben.
+- **Regel:** Bestellnummer = `ddd-ddddddd-ddddddd` ohne angrenzende Ziffer. Gesucht wird in Verwendungszweck und
+  Empfängername jeder Buchung (zusätzlich ohne Leerraum, weil Bankzeilen die Nummer umbrechen) und in Betreff und
+  Text jeder gespiegelten Mail, unabhängig vom Absender. Je Treffer hängt die ganze Mail und jeder PDF-Anhang als
+  Dokument (Quelle `mail`) an der Buchung. Beträge, Datum und Anbietername spielen keine Rolle. Mehrere Buchungen
+  mit derselben Nummer (Teillieferungen) bekommen alle dieselben Mails; dieselbe Mail in zwei Postfächern zählt
+  einmal. Hängt ein Dokument gleichen Inhalts schon an der Buchung, entsteht kein zweites.
+- **Wann:** nach jedem Mail-Abruf und nach jedem Synchronisationslauf mit Endstatus, nach den erwarteten
+  Zahlungen. Eine Änderung im Protokoll (Quelle `mail`, Aktion `bestellmail_anhaengen`) entsteht nur, wenn etwas
+  angehängt wurde; sie lässt sich rückgängig machen.
+- **Gemerkt wird** je (Buchung, Nachrichten-ID), dass die Mail behandelt ist (Tabelle `bestellmail`,
+  Betriebszustand: nicht protokolliert, nicht in der Sicherung). Löst der Anwender ein so angehängtes Dokument
+  oder macht er die Änderung rückgängig, kommt die Mail nicht von selbst wieder. Nach dem Einspielen einer
+  Sicherung wird das Gemerkte geleert und neu geprüft.
+- **Mail-Liste:** Mit `mail_bestellnummer` trägt jeder Eintrag von `GET /api/mail/nachrichten` das Feld
+  `angehaengt` (Buchungen mit `id`, `datum`, `konto_id`, `empfaenger`, `verwendungszweck`, `nummer`, `warum`);
+  solche Mails zählen in `stand` und im Filter als `zugeordnet`. Ohne die Einstellung fehlt das Feld (Vertrag
+  `openapi.yaml` unverändert). Die Seite `/mail` zeigt die Buchung mit der Marke „Bestellnummer“.
+- **Abnahmetests:** `tests/app/m20/test_m20_erkennung.py::test_ausgelieferte_umgebungsdatei` erwartet
+  `KONTOR_MAIL_ABGLEICH=1` und ist damit bewusst rot, bis die Meilenstein-Definition dieses Features übernommen
+  ist. Alle übrigen Tests von M6, M9, M18, M20, M24 und M27 verhalten sich wie auf main.
+
+## D-209 Bestellnummer auch im Quelltext der Mail suchen (ergänzt D-208)
+
+- **Anlass:** Eine Buchung mit Amazon-Bestellnummer bekam keine Mails, obwohl das Postfach sieben Mails mit der
+  Nummer enthält (Bestellt, Versendet, In Zustellung, Zugestellt).
+- **Vermutete Ursache (an echten Mails nicht prüfbar):** Der gespiegelte Text einer Mail ist nur ihr erster
+  Klartextteil (mail.md 3.3). Steht die Nummer nur im HTML-Teil oder in der Adresse eines Verweises, fand D-208 sie
+  nicht.
+- **Entscheidung:** Zusätzlich zu Betreff und gespiegeltem Text werden alle Textteile der Rohfassung im Quelltext
+  durchsucht (Klartext und HTML samt Verweisadressen). Jede Mail wird einmal durchsucht; die gefundenen Nummern
+  stehen in `bestellmail_nummer` (Betriebszustand). Mails ohne Rohfassung (Mock, zu große Mails) zählen wie
+  bisher nur mit Betreff und Text.
+- Jeder Lauf schreibt eine Zeile ins Log (`kontor.bestellmail`, Stufe INFO) mit der Zahl der angehängten Mails.
+
+## D-210 Datum der E-Mail in den Einzelheiten (Feature `mail-datum`)
+
+- **Auftrag (2026-11-19):** Im Abschnitt „Dokumente“ der Einzelheiten soll bei angehängten E-Mails das Datum der
+  Mail stehen.
+- **Entscheidung:** Neben jeder angehängten E-Mail steht ihr Datum (`dokument-datum-<id>`, Tag.Monat.Jahr in
+  Ortszeit, voller Zeitpunkt im Tooltip und in `data-zeitpunkt`), vor der Größe. Andere Dokumente bekommen kein
+  Datum. Mails ohne lesbares Datum zeigen nichts.
+- **Quelle:** das Feld `datum` der vorhandenen Mail-Ansicht `GET /api/dokumente/{id}/mail` (Kopfzeile `Date`),
+  je Dokument einmal gelesen und für die Sitzung gemerkt. Kein neues Feld in `belege` oder im Dokument, damit der
+  Vertrag `openapi.yaml` unverändert bleibt.
+
+## D-211 Gruppierung nach Datum: vier feste Abschnitte je Monat (Feature `kontoblatt-gruppierung`)
+
+- **Anlass:** Zwischen Monat und Tag fehlte eine Ebene; ein Monat mit vielen Buchungen zerfiel sofort in bis zu
+  31 Tagesbalken. Kalenderwochen scheiden aus, weil sie am Monatswechsel geteilt werden müssten.
+- **Entscheidung** (mit dem Auftraggeber am 2026-11-19 abgestimmt): „nach Datum“ zeigt Jahr → Monat → Abschnitt →
+  Tag (ergänzt D-152). Jeder Monat hat vier feste Abschnitte: 1.–7., 8.–14., 15.–21. und 22. bis Monatsende
+  (7 bis 10 Tage). Die Grenzen sind in jedem Monat gleich, damit feste Zahlungen (Miete, Gehalt) immer im selben
+  Abschnitt stehen und die Abschnitte zusammen genau den Monat ergeben.
+  - Beschriftung ist nur der Datumsbereich mit dem tatsächlichen Monatsende („08.–14.11.“, „22.–29.02.“), kein
+    Wort wie „Woche“. Kalenderwochen bleiben als Filter (`kw46`) erhalten, nicht als Gruppierung.
+  - Schlüssel des Abschnitts: `JJJJ-MM-a1` … `-a4` (`data-periode`, `periode-…`, `periode-summe-…` usw. wie bei den
+    anderen Ebenen), `data-ebene="abschnitt"`. Abschnitte ohne Buchung erscheinen nicht.
+  - Balken, Zahlen, Klappen, Pfeiltasten und „Alles zusammenklappen/aufklappen“ wie bei den übrigen Ebenen. Keine
+    Änderung an Endpunkten, Adresse (`?gruppierung=datum`) oder Datenmodell.
+  - Der Service-Worker-Cache heißt jetzt `kontor-huelle-39`.
+- **Folge für die Abnahme:** Abnahmetests, die die Folge oder Anzahl der Balken unter einem Monat fest erwarten
+  (Monat direkt gefolgt von Tagen), brauchen die neue Ebene; das klärt der Test-Thread mit der Meilenstein-Definition.
+
+## D-212 Tiefe der Gruppierung wählbar (Feature `kontoblatt-gruppierung`)
+
+- **Anlass:** Mit D-211 hat die Gruppierung vier Ebenen. Auf ruhigen Konten ist das zu viel, und ein Tag mit einer
+  einzigen Buchung belegt zwei Zeilen (Tagesbalken und Buchung).
+- **Entscheidung** (mit dem Auftraggeber am 2026-11-19 abgestimmt): Die Leiste über der Liste heißt jetzt
+  „Keine | Jahr | Monat | Abschnitt | Tag“ und ersetzt „Keine | nach Datum“ (ergänzt D-152). Die gewählte Ebene ist
+  die tiefste, alle darüber bleiben; die Buchungen stehen direkt unter der tiefsten Ebene. Eine Ebene in der Mitte
+  lässt sich nicht auslassen (Monat → Tag ohne Abschnitt gibt es nicht); dem Auftraggeber reicht die Tiefe.
+  - Adresse: `?gruppierung=datum&tiefe=jahr|monat|abschnitt`. Ohne `tiefe` und bei unbekanntem Wert gilt „Tag“
+    (volle Tiefe), bestehende Adressen bleiben damit gültig; „Tag“ wird nicht in die Adresse geschrieben. `tiefe`
+    ist wie `gruppierung` Ansicht und kein Parameter der Buchungsliste.
+  - Kennungen: `gruppierung-keine` wie bisher, neu `gruppierung-jahr`, `gruppierung-monat`,
+    `gruppierung-abschnitt`. Der Knopf „Tag“ behält die bisherige Kennung `gruppierung-datum`, weil er dieselbe
+    Wirkung hat wie bisher „nach Datum“. Gedrückt (`aria-pressed`) ist immer genau ein Knopf.
+  - Kürzel `v g` schaltet der Reihe nach: keine → Jahr → Monat → Abschnitt → Tag → keine (bisher keine ↔ nach Datum).
+  - Zugeklappte Perioden bleiben beim Wechsel der Tiefe zugeklappt. Klappen, Summen und „Alles
+    zusammenklappen/aufklappen“ gelten für die sichtbaren Ebenen.
+  - Der Service-Worker-Cache heißt jetzt `kontor-huelle-40`.
+- **Folge für die Abnahme:** Tests, die die Beschriftung „nach Datum“ erwarten oder mit `v g` zweimal hin und zurück
+  schalten, brauchen die neue Leiste bzw. Reihenfolge; das klärt der Test-Thread mit der Meilenstein-Definition.
+
+## D-213 Bedienskript und Anleitung für die Testinstanz (ergänzt D-205)
+
+- **Auftrag (2026-11-19):** Eine Anleitung zum Starten der Testinstanz und ein Skript für die wiederkehrenden
+  Schritte; auf ausdrückliche Anweisung ohne Meilenstein-Definition und Abnahmetests auf main gemergt (Branch
+  `feature/testinstanz-skript`).
+- **Entscheidung:** `betrieb/kontor-test.sh` (Paketdaten, Ziel `/usr/local/bin/kontor-test`) mit den Befehlen
+  `start <branch>`, `neu`, `stop`, `loeschen`, `status`, `log`. Das Skript kopiert selbst nichts: Branch holen,
+  Daten kopieren und Starten bleibt allein Sache von `python -m kontor.testinstanz` (D-205); das Skript ruft es
+  auf, wartet bis zu 30 s auf den Port und zeigt die Adresse, bei Misserfolg die letzten Protokollzeilen.
+- Ein Branchname ohne `/` außer `main` wird zu `feature/<name>` ergänzt. Der zuletzt eingerichtete Branch steht
+  in `/root/.kontor-test-branch` (nur nach erfolgreichem Einrichten geschrieben); `neu` richtet ihn erneut ein.
+- Der Port kommt aus `KONTOR_PORT` in `/etc/kontor/kontor-test.env`, ersatzweise 8081.
+- Anleitung: `TESTINSTANZ.md` im Wurzelverzeichnis, Verweis in der README.
+- **Nicht geprüft:** Lauf unter systemd auf dem echten Server (wie bei D-205). Eigene Tests
+  `tests/test_testinstanz_skript_eigen.py` mit einer Attrappe statt des Programms.
+
+## D-214 Regeleditor: Zeitraum statt Testmengen-Ausdruck, Test ohne Kategorie, Fehler am Feld (Feature `regeleditor-feinschliff`)
 
 - **Anlass:** Rückmeldungen vom 2026-11-19: (1) Die Testliste zeigte ein altes Ergebnis, weil der Test ohne gültige
   Kategorie mit 422 scheiterte und nur eine kleine Statuszeile darauf hinwies. (2) Das Feld „Testmenge (Filter)“
@@ -2836,7 +2987,7 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   beim Speichern übernommen.
 - **Prüfung:** `tests/test_browser_ausdruck.py` (Zeitraum-Auswahl, Namensvorschlag, Editor ohne Kategorie).
 
-## D-208 Regeln vergeben Tags; Kategorie optional (Feature `regel-tags`)
+## D-215 Regeln vergeben Tags; Kategorie optional (Feature `regel-tags`)
 
 - **Anlass:** Auftrag vom 2026-11-19: Im Regeleditor lassen sich neben der Kategorie Tags vergeben. Tags sind
   additiv, eine Regel kann mehrere vergeben, und Tags lassen sich dabei neu anlegen. Mit dem Auftraggeber

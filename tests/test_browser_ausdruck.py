@@ -39,7 +39,7 @@ def test_regeleditor_baukasten_und_test(tmp_path, browser):  # noqa: F811
         tid(page, "regel-name").fill("Kleinbeträge")
         tid(page, "regel-ausdruck").fill('bet <= 3 and dir == "ausgabe"')
         expect(tid(page, "regel-ausdruck-status")).to_have_attribute("data-status", "ok")
-        expect(tid(page, "regel-testmenge")).to_have_count(0)        # D-207: kein zweites Filterfeld
+        expect(tid(page, "regel-testmenge")).to_have_count(0)        # D-214: kein zweites Filterfeld
         expect(tid(page, "regel-in-testmenge")).to_have_count(0)
         expect(tid(page, "test-zeitraum-12m")).to_have_attribute("aria-pressed", "true")
         expect(tid(page, "test-zahlen")).to_have_attribute("data-anzahl", "3")
@@ -82,7 +82,7 @@ def test_regeleditor_ohne_bedingung_und_uebernahme(tmp_path, browser):  # noqa: 
         page.locator('[data-testid^="test-uebernehmen-"]').first.click()
         expect(tid(page, "regel-ausdruck")).to_have_value('"Einkauf" in vwz and dir == "ausgabe"')
         expect(tid(page, "test-zahlen")).to_have_attribute("data-anzahl", "20")
-        # D-207: leerer Name → Vorschlag aus Bedingung und Kategorie, statt „Die Anfrage ist ungültig.“
+        # D-214: leerer Name → Vorschlag aus Bedingung und Kategorie, statt „Die Anfrage ist ungültig.“
         expect(tid(page, "regel-name")).to_have_attribute("placeholder", re.compile(r"^Einkauf → .+"))
         tid(page, "regel-speichern").click()
         expect(tid(page, "regel-dialog")).to_be_hidden()
@@ -90,7 +90,7 @@ def test_regeleditor_ohne_bedingung_und_uebernahme(tmp_path, browser):  # noqa: 
 
 
 def test_regeleditor_ohne_kategorie(tmp_path, browser):  # noqa: F811
-    """D-207: ohne Kategorie läuft der Test trotzdem; Speichern nennt den Grund am Feld."""
+    """D-214: ohne Kategorie läuft der Test trotzdem; Speichern nennt den Grund am Feld."""
     with server(tmp_path, daten=False) as (url, _), seite(browser, url, **DESKTOP) as page:
         page.goto(url + "/regeln")
         bereit(page, "regeln")
@@ -104,7 +104,7 @@ def test_regeleditor_ohne_kategorie(tmp_path, browser):  # noqa: F811
 
 
 def test_regeleditor_tags(tmp_path, browser):  # noqa: F811
-    """D-208: Regel vergibt Tags (auch ohne Kategorie); neue Tags entstehen beim Speichern."""
+    """D-215: Regel vergibt Tags (auch ohne Kategorie); neue Tags entstehen beim Speichern."""
     with server(tmp_path) as (url, _), seite(browser, url, **DESKTOP) as page:
         page.goto(url + "/regeln")
         bereit(page, "regeln")

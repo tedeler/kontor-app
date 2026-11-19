@@ -413,7 +413,7 @@ export async function regelEditor(r, ausloeser) {
   const gespeichert = r && r.id ? r : null;
   dialog("regel-dialog", gespeichert ? `Regel „${r.name}“` : "Regel anlegen", (inhalt, d) => {
     const name = h("input", { type: "text", maxlength: "200", tid: "regel-name", value: r ? r.name : "" });
-    // Kategorie optional (D-208). Vorgabe wie bisher die erste Kategorie; „keine“ nur bei Regeln, die nur Tags vergeben.
+    // Kategorie optional (D-215). Vorgabe wie bisher die erste Kategorie; „keine“ nur bei Regeln, die nur Tags vergeben.
     const alleKat = kategorien();
     const ohneKat = !!(r && !r.kategorie_id && (r.tag_ids || []).length);
     const gewaehlt = r && r.kategorie_id ? r.kategorie_id : (ohneKat || !alleKat.length ? null : alleKat[0].konto.id);
@@ -544,7 +544,7 @@ export async function regelEditor(r, ausloeser) {
     kat.addEventListener("change", vorschlagZeigen);
     vorschlagZeigen();
     name.addEventListener("input", () => name.removeAttribute("aria-invalid"));
-    /** Eingaben, die der Server nur allgemein ablehnen würde, vorher am Feld melden (D-207). */
+    /** Eingaben, die der Server nur allgemein ablehnen würde, vorher am Feld melden (D-214). */
     const eingabenPruefen = () => {
       vorschlagZeigen();
       for (const el of [name, kat]) el.removeAttribute("aria-invalid");
@@ -598,7 +598,7 @@ export async function regelEditor(r, ausloeser) {
   }, { ausloeser, klasse: "dialog-breit dialog-regel" });
 }
 
-// ------------------------------------------------------------------ Tags einer Regel (D-208)
+// ------------------------------------------------------------------ Tags einer Regel (D-215)
 const tagName = (id) => (stamm.tags.find((t) => t.id === id) || {}).name || `#${id}`;
 const gleichName = (a, b) => a.trim().toLocaleLowerCase("de") === b.trim().toLocaleLowerCase("de");
 
@@ -685,7 +685,7 @@ class Testbereich {
     this.wirkung = "";
     this.zaehlung = null;
     this.nr = 0;
-    this.zeitraum = ZEITRAEUME[0];   // Zeitraum der getesteten Buchungen; die Bedingung selbst filtert (D-207)
+    this.zeitraum = ZEITRAEUME[0];   // Zeitraum der getesteten Buchungen; die Bedingung selbst filtert (D-214)
     this.zahlenEl = h("span", { tid: "test-zahlen" });
     this.statusEl = h("span", { class: "test-status", tid: "test-status" });
     this.chipsEl = h("div", { class: "test-chips", role: "group", "aria-label": "Nach Wirkung filtern" });
@@ -742,7 +742,7 @@ class Testbereich {
       this.veraltet("Ausdruck ungültig – Ergebnis vom letzten gültigen Stand");
       return;
     }
-    // Ohne (gültige) Kategorie läuft der Test trotzdem und zeigt die Treffer (D-207).
+    // Ohne (gültige) Kategorie läuft der Test trotzdem und zeigt die Treffer (D-214).
     const body = { kategorie_id: ohne ? undefined : r.kategorie_id || null, tag_ids: ohne ? undefined : r.tag_ids || [],
       testmenge: this.zeitraum.filter, pro_seite: 100, konto_id: this.kontoId() };
     this.tagsNeu = ohne ? [] : r.tags_neu || [];
@@ -754,7 +754,7 @@ class Testbereich {
     if (!this.statusEl.textContent) this.veraltet();
     let t;
     try { t = await api("POST", "/api/regeln/test", body); } catch (e) {
-      if (nr === this.nr) {   // kein altes Ergebnis unter einer neuen Eingabe stehen lassen (D-207)
+      if (nr === this.nr) {   // kein altes Ergebnis unter einer neuen Eingabe stehen lassen (D-214)
         leer(`Test nicht möglich: ${fehlerText(e)}`);
         this.zahlenEl.dataset.anzahl = "";
         this.leerHinweis.hidden = true;

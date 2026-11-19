@@ -40,7 +40,7 @@ def test_anmeldung(tmp_path, browser, geraet):  # noqa: F811
         tid(page, "konto-speichern").click()
         expect(page.locator('[role="treeitem"][aria-label="Spenden"]')).to_be_visible()
         # Abmelden
-        page.goto(url + "/einstellungen")
+        page.goto(url + "/einstellungen?bereich=sicherheit")
         bereit(page, "einstellungen")
         tid(page, "abmelden").click()
         expect(tid(page, "anmeldung-formular")).to_be_visible()

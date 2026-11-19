@@ -104,6 +104,7 @@ BESCHREIBUNG = {
     "erwartung_loesen": "Zuordnung einer erwarteten Zahlung gelöst", "erwartung_anlegen": "Erwartete Zahlung angelegt",
     "erwartung_aendern": "Erwartete Zahlung geändert", "erwartung_zustand": "Erwartete Zahlung geschlossen/geöffnet",
     "erwartung_loeschen": "Erwartete Zahlung gelöscht",
+    "bestellmail_anhaengen": "E-Mails über die Bestellnummer angehängt",
 }
 
 
@@ -475,7 +476,7 @@ def _entfernen(con, objekt: str, oid: int, schritt: set[tuple[str, int]]) -> Non
         for r in con.execute("SELECT empfaenger_id FROM empfaenger_tag WHERE tag_id = ?", (oid,)).fetchall():
             if ("empfaenger", r["empfaenger_id"]) not in schritt:
                 raise _konflikt("Ein Tag wird inzwischen von einem Empfänger verwendet.")
-        # ebenso an Regeln (D-208)
+        # ebenso an Regeln (D-215)
         for r in con.execute("SELECT regel_id FROM regel_tag WHERE tag_id = ?", (oid,)).fetchall():
             if ("regel", r["regel_id"]) not in schritt:
                 raise _konflikt("Ein Tag wird inzwischen von einer Regel verwendet.")

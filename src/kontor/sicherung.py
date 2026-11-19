@@ -80,7 +80,7 @@ SPALTEN: dict[str, list[tuple[str, str, bool]]] = {
     "vorschlag": [("buchung_id", "int", False), ("kategorie_id", "int", False), ("regel_id", "int", True),
                   ("quelle", "str", False), ("vorher_konto_id", "int", False), ("sicherheit", "int", True)],
     "regel": [("id", "int", False), ("name", "str", False), ("aktiv", "bool", False), ("prioritaet", "int", False),
-              ("kategorie_id", "int", True), ("bedingungen", "str", False)],   # ab 9 (D-208): Kategorie optional
+              ("kategorie_id", "int", True), ("bedingungen", "str", False)],   # ab 9 (D-215): Kategorie optional
     "dublettenverdacht": [("id", "int", False), ("buchung_id", "int", False), ("grund", "str", False),
                           ("status", "str", False), ("erstellt_am", "str", False)],
     "verdacht_kandidat": [("verdacht_id", "int", False), ("buchung_id", "int", False)],
@@ -125,7 +125,7 @@ SPALTEN: dict[str, list[tuple[str, str, bool]]] = {
     # Schemaversion 8 (D-179): automatisch angelegte Regeln und Sperre je Empfänger
     "regel_automatisch": [("regel_id", "int", False), ("empfaenger_id", "int", False)],
     "empfaenger_lernregel_sperre": [("empfaenger_id", "int", False)],
-    # Schemaversion 9 (D-208): Tags, die eine Regel vergibt
+    # Schemaversion 9 (D-215): Tags, die eine Regel vergibt
     "regel_tag": [("regel_id", "int", False), ("tag_id", "int", False)],
 }
 _ORDNUNG = {
@@ -746,6 +746,7 @@ def einspielen(con, s: Sicherung, zeitpunkt: str) -> dict:
             con.execute("PRAGMA defer_foreign_keys = ON")
             for tabelle in _LOESCHEN:
                 con.execute(f"DELETE FROM {tabelle}")
+            con.execute("DELETE FROM bestellmail")   # D-208: nach dem Einspielen neu prüfen (Dubletten verhindert der Inhalt)
             laden(con, s.zeilen)
             # gemerkte Kennungen ersetzen (über die Protokoll-Trigger: Rückgängig stellt sie wieder her)
             soll = {k_ for (k_,) in s.zeilen["sync_kennung"]}

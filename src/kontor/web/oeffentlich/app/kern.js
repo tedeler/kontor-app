@@ -415,7 +415,7 @@ export function fehlerMelden(e) {
 }
 
 /** Meldung eines Fehlers samt Einzelheiten der Validierung („Name: 1–200 Zeichen“), damit „Die Anfrage ist
- *  ungültig.“ nie allein steht (D-207). Die Einzelheiten nennen nur Feld und Regel, nie übergebene Werte. */
+ *  ungültig.“ nie allein steht (D-214). Die Einzelheiten nennen nur Feld und Regel, nie übergebene Werte. */
 export function fehlerText(e) {
   const text = e && e.message ? e.message : String(e);
   if (!e || e.code !== "validierung" || !Array.isArray(e.details)) return text;

@@ -28,7 +28,27 @@ function periodeText(schluessel) {
     const name = MONATE[Number(schluessel.slice(5, 7)) - 1];
     return name ? `${name} ${schluessel.slice(0, 4)}` : schluessel;
   }
+  const a = /^(\d{4})-(\d{2})-a([1-4])$/.exec(schluessel);
+  if (a) {
+    const [von, bis] = abschnittTage(Number(a[1]), Number(a[2]), Number(a[3]));
+    const zwei = (n) => String(n).padStart(2, "0");
+    return `${zwei(von)}.–${zwei(bis)}.${a[2]}.`;
+  }
   return datumText(schluessel);
+}
+
+// D-211: vier feste Abschnitte je Monat (1.–7., 8.–14., 15.–21., 22.–Monatsende) zwischen Monat und Tag.
+const ABSCHNITT_BEGINN = [1, 8, 15, 22];
+function abschnittNr(tagImMonat) {
+  return tagImMonat >= 22 ? 4 : tagImMonat >= 15 ? 3 : tagImMonat >= 8 ? 2 : 1;
+}
+function abschnittTage(jahr, monat, nr) {
+  const letzter = new Date(Date.UTC(jahr, monat, 0)).getUTCDate();
+  return [ABSCHNITT_BEGINN[nr - 1], nr === 4 ? letzter : ABSCHNITT_BEGINN[nr] - 1];
+}
+/** Schlüssel des Monatsabschnitts zu einem Tag `JJJJ-MM-TT`: `JJJJ-MM-a1` … `-a4`. */
+function abschnittSchluessel(tag) {
+  return `${tag.slice(0, 7)}-a${abschnittNr(Number(tag.slice(8, 10)) || 1)}`;
 }
 
 const WOCHENTAGE = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
@@ -60,8 +80,14 @@ function zweckAnsicht(text) {
       h("p", { class: "dk-mono" }, text)) : null);
 }
 
-/** Jahr → Monat → Tag. Jeder Knoten trägt die Buchungen seiner Periode. */
-function datumBaum(eintraege, sortierung) {
+// D-212: Tiefe der Gruppierung nach Datum; die gewählte Ebene ist die tiefste, alle darüber bleiben.
+const EBENEN = ["jahr", "monat", "abschnitt", "tag"];
+const EBENE_TEXT = { jahr: "Jahr", monat: "Monat", abschnitt: "Abschnitt", tag: "Tag" };
+// Kennung des Knopfs je Tiefe; die volle Tiefe behält die bisherige Kennung `gruppierung-datum`.
+const tiefeTid = (tiefe) => (tiefe === "tag" ? "gruppierung-datum" : `gruppierung-${tiefe}`);
+
+/** Jahr → Monat → Abschnitt → Tag, höchstens bis `tiefe`. Jeder Knoten trägt die Buchungen seiner Periode. */
+function datumBaum(eintraege, sortierung, tiefe = "tag") {
   const aufsteigend = sortierung === "datum";
   const cmp = (a, b) => (aufsteigend ? a.schluessel.localeCompare(b.schluessel) : b.schluessel.localeCompare(a.schluessel));
   const jahre = new Map();
@@ -73,21 +99,29 @@ function datumBaum(eintraege, sortierung) {
     if (!jahr) jahre.set(jahrK, (jahr = { schluessel: jahrK, monate: new Map(), buchungen: [] }));
     jahr.buchungen.push(b);
     let monat = jahr.monate.get(monatK);
-    if (!monat) jahr.monate.set(monatK, (monat = { schluessel: monatK, tage: new Map(), buchungen: [] }));
+    if (!monat) jahr.monate.set(monatK, (monat = { schluessel: monatK, abschnitte: new Map(), buchungen: [] }));
     monat.buchungen.push(b);
-    let t = monat.tage.get(tag);
-    if (!t) monat.tage.set(tag, (t = { schluessel: tag, buchungen: [] }));
+    const abschnittK = abschnittSchluessel(tag);
+    let abschnitt = monat.abschnitte.get(abschnittK);
+    if (!abschnitt) monat.abschnitte.set(abschnittK, (abschnitt = { schluessel: abschnittK, tage: new Map(), buchungen: [] }));
+    abschnitt.buchungen.push(b);
+    let t = abschnitt.tage.get(tag);
+    if (!t) abschnitt.tage.set(tag, (t = { schluessel: tag, buchungen: [] }));
     t.buchungen.push(b);
   }
-  return [...jahre.values()].sort(cmp).map((jahr) => ({
+  const kuerzen = (knoten) => knoten.map((k) => (k.ebene === tiefe ? { ...k, kinder: [] } : { ...k, kinder: kuerzen(k.kinder) }));
+  return kuerzen([...jahre.values()].sort(cmp).map((jahr) => ({
     schluessel: jahr.schluessel, ebene: "jahr", buchungen: jahr.buchungen,
     kinder: [...jahr.monate.values()].sort(cmp).map((monat) => ({
       schluessel: monat.schluessel, ebene: "monat", buchungen: monat.buchungen,
-      kinder: [...monat.tage.values()].sort(cmp).map((tag) => ({
-        schluessel: tag.schluessel, ebene: "tag", buchungen: tag.buchungen, kinder: [],
+      kinder: [...monat.abschnitte.values()].sort(cmp).map((abschnitt) => ({
+        schluessel: abschnitt.schluessel, ebene: "abschnitt", buchungen: abschnitt.buchungen,
+        kinder: [...abschnitt.tage.values()].sort(cmp).map((tag) => ({
+          schluessel: tag.schluessel, ebene: "tag", buchungen: tag.buchungen, kinder: [],
+        })),
       })),
     })),
-  }));
+  })));
 }
 
 function periodenBilanz(buchungen) {
@@ -191,7 +225,7 @@ const KUERZEL = [
   ["f", "x", "Zeitraum entfernen", (s) => s.zeitraumSetzen(null)],
   ["f", "a", "Filterausdruck", (s) => { if (s.ausdruckEingabe) s.ausdruckEingabe.eingabe.focus(); }],
   ["f", "0", "alle Filter zurücksetzen", (s) => { const k = tid("filter-zuruecksetzen", s.filterLeiste); if (k) k.click(); }],
-  ["v", "g", "Gruppierung: keine ↔ nach Datum", (s) => s.gruppierungSetzen(s.gruppierung ? "" : "datum")],
+  ["v", "g", "Gruppierung: nächste Tiefe (keine → Jahr → Monat → Abschnitt → Tag)", (s) => s.gruppierungWeiter()],
   ["v", "+", "alle Gruppen aufklappen", (s) => s.alleKlappen(false)],
   ["v", "-", "alle Gruppen zuklappen", (s) => s.alleKlappen(true)],
   ["v", "o", "Sortierspalte wechseln", (s) => s.sortierungWechseln(false)],
@@ -462,6 +496,7 @@ class Kontoansicht {
     this.titel = konto.name;
     this.filter = this.filterAusUrl(suche);
     this.gruppierung = this.gruppierungAusUrl(suche);
+    this.tiefe = this.tiefeAusUrl(suche);
     this.zugeklappt = new Set();
     this.eintraege = [];
     this.gesamt = 0;
@@ -501,6 +536,11 @@ class Kontoansicht {
     return g === "datum" || g === "tag" || g === "monat" ? "datum" : "";
   }
 
+  tiefeAusUrl(suche) {
+    const t = new URLSearchParams(suche || "").get("tiefe");
+    return EBENEN.includes(t) ? t : "tag";
+  }
+
   get sortierung() { return this.filter.sortierung || "-datum"; }
 
   filterAnzahl() {
@@ -512,6 +552,7 @@ class Kontoansicht {
   urlSchreiben() {
     const f = { ...this.filter };   // nur gesetzte Filter und eine gewählte Sortierung (7.1)
     if (this.gruppierung) f.gruppierung = this.gruppierung;   // Ansicht, kein Parameter der Buchungsliste
+    if (this.gruppierung && this.tiefe !== "tag") f.tiefe = this.tiefe;   // D-212: volle Tiefe ist die Vorgabe
     history.replaceState(history.state, "", `/konten/${this.konto.id}${abfrage(f)}`);
     if (oberflaeche.urlGeaendert) oberflaeche.urlGeaendert();   // Tab merkt sich Filter und Sortierung
   }
@@ -1233,23 +1274,34 @@ class Kontoansicht {
 
   // ---------------------------------------------------------------- Gruppierung (D-150)
   gruppierungLeiste() {
-    const knopfArt = (art, text) => h("button", { type: "button", class: "gruppierung-knopf",
-      tid: art ? `gruppierung-${art}` : "gruppierung-keine", "aria-pressed": String(this.gruppierung === art),
-      onclick: () => this.gruppierungSetzen(art) }, text);
+    const stufe = (art, tiefe, text, titel) => h("button", { type: "button", class: "gruppierung-knopf",
+      tid: art ? tiefeTid(tiefe) : "gruppierung-keine", title: titel,
+      "aria-pressed": String(this.gruppierung === art && (!art || this.tiefe === tiefe)),
+      onclick: () => this.gruppierungSetzen(art, tiefe) }, text);
     return h("div", { class: "gruppierung-zeile" },
-      h("div", { class: "gruppierung", role: "group", "aria-label": "Buchungen gruppieren" },
-        knopfArt("", "Keine"), knopfArt("datum", "nach Datum")),
+      h("div", { class: "gruppierung", role: "group", "aria-label": "Buchungen nach Datum gruppieren bis" },
+        stufe("", null, "Keine", "Nicht gruppieren"),
+        EBENEN.map((t, i) => stufe("datum", t, EBENE_TEXT[t],
+          `Gruppieren bis ${EBENE_TEXT[t]}: ${EBENEN.slice(0, i + 1).map((e) => EBENE_TEXT[e]).join(" → ")}`))),
       knopf("Alles zusammenklappen", { tid: "gruppierung-zu", disabled: true, onclick: () => this.alleKlappen(true) }),
       knopf("Alles aufklappen", { tid: "gruppierung-auf", disabled: true, onclick: () => this.alleKlappen(false) }));
   }
 
-  async gruppierungSetzen(art) {
-    if ((art !== "" && art !== "datum") || art === this.gruppierung) return;
+  async gruppierungSetzen(art, tiefe) {
+    const t = art && EBENEN.includes(tiefe) ? tiefe : this.tiefe;
+    if ((art !== "" && art !== "datum") || (art === this.gruppierung && t === this.tiefe)) return;
     this.gruppierung = art;
+    this.tiefe = t;
     this._gruppen = null;
     this.urlSchreiben();
     if (art && this.eintraege.length < this.gesamt) await this.laden();
     else this.listeZeichnen();
+  }
+
+  /** Kürzel `v g`: keine → Jahr → Monat → Abschnitt → Tag → keine. */
+  gruppierungWeiter() {
+    const i = this.gruppierung ? EBENEN.indexOf(this.tiefe) : -1;
+    return i + 1 < EBENEN.length ? this.gruppierungSetzen("datum", EBENEN[i + 1]) : this.gruppierungSetzen("");
   }
 
   alleKlappen(zu) {
@@ -1260,9 +1312,11 @@ class Kontoansicht {
   }
 
   gruppierungKnopfZustand() {
-    for (const art of ["", "datum"]) {
-      const el = tid(art ? `gruppierung-${art}` : "gruppierung-keine", this.seite);
-      if (el) el.setAttribute("aria-pressed", String(this.gruppierung === art));
+    const keine = tid("gruppierung-keine", this.seite);
+    if (keine) keine.setAttribute("aria-pressed", String(!this.gruppierung));
+    for (const t of EBENEN) {
+      const el = tid(tiefeTid(t), this.seite);
+      if (el) el.setAttribute("aria-pressed", String(Boolean(this.gruppierung) && this.tiefe === t));
     }
     const schluessel = this.gruppierung ? this.alleSchluessel() : [];
     const zu = tid("gruppierung-zu", this.seite);
@@ -1278,23 +1332,18 @@ class Kontoansicht {
     const b = this.eintraege.find((x) => x.id === id);
     if (!b) return [];
     const tag = String(b.datum || "").slice(0, 10);
-    return [tag.slice(0, 4), tag.slice(0, 7), tag];
+    return [tag.slice(0, 4), tag.slice(0, 7), abschnittSchluessel(tag), tag].slice(0, EBENEN.indexOf(this.tiefe) + 1);
   }
 
   gruppen() {
-    if (!this._gruppen) this._gruppen = this.gruppierung ? datumBaum(this.eintraege, this.sortierung) : [];
+    if (!this._gruppen) this._gruppen = this.gruppierung ? datumBaum(this.eintraege, this.sortierung, this.tiefe) : [];
     return this._gruppen;
   }
 
   alleSchluessel() {
     const aus = [];
-    for (const jahr of this.gruppen()) {
-      aus.push(jahr.schluessel);
-      for (const monat of jahr.kinder) {
-        aus.push(monat.schluessel);
-        for (const tag of monat.kinder) aus.push(tag.schluessel);
-      }
-    }
+    const sammeln = (knoten) => { for (const k of knoten) { aus.push(k.schluessel); sammeln(k.kinder); } };
+    sammeln(this.gruppen());
     return aus;
   }
 
@@ -1304,19 +1353,15 @@ class Kontoansicht {
       for (const b of this.eintraege) rueckruf({ typ: "zeile", buchung: b });
       return;
     }
-    for (const jahr of this.gruppen()) {
-      rueckruf({ typ: "balken", gruppe: jahr });
-      if (this.zugeklappt.has(jahr.schluessel)) continue;
-      for (const monat of jahr.kinder) {
-        rueckruf({ typ: "balken", gruppe: monat });
-        if (this.zugeklappt.has(monat.schluessel)) continue;
-        for (const tag of monat.kinder) {
-          rueckruf({ typ: "balken", gruppe: tag });
-          if (this.zugeklappt.has(tag.schluessel)) continue;
-          for (const b of tag.buchungen) rueckruf({ typ: "zeile", buchung: b });
-        }
+    const gehen = (knoten) => {
+      for (const k of knoten) {
+        rueckruf({ typ: "balken", gruppe: k });
+        if (this.zugeklappt.has(k.schluessel)) continue;
+        if (k.kinder.length) gehen(k.kinder);
+        else for (const b of k.buchungen) rueckruf({ typ: "zeile", buchung: b });
       }
-    }
+    };
+    gehen(this.gruppen());
   }
 
   sichtbareIds() {

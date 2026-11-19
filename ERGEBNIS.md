@@ -1,5 +1,30 @@
 # Ergebnis der Implementierung
 
+## Merge von `feature/monatsbericht` (D-206) ohne Abnahme, gegen kontor-tests `c99b6ac`
+
+- Auf Anweisung vor Meilenstein-Definition und Abnahme gemergt (Stand main `6d97692`). Die Entscheidung trägt auf
+  main die Nummer D-206, weil D-205 inzwischen an die Testinstanz vergeben war.
+- Eigene Tests auf main: **416 / 416** (inkl. Browser-Rauchtests), neu `test_monatsbericht_eigen.py` (9) und
+  `test_browser_monatsbericht.py` (2).
+- Abnahmetests, Volllauf (`--voll -n 2`) gegen `6d97692`: 3220 bestanden, 204 fehlgeschlagen, 43 Fehler,
+  28 übersprungen. main war schon vorher rot (siehe unten: M2 Regeln/Vorschläge, M3 Protokoll, M9, M10, M15, M19 …);
+  einen Volllauf des Stands davor gibt es nicht, die Zuordnung der übrigen Fehlschläge ist deshalb nicht einzeln
+  geprüft.
+- Durch dieses Feature neu rot (2): `m8/test_m8_tastatur.py::test_palette_woerter_pfeile_und_konten` und
+  `m28/test_m28_person_navigation.py::test_palette_ohne_wiederkehrend`. Beide zählen die „Gehe zu“-Befehle der
+  Befehlspalette fest auf; neu ist „Gehe zu: Monatsbericht“. Sie bleiben rot, bis ein Test-Thread die
+  Meilenstein-Definition übernommen hat.
+
+## Merge von `feature/einstellungen` (D-207) ohne Abnahme, gegen kontor-tests `c99b6ac`
+
+- Auf Anweisung vor Meilenstein-Definition und Abnahme gemergt. Die Entscheidung trägt auf main die Nummer D-207,
+  weil D-206 inzwischen an den Monatsbericht vergeben ist.
+- Eigene Tests nach dem Merge: 420 von 420 grün (einschließlich `tests/test_browser_einstellungen.py`).
+- Browsertests aus kontor-tests (`-m browser --voll`), gemessen auf dem Branch vor dem Merge: 7 neue Fehlschläge,
+  alle weil das bediente Element jetzt in einem anderen Bereich der Einstellungen liegt (Liste in D-207). 49 weitere
+  schlugen schon vorher auf main fehl; ihre Ursachen sind nicht untersucht.
+- Nach dem Merge nicht erneut gegen kontor-tests gelaufen (Monatsbericht kam auf main dazu).
+
 ## Merge von `feature/testinstanz` (D-205) ohne Abnahme, gegen kontor-tests `c99b6ac`
 
 Stand: 2026-11-19, Implementierungs-Thread. Auf ausdrückliche Anweisung des Auftraggebers auf main gemergt, noch ohne

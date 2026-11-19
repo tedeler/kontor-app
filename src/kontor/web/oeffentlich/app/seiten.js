@@ -9,9 +9,7 @@ import {
   kontoDialog, menuePosition, zuordnungDialog,
 } from "./ui.js";
 import { kategorienBaum, kontoMenue, langeBeruehrung } from "./baum.js";
-import { layoutZuruecksetzen } from "./konto.js";
 import { regelnSeite } from "./regeleditor.js";
-import { bankzugangAbschnitt } from "./bankzugang.js";
 
 const kopf = (seite, titel, ...werkzeuge) => {
   seite.append(h("div", { class: "seiten-kopf" }, h("h1", null, titel),
@@ -707,137 +705,6 @@ function importErgebnis(e) {
     e.fehler.length || e.warnungen.length ? h("ul", { class: "meldungsliste" },
       [...e.fehler, ...e.warnungen].map((m) => h("li", { tid: "import-meldung" }, `${m.code}: ${m.meldung}`
         + (m.referenz ? ` (${m.referenz})` : "")))) : null);
-}
-
-// ------------------------------------------------------------------ Einstellungen (13.2)
-export async function einstellungen(seite, _p, _s, kontext) {
-  const [status, sync, geheim, zust, postfaecher] = await Promise.all([api("GET", "/api/status"), api("GET", "/api/sync/status"),
-    api("GET", "/api/geheimnisse"), api("GET", "/api/benachrichtigungen/zustellung"), api("GET", "/api/mail/postfaecher")]);
-  kopf(seite, "Einstellungen");
-  // Darstellung
-  const thema = h("select", { tid: "einstellung-thema" }, [["system", "wie System"], ["hell", "Hell"], ["dunkel", "Dunkel"]]
-    .map(([w, t]) => h("option", { value: w }, t)));
-  thema.value = kontext.thema.lesen();
-  thema.addEventListener("change", () => kontext.thema.setzen(thema.value));
-  seite.append(abschnitt("Darstellung", feld("Design", thema),
-    knopf("Layout zurücksetzen", { tid: "layout-zuruecksetzen", onclick: () => { layoutZuruecksetzen(); melde("erfolg", "Layout zurückgesetzt."); } })));
-  // Betrieb
-  seite.append(abschnitt("Betrieb", h("p", { tid: "status-modus", "data-modus": status.modus },
-    status.modus === "mock" ? "Mock-Modus" : "Echtbetrieb", ` · Version ${status.version}`,
-    status.mock_szenario ? ` · Szenario ${status.mock_szenario}` : "")));
-  // Benachrichtigungen
-  const testErgebnis = h("p", { tid: "benachrichtigung-test-ergebnis", "aria-live": "polite", hidden: true });
-  const test = knopf("Test-Benachrichtigung senden", { tid: "benachrichtigung-test", disabled: zust.plugin === "keins",
-    onclick: async (e) => {
-      const k = e.currentTarget;
-      k.disabled = true;
-      try {
-        const r = await api("POST", "/api/benachrichtigungen/test");
-        testErgebnis.dataset.zugestellt = r.zugestellt ? "ja" : "nein";
-        testErgebnis.dataset.gesendet = r.gesendet ? "ja" : "nein";
-        testErgebnis.textContent = r.zugestellt
-          ? (r.gesendet ? "Test-Benachrichtigung zugestellt." : "Mock-Modus: bestätigt, es wurde nichts übertragen.")
-          : `Zustellung fehlgeschlagen: ${r.fehler.meldung} (HTTP-Status ${r.fehler.status ?? "keiner"}).`;
-      } catch (f) {
-        testErgebnis.dataset.zugestellt = "nein";
-        testErgebnis.dataset.gesendet = "nein";
-        testErgebnis.textContent = `Fehler: ${f.message} (HTTP-Status ${f.status}).`;
-      } finally { k.disabled = false; testErgebnis.hidden = false; }
-    } });
-  seite.append(abschnitt("Benachrichtigungen", h("p", { tid: "zustellung-status", "data-plugin": zust.plugin },
-    `Zustellung über: ${zust.plugin} · ausstehend ${zust.ausstehend}, zugestellt ${zust.zugestellt}, aufgegeben ${zust.aufgegeben}`),
-  zust.letzter_fehler ? h("p", { class: "klein" }, "Letzter Fehler: ", zust.letzter_fehler.meldung || "") : null, test, testErgebnis));
-  // D-199: Bankzugang (FinTS)
-  seite.append(await bankzugangAbschnitt(sync.pin_vorhanden));
-  // PIN
-  seite.append(abschnitt("Bank-PIN", h("p", { tid: "pin-status", "data-vorhanden": sync.pin_vorhanden ? "ja" : "nein" },
-    sync.pin_vorhanden ? "Die PIN liegt im Arbeitsspeicher des Servers." : "Keine PIN im Arbeitsspeicher."),
-  knopf("PIN verwerfen", { tid: "pin-verwerfen", disabled: !sync.pin_vorhanden, onclick: async () => {
-    try { await api("DELETE", "/api/sync/pin"); melde("erfolg", "PIN verworfen."); await oberflaeche.neuLaden(); }
-    catch (e) { melde("fehler", e.message); }
-  } })));
-  // D-129: Schutz der Geheimnisse mit dem Login-Passwort
-  seite.append(await schutzAbschnitt());
-  // Geheimnisse
-  const gesetzt = new Set(geheim.eintraege.map((e) => e.name));
-  seite.append(abschnitt("Geheimnisse", ...[["ntfy_token", "ntfy-Token"], ["oauth_client_secret", "OAuth-Client-Secret"]].map(([n, t]) => {
-    const wert = h("input", { type: "password", tid: `geheimnis-wert-${n}`, autocomplete: "off", value: "" });
-    return h("div", { class: "geheimnis", tid: `geheimnis-${n}`, "data-gesetzt": gesetzt.has(n) ? "ja" : "nein" },
-      feld(`${t} (${gesetzt.has(n) ? "gesetzt" : "nicht gesetzt"})`, wert),
-      knopf("Speichern", { tid: `geheimnis-speichern-${n}`, "aria-label": `${t} speichern`, onclick: async () => {
-        const w = wert.value;
-        wert.value = "";
-        if (!w) { melde("fehler", "Bitte einen Wert eingeben."); return; }
-        try { await api("PUT", `/api/geheimnisse/${n}`, { wert: w }); melde("erfolg", `${t} gespeichert.`); await oberflaeche.neuLaden(); }
-        catch (e) { melde("fehler", e.message); }
-      } }),
-      knopf("Löschen", { tid: `geheimnis-loeschen-${n}`, "aria-label": `${t} löschen`, onclick: async () => {
-        try { await api("DELETE", `/api/geheimnisse/${n}`); melde("erfolg", `${t} gelöscht.`); await oberflaeche.neuLaden(); }
-        catch (e) { melde("fehler", e.message); }
-      } }));
-  })));
-  // Sicherung
-  const datei = h("input", { type: "file", tid: "sicherung-datei", accept: ".zip,application/zip" });
-  const sAusgabe = h("div", { "aria-live": "polite" });
-  const senden = (params) => {
-    const fd = new FormData();
-    fd.append("datei", datei.files[0], datei.files[0].name);
-    return api("POST", "/api/sicherung/einspielen" + abfrage(params), undefined, { formular: fd });
-  };
-  const einspielen = knopf("Einspielen …", { tid: "sicherung-einspielen", class: "knopf knopf-gefahr", disabled: true,
-    onclick: async (e) => {
-      if (!(await bestaetigen("Den gesamten Buchbestand durch die Sicherung ersetzen?", { ja: "Bestand ersetzen", ausloeser: e.currentTarget }))) return;
-      try {
-        await aktion(() => senden({ bestaetigt: true }), { erfolg: "Sicherung eingespielt." });
-      } catch (f) { /* gemeldet */ }
-    } });
-  const pruefen = knopf("Prüfen", { tid: "sicherung-pruefen", onclick: async () => {
-    if (!datei.files.length) { melde("fehler", "Bitte zuerst eine Sicherungsdatei wählen."); return; }
-    try {
-      const r = await senden({ trocken: true });
-      sAusgabe.replaceChildren(h("p", null, r.geaendert ? "Die Sicherung ist gültig; Einspielen ersetzt den Bestand."
-        : "Die Sicherung ist identisch mit dem Bestand.", ` (erstellt ${zeitText(r.manifest.erstellt)})`));
-      einspielen.disabled = !r.geaendert;
-    } catch (f) { sAusgabe.replaceChildren(h("p", { class: "fehler", role: "alert" }, f.message)); einspielen.disabled = true; }
-  } });
-  seite.append(abschnitt("Datensicherung", h("p", null, h("a", { tid: "sicherung-herunterladen", href: "/api/sicherung", download: "",
-    class: "knopf" }, "Sicherung herunterladen")), feld("Sicherungsdatei", datei), knopfLeiste(pruefen, einspielen), sAusgabe));
-  // Postfächer
-  const adresse = h("input", { type: "email", maxlength: "320", autocomplete: "off" });
-  seite.append(abschnitt("Mail-Postfächer", h("ul", { tid: "postfaecher" }, postfaecher.map((p) => h("li", null,
-    h("a", { href: `/mail/postfaecher/${p.id}` }, p.adresse), p.bezeichnung ? ` (${p.bezeichnung})` : ""))),
-  postfaecher.length ? null : leer("Kein Postfach eingerichtet."),
-  h("div", { class: "formular-zeile" }, feld("Neues Postfach (Adresse)", adresse), knopf("Anlegen", { onclick: async () => {
-    try { await aktion(() => api("POST", "/api/mail/postfaecher", { adresse: adresse.value.trim() }), { erfolg: "Postfach angelegt." }); }
-    catch (e) { /* gemeldet */ }
-  } })), knopf("Mails jetzt abrufen", { onclick: async () => {
-    try { await api("POST", "/api/mail/abruf"); melde("erfolg", "Mails abgerufen."); } catch (e) { melde("fehler", e.message); }
-  } })));
-  // Tags
-  seite.append(abschnitt("Tags", stamm.tags.length ? h("ul", null, stamm.tags.slice().sort(nachName).map((t) => h("li", null,
-    `${t.name} (${t.anzahl_buchungen} Buchungen) `,
-    knopf("Umbenennen…", { "aria-label": `Tag ${t.name} umbenennen`, onclick: (e) => dialog("tag-dialog", `Tag „${t.name}“ umbenennen`, (inhalt, d) => {
-      const n = h("input", { type: "text", value: t.name, maxlength: "200" });
-      const ok = knopf("Speichern", { class: "knopf knopf-haupt" });
-      ok.addEventListener("click", () => imDialog(d, ok, () => aktion(() => api("PATCH", `/api/tags/${t.id}`, { name: n.value.trim() }),
-        { stillBeiFehler: true, danach: () => d.schliessen(true), erfolg: "Tag umbenannt." })));
-      inhalt.append(feld("Name", n), knopfLeiste(ok, knopf("Abbrechen", { onclick: () => d.schliessen(null) })));
-    }, { ausloeser: e.currentTarget }) }),
-    knopf("Löschen", { "aria-label": `Tag ${t.name} löschen`, onclick: async (e) => {
-      if (!(await bestaetigen(`Tag „${t.name}“ löschen?`, { ja: "Löschen", ausloeser: e.currentTarget }))) return;
-      try { await aktion(() => api("DELETE", `/api/tags/${t.id}`), { erfolg: "Tag gelöscht." }); } catch (f) { /* gemeldet */ }
-    } })))) : leer("Noch keine Tags.")));
-  // Anmeldung (19)
-  if (anmeldung.aktiv) {
-    const alt = h("input", { type: "password", autocomplete: "current-password" });
-    const neu = h("input", { type: "password", autocomplete: "new-password" });
-    seite.append(abschnitt("Anmeldung", h("div", { class: "formular-zeile" }, feld("Bisheriges Passwort", alt),
-      feld("Neues Passwort", neu), knopf("Passwort ändern", { onclick: async () => {
-        try { await api("PUT", "/api/anmeldung/passwort", { altes_passwort: alt.value, neues_passwort: neu.value }); melde("erfolg", "Passwort geändert."); }
-        catch (e) { melde("fehler", e.message); } finally { alt.value = ""; neu.value = ""; }
-      } })), knopf("Abmelden", { tid: "abmelden", onclick: () => kontext.abmelden() })));
-  }
-  return { titel: "Einstellungen" };
 }
 
 // ------------------------------------------------------------------ Protokoll (13.9)
@@ -1562,40 +1429,3 @@ export async function buchung(seite, id) {
 }
 
 export const _intern = { nachName, neueId };
-
-// ------------------------------------------------------------------ D-129: Schutz der Geheimnisse
-async function schutzAbschnitt() {
-  let st;
-  try { st = await api("GET", "/api/geheimnisse/schutz"); } catch { return h("div"); }
-  const pw = h("input", { type: "password", tid: "schutz-passwort", autocomplete: "current-password" });
-  const mitPasswort = (pfad, erfolg) => async () => {
-    const wert = pw.value;
-    pw.value = "";
-    if (!wert) { melde("fehler", "Bitte das Login-Passwort eingeben."); return; }
-    try { await api("POST", pfad, { passwort: wert }); melde("erfolg", erfolg); window.dispatchEvent(new Event("kontor-sperre")); await oberflaeche.neuLaden(); }
-    catch (e) { melde("fehler", e.message); }
-  };
-  const text = !st.aktiv
-    ? "Aus: Geheimnisse sind nur mit dem Systemschlüssel verschlüsselt. Eingeschaltet schützt das Login-Passwort Bank-PIN und Mail-Zugänge zusätzlich – auch in Snapshots der Festplatte. Nach jedem Neustart muss Kontor dann einmal entsperrt werden (beim Login automatisch)."
-    : st.entsperrt ? `Ein und entsperrt: ${st.geschuetzt} Geheimnis(se) mit dem Login-Passwort geschützt${st.pin_gemerkt ? ", Bank-PIN gemerkt" : ""}.`
-      : "Ein, aber gesperrt: Bankabruf und Mail-Abgleich warten auf das Entsperren.";
-  const knoepfe = !st.aktiv
-    ? [knopf("Schutz einschalten", { tid: "schutz-einschalten", class: "knopf knopf-haupt",
-      onclick: mitPasswort("/api/geheimnisse/schutz", "Die Geheimnisse sind jetzt mit dem Login-Passwort geschützt.") })]
-    : [st.entsperrt
-      ? knopf("Jetzt sperren", { tid: "schutz-sperren", onclick: async () => {
-        try { await api("POST", "/api/geheimnisse/sperren", {}); melde("erfolg", "Gesperrt."); window.dispatchEvent(new Event("kontor-sperre")); await oberflaeche.neuLaden(); }
-        catch (e) { melde("fehler", e.message); }
-      } })
-      : knopf("Entsperren", { tid: "schutz-entsperren", class: "knopf knopf-haupt",
-        onclick: mitPasswort("/api/geheimnisse/entsperren", "Entsperrt.") }),
-    st.pin_gemerkt ? knopf("Gemerkte PIN vergessen", { tid: "schutz-pin-vergessen", onclick: async () => {
-      try { await api("DELETE", "/api/sync/pin/gemerkt"); melde("erfolg", "Gemerkte PIN gelöscht."); await oberflaeche.neuLaden(); }
-      catch (e) { melde("fehler", e.message); }
-    } }) : null,
-    knopf("Schutz ausschalten", { tid: "schutz-ausschalten", class: "knopf knopf-gefahr",
-      onclick: mitPasswort("/api/geheimnisse/schutz/ausschalten", "Der Schutz ist ausgeschaltet.") })];
-  return abschnitt("Schutz der Geheimnisse", h("p", { tid: "schutz-status", "data-aktiv": st.aktiv ? "ja" : "nein",
-    "data-gesperrt": st.gesperrt ? "ja" : "nein" }, text),
-  feld("Login-Passwort", pw), h("div", { class: "knopf-leiste" }, ...knoepfe.filter(Boolean)));
-}

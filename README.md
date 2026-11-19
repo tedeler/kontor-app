@@ -323,7 +323,8 @@ und `KONTOR_AQBANKING_*` in `/etc/kontor/kontor.env` können entfernt werden.
 
 Kontor liefert alle Betriebsdateien im Paket `kontor.betrieb` aus
 (`kontor.service`, `kontor-sicherung.service`, `kontor-sicherung.timer`,
-`kontor-update.path`, `kontor-update.service`, `kontor-test.service`, `kontor-test.env`, `kontor.sysusers`, `kontor.env`,
+`kontor-update.path`, `kontor-update.service`, `kontor-test.service`, `kontor-test.env`, `kontor-test.sh`,
+`kontor.sysusers`, `kontor.env`,
 `pin-eingabe.conf`). Schritt für Schritt
 (als root im Container, z. B. Debian 13 mit systemd):
 
@@ -402,6 +403,8 @@ es weiterhin mit `/opt/kontor/venv/bin/pip install --upgrade /opt/kontor/src`
 **Testinstanz für Entwicklungsbranches (D-205):** Einen Branch probiert man nicht
 über den Update-Dienst aus, sondern in einer zweiten, getrennten Instanz. Die
 Hauptinstanz läuft dabei unverändert weiter.
+Schritt-für-Schritt-Anleitung und das Bedienskript `kontor-test` für die
+wiederkehrenden Schritte: [TESTINSTANZ.md](TESTINSTANZ.md) (D-213).
 
 ```bash
 # als root; holt den Branch, installiert ihn nach /opt/kontor-test, kopiert die Daten und startet die Testinstanz
@@ -563,7 +566,9 @@ Single-Page-App ohne Build-Schritt, Framework und externe Ressourcen (ES-Module 
   eine eigene Adresse (Lesezeichen, Zurück/Vor, Neuladen), z. B. `/konten/5?von=2024-03-01&status=bestaetigt`.
 - **Kontoansicht** (`/konten/<id>`): Filterleiste (Zeitraum, Betrag, Empfänger, Verwendungszweck, Freitext,
   Kategorie mit Unterkategorien, Tag, Status; in der Adresse gespeichert), sortierbare Spalten, 200 Buchungen je
-  Seite mit „Weitere laden“. „nach Datum“ gruppiert hierarchisch nach Jahr, Monat und Tag. Jede Ebene ist
+  Seite mit „Weitere laden“. Die Gruppierung nach Datum ist hierarchisch: Jahr, Monat, Monatsabschnitt
+  (1.–7., 8.–14., 15.–21., 22.–Monatsende) und Tag; die Leiste „Keine | Jahr | Monat | Abschnitt | Tag“ wählt, bis zu
+  welcher Ebene gruppiert wird (`?gruppierung=datum&tiefe=…`, Vorgabe Tag). Jede Ebene ist
   ein einklappbarer Balken mit Eingang, Ausgang, Summe und Anzahl; „Alles zusammenklappen“ und
   „Alles aufklappen“ gelten für alle Ebenen. Dafür lädt das Blatt die ganze Filtermenge und zeichnet bei
   vielen Zeilen nur den sichtbaren Ausschnitt. Vorschläge mit ✓/✗,

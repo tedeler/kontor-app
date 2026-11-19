@@ -1,4 +1,4 @@
-"""Regeln vergeben Tags (D-208): Kategorie optional, Tags additiv, alle passenden Regeln, Protokoll, Sicherung."""
+"""Regeln vergeben Tags (D-215): Kategorie optional, Tags additiv, alle passenden Regeln, Protokoll, Sicherung."""
 
 from __future__ import annotations
 

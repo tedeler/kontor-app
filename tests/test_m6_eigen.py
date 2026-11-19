@@ -80,7 +80,7 @@ def test_sicherung_der_schemaversion_2_einspielbar_und_postfach_bleibt_erhalten(
     assert r.status_code == 200, r.json()
     assert r.json()["unterschied"]["postfach"] == {"angelegt": 0, "geaendert": 0, "geloescht": 1}
     assert z.get("/api/mail/postfaecher").json() == []
-    assert sicherung.SCHEMAVERSION == 9  # … Empfänger-Bestätigung (D-156), automatische Regeln (D-179), Regel-Tags (D-208)
+    assert sicherung.SCHEMAVERSION == 9  # … Empfänger-Bestätigung (D-156), automatische Regeln (D-179), Regel-Tags (D-215)
 
 
 def test_spiegel_bleibt_bei_gleicher_adresse(tmp_path):
