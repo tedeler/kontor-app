@@ -88,7 +88,7 @@ Commit-Nachrichten sind auf Deutsch.
 | `src/kontor/betrieb/` | M7: ausgelieferte systemd-Units, sysusers, `kontor.env`, Drop-in (Paketdaten) |
 | `src/kontor/testinstanz.py`, `betrieb/kontor-test.*` | Feature testinstanz (D-205): zweite Instanz für einen Entwicklungsbranch (Mock-Modus, bereinigte Datenkopie); Kommandozeile `python -m kontor.testinstanz` |
 | `src/kontor/__main__.py` | M7: Startmodul `python -m kontor` (ohne Argumente, Logging nach stderr, uvicorn) |
-| `src/kontor/web/` | M8: Hülle `index.html`, Service Worker `sw.js`, Anmeldeseite `anmelden.html`; unter `oeffentlich/` Stile `app.css`, Symbole, Manifest und die ES-Module `app/` (`kern`, `ui`, `baum`, `konto`, `seiten`, `haupt`), ohne externe Ressourcen |
+| `src/kontor/web/` | M8: Hülle `index.html`, Service Worker `sw.js`, Anmeldeseite `anmelden.html`; unter `oeffentlich/` Stile `app.css`, Symbole, Manifest und die ES-Module `app/` (`kern`, `ui`, `baum`, `konto`, `seiten`, `einstellungen`, `haupt`), ohne externe Ressourcen |
 | `src/kontor/VERSION`, `version.py`, `release.py` | Versionsnummer `MAJOR.MINOR`, Build-Angaben aus `build.json`, Kommandozeile der Release-CI (D-105) |
 | `.github/workflows/release.yml` | Release-CI: bei jedem Push auf main Minor + 1, Major nur von Hand (D-105) |
 | `tests/` | eigene Tests (ergänzend; ersetzen nicht die Tests aus kontor-tests) |
@@ -209,6 +209,13 @@ Commit-Nachrichten sind auf Deutsch.
 - Oberfläche: Kontoansicht kennt `istKategorie` (Spalte `konto`, Filter `filter-konto`), URL ohne
   Vorgabesortierung (D-104).
 - Maßstab: alle Tests einschließlich `m11` (Browsertests laufen, nicht übersprungen).
+
+## Hinweise zu den Einstellungen (Feature `einstellungen`, D-207)
+
+- `app/einstellungen.js`: Bereiche (`BEREICHE`), Adresse `/einstellungen?bereich=<name>` (ein Tab), Suche über
+  `VERZEICHNIS`. Eine neue Einstellung bekommt `data-einstellung="<schlüssel>"` und einen Eintrag im Verzeichnis
+  (Titel, Synonyme); Seltenes gehört in `erweitert(…)`. Stand des Bereichs in `staende()` nachführen.
+- Bisherige `data-testid` der Einstellungen nicht umbenennen. Eigener Rauchtest: `tests/test_browser_einstellungen.py`.
 
 ## Hinweise zur Versionierung (D-105)
 

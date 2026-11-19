@@ -1,5 +1,15 @@
 # Ergebnis der Implementierung
 
+## Merge von `feature/einstellungen` (D-207) ohne Abnahme, gegen kontor-tests `c99b6ac`
+
+- Auf Anweisung vor Meilenstein-Definition und Abnahme gemergt. Die Entscheidung trägt auf main die Nummer D-207,
+  weil D-206 inzwischen an den Monatsbericht vergeben ist.
+- Eigene Tests nach dem Merge: 420 von 420 grün (einschließlich `tests/test_browser_einstellungen.py`).
+- Browsertests aus kontor-tests (`-m browser --voll`), gemessen auf dem Branch vor dem Merge: 7 neue Fehlschläge,
+  alle weil das bediente Element jetzt in einem anderen Bereich der Einstellungen liegt (Liste in D-207). 49 weitere
+  schlugen schon vorher auf main fehl; ihre Ursachen sind nicht untersucht.
+- Nach dem Merge nicht erneut gegen kontor-tests gelaufen (Monatsbericht kam auf main dazu).
+
 ## Merge von `feature/testinstanz` (D-205) ohne Abnahme, gegen kontor-tests `c99b6ac`
 
 Stand: 2026-11-19, Implementierungs-Thread. Auf ausdrückliche Anweisung des Auftraggebers auf main gemergt, noch ohne

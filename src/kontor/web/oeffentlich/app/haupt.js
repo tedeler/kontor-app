@@ -10,6 +10,7 @@ import {
 import { bestaetigen, dialog, feld, fokusFalle, imDialog, knopf, knopfLeiste, zuordnungDialog } from "./ui.js";
 import { kontoKuerzel, kontoSeite, layoutZuruecksetzen } from "./konto.js";
 import * as S from "./seiten.js";
+import { einstellungen } from "./einstellungen.js";
 import { erwartetSeite } from "./erwartet.js";
 import { mailSeite } from "./mail.js";
 import { statistikSeite } from "./statistik.js";
@@ -249,7 +250,7 @@ const ROUTEN = [
   [/^\/berichte$/, "berichte", "berichte", S.berichte],
   [/^\/berichte\/monat$/, "monatsbericht", "berichte", monatsberichtSeite],
   [/^\/import$/, "import", "import", S.importSeite],
-  [/^\/einstellungen$/, "einstellungen", "einstellungen", S.einstellungen],
+  [/^\/einstellungen$/, "einstellungen", "einstellungen", einstellungen],
   [/^\/protokoll$/, "protokoll", "protokoll", S.protokoll],
   [/^\/empfaenger$/, "empfaenger", "empfaenger", S.empfaenger],
   [/^\/regeln$/, "regeln", "regeln", S.regeln],
