@@ -1455,3 +1455,16 @@ p > a.mb-marke { margin-left: .3rem; text-decoration: none; color: var(--text); 
 .mail-zuordnen-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 [data-layout="mobil"] .mail-zuordnen-zeile { grid-template-columns: 5rem minmax(0, 1fr) auto; }
 [data-layout="mobil"] .mail-zuordnen-zeile .grund-marke { display: none; }
+
+/* Mail-Blatt: Zuordnung in der Liste als eine Zeile (D-227) */
+.mail-liste .tabelle th:last-child, .mail-liste td.mail-zuordnung-zelle { width: 40%; }
+.mail-liste .mail-zuordnung { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: .45rem; align-items: baseline; margin: 0; }
+.mail-marke { font-size: .75rem; font-weight: 600; padding: .05rem .45rem; border-radius: 999px; white-space: nowrap;
+  background: var(--hg-3); color: var(--text-2); }
+.mail-zuordnung[data-zustand="erfuellt"] .mail-marke { background: #dcefdf; color: #1b6e2a; }
+html[data-thema="dunkel"] .mail-zuordnung[data-zustand="erfuellt"] .mail-marke { background: #1f3d27; color: #9bd6a6; }
+.mail-zuordnung[data-zustand="ueberfaellig"] .mail-marke { background: color-mix(in srgb, var(--negativ) 16%, transparent); color: var(--negativ); }
+.mail-ziel { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mail-ziel .knopf-link { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
+.mail-betrag { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.mail-ohne { color: var(--text-2); }

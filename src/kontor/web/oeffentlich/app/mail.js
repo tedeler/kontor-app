@@ -284,17 +284,32 @@ function abrufErgebnis(erg) {
   }).join("; ");
 }
 
+/** Zuordnung in der Liste (D-227): eine Zeile – Marke, Ziel, Betrag. Gründe und alle Buchungen stehen im Lesebereich. */
 function zuordnungKurz(m) {
-  if (!m.zuordnung.length && !haengt(m).length) return h("span", { class: "klein" }, "Nicht erkannt");
-  return [haengt(m).length ? h("div", { class: "mail-zuordnung", "data-zustand": "erfuellt" },
-    h("span", { class: "grund-marke" }, haengt(m).some((b) => b.nummer) ? "Bestellnummer" : "Von Hand"),
-    h("div", { class: "klein" }, haengt(m).map((b) => h("div", null, buchungsKnopf(b))))) : null,
-  ...m.zuordnung.map((z) => h("div", { class: "mail-zuordnung", "data-zustand": z.ueberfaellig ? "ueberfaellig" : z.zustand },
-    h("span", { class: "grund-marke" }, z.ueberfaellig ? "überfällig" : (ZUSTAND[z.zustand] || z.zustand)),
-    " ", z.haendler || GRUND[z.grund] || z.grund, " ",
-    betragEl("span", z.vorzeichen_betrag),
-    z.buchungen.length ? h("div", { class: "klein" }, z.buchungen.map((b) => h("div", null,
-      buchungsKnopf(b), b.warum ? h("div", { class: "mail-warum" }, b.warum) : null))) : null))];
+  const erwartungen = m.zuordnung;
+  // jede Buchung nur einmal, auch wenn sie über Bestellnummer und erwartete Zahlung zugleich zugeordnet ist
+  const buchungen = [];
+  for (const b of [...haengt(m), ...erwartungen.flatMap((z) => z.buchungen)]) {
+    if (!buchungen.some((x) => x.id === b.id)) buchungen.push(b);
+  }
+  const zeile = (zustand, marke, ziel, weitere, betrag, hinweis) => h("div", { class: "mail-zuordnung", "data-zustand": zustand, title: hinweis || null },
+    h("span", { class: "mail-marke" }, marke), h("span", { class: "mail-ziel" }, ziel),
+    h("span", { class: "mail-weitere klein", tid: weitere ? "mail-weitere" : null }, weitere ? `+${weitere}` : ""),
+    betrag === null || betrag === undefined ? null : betragEl("span", betrag, { class: "mail-betrag" }));
+  if (buchungen.length) {
+    const weg = [haengt(m).some((b) => b.nummer) ? "Bestellnummer" : null, haengt(m).some((b) => !b.nummer) ? "von Hand" : null,
+      erwartungen.some((z) => z.buchungen.length) ? "erwartete Zahlung" : null].filter(Boolean).join(", ");
+    const erste = buchungen[0];
+    const betrag = erste.betrag !== undefined ? erste.betrag : (erwartungen.find((z) => z.buchungen.some((b) => b.id === erste.id)) || {}).vorzeichen_betrag;
+    return zeile("erfuellt", "Zugeordnet",
+      buchungsKnopf(erste), buchungen.length - 1, betrag, `Zugeordnet über ${weg}${buchungen.length > 1 ? ` · ${buchungen.length} Buchungen` : ""}`);
+  }
+  if (erwartungen.length) {
+    const z = erwartungen.find((x) => x.ueberfaellig) || erwartungen[0];
+    return zeile(z.ueberfaellig ? "ueberfaellig" : z.zustand, z.ueberfaellig ? "Überfällig" : "Erwartet",
+      z.haendler || GRUND[z.grund] || z.grund, erwartungen.length - 1, z.vorzeichen_betrag, "Erwartete Zahlung, noch keiner Buchung zugeordnet");
+  }
+  return h("span", { class: "mail-ohne" }, "–");
 }
 
 function buchungsKnopf(b) {

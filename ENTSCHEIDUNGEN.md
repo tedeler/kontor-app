@@ -3177,3 +3177,12 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   steht wie bei der Bestellnummer in `bestellmail` (leere Nummer, Betriebszustand); er entfällt, wenn das Dokument
   von der Buchung gelöst wird.
 - Behoben: Der Lesebereich zeigte bei angehängten Mails „[object HTMLUListElement]“.
+
+## D-227 Mail-Blatt: Zuordnung in der Liste als eine Zeile
+
+- **Anlass:** Rückmeldung vom 2026-11-20: Die Zuordnungsspalte war unübersichtlich (mehrere Marken, dieselbe
+  Buchung mehrfach, Begründungstexte in der Zeile).
+- Die Spalte zeigt je Mail genau eine Zeile: Marke („Zugeordnet“, „Erwartet“, „Überfällig“), Ziel (erste Buchung als
+  Sprung ins Kontoblatt bzw. Händler der erwarteten Zahlung), „+n“ für weitere, Betrag. Jede Buchung zählt einmal,
+  auch wenn sie über Bestellnummer und erwartete Zahlung zugleich zugeordnet ist. Ohne Zuordnung steht „–“.
+  Weg der Zuordnung als Tooltip; Begründungen, Kennung und alle Buchungen stehen nur im Lesebereich.
