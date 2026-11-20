@@ -688,7 +688,7 @@ class MailDienst:
 
     def nachrichten_liste(self, con, postfach_id: int | None, seite: int, pro_seite: int,
                           heute: str | None = None, zuordnung: str | None = None, neueste: bool = False,
-                          suche: str | None = None) -> dict:
+                          suche: str | None = None, gruppieren: bool = False) -> dict:
         teile, par = [], []
         if postfach_id is not None:
             teile.append("p.id = ?")
@@ -710,13 +710,22 @@ class MailDienst:
             + f" ORDER BY n.empfangen{' DESC' if neueste else ''}, p.id, n.nachricht_id", par).fetchall()
         zaehler = {"zugeordnet": 0, "erwartet": 0, "keine": 0}
         gewaehlt: list[int] = []
+        bezuege: dict[int, set[str]] = {}
         for r in reihen:
-            art = _zuordnung_art(zuord.get((r["adresse_cf"], r["nachricht_id"]), []))
-            if art != "zugeordnet" and haengt and haengt.get(r["nachricht_id"]):
+            eintraege = zuord.get((r["adresse_cf"], r["nachricht_id"]), [])
+            angehaengt = (haengt or {}).get(r["nachricht_id"]) or []
+            art = _zuordnung_art(eintraege)
+            if art != "zugeordnet" and angehaengt:
                 art = "zugeordnet"
             zaehler[art] += 1
             if zuordnung is None or art == zuordnung:
                 gewaehlt.append(r["id"])
+                bezuege[r["id"]] = ({f"e{e['erwartung_id']}" for e in eintraege}
+                                    | {f"b{b['id']}" for e in eintraege for b in e["buchungen"]}
+                                    | {f"b{b['id']}" for b in angehaengt})
+        gruppe: dict[int, int] = {}
+        if gruppieren:   # D-228: Mails derselben Zuordnung stehen beieinander
+            gewaehlt, gruppe = _gruppiert(gewaehlt, bezuege)
         gesamt = len(gewaehlt)
         stueck = gewaehlt[(seite - 1) * pro_seite:seite * pro_seite]   # hinter dem Ende: leer (mail.md 6.1)
         zeilen = _nachrichten_laden(con, stueck)
@@ -725,7 +734,8 @@ class MailDienst:
                                "nachricht_id": r["nachricht_id"], "empfangen": r["empfangen"],
                                "absender": r["absender"], "betreff": r["betreff"], "text": r["text"],
                                "zuordnung": zuord.get((r["adresse_cf"], r["nachricht_id"]), []),
-                               **({} if haengt is None else {"angehaengt": haengt.get(r["nachricht_id"], [])})}
+                               **({} if haengt is None else {"angehaengt": haengt.get(r["nachricht_id"], [])}),
+                               **({"gruppe": gruppe.get(r["id"])} if gruppieren else {})}
                               for r in zeilen],
                 "gesamt": gesamt, "seite": seite, "pro_seite": pro_seite,
                 "stand": {"gesamt": len(reihen), **zaehler,
@@ -739,6 +749,36 @@ class MailDienst:
                 "aktiv": p["aktiv"], "nachrichten": s["nachrichten"],
                 "letzter_abruf_am": s["letzter_abruf_am"], "letzter_erfolg_am": s["letzter_erfolg_am"],
                 "letzter_fehler": s["letzter_fehler"]}
+
+
+def _gruppiert(ids: list[int], bezuege: dict[int, set[str]]) -> tuple[list[int], dict[int, int]]:
+    """D-228: Mails, die (auch mittelbar) dieselbe Buchung oder dieselbe erwartete Zahlung betreffen, bilden eine
+    Gruppe. Die Gruppe steht an der Stelle ihrer ersten Mail, ihre Mails in der Reihenfolge der Liste. Ergebnis:
+    neue Reihenfolge und je Mail einer Gruppe mit mehreren Mails die ID der ersten Mail."""
+    eltern: dict[str, str] = {}
+
+    def wurzel(x: str) -> str:
+        while eltern.setdefault(x, x) != x:
+            eltern[x] = eltern[eltern[x]]
+            x = eltern[x]
+        return x
+
+    for i in ids:
+        for bezug in bezuege.get(i, ()):
+            eltern[wurzel(bezug)] = wurzel(f"m{i}")
+    mitglieder: dict[str, list[int]] = {}
+    for i in ids:
+        mitglieder.setdefault(wurzel(f"m{i}"), []).append(i)
+    reihenfolge: list[int] = []
+    gruppe: dict[int, int] = {}
+    for i in ids:
+        teil = mitglieder.pop(wurzel(f"m{i}"), None)
+        if teil is None:
+            continue
+        reihenfolge.extend(teil)
+        if len(teil) > 1:
+            gruppe.update(dict.fromkeys(teil, teil[0]))
+    return reihenfolge, gruppe
 
 
 def _zuordnung_art(eintraege: list[dict]) -> str:

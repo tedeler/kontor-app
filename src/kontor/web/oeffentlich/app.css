@@ -1468,3 +1468,10 @@ html[data-thema="dunkel"] .mail-zuordnung[data-zustand="erfuellt"] .mail-marke {
 .mail-ziel .knopf-link { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
 .mail-betrag { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .mail-ohne { color: var(--text-2); }
+
+/* Mail-Blatt: Mails derselben Zuordnung als Gruppe (D-228) */
+.mail-liste tr[data-gruppe] > td:first-child { box-shadow: inset 3px 0 0 var(--fokus); }
+.mail-liste tr[data-gruppe-rolle="folge"] > td, .mail-liste tr[data-gruppe-rolle="ende"] > td { border-top-color: transparent; }
+.mail-liste tr[data-gruppe-rolle="folge"] .mail-wer, .mail-liste tr[data-gruppe-rolle="ende"] .mail-wer { padding-left: 1.4rem; }
+.mail-gehoert-dazu { color: var(--text-2); font-size: .85rem; }
+.mail-gruppe-anzahl { margin-top: .1rem; }

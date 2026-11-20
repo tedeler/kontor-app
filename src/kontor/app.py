@@ -1092,9 +1092,10 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
         zuordnung = q.auswahl("zuordnung", ("zugeordnet", "erwartet", "keine"))
         neueste = q.auswahl("reihenfolge", ("aelteste", "neueste")) == "neueste"   # M27 5 (D-171)
         suche = q.text("suche", 1)   # D-226
+        gruppieren = q.auswahl("gruppieren", ("ja", "nein")) == "ja"   # D-228
         q.pruefen()
         return await lesen(maildienst.nachrichten_liste, postfach_id, seite or 1, pro_seite or 50,
-                           sync.heute().isoformat(), zuordnung, neueste, suche)
+                           sync.heute().isoformat(), zuordnung, neueste, suche, gruppieren)
 
     @endpunkt("POST", "/api/mail/nachrichten/{nachricht_id:int}/buchung", 201)
     async def mail_an_buchung(request: Request):

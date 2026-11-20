@@ -3186,3 +3186,17 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   Sprung ins Kontoblatt bzw. Händler der erwarteten Zahlung), „+n“ für weitere, Betrag. Jede Buchung zählt einmal,
   auch wenn sie über Bestellnummer und erwartete Zahlung zugleich zugeordnet ist. Ohne Zuordnung steht „–“.
   Weg der Zuordnung als Tooltip; Begründungen, Kennung und alle Buchungen stehen nur im Lesebereich.
+
+## D-228 Mail-Blatt: Mails derselben Zuordnung stehen beieinander
+
+- **Anlass:** Auftrag vom 2026-11-20: Mails gruppieren, die zur gleichen Buchungszuordnung gehören.
+- **Gruppe:** Mails, die dieselbe Buchung oder dieselbe erwartete Zahlung betreffen (auch mittelbar über eine
+  dritte Mail), bilden eine Gruppe – gleich, ob über Bestellnummer, erwartete Zahlung oder von Hand zugeordnet.
+- **Liste:** `GET /api/mail/nachrichten?gruppieren=ja` stellt eine Gruppe an die Stelle ihrer ersten Mail (nach der
+  gewählten Reihenfolge), die übrigen Mails der Gruppe direkt dahinter; jede Mail trägt `gruppe` (ID der ersten
+  Mail, sonst `null`). Ohne den Parameter bleiben Reihenfolge und Antwort wie bisher. Gruppiert wird innerhalb
+  der gefilterten Menge (Postfach, Zuordnungsfilter, Suche); eine Gruppe kann über eine Seitengrenze reichen.
+- **Oberfläche:** Das Mail-Blatt fordert immer gruppiert an. Die erste Mail zeigt die Zuordnung und „n Mails zu
+  dieser Zuordnung“, die folgenden sind eingerückt und zeigen „↳ gehört dazu“; ein Balken am linken Rand
+  verbindet die Gruppe (`data-gruppe`, `data-gruppe-rolle` = `kopf`/`folge`/`ende`).
+- **Prüfung:** `tests/test_browser_sammel3.py::test_mails_derselben_zuordnung_stehen_beieinander`.

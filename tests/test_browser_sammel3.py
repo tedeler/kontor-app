@@ -178,3 +178,34 @@ def test_mailblatt_suche_und_zuordnen(tmp_path, browser):
         expect(tid(page, f"mail-angehaengt-{buchung['id']}")).to_contain_text("Von Hand zugeordnet")
         dann = c.get("/api/mail/nachrichten", params={"suche": wort, "zuordnung": "zugeordnet"}).json()
         assert any(m["id"] == ziel["id"] for m in dann["eintraege"])
+
+
+def test_mails_derselben_zuordnung_stehen_beieinander(tmp_path, browser):
+    import httpx
+    with server(tmp_path, mail_abgleich=False) as (url, _), seite(browser, url, **DESKTOP) as page:
+        c = httpx.Client(base_url=url, trust_env=False, timeout=60)
+        for adresse in ("haushalt.eins@example.invalid", "haushalt.zwei@example.invalid"):
+            assert c.post("/api/mail/postfaecher", json={"adresse": adresse}).status_code == 201
+        assert c.post("/api/mail/abruf").status_code == 200
+        mails = c.get("/api/mail/nachrichten", params={"reihenfolge": "neueste"}).json()["eintraege"]
+        assert len(mails) >= 4
+        buchung = c.get("/api/buchungen", params={"pro_seite": 1}).json()["eintraege"][0]["id"]
+        erste, letzte = mails[0]["id"], mails[-1]["id"]
+        for mid in (erste, letzte):
+            assert c.post(f"/api/mail/nachrichten/{mid}/buchung", json={"buchung_id": buchung}).status_code == 201
+        # ohne den Parameter bleibt die Reihenfolge wie bisher, ohne Feld „gruppe“
+        alt = c.get("/api/mail/nachrichten", params={"reihenfolge": "neueste"}).json()["eintraege"]
+        assert [m["id"] for m in alt] == [m["id"] for m in mails] and "gruppe" not in alt[0]
+        neu = c.get("/api/mail/nachrichten", params={"reihenfolge": "neueste", "gruppieren": "ja"}).json()["eintraege"]
+        assert [m["id"] for m in neu][:2] == [erste, letzte]
+        assert [m["gruppe"] for m in neu] == [erste, erste] + [None] * (len(mails) - 2)
+        assert sorted(m["id"] for m in neu) == sorted(m["id"] for m in mails)
+        page.goto(url + "/mail")
+        bereit(page, "mail")
+        zeilen = page.locator("[data-testid=mail-tabelle] tbody tr")
+        expect(zeilen.nth(0)).to_have_attribute("data-gruppe-rolle", "kopf")
+        expect(zeilen.nth(0)).to_contain_text("2 Mails zu dieser Zuordnung")
+        expect(zeilen.nth(1)).to_have_attribute("data-testid", f"mail-{letzte}")
+        expect(zeilen.nth(1)).to_have_attribute("data-gruppe-rolle", "ende")
+        expect(zeilen.nth(1)).to_contain_text("gehört dazu")
+        expect(zeilen.nth(2)).not_to_have_attribute("data-gruppe", str(erste))

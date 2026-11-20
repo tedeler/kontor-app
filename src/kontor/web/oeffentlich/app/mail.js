@@ -114,6 +114,7 @@ export async function mailSeite(seite, _param, suche) {
     if (postfach) q.postfach_id = Number(postfach);
     if (filter !== "alle") q.zuordnung = filter;
     if (suchtext) q.suche = suchtext;
+    q.gruppieren = "ja";   // D-228: Mails derselben Zuordnung stehen beieinander
     return api("GET", "/api/mail/nachrichten" + abfrage(q));
   }
 
@@ -229,10 +230,17 @@ export async function mailSeite(seite, _param, suche) {
     return `${name}: ${tausend(p.nachrichten)} Mails, zuletzt erfolgreich ${zeitText(p.letzter_erfolg_am)}`;
   }
 
-  function zeile(m) {
+  function zeile(m, i) {
     const an = String(m.id) === gewaehlt;
+    // D-228: Mails derselben Zuordnung stehen beieinander; die erste trägt die Zuordnung, die folgenden einen Verweis
+    const inGruppe = m.gruppe !== null && m.gruppe !== undefined;
+    const folge = inGruppe && i > 0 && mails[i - 1].gruppe === m.gruppe;
+    const letzte = inGruppe && !(i + 1 < mails.length && mails[i + 1].gruppe === m.gruppe);
+    const anzahl = inGruppe && !folge ? mails.filter((x) => x.gruppe === m.gruppe).length : 0;
     const tr = h("tr", { tid: `mail-${m.id}`, tabindex: an ? "0" : "-1", "aria-selected": an ? "true" : "false",
-      class: "klickbar" + (an ? " gewaehlt" : ""), "data-zuordnung": art(m) },
+      class: "klickbar" + (an ? " gewaehlt" : ""), "data-zuordnung": art(m),
+      "data-gruppe": inGruppe ? String(m.gruppe) : null,
+      "data-gruppe-rolle": inGruppe ? (folge ? (letzte ? "ende" : "folge") : (letzte ? "allein" : "kopf")) : null },
     // Datum und Uhrzeit je in einer Zeile, ohne Umbruch mitten im Datum; Absender und Betreff untereinander
     h("td", { class: "mail-zeit", "data-zeitpunkt": m.empfangen || "", title: zeitText(m.empfangen) },
       h("div", null, tagText(m.empfangen)), h("div", { class: "klein" }, uhrText(m.empfangen))),
@@ -240,7 +248,9 @@ export async function mailSeite(seite, _param, suche) {
       h("div", { class: "mail-absender", title: m.absender }, absenderName(m.absender)),
       h("div", { class: "mail-betreff" }, m.betreff || "(ohne Betreff)"),
       mehrerePostfaecher() ? h("div", { class: "klein mail-postfach" }, m.postfach) : null),
-    h("td", { class: "mail-zuordnung-zelle" }, zuordnungKurz(m)));
+    h("td", { class: "mail-zuordnung-zelle" }, folge
+      ? h("span", { class: "mail-gehoert-dazu", title: "Gehört zur selben Zuordnung wie die Mail darüber" }, "↳ gehört dazu")
+      : [zuordnungKurz(m), anzahl > 1 ? h("div", { class: "klein mail-gruppe-anzahl", tid: "mail-gruppe-anzahl" }, `${anzahl} Mails zu dieser Zuordnung`) : null]));
     tr.addEventListener("click", () => auswahlSetzen(m.id, false));
     tr.addEventListener("keydown", (ev) => {
       if (ev.target !== tr || ev.key !== "Enter") return;
