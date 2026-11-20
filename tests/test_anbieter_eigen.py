@@ -246,23 +246,84 @@ def _buchung(c, giro, kat, betrag, zweck):
     return r.json()["id"]
 
 
-def test_paypal_code_im_verwendungszweck_haengt_die_mail_an(tmp_path):
+def _paypal_mail(config, nid, haendler, betrag, tag="2024-03-01"):
+    from kontor import db
+    con = db.verbinde(config.aktive_datenbank)
+    try:
+        with db.transaktion(con):
+            con.execute("INSERT INTO mail_nachricht (adresse_cf, nachricht_id, empfangen, absender, betreff, text)"
+                        " VALUES ('erika@example.invalid', ?, ?, 'service@paypal.example.invalid', ?, ?)",
+                        (nid, f"{tag}T10:00:00Z", f"Sie haben eine Zahlung an {haendler} gesendet",
+                         f"Transaktionscode: 9AB12345CD6789{nid[4:7]}\nGesendeter Betrag {betrag}"))
+    finally:
+        con.close()
+
+
+def _am(c, giro, kat, tag, betrag, zweck):
+    r = c.post("/api/buchungen", json={"datum": tag, "verwendungszweck": zweck, "splits": [
+        {"konto_id": giro, "betrag": betrag}, {"konto_id": kat, "betrag": -betrag}]})
+    assert r.status_code == 201, r.text
+    return r.json()["id"]
+
+
+def _paypal_stand(c):
+    liste = c.get("/api/erwartungen", params={"zustand": ["offen", "erfuellt"]}).json()["eintraege"]
+    return {e["haendler"]: e["buchung_ids"] for e in liste}
+
+
+def test_paypal_heuristik_betrag_fuenf_tage_und_haendler_in_teilen(tmp_path):
+    """D-232: gleicher Betrag, höchstens 5 Tage Abstand, Händler der Mail in Teilen im Verwendungszweck."""
     from kontor import abgleich
-    c, config, giro, kat = _app(tmp_path, mail_bestellnummer=True)
-    code = "9AB12345CD678901E"
-    _mail(config, "<pp-1@example.invalid>", "service@paypal.example.invalid", "Sie haben eine Zahlung an Laden gesendet",
-          f"Transaktionscode: {code}\nGesendeter Betrag 12,00 €")
-    # dieselbe Zeichenfolge in einer fremden Mail zählt für PayPal nicht (alle_mails ist dort aus)
-    _mail(config, "<fremd-1@example.invalid>", "news@shop.example.invalid", "Angebot", f"Gutscheincode {code}")
-    mit = _buchung(c, giro, kat, -1200, f"PP.1234.PP . LADEN, Ihr Einkauf bei LADEN {code}")
-    ohne = _buchung(c, giro, kat, -1200, "PP.1234.PP . LADEN, Ihr Einkauf bei LADEN")
+    c, config, giro, kat = _app(tmp_path, mail_abgleich=True)
+    lastschrift = "PP.1234.PP . {0}, Ihr Einkauf bei {0} EREF: 1014354085205 PP.1234.PP PAYPAL"
+    _paypal_mail(config, "<pp-001@example.invalid>", "Live Video Ltd", "12,00 €")
+    _paypal_mail(config, "<pp-002@example.invalid>", "MediaMarktSaturn", "49,99 €")
+    _paypal_mail(config, "<pp-003@example.invalid>", "Buchhandlung Seitenweise", "20,00 €")
+    _paypal_mail(config, "<pp-004@example.invalid>", "Teeladen Nord", "8,00 €")
+    _paypal_mail(config, "<pp-005@example.invalid>", "Gartenbedarf Grün", "30,00 €")
+    # passt: gleicher Betrag, 4 Tage später, Name gekürzt bzw. zusammengeschrieben
+    live = _am(c, giro, kat, "2024-03-05", -1200, lastschrift.format("LIVE VIDEO"))
+    markt = _am(c, giro, kat, "2024-02-26", -4999, lastschrift.format("MEDIAMARKTSATU"))
+    # gleicher Betrag ohne PayPal im Text stört nicht mehr: nur Buchungen mit dem Händler konkurrieren
+    _am(c, giro, kat, "2024-03-02", -1200, "Lastschrift Stadtwerke")
+    # passt nicht: anderer Händler / 6 Tage Abstand / anderer Betrag
+    _am(c, giro, kat, "2024-03-02", -2000, lastschrift.format("ANDERER LADEN"))
+    _am(c, giro, kat, "2024-03-07", -800, lastschrift.format("TEELADEN NORD"))
+    _am(c, giro, kat, "2024-03-02", -3100, lastschrift.format("GARTENBEDARF GRUEN"))
     abgleich.nach_ereignis(config, c.app.state.sync.jetzt())
-    belege = c.get(f"/api/buchungen/{mit}").json()["belege"]
-    assert len(belege) == 1 and belege[0]["mime_typ"] == "message/rfc822"
-    assert c.get(f"/api/buchungen/{ohne}").json()["belege"] == []
-    mails = c.get("/api/mail/nachrichten").json()["eintraege"]
-    haengt = {m["nachricht_id"]: m["angehaengt"] for m in mails}
-    assert [b["id"] for b in haengt["<pp-1@example.invalid>"]] == [mit] and haengt["<fremd-1@example.invalid>"] == []
+    assert _paypal_stand(c) == {"Live Video Ltd": [live], "MediaMarktSaturn": [markt], "Buchhandlung Seitenweise": [],
+                                "Teeladen Nord": [], "Gartenbedarf Grün": []}
+    # die Mail hängt als Dokument an der Buchung
+    assert len(c.get(f"/api/buchungen/{live}").json()["belege"]) == 1
+
+
+def test_paypal_zwei_passende_buchungen_bleiben_offen(tmp_path):
+    from kontor import abgleich
+    c, config, giro, kat = _app(tmp_path, mail_abgleich=True)
+    _paypal_mail(config, "<pp-011@example.invalid>", "Live Video Ltd", "12,00 €")
+    zweck = "PP.1234.PP . LIVE VIDEO, Ihr Einkauf bei LIVE VIDEO"
+    a = _am(c, giro, kat, "2024-03-02", -1200, zweck)
+    b = _am(c, giro, kat, "2024-03-03", -1200, zweck)
+    abgleich.nach_ereignis(config, c.app.state.sync.jetzt())
+    assert _paypal_stand(c) == {"Live Video Ltd": []}
+    e = c.get("/api/erwartungen").json()["eintraege"][0]
+    kand = c.get(f"/api/erwartungen/{e['id']}/kandidaten").json()["eintraege"]
+    assert sorted(k["id"] for k in kand) == [a, b] and all(k["anbieter_passt"] for k in kand)
+
+
+def test_name_in_teilen():
+    f = anbieter.name_in_teilen
+    assert f("Live Video Ltd", "PP.2091.PP . LIVE VIDEO, Ihr Einkauf bei LIVE VIDEO")
+    assert f("MediaMarktSaturn", "PP . MEDIAMARKTSATU, Ihr Einkauf", "MEDIAMARKTSATU")       # gekürzt
+    assert f("elefantenbaby29", "PP.6422.PP . elefantenbaby29, Ihr Einkauf bei elefantenbaby29")
+    assert f("Tee Kontor", "Einkauf bei TEE UND MEHR") and not f("Tee Kontor", "Einkauf bei TEEHAUS")   # 3 Zeichen: ganzes Wort
+    assert not f("Fiktiver Shop", "PP . ANDERER SHOP, Ihr Einkauf bei ANDERER SHOP")          # „Shop“ sagt nichts
+    assert f("Shop GmbH", "PP . SHOP GMBH, Ihr Einkauf") and not f("Shop GmbH", "PP . ANDERER LADEN")
+    assert not f("", "irgendwas") and not f("Laden", "") and not f(None, None)
+    paypal = anbieter.nach_name("paypal")
+    assert paypal.haendler_der_buchung("PP.6333.PP . GOOGLE, Ihr Ei nkauf bei GOOGLE EREF: 1 PP PAYPAL") == "GOOGLE"
+    assert paypal.haendler_der_buchung("PP.3650.PP . , Ihr Einkauf bei , Artikel-232332270861") is None
+    assert (paypal.bank.tage_vor, paypal.bank.tage_nach, paypal.bank.kennung) == (5, 5, None)
 
 
 def test_zugeladener_anbieter_von_der_mail_bis_zur_buchung(tmp_path):

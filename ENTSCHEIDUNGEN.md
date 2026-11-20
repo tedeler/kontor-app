@@ -3251,3 +3251,25 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   (`auswahl-ausgaben`), Einnahmen (`auswahl-einnahmen`) und Summe (`auswahl-summe`), je mit `data-betrag` in Cent;
   ohne Markierung ist `auswahl-summen` verborgen. Auf dem Handy stehen sie im Auswahlkopf
   (`auswahl-kopf-summen`). Gerechnet wird mit den geladenen Zeilen in ganzen Cent.
+
+## D-232 PayPal: Zuordnung nach Betrag, Zeitfenster und Händlername (ersetzt die Annahme aus D-230)
+
+- **Anlass:** Recherche vom 2026-11-20: Die PayPal-Lastschrift nennt keinen Transaktionscode. Der Verwendungszweck
+  lautet „PP.1234.PP . HAENDLER, Ihr Einkauf bei HAENDLER“, die End-to-End-Referenz trägt eine 13-stellige Nummer,
+  die in keiner Mail steht (PayPals Aktivitäten-Export kennt ein Feld „Bank Reference ID“ mit 13 Zeichen; ob es
+  dieselbe Nummer ist, ist ungeprüft). Auftrag: Heuristik aus gleichem Betrag, Datum ± 5 Tage und Händlername in
+  Teilen im Verwendungszweck.
+- **Beschreibung PayPal:** `bank.kennung` entfällt; neu `bank.haendler` (Händler aus „PP.….PP . <Händler>, Ihr
+  E…“), `haendler_noetig = true`, `tage_vor = 5`, `tage_nach = 5`. Diese Angaben stehen jedem Anbieter offen
+  (`ANBIETER.md`); Amazon bleibt unverändert (3 Tage davor, 45 danach, Kennung oder Name).
+- **Regel bei `haendler_noetig`:** Automatisch zugeordnet wird, wenn genau eine freie Buchung im Fenster den
+  gleichen Betrag hat und den Händler der Mail in Teilen nennt (`anbieter.name_in_teilen`): ein Wort des Namens mit
+  mindestens 4 Zeichen irgendwo im Text, kürzere nur als ganzes Wort, Allerweltswörter zählen nicht; ein gekürzter
+  Name der Bank zählt, wenn er der Anfang des zusammengeschriebenen Namens ist. Als PayPal-Buchung gilt, was
+  „paypal“ nennt oder dem Muster des Verwendungszwecks entspricht. Nennt die Mail keinen Händler, wird nichts
+  automatisch zugeordnet. Andere Buchungen gleichen Betrags ohne den Händler stören nicht mehr.
+- **Folge für die Abnahme:** `m20/test_m20_zuordnung.py::test_automatisch_ueber_betrag_nur_eindeutig` ist rot: Der
+  Test erwartet, dass eine zweite Buchung gleichen Betrags ohne Anbieter die Zuordnung der PayPal-Buchung
+  verhindert. Für den Test-Thread als Änderung von erwartungen.md 5.2 zu übernehmen.
+- **Prüfung:** `tests/test_anbieter_eigen.py` (`test_paypal_heuristik_…`, `test_paypal_zwei_passende_…`,
+  `test_name_in_teilen`).

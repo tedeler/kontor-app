@@ -32,9 +32,13 @@ bezug = [
   { text = '\b(\d{3}-\d{7}-\d{7})\b' },
 ]
 
+# Bankseite (D-232). Die Lastschrift nennt keinen Transaktionscode, nur den Händler:
+#   „PP.1234.PP . HAENDLER, Ihr Einkauf bei HAENDLER“ (EREF: 13-stellige Nummer, die in keiner Mail steht).
+# Zugeordnet wird deshalb nach Heuristik: gleicher Betrag, Buchung höchstens 5 Tage vor oder nach der Mail, und der
+# Händler der Mail steht in Teilen im Text der Buchung.
 [bank]
 namen = ["paypal"]
-# Annahme: Steht der Transaktionscode der Mail im Verwendungszweck, wird die Mail daran erkannt.
-kennung = '(?<![0-9A-Z])[0-9A-Z]{17}(?![0-9A-Z])'
-glob = "*[0-9A-Z][0-9A-Z][0-9A-Z][0-9A-Z][0-9A-Z][0-9A-Z][0-9A-Z][0-9A-Z][0-9A-Z][0-9A-Z][0-9A-Z][0-9A-Z][0-9A-Z][0-9A-Z][0-9A-Z][0-9A-Z][0-9A-Z]*"
-ohne_leerraum = false
+haendler = 'PP\.\d{4}\.PP\s*\.\s*(?P<haendler>[^,]*?)\s*,\s*Ihr\s*E'
+haendler_noetig = true
+tage_vor = 5
+tage_nach = 5

@@ -379,16 +379,38 @@ def _anbieter_passt(z, b: dict) -> bool:
     modul = anbieter.nach_name(z["anbieter"])
     # D-230: Namen, unter denen der Anbieter in Bankbuchungen steht, nennt seine Beschreibung (bank.namen)
     namen = list(modul.bank.namen) if modul is not None else ([z["anbieter"]] if z["anbieter"] else [])
+    if modul is not None and modul.bank.haendler_noetig:
+        # D-232: Der Anbieter steht in jeder seiner Buchungen (PayPal); es zählt nur der Händler der Mail, in Teilen
+        roh = (b["verwendungszweck"] or "") + " " + (b["empfaenger"] or "")
+        eigene = any(n in text for n in namen) or modul.bank.haendler.search(roh) is not None \
+            if modul.bank.haendler is not None else any(n in text for n in namen)
+        if not eigene or not z["haendler"] or z["haendler"] == modul.titel:
+            return False
+        return anbieter.name_in_teilen(z["haendler"], roh, modul.haendler_der_buchung(roh))
     if z["haendler"] and len(z["haendler"]) >= 3:
         namen.append(z["haendler"].casefold())
     return any(n and n in text for n in namen)
+
+
+def _fenster(z) -> tuple[int, int]:
+    """Tage vor und nach dem Datum der Erwartung, in denen Buchungen als Kandidaten zählen (bank.tage_vor/nach)."""
+    modul = anbieter.nach_name(z["anbieter"])
+    bank = modul.bank if modul is not None else None
+    return (FENSTER_VOR if bank is None or bank.tage_vor is None else bank.tage_vor,
+            FENSTER_NACH if bank is None or bank.tage_nach is None else bank.tage_nach)
+
+
+def _streng(z) -> bool:
+    modul = anbieter.nach_name(z["anbieter"])
+    return modul is not None and modul.bank.haendler_noetig
 
 
 def _kandidaten(con, z) -> list[dict]:
     offen = z["betrag"] - _zugeordnet(con, json.loads(z["buchung_ids"]))
     if z["zustand"] != "offen" or offen <= 0:
         return []
-    von, bis = _plus(z["datum"], -FENSTER_VOR), _plus(z["datum"], FENSTER_NACH)
+    vor, nach = _fenster(z)
+    von, bis = _plus(z["datum"], -vor), _plus(z["datum"], nach)
     vergeben = _alle_zugeordneten(con)
     vz = "< 0" if z["richtung"] == "ausgabe" else "> 0"
     ids = [r[0] for r in con.execute(
@@ -545,9 +567,11 @@ def automatisch_zuordnen(con, zeitpunkt: str) -> int:
     offene = con.execute("SELECT * FROM erwartung WHERE zustand = 'offen' ORDER BY datum, id").fetchall()
     kand = {z["id"]: _kandidaten(con, z) for z in offene}
     zaehler: dict[int, int] = {}
-    for liste_ in kand.values():
+    streng = {z["id"]: _streng(z) for z in offene}
+    for eid, liste_ in kand.items():
         for k in liste_:
-            if k["betrag_gleich"]:
+            # D-232: bei Anbietern mit haendler_noetig konkurrieren nur Buchungen, in denen der Händler steht
+            if k["betrag_gleich"] and (k["anbieter_passt"] or not streng[eid]):
                 zaehler[k["id"]] = zaehler.get(k["id"], 0) + 1
     n = 0
     vergeben: set[int] = set()
@@ -557,7 +581,7 @@ def automatisch_zuordnen(con, zeitpunkt: str) -> int:
         if not treffer:
             gleich = [x for x in k if x["betrag_gleich"] and x["anbieter_passt"]]
             if len(gleich) == 1 and zaehler.get(gleich[0]["id"]) == 1 \
-                    and len([x for x in k if x["betrag_gleich"]]) == 1:
+                    and (streng[z["id"]] or len([x for x in k if x["betrag_gleich"]]) == 1):
                 treffer = gleich
         if not treffer:
             continue

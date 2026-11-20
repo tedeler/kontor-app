@@ -192,6 +192,10 @@ class Bank:
     glob: str | None = None
     ohne_leerraum: bool = False
     alle_mails: bool = False      # Kennung in allen Mails suchen, nicht nur in denen des Anbieters
+    haendler: re.Pattern | None = None   # Händler im Text der Buchung (Gruppe ``haendler`` oder 1)
+    haendler_noetig: bool = False        # ohne Kennung zählt nur eine Buchung, in der der Händler der Mail steht
+    tage_vor: int | None = None          # Zeitfenster um das Maildatum; None: Vorgabe des Abgleichs
+    tage_nach: int | None = None
 
 
 @dataclass(frozen=True)
@@ -292,6 +296,16 @@ class Anbieter:
 
     # ---------------------------------------------------------------- Bankseite
 
+    def haendler_der_buchung(self, text: str | None) -> str | None:
+        """Händler, wie ihn die Bankbuchung nennt (``bank.haendler``), sonst None."""
+        if self.bank.haendler is None or not text:
+            return None
+        m = self.bank.haendler.search(text[:MAX_TEXT])
+        if not m:
+            return None
+        wert = m.group("haendler") if "haendler" in self.bank.haendler.groupindex else m.group(1)
+        return (wert or "").strip() or None
+
     def kennungen(self, *texte: str | None, mit_leerraum_variante: bool = True) -> list[str]:
         """Kennungen dieses Anbieters in Bank- oder Mailtexten, in der Reihenfolge des ersten Auftretens. Mit
         ``ohne_leerraum`` wird zusätzlich ohne Leerraum gesucht (Bankzeilen brechen Nummern manchmal um)."""
@@ -308,6 +322,35 @@ class Anbieter:
                     if m.group(0) not in aus:
                         aus.append(m.group(0))
         return aus
+
+
+# Wörter, die in vielen Firmennamen stehen und deshalb nichts über den Händler sagen
+_FUELLWOERTER = frozenset("""gmbh mbh ag kg ug ohg gbr se co ltd limited inc llc sarl sa bv nv oy ab the und and der die
+das von fuer für shop store online europe europa deutschland germany international service services com de www net
+handel versand vertrieb group gruppe holding""".split())
+
+
+def _woerter(text: str) -> list[str]:
+    return [w for w in re.findall(r"[0-9a-zäöüß]+", text.casefold()) if len(w) >= 3 and w not in _FUELLWOERTER]
+
+
+def name_in_teilen(name: str | None, text: str | None, bank_haendler: str | None = None) -> bool:
+    """Steht der Händlername der Mail in Teilen im Text der Buchung (D-232)? Es genügt ein aussagekräftiges Wort
+    des Namens (mindestens 4 Zeichen irgendwo im Text, 3 Zeichen nur als ganzes Wort). Banken kürzen Namen und
+    schreiben sie zusammen: Deshalb zählt auch, wenn ein Wort des Händlers aus der Buchung (``bank_haendler``,
+    mindestens 5 Zeichen) der Anfang des zusammengeschriebenen Namens ist."""
+    if not name or not text:
+        return False
+    kompakt = re.sub(r"[^0-9a-zäöüß]", "", text.casefold())
+    woerter = _woerter(name)
+    if not woerter:   # Name nur aus Allerweltswörtern („Shop GmbH“): dann muss er ganz dastehen
+        ganz = re.sub(r"[^0-9a-zäöüß]", "", name.casefold())
+        return len(ganz) >= 4 and ganz in kompakt
+    ganze = set(_woerter(text))
+    if any((len(w) >= 4 and w in kompakt) or w in ganze for w in woerter):
+        return True
+    name_kompakt = "".join(re.findall(r"[0-9a-zäöüß]+", (name or "").casefold()))
+    return any(len(w) >= 5 and name_kompakt.startswith(w) for w in _woerter(bank_haendler or ""))
 
 
 def _art(d, wo: str) -> Mailart:
@@ -367,7 +410,14 @@ def aus_beschreibung(d: dict, quelle: str = "") -> Anbieter:
     if any(a.rolle != "ausgabe" for a in gelesen) and not any(a.rolle == "ausgabe" for a in gelesen):
         raise BeschreibungsFehler("Erstattung und Storno brauchen eine Mailart mit der Rolle ausgabe.")
     b = d.get("bank", {})
-    _nur(b, {"namen", "kennung", "glob", "ohne_leerraum", "alle_mails"}, "bank")
+    _nur(b, {"namen", "kennung", "glob", "ohne_leerraum", "alle_mails", "haendler", "haendler_noetig", "tage_vor",
+             "tage_nach"}, "bank")
+    for feld in ("tage_vor", "tage_nach"):
+        if feld in b and (type(b[feld]) is not int or not 0 <= b[feld] <= 366):
+            raise BeschreibungsFehler(f"bank.{feld}: ganze Zahl von 0 bis 366.")
+    haendler = _muster(b["haendler"], "bank.haendler") if "haendler" in b else None
+    if haendler is not None and haendler.groups < 1:
+        raise BeschreibungsFehler("bank.haendler: Der Ausdruck braucht eine Gruppe (…) für den Händler.")
     namen = b.get("namen", [name])
     if not isinstance(namen, list) or not namen or any(not isinstance(n, str) or len(n.strip()) < 3 for n in namen):
         raise BeschreibungsFehler("bank.namen: Liste von Namen mit mindestens 3 Zeichen.")
@@ -376,7 +426,8 @@ def aus_beschreibung(d: dict, quelle: str = "") -> Anbieter:
         raise BeschreibungsFehler("bank.glob: Text (SQLite-GLOB) mit höchstens 500 Zeichen.")
     bank = Bank(tuple(n.strip().casefold() for n in namen),
                 _muster(b["kennung"], "bank.kennung") if "kennung" in b else None, glob, b.get("ohne_leerraum") is True,
-                b.get("alle_mails") is True)
+                b.get("alle_mails") is True, haendler, b.get("haendler_noetig") is True, b.get("tage_vor"),
+                b.get("tage_nach"))
     return Anbieter(name, titel.strip(), _muster(d.get("absender"), "absender"), rx, tuple(bereiche), gelesen, bank,
                     quelle)
 

@@ -42,6 +42,10 @@ kennung = '(?<![A-Z0-9])K\d{6}(?!\d)'   # so sieht die Kennung im Verwendungszwe
 glob = "*K[0-9][0-9][0-9][0-9][0-9][0-9]*"   # Grobfilter (SQLite-GLOB), spart das Lesen aller Buchungen
 ohne_leerraum = false                   # true: auch ohne Leerraum suchen (Bank bricht die Nummer um)
 alle_mails = false                      # true: Kennung in Mails aller Absender suchen
+haendler = 'Einkauf bei (?P<haendler>[^,]+)'   # optional: Händler, wie ihn die Buchung nennt
+haendler_noetig = false                 # true: ohne Kennung zählt nur eine Buchung mit dem Händler der Mail
+tage_vor = 3                            # Zeitfenster um das Maildatum (Vorgabe 3 Tage davor, 45 danach)
+tage_nach = 45
 ```
 
 Ausdrücke sind Python-`re`; Groß-/Kleinschreibung nur mit `(?i)` egal. In TOML stehen sie am besten in einfachen
@@ -83,6 +87,11 @@ Statt eines Bausteins ist eine Liste erlaubt; der erste mit Ergebnis gilt. Betr�
    beim Empfänger, wird zugeordnet.
 2. **Betrag und Name:** Gibt es genau eine freie Buchung mit dem Betrag im Zeitfenster, in der einer der
    `bank.namen` oder der Händler steht, wird zugeordnet.
+   Mit `haendler_noetig = true` (PayPal: der Anbieter steht in jeder seiner Buchungen) zählt statt `bank.namen`
+   nur der **Händler der Mail, in Teilen**: Es genügt ein aussagekräftiges Wort des Namens im Text der Buchung
+   (Allerweltswörter wie „Shop“ oder „GmbH“ zählen nicht); gekürzte, zusammengeschriebene Namen der Bank
+   („MEDIAMARKTSATU“) werden über `bank.haendler` erkannt. Andere Buchungen gleichen Betrags ohne den Händler
+   stören dann nicht; zwei passende Buchungen bleiben zur Bestätigung von Hand.
 3. **Von Hand:** Alles andere erscheint als Vorschlag unter „Was kommt noch?“.
 
 Mit `KONTOR_MAIL_BESTELLNUMMER=1` gilt zusätzlich, unabhängig von erwarteten Zahlungen: Jede Mail, in der eine
