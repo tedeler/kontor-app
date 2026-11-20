@@ -209,3 +209,60 @@ def test_mails_derselben_zuordnung_stehen_beieinander(tmp_path, browser):
         expect(zeilen.nth(1)).to_have_attribute("data-gruppe-rolle", "ende")
         expect(zeilen.nth(1)).to_contain_text("gehört dazu")
         expect(zeilen.nth(2)).not_to_have_attribute("data-gruppe", str(erste))
+
+
+def _mail_mit_bild(bild_url):
+    return ("From: Laden <laden@example.invalid>\r\nTo: haushalt.eins@example.invalid\r\nSubject: Ihre Bestellung\r\n"
+            "Date: Mon, 03 Jun 2024 10:00:00 +0200\r\nMessage-ID: <bild-1@example.invalid>\r\nMIME-Version: 1.0\r\n"
+            "Content-Type: text/html; charset=utf-8\r\n\r\n"
+            f'<html><body><p>Danke</p><img id="logo" src="{bild_url}" srcset="{bild_url} 2x" onerror="x()">'
+            f'<div style="background:url({bild_url})">Hintergrund</div><script>boese()</script></body></html>\r\n').encode()
+
+
+def test_mail_bilder_serverseitig(tmp_path):
+    from fastapi.testclient import TestClient
+
+    from kontor.app import create_app
+    from kontor.config import KontorConfig
+    c = TestClient(create_app(KontorConfig(datenbank=tmp_path / "k.sqlite3")))
+    giro = c.post("/api/konten", json={"name": "Giro", "art": "girokonto"}).json()["id"]
+    kat = c.post("/api/konten", json={"name": "Essen", "art": "aufwand"}).json()["id"]
+    b = c.post("/api/buchungen", json={"datum": "2024-06-03", "splits": [
+        {"konto_id": giro, "betrag": -500}, {"konto_id": kat, "betrag": 500}]}).json()["id"]
+    adresse = "https://bilder.example.invalid/logo.png?a=1&b=2"
+    dok = c.post("/api/dokumente", params={"buchung_id": [b]},
+                 files={"datei": ("mail.eml", _mail_mit_bild(adresse.replace("&", "&amp;")), "message/rfc822")}).json()["id"]
+    assert c.get(f"/api/dokumente/{dok}/mail/bilder").json() == {"anzahl": 2}
+    ohne = c.get(f"/api/dokumente/{dok}/mail/html")
+    assert "bilder.example.invalid" not in ohne.text and "img-src data:;" in ohne.headers["content-security-policy"]
+    mit = c.get(f"/api/dokumente/{dok}/mail/html", params={"bilder": "ja"})
+    assert "img-src data: https: http:;" in mit.headers["content-security-policy"]
+    assert 'src="https://bilder.example.invalid/logo.png?a=1&amp;b=2"' in mit.text
+    assert "url(https://bilder.example.invalid/logo.png?a=1&amp;b=2)" in mit.text
+    for text in (ohne.text, mit.text):
+        assert "srcset" not in text and "onerror" not in text and "boese" not in text
+    assert "script-src" not in mit.headers["content-security-policy"] and "default-src 'none'" in mit.headers["content-security-policy"]
+
+
+def test_mail_bilder_nachladen_im_kontoblatt(tmp_path, browser):
+    import httpx
+    with server(tmp_path) as (url, _), seite(browser, url, **DESKTOP) as page:
+        c = httpx.Client(base_url=url, trust_env=False, timeout=60)
+        b = c.get("/api/buchungen", params={"pro_seite": 1}).json()["eintraege"][0]
+        konto = b["splits"][0]["konto_id"]
+        # das „fremde“ Bild liegt auf dem eigenen Testserver (nur Loopback)
+        dok = c.post("/api/dokumente", params={"buchung_id": [b["id"]]}, files={
+            "datei": ("mail.eml", _mail_mit_bild(url + "/oeffentlich/icon-192.png"), "message/rfc822")}).json()["id"]
+        page.goto(f"{url}/konten/{konto}?buchung={b['id']}")
+        bereit(page, "konto")
+        tid(page, f"beleg-marke-{b['id']}").click()
+        expect(tid(page, "mail-bilder-leiste")).to_contain_text("2 Bilder von fremden Servern nicht geladen")
+        expect(tid(page, "mail-html")).to_have_attribute("data-bilder", "nein")
+        expect(page.frame_locator('[data-testid="mail-html"]').locator("#logo")).to_have_count(0)
+        tid(page, "mail-bilder-laden").click()
+        expect(tid(page, "mail-html")).to_have_attribute("data-bilder", "ja")
+        bild = page.frame_locator('[data-testid="mail-html"]').locator("#logo")
+        expect(bild).to_be_visible()
+        expect(bild).to_have_js_property("complete", True)
+        assert bild.evaluate("e => e.naturalWidth") > 0
+        expect(tid(page, "mail-bilder-leiste")).to_contain_text("geladen.")

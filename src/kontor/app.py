@@ -1728,9 +1728,19 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
 
     @endpunkt("GET", "/api/dokumente/{dokument_id:int}/mail/html")
     async def dokument_mail_html(request: Request):
+        q = Query(request.query_params)
+        bilder = q.auswahl("bilder", ("ja", "nein")) == "ja"   # D-229: Bilder fremder Server ausdrücklich laden
+        q.pruefen()
         _, daten = await _mail_roh(request)
-        text = await run_in_threadpool(dokumente.mail_html, daten)
-        return _inhalt_antwort(text.encode("utf-8"), "text/html; charset=utf-8", "mail.html", dokumente.CSP_MAIL)
+        text = await run_in_threadpool(dokumente.mail_html, daten, bilder)
+        return _inhalt_antwort(text.encode("utf-8"), "text/html; charset=utf-8", "mail.html",
+                               dokumente.CSP_MAIL_BILDER if bilder else dokumente.CSP_MAIL)
+
+    @endpunkt("GET", "/api/dokumente/{dokument_id:int}/mail/bilder")
+    async def dokument_mail_bilder(request: Request):
+        """D-229: Zahl der Bilder, die die Mail von fremden Servern laden möchte."""
+        _, daten = await _mail_roh(request)
+        return {"anzahl": await run_in_threadpool(dokumente.mail_externe_bilder, daten)}
 
     @endpunkt("GET", "/api/dokumente/{dokument_id:int}/mail/anhaenge/{nr:int}")
     async def dokument_mail_anhang(request: Request):

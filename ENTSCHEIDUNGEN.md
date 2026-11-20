@@ -3200,3 +3200,19 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   dieser Zuordnung“, die folgenden sind eingerückt und zeigen „↳ gehört dazu“; ein Balken am linken Rand
   verbindet die Gruppe (`data-gruppe`, `data-gruppe-rolle` = `kopf`/`folge`/`ende`).
 - **Prüfung:** `tests/test_browser_sammel3.py::test_mails_derselben_zuordnung_stehen_beieinander`.
+
+## D-229 Mail-Ansicht: Bilder fremder Server auf Wunsch nachladen
+
+- **Anlass:** Auftrag vom 2026-11-20: In der Mail-Ansicht des Kontoblatts fehlen die Bilder der Mail. Bisher
+  entfernte die Ansicht jede fremde Bildadresse (Schutz vor Zählpixeln, dokumente.md); das bleibt die Vorgabe.
+- **Nachladen:** Enthält die Mail Bilder fremder Server, zeigt die Ansicht eine Leiste (`mail-bilder-leiste`) mit der
+  Anzahl, dem Knopf „Bilder laden“ (`mail-bilder-laden`) und dem Haken „immer laden“ (`mail-bilder-immer`, gemerkt
+  im Browser unter `kontor.mail.bilder`). Erst dann lädt der Browser die Bilder direkt vom fremden Server; der
+  Kontor-Server ruft nie selbst fremde Adressen ab.
+- **Schnittstelle:** `GET /api/dokumente/{id}/mail/html?bilder=ja` lässt Bildadressen mit `http(s)://` (und `//`,
+  als https) in `<img src>`, `background` und `url(…)` in Stilen stehen und liefert die Inhaltsrichtlinie mit
+  `img-src data: https: http:`; alles andere bleibt wie bisher (keine Skripte, kein `srcset`, kein `@import`, keine
+  Schriften, `sandbox`, kein Referrer). `GET /api/dokumente/{id}/mail/bilder` → `{"anzahl": n}`.
+- **Folge:** Mit geladenen Bildern erfährt der Absender, dass und von welcher Adresse die Mail geöffnet wurde.
+- **Prüfung:** `tests/test_browser_sammel3.py::test_mail_bilder_serverseitig` und
+  `::test_mail_bilder_nachladen_im_kontoblatt` (Bild vom eigenen Testserver, nur Loopback).

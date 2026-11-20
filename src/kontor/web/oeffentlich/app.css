@@ -1475,3 +1475,9 @@ html[data-thema="dunkel"] .mail-zuordnung[data-zustand="erfuellt"] .mail-marke {
 .mail-liste tr[data-gruppe-rolle="folge"] .mail-wer, .mail-liste tr[data-gruppe-rolle="ende"] .mail-wer { padding-left: 1.4rem; }
 .mail-gehoert-dazu { color: var(--text-2); font-size: .85rem; }
 .mail-gruppe-anzahl { margin-top: .1rem; }
+
+/* Mail-Ansicht: Bilder fremder Server auf Wunsch (D-229) */
+.mail-bilder-leiste { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; padding: .35rem .6rem; margin: .3rem 0;
+  border: 1px solid var(--rand); border-radius: 6px; background: var(--hg-2); font-size: .9rem; }
+.mail-bilder-leiste[hidden] { display: none; }
+.mail-bilder-leiste label { display: inline-flex; align-items: center; gap: .25rem; margin-left: auto; }
