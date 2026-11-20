@@ -3242,3 +3242,12 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   (200 000 Zeichen). Beschreibungen sind Dateien des Betreibers, nicht aus der Oberfläche änderbar.
 - **Offen:** Ob der PayPal-Transaktionscode im Verwendungszweck der Bank steht, ist mit echten Auszügen zu prüfen;
   sonst greift für PayPal nur Betrag und Name.
+
+## D-231 Kontoblatt: Summen der markierten Buchungen
+
+- **Anlass:** Auftrag vom 2026-11-20 („markieren von Mails im Kontoblatt“ – gelesen als: markierte Buchungen im
+  Kontoblatt): Beim Markieren immer die Summe der Ausgaben, der Einnahmen und über alles zeigen.
+- Sobald Buchungen markiert sind, stehen neben „n ausgewählt“ drei Beträge aus Sicht des Blatts: Ausgaben
+  (`auswahl-ausgaben`), Einnahmen (`auswahl-einnahmen`) und Summe (`auswahl-summe`), je mit `data-betrag` in Cent;
+  ohne Markierung ist `auswahl-summen` verborgen. Auf dem Handy stehen sie im Auswahlkopf
+  (`auswahl-kopf-summen`). Gerechnet wird mit den geladenen Zeilen in ganzen Cent.

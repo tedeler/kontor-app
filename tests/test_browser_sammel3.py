@@ -266,3 +266,32 @@ def test_mail_bilder_nachladen_im_kontoblatt(tmp_path, browser):
         expect(bild).to_have_js_property("complete", True)
         assert bild.evaluate("e => e.naturalWidth") > 0
         expect(tid(page, "mail-bilder-leiste")).to_contain_text("geladen.")
+
+
+def test_markierte_buchungen_zeigen_summen(tmp_path, browser):
+    import httpx
+    with server(tmp_path) as (url, _), seite(browser, url, **DESKTOP) as page:
+        c = httpx.Client(base_url=url, trust_env=False, timeout=60)
+        konten = {k["name"]: k["id"] for k in c.get("/api/konten").json()}
+        giro = konten["Giro"]
+        gegen = next(i for n, i in konten.items() if n != "Giro")
+        ein = c.post("/api/buchungen", json={"datum": "2024-02-01", "verwendungszweck": "Gutschrift", "splits": [
+            {"konto_id": giro, "betrag": 5000}, {"konto_id": gegen, "betrag": -5000}]}).json()["id"]
+        page.goto(f"{url}/konten/{giro}")
+        bereit(page, "konto")
+        expect(tid(page, "auswahl-summen")).to_be_hidden()
+        ausgaben = [b for b in c.get("/api/buchungen", params={"konto_id": giro, "pro_seite": 50}).json()["eintraege"]
+                    if b["id"] != ein][:2]
+        soll_aus = sum(s["betrag"] for b in ausgaben for s in b["splits"] if s["konto_id"] == giro)
+        assert soll_aus < 0
+        tid(page, f"buchung-{ein}").locator(".zelle-datum").click()
+        expect(tid(page, "auswahl-ausgaben")).to_have_attribute("data-betrag", "0")
+        expect(tid(page, "auswahl-einnahmen")).to_have_attribute("data-betrag", "5000")
+        for b in ausgaben:
+            tid(page, f"buchung-{b['id']}").locator(".zelle-datum").click(modifiers=["Control"])
+        expect(tid(page, "auswahl-anzahl")).to_have_attribute("data-anzahl", "3")
+        expect(tid(page, "auswahl-ausgaben")).to_have_attribute("data-betrag", str(soll_aus))
+        expect(tid(page, "auswahl-einnahmen")).to_have_attribute("data-betrag", "5000")
+        expect(tid(page, "auswahl-summe")).to_have_attribute("data-betrag", str(soll_aus + 5000))
+        page.keyboard.press("Escape")
+        expect(tid(page, "auswahl-summen")).to_be_hidden()

@@ -692,13 +692,15 @@ class Kontoansicht {
     this.anzahlEl = h("span", { tid: "buchungsliste-anzahl", "data-anzahl": "0" });
     this.summeEl = h("span", { tid: "buchungsliste-summe", "data-betrag": "0", class: "betrag" });
     this.auswahlEl = h("span", { tid: "auswahl-anzahl", "data-anzahl": "0", class: "auswahl-anzahl" });
+    // D-231: Summen der markierten Buchungen (Ausgaben, Einnahmen, zusammen)
+    this.auswahlSummenEl = h("span", { tid: "auswahl-summen", class: "auswahl-summen", hidden: true });
     const erfassen = knopf("Buchung erfassen", { tid: "buchung-erfassen",
       onclick: (e) => erfassenDialog(this.konto.id, e.currentTarget) });
     s.append(h("div", { class: "seiten-kopf" }, h("h1", null, this.konto.name),
       h("div", { class: "werkzeuge" }, erfassen,
         knopf("Einstellungen…", { tid: "konto-einstellungen-oeffnen", onclick: (e) => kontoEinstellungen(this.konto, e.currentTarget) }))),
     h("div", { class: "listen-info" }, this.anzahlEl, " · Summe ", this.summeEl, h("span", { class: "auswahl-trenner" }, " · "),
-      this.auswahlEl, this.gruppierungLeiste()));
+      this.auswahlEl, this.auswahlSummenEl, this.gruppierungLeiste()));
     s.append(this.ausdruckFilterAufbauen());
     this.filterLeiste = this.filterAufbauen();
     s.append(this.filterLeiste);
@@ -1835,10 +1837,35 @@ class Kontoansicht {
     const n = this.auswahl.size;
     this.auswahlEl.dataset.anzahl = String(n);
     this.auswahlEl.textContent = n ? `${n} ausgewählt` : "keine Auswahl";
+    this.auswahlSummenZeigen();
     this.mehrfach.hidden = n === 0;
     this.auswahlModusZeigen(n);
     const mitVorschlag = this.eintraege.some((b) => this.auswahl.has(b.id) && b.vorschlag);
     for (const t of ["mehrfach-vorschlag-annehmen", "mehrfach-vorschlag-ablehnen"]) tid(t, this.mehrfach).disabled = !mitVorschlag;
+  }
+
+  /** Summen der markierten Buchungen: Ausgaben, Einnahmen und beides zusammen (D-231), aus Sicht dieses Blatts. */
+  auswahlSummenZeigen() {
+    let aus = 0;
+    let ein = 0;
+    let n = 0;
+    for (const b of this.eintraege) {
+      if (!this.auswahl.has(b.id)) continue;
+      n += 1;
+      const c = b.betrag || 0;
+      if (c < 0) aus += c; else ein += c;
+    }
+    this.auswahlSummenEl.hidden = n === 0;
+    const teile = n === 0 ? [] : [
+      " · Ausgaben ", betragEl("span", aus, { tid: "auswahl-ausgaben" }),
+      " · Einnahmen ", betragEl("span", ein, { tid: "auswahl-einnahmen" }),
+      " · Summe ", betragEl("strong", aus + ein, { tid: "auswahl-summe" })];
+    this.auswahlSummenEl.replaceChildren(...teile);
+    if (this.auswahlKopfSummen) {
+      this.auswahlKopfSummen.replaceChildren(...(n === 0 ? [] : [
+        betragEl("span", aus, { tid: "auswahl-kopf-ausgaben" }), " / ", betragEl("span", ein, { tid: "auswahl-kopf-einnahmen" }),
+        " = ", betragEl("strong", aus + ein, { tid: "auswahl-kopf-summe" })]));
+    }
   }
 
   ids() { return this.eintraege.map((b) => b.id); }
@@ -2419,10 +2446,11 @@ class Kontoansicht {
   // ---------------------------------------------------------------- Auswahlmodus mobil (D-141)
   auswahlKopfAufbauen() {
     this.auswahlKopfText = h("span", { class: "auswahl-kopf-text", tid: "auswahl-kopf-anzahl", "aria-live": "polite" });
+    this.auswahlKopfSummen = h("span", { class: "auswahl-kopf-summen klein", tid: "auswahl-kopf-summen" });
     return h("div", { class: "auswahl-kopf", tid: "auswahl-kopf", role: "toolbar", "aria-label": "Auswahlmodus", hidden: true },
       h("button", { type: "button", class: "knopf-flach auswahl-beenden", tid: "auswahl-beenden", "aria-label": "Auswahl beenden",
         onclick: () => { this.auswahl.clear(); this.auswahlZeigen(); } }, "✕"),
-      this.auswahlKopfText,
+      this.auswahlKopfText, this.auswahlKopfSummen,
       knopf("Alle", { tid: "auswahl-alle", class: "knopf knopf-flach", "aria-label": "Alle geladenen Buchungen auswählen",
         onclick: () => { this.auswahl = new Set(this.ids()); this.auswahlZeigen(); } }));
   }

@@ -1,5 +1,16 @@
 # Ergebnis der Implementierung
 
+## Sammelbranch `feature/sammel3`, Nachträge D-227 bis D-231 (2026-11-20)
+
+- Neu: Zuordnungsspalte des Mail-Blatts als eine Zeile (D-227), Gruppen von Mails derselben Zuordnung (D-228),
+  Bilder fremder Server in der Mail-Ansicht auf Wunsch (D-229), Anbieter-Beschreibungen für den Mail-Abgleich mit
+  Amazon und PayPal (D-230, Schemaversion 15), Summen der markierten Buchungen (D-231).
+- Eigene Tests: **494 / 496** (einschließlich Browser-Rauchtests); rot nur die beiden Versionsanzeige-Tests
+  (D-178). `test_tags_im_kontoblatt_bearbeiten` war im parallelen Lauf einmal rot, einzeln grün (wie bisher).
+  Neu `test_anbieter_eigen.py` (23, darunter der Vergleich der Beschreibungen mit der eingefrorenen Erkennung).
+- Abnahmetests: `tests/app/m20` und `tests/app/m24` (Mail-Abgleich) nach D-230: 112 bestanden, 1 rot
+  (`test_ausgelieferte_umgebungsdatei`, schon auf main rot). Kein neuer Schnelllauf über alles nach D-227.
+
 ## Sammelbranch `feature/sammel3` (iterative Phase, D-218 bis D-226), gegen kontor-tests `c99b6ac`
 
 Stand: 2026-11-19, Implementierungs-Thread. Noch keine Meilenstein-Definition, keine Abnahmetests, nicht auf main.

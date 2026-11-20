@@ -1481,3 +1481,9 @@ html[data-thema="dunkel"] .mail-zuordnung[data-zustand="erfuellt"] .mail-marke {
   border: 1px solid var(--rand); border-radius: 6px; background: var(--hg-2); font-size: .9rem; }
 .mail-bilder-leiste[hidden] { display: none; }
 .mail-bilder-leiste label { display: inline-flex; align-items: center; gap: .25rem; margin-left: auto; }
+
+/* Kontoblatt: Summen der markierten Buchungen (D-231) */
+.auswahl-summen[hidden] { display: none; }
+.auswahl-summen { white-space: nowrap; }
+[data-layout="mobil"] .seite-konto .auswahl-summen { display: none; }   /* mobil stehen sie im Auswahlkopf */
+.auswahl-kopf-summen { white-space: nowrap; margin-left: .5rem; }
