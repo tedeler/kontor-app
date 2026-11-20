@@ -179,13 +179,25 @@ UNKATEGORISIERT = "kontor:unkategorisiert"
 
 def unkategorisiert_id(con) -> int:
     """Technisches Konto „Unkategorisiert“ (synchronisation.md 4.2); bei Bedarf angelegt."""
-    r = con.execute("SELECT id FROM konto WHERE extern_id = ?", (UNKATEGORISIERT,)).fetchone()
-    if r is None:
-        r = con.execute(
-            "INSERT INTO konto (name, art, eltern_id, iban, geschlossen, eroeffnet_am, notiz, extern_id)"
-            " VALUES ('Unkategorisiert', 'eigenkapital', NULL, NULL, 0, NULL, '', ?) RETURNING id",
-            (UNKATEGORISIERT,)).fetchone()
-    return r["id"]
+    return technisches_konto(con, "Unkategorisiert", UNKATEGORISIERT)
+
+
+def technisches_konto(con, name: str, kennung: str) -> int:
+    """Eigenkapitalkonto der obersten Ebene mit fester Kennung; bei Bedarf angelegt. Gibt es dort schon ein
+    gleichnamiges Konto ohne Kennung, wird es übernommen (D-218: Namen je Ebene eindeutig)."""
+    from . import kontonamen
+    r = con.execute("SELECT id FROM konto WHERE extern_id = ?", (kennung,)).fetchone()
+    if r is not None:
+        return r["id"]
+    for k in con.execute("SELECT id, name FROM konto WHERE art = 'eigenkapital' AND eltern_id IS NULL"
+                         " AND extern_id IS NULL ORDER BY id").fetchall():
+        if kontonamen.schluessel(k["name"]) == kontonamen.schluessel(name):
+            con.execute("UPDATE konto SET extern_id = ? WHERE id = ?", (kennung, k["id"]))
+            return k["id"]
+    return con.execute(
+        "INSERT INTO konto (name, art, eltern_id, iban, geschlossen, eroeffnet_am, notiz, extern_id)"
+        " VALUES (?, 'eigenkapital', NULL, NULL, 0, NULL, '', ?) RETURNING id",
+        (kontonamen.freier_name(con, name, "eigenkapital", None), kennung)).fetchone()["id"]
 
 
 def vorschlag_entfernen(con, ids: Iterable[int]) -> None:

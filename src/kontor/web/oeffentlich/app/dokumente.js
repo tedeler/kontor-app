@@ -178,14 +178,41 @@ async function mailAnsicht(dok, betrachten) {
     const text = h("pre", { class: "mail-text", tid: "mail-text" }, m.text);
     const koerper = h("div", { class: "mail-koerper" });
     let ansicht = m.html ? "html" : "text";
+    // D-229: Bilder fremder Server lädt die Ansicht erst auf Wunsch (oder immer, wenn so gemerkt)
+    const BILDER_IMMER = "kontor.mail.bilder";
+    let immer = false;
+    try { immer = localStorage.getItem(BILDER_IMMER) === "immer"; } catch (e) { immer = false; }
+    let bilderAn = immer;
+    let externe = 0;
+    const bilderLeiste = h("div", { class: "mail-bilder-leiste", tid: "mail-bilder-leiste", hidden: true });
+    const bilderLeisteZeichnen = () => {
+      bilderLeiste.hidden = !(externe > 0 && ansicht === "html");
+      if (bilderLeiste.hidden) return;
+      const merken = h("input", { type: "checkbox", tid: "mail-bilder-immer", checked: immer });
+      merken.addEventListener("change", () => {
+        immer = merken.checked;
+        try { if (immer) localStorage.setItem(BILDER_IMMER, "immer"); else localStorage.removeItem(BILDER_IMMER); } catch (e) { /* ohne Speicher */ }
+        if (immer && !bilderAn) { bilderAn = true; zeigen(); }
+      });
+      bilderLeiste.replaceChildren(
+        h("span", null, bilderAn ? `${externe} ${externe === 1 ? "Bild" : "Bilder"} von fremden Servern geladen.`
+          : `${externe} ${externe === 1 ? "Bild" : "Bilder"} von fremden Servern nicht geladen.`),
+        ...(bilderAn ? [] : [knopf("Bilder laden", { class: "knopf knopf-klein", tid: "mail-bilder-laden", onclick: () => { bilderAn = true; zeigen(); } })]),
+        h("label", { class: "klein" }, merken, " immer laden"));
+    };
     const umschalter = m.html ? knopf("", { class: "knopf knopf-klein", tid: "mail-ansicht-umschalten" }) : null;
     const zeigen = () => {
       if (ansicht === "html") {
-        koerper.replaceChildren(h("iframe", { class: "mail-html", tid: "mail-html", src: `/api/dokumente/${dok.id}/mail/html`,
+        koerper.replaceChildren(h("iframe", { class: "mail-html", tid: "mail-html", "data-bilder": bilderAn ? "ja" : "nein",
+          src: `/api/dokumente/${dok.id}/mail/html${bilderAn ? "?bilder=ja" : ""}`,
           sandbox: "allow-popups allow-popups-to-escape-sandbox", referrerpolicy: "no-referrer", title: "Inhalt der E-Mail" }));
       } else koerper.replaceChildren(text);
       if (umschalter) umschalter.textContent = ansicht === "html" ? "Als Text zeigen" : "Formatiert zeigen";
+      bilderLeisteZeichnen();
     };
+    if (m.html) {
+      api("GET", `/api/dokumente/${dok.id}/mail/bilder`).then((r) => { externe = r.anzahl; bilderLeisteZeichnen(); }).catch(() => {});
+    }
     if (umschalter) umschalter.addEventListener("click", () => { ansicht = ansicht === "html" ? "text" : "html"; zeigen(); });
     zeigen();
     const anhaenge = m.anhaenge.filter((a) => !a.inline);
@@ -200,8 +227,9 @@ async function mailAnsicht(dok, betrachten) {
         h("a", { href: `${url}?herunterladen=true`, class: "knopf-link klein", tid: `mail-anhang-laden-${a.nr}`, download: a.dateiname },
           "Herunterladen"));
     })) : null;
-    flaeche.replaceChildren(kopf, umschalter ? h("div", { class: "mail-umschalter" }, umschalter) : null, koerper,
-      anh ? h("h3", { class: "klein" }, "Anhänge") : null, anh);
+    // replaceChildren schreibt null als Wort „null“: leere Teile vorher aussortieren
+    flaeche.replaceChildren(...[kopf, umschalter ? h("div", { class: "mail-umschalter" }, umschalter) : null, bilderLeiste, koerper,
+      anh ? h("h3", { class: "klein" }, "Anhänge") : null, anh].filter(Boolean));
   } catch (e) {
     flaeche.replaceChildren(h("p", { class: "fehler" }, e.message || "Die E-Mail konnte nicht gelesen werden."));
   }

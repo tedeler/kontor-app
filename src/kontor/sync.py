@@ -19,7 +19,7 @@ from dataclasses import dataclass
 import json
 
 from .plugins.fints_diagnose import Diagnose
-from . import abgleich, bankzugang, buch, db, kredite, lernmodell, pflege, protokoll, regeln, vorlagen, wiederkehrend
+from . import abgleich, bankzugang, buch, db, kontonamen, kredite, lernmodell, pflege, protokoll, regeln, vorlagen, wiederkehrend
 from .buch import BESTAND, ApiFehler
 from .config import KontorConfig
 from .fehler import (BankPinFalsch, BankZugangGesperrt, KontorFehler, TanAbgelaufen, TanErforderlich, TanUngueltig)
@@ -566,7 +566,8 @@ class SyncDienst:
                     art = bk.art if bk.art in KONTOARTEN_BESTAND else "girokonto"
                     kid = con.execute(
                         "INSERT INTO konto (name, art, eltern_id, iban, geschlossen, eroeffnet_am, notiz, extern_id)"
-                        " VALUES (?, ?, NULL, ?, 0, NULL, '', NULL)", (name, art, iban)).lastrowid
+                        " VALUES (?, ?, NULL, ?, 0, NULL, '', NULL)",
+                        (kontonamen.freier_name(con, name, art, None), art, iban)).lastrowid
                     if z is not None:
                         wiederhergestellt.append(iban)
                         if z["entscheidung_buchungen"] == "alle":
@@ -1010,7 +1011,7 @@ class SyncDienst:
             sicht = regeln.Sicht(name, u.verwendungszweck, u.betrag, {kid}, datum=u.buchungstag.isoformat(),
                                  iban=gegen_iban, umbuchung=gegen_iban in eigene_ibans)
             empf_id = buch.empfaenger_bestimmen(con, name) if name is not None else None
-            # Stufenfolge (synchronisation.md 15.1): Vorlage → Regel → Standardkategorie → Lernmodell → Unkategorisiert
+            # Stufenfolge (synchronisation.md 15.1): Vorlage → Regel → Lernmodell → Unkategorisiert (Standardkategorie entfallen, D-219)
             rate = kredit_erkennung.erkennen(sicht, u.buchungstag, u.betrag) if kredit_erkennung else None
             erkennung = vorlagen.KEINE if rate is not None else vorlagen.erkennen(vorlagenliste, sicht)
             vorschlag = None  # (kategorie_id, regel_id, quelle, sicherheit)
@@ -1027,14 +1028,8 @@ class SyncDienst:
                 gegen = unk_id
                 if erkennung.art == "keine" and rate is None:
                     regel = regeln.erste_regel(regelliste, sicht)
-                    std = None
-                    if regel is None and empf_id is not None:
-                        std = con.execute("SELECT standardkategorie_id FROM empfaenger WHERE id = ?",
-                                          (empf_id,)).fetchone()["standardkategorie_id"]
                     if regel is not None:
                         vorschlag = (regel["kategorie_id"], regel["id"], "regel", None)
-                    elif std is not None:
-                        vorschlag = (std, None, "standardkategorie", None)
                     elif modell is not None and gegen_iban not in eigene_ibans:
                         v = modell.vorhersage(lernmodell.merkmale(name, u.verwendungszweck, u.betrag))
                         if v.kategorie_id is not None:

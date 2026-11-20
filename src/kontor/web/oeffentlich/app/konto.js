@@ -3,7 +3,7 @@
 import {
   BESTAND, STATUS_TEXT, abfrage, aktion, anhaengen, api, baumFolge, betragEingabe, betragEl, betragLesen, betragText, datumEl,
   datumText, h, kategorien, klasse,
-  kontoNach, kontoPfad, melde, nameAnzeige, neueId, oberflaeche, personLesen, pfadVon, stamm, tid,
+  kontoNach, kontoPfad, melde, nameAnzeige, neueId, oberflaeche, personLesen, personTag, personVonTag, pfadVon, stamm, tid,
 } from "./kern.js";
 import {
   bestaetigen, dialog, dubletteDialog, erfassenDialog, feld, imDialog, kategorieAuswahl, kontextmenue, knopf, knopfLeiste,
@@ -280,6 +280,35 @@ function spaltenSpeichern(variante, breiten) {
   try { localStorage.setItem(SPALTEN_SCHLUESSEL, JSON.stringify(s)); } catch (e) { /* Speicher nicht verfügbar */ }
 }
 
+// Ausgeblendete Spalten (D-224): je Liste die Namen der ausgeblendeten Spalten, im Browser gemerkt. Die Zellen
+// bleiben im Dokument und werden per CSS versteckt; das Raster entsteht dann aus den sichtbaren Spalten.
+const SPALTEN_AUS_SCHLUESSEL = "kontor.spalten.aus";
+const SPALTEN_RASTER = { datum: "6.5rem", empfaenger: "minmax(7rem, 1.2fr)", verwendungszweck: "minmax(8rem, 1.8fr)",
+  kategorie: "minmax(9rem, 1.6fr)", konto: "minmax(7rem, 1.2fr)", tags: "minmax(4rem, .7fr)", status: "6.5rem",
+  betrag: "7.5rem" };
+
+function spaltenAusAlle() {
+  try {
+    const s = JSON.parse(localStorage.getItem(SPALTEN_AUS_SCHLUESSEL));
+    return s && typeof s === "object" && !Array.isArray(s) ? s : {};
+  } catch (e) {
+    return {};
+  }
+}
+
+function spaltenAusLaden(variante, spalten) {
+  const roh = spaltenAusAlle()[variante];
+  const aus = new Set(Array.isArray(roh) ? roh.filter((f) => spalten.some(([x]) => x === f)) : []);
+  if (aus.size >= spalten.length) aus.clear();   // mindestens eine Spalte bleibt sichtbar
+  return aus;
+}
+
+function spaltenAusSpeichern(variante, aus) {
+  const s = spaltenAusAlle();
+  if (aus.size) s[variante] = [...aus]; else delete s[variante];
+  try { localStorage.setItem(SPALTEN_AUS_SCHLUESSEL, JSON.stringify(s)); } catch (e) { /* Speicher nicht verfügbar */ }
+}
+
 const spalteBegrenzen = (w) => Math.min(SPALTE_MAX, Math.max(SPALTE_MIN, Math.round(w)));
 
 // ------------------------------------------------------------------ Markierung der Zeilen (D-130)
@@ -491,6 +520,7 @@ class Kontoansicht {
     this.spalten = this.istKategorie ? SPALTEN_KATEGORIE : SPALTEN;
     this.spaltenVariante = this.istKategorie ? "kategorie" : "konto";
     this.breiten = spaltenLaden(this.spaltenVariante);
+    this.spaltenAus = spaltenAusLaden(this.spaltenVariante, this.spalten);
     this.wiederkehrend = new Set();
     this.mailBestaetigt = new Map();
     this.titel = konto.name;
@@ -662,13 +692,15 @@ class Kontoansicht {
     this.anzahlEl = h("span", { tid: "buchungsliste-anzahl", "data-anzahl": "0" });
     this.summeEl = h("span", { tid: "buchungsliste-summe", "data-betrag": "0", class: "betrag" });
     this.auswahlEl = h("span", { tid: "auswahl-anzahl", "data-anzahl": "0", class: "auswahl-anzahl" });
+    // D-231: Summen der markierten Buchungen (Ausgaben, Einnahmen, zusammen)
+    this.auswahlSummenEl = h("span", { tid: "auswahl-summen", class: "auswahl-summen", hidden: true });
     const erfassen = knopf("Buchung erfassen", { tid: "buchung-erfassen",
       onclick: (e) => erfassenDialog(this.konto.id, e.currentTarget) });
     s.append(h("div", { class: "seiten-kopf" }, h("h1", null, this.konto.name),
       h("div", { class: "werkzeuge" }, erfassen,
         knopf("Einstellungen…", { tid: "konto-einstellungen-oeffnen", onclick: (e) => kontoEinstellungen(this.konto, e.currentTarget) }))),
     h("div", { class: "listen-info" }, this.anzahlEl, " · Summe ", this.summeEl, h("span", { class: "auswahl-trenner" }, " · "),
-      this.auswahlEl, this.gruppierungLeiste()));
+      this.auswahlEl, this.auswahlSummenEl));
     s.append(this.ausdruckFilterAufbauen());
     this.filterLeiste = this.filterAufbauen();
     s.append(this.filterLeiste);
@@ -747,10 +779,26 @@ class Kontoansicht {
     const chips = h("div", { class: "filter-schnell", tid: "filter-schnell", role: "group", "aria-label": "Zeitraum" },
       SCHNELL.map(([w, text]) => h("button", { type: "button", class: "chip", tid: `filter-schnell-${w}`,
         onclick: () => this.zeitraumSetzen(w) }, text)));
-    return h("div", { class: "ausdruck-filter", tid: "ausdruck-filter", role: "search", "aria-label": "Filterausdruck" },
-      h("div", { class: "ausdruck-filter-zeile" }, ausdruckFeld("Filter", this.ausdruckEingabe), leeren, menue,
-        this.bkKnopf),
-      this.zusammenfassungEl, chips);
+    // D-236: am Handy sind Filterfeld, Zeitraum und Gruppierung eingeklappt, damit die Liste oben beginnt;
+    // der Zustand gilt je Kontoblatt und wirkt nur im mobilen Layout (app.css).
+    this.ansichtKnopf = h("button", { type: "button", class: "knopf klein ansicht-umschalter", tid: "ansicht-umschalten",
+      "aria-expanded": "false", onclick: () => this.ansichtUmschalten() }, "Filter und Gruppierung ",
+    h("span", { class: "ansicht-aktiv", "aria-hidden": "true" }, "●"), h("span", { class: "bk-pfeil", "aria-hidden": "true" }, "▸"));
+    this.ausdruckFilterEl = h("div", { class: "ausdruck-filter", tid: "ausdruck-filter", role: "search", "aria-label": "Filterausdruck",
+      "data-ansicht": "zu" },
+    h("div", { class: "ausdruck-filter-zeile" }, this.ansichtKnopf, ausdruckFeld("Filter", this.ausdruckEingabe), leeren, menue,
+      this.bkKnopf),
+    this.zusammenfassungEl,
+    // Zeitraum und Gruppierung teilen sich eine Zeile: die Auswahl-Summen oben verschieben so nichts mehr (D-236)
+    h("div", { class: "ansicht-zeile" }, chips, this.gruppierungLeiste()));
+    return this.ausdruckFilterEl;
+  }
+
+  ansichtUmschalten() {
+    const auf = this.ausdruckFilterEl.dataset.ansicht !== "auf";
+    this.ausdruckFilterEl.dataset.ansicht = auf ? "auf" : "zu";
+    this.ansichtKnopf.setAttribute("aria-expanded", String(auf));
+    this.ansichtKnopf.querySelector(".bk-pfeil").textContent = auf ? "▾" : "▸";
   }
 
   /** Setzt bzw. ersetzt einen einfachen Datumsteil auf oberster Ebene (Schnellauswahl). */
@@ -781,6 +829,7 @@ class Kontoansicht {
     const t = this.filter.filter;
     const alte = Object.entries(ALTE_FILTER).filter(([k]) => this.filter[k] !== undefined)
       .map(([k, text]) => `${text}: ${k.startsWith("betrag") ? betragText(Number(this.filter[k])) : this.filter[k]}`);
+    if (this.ausdruckFilterEl) this.ausdruckFilterEl.dataset.gefiltert = t || alte.length ? "ja" : "nein";
     if (!t && !alte.length) { this.zusammenfassungEl.textContent = ""; return; }
     const teile = [...(t && e && e.gueltig ? e.zusammenfassung : []), ...alte];
     this.zusammenfassungEl.textContent = [...teile, `${this.gesamt} Buchung${this.gesamt === 1 ? "" : "en"}`].join(" · ");
@@ -1283,8 +1332,10 @@ class Kontoansicht {
         stufe("", null, "Keine", "Nicht gruppieren"),
         EBENEN.map((t, i) => stufe("datum", t, EBENE_TEXT[t],
           `Gruppieren bis ${EBENE_TEXT[t]}: ${EBENEN.slice(0, i + 1).map((e) => EBENE_TEXT[e]).join(" → ")}`))),
-      knopf("Alles zusammenklappen", { tid: "gruppierung-zu", disabled: true, onclick: () => this.alleKlappen(true) }),
-      knopf("Alles aufklappen", { tid: "gruppierung-auf", disabled: true, onclick: () => this.alleKlappen(false) }));
+      knopf("Alle zu", { class: "knopf knopf-klein", tid: "gruppierung-zu", disabled: true, title: "Alles zusammenklappen", "aria-label": "Alles zusammenklappen",
+        onclick: () => this.alleKlappen(true) }),
+      knopf("Alle auf", { class: "knopf knopf-klein", tid: "gruppierung-auf", disabled: true, title: "Alles aufklappen", "aria-label": "Alles aufklappen",
+        onclick: () => this.alleKlappen(false) }));
   }
 
   async gruppierungSetzen(art, tiefe) {
@@ -1396,9 +1447,9 @@ class Kontoansicht {
         if ((e.key === "ArrowLeft" && auf) || (e.key === "ArrowRight" && !auf)) { e.preventDefault(); this.gruppeUmschalten(id); }
       } },
     auf ? "▾ " : "▸ ", periodeText(id)),
-    h("span", { class: "perioden-zahl" }, "Eingang ", betragEl("span", bilanz.eingang, { tid: `periode-eingang-${id}` })),
-    h("span", { class: "perioden-zahl" }, "Ausgang ", betragEl("span", bilanz.ausgang, { tid: `periode-ausgang-${id}` })),
-    h("span", { class: "perioden-zahl" }, "Summe ", betragEl("span", bilanz.summe, { tid: `periode-summe-${id}` })),
+    h("span", { class: "perioden-zahl", "data-art": "eingang" }, h("span", { class: "perioden-wort" }, "Eingang "), betragEl("span", bilanz.eingang, { tid: `periode-eingang-${id}` })),
+    h("span", { class: "perioden-zahl", "data-art": "ausgang" }, h("span", { class: "perioden-wort" }, "Ausgang "), betragEl("span", bilanz.ausgang, { tid: `periode-ausgang-${id}` })),
+    h("span", { class: "perioden-zahl", "data-art": "summe" }, h("span", { class: "perioden-wort" }, "Summe "), betragEl("span", bilanz.summe, { tid: `periode-summe-${id}` })),
     h("span", { class: "perioden-anzahl", tid: `periode-anzahl-${id}`, "data-anzahl": String(bilanz.anzahl) },
       bilanz.anzahl === 1 ? "1 Buchung" : `${bilanz.anzahl} Buchungen`));
   }
@@ -1650,15 +1701,15 @@ class Kontoansicht {
     this.istKategorie ? kontoZelle(b) : null,
     h("div", { role: "gridcell", class: "zelle zelle-tags", "data-feld": "tags" },
       b.tags.map((t) => {
-        const person = t.name === "Torsten" || t.name === "Tina";
+        const person = personVonTag(t.name);
         return h("span", { class: person ? "tag tag-person" : "tag", tid: "tag", "data-tag-id": String(t.id),
-          "data-person": person ? t.name : null, title: person ? `Bestätigt von ${t.name}` : t.name }, t.name);
+          "data-person": person, title: person ? `Bestätigt von ${person}` : t.name }, t.name);
       }),
       b.verdacht ? h("span", { class: "tag tag-verdacht", tid: "verdacht", "data-grund": b.verdacht.grund,
         title: b.verdacht.text, "aria-label": b.verdacht.text }, "Verdächtig") : null),
     h("div", { role: "gridcell", class: "zelle zelle-status", "data-feld": "status" }, STATUS_TEXT[b.status] || b.status),
     betragEl("div", b.betrag, { role: "gridcell", class: "zelle zelle-betrag", "data-feld": "betrag" }));
-    const bestaetigtVon = b.tags.filter((t) => t.name === "Torsten" || t.name === "Tina").map((t) => t.name);
+    const bestaetigtVon = b.tags.map((t) => personVonTag(t.name)).filter(Boolean);
     if (bestaetigtVon.length) zeile.dataset.bestaetigt = bestaetigtVon.join(" ");
     if (b.verdacht) zeile.dataset.verdacht = b.verdacht.grund;
     if (b.abgestimmt || b.status === "abgeglichen") zeile.dataset.gesperrt = "ja";
@@ -1716,19 +1767,43 @@ class Kontoansicht {
   breitenFestlegen() {
     const kopf = this.liste.querySelector(".liste-kopf");
     for (const [feld] of this.spalten) {
-      if (this.breiten[feld]) continue;
+      if (this.breiten[feld] || this.spaltenAus.has(feld)) continue;
       const z = kopf && kopf.querySelector(`.zelle-${feld}`);
       this.breiten[feld] = spalteBegrenzen(z ? z.getBoundingClientRect().width : SPALTE_ERSATZ);
     }
   }
 
   breitenAnwenden() {
-    const eigen = this.liste.dataset.kompakt !== "ja" && this.spalten.some(([f]) => this.breiten[f]);
-    this.liste.classList.toggle("spalten-eigen", eigen);
+    const breit = this.liste.dataset.kompakt !== "ja";
+    const aus = breit ? this.spalten.filter(([f]) => this.spaltenAus.has(f)).map(([f]) => f) : [];
+    const festgelegt = this.spalten.some(([f]) => this.breiten[f]);
+    const eigen = breit && (festgelegt || aus.length > 0);
+    this.liste.classList.toggle("spalten-eigen", breit && festgelegt);
+    this.liste.classList.toggle("spalten-raster", eigen && !festgelegt);   // nur ausgeblendet: Raster füllt die Breite
+    if (aus.length) this.liste.dataset.spaltenAus = aus.join(" "); else delete this.liste.dataset.spaltenAus;
     if (eigen) {
-      this.liste.style.setProperty("--spalten",
-        this.spalten.map(([f]) => `${this.breiten[f] || SPALTE_ERSATZ}px`).join(" "));
+      // mit festgelegten Breiten alles in Pixeln (wie bisher); sonst das Raster aus app.css ohne die ausgeblendeten
+      this.liste.style.setProperty("--spalten", this.spalten.filter(([f]) => !aus.includes(f))
+        .map(([f]) => (this.breiten[f] ? `${this.breiten[f]}px` : (festgelegt ? `${SPALTE_ERSATZ}px` : SPALTEN_RASTER[f]))).join(" "));
     } else this.liste.style.removeProperty("--spalten");
+  }
+
+  /** Spalte ein- oder ausblenden (D-224); mindestens eine bleibt sichtbar. */
+  spalteUmschalten(feld) {
+    if (this.spaltenAus.has(feld)) this.spaltenAus.delete(feld);
+    else if (this.spaltenAus.size < this.spalten.length - 1) this.spaltenAus.add(feld);
+    else return;
+    spaltenAusSpeichern(this.spaltenVariante, this.spaltenAus);
+    this.breitenAnwenden();
+  }
+
+  spaltenEintraege() {
+    const letzte = this.spaltenAus.size >= this.spalten.length - 1;
+    return this.spalten.map(([feld, text]) => {
+      const an = !this.spaltenAus.has(feld);
+      return { tid: `km-spalte-${feld}`, text: `${an ? "✓" : " "} ${text}`, aktiv: !(an && letzte),
+        tun: () => this.spalteUmschalten(feld) };
+    });
   }
 
   /** Doppelklick auf den Trenner (wie in Excel): Spalte so breit wie ihr breitester Inhalt (Kopf und geladene Zeilen). */
@@ -1764,8 +1839,9 @@ class Kontoansicht {
   kopfMenue(e) {
     e.preventDefault();
     kontextmenue(e.clientX, e.clientY, [
+      { tid: "km-spalten-wahl", text: "Spalten ein- und ausblenden", kinder: this.spaltenEintraege() },
       { tid: "km-spalten-anpassen", text: "Alle Spalten an den Inhalt anpassen",
-        tun: () => this.spalteAnpassen(this.spalten.map(([f]) => f)) },
+        tun: () => this.spalteAnpassen(this.spalten.map(([f]) => f).filter((f) => !this.spaltenAus.has(f))) },
       { tid: "km-spalten-zuruecksetzen", text: "Spaltenbreiten zurücksetzen", aktiv: this.spalten.some(([f]) => this.breiten[f]),
         tun: () => this.spaltenZuruecksetzen() },
     ], null);
@@ -1780,16 +1856,43 @@ class Kontoansicht {
     const n = this.auswahl.size;
     this.auswahlEl.dataset.anzahl = String(n);
     this.auswahlEl.textContent = n ? `${n} ausgewählt` : "keine Auswahl";
+    this.auswahlSummenZeigen();
     this.mehrfach.hidden = n === 0;
     this.auswahlModusZeigen(n);
     const mitVorschlag = this.eintraege.some((b) => this.auswahl.has(b.id) && b.vorschlag);
     for (const t of ["mehrfach-vorschlag-annehmen", "mehrfach-vorschlag-ablehnen"]) tid(t, this.mehrfach).disabled = !mitVorschlag;
   }
 
+  /** Summen der markierten Buchungen: Ausgaben, Einnahmen und beides zusammen (D-231), aus Sicht dieses Blatts. */
+  auswahlSummenZeigen() {
+    let aus = 0;
+    let ein = 0;
+    let n = 0;
+    for (const b of this.eintraege) {
+      if (!this.auswahl.has(b.id)) continue;
+      n += 1;
+      const c = b.betrag || 0;
+      if (c < 0) aus += c; else ein += c;
+    }
+    this.auswahlSummenEl.hidden = n === 0;
+    const teile = n === 0 ? [] : [
+      " · Ausgaben ", betragEl("span", aus, { tid: "auswahl-ausgaben" }),
+      " · Einnahmen ", betragEl("span", ein, { tid: "auswahl-einnahmen" }),
+      " · Summe ", betragEl("strong", aus + ein, { tid: "auswahl-summe" })];
+    this.auswahlSummenEl.replaceChildren(...teile);
+    if (this.auswahlKopfSummen) {
+      this.auswahlKopfSummen.replaceChildren(...(n === 0 ? [] : [
+        betragEl("span", aus, { tid: "auswahl-kopf-ausgaben" }), " / ", betragEl("span", ein, { tid: "auswahl-kopf-einnahmen" }),
+        " = ", betragEl("strong", aus + ein, { tid: "auswahl-kopf-summe" })]));
+    }
+  }
+
   ids() { return this.eintraege.map((b) => b.id); }
 
   bereich(a, b) {
-    const ids = this.ids();
+    // Reihenfolge wie angezeigt: gruppiert stehen die Buchungen nach Zeitraum, nicht in der Reihenfolge der Liste
+    // (bei Sortierung nach Betrag oder Empfänger griff die Bereichsauswahl sonst quer durch die Zeiträume, D-233)
+    const ids = this.sichtbareIds();
     let i = ids.indexOf(a);
     let j = ids.indexOf(b);
     if (i < 0) i = j;
@@ -2020,7 +2123,7 @@ class Kontoansicht {
   }
 
   // ---------------------------------------------------------------- Bestätigung durch Torsten oder Tina (D-155)
-  bestaetigt(b, name) { return !!(b && b.tags.some((t) => t.name === name)); }
+  bestaetigt(b, name) { return !!(b && b.tags.some((t) => t.name === personTag(name))); }
 
   bestaetigenEintrag(ids) {
     const name = personLesen();
@@ -2032,7 +2135,7 @@ class Kontoansicht {
 
   bestaetigungZeile(b) {
     const name = personLesen();
-    const namen = b.tags.filter((t) => t.name === "Torsten" || t.name === "Tina").map((t) => t.name);
+    const namen = b.tags.map((t) => personVonTag(t.name)).filter(Boolean);
     const hat = name && this.bestaetigt(b, name);
     return h("p", { class: "bestaetigung", tid: "buchung-bestaetigung" },
       namen.length ? ["Bestätigt von ", namen.join(" und "), ". "] : "Noch von niemandem bestätigt. ",
@@ -2046,8 +2149,8 @@ class Kontoansicht {
     if (!name) { melde("hinweis", "Bitte oben rechts wählen, wer du bist."); return; }
     try {
       await aktion(async () => {
-        let t = stamm.tags.find((x) => x.name === name);
-        if (!t && hinzu) t = await api("POST", "/api/tags", { name });
+        let t = stamm.tags.find((x) => x.name === personTag(name));
+        if (!t && hinzu) t = await api("POST", "/api/tags", { name: personTag(name) });
         if (!t) return null;
         await api("POST", "/api/buchungen/mehrfach/tags", {
           buchung_ids: ids, hinzufuegen: hinzu ? [t.id] : [], entfernen: hinzu ? [] : [t.id] });
@@ -2364,10 +2467,11 @@ class Kontoansicht {
   // ---------------------------------------------------------------- Auswahlmodus mobil (D-141)
   auswahlKopfAufbauen() {
     this.auswahlKopfText = h("span", { class: "auswahl-kopf-text", tid: "auswahl-kopf-anzahl", "aria-live": "polite" });
+    this.auswahlKopfSummen = h("span", { class: "auswahl-kopf-summen klein", tid: "auswahl-kopf-summen" });
     return h("div", { class: "auswahl-kopf", tid: "auswahl-kopf", role: "toolbar", "aria-label": "Auswahlmodus", hidden: true },
       h("button", { type: "button", class: "knopf-flach auswahl-beenden", tid: "auswahl-beenden", "aria-label": "Auswahl beenden",
         onclick: () => { this.auswahl.clear(); this.auswahlZeigen(); } }, "✕"),
-      this.auswahlKopfText,
+      this.auswahlKopfText, this.auswahlKopfSummen,
       knopf("Alle", { tid: "auswahl-alle", class: "knopf knopf-flach", "aria-label": "Alle geladenen Buchungen auswählen",
         onclick: () => { this.auswahl = new Set(this.ids()); this.auswahlZeigen(); } }));
   }

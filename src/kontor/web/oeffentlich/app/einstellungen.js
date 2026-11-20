@@ -6,7 +6,7 @@
  *
  * Alle Bereiche werden einmal aufgebaut; gezeigt wird genau einer (`hidden` an den übrigen). Der gewählte Bereich
  * steht im Abfrageteil (`/einstellungen?bereich=bank`), damit die Einstellungen ein einziger Tab bleiben. */
-import { abfrage, aktion, anmeldung, api, h, melde, nachName, oberflaeche, passt, stamm, tid, zeitText } from "./kern.js";
+import { abfrage, aktion, anmeldung, api, erfolgsmeldung, h, melde, nachName, oberflaeche, passt, stamm, tid, zeitText } from "./kern.js";
 import { bestaetigen, dialog, feld, imDialog, knopf, knopfLeiste } from "./ui.js";
 import { layoutZuruecksetzen } from "./konto.js";
 import { bankzugangAbschnitt } from "./bankzugang.js";
@@ -25,6 +25,7 @@ const TITEL = Object.fromEntries(BEREICHE);
  * Element der Einstellung; Einträge ohne Element (z. B. Bankzugang im Mock-Modus) erscheinen nicht in der Suche. */
 const VERZEICHNIS = [
   ["allgemein", "design", "Design (hell, dunkel)", "thema farbe farben dark mode dunkelmodus nachtmodus aussehen darstellung"],
+  ["allgemein", "erfolgsmeldung", "Meldung mit „Rückgängig“ nach Änderungen", "erfolgsmeldung rückgängig anzeige hinweis toast benachrichtigung einblendung undo"],
   ["allgemein", "layout", "Layout zurücksetzen", "spalten breite ansicht panels darstellung"],
   ["allgemein", "betrieb", "Betriebsmodus und Version", "mock echtbetrieb szenario instanz"],
   ["bank", "zugang", "Bankzugang (FinTS)", "hbci server url adresse bankleitzahl blz zugangsnummer benutzerkennung login zugangsdaten"],
@@ -234,9 +235,14 @@ function allgemein(status, kontext, staende) {
     .map(([w, t]) => h("option", { value: w }, t)));
   thema.value = kontext.thema.lesen();
   thema.addEventListener("change", () => { kontext.thema.setzen(thema.value); staende(); });
+  const erfolg = h("input", { type: "checkbox", tid: "einstellung-erfolgsmeldung", checked: erfolgsmeldung.lesen() });
+  erfolg.addEventListener("change", () => erfolgsmeldung.setzen(erfolg.checked));
   return [
     abschnitt("Darstellung",
       h("div", { "data-einstellung": "design" }, feld("Design", thema)),
+      h("div", { "data-einstellung": "erfolgsmeldung" }, h("label", { class: "wahl" }, erfolg,
+        " Nach jeder Änderung eine Meldung mit „Rückgängig“ einblenden"),
+      h("p", { class: "klein" }, "Ausgeschaltet bleibt Rückgängig über die Pfeile in der Kopfzeile und Strg+Z erreichbar. Gilt für diesen Browser.")),
       h("div", { "data-einstellung": "layout" }, knopf("Layout zurücksetzen", { tid: "layout-zuruecksetzen",
         onclick: () => { layoutZuruecksetzen(); melde("erfolg", "Layout zurückgesetzt."); } }),
       h("p", { class: "klein" }, "Stellt Spaltenbreiten, Sortierung und Panels der Kontoansicht auf die Vorgabe zurück."))),

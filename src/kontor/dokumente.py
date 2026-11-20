@@ -40,6 +40,8 @@ MAX_INLINE_BILD = 5 * 1024 * 1024   # eingebettete Bilder einer Mail (cid:) als 
 CSP_MAIL = ("default-src 'none'; img-src data:; style-src 'unsafe-inline'; font-src data:; "
             "frame-ancestors 'self'; base-uri 'none'; form-action 'none'; "
             "sandbox allow-popups allow-popups-to-escape-sandbox")
+# D-229: mit ausdrücklichem „Bilder laden“ darf der Rahmen Bilder von fremden Servern holen (sonst nichts)
+CSP_MAIL_BILDER = CSP_MAIL.replace("img-src data:;", "img-src data: https: http:;")
 CSP_INHALT = "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; frame-ancestors 'self'; sandbox"
 
 
@@ -418,12 +420,30 @@ _JS_URL = re.compile(r"""(?is)(\s(?:href|src|action|xlink:href|formaction|backgr
 _CID = re.compile(r"""(?i)(["'(])cid:([^"')\s>]+)""")
 # externe Adressen in Bildern und Stilen (Zählpixel): gar nicht erst anfragen
 _EXTERN_ATTR = re.compile(r"""(?is)(\s(?:src|srcset|background|poster|lowsrc|dynsrc)\s*=\s*)(?:"[^"]*"|'[^']*'|[^\s>]+)""")
-_EXTERN_CSS = re.compile(r"""(?is)url\(\s*["']?\s*(?:https?:)?//[^)]*\)|@import[^;]*;?""")
 
 
-def mail_html(roh: bytes) -> str:
+_EXTERN_URL = re.compile(r"(?i)^(https?:)?//[^\s\"'<>]+$")
+_CSS_URL = re.compile(r"""(?is)url\(\s*["']?\s*((?:https?:)?//[^)"'\s]*)\s*["']?\s*\)""")
+_CSS_IMPORT = re.compile(r"(?is)@import[^;]*;?")
+_SRCSET = re.compile(r"""(?is)\s(?:srcset|lowsrc|dynsrc)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)""")
+
+
+def mail_html(roh: bytes, bilder_laden: bool = False) -> str:
     """Entschärftes HTML der Mail; eingebettete Bilder (cid:) als data:-URL. Externe Inhalte lädt der Browser
-    wegen ``CSP_MAIL`` nicht; Skripte laufen wegen ``sandbox`` ohnehin nicht."""
+    wegen ``CSP_MAIL`` nicht; Skripte laufen wegen ``sandbox`` ohnehin nicht. Mit ``bilder_laden`` (D-229) bleiben
+    die Adressen fremder Bilder stehen (``CSP_MAIL_BILDER``)."""
+    return _mail_html(roh, bilder_laden)[0]
+
+
+def mail_externe_bilder(roh: bytes) -> int:
+    """Zahl der Bilder, die die Mail von fremden Servern laden möchte (D-229); 0 ohne HTML-Teil."""
+    try:
+        return _mail_html(roh, False)[1]
+    except ApiFehler:
+        return 0
+
+
+def _mail_html(roh: bytes, bilder_laden: bool) -> tuple[str, int]:
     m = _nachricht(roh)
     _, htm, anhaenge = _teile(m)
     if htm is None:
@@ -436,37 +456,62 @@ def mail_html(roh: bytes) -> str:
             nutz = t.get_payload(decode=True)
             if isinstance(nutz, bytes) and len(nutz) <= MAX_INLINE_BILD:
                 bilder[cid] = f"data:{t.get_content_type()};base64,{base64.b64encode(nutz).decode('ascii')}"
+    extern = [0]
+
+    def css(x) -> str:
+        extern[0] += 1
+        return f"url({_extern(x.group(1))})" if bilder_laden else "none"
+
     h = _GEFAEHRLICH.sub("", h)
     h = _RESTTAG.sub("", h)
-    h = _IMG.sub(lambda x: _bild(x.group(0), bilder), h)
+    h = _IMG.sub(lambda x: _bild(x.group(0), bilder, bilder_laden, extern), h)
     h = _EREIGNIS.sub("", h)
     h = _JS_URL.sub(r"\1#", h)
-    h = _EXTERN_ATTR.sub(lambda x: x.group(1) + _attr_wert(x.group(0)[len(x.group(1)):], bilder), h)
-    h = _EXTERN_CSS.sub("none", h)
-    kopf = ('<!DOCTYPE html><html><head><meta charset="utf-8"><base target="_blank">'
+    h = _SRCSET.sub("", h)
+    h = _EXTERN_ATTR.sub(lambda x: x.group(1) + _attr_wert(x.group(0)[len(x.group(1)):], bilder, bilder_laden), h)
+    h = _CSS_IMPORT.sub("", h)
+    h = _CSS_URL.sub(css, h)
+    kopf = ('<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="referrer" content="no-referrer">'
+            '<base target="_blank">'
             '<style>body{font-family:system-ui,sans-serif;margin:12px;color:#111;background:#fff}'
             'img{max-width:100%;height:auto}</style></head><body>')
-    return kopf + h + "</body></html>"
+    return kopf + h + "</body></html>", extern[0]
 
 
-def _bild(tag: str, bilder: dict[str, str]) -> str:
-    """<img>: eingebettete Bilder bleiben (cid: → data:-URL), externe entfallen ganz (kein kaputtes Bild)."""
+def _extern(w: str) -> str:
+    """Fremde Bildadresse, wie sie im Dokument stand (Zeichenreferenzen bleiben), ohne Anführungszeichen und
+    spitze Klammern; ``//host`` wird https."""
+    for zeichen, ersatz in (('"', "%22"), ("'", "%27"), ("<", "%3C"), (">", "%3E")):
+        w = w.replace(zeichen, ersatz)
+    return "https:" + w if w.startswith("//") else w
+
+
+def _bild(tag: str, bilder: dict[str, str], bilder_laden: bool, extern: list[int]) -> str:
+    """<img>: eingebettete Bilder bleiben (cid: → data:-URL); externe entfallen ganz (kein kaputtes Bild), außer
+    mit ``bilder_laden``."""
     m = _IMG_SRC.search(tag)
     w = m.group(1).strip("\"'").strip() if m else ""
     if w.lower().startswith("cid:") and w[4:] in bilder:
         return tag[:m.start()] + f' src="{bilder[w[4:]]}"' + tag[m.end():]
     if re.match(r"(?i)data:image/(png|jpeg|gif|webp);", w):
         return tag
+    if _EXTERN_URL.match(w):
+        extern[0] += 1
+        if bilder_laden:
+            return tag[:m.start()] + f' src="{_extern(w)}"' + tag[m.end():]
     return ""
 
 
-def _attr_wert(wert: str, bilder: dict[str, str]) -> str:
-    """Bildquelle: cid: → eingebettetes Bild, data:image → bleibt, alles andere → leeres Bild."""
+def _attr_wert(wert: str, bilder: dict[str, str], bilder_laden: bool = False) -> str:
+    """Bildquelle: cid: → eingebettetes Bild, data:image → bleibt, fremde Adresse nur mit ``bilder_laden``,
+    alles andere → leeres Bild."""
     w = wert.strip().strip("\"'").strip()
     if w.lower().startswith("cid:"):
         return '"' + bilder.get(w[4:], "data:,") + '"'
     if re.match(r"(?i)data:image/(png|jpeg|gif|webp);", w):
         return '"' + w + '"'
+    if bilder_laden and _EXTERN_URL.match(w):
+        return '"' + _extern(w) + '"'
     return '"data:,"'
 
 
@@ -487,4 +532,4 @@ def anzeige_typ(typ: str) -> str:
 
 
 __all__ = ["anlegen", "verknuepfen", "loesen", "umbenennen", "loeschen", "dokument_lesen", "inhalt_lesen",
-           "mail_lesen", "mail_html", "mail_anhang", "aus_mail", "formen", "belege_je_buchung"]
+           "mail_lesen", "mail_html", "mail_externe_bilder", "mail_anhang", "aus_mail", "formen", "belege_je_buchung"]

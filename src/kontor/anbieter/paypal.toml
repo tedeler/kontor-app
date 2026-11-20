@@ -1,0 +1,44 @@
+# Anbieter-Beschreibung „PayPal“ (D-230). Aufbau und Bausteine: siehe ANBIETER.md.
+name = "paypal"
+titel = "PayPal"
+absender = '(^|\.)paypal\.'
+
+# Jede Mail braucht den 17-stelligen Transaktionscode im Text.
+[kennung]
+muster = '(?i)Transaktions(?:code|nummer|-ID)\s*:?\s*([0-9A-Z]{17})\b'
+suche_in = ["text"]
+
+[[art]]
+name = "erstattung"
+rolle = "erstattung"
+betreff = '(?i)Rückzahlung|Erstattung'
+haendler = { text = '(?i)(?:Rückzahlung|Erstattung)\s+(?:von|durch)\s+(.+?)(?:\s+erhalten)?$', suche_in = "betreff", saeubern = true }
+gesamt = { betrag_nach = '(?i)Rückzahlungsbetrag|Erstatteter Betrag|Betrag der Rückzahlung|Gesamt|Betrag' }
+# Geht die Rückzahlung auf das PayPal-Guthaben, kommt bei der Bank nichts an.
+guthaben = { wenn = '(?i)(gutgeschrieben|überwiesen)\s+(auf|an)\s+(Ihr\s+)?PayPal-?Guthaben', dann = "gesamt" }
+bezug = { text = '(?i)(?:Ursprünglicher?|Original-?)\s*Transaktions(?:code|nummer|-ID)\s*:?\s*([0-9A-Z]{17})\b' }
+
+[[art]]
+name = "zahlung"
+rolle = "ausgabe"
+grund = "paypal"
+betreff = '(?i)Zahlung'
+haendler = { text = '(?i)Zahlung\s+an\s+(.+?)(?:\s+gesendet)?$', suche_in = "betreff", saeubern = true }
+gesamt = { betrag_nach = '(?i)Gesendeter Betrag|Gesamtbetrag|Gesamt|Betrag' }
+guthaben = { betrag_summe_nach = '(?i)PayPal-?Guthaben' }
+# Bezug zur Bestellung beim Händler: Bestell-/Rechnungsnummer, sonst eine Amazon-Bestellnummer im Text.
+bezug = [
+  { text = '(?:Bestell|Rechnungs)(?:nummer|nr\.?)\s*:?\s*([A-Za-z0-9-]{3,40})' },
+  { text = '\b(\d{3}-\d{7}-\d{7})\b' },
+]
+
+# Bankseite (D-232). Die Lastschrift nennt keinen Transaktionscode, nur den Händler:
+#   „PP.1234.PP . HAENDLER, Ihr Einkauf bei HAENDLER“ (EREF: 13-stellige Nummer, die in keiner Mail steht).
+# Zugeordnet wird deshalb nach Heuristik: gleicher Betrag, Buchung höchstens 5 Tage vor oder nach der Mail, und der
+# Händler der Mail steht in Teilen im Text der Buchung.
+[bank]
+namen = ["paypal"]
+haendler = 'PP\.\d{4}\.PP\s*\.\s*(?P<haendler>[^,]*?)\s*,\s*Ihr\s*E'
+haendler_noetig = true
+tage_vor = 5
+tage_nach = 5

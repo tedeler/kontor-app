@@ -92,14 +92,11 @@ def test_rueckgaengig_entfernt_automatische_regel(auto):
     assert automatische(c) == []
 
 
-def test_keine_regel_bei_standardkategorie_oder_vorhandener_regel(auto):
+def test_keine_regel_bei_vorhandener_regel(auto):
     c, buchen, kat, emp = auto
-    assert c.patch(f"/api/empfaenger/{emp['Glanz']}",
-                   json={"standardkategorie_id": kat["Drogerie"]}).status_code == 200
     c.post("/api/regeln", json={"name": "Frisch", "kategorie_id": kat["Lebensmittel"],
                                 "bedingungen": [{"feld": "empfaenger", "operator": "enthaelt", "wert": "frisch"}]})
     for i in range(5):
-        buchen("Glanz", "Drogerie", 10 + i)
         buchen("Frischekorb", "Lebensmittel", 10 + i)
     assert automatische(c) == []
 

@@ -738,7 +738,7 @@ export function kategorienZusammenfuehren(quellen, ausloeser) {
     const info = h("p", { tid: "zusammenfuehren-vorschau", "aria-live": "polite", class: "klein" });
     const ausfuehren = knopf("Zusammenführen", { tid: "zusammenfuehren-ausfuehren", class: "knopf knopf-haupt", disabled: true });
     inhalt.append(suche, liste, h("label", { class: "wahl" }, loeschen, " Quellkategorien danach löschen"
-      + " (Unterkategorien, Regeln und Standardkategorien gehen an das Ziel)"), info, gesperrt,
+      + " (Unterkategorien und Regeln gehen an das Ziel)"), info, gesperrt,
     knopfLeiste(ausfuehren, knopf("Abbrechen", { tid: "zusammenfuehren-abbrechen", onclick: () => d.schliessen(null) })));
     let probe = null;
     const koerper = () => ({ quelle_ids: [...ids], ziel_id: ziel.id, quellen_loeschen: loeschen.checked });

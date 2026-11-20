@@ -8,6 +8,7 @@ Transaktion. Mehrere Apps im selben Prozess teilen keinen Zustand.
 from __future__ import annotations
 
 import hashlib
+import os
 import contextlib
 import datetime as dt
 import functools
@@ -31,9 +32,9 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.staticfiles import StaticFiles
 
 from . import (__version__, ausdruck, auswertungen, berichte, buch, db, export, kredite, lernerklaerung, lernmodell, lernregeln, mock_lerndaten, mail, monatsbericht, pflege, protokoll, regeln,
-               sicherung, statistik, verschieben, vorlagen, wiederkehrend)
+               sicherung, verschieben, vorlagen, wiederkehrend)
 from . import aktualisierung
-from . import abgleich, bankzugang, dokumente, erwartung
+from . import abgleich, anbieter, bankzugang, bestellmail, config_anzeige, dokumente, erwartung, kontonamen
 from . import anmeldung as anm
 from . import version as versionsinfo
 from .geheimnisse import REST_NAMEN
@@ -51,7 +52,7 @@ log = logging.getLogger("kontor")
 
 WEB = pathlib.Path(__file__).parent / "web"
 #: Routen der Oberfläche (oberflaeche.md 3) und Links aus Benachrichtigungen (/buchungen/<id>, /sync/konten)
-SPA_ROUTEN = ["/", "/konten", "/konten/{konto_id:int}", "/kategorien", "/erwartet", "/mail", "/statistik", "/kredite",
+SPA_ROUTEN = ["/", "/konten", "/konten/{konto_id:int}", "/kategorien", "/tags", "/konfiguration", "/erwartet", "/mail", "/kredite",
               "/kredite/{kredit_id:int}", "/berichte", "/berichte/monat", "/import", "/einstellungen", "/protokoll", "/empfaenger", "/regeln", "/lernmodell",
               "/vorlagen", "/dubletten", "/sync", "/sync/konten", "/benachrichtigungen", "/suche", "/tan/{tan_id:int}",
               "/mail/postfaecher/{postfach_id:int}", "/buchungen/{buchung_id:int}"]
@@ -352,6 +353,9 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     pfad = config.aktive_datenbank
     protokolle_absichern()
     db.schema_anlegen(pfad)  # vor der Rückkehr: Datei und Schema existieren
+    anbieter.einrichten(config.anbieter_verzeichnis)  # D-230: zugeladene Anbieter-Beschreibungen
+    pflege.altbestand_umwandeln(pfad)  # D-219: Standardkategorien früherer Versionen werden Regeln
+    kontonamen.altbestand_bereinigen(pfad)  # D-218: gleichnamige Konten früherer Versionen
     modus = "mock" if config.mock_modus else "echt"
     if config.anmeldung:
         anm.Anmeldedienst(config).einrichtung_vorbereiten()  # sicherheit.md 5 Weg 2
@@ -509,6 +513,14 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
         """About-Fenster (D-105): Version, Build, Laufzeit und Schemaversionen."""
         return {**versionsinfo.info(), "modus": modus, "datenbank": str(pathlib.Path(pfad).resolve()),
                 "datenbank_schema": db.SCHEMA_VERSION, "sicherung_schema": sicherung.SCHEMAVERSION}
+
+    @endpunkt("GET", "/api/konfiguration")
+    async def konfiguration(request: Request):
+        """D-235: Konfiguration dieser Instanz zum Nachsehen (später nur im Entwicklermodus). ``umgebung``: die
+        gesetzten ``KONTOR_…``-Variablen des Prozesses, wie sie in der Umgebungsdatei stehen; ``wirksam``: jede
+        Einstellung mit ihrem geltenden Wert und der Vorgabe. Werte, deren Name nach einem Geheimnis klingt,
+        werden nie ausgegeben."""
+        return config_anzeige.anzeige(config, os.environ)
 
     # ------------------------------------------------------------ Aktualisierung (D-107)
     @endpunkt("GET", "/api/update")
@@ -1089,9 +1101,21 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
         pro_seite = q.ganzzahl("pro_seite", minimum=1, maximum=500)
         zuordnung = q.auswahl("zuordnung", ("zugeordnet", "erwartet", "keine"))
         neueste = q.auswahl("reihenfolge", ("aelteste", "neueste")) == "neueste"   # M27 5 (D-171)
+        suche = q.text("suche", 1)   # D-226
+        gruppieren = q.auswahl("gruppieren", ("ja", "nein")) == "ja"   # D-228
         q.pruefen()
         return await lesen(maildienst.nachrichten_liste, postfach_id, seite or 1, pro_seite or 50,
-                           sync.heute().isoformat(), zuordnung, neueste)
+                           sync.heute().isoformat(), zuordnung, neueste, suche, gruppieren)
+
+    @endpunkt("POST", "/api/mail/nachrichten/{nachricht_id:int}/buchung", 201)
+    async def mail_an_buchung(request: Request):
+        """D-226: Mail von Hand als Dokument an eine Buchung hängen."""
+        d = json_koerper(await request.body())
+        if not isinstance(d, dict) or type(d.get("buchung_id")) is not int or set(d) - {"buchung_id"}:
+            raise Validierungsfehler([fehler_eintrag(["body", "buchung_id"], "Genau das Feld 'buchung_id' (ganze Zahl).")])
+        nid = pid(request, "nachricht_id")
+        return await aendern("dokument_aus_mail", mit_uhr(
+            lambda con, z: bestellmail.von_hand(con, nid, d["buchung_id"], z)))
 
     @app.get("/oauth2/rueckruf", include_in_schema=False)
     async def oauth_rueckruf(request: Request):
@@ -1152,6 +1176,16 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     @endpunkt("GET", "/api/empfaenger")
     async def empfaenger_liste(request: Request):
         return await lesen(buch.empfaenger_liste)
+
+    @endpunkt("GET", "/api/empfaenger/anzahlen")
+    async def empfaenger_anzahlen(request: Request):
+        """D-236: Zahl der Buchungen je Empfänger (Spalte der Empfängerliste)."""
+        return await lesen(pflege.empfaenger_anzahlen)
+
+    @endpunkt("GET", "/api/empfaenger/{empfaenger_id:int}/konten")
+    async def empfaenger_konten(request: Request):
+        """D-220: Bestandskonten mit Buchungen dieses Empfängers (für „Anzeigen im Konto“)."""
+        return await lesen(pflege.empfaenger_konten, pid(request, "empfaenger_id"))
 
     @endpunkt("POST", "/api/empfaenger", 201)
     async def empfaenger_anlegen(request: Request):
@@ -1409,19 +1443,6 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
         stichtag = q.datum("stichtag")
         q.pruefen()
         return await lesen(wiederkehrend.uebersicht, stichtag or sync.heute().isoformat())
-
-    @endpunkt("GET", "/api/statistik")
-    async def statistik_analyse(request: Request):
-        """Experimentell (D-145): regelmäßig, Rauschen, ungewöhnlich. Nicht im OpenAPI-Vertrag."""
-        q = Query(request.query_params)
-        konto_id = q.ganzzahl("konto_id", 1)
-        stichtag = q.datum("stichtag")
-        for name in sorted(set(request.query_params.keys()) - {"konto_id", "stichtag"}):
-            q.fehler_melden(name, "Unbekannter Parameter.")
-        if "konto_id" not in request.query_params:
-            q.fehler_melden("konto_id", "Pflichtparameter fehlt.")
-        q.pruefen()
-        return await lesen(statistik.analyse, konto_id, stichtag or sync.heute().isoformat())
 
     @endpunkt("GET", "/api/buchungen/{buchung_id:int}/wiederkehrend")
     async def wiederkehrend_begruendung(request: Request):
@@ -1722,9 +1743,19 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
 
     @endpunkt("GET", "/api/dokumente/{dokument_id:int}/mail/html")
     async def dokument_mail_html(request: Request):
+        q = Query(request.query_params)
+        bilder = q.auswahl("bilder", ("ja", "nein")) == "ja"   # D-229: Bilder fremder Server ausdrücklich laden
+        q.pruefen()
         _, daten = await _mail_roh(request)
-        text = await run_in_threadpool(dokumente.mail_html, daten)
-        return _inhalt_antwort(text.encode("utf-8"), "text/html; charset=utf-8", "mail.html", dokumente.CSP_MAIL)
+        text = await run_in_threadpool(dokumente.mail_html, daten, bilder)
+        return _inhalt_antwort(text.encode("utf-8"), "text/html; charset=utf-8", "mail.html",
+                               dokumente.CSP_MAIL_BILDER if bilder else dokumente.CSP_MAIL)
+
+    @endpunkt("GET", "/api/dokumente/{dokument_id:int}/mail/bilder")
+    async def dokument_mail_bilder(request: Request):
+        """D-229: Zahl der Bilder, die die Mail von fremden Servern laden möchte."""
+        _, daten = await _mail_roh(request)
+        return {"anzahl": await run_in_threadpool(dokumente.mail_externe_bilder, daten)}
 
     @endpunkt("GET", "/api/dokumente/{dokument_id:int}/mail/anhaenge/{nr:int}")
     async def dokument_mail_anhang(request: Request):

@@ -1,5 +1,54 @@
 # Ergebnis der Implementierung
 
+## Sammelbranch `feature/sammel3`, UX-Durchgang D-236 (2026-11-20), gegen kontor-tests `c99b6ac`
+
+- **Umfang:** 14 Funde aus dem UX-Durchgang umgesetzt (ENTSCHEIDUNGEN.md D-236): Mail-Ansicht ohne „null“,
+  Kontoblatt (Betrag klebt rechts, Gruppenbalken in sichtbarer Breite, Auswahl-Summen ohne Sprung, Handy mit
+  eingeklapptem Filter), Mail-Blatt (Handy: Liste zuerst; Desktop: Blättern unten, Betrag in der Zuordnung),
+  Tags, Empfänger (Suche, Buchungszahl, Menü), Dubletten als Gegenüberstellung, „Was kommt noch?“,
+  Finanzübersicht, „Andere schließen“ ab sechs Tabs.
+- **Eigene Tests:** `python -m pytest tests -n 4` → 508 bestanden, 3 rot: die beiden Versionstests (D-178, auf
+  Feature-Branches immer rot) und `test_tags_im_kontoblatt_bearbeiten` (nur im Parallellauf, einzeln grün). Neu:
+  `tests/test_browser_ux.py` (8).
+- **Abnahmetests (Browser, `--voll -m browser`, M8/M11/M12/M17/M22/M26/M28):** 62 rot von 348 – dieselben 62 wie
+  am Stand davor (`f9cd9a1`, Folgen von D-218 bis D-234); durch D-236 kommt kein Test hinzu. Übrige Meilensteine
+  (M13, M15, M16, M18–M21, M23–M25, M27) stichprobenweise gegen den Stand davor verglichen: keine neuen Fehlschläge.
+- **Noch nicht im Vertrag:** `GET /api/empfaenger/anzahlen`, Feld `betrag` der angehängten Buchungen in der
+  Mailliste, neue `data-testid` (`ansicht-umschalten`, `mail-lesen-schliessen`, `empfaenger-suche`,
+  `empfaenger-treffer`, `empfaenger-menue-<id>`, `tag-umbenennen-<id>`, `tag-loeschen-<id>`, `tab-andere-schliessen`).
+
+## Sammelbranch `feature/sammel3`, Nachträge D-227 bis D-231 (2026-11-20)
+
+- Neu: Zuordnungsspalte des Mail-Blatts als eine Zeile (D-227), Gruppen von Mails derselben Zuordnung (D-228),
+  Bilder fremder Server in der Mail-Ansicht auf Wunsch (D-229), Anbieter-Beschreibungen für den Mail-Abgleich mit
+  Amazon und PayPal (D-230, Schemaversion 15), Summen der markierten Buchungen (D-231).
+- Eigene Tests: **494 / 496** (einschließlich Browser-Rauchtests); rot nur die beiden Versionsanzeige-Tests
+  (D-178). `test_tags_im_kontoblatt_bearbeiten` war im parallelen Lauf einmal rot, einzeln grün (wie bisher).
+  Neu `test_anbieter_eigen.py` (23, darunter der Vergleich der Beschreibungen mit der eingefrorenen Erkennung).
+- Abnahmetests: `tests/app/m20` und `tests/app/m24` (Mail-Abgleich) nach D-230: 112 bestanden, 1 rot
+  (`test_ausgelieferte_umgebungsdatei`, schon auf main rot). Kein neuer Schnelllauf über alles nach D-227.
+
+## Sammelbranch `feature/sammel3` (iterative Phase, D-218 bis D-226), gegen kontor-tests `c99b6ac`
+
+Stand: 2026-11-19, Implementierungs-Thread. Noch keine Meilenstein-Definition, keine Abnahmetests, nicht auf main.
+
+- Eigene Tests: **467 / 469** (einschließlich Browser-Rauchtests); neu `test_kontonamen_eigen.py` (7),
+  `test_standardkategorie_eigen.py` (2), `test_browser_sammel3.py` (5); entfallen `test_statistik_eigen.py`. Rot
+  sind nur `test_ueber_fenster` und `test_huelle_zeigt_version_in_der_navigation` (D-178, auf jedem Branch
+  außerhalb von main).
+- Abnahmetests, Schnelllauf in drei Teilen (`-n 4`, ohne `browser`, `leistung`, `langsam`): 2686 bestanden,
+  188 fehlgeschlagen, 43 Fehler, 28 übersprungen. Von den 231 roten sind 200 auch auf main rot (Features, deren
+  Abnahme noch aussteht). **31 sind neu rot, alle als Folge der abgestimmten Änderungen:**
+  - Kontonamen eindeutig (8): `test_konten.py::test_namen_nicht_eindeutig`, `test_idempotenz.py` (2),
+    `m18/test_m18_inhalt_mail.py` (2), `m19/test_m19_import.py` (2), `m4/test_m4_gnucash_zuordnung.py` (1) –
+    die Tests legen gleichnamige Konten auf einer Ebene an bzw. erwarten sie nach einem Import.
+  - Standardkategorie entfallen (10): `m3/test_m3_empfaenger.py` (5), `m3/test_m3_erfassen.py` (1),
+    `m3/test_m3_konto_loeschen.py::test_standardkategorie` (3), `m4/test_m4_vorlagen_sync.py` (1).
+  - Statistische Analyse entfallen (7): `m27/test_m27_statistik.py` (5), `m28/test_m28_routen.py` (2).
+  - Bestätigungs-Tags umbenannt (1): `m27/test_m27_empfaenger_tags.py::test_sicherung_rundreise_mit_empfaenger_tags`.
+  - Branch-Anzeige D-178 (5, nur auf dem Branch): `m13/test_m13_version.py` (4), `m8/test_m8_auslieferung.py` (1).
+- Nicht gelaufen: Volllauf (`--voll`) mit Browsertests der Abnahme.
+
 ## Merge von `feature/berichte` (D-217) ohne Abnahme, gegen kontor-tests `c99b6ac`
 
 - Auf Anweisung vor Meilenstein-Definition und Abnahme gemergt. Eigene Tests auf main: **460 / 460** (inkl.

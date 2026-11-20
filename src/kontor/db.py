@@ -15,7 +15,7 @@ from collections.abc import Iterator
 
 from .text import norm
 
-SCHEMA_VERSION = 14
+SCHEMA_VERSION = 15
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (
@@ -462,7 +462,8 @@ CREATE TABLE IF NOT EXISTS erwartung (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     grund TEXT NOT NULL CHECK (grund IN ('bestellung','paypal','rueckerstattung','manuell')),
     richtung TEXT NOT NULL CHECK (richtung IN ('ausgabe','eingang')),
-    anbieter TEXT CHECK (anbieter IS NULL OR anbieter IN ('amazon','paypal')),
+    -- D-230: Name der Anbieter-Beschreibung (amazon, paypal oder eine zugeladene)
+    anbieter TEXT CHECK (anbieter IS NULL OR (anbieter GLOB '[a-z]*' AND length(anbieter) <= 30)),
     schluessel TEXT UNIQUE,
     kennung TEXT NOT NULL DEFAULT '',
     referenz TEXT NOT NULL DEFAULT '',
@@ -597,6 +598,7 @@ def _migrieren(con: sqlite3.Connection) -> None:
         con.execute("ALTER TABLE vorschlag_neu RENAME TO vorschlag")
         con.execute("CREATE INDEX IF NOT EXISTS vorschlag_regel ON vorschlag(regel_id)")
     _regel_kategorie_optional(con)
+    _erwartung_anbieter_frei(con)
     for sql in _NACH_MIGRATION:
         con.execute(sql)
 
@@ -624,6 +626,26 @@ def _regel_kategorie_optional(con: sqlite3.Connection) -> None:
     con.execute("DELETE FROM regel_automatisch")
     con.executemany("INSERT INTO regel_automatisch (regel_id, empfaenger_id) VALUES (?, ?)", automatisch)
 
+
+
+def _erwartung_anbieter_frei(con: sqlite3.Connection) -> None:
+    """Schemaversion 15 (D-230): ``erwartung.anbieter`` lässt jeden Namen einer Anbieter-Beschreibung zu, nicht nur
+    amazon und paypal. SQLite kann ein CHECK nicht ändern: Tabelle neu aufbauen, Inhalt und Zähler übernehmen."""
+    alt = "anbieter TEXT CHECK (anbieter IS NULL OR anbieter IN ('amazon','paypal'))"
+    neu = "anbieter TEXT CHECK (anbieter IS NULL OR (anbieter GLOB '[a-z]*' AND length(anbieter) <= 30))"
+    sql = con.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'erwartung'").fetchone()["sql"]
+    if alt not in sql:
+        return
+    zaehler = con.execute("SELECT seq FROM sqlite_sequence WHERE name = 'erwartung'").fetchone()
+    con.execute(sql.replace(alt, neu).replace("erwartung", "erwartung_neu", 1))
+    spalten = ", ".join(r["name"] for r in con.execute("PRAGMA table_info(erwartung)"))
+    con.execute(f"INSERT INTO erwartung_neu ({spalten}) SELECT {spalten} FROM erwartung")
+    con.execute("DROP TABLE erwartung")
+    con.execute("ALTER TABLE erwartung_neu RENAME TO erwartung")
+    con.execute("CREATE INDEX IF NOT EXISTS erwartung_zustand ON erwartung(zustand, frist)")
+    con.execute("DELETE FROM sqlite_sequence WHERE name IN ('erwartung', 'erwartung_neu')")
+    if zaehler is not None:
+        con.execute("INSERT INTO sqlite_sequence (name, seq) VALUES ('erwartung', ?)", (zaehler["seq"],))
 
 
 def jetzt_utc() -> str:

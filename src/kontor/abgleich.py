@@ -10,7 +10,7 @@ import datetime as dt
 import logging
 import threading
 
-from . import bestellmail, db, erwartung, protokoll
+from . import anbieter, bestellmail, db, erwartung, protokoll
 from .config import KontorConfig
 
 log = logging.getLogger("kontor.abgleich")
@@ -27,6 +27,7 @@ def nach_ereignis(config: KontorConfig, jetzt: dt.datetime) -> None:
 def laufen(config: KontorConfig, jetzt: dt.datetime) -> dict | None:
     if not config.mail_abgleich:
         return None
+    anbieter.einrichten(config.anbieter_verzeichnis)
     zeit = jetzt.astimezone(dt.timezone.utc).replace(microsecond=0).strftime("%Y-%m-%dT%H:%M:%SZ")
     heute = jetzt.date().isoformat()
     with _SPERRE:

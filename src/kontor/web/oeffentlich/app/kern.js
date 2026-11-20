@@ -156,6 +156,10 @@ export const STATUS_TEXT = { importiert: "Importiert", vorlaeufig: "Vorläufig",
   abgeglichen: "Abgeglichen" };
 /** Haushalt: ein Passwort, zwei Personen. Die Bestätigung einer Buchung trägt diesen Namen. */
 export const PERSONEN = ["Torsten", "Tina"];
+/** Tag der Bestätigung durch eine Person: „B-<Name>“ (D-223). */
+export const personTag = (name) => `B-${name}`;
+/** Person zu einem Bestätigungs-Tag oder null. */
+export const personVonTag = (tagName) => PERSONEN.find((p) => personTag(p) === tagName) || null;
 const PERSON_SCHLUESSEL = "kontor.person";
 let personImSpeicher = "";   // ohne Browser-Speicher gilt die Wahl bis zum Neuladen (M17 1.6, D-170)
 export function personLesen() {
@@ -471,6 +475,16 @@ async function aenderungenSeit(m, lernregeln) {
  * Änderungen (ohne Gruppe „sync:“) als einen Eintrag auf den Rückgängig-Stapel legen, Stand neu zeigen.
  * Gibt das Ergebnis von `ausfuehren` zurück oder wirft den Fehler (nach der Fehlermeldung) weiter.
  */
+/* Erfolgsmeldung mit „Rückgängig“ nach eigenen Änderungen (D-234): ausgeschaltet, bis sie in den Einstellungen
+   dieses Browsers eingeschaltet wird. Rückgängig bleibt über die Kopfzeile und Strg+Z erreichbar. */
+const ERFOLG_SCHLUESSEL = "kontor.meldung.erfolg";
+export const erfolgsmeldung = {
+  lesen() { try { return localStorage.getItem(ERFOLG_SCHLUESSEL) === "an"; } catch (e) { return false; } },
+  setzen(an) {
+    try { if (an) localStorage.setItem(ERFOLG_SCHLUESSEL, "an"); else localStorage.removeItem(ERFOLG_SCHLUESSEL); } catch (e) { /* ohne Speicher */ }
+  },
+};
+
 export async function aktion(ausfuehren, optionen) {
   let gestapelt;
   const reif = new Promise((r) => { gestapelt = r; });   // erledigt, sobald der Stapel feststeht (D-122)
@@ -504,7 +518,7 @@ async function aktionAusfuehren(ausfuehren, o, stapelFertig) {
   stapelFertig();
   if (fehler) {
     if (!o.stillBeiFehler) fehlerMelden(fehler);
-  } else if (o.erfolg) {
+  } else if (o.erfolg && erfolgsmeldung.lesen()) {
     melde("erfolg", typeof o.erfolg === "function" ? o.erfolg(ergebnis) : o.erfolg, { rueckgaengig: true });
   }
   // D-179: automatisch angelegte Regeln melden; Rückgängig nimmt sie zusammen mit der auslösenden Änderung zurück

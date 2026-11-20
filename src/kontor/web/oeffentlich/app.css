@@ -651,6 +651,16 @@ tr.ueberfaellig td { color: var(--gefahr); }
 .spalten-trenner:hover, .spalten-trenner.aktiv { background: linear-gradient(var(--akzent), var(--akzent)) center / 2px 100% no-repeat; }
 .buchungsliste.spalten-eigen { width: max-content; min-width: 100%; }
 .buchungsliste.spalten-eigen .liste-kopf, .buchungsliste.spalten-eigen .zeile { grid-template-columns: var(--spalten); }
+/* ausgeblendete Spalten (D-224) */
+.buchungsliste.spalten-raster .liste-kopf, .buchungsliste.spalten-raster .zeile { grid-template-columns: var(--spalten); }
+.buchungsliste[data-spalten-aus~="datum"] [role="row"] > .zelle-datum { display: none; }
+.buchungsliste[data-spalten-aus~="empfaenger"] [role="row"] > .zelle-empfaenger { display: none; }
+.buchungsliste[data-spalten-aus~="verwendungszweck"] [role="row"] > .zelle-verwendungszweck { display: none; }
+.buchungsliste[data-spalten-aus~="kategorie"] [role="row"] > .zelle-kategorie { display: none; }
+.buchungsliste[data-spalten-aus~="konto"] [role="row"] > .zelle-konto { display: none; }
+.buchungsliste[data-spalten-aus~="tags"] [role="row"] > .zelle-tags { display: none; }
+.buchungsliste[data-spalten-aus~="status"] [role="row"] > .zelle-status { display: none; }
+.buchungsliste[data-spalten-aus~="betrag"] [role="row"] > .zelle-betrag { display: none; }
 .spalten-messer { position: absolute; left: 0; top: 0; visibility: hidden; pointer-events: none; height: 0; overflow: hidden; }
 .spalten-messer > .zelle { width: max-content; max-width: none; overflow: visible; }
 
@@ -1423,3 +1433,170 @@ p > a.mb-marke { margin-left: .3rem; text-decoration: none; color: var(--text); 
 [data-layout="mobil"] .mb-fluss-rahmen { display: none; }
 [data-layout="mobil"] .mb-funke { width: 3.6rem; }
 [data-layout="mobil"] .mb-stufen .knopf { padding: 0 .6rem; }
+
+/* Mail-Blatt (D-226): lesbare Zeilen, Suche, Zuordnen von Hand */
+.mail-werkzeug { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin-bottom: .4rem; }
+.mail-suche { flex: 0 1 18rem; min-width: 10rem; }
+.mail-liste .tabelle { table-layout: fixed; width: 100%; }
+.mail-liste .tabelle th:first-child, .mail-liste td.mail-zeit { width: 6.2rem; white-space: nowrap; }
+.mail-liste .tabelle th:last-child, .mail-liste td.mail-zuordnung-zelle { width: 34%; }
+.mail-liste td { vertical-align: top; }
+.mail-liste td.mail-wer { overflow: hidden; }
+.mail-absender { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mail-betreff { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.mail-postfach { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mail-liste tr[data-zuordnung="keine"] .mail-absender { font-weight: 500; }
+.mail-zuordnen-liste { max-height: 22rem; overflow: auto; border: 1px solid var(--rand); border-radius: 6px; margin: .5rem 0; }
+.mail-zuordnen-zeile { display: grid; grid-template-columns: 5.5rem minmax(0, 1fr) auto 6.5rem; gap: .5rem; align-items: center;
+  padding: .3rem .5rem; cursor: pointer; border-bottom: 1px solid var(--rand); }
+.mail-zuordnen-zeile:last-child { border-bottom: 0; }
+.mail-zuordnen-zeile:hover { background: var(--hg-2); }
+.mail-zuordnen-zeile.gewaehlt { background: var(--auswahl); }
+.mail-zuordnen-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-layout="mobil"] .mail-zuordnen-zeile { grid-template-columns: 5rem minmax(0, 1fr) auto; }
+[data-layout="mobil"] .mail-zuordnen-zeile .grund-marke { display: none; }
+
+/* Mail-Blatt: Zuordnung in der Liste als eine Zeile (D-227) */
+.mail-liste .tabelle th:last-child, .mail-liste td.mail-zuordnung-zelle { width: 40%; }
+.mail-liste .mail-zuordnung { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: .45rem; align-items: baseline; margin: 0; }
+.mail-marke { font-size: .75rem; font-weight: 600; padding: .05rem .45rem; border-radius: 999px; white-space: nowrap;
+  background: var(--hg-3); color: var(--text-2); }
+.mail-zuordnung[data-zustand="erfuellt"] .mail-marke { background: #dcefdf; color: #1b6e2a; }
+html[data-thema="dunkel"] .mail-zuordnung[data-zustand="erfuellt"] .mail-marke { background: #1f3d27; color: #9bd6a6; }
+.mail-zuordnung[data-zustand="ueberfaellig"] .mail-marke { background: color-mix(in srgb, var(--negativ) 16%, transparent); color: var(--negativ); }
+.mail-ziel { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mail-ziel .knopf-link { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
+.mail-betrag { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.mail-ohne { color: var(--text-2); }
+
+/* Mail-Blatt: Mails derselben Zuordnung als Gruppe (D-228) */
+.mail-liste tr[data-gruppe] > td:first-child { box-shadow: inset 3px 0 0 var(--fokus); }
+.mail-liste tr[data-gruppe-rolle="folge"] > td, .mail-liste tr[data-gruppe-rolle="ende"] > td { border-top-color: transparent; }
+.mail-liste tr[data-gruppe-rolle="folge"] .mail-wer, .mail-liste tr[data-gruppe-rolle="ende"] .mail-wer { padding-left: 1.4rem; }
+.mail-gehoert-dazu { color: var(--text-2); font-size: .85rem; }
+.mail-gruppe-anzahl { margin-top: .1rem; }
+
+/* Mail-Ansicht: Bilder fremder Server auf Wunsch (D-229) */
+.mail-bilder-leiste { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; padding: .35rem .6rem; margin: .3rem 0;
+  border: 1px solid var(--rand); border-radius: 6px; background: var(--hg-2); font-size: .9rem; }
+.mail-bilder-leiste[hidden] { display: none; }
+.mail-bilder-leiste label { display: inline-flex; align-items: center; gap: .25rem; margin-left: auto; }
+
+/* Kontoblatt: Summen der markierten Buchungen (D-231) */
+.auswahl-summen[hidden] { display: none; }
+.auswahl-summen { white-space: nowrap; }
+[data-layout="mobil"] .seite-konto .auswahl-summen { display: none; }   /* mobil stehen sie im Auswahlkopf */
+.auswahl-kopf-summen { white-space: nowrap; margin-left: .5rem; }
+
+/* Konfiguration (D-235) */
+.hinweis-kasten { padding: .5rem .7rem; border: 1px solid var(--rand); border-left: 4px solid var(--fokus); border-radius: 6px;
+  background: var(--hg-2); max-width: 60rem; }
+.konfiguration-tabelle code { overflow-wrap: anywhere; }
+.konfiguration-geaendert td:first-child { font-weight: 600; }
+.konfiguration-tabelle td:first-child code, .konfiguration-tabelle td:last-child code { overflow-wrap: normal; white-space: nowrap; }
+
+/* ---------------------------------------------------------------- UX-Durchgang (D-236) */
+/* Kontoblatt: Betrag bleibt beim seitlichen Rollen am rechten Rand stehen, Gruppenbalken so breit wie der sichtbare Teil */
+.listen-spalte { container-type: inline-size; }
+.buchungsliste .zeile { background-color: var(--hg); }
+.buchungsliste[data-kompakt="nein"] [role="row"] > .zelle-betrag { position: sticky; right: 0; z-index: 1; background-color: inherit; }
+.buchungsliste[data-kompakt="nein"] .liste-kopf > .zelle-betrag { background-color: var(--hg-2); }
+@container (max-width: 46rem) {
+  .buchungsliste[data-kompakt="nein"] [role="row"] > .zelle-betrag { box-shadow: -8px 0 8px -8px rgba(0, 0, 0, .35); }
+  /* schmale Liste: kleinere Mindestbreiten, damit Empfänger, Zweck und Kategorie neben dem Betrag Platz finden */
+  .buchungsliste[data-kompakt="nein"]:not(.spalten-eigen):not(.spalten-raster):not(.mit-konto):not(.treffer) :is(.liste-kopf, .zeile) {
+    grid-template-columns: 6.5rem minmax(5.5rem, 1.2fr) minmax(5.5rem, 1.8fr) minmax(6.5rem, 1.6fr) minmax(4rem, .7fr) 6.5rem 7.5rem; }
+  /* Gruppenbalken: nur die Zahlen, damit die Summe sichtbar bleibt */
+  .perioden-balken .perioden-wort, .perioden-balken .perioden-anzahl { display: none; }
+  .perioden-balken [data-art="summe"] { font-weight: 700; margin-left: auto; }
+  .perioden-balken [data-art="summe"]::before { content: "="; font-weight: 400; margin-right: .2rem; }
+}
+.buchungsliste[data-kompakt="nein"] .perioden-balken { position: sticky; left: 0; box-sizing: border-box;
+  width: calc(100cqw - var(--einzug, 0rem) - 2px); flex-wrap: nowrap; white-space: nowrap; overflow: hidden; }
+.perioden-balken[data-ebene="monat"] { --einzug: 1rem; }
+.perioden-balken[data-ebene="abschnitt"] { --einzug: 2rem; }
+.perioden-balken[data-ebene="tag"] { --einzug: 3rem; }
+/* Zeitraum und Gruppierung in einer Zeile; die Auswahl-Summen haben ihre Zeile für sich */
+.ansicht-zeile { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem .8rem; }
+.ansicht-zeile .gruppierung-zeile { margin-left: auto; }
+.listen-info { min-height: 1.75rem; }
+.ansicht-umschalter { display: none; white-space: nowrap; margin-top: .2rem; }
+.ansicht-aktiv { display: none; color: var(--akzent); margin-right: .2rem; }
+[data-gefiltert="ja"] .ansicht-aktiv { display: inline; }
+[data-layout="mobil"] .ansicht-umschalter { display: inline-flex; align-items: center; gap: .2rem; flex: 1 1 auto; }
+[data-layout="mobil"] .ansicht-zeile .gruppierung-zeile { margin-left: 0; }
+[data-layout="mobil"] .ausdruck-filter[data-ansicht="zu"] .ausdruck-filter-zeile > :is(.feld, .knopf-flach),
+[data-layout="mobil"] .ausdruck-filter[data-ansicht="zu"] .ansicht-zeile { display: none; }
+/* Mail-Blatt: Status einzeilig, Werkzeuge in einer Zeile, Blättern unter der Liste, Betreff vor Absender */
+.mail-stand { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mail-stand.fehler { white-space: normal; }
+.mail-listen-spalte { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.mail-listen-spalte .mail-liste { flex: 1 1 auto; }
+.mail-listen-spalte .mail-blaetter { margin: .4rem 0 0; font-size: .9rem; }
+.mail-liste .mail-absender, .mail-liste tr[data-zuordnung="keine"] .mail-absender { font-weight: 400; color: var(--text-2); font-size: .88rem; }
+.mail-liste .mail-betreff { font-weight: 600; -webkit-line-clamp: 1; }
+.mail-liste .mail-zuordnung { grid-template-columns: auto auto minmax(0, 1fr) auto; }
+.mail-liste .mail-betrag { font-weight: 600; }
+[data-layout="mobil"] .mail-werkzeug .mail-suche { flex: 1 1 100%; }
+[data-layout="mobil"] .mail-lesen { padding-top: 2.2rem; }
+.mail-lesen-zu { position: absolute; top: .2rem; right: .2rem; min-width: 40px; min-height: 40px; }
+[data-layout="mobil"] .mail-lesen[hidden] { display: none; }
+/* Tags, Empfänger: Aktionen am Zeilenende, gewählte Zeile deutlich, Datum ohne Umbruch, Sprungziele als Links */
+.zeilen-aktionen { text-align: right; white-space: nowrap; }
+.tag-liste tr.gewaehlt { background: var(--auswahl); box-shadow: inset 4px 0 0 var(--akzent); }
+.tag-liste tr.gewaehlt .tag { font-weight: 700; }
+.einzelbuchungen td[data-datum] { white-space: nowrap; }
+.einzelbuchungen .konto-knoepfe { white-space: nowrap; }
+.konto-knoepfe a.knopf-flach { color: var(--akzent); text-decoration: underline; text-underline-offset: 2px; }
+.konto-knoepfe a.knopf-flach::after { content: " ↗"; text-decoration: none; display: inline-block; }
+[data-layout="mobil"] .tabelle.mobil-karten [data-mk="aktion"] .knopf.knopf-loeschen::before { content: "🗑"; }
+[data-layout="mobil"] .tabelle.mobil-karten [data-mk="aktion"] .knopf + .knopf { margin-left: .6rem; }
+.listen-werkzeug { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .9rem; margin: 0 0 .5rem; }
+.listen-suche { flex: 0 1 20rem; min-width: 10rem; }
+.hilfe-marke { margin-left: auto; cursor: help; color: var(--text-2); }
+.empfaenger-liste tr[hidden] { display: none; }
+/* Dubletten: Gegenüberstellung */
+.dubletten-titel { margin: 0 0 .4rem; font-weight: 600; }
+.dubletten-titel small { font-weight: 400; }
+.dubletten-vergleich { width: 100%; table-layout: fixed; margin: 0 0 .5rem; }
+.dubletten-vergleich th { width: 9rem; text-align: left; font-weight: 400; color: var(--text-2); }
+.dubletten-vergleich td { overflow-wrap: anywhere; vertical-align: top; }
+.dubletten-vergleich tr[data-abweichung="ja"] td { background: color-mix(in srgb, #e6a700 22%, transparent); font-weight: 600; }
+[data-layout="mobil"] .dubletten-vergleich th { width: 5.5rem; font-size: .82rem; }
+/* Was kommt noch?: überfällig färbt nur Frist und Zustand, nicht die ganze Zeile */
+tr.ueberfaellig td { color: inherit; }
+tr.ueberfaellig td.e-zustand, tr.ueberfaellig td.e-frist { color: var(--gefahr); font-weight: 600; }
+/* Finanzübersicht */
+.kachel-zahl { margin-left: .6rem; }
+/* Tabs aufräumen */
+.tab-aufraeumen { flex: none; align-self: center; margin-left: .5rem; border: 0; background: none; color: var(--text-2); font: inherit;
+  font-size: .82rem; cursor: pointer; padding: .2rem .5rem; border-radius: var(--radius); white-space: nowrap; position: sticky; right: 0;
+  background: var(--hg-2); }
+.tab-aufraeumen:hover, .tab-aufraeumen:focus-visible { color: var(--text); text-decoration: underline; }
+[data-layout="mobil"].tabs-offen .tab-aufraeumen { position: static; align-self: stretch; text-align: left; min-height: 44px; padding: .6rem 1rem; }
+.buchungsliste[data-kompakt="nein"] .zeile[data-markierung="kategorisiert"]:not(:hover):not([aria-selected="true"]) > .zelle-betrag { background-color: color-mix(in srgb, var(--mark-gruen) 7%, var(--hg)); }
+.buchungsliste[data-kompakt="nein"] .zeile[data-markierung="importiert"]:not(:hover):not([aria-selected="true"]) > .zelle-betrag { background-color: color-mix(in srgb, var(--mark-grau) 7%, var(--hg)); }
+.buchungsliste[data-kompakt="nein"] .zeile[data-markierung="abgeglichen"]:not(:hover):not([aria-selected="true"]) > .zelle-betrag { background-color: color-mix(in srgb, var(--mark-gruen) 10%, var(--hg)); }
+.gruppierung-zeile .knopf-klein { margin-left: 0; min-height: 28px; }
+/* Mail-Blatt am Handy: je Mail eine Karte (Betreff und Zeit oben, Zuordnung darunter), Filter in einer rollbaren Zeile */
+[data-layout="mobil"] .mail-liste .tabelle, [data-layout="mobil"] .mail-liste tbody { display: block; }
+[data-layout="mobil"] .mail-liste thead { display: none; }
+[data-layout="mobil"] .mail-liste tbody tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "wer zeit" "zu zu";
+  gap: .15rem .6rem; padding: .5rem .6rem; border-bottom: 1px solid var(--rand); }
+[data-layout="mobil"] .mail-liste td { display: block; padding: 0; border: 0; width: auto; }
+[data-layout="mobil"] .mail-liste td.mail-wer { grid-area: wer; }
+[data-layout="mobil"] .mail-liste td.mail-zeit { grid-area: zeit; width: auto; text-align: right; font-size: .82rem; color: var(--text-2); }
+[data-layout="mobil"] .mail-liste td.mail-zuordnung-zelle { grid-area: zu; width: auto; }
+[data-layout="mobil"] .mail-liste .mail-ohne { display: none; }
+[data-layout="mobil"] .mail-werkzeug .chip-leiste { display: flex; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; gap: .3rem; width: 100%; }
+[data-layout="mobil"] .mail-werkzeug .chip-leiste > * { flex: none; }
+.tabelle td.zeilen-aktionen { text-align: right; }
+.tag-liste { max-width: 44rem; }
+[data-layout="mobil"] .tag-liste { max-width: none; }
+[data-layout="mobil"] .mail-liste tr[data-gruppe] > td:first-child { box-shadow: none; }
+[data-layout="mobil"] .mail-liste tr[data-gruppe] { box-shadow: inset 3px 0 0 var(--fokus); }
+[data-layout="mobil"] .tabelle.mobil-karten [data-mk="aktion"] .knopf.knopf-bestaetigen::before { content: "✓"; }
+.dubletten-vergleich th { width: 10.5rem; }
+.tab-leiste { scroll-padding-right: 9.5rem; }
+/* Trenner der überdeckten Spalten bleiben über der klebenden Betragsspalte greifbar (Spaltenbreiten, M22) */
+.buchungsliste[data-kompakt="nein"] .liste-kopf .spalten-trenner { z-index: 3; }

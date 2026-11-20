@@ -34,7 +34,7 @@ import zipfile
 import zlib
 from typing import Any
 
-from . import __version__, buch, db, dokumente, erwartung, kredite, mail, protokoll, regeln, vorlagen
+from . import __version__, buch, db, dokumente, erwartung, kontonamen, kredite, mail, pflege, protokoll, regeln, vorlagen
 from .config import KontorConfig
 from .text import ekey
 from .validierung import ApiFehler, datum_gueltig
@@ -770,6 +770,9 @@ def einspielen(con, s: Sicherung, zeitpunkt: str) -> dict:
                     con.execute("INSERT INTO sqlite_sequence (name, seq) VALUES (?, ?)", (tabelle, neu))
                 elif neu != hier:
                     con.execute("UPDATE sqlite_sequence SET seq = ? WHERE name = ?", (neu, tabelle))
+            pflege.standardkategorien_umwandeln(con)  # D-219: ältere Sicherungen können Standardkategorien enthalten
+            pflege.personentags_umbenennen(con)  # D-223
+            kontonamen.bereinigen(con)  # D-218: ältere Sicherungen können gleichnamige Konten enthalten
     aid = k.aenderung_id if erg["geaendert"] else None
     return _ergebnis(s, False, erg["geaendert"], aid, erg["unterschied"], erg["betroffen"])
 

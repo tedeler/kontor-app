@@ -153,6 +153,8 @@ class KontorConfig:
     oeffentliche_url: str | None = None
     geheimnis_schluessel_datei: pathlib.Path | None = None
     tls_ca_datei: pathlib.Path | None = None
+    # D-230: Verzeichnis mit zusätzlichen Anbieter-Beschreibungen (*.toml) für den Abgleich von Mails und Buchungen
+    anbieter_verzeichnis: pathlib.Path | None = None
     # Meilenstein 7: Anmeldung, Härtung, Betrieb (python-api.md 14.1)
     anmeldung: bool = False
     sitzung_leerlauf_sekunden: int = 86400
@@ -258,7 +260,7 @@ class KontorConfig:
         if self.bank_pin_quelle not in PIN_QUELLEN:
             raise KonfigurationsFehler("bank_pin_quelle muss „eingabe“ oder „systemd-creds“ sein.",
                                        feld="bank_pin_quelle")
-        for feld in ("credentials_verzeichnis", "geheimnis_schluessel_datei", "tls_ca_datei"):
+        for feld in ("credentials_verzeichnis", "geheimnis_schluessel_datei", "tls_ca_datei", "anbieter_verzeichnis"):
             wert = getattr(self, feld)
             if wert is not None:
                 if isinstance(wert, str) and not wert:
@@ -475,7 +477,8 @@ def _m6_aus_umgebung(wert) -> dict:
             aus[feld] = text
     for feld, variable in (("credentials_verzeichnis", "CREDENTIALS_DIRECTORY"),
                            ("geheimnis_schluessel_datei", "KONTOR_GEHEIMNIS_SCHLUESSEL_DATEI"),
-                           ("tls_ca_datei", "KONTOR_TLS_CA_DATEI")):
+                           ("tls_ca_datei", "KONTOR_TLS_CA_DATEI"),
+                           ("anbieter_verzeichnis", "KONTOR_ANBIETER_VERZEICHNIS")):
         text = wert(variable)
         if text:
             aus[feld] = pathlib.Path(text)

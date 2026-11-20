@@ -1,7 +1,7 @@
 /* Kontor – Seiten außer der Kontoansicht (oberflaeche.md 6, 13, 14). */
 import {
   BESTAND, STATUS_TEXT, abfrage, aktion, anmeldung, api, baumFolge, betragEl, betragLesen, betragText, datumEl,
-  datumText, h, kategorien, kontoNach, kontoPfad, melde, mobilKarten, nachName, nameAnzeige, neueId, oberflaeche, personLesen, pfadVon, sichtbar, stamm, tid, zeitEl,
+  datumText, h, kategorien, kontoNach, kontoPfad, melde, mobilKarten, nachName, nameAnzeige, neueId, oberflaeche, personLesen, personTag, personVonTag, pfadVon, sichtbar, stamm, tid, zeitEl,
   zeitText,
 } from "./kern.js";
 import {
@@ -9,7 +9,7 @@ import {
   kontoDialog, menuePosition, zuordnungDialog,
 } from "./ui.js";
 import { kategorienBaum, kontoMenue, langeBeruehrung } from "./baum.js";
-import { regelnSeite } from "./regeleditor.js";
+import { regelEditor, regelnSeite } from "./regeleditor.js";
 
 const kopf = (seite, titel, ...werkzeuge) => {
   seite.append(h("div", { class: "seiten-kopf" }, h("h1", null, titel),
@@ -99,11 +99,11 @@ export async function uebersicht(seite) {
   geschlossene.addEventListener("change", zeichnen);
   zeichnen();
   // Kategorien: abgesetzter, einklappbarer Bereich (22.1), Zustand im Browser-Speicher
-  const umschalten = h("button", { type: "button", class: "knopf knopf-flach", tid: "uebersicht-kategorien-umschalten",
+  const umschalten = h("button", { type: "button", class: "knopf", tid: "uebersicht-kategorien-umschalten",
     "aria-controls": "uebersicht-kategorien-inhalt" });
   const setzen = (offen) => {
     umschalten.setAttribute("aria-expanded", offen ? "true" : "false");
-    umschalten.textContent = offen ? "Kategorien ausblenden" : "Kategorien einblenden";
+    umschalten.textContent = (offen ? "▾ " : "▸ ") + (offen ? "Kategorien ausblenden" : "Kategorien einblenden");
     kategorienInhalt.hidden = !offen;
   };
   setzen(speicherLesen(KATEGORIEN_OFFEN) === "ja");
@@ -132,8 +132,7 @@ export async function uebersicht(seite) {
     const e = await api("GET", "/api/erwartungen?grund=bestellung&grund=paypal&grund=rueckerstattung&grund=manuell");
     if (e.aktiv) {
       seite.append(h("a", { href: "/erwartet", class: "karte kachel-erwartet", tid: "kachel-erwartet" },
-        h("strong", null, "Was kommt noch?"), " ",
-        `${e.anzahl} offen`, e.ueberfaellig ? h("span", { class: "warnung" }, ` · ${e.ueberfaellig} überfällig`) : "",
+        h("strong", null, "Was kommt noch?"), h("span", { class: "kachel-zahl" }, `${e.anzahl} offen`), e.ueberfaellig ? h("span", { class: "warnung" }, ` · ${e.ueberfaellig} überfällig`) : "",
         " · ", betragEl("span", e.summe_offen)));
     }
   } catch { /* ohne Kachel */ }
@@ -182,6 +181,111 @@ export async function kategorienSeite(seite) {
     + "Mit Strg/Umschalt (oder Leertaste) mehrere markieren und über das Kontextmenü „Zusammenführen in…“ "
     + "ihre Buchungen in eine andere Kategorie überführen."), ort);
   return { titel: "Kategorien" };
+}
+
+// ------------------------------------------------------------------ Konfiguration (D-235)
+/** Zeigt die Konfiguration der Instanz (Umgebungsdatei und geltende Werte). Nur lesend; zieht später in einen
+ *  Entwicklermodus um. */
+export async function konfigurationSeite(seite) {
+  kopf(seite, "Konfiguration");
+  const k = await api("GET", "/api/konfiguration");
+  const wert = (w) => (w === null || w === undefined ? h("span", { class: "klein" }, "–")
+    : w === true ? "ja" : w === false ? "nein" : h("code", null, String(w)));
+  const nurGeaendert = h("input", { type: "checkbox", tid: "konfiguration-nur-geaendert" });
+  const wirksam = h("div", { tid: "konfiguration-wirksam-rahmen" });
+  const wirksamZeichnen = () => {
+    const liste = k.wirksam.filter((e) => !nurGeaendert.checked || e.geaendert);
+    wirksam.replaceChildren(tabelle({ class: "tabelle konfiguration-tabelle", tid: "konfiguration-wirksam" },
+      ["Einstellung", "Gilt", "Vorgabe", "Variable"], liste.map((e) => h("tr", {
+        tid: `konfiguration-${e.name}`, "data-geaendert": e.geaendert ? "ja" : "nein", class: e.geaendert ? "konfiguration-geaendert" : null },
+      h("td", null, h("code", null, e.name)), h("td", null, wert(e.wert)), h("td", null, wert(e.vorgabe)),
+      h("td", null, h("code", { class: e.gesetzt ? null : "klein" }, e.variable), e.gesetzt ? " (gesetzt)" : ""))),
+      ["titel", "info:Gilt", "info:Vorgabe", "info:Variable"]));
+  };
+  nurGeaendert.addEventListener("change", wirksamZeichnen);
+  seite.append(
+    h("p", { class: "hinweis-kasten", tid: "konfiguration-hinweis" },
+      "Nur zum Nachsehen: Diese Seite zeigt, was in der Umgebungsdatei steht und was daraus gilt. Ändern lässt es sich nur "
+      + "in der Datei, danach Kontor neu starten. Die Seite zieht später in einen Entwicklermodus um."),
+    h("section", { class: "karte" }, h("h2", null, "In der Umgebung gesetzt"),
+      k.umgebung.length ? tabelle({ class: "tabelle konfiguration-tabelle", tid: "konfiguration-umgebung" }, ["Variable", "Wert"],
+        k.umgebung.map((e) => h("tr", { tid: `umgebung-${e.variable}`, "data-bekannt": e.bekannt ? "ja" : "nein" },
+          h("td", null, h("code", null, e.variable), e.bekannt ? "" : h("span", { class: "klein", title: "Kontor kennt diese Variable nicht (Tippfehler oder veraltet?)" }, " unbekannt")),
+          h("td", null, e.verborgen ? h("span", { class: "klein" }, "verborgen") : h("code", null, e.wert)))),
+        ["titel", "info:Wert"])
+        : leer("Keine KONTOR_-Variable gesetzt; es gelten die Vorgaben (oder die Instanz wurde ohne Umgebungsdatei gestartet).")),
+    h("section", { class: "karte" }, h("h2", null, "Was gilt"),
+      h("label", { class: "wahl" }, nurGeaendert, " nur Abweichungen von der Vorgabe"), wirksam));
+  wirksamZeichnen();
+  return { titel: "Konfiguration" };
+}
+
+// ------------------------------------------------------------------ Tags (D-225)
+function tagDialog(t, ausloeser) {
+  dialog("tag-dialog", t ? `Tag „${t.name}“ umbenennen` : "Tag anlegen", (inhalt, d) => {
+    const n = h("input", { type: "text", value: t ? t.name : "", maxlength: "100", tid: "tag-name" });
+    const ok = knopf("Speichern", { class: "knopf knopf-haupt", tid: "tag-speichern" });
+    ok.addEventListener("click", () => imDialog(d, ok, () => aktion(
+      () => (t ? api("PATCH", `/api/tags/${t.id}`, { name: n.value.trim() }) : api("POST", "/api/tags", { name: n.value.trim() })),
+      { stillBeiFehler: true, danach: () => d.schliessen(true), erfolg: t ? "Tag umbenannt." : "Tag angelegt." })));
+    n.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); ok.click(); } });
+    inhalt.append(feld("Name", n), knopfLeiste(ok, knopf("Abbrechen", { onclick: () => d.schliessen(null) })));
+  }, { ausloeser });
+}
+
+/** Tags wie die Kategorien als eigene Ansicht: Liste aller Tags, darunter die Buchungen des gewählten Tags. */
+export async function tagsSeite(seite, _p, suche) {
+  kopf(seite, "Tags", knopf("Tag anlegen", { tid: "tag-anlegen", onclick: (e) => tagDialog(null, e.currentTarget) }));
+  const liste = stamm.tags.slice().sort(nachName);
+  if (!liste.length) { seite.append(leer("Noch keine Tags.")); return { titel: "Tags" }; }
+  let gewaehlt = Number(new URLSearchParams(suche || "").get("tag")) || null;
+  if (!liste.some((t) => t.id === gewaehlt)) gewaehlt = null;
+  const inhalt = h("section", { class: "karte", tid: "tag-buchungen", "aria-live": "polite" });
+  const zeilen = new Map();
+  const zeigen = async () => {
+    for (const [id, tr] of zeilen) {
+      tr.classList.toggle("gewaehlt", id === gewaehlt);
+      tr.setAttribute("aria-selected", id === gewaehlt ? "true" : "false");
+    }
+    history.replaceState(null, "", "/tags" + abfrage(gewaehlt ? { tag: gewaehlt } : {}));
+    if (oberflaeche.urlGeaendert) oberflaeche.urlGeaendert();
+    const t = liste.find((x) => x.id === gewaehlt);
+    if (!t) { inhalt.replaceChildren(h("p", { class: "leer" }, "Ein Tag wählen, um seine Buchungen zu sehen.")); return; }
+    inhalt.replaceChildren(h("h2", null, `Buchungen mit „${t.name}“`), h("p", { class: "leer" }, "Buchungen werden geladen…"));
+    try {
+      const r = await api("GET", `/api/buchungen${abfrage({ tag_id: t.id, sortierung: "-datum", pro_seite: MAX_EINZELBUCHUNGEN })}`);
+      if (gewaehlt !== t.id) return;
+      const summe = r.eintraege.reduce((n, b) => n + b.splits.filter((s) => BESTAND.has((kontoNach(s.konto_id) || {}).art))
+        .reduce((m, s) => m + s.betrag, 0), 0);
+      inhalt.replaceChildren(h("h2", null, `Buchungen mit „${t.name}“`),
+        h("p", { class: "klein", tid: "tag-summe" }, `${r.gesamt} ${r.gesamt === 1 ? "Buchung" : "Buchungen"} · Summe `, betragEl("span", summe),
+          r.gesamt > r.eintraege.length ? ` (der neuesten ${r.eintraege.length})` : ""),
+        r.eintraege.length ? buchungsTabelle(r.eintraege, new Set(), "tag") : h("p", { class: "leer" }, "Keine Buchung trägt dieses Tag."));
+    } catch (e) {
+      inhalt.replaceChildren(h("p", { class: "fehler", role: "alert" }, e.message));
+    }
+  };
+  const tab = tabelle({ class: "tabelle tag-liste", tid: "tag-liste" }, ["Tag", "Buchungen", ""], liste.map((t) => {
+    const person = personVonTag(t.name);
+    const tr = h("tr", { tid: `tag-zeile-${t.id}`, "data-id": String(t.id), class: "klickbar", tabindex: "0", "aria-selected": "false" },
+      h("td", null, h("span", { class: person ? "tag tag-person" : "tag", "data-person": person }, t.name)),
+      h("td", { class: "zahl" }, String(t.anzahl_buchungen)),
+      h("td", { class: "zeilen-aktionen" }, knopf("Umbenennen…", { class: "knopf knopf-klein", tid: `tag-umbenennen-${t.id}`,
+        "aria-label": `Tag ${t.name} umbenennen`, onclick: (e) => tagDialog(t, e.currentTarget) }),
+        knopf("Löschen", { class: "knopf knopf-klein knopf-loeschen", tid: `tag-loeschen-${t.id}`, "aria-label": `Tag ${t.name} löschen`, onclick: async (e) => {
+          if (!(await bestaetigen(`Tag „${t.name}“ löschen? Es wird von ${t.anzahl_buchungen} Buchungen entfernt.`,
+            { ja: "Löschen", ausloeser: e.currentTarget }))) return;
+          try { await aktion(() => api("DELETE", `/api/tags/${t.id}`), { erfolg: "Tag gelöscht." }); } catch (f) { /* gemeldet */ }
+        } })));
+    const waehlen = () => { gewaehlt = gewaehlt === t.id ? null : t.id; zeigen(); };
+    tr.addEventListener("click", (e) => { if (!e.target.closest("button")) waehlen(); });
+    tr.addEventListener("keydown", (e) => { if (e.target === tr && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); waehlen(); } });
+    zeilen.set(t.id, tr);
+    return tr;
+  }), ["titel", "info:Buchungen", "aktion"]);
+  seite.append(h("p", { class: "klein" }, "Ein Tag anklicken zeigt seine Buchungen."), tab, inhalt);
+  await zeigen();
+  return { titel: "Tags" };
 }
 
 // ------------------------------------------------------------------ Kredite (13.4)
@@ -545,21 +649,24 @@ function buchungsTabelle(liste, gewaehlt, praefix) {
       return h("tr", { tid: `${praefix}-buchung-${e.id}`, "data-id": String(e.id) },
         datumEl("td", e.datum), h("td", null, e.empfaenger ? nameAnzeige(e.empfaenger.name) : "–"), h("td", null, e.verwendungszweck || ""),
         betragEl("td", e.splits.filter(zaehlt).reduce((n, s) => n + s.betrag, 0), { class: "zahl" }),
-        h("td", { class: "konto-knoepfe" }, konten.map((kid) => {
-          const k = kontoNach(kid);
-          const a = h("a", { class: "knopf knopf-flach klein", href: `/konten/${kid}?buchung=${e.id}`,
-            tid: `${praefix}-buchung-${e.id}-konto-${kid}`, title: `Buchung im Konto ${k ? kontoPfad(k) : kid} zeigen` },
-          k ? k.name : `Konto ${kid}`);
-          // Wie „Gehe zur Gegenbuchung“: auch in einem schon offenen Tab des Kontos die Buchung wählen und fokussieren
-          // (der Abfrageteil wirkt nur beim ersten Laden). Mit Strg/Mittelklick bleibt es ein normaler Link.
-          a.addEventListener("click", (ev) => {
-            if (ev.button !== 0 || ev.ctrlKey || ev.metaKey || ev.shiftKey || ev.altKey) return;
-            ev.preventDefault();
-            oberflaeche.zurBuchung(kid, e.id);
-          });
-          return a;
-        })));
+        h("td", { class: "konto-knoepfe" }, konten.map((kid) => kontoSprung(e.id, kid, praefix))));
     }), ["info-", "titel", "zeile", "betrag", "aktion2"]);
+}
+
+/** Link „Buchung im Konto zeigen“ (Berichte, Dubletten). */
+function kontoSprung(buchungId, kid, praefix) {
+  const k = kontoNach(kid);
+  const a = h("a", { class: "knopf knopf-flach klein", href: `/konten/${kid}?buchung=${buchungId}`,
+    tid: `${praefix}-buchung-${buchungId}-konto-${kid}`, title: `Buchung im Konto ${k ? kontoPfad(k) : kid} zeigen` },
+  k ? k.name : `Konto ${kid}`);
+  // Wie „Gehe zur Gegenbuchung“: auch in einem schon offenen Tab des Kontos die Buchung wählen und fokussieren
+  // (der Abfrageteil wirkt nur beim ersten Laden). Mit Strg/Mittelklick bleibt es ein normaler Link.
+  a.addEventListener("click", (ev) => {
+    if (ev.button !== 0 || ev.ctrlKey || ev.metaKey || ev.shiftKey || ev.altKey) return;
+    ev.preventDefault();
+    oberflaeche.zurBuchung(kid, buchungId);
+  });
+  return a;
 }
 
 /** Zeitpunkt eines Plotly-Datums („2024-03-15“ oder „2024-03-15 12:30:00.5“) oder einer Zahl (ms) in Ortszeit. */
@@ -780,15 +887,14 @@ export async function protokoll(seite) {
 }
 
 // ------------------------------------------------------------------ Empfänger (13.10)
-const PERSON_NAMEN = ["Torsten", "Tina"];
-
+/** Personen, die den Empfänger bestätigt haben (Tags „B-<Name>“, D-223). */
 function personTags(e) {
-  return (e.tags || []).filter((t) => PERSON_NAMEN.includes(t.name));
+  return (e.tags || []).map((t) => personVonTag(t.name)).filter(Boolean).map((name) => ({ name }));
 }
 
 export async function empfaenger(seite) {
   const liste = stamm.empfaenger;
-  const ids = liste.map((e) => e.id);
+  let ids = liste.map((e) => e.id);   // sichtbare Empfänger (Suche, D-236)
   // Mehrfachauswahl wie im Kontoblatt (D-166): Klick wählt eine, Strg/⌘ schaltet um, Umschalt markiert einen Bereich
   const auswahl = new Set();
   let anker = null;
@@ -842,10 +948,17 @@ export async function empfaenger(seite) {
     else { auswahl.clear(); auswahl.add(id); anker = id; }
     fokussieren(id);
   };
-  const menue = (e, x, y, ausloeser) => {
+  const menue = async (e, x, y, ausloeser) => {
     allein(e.id);
     fokussieren(e.id, false);
     const ziele = auswahl.size > 1 ? gewaehlt() : [e];
+    // „Anzeigen im Konto“ (D-220): Bestandskonten mit Buchungen dieses Empfängers, die meistbenutzten zuerst
+    let konten = [];
+    if (ziele.length === 1) {
+      try { konten = await api("GET", `/api/empfaenger/${e.id}/konten`); } catch { konten = []; }
+    }
+    const imKonto = (k) => oberflaeche.gehe(`/konten/${k.konto_id}${abfrage({ empfaenger_id: e.id })}`);
+    const kontoText = (k) => `${pfadVon(k.konto_id) || `Konto ${k.konto_id}`} (${k.anzahl})`;
     const wer = personLesen();
     const alle = !!(wer && ziele.every((z) => personTags(z).some((t) => t.name === wer)));
     kontextmenue(x, y, [
@@ -854,17 +967,52 @@ export async function empfaenger(seite) {
       wer ? { tid: "em-bestaetigen", text: alle ? `Bestätigung von ${wer} zurücknehmen` : `Als ${wer} bestätigen`,
         tun: () => empfaengerMarkieren(ziele, !alle) } : null,
       ziele.length === 1 ? { tid: "em-bearbeiten", text: "Bearbeiten…", tun: () => empfaengerDialog(e, ausloeser) } : null,
+      ziele.length === 1 ? { tid: "em-regel", text: "Regel erstellen…", tun: () => regelFuerEmpfaenger(e, ausloeser) } : null,
+      ziele.length !== 1 ? null
+        : konten.length === 1 ? { tid: "em-im-konto", text: `Anzeigen im Konto ${kontoText(konten[0])}`, tun: () => imKonto(konten[0]) }
+          : { tid: "em-im-konto", text: "Anzeigen im Konto", aktiv: konten.length > 0,
+            kinder: konten.map((k) => ({ tid: `em-im-konto-${k.konto_id}`, text: kontoText(k), tun: () => imKonto(k) })) },
     ].filter(Boolean), ausloeser);
   };
   markieren.addEventListener("click", () => empfaengerMarkieren(gewaehlt(), markieren.dataset.zurueck !== "ja"));
   kopf(seite, "Empfänger", markieren, zusammen);
   if (!liste.length) { seite.append(leer("Noch keine Empfänger.")); pruefen(); return { titel: "Empfänger" }; }
-  seite.append(h("p", { class: "klein" }, anzahl, " · Markieren wie im Kontoblatt: Klick, Strg/⌘-Klick, Umschalt-Klick, "
-    + "Pfeiltasten, Leertaste, Strg+A; Rechtsklick für das Menü (ab zwei markierten: Zusammenführen)."));
+  // D-236: Suche über Name und Aliase, Buchungszahl je Empfänger; die Bedienhinweise stehen im Tooltip
+  const suchFeld = h("input", { type: "search", tid: "empfaenger-suche", class: "listen-suche", placeholder: "Name oder Alias …",
+    "aria-label": "Empfänger durchsuchen", maxlength: "200" });
+  const trefferEl = h("span", { tid: "empfaenger-treffer", "aria-live": "polite" });
+  const suchen = () => {
+    const w = vergleich(suchFeld.value).split(" ").filter(Boolean);
+    let n = 0;
+    const sichtbar = [];
+    for (const e of liste) {
+      const text = vergleich([e.name, ...(e.aliase || [])].join(" "));
+      const passt = w.every((x) => text.includes(x));
+      const z = zeilen.get(e.id);
+      if (z) z.hidden = !passt;
+      if (passt) { n += 1; sichtbar.push(e.id); } else auswahl.delete(e.id);
+    }
+    ids = sichtbar;
+    trefferEl.textContent = w.length ? `${n} von ${liste.length}` : `${liste.length} Empfänger`;
+    pruefen();
+  };
+  suchFeld.addEventListener("input", suchen);
+  seite.append(h("div", { class: "listen-werkzeug" }, suchFeld, h("span", { class: "klein" }, trefferEl, " · ", anzahl),
+    h("span", { class: "klein hilfe-marke", tabindex: "0", title: "Markieren wie im Kontoblatt: Klick, Strg/⌘-Klick, Umschalt-Klick, "
+      + "Pfeiltasten, Leertaste, Strg+A. Rechtsklick oder ⋯ öffnet das Menü (ab zwei markierten: Zusammenführen)." }, "Bedienung ⓘ")));
+  const zahlen = new Map();
+  api("GET", "/api/empfaenger/anzahlen").then((r) => {
+    for (const x of r) zahlen.set(x.empfaenger_id, x.anzahl);
+    for (const [id, z] of zeilen) {
+      const zelle = z.querySelector("[data-feld=anzahl]");
+      if (zelle) { zelle.textContent = String(zahlen.get(id) || 0); zelle.dataset.anzahl = String(zahlen.get(id) || 0); }
+    }
+  }).catch(() => { /* Spalte bleibt leer */ });
   const tab = tabelle({ class: "tabelle empfaenger-liste", tid: "empfaenger-liste", "aria-multiselectable": "true" },
-    ["", "Name", "Bestätigt", "Aliase", "Standardkategorie", ""],
+    ["", "Name", "Bestätigt", "Aliase", "Buchungen", ""],
     liste.map((e) => zeileEmpfaenger(e)),
-    ["auswahl", "titel", "info:Bestätigt", "info:Aliase", "info:Kategorie", "aktion"]);
+    ["auswahl", "titel", "info:Bestätigt", "info:Aliase", "info:Buchungen", "aktion"]);
+  suchen();
   const zeileVon = (t) => t && t.closest && t.closest("tr[data-id]");
   tab.addEventListener("mousedown", (e) => { if (e.shiftKey && zeileVon(e.target)) e.preventDefault(); });   // keine Textauswahl
   tab.addEventListener("click", (e) => {
@@ -933,14 +1081,17 @@ export async function empfaenger(seite) {
     const tr = h("tr", { tid: `empfaenger-${e.id}`, "data-id": String(e.id), class: "empfaenger-zeile", "aria-selected": "false", tabindex: "-1" },
       h("td", null, wahl), h("td", null, e.name),
       h("td", { "data-feld": "bestaetigt" }, namen.map((n) => h("span", { class: "tag tag-person", tid: "tag",
-        "data-person": n, title: `Bestätigt von ${n}` }, n))),
+        "data-person": n, title: `Bestätigt von ${n}` }, personTag(n)))),
       h("td", null, (e.aliase || []).join(", ")),
-      h("td", null, e.standardkategorie_id ? pfadVon(e.standardkategorie_id) : ""),
-      h("td", null, knopf(hat ? `Bestätigung von ${name} zurücknehmen` : `Als ${name || "…"} bestätigen`, {
-        tid: `empfaenger-bestaetigen-${e.id}`, disabled: !name,
+      h("td", { class: "zahl", "data-feld": "anzahl" }),
+      h("td", { class: "zeilen-aktionen" }, knopf(hat ? `Bestätigung von ${name} zurücknehmen` : `Als ${name || "…"} bestätigen`, {
+        class: "knopf knopf-klein knopf-bestaetigen", tid: `empfaenger-bestaetigen-${e.id}`, disabled: !name,
         "aria-label": hat ? `Bestätigung von ${name} für ${e.name} zurücknehmen` : `${e.name} als ${name || "Person"} bestätigen`,
         onclick: () => empfaengerMarkieren([e], !hat) }),
-      knopf("Bearbeiten…", { "aria-label": `Empfänger ${e.name} bearbeiten`, onclick: (ev) => empfaengerDialog(e, ev.currentTarget) })));
+      // „⋯“ öffnet dasselbe Menü wie der Rechtsklick (Bearbeiten, Regel erstellen, Anzeigen im Konto)
+      knopf("⋯", { class: "knopf knopf-klein knopf-flach", tid: `empfaenger-menue-${e.id}`, "aria-haspopup": "menu",
+        "aria-label": `Menü für Empfänger ${e.name}`, title: "Bearbeiten, Regel erstellen, im Konto anzeigen",
+        onclick: (ev) => { const r = ev.currentTarget.getBoundingClientRect(); menue(e, r.left, r.bottom, ev.currentTarget); } })));
     if (namen.length) tr.dataset.bestaetigt = namen.join(" ");
     zeilen.set(e.id, tr);
     return tr;
@@ -953,8 +1104,8 @@ async function empfaengerMarkieren(liste, hinzu) {
   if (!liste.length) return;
   try {
     await aktion(async () => {
-      let t = stamm.tags.find((x) => x.name === name);
-      if (!t && hinzu) t = await api("POST", "/api/tags", { name });
+      let t = stamm.tags.find((x) => x.name === personTag(name));
+      if (!t && hinzu) t = await api("POST", "/api/tags", { name: personTag(name) });
       if (!t) return null;
       for (const e of liste) {
         const ids = new Set((e.tags || []).map((x) => x.id));
@@ -967,19 +1118,23 @@ async function empfaengerMarkieren(liste, hinzu) {
   } catch { /* gemeldet */ }
 }
 
+/** Regel für einen Empfänger und seine Aliase (D-219): öffnet den Regeleditor mit vorbelegter Bedingung. */
+function regelFuerEmpfaenger(e, ausloeser) {
+  const namen = [e.name, ...(e.aliase || [])].filter((n, i, a) => n && a.indexOf(n) === i);
+  const ausdruck = namen.map((n) => `empf == ${JSON.stringify(n)}`).join(" or ");
+  return regelEditor({ id: null, name: e.name, ausdruck, aktiv: true, tag_ids: [] }, ausloeser);
+}
+
 function empfaengerDialog(e, ausloeser) {
   dialog("empfaenger-dialog", `Empfänger „${e.name}“`, (inhalt, d) => {
     const name = h("input", { type: "text", value: e.name, maxlength: "200" });
     const aliase = h("input", { type: "text", value: (e.aliase || []).join(", ") });
-    const kat = h("select", null, h("option", { value: "" }, "– keine –"),
-      kategorien().map(({ konto }) => h("option", { value: String(konto.id), selected: konto.id === e.standardkategorie_id }, kontoPfad(konto))));
     const speichern = knopf("Speichern", { class: "knopf knopf-haupt" });
     speichern.addEventListener("click", () => imDialog(d, speichern, async () => {
-      const body = { name: name.value.trim(), aliase: aliase.value.split(",").map((x) => x.trim()).filter(Boolean),
-        standardkategorie_id: kat.value ? Number(kat.value) : null };
+      const body = { name: name.value.trim(), aliase: aliase.value.split(",").map((x) => x.trim()).filter(Boolean) };
       await aktion(() => api("PATCH", `/api/empfaenger/${e.id}`, body), { stillBeiFehler: true, danach: () => d.schliessen(true), erfolg: "Empfänger gespeichert." });
     }));
-    inhalt.append(feld("Name", name), feld("Aliase (durch Komma getrennt)", aliase), feld("Standardkategorie", kat),
+    inhalt.append(feld("Name", name), feld("Aliase (durch Komma getrennt)", aliase),
       knopfLeiste(speichern, knopf("Abbrechen", { onclick: () => d.schliessen(null) })));
   }, { ausloeser });
 }
@@ -1133,6 +1288,13 @@ function betragEingabeText(c) {
 }
 
 // ------------------------------------------------------------------ Dubletten (13.10)
+/** Konten einer Buchung für den Sprung: Bestandskonten zuerst, sonst alle. */
+function sprungKonten(b) {
+  const alle = [...new Set((b.splits || []).map((s) => s.konto_id))];
+  const bestand = alle.filter((kid) => BESTAND.has((kontoNach(kid) || {}).art));
+  return bestand.length ? bestand : alle;
+}
+
 export async function dubletten(seite) {
   const liste = await api("GET", "/api/dubletten?status=offen&vorschlaege=ja");
   kopf(seite, "Dubletten", knopf("Umbuchungen erkennen", { onclick: async () => {
@@ -1149,12 +1311,35 @@ export async function dubletten(seite) {
       try { await aktion(() => dubletteAufloesen(v, body), { erfolg: "Dublettenverdacht aufgelöst." }); }
       catch (e) { /* gemeldet */ }
     };
+    // D-236: Gegenüberstellung – eine Spalte je Buchung, abweichende Angaben hervorgehoben
+    const da = bs.filter(Boolean);
+    const konten = (b) => sprungKonten(b).map((kid) => (kontoNach(kid) || {}).name || `Konto ${kid}`).join(", ");
+    const felder = [
+      ["Datum", (b) => datumText(b.datum), (b) => b.datum],
+      ["Empfänger", (b) => (b.empfaenger ? b.empfaenger.name : "ohne Empfänger"), (b) => (b.empfaenger ? b.empfaenger.id : null)],
+      ["Betrag", (b) => betragEl("span", b.betrag), (b) => b.betrag],
+      ["Zweck", (b) => b.verwendungszweck || "–", (b) => b.verwendungszweck || ""],
+      ["Konto", konten, konten],
+    ];
+    const vergleichEl = h("table", { class: "tabelle dubletten-vergleich", tid: `dublette-vergleich-${schluessel}` },
+      h("tbody", null,
+        felder.map(([titel, zeigen, wert]) => {
+          const anders = new Set(da.map((b) => JSON.stringify(wert(b)))).size > 1;
+          return h("tr", { "data-feld": titel.toLowerCase(), "data-abweichung": anders ? "ja" : "nein" }, h("th", { scope: "row" }, titel),
+            da.map((b) => h("td", null, zeigen(b))));
+        }),
+        h("tr", { class: "dubletten-aktionen" }, h("th", { scope: "row" }, ""),
+          da.map((b) => h("td", { tid: `dublette-buchung-${b.id}` },
+            // D-222: zur Buchung springen, zuerst in ihre Bestandskonten
+            h("span", { class: "konto-knoepfe" }, "Zeigen in: ", sprungKonten(b).map((kid) => kontoSprung(b.id, kid, "dublette"))), " ",
+            knopf("Diese behalten", { "aria-label": `Buchung ${b.id} behalten, die andere löschen`, title: "Die andere Buchung wird gelöscht.",
+              onclick: () => aufloesen({ entscheidung: "zusammenfuehren", behalten_id: b.id }) }))))));
+    const GRUND_TEXT = { aehnlich: "ähnliche Buchung schon vorhanden", mehrdeutig: "mehrere mögliche Gegenstücke" };
     return h("li", { tid: schluessel, class: "karte", "data-vorschlag": vorschlag ? "ja" : "nein", "data-grund": v.grund },
-      h("p", null, vorschlag ? "Vorschlag: gleicher Betrag, gleiches Datum, gleicher Empfänger"
-        : `Verdacht ${v.id} (${v.grund})`),
-      h("ul", null, bs.filter(Boolean).map((b) => h("li", null, `${datumText(b.datum)} · ${b.empfaenger ? b.empfaenger.name : "ohne Empfänger"} · `,
-        betragEl("span", b.betrag), " ", knopf("Diese behalten", { "aria-label": `Buchung ${b.id} behalten`,
-          onclick: () => aufloesen({ entscheidung: "zusammenfuehren", behalten_id: b.id }) })))),
+      h("p", { class: "dubletten-titel" }, vorschlag ? "Vorschlag: gleicher Betrag, gleiches Datum, gleicher Empfänger"
+        : `Verdacht beim Bankabruf: ${GRUND_TEXT[v.grund] || v.grund}`,
+      h("small", { class: "klein" }, " · „Diese behalten“ löscht die andere Buchung.")),
+      vergleichEl,
       knopf("Keine Dublette", { onclick: () => aufloesen({ entscheidung: "keine_dublette" }) }));
   }));
   seite.append(zeilen.length ? h("ul", { class: "karten-liste", tid: "dubletten-liste" }, zeilen) : leer("Keine offenen Dublettenverdachte."));

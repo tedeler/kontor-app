@@ -13,7 +13,7 @@ import functools
 import unicodedata
 from collections import defaultdict
 
-from . import buch, regeln
+from . import buch, kontonamen, regeln
 from .buch import BESTAND, KATEGORIEARTEN, ApiFehler, nicht_gefunden, sichere_id
 from .protokoll import abstimmung_dict
 from .text import ekey, iban_gueltig, iban_normalisieren, norm
@@ -45,12 +45,67 @@ def _aliase_pruefen(con, aliase: list[str], eigene_id: int | None) -> None:
                             {"alias": a, "empfaenger_id": r["empfaenger_id"]})
 
 
-def _standardkategorie_pruefen(con, kid: int | None) -> None:
-    if kid is None:
-        return
-    r = buch.konto_zeile(con, kid)
-    if r is None or r["art"] not in KATEGORIEARTEN:
-        raise ApiFehler(422, "kategorie_ungueltig", "Die Standardkategorie muss ein Aufwands- oder Ertragskonto sein.")
+def _keine_standardkategorie(d: dict) -> None:
+    """D-219: Die Standardkategorie je Empfänger ist entfallen; das Feld wird nur noch mit ``null`` angenommen."""
+    if d.get("standardkategorie_id") is not None:
+        raise ApiFehler(422, "kategorie_ungueltig", "Standardkategorien je Empfänger gibt es nicht mehr; bitte"
+                        " stattdessen eine Regel für den Empfänger anlegen.")
+
+
+def standardkategorien_umwandeln(con) -> list[dict]:
+    """D-219: vorhandene Standardkategorien werden zu Regeln „Empfänger ist <Name>“ → Kategorie (am Ende der
+    Regelliste, wie die bisherige Stufe nach den Regeln); danach ist die Spalte leer."""
+    neu = []
+    for r in con.execute("SELECT e.id, e.name, e.standardkategorie_id AS kat, k.art FROM empfaenger e"
+                         " LEFT JOIN konto k ON k.id = e.standardkategorie_id"
+                         " WHERE e.standardkategorie_id IS NOT NULL ORDER BY e.id").fetchall():
+        name = (r["name"] or "").strip()[:200]
+        if name and r["art"] in KATEGORIEARTEN:
+            neu.append(regeln.regel_anlegen(con, {"name": name, "kategorie_id": r["kat"], "bedingungen": [
+                {"feld": "empfaenger", "operator": "gleich", "wert": name}]}))
+    con.execute("UPDATE empfaenger SET standardkategorie_id = NULL WHERE standardkategorie_id IS NOT NULL")
+    return neu
+
+
+PERSONEN = ("Torsten", "Tina")
+
+
+def personentags_umbenennen(con) -> None:
+    """D-223: Die Bestätigung trägt das Tag „B-<Name>“; vorhandene Tags „Torsten“/„Tina“ werden umbenannt.
+    Gibt es das neue Tag schon, wandern die Zuordnungen dorthin und das alte entfällt."""
+    for name in PERSONEN:
+        alt = con.execute("SELECT id FROM tag WHERE name = ?", (name,)).fetchone()
+        if alt is None:
+            continue
+        neu = con.execute("SELECT id FROM tag WHERE name_cf = ?", (f"B-{name}".casefold(),)).fetchone()
+        if neu is None:
+            buch.tag_umbenennen(con, alt["id"], f"B-{name}")
+            continue
+        for tabelle, spalte in (("buchung_tag", "buchung_id"), ("empfaenger_tag", "empfaenger_id"),
+                                ("regel_tag", "regel_id")):
+            con.execute(f"INSERT OR IGNORE INTO {tabelle} ({spalte}, tag_id) SELECT {spalte}, ? FROM {tabelle}"
+                        " WHERE tag_id = ?", (neu["id"], alt["id"]))
+            con.execute(f"DELETE FROM {tabelle} WHERE tag_id = ?", (alt["id"],))
+        con.execute("DELETE FROM tag WHERE id = ?", (alt["id"],))
+
+
+def altbestand_umwandeln(pfad) -> None:
+    """Beim Start: Standardkategorien früherer Versionen einmalig in Regeln umwandeln (eine Änderung) und die
+    Bestätigungs-Tags umbenennen (eine Änderung)."""
+    from . import db, protokoll
+    con = db.verbinde(pfad)
+    try:
+        ph = buch._platzhalter(len(PERSONEN))
+        if con.execute(f"SELECT 1 FROM tag WHERE name IN ({ph}) LIMIT 1", PERSONEN).fetchone():
+            with protokoll.protokolliert(con, "manuell", "tag_umbenennen", db.jetzt_utc(),
+                                         beschreibung="Bestätigungs-Tags in „B-<Name>“ umbenannt"):
+                personentags_umbenennen(con)
+        if con.execute("SELECT 1 FROM empfaenger WHERE standardkategorie_id IS NOT NULL LIMIT 1").fetchone():
+            with protokoll.protokolliert(con, "manuell", "regel_anlegen", db.jetzt_utc(),
+                                         beschreibung="Standardkategorien in Regeln umgewandelt"):
+                standardkategorien_umwandeln(con)
+    finally:
+        con.close()
 
 
 def _aliase_schreiben(con, eid: int, aliase: list[str]) -> None:
@@ -64,9 +119,8 @@ def empfaenger_anlegen(con, d: dict) -> dict:
     if con.execute("SELECT 1 FROM empfaenger WHERE name = ?", (d["name"],)).fetchone():
         raise ApiFehler(409, "empfaenger_existiert", "Ein Empfänger mit diesem Namen existiert bereits.")
     _aliase_pruefen(con, aliase, None)
-    _standardkategorie_pruefen(con, d.get("standardkategorie_id"))
-    eid = con.execute("INSERT INTO empfaenger (name, extern_id, standardkategorie_id) VALUES (?, NULL, ?)",
-                      (d["name"], d.get("standardkategorie_id"))).lastrowid
+    _keine_standardkategorie(d)
+    eid = con.execute("INSERT INTO empfaenger (name, extern_id) VALUES (?, NULL)", (d["name"],)).lastrowid
     _aliase_schreiben(con, eid, aliase)
     return buch.empfaenger_lesen(con, eid)
 
@@ -79,10 +133,8 @@ def empfaenger_aendern(con, eid: int, d: dict) -> dict:
             raise ApiFehler(409, "empfaenger_existiert", "Ein anderer Empfänger trägt bereits diesen Namen.")
     if aliase is not None:
         _aliase_pruefen(con, aliase, eid)
-    if "standardkategorie_id" in d:
-        _standardkategorie_pruefen(con, d["standardkategorie_id"])
-    con.execute("UPDATE empfaenger SET name = ?, standardkategorie_id = ? WHERE id = ?",
-                (d.get("name", alt["name"]), d.get("standardkategorie_id", alt["standardkategorie_id"]), eid))
+    _keine_standardkategorie(d)
+    con.execute("UPDATE empfaenger SET name = ? WHERE id = ?", (d.get("name", alt["name"]), eid))
     if aliase is not None and aliase != alt["aliase"]:
         _aliase_schreiben(con, eid, aliase)
     if "tag_ids" in d:
@@ -91,6 +143,23 @@ def empfaenger_aendern(con, eid: int, d: dict) -> dict:
         con.executemany("INSERT INTO empfaenger_tag (empfaenger_id, tag_id) VALUES (?, ?)",
                         [(eid, t) for t in ids])
     return buch.empfaenger_lesen(con, eid)
+
+
+def empfaenger_konten(con, eid: int) -> list[dict]:
+    """Bestandskonten, auf denen der Empfänger Buchungen hat, die meistbenutzten zuerst (D-220)."""
+    buch.empfaenger_lesen(con, eid)
+    ph = buch._platzhalter(len(BESTAND))
+    return [{"konto_id": r["konto_id"], "anzahl": r["anzahl"]} for r in con.execute(
+        "SELECT s.konto_id, COUNT(DISTINCT b.id) AS anzahl FROM buchung b JOIN split s ON s.buchung_id = b.id"
+        f" JOIN konto k ON k.id = s.konto_id WHERE b.empfaenger_id = ? AND k.art IN ({ph})"
+        " GROUP BY s.konto_id ORDER BY anzahl DESC, s.konto_id", (eid, *BESTAND))]
+
+
+def empfaenger_anzahlen(con) -> list[dict]:
+    """Zahl der Buchungen je Empfänger für die Empfängerliste (D-236); Empfänger ohne Buchung fehlen."""
+    return [{"empfaenger_id": r["empfaenger_id"], "anzahl": r["anzahl"]} for r in con.execute(
+        "SELECT empfaenger_id, COUNT(*) AS anzahl FROM buchung WHERE empfaenger_id IS NOT NULL"
+        " GROUP BY empfaenger_id ORDER BY empfaenger_id")]
 
 
 def empfaenger_loeschen(con, eid: int) -> None:
@@ -144,12 +213,7 @@ def empfaenger_zusammenfuehren(con, ziel_id: int, quelle_ids: list[int], name: s
 
 
 def korrektur_id(con) -> int:
-    r = con.execute("SELECT id FROM konto WHERE extern_id = ?", (KORREKTUR,)).fetchone()
-    if r is None:
-        r = con.execute(
-            "INSERT INTO konto (name, art, eltern_id, iban, geschlossen, eroeffnet_am, notiz, extern_id)"
-            " VALUES ('Korrekturen', 'eigenkapital', NULL, NULL, 0, NULL, '', ?) RETURNING id", (KORREKTUR,)).fetchone()
-    return r["id"]
+    return buch.technisches_konto(con, "Korrekturen", KORREKTUR)
 
 
 def erfassen(con, d: dict, lernmodell_automatisch: bool = False) -> dict:
@@ -205,16 +269,9 @@ def erfassen(con, d: dict, lernmodell_automatisch: bool = False) -> dict:
         elif art == "korrektur":
             g = korrektur_id(con)
         else:
-            std = None
-            if empf_id is not None:
-                std = con.execute("SELECT standardkategorie_id FROM empfaenger WHERE id = ?",
-                                  (empf_id,)).fetchone()["standardkategorie_id"]
             unk = buch.unkategorisiert_id(con)
             g = unk
-            if std is not None:
-                g = std
-                vorschlag = (std, unk, "standardkategorie", None)
-            elif lern is not None and lern.kategorie_id is not None:
+            if lern is not None and lern.kategorie_id is not None:
                 g = lern.kategorie_id
                 vorschlag = (g, unk, "lernmodell", lern.sicherheit)
         vorzeichen = {"ausgabe": -1, "einnahme": 1, "korrektur": 1}[art]
@@ -479,6 +536,7 @@ def konto_loeschen_mit_buchungen(con, kid: int, d: dict) -> dict:
         try:
             unk_vorher = con.execute("SELECT 1 FROM konto WHERE extern_id = ?", (buch.UNKATEGORISIERT,)).fetchone()
             erg = _loeschen_ausfuehren(con, k, variante, konflikte, betroffen, gesperrt)
+            kontonamen.pruefen(con)  # D-218: hochrutschende Unterkonten dürfen nicht kollidieren
             if variante == "unkategorisiert" and unk_vorher is None:
                 erg["ziel_konto_id"] = None
         finally:
@@ -648,6 +706,7 @@ def kategorien_zusammenfuehren(con, d: dict) -> dict:
     con.execute("SAVEPOINT probelauf")
     try:
         erg = _zusammenfuehren_ausfuehren(con, konten, quelle_ids, ziel_id, loeschen, betroffen, gesperrt)
+        kontonamen.pruefen(con)  # D-218: mitwandernde Unterkategorien dürfen nicht kollidieren
     finally:
         con.execute("ROLLBACK TO probelauf")
         con.execute("RELEASE probelauf")
