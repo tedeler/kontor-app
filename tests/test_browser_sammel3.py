@@ -295,3 +295,54 @@ def test_markierte_buchungen_zeigen_summen(tmp_path, browser):
         expect(tid(page, "auswahl-summe")).to_have_attribute("data-betrag", str(soll_aus + 5000))
         page.keyboard.press("Escape")
         expect(tid(page, "auswahl-summen")).to_be_hidden()
+
+
+def test_bereichsauswahl_folgt_der_anzeige_bei_gruppierung(tmp_path, browser):
+    """D-233: Gruppiert und nach Betrag sortiert wählt Umschalt+Klick die angezeigten Zeilen dazwischen."""
+    import httpx
+    with server(tmp_path) as (url, _), seite(browser, url, **DESKTOP) as page:
+        c = httpx.Client(base_url=url, trust_env=False, timeout=60)
+        konten = {k["name"]: k["id"] for k in c.get("/api/konten").json()}
+        giro = konten["Giro"]
+        gegen = next(i for n, i in konten.items() if n != "Giro")
+        for tag, betrag in (("2024-02-03", -300), ("2024-02-10", -4000), ("2024-03-05", -100), ("2024-03-20", -2500)):
+            assert c.post("/api/buchungen", json={"datum": tag, "splits": [
+                {"konto_id": giro, "betrag": betrag}, {"konto_id": gegen, "betrag": -betrag}]}).status_code == 201
+        page.goto(f"{url}/konten/{giro}?gruppierung=datum&tiefe=monat&sortierung=betrag")
+        bereit(page, "konto")
+        zeilen = page.locator(".buchungsliste .zeile")
+        zeilen.nth(1).locator(".zelle-datum").click()
+        zeilen.nth(4).locator(".zelle-datum").click(modifiers=["Shift"])
+        expect(tid(page, "auswahl-anzahl")).to_have_attribute("data-anzahl", "4")
+        gewaehlt = page.evaluate("() => [...document.querySelectorAll('.buchungsliste .zeile')]"
+                                 ".map((r, i) => r.getAttribute('aria-selected') === 'true' ? i : -1).filter((i) => i >= 0)")
+        assert gewaehlt == [1, 2, 3, 4]
+        page.keyboard.press("Escape")
+        zeilen.nth(1).locator(".zelle-datum").click()
+        page.keyboard.press("Shift+ArrowDown")
+        page.keyboard.press("Shift+ArrowDown")
+        expect(tid(page, "auswahl-anzahl")).to_have_attribute("data-anzahl", "3")
+
+
+def test_meldung_mit_rueckgaengig_ist_aus_und_einschaltbar(tmp_path, browser):
+    """D-234: Nach einer Änderung erscheint keine Meldung mit „Rückgängig“, bis sie eingeschaltet wird."""
+    with server(tmp_path) as (url, config), seite(browser, url, erfolgsmeldung=False, **DESKTOP) as page:
+        con = sqlite3.connect(config.aktive_datenbank)
+        giro, = con.execute("SELECT id FROM konto WHERE name = 'Giro'").fetchone()
+        con.close()
+
+        def bestaetigen(nr):
+            page.goto(f"{url}/konten/{giro}")
+            bereit(page, "konto")
+            page.locator(".zeile").nth(nr).click(button="right", position={"x": 20, "y": 8})
+            tid(page, "km-bestaetigen").click()
+            expect(page.locator(".zeile[data-bestaetigt=Torsten]")).to_have_count(nr + 1)
+
+        bestaetigen(0)
+        expect(page.locator('[data-testid="meldung"][data-art="erfolg"]')).to_have_count(0)
+        expect(tid(page, "rueckgaengig-knopf")).to_be_enabled()      # Rückgängig bleibt in der Kopfzeile
+        page.goto(url + "/einstellungen?bereich=allgemein")
+        bereit(page, "einstellungen")
+        tid(page, "einstellung-erfolgsmeldung").check()
+        bestaetigen(1)
+        expect(tid(page, "meldung-rueckgaengig")).to_be_visible()

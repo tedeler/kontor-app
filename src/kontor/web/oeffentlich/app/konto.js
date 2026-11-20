@@ -1871,7 +1871,9 @@ class Kontoansicht {
   ids() { return this.eintraege.map((b) => b.id); }
 
   bereich(a, b) {
-    const ids = this.ids();
+    // Reihenfolge wie angezeigt: gruppiert stehen die Buchungen nach Zeitraum, nicht in der Reihenfolge der Liste
+    // (bei Sortierung nach Betrag oder Empfänger griff die Bereichsauswahl sonst quer durch die Zeiträume, D-233)
+    const ids = this.sichtbareIds();
     let i = ids.indexOf(a);
     let j = ids.indexOf(b);
     if (i < 0) i = j;

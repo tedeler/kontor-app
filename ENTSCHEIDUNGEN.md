@@ -3273,3 +3273,27 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   verhindert. Für den Test-Thread als Änderung von erwartungen.md 5.2 zu übernehmen.
 - **Prüfung:** `tests/test_anbieter_eigen.py` (`test_paypal_heuristik_…`, `test_paypal_zwei_passende_…`,
   `test_name_in_teilen`).
+
+## D-233 Kontoblatt: Bereichsauswahl bei Gruppierung und anderer Sortierung
+
+- **Anlass:** Fehlerbericht vom 2026-11-20: Nach Zeitraum gruppiert und nicht nach Datum sortiert, stimmen
+  Darstellung und Markieren nicht.
+- **Ursache:** Umschalt+Klick und Umschalt+Pfeil bestimmten den Bereich in der Reihenfolge der geladenen Liste
+  (z. B. nach Betrag über alle Zeiträume), nicht in der angezeigten Reihenfolge (je Zeitraum). Dadurch wurden
+  Buchungen quer durch die Zeiträume markiert. Jetzt gilt die angezeigte Reihenfolge; Buchungen in zugeklappten
+  Zeiträumen gehören nicht zum Bereich.
+- **Nicht gefunden:** eine davon unabhängige falsche Darstellung. Aufbau der Zeiträume, Reihenfolge innerhalb der
+  Zeiträume und der gezeichnete Ausschnitt bei 700 Buchungen waren mit Sortierung nach Betrag und Empfänger
+  richtig (geprüft im Browser).
+- **Prüfung:** `tests/test_browser_sammel3.py::test_bereichsauswahl_folgt_der_anzeige_bei_gruppierung`.
+
+## D-234 Meldung mit „Rückgängig“ nach Änderungen ist ausgeschaltet
+
+- **Anlass:** Auftrag vom 2026-11-20: Die Rückgängig-Anzeige nach Aktionen stört.
+- Die Erfolgsmeldung mit `meldung-rueckgaengig` nach eigenen Änderungen erscheint nicht mehr, außer sie wird unter
+  Einstellungen → Allgemein eingeschaltet (`einstellung-erfolgsmeldung`, gemerkt im Browser unter
+  `kontor.meldung.erfolg`). Rückgängig bleibt über die Kopfzeile, Strg+Z und die Palette. Fehlermeldungen, Hinweise
+  (z. B. automatisch angelegte Regel) und die Meldung nach einem Rückgängig selbst bleiben.
+- **Folge für die Abnahme:** Browsertests, die die Erfolgsmeldung erwarten (oberflaeche.md 4.3), brauchen die
+  Einstellung vorab, wie die Person (`browser_fixtures.neue_seite`). Die eigenen Rauchtests setzen sie in
+  `tests/test_browser.py::seite`.

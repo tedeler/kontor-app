@@ -89,9 +89,12 @@ def person_vorab(ctx, person):
 
 
 @contextlib.contextmanager
-def seite(browser, url, *, person: str | None = "Torsten", **kw):
+def seite(browser, url, *, person: str | None = "Torsten", erfolgsmeldung: bool = True, **kw):
     ctx = browser.new_context(locale="de-DE", timezone_id="Europe/Berlin", reduced_motion="reduce", **kw)
     person_vorab(ctx, person)
+    if erfolgsmeldung:
+        # D-234: Die Meldung mit „Rückgängig“ ist ausgeliefert aus; die Rauchtests, die sie prüfen, schalten sie ein.
+        ctx.add_init_script("try { localStorage.setItem('kontor.meldung.erfolg', 'an'); } catch (e) { }")
     ctx.set_default_timeout(10_000)
     page = ctx.new_page()
     fehler: list[str] = []
