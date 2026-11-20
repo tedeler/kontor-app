@@ -700,7 +700,7 @@ class Kontoansicht {
       h("div", { class: "werkzeuge" }, erfassen,
         knopf("Einstellungen…", { tid: "konto-einstellungen-oeffnen", onclick: (e) => kontoEinstellungen(this.konto, e.currentTarget) }))),
     h("div", { class: "listen-info" }, this.anzahlEl, " · Summe ", this.summeEl, h("span", { class: "auswahl-trenner" }, " · "),
-      this.auswahlEl, this.auswahlSummenEl, this.gruppierungLeiste()));
+      this.auswahlEl, this.auswahlSummenEl));
     s.append(this.ausdruckFilterAufbauen());
     this.filterLeiste = this.filterAufbauen();
     s.append(this.filterLeiste);
@@ -779,10 +779,26 @@ class Kontoansicht {
     const chips = h("div", { class: "filter-schnell", tid: "filter-schnell", role: "group", "aria-label": "Zeitraum" },
       SCHNELL.map(([w, text]) => h("button", { type: "button", class: "chip", tid: `filter-schnell-${w}`,
         onclick: () => this.zeitraumSetzen(w) }, text)));
-    return h("div", { class: "ausdruck-filter", tid: "ausdruck-filter", role: "search", "aria-label": "Filterausdruck" },
-      h("div", { class: "ausdruck-filter-zeile" }, ausdruckFeld("Filter", this.ausdruckEingabe), leeren, menue,
-        this.bkKnopf),
-      this.zusammenfassungEl, chips);
+    // D-236: am Handy sind Filterfeld, Zeitraum und Gruppierung eingeklappt, damit die Liste oben beginnt;
+    // der Zustand gilt je Kontoblatt und wirkt nur im mobilen Layout (app.css).
+    this.ansichtKnopf = h("button", { type: "button", class: "knopf klein ansicht-umschalter", tid: "ansicht-umschalten",
+      "aria-expanded": "false", onclick: () => this.ansichtUmschalten() }, "Filter und Gruppierung ",
+    h("span", { class: "ansicht-aktiv", "aria-hidden": "true" }, "●"), h("span", { class: "bk-pfeil", "aria-hidden": "true" }, "▸"));
+    this.ausdruckFilterEl = h("div", { class: "ausdruck-filter", tid: "ausdruck-filter", role: "search", "aria-label": "Filterausdruck",
+      "data-ansicht": "zu" },
+    h("div", { class: "ausdruck-filter-zeile" }, this.ansichtKnopf, ausdruckFeld("Filter", this.ausdruckEingabe), leeren, menue,
+      this.bkKnopf),
+    this.zusammenfassungEl,
+    // Zeitraum und Gruppierung teilen sich eine Zeile: die Auswahl-Summen oben verschieben so nichts mehr (D-236)
+    h("div", { class: "ansicht-zeile" }, chips, this.gruppierungLeiste()));
+    return this.ausdruckFilterEl;
+  }
+
+  ansichtUmschalten() {
+    const auf = this.ausdruckFilterEl.dataset.ansicht !== "auf";
+    this.ausdruckFilterEl.dataset.ansicht = auf ? "auf" : "zu";
+    this.ansichtKnopf.setAttribute("aria-expanded", String(auf));
+    this.ansichtKnopf.querySelector(".bk-pfeil").textContent = auf ? "▾" : "▸";
   }
 
   /** Setzt bzw. ersetzt einen einfachen Datumsteil auf oberster Ebene (Schnellauswahl). */
@@ -813,6 +829,7 @@ class Kontoansicht {
     const t = this.filter.filter;
     const alte = Object.entries(ALTE_FILTER).filter(([k]) => this.filter[k] !== undefined)
       .map(([k, text]) => `${text}: ${k.startsWith("betrag") ? betragText(Number(this.filter[k])) : this.filter[k]}`);
+    if (this.ausdruckFilterEl) this.ausdruckFilterEl.dataset.gefiltert = t || alte.length ? "ja" : "nein";
     if (!t && !alte.length) { this.zusammenfassungEl.textContent = ""; return; }
     const teile = [...(t && e && e.gueltig ? e.zusammenfassung : []), ...alte];
     this.zusammenfassungEl.textContent = [...teile, `${this.gesamt} Buchung${this.gesamt === 1 ? "" : "en"}`].join(" · ");
@@ -1315,8 +1332,10 @@ class Kontoansicht {
         stufe("", null, "Keine", "Nicht gruppieren"),
         EBENEN.map((t, i) => stufe("datum", t, EBENE_TEXT[t],
           `Gruppieren bis ${EBENE_TEXT[t]}: ${EBENEN.slice(0, i + 1).map((e) => EBENE_TEXT[e]).join(" → ")}`))),
-      knopf("Alles zusammenklappen", { tid: "gruppierung-zu", disabled: true, onclick: () => this.alleKlappen(true) }),
-      knopf("Alles aufklappen", { tid: "gruppierung-auf", disabled: true, onclick: () => this.alleKlappen(false) }));
+      knopf("Alle zu", { class: "knopf knopf-klein", tid: "gruppierung-zu", disabled: true, title: "Alles zusammenklappen", "aria-label": "Alles zusammenklappen",
+        onclick: () => this.alleKlappen(true) }),
+      knopf("Alle auf", { class: "knopf knopf-klein", tid: "gruppierung-auf", disabled: true, title: "Alles aufklappen", "aria-label": "Alles aufklappen",
+        onclick: () => this.alleKlappen(false) }));
   }
 
   async gruppierungSetzen(art, tiefe) {
@@ -1428,9 +1447,9 @@ class Kontoansicht {
         if ((e.key === "ArrowLeft" && auf) || (e.key === "ArrowRight" && !auf)) { e.preventDefault(); this.gruppeUmschalten(id); }
       } },
     auf ? "▾ " : "▸ ", periodeText(id)),
-    h("span", { class: "perioden-zahl" }, "Eingang ", betragEl("span", bilanz.eingang, { tid: `periode-eingang-${id}` })),
-    h("span", { class: "perioden-zahl" }, "Ausgang ", betragEl("span", bilanz.ausgang, { tid: `periode-ausgang-${id}` })),
-    h("span", { class: "perioden-zahl" }, "Summe ", betragEl("span", bilanz.summe, { tid: `periode-summe-${id}` })),
+    h("span", { class: "perioden-zahl", "data-art": "eingang" }, h("span", { class: "perioden-wort" }, "Eingang "), betragEl("span", bilanz.eingang, { tid: `periode-eingang-${id}` })),
+    h("span", { class: "perioden-zahl", "data-art": "ausgang" }, h("span", { class: "perioden-wort" }, "Ausgang "), betragEl("span", bilanz.ausgang, { tid: `periode-ausgang-${id}` })),
+    h("span", { class: "perioden-zahl", "data-art": "summe" }, h("span", { class: "perioden-wort" }, "Summe "), betragEl("span", bilanz.summe, { tid: `periode-summe-${id}` })),
     h("span", { class: "perioden-anzahl", tid: `periode-anzahl-${id}`, "data-anzahl": String(bilanz.anzahl) },
       bilanz.anzahl === 1 ? "1 Buchung" : `${bilanz.anzahl} Buchungen`));
   }

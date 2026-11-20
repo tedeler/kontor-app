@@ -74,6 +74,8 @@ def test_spalten_ausblenden_und_bestaetigen(tmp_path, browser):
         expect(page.locator(".zeile .zelle-status").first).to_be_hidden()
         expect(kopf.locator(".zelle-tags")).to_be_visible()
         # das Raster besteht nur noch aus den sichtbaren Spalten: der Betrag schließt an die Tags an
+        # (ganz nach rechts gerollt: der Betrag klebt sonst am rechten Rand über den anderen Spalten, D-236)
+        page.evaluate("() => { const s = document.querySelector('.listen-spalte'); s.scrollLeft = s.scrollWidth; }")
         neu = kopf.locator(".zelle-betrag").bounding_box()
         tags = kopf.locator(".zelle-tags").bounding_box()
         assert abs(neu["x"] - (tags["x"] + tags["width"])) < 2 and abs(neu["width"] - breite["width"]) < 2

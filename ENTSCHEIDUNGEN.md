@@ -3315,3 +3315,44 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - **Grenze:** Gezeigt wird die Umgebung des Prozesses, nicht die Datei selbst; Kommentare und auskommentierte Zeilen
   der Datei sieht man nicht, dafür auch Werte aus der systemd-Unit.
 - **Prüfung:** `tests/test_konfiguration_eigen.py`, `tests/test_browser_sammel3.py::test_konfiguration_seite`.
+
+## D-236 UX-Durchgang auf `feature/sammel3`: 14 Funde umgesetzt
+
+- **Anlass:** Auftrag vom 2026-11-20: UX-Tests ausführen, Verbesserungen mit Screenshots begründen; danach
+  „Alle“ umsetzen. Geprüft im Mock-Modus mit synthetischen Daten, Desktop 1280 × 800 und Handy 390 × 844.
+- **1 Mail-Ansicht:** leere Teile (Bilder-Leiste, Anhänge) erschienen als Wort „null“; sie entfallen jetzt.
+- **2 Kontoblatt, Betrag:** die Betragsspalte klebt beim seitlichen Rollen am rechten Rand (Desktop); ist die Liste
+  schmaler als 46 rem, gelten kleinere Mindestbreiten für Empfänger, Zweck und Kategorie. Eigene Spaltenbreiten
+  (M22) bleiben unberührt. Die Vorgabe der Panels (beide offen, M8) ist bewusst nicht geändert.
+- **3 Gruppenbalken:** so breit wie der sichtbare Teil der Liste, bleibt beim seitlichen Rollen stehen; in schmalen
+  Listen nur die Zahlen (Eingang, Ausgang, „= Summe“), ohne Wörter und Buchungszahl. Alle `data-testid` bleiben.
+- **4 Handy-Kontoblatt:** Filterfeld, Zeitraum-Chips und Gruppierung sind am Handy eingeklappt; `ansicht-umschalten`
+  („Filter und Gruppierung“) klappt sie auf, ein Punkt zeigt einen aktiven Filter. „Baukasten“ bleibt sichtbar
+  (oberflaeche.md 23.1). Am Desktop ändert sich nichts an der Sichtbarkeit.
+- **5 Handy-Mail-Blatt:** keine Mail vorgewählt, die Liste steht zuerst (je Mail eine Karte); Antippen öffnet den
+  Lesebereich, `mail-lesen-schliessen` schließt ihn. Am Desktop bleibt die erste Mail vorgewählt (oberflaeche.md 37).
+- **6 Auswahl-Summen:** die Gruppierung steht jetzt in der Zeile der Zeitraum-Chips; die Infozeile gehört Anzahl,
+  Summe und Auswahl allein, die Liste springt beim Markieren nicht mehr. Die Knöpfe heißen sichtbar „Alle zu“ /
+  „Alle auf“; „Alles zusammenklappen“ / „Alles aufklappen“ (oberflaeche.md) stehen als `aria-label` und Tooltip.
+- **7/8 Tags:** Datum ohne Umbruch, Knöpfe klein am Zeilenende (`tag-umbenennen-<id>`, `tag-loeschen-<id>`), am Handy
+  Stift und Papierkorb mit Abstand, gewähltes Tag deutlich markiert, Sprungziele als Links mit „↗“ (gilt für alle
+  Einzelbuchungstabellen, auch in den Berichten).
+- **9 Mail-Blatt:** Status einzeilig (voller Text im Element, gekürzt angezeigt), Blättern unter der Liste, Betreff
+  fett und Absender darüber in normaler Schrift, in der Zuordnung steht der Betrag vor dem Namen und wird nie
+  gekürzt. Dafür trägt jede über Bestellnummer oder von Hand angehängte Buchung in der Mailliste `betrag` (Summe
+  auf den Bestandskonten).
+- **10 Empfänger:** Suche über Name und Aliase (`empfaenger-suche`, `empfaenger-treffer`; Tastatur und Strg+A folgen
+  den sichtbaren Zeilen, verborgene verlieren die Auswahl), Spalte „Buchungen“ über `GET /api/empfaenger/anzahlen`
+  → `[{empfaenger_id, anzahl}]` (nur lesend, Empfänger ohne Buchung fehlen), „Bearbeiten…“ ersetzt durch
+  `empfaenger-menue-<id>` („⋯“, dasselbe Menü wie der Rechtsklick). `empfaenger-bestaetigen-<id>` bleibt mit Text.
+- **11 Dubletten:** Gegenüberstellung als Tabelle, eine Spalte je Buchung, abweichende Angaben hervorgehoben
+  (`data-abweichung`); Überschrift in Worten statt „Verdacht n (aehnlich)“; Hinweis, dass „Diese behalten“ die
+  andere Buchung löscht. Knopftext „Diese behalten“ unverändert (oberflaeche.md).
+- **12 Was kommt noch?:** bei überfälligen Einträgen sind nur Frist und Zustand rot, nicht die ganze Zeile.
+- **13 Finanzübersicht:** Abstand in der Kachel, „Kategorien einblenden“ als Knopf mit Pfeil.
+- **14 Tabs:** ab sechs Tabs steht am Ende der Leiste `tab-andere-schliessen` („Andere schließen“). Die Regel „jede
+  Ansicht ein Tab“ (M17) bleibt; verworfen wurde, Navigationspunkte im selben Tab zu öffnen, weil das die
+  freigegebene Definition ändern würde.
+- **Nicht geändert:** grüne Hinterlegung kategorisierter Zeilen (M22).
+- **Prüfung:** `tests/test_browser_ux.py`; `tests/test_browser_sammel3.py` angepasst (Spaltenraster wird ganz nach
+  rechts gerollt gemessen).

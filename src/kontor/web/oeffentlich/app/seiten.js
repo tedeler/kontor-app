@@ -99,11 +99,11 @@ export async function uebersicht(seite) {
   geschlossene.addEventListener("change", zeichnen);
   zeichnen();
   // Kategorien: abgesetzter, einklappbarer Bereich (22.1), Zustand im Browser-Speicher
-  const umschalten = h("button", { type: "button", class: "knopf knopf-flach", tid: "uebersicht-kategorien-umschalten",
+  const umschalten = h("button", { type: "button", class: "knopf", tid: "uebersicht-kategorien-umschalten",
     "aria-controls": "uebersicht-kategorien-inhalt" });
   const setzen = (offen) => {
     umschalten.setAttribute("aria-expanded", offen ? "true" : "false");
-    umschalten.textContent = offen ? "Kategorien ausblenden" : "Kategorien einblenden";
+    umschalten.textContent = (offen ? "▾ " : "▸ ") + (offen ? "Kategorien ausblenden" : "Kategorien einblenden");
     kategorienInhalt.hidden = !offen;
   };
   setzen(speicherLesen(KATEGORIEN_OFFEN) === "ja");
@@ -132,8 +132,7 @@ export async function uebersicht(seite) {
     const e = await api("GET", "/api/erwartungen?grund=bestellung&grund=paypal&grund=rueckerstattung&grund=manuell");
     if (e.aktiv) {
       seite.append(h("a", { href: "/erwartet", class: "karte kachel-erwartet", tid: "kachel-erwartet" },
-        h("strong", null, "Was kommt noch?"), " ",
-        `${e.anzahl} offen`, e.ueberfaellig ? h("span", { class: "warnung" }, ` · ${e.ueberfaellig} überfällig`) : "",
+        h("strong", null, "Was kommt noch?"), h("span", { class: "kachel-zahl" }, `${e.anzahl} offen`), e.ueberfaellig ? h("span", { class: "warnung" }, ` · ${e.ueberfaellig} überfällig`) : "",
         " · ", betragEl("span", e.summe_offen)));
     }
   } catch { /* ohne Kachel */ }
@@ -271,8 +270,9 @@ export async function tagsSeite(seite, _p, suche) {
     const tr = h("tr", { tid: `tag-zeile-${t.id}`, "data-id": String(t.id), class: "klickbar", tabindex: "0", "aria-selected": "false" },
       h("td", null, h("span", { class: person ? "tag tag-person" : "tag", "data-person": person }, t.name)),
       h("td", { class: "zahl" }, String(t.anzahl_buchungen)),
-      h("td", null, knopf("Umbenennen…", { "aria-label": `Tag ${t.name} umbenennen`, onclick: (e) => tagDialog(t, e.currentTarget) }),
-        knopf("Löschen", { "aria-label": `Tag ${t.name} löschen`, onclick: async (e) => {
+      h("td", { class: "zeilen-aktionen" }, knopf("Umbenennen…", { class: "knopf knopf-klein", tid: `tag-umbenennen-${t.id}`,
+        "aria-label": `Tag ${t.name} umbenennen`, onclick: (e) => tagDialog(t, e.currentTarget) }),
+        knopf("Löschen", { class: "knopf knopf-klein knopf-loeschen", tid: `tag-loeschen-${t.id}`, "aria-label": `Tag ${t.name} löschen`, onclick: async (e) => {
           if (!(await bestaetigen(`Tag „${t.name}“ löschen? Es wird von ${t.anzahl_buchungen} Buchungen entfernt.`,
             { ja: "Löschen", ausloeser: e.currentTarget }))) return;
           try { await aktion(() => api("DELETE", `/api/tags/${t.id}`), { erfolg: "Tag gelöscht." }); } catch (f) { /* gemeldet */ }
@@ -283,7 +283,7 @@ export async function tagsSeite(seite, _p, suche) {
     zeilen.set(t.id, tr);
     return tr;
   }), ["titel", "info:Buchungen", "aktion"]);
-  seite.append(h("p", { class: "klein" }, "Ein Tag anklicken zeigt seine Buchungen; von dort führt „Im Konto zeigen“ ins Kontoblatt."), tab, inhalt);
+  seite.append(h("p", { class: "klein" }, "Ein Tag anklicken zeigt seine Buchungen."), tab, inhalt);
   await zeigen();
   return { titel: "Tags" };
 }
@@ -894,7 +894,7 @@ function personTags(e) {
 
 export async function empfaenger(seite) {
   const liste = stamm.empfaenger;
-  const ids = liste.map((e) => e.id);
+  let ids = liste.map((e) => e.id);   // sichtbare Empfänger (Suche, D-236)
   // Mehrfachauswahl wie im Kontoblatt (D-166): Klick wählt eine, Strg/⌘ schaltet um, Umschalt markiert einen Bereich
   const auswahl = new Set();
   let anker = null;
@@ -977,12 +977,42 @@ export async function empfaenger(seite) {
   markieren.addEventListener("click", () => empfaengerMarkieren(gewaehlt(), markieren.dataset.zurueck !== "ja"));
   kopf(seite, "Empfänger", markieren, zusammen);
   if (!liste.length) { seite.append(leer("Noch keine Empfänger.")); pruefen(); return { titel: "Empfänger" }; }
-  seite.append(h("p", { class: "klein" }, anzahl, " · Markieren wie im Kontoblatt: Klick, Strg/⌘-Klick, Umschalt-Klick, "
-    + "Pfeiltasten, Leertaste, Strg+A; Rechtsklick für das Menü (ab zwei markierten: Zusammenführen)."));
+  // D-236: Suche über Name und Aliase, Buchungszahl je Empfänger; die Bedienhinweise stehen im Tooltip
+  const suchFeld = h("input", { type: "search", tid: "empfaenger-suche", class: "listen-suche", placeholder: "Name oder Alias …",
+    "aria-label": "Empfänger durchsuchen", maxlength: "200" });
+  const trefferEl = h("span", { tid: "empfaenger-treffer", "aria-live": "polite" });
+  const suchen = () => {
+    const w = vergleich(suchFeld.value).split(" ").filter(Boolean);
+    let n = 0;
+    const sichtbar = [];
+    for (const e of liste) {
+      const text = vergleich([e.name, ...(e.aliase || [])].join(" "));
+      const passt = w.every((x) => text.includes(x));
+      const z = zeilen.get(e.id);
+      if (z) z.hidden = !passt;
+      if (passt) { n += 1; sichtbar.push(e.id); } else auswahl.delete(e.id);
+    }
+    ids = sichtbar;
+    trefferEl.textContent = w.length ? `${n} von ${liste.length}` : `${liste.length} Empfänger`;
+    pruefen();
+  };
+  suchFeld.addEventListener("input", suchen);
+  seite.append(h("div", { class: "listen-werkzeug" }, suchFeld, h("span", { class: "klein" }, trefferEl, " · ", anzahl),
+    h("span", { class: "klein hilfe-marke", tabindex: "0", title: "Markieren wie im Kontoblatt: Klick, Strg/⌘-Klick, Umschalt-Klick, "
+      + "Pfeiltasten, Leertaste, Strg+A. Rechtsklick oder ⋯ öffnet das Menü (ab zwei markierten: Zusammenführen)." }, "Bedienung ⓘ")));
+  const zahlen = new Map();
+  api("GET", "/api/empfaenger/anzahlen").then((r) => {
+    for (const x of r) zahlen.set(x.empfaenger_id, x.anzahl);
+    for (const [id, z] of zeilen) {
+      const zelle = z.querySelector("[data-feld=anzahl]");
+      if (zelle) { zelle.textContent = String(zahlen.get(id) || 0); zelle.dataset.anzahl = String(zahlen.get(id) || 0); }
+    }
+  }).catch(() => { /* Spalte bleibt leer */ });
   const tab = tabelle({ class: "tabelle empfaenger-liste", tid: "empfaenger-liste", "aria-multiselectable": "true" },
-    ["", "Name", "Bestätigt", "Aliase", ""],
+    ["", "Name", "Bestätigt", "Aliase", "Buchungen", ""],
     liste.map((e) => zeileEmpfaenger(e)),
-    ["auswahl", "titel", "info:Bestätigt", "info:Aliase", "aktion"]);
+    ["auswahl", "titel", "info:Bestätigt", "info:Aliase", "info:Buchungen", "aktion"]);
+  suchen();
   const zeileVon = (t) => t && t.closest && t.closest("tr[data-id]");
   tab.addEventListener("mousedown", (e) => { if (e.shiftKey && zeileVon(e.target)) e.preventDefault(); });   // keine Textauswahl
   tab.addEventListener("click", (e) => {
@@ -1053,11 +1083,15 @@ export async function empfaenger(seite) {
       h("td", { "data-feld": "bestaetigt" }, namen.map((n) => h("span", { class: "tag tag-person", tid: "tag",
         "data-person": n, title: `Bestätigt von ${n}` }, personTag(n)))),
       h("td", null, (e.aliase || []).join(", ")),
-      h("td", null, knopf(hat ? `Bestätigung von ${name} zurücknehmen` : `Als ${name || "…"} bestätigen`, {
-        tid: `empfaenger-bestaetigen-${e.id}`, disabled: !name,
+      h("td", { class: "zahl", "data-feld": "anzahl" }),
+      h("td", { class: "zeilen-aktionen" }, knopf(hat ? `Bestätigung von ${name} zurücknehmen` : `Als ${name || "…"} bestätigen`, {
+        class: "knopf knopf-klein knopf-bestaetigen", tid: `empfaenger-bestaetigen-${e.id}`, disabled: !name,
         "aria-label": hat ? `Bestätigung von ${name} für ${e.name} zurücknehmen` : `${e.name} als ${name || "Person"} bestätigen`,
         onclick: () => empfaengerMarkieren([e], !hat) }),
-      knopf("Bearbeiten…", { "aria-label": `Empfänger ${e.name} bearbeiten`, onclick: (ev) => empfaengerDialog(e, ev.currentTarget) })));
+      // „⋯“ öffnet dasselbe Menü wie der Rechtsklick (Bearbeiten, Regel erstellen, Anzeigen im Konto)
+      knopf("⋯", { class: "knopf knopf-klein knopf-flach", tid: `empfaenger-menue-${e.id}`, "aria-haspopup": "menu",
+        "aria-label": `Menü für Empfänger ${e.name}`, title: "Bearbeiten, Regel erstellen, im Konto anzeigen",
+        onclick: (ev) => { const r = ev.currentTarget.getBoundingClientRect(); menue(e, r.left, r.bottom, ev.currentTarget); } })));
     if (namen.length) tr.dataset.bestaetigt = namen.join(" ");
     zeilen.set(e.id, tr);
     return tr;
@@ -1277,15 +1311,35 @@ export async function dubletten(seite) {
       try { await aktion(() => dubletteAufloesen(v, body), { erfolg: "Dublettenverdacht aufgelöst." }); }
       catch (e) { /* gemeldet */ }
     };
+    // D-236: Gegenüberstellung – eine Spalte je Buchung, abweichende Angaben hervorgehoben
+    const da = bs.filter(Boolean);
+    const konten = (b) => sprungKonten(b).map((kid) => (kontoNach(kid) || {}).name || `Konto ${kid}`).join(", ");
+    const felder = [
+      ["Datum", (b) => datumText(b.datum), (b) => b.datum],
+      ["Empfänger", (b) => (b.empfaenger ? b.empfaenger.name : "ohne Empfänger"), (b) => (b.empfaenger ? b.empfaenger.id : null)],
+      ["Betrag", (b) => betragEl("span", b.betrag), (b) => b.betrag],
+      ["Zweck", (b) => b.verwendungszweck || "–", (b) => b.verwendungszweck || ""],
+      ["Konto", konten, konten],
+    ];
+    const vergleichEl = h("table", { class: "tabelle dubletten-vergleich", tid: `dublette-vergleich-${schluessel}` },
+      h("tbody", null,
+        felder.map(([titel, zeigen, wert]) => {
+          const anders = new Set(da.map((b) => JSON.stringify(wert(b)))).size > 1;
+          return h("tr", { "data-feld": titel.toLowerCase(), "data-abweichung": anders ? "ja" : "nein" }, h("th", { scope: "row" }, titel),
+            da.map((b) => h("td", null, zeigen(b))));
+        }),
+        h("tr", { class: "dubletten-aktionen" }, h("th", { scope: "row" }, ""),
+          da.map((b) => h("td", { tid: `dublette-buchung-${b.id}` },
+            // D-222: zur Buchung springen, zuerst in ihre Bestandskonten
+            h("span", { class: "konto-knoepfe" }, "Zeigen in: ", sprungKonten(b).map((kid) => kontoSprung(b.id, kid, "dublette"))), " ",
+            knopf("Diese behalten", { "aria-label": `Buchung ${b.id} behalten, die andere löschen`, title: "Die andere Buchung wird gelöscht.",
+              onclick: () => aufloesen({ entscheidung: "zusammenfuehren", behalten_id: b.id }) }))))));
+    const GRUND_TEXT = { aehnlich: "ähnliche Buchung schon vorhanden", mehrdeutig: "mehrere mögliche Gegenstücke" };
     return h("li", { tid: schluessel, class: "karte", "data-vorschlag": vorschlag ? "ja" : "nein", "data-grund": v.grund },
-      h("p", null, vorschlag ? "Vorschlag: gleicher Betrag, gleiches Datum, gleicher Empfänger"
-        : `Verdacht ${v.id} (${v.grund})`),
-      h("ul", null, bs.filter(Boolean).map((b) => h("li", { tid: `dublette-buchung-${b.id}` }, `${datumText(b.datum)} · ${b.empfaenger ? b.empfaenger.name : "ohne Empfänger"} · `,
-        betragEl("span", b.betrag), b.verwendungszweck ? ` · ${b.verwendungszweck}` : "", " ",
-        // D-222: zur Buchung springen, zuerst in ihre Bestandskonten
-        h("span", { class: "konto-knoepfe" }, "Zeigen in: ", sprungKonten(b).map((kid) => kontoSprung(b.id, kid, "dublette"))), " ",
-        knopf("Diese behalten", { "aria-label": `Buchung ${b.id} behalten`,
-          onclick: () => aufloesen({ entscheidung: "zusammenfuehren", behalten_id: b.id }) })))),
+      h("p", { class: "dubletten-titel" }, vorschlag ? "Vorschlag: gleicher Betrag, gleiches Datum, gleicher Empfänger"
+        : `Verdacht beim Bankabruf: ${GRUND_TEXT[v.grund] || v.grund}`,
+      h("small", { class: "klein" }, " · „Diese behalten“ löscht die andere Buchung.")),
+      vergleichEl,
       knopf("Keine Dublette", { onclick: () => aufloesen({ entscheidung: "keine_dublette" }) }));
   }));
   seite.append(zeilen.length ? h("ul", { class: "karten-liste", tid: "dubletten-liste" }, zeilen) : leer("Keine offenen Dublettenverdachte."));

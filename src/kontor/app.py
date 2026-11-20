@@ -1177,6 +1177,11 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     async def empfaenger_liste(request: Request):
         return await lesen(buch.empfaenger_liste)
 
+    @endpunkt("GET", "/api/empfaenger/anzahlen")
+    async def empfaenger_anzahlen(request: Request):
+        """D-236: Zahl der Buchungen je Empfänger (Spalte der Empfängerliste)."""
+        return await lesen(pflege.empfaenger_anzahlen)
+
     @endpunkt("GET", "/api/empfaenger/{empfaenger_id:int}/konten")
     async def empfaenger_konten(request: Request):
         """D-220: Bestandskonten mit Buchungen dieses Empfängers (für „Anzeigen im Konto“)."""

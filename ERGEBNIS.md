@@ -1,5 +1,22 @@
 # Ergebnis der Implementierung
 
+## Sammelbranch `feature/sammel3`, UX-Durchgang D-236 (2026-11-20), gegen kontor-tests `c99b6ac`
+
+- **Umfang:** 14 Funde aus dem UX-Durchgang umgesetzt (ENTSCHEIDUNGEN.md D-236): Mail-Ansicht ohne „null“,
+  Kontoblatt (Betrag klebt rechts, Gruppenbalken in sichtbarer Breite, Auswahl-Summen ohne Sprung, Handy mit
+  eingeklapptem Filter), Mail-Blatt (Handy: Liste zuerst; Desktop: Blättern unten, Betrag in der Zuordnung),
+  Tags, Empfänger (Suche, Buchungszahl, Menü), Dubletten als Gegenüberstellung, „Was kommt noch?“,
+  Finanzübersicht, „Andere schließen“ ab sechs Tabs.
+- **Eigene Tests:** `python -m pytest tests -n 4` → 508 bestanden, 3 rot: die beiden Versionstests (D-178, auf
+  Feature-Branches immer rot) und `test_tags_im_kontoblatt_bearbeiten` (nur im Parallellauf, einzeln grün). Neu:
+  `tests/test_browser_ux.py` (8).
+- **Abnahmetests (Browser, `--voll -m browser`, M8/M11/M12/M17/M22/M26/M28):** 62 rot von 348 – dieselben 62 wie
+  am Stand davor (`f9cd9a1`, Folgen von D-218 bis D-234); durch D-236 kommt kein Test hinzu. Übrige Meilensteine
+  (M13, M15, M16, M18–M21, M23–M25, M27) stichprobenweise gegen den Stand davor verglichen: keine neuen Fehlschläge.
+- **Noch nicht im Vertrag:** `GET /api/empfaenger/anzahlen`, Feld `betrag` der angehängten Buchungen in der
+  Mailliste, neue `data-testid` (`ansicht-umschalten`, `mail-lesen-schliessen`, `empfaenger-suche`,
+  `empfaenger-treffer`, `empfaenger-menue-<id>`, `tag-umbenennen-<id>`, `tag-loeschen-<id>`, `tab-andere-schliessen`).
+
 ## Sammelbranch `feature/sammel3`, Nachträge D-227 bis D-231 (2026-11-20)
 
 - Neu: Zuordnungsspalte des Mail-Blatts als eine Zeile (D-227), Gruppen von Mails derselben Zuordnung (D-228),

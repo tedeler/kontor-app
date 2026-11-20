@@ -58,8 +58,8 @@ export async function mailSeite(seite, _param, suche) {
       h("div", { class: "werkzeuge" }, abrufKnopf)),
     standEl,
     h("div", { class: "mail-werkzeug" }, suchFeld, h("div", { class: "chip-leiste", tid: "mail-filter" })),
-    blaetterEl,
-    h("div", { class: "mail-blatt" }, listeEl, leseEl));
+    // D-236: Blättern steht unter der Liste, damit sie weiter oben beginnt
+    h("div", { class: "mail-blatt" }, h("div", { class: "mail-listen-spalte" }, listeEl, blaetterEl), leseEl));
   seite.addEventListener("keydown", (ev) => {
     if (ev.altKey || ev.ctrlKey || ev.metaKey) return;
     if (ev.key !== "ArrowDown" && ev.key !== "ArrowUp") return;
@@ -96,7 +96,8 @@ export async function mailSeite(seite, _param, suche) {
       if (kante === "letzte" && mails.length) gewaehlt = String(mails[mails.length - 1].id);
       else if (kante === "erste" && mails.length) gewaehlt = String(mails[0].id);
       else if (gewaehlt && !mails.some((m) => String(m.id) === gewaehlt)) gewaehlt = "";
-      if (!gewaehlt && mails.length) gewaehlt = String(mails[0].id);
+      // am Handy zuerst die Liste: dort wird keine Mail vorgewählt (D-236)
+      if (!gewaehlt && mails.length && !oberflaeche.istMobil()) gewaehlt = String(mails[0].id);
       const fokus = tastatur;
       kante = "";
       tastatur = false;
@@ -146,12 +147,16 @@ export async function mailSeite(seite, _param, suche) {
 
   function inhaltZeigen() {
     const mail = mails.find((m) => String(m.id) === gewaehlt);
-    leseEl.replaceChildren(...(mail ? lesen(mail, (ausloeser) => zuordnenDialog(mail, ausloeser, laden))
+    const mobil = oberflaeche.istMobil();
+    leseEl.hidden = mobil && !mail;
+    const zu = mobil && mail ? [h("button", { type: "button", class: "knopf-flach mail-lesen-zu", tid: "mail-lesen-schliessen",
+      "aria-label": "Mail schließen", onclick: () => auswahlSetzen("", false) }, "✕")] : [];
+    leseEl.replaceChildren(...zu, ...(mail ? lesen(mail, (ausloeser) => zuordnenDialog(mail, ausloeser, laden))
       : [h("p", { class: "leer" }, "Keine Mail ausgewählt.")]));
   }
 
   function auswahlSetzen(id, fokus) {
-    gewaehlt = String(id);
+    gewaehlt = id === "" ? "" : String(id);
     for (const tr of listeEl.querySelectorAll("tbody tr")) {
       const an = tr.dataset.testid === `mail-${gewaehlt}`;
       tr.classList.toggle("gewaehlt", an);
@@ -303,16 +308,18 @@ function zuordnungKurz(m) {
     if (!buchungen.some((x) => x.id === b.id)) buchungen.push(b);
   }
   const zeile = (zustand, marke, ziel, weitere, betrag, hinweis) => h("div", { class: "mail-zuordnung", "data-zustand": zustand, title: hinweis || null },
-    h("span", { class: "mail-marke" }, marke), h("span", { class: "mail-ziel" }, ziel),
-    h("span", { class: "mail-weitere klein", tid: weitere ? "mail-weitere" : null }, weitere ? `+${weitere}` : ""),
-    betrag === null || betrag === undefined ? null : betragEl("span", betrag, { class: "mail-betrag" }));
+    h("span", { class: "mail-marke" }, marke),
+    // D-236: der Betrag steht vor dem Namen und wird nie gekürzt – an ihm erkennt man die Buchung
+    betrag === null || betrag === undefined ? h("span", { class: "mail-betrag" }) : betragEl("span", betrag, { class: "mail-betrag" }),
+    h("span", { class: "mail-ziel" }, ziel),
+    h("span", { class: "mail-weitere klein", tid: weitere ? "mail-weitere" : null }, weitere ? `+${weitere}` : ""));
   if (buchungen.length) {
     const weg = [haengt(m).some((b) => b.nummer) ? "Bestellnummer" : null, haengt(m).some((b) => !b.nummer) ? "von Hand" : null,
       erwartungen.some((z) => z.buchungen.length) ? "erwartete Zahlung" : null].filter(Boolean).join(", ");
     const erste = buchungen[0];
-    const betrag = erste.betrag !== undefined ? erste.betrag : (erwartungen.find((z) => z.buchungen.some((b) => b.id === erste.id)) || {}).vorzeichen_betrag;
+    const betrag = erste.betrag !== undefined && erste.betrag !== null ? erste.betrag : (erwartungen.find((z) => z.buchungen.some((b) => b.id === erste.id)) || {}).vorzeichen_betrag;
     return zeile("erfuellt", "Zugeordnet",
-      buchungsKnopf(erste), buchungen.length - 1, betrag, `Zugeordnet über ${weg}${buchungen.length > 1 ? ` · ${buchungen.length} Buchungen` : ""}`);
+      buchungsKnopf(erste, true), buchungen.length - 1, betrag, `Zugeordnet über ${weg}${buchungen.length > 1 ? ` · ${buchungen.length} Buchungen` : ""}`);
   }
   if (erwartungen.length) {
     const z = erwartungen.find((x) => x.ueberfaellig) || erwartungen[0];
@@ -322,11 +329,12 @@ function zuordnungKurz(m) {
   return h("span", { class: "mail-ohne" }, "–");
 }
 
-function buchungsKnopf(b) {
+function buchungsKnopf(b, kurz) {
   const name = b.empfaenger || b.konto || "Buchung";
-  return h("button", { type: "button", class: "knopf-link", tid: `mail-buchung-${b.id}`,
+  const datum = datumText(b.datum);
+  return h("button", { type: "button", class: "knopf-link", tid: `mail-buchung-${b.id}`, title: `${datum} ${name}`,
     onclick: (ev) => { ev.stopPropagation(); oberflaeche.zurBuchung(b.konto_id, b.id); } },
-  `${datumText(b.datum)} ${name}`);
+  `${kurz ? datum.slice(0, 6) : datum} ${name}`);
 }
 
 const zwei = (n) => String(n).padStart(2, "0");

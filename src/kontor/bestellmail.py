@@ -188,13 +188,17 @@ def angehaengt_nach_mail(con) -> dict[str, list[dict]]:
             "SELECT m.nachricht_id, m.nummer, b.id, b.datum, b.verwendungszweck, e.name AS empfaenger,"
             " (SELECT s.konto_id FROM split s JOIN konto k ON k.id = s.konto_id"
             "   WHERE s.buchung_id = b.id ORDER BY k.art IN ('girokonto','sparkonto','kreditkonto') DESC, s.id LIMIT 1)"
-            "   AS konto_id"
+            "   AS konto_id,"
+            " (SELECT SUM(s.betrag) FROM split s JOIN konto k ON k.id = s.konto_id"
+            "   WHERE s.buchung_id = b.id AND k.art IN ('girokonto','sparkonto','kreditkonto')) AS betrag"
             " FROM bestellmail m JOIN buchung b ON b.id = m.buchung_id"
             " JOIN dokument_buchung x ON x.dokument_id = m.dokument_id AND x.buchung_id = m.buchung_id"
             " LEFT JOIN empfaenger e ON e.id = b.empfaenger_id ORDER BY b.datum, b.id"):
         aus.setdefault(r["nachricht_id"], []).append({
             "id": r["id"], "datum": r["datum"], "konto_id": r["konto_id"], "empfaenger": r["empfaenger"],
             "verwendungszweck": r["verwendungszweck"], "nummer": r["nummer"],
+            # Betrag auf den Bestandskonten (D-236: steht in der Mailliste vor dem Namen); None ohne Bestandskonto
+            "betrag": r["betrag"],
             "warum": (f"Die Bestellnummer „{r['nummer']}“ steht in der Buchung." if r["nummer"]
                       else "Von Hand zugeordnet.")})
     return aus

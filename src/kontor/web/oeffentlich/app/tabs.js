@@ -12,6 +12,8 @@ const SCHLUESSEL = "kontor.tabs";
 const HOECHSTENS = 40;          // gespeicherte Tabs; ältere inaktive fallen beim Speichern weg
 const SCROLLER = ".listen-spalte, .panel-inhalt";
 
+const AUFRAEUMEN_AB = 6;
+
 export class Tabs {
   /** beiWahl(tab): Tab soll aktiv werden; beiSchliessen(tab, naechster): aktiver Tab wurde geschlossen. */
   constructor(leiste, haupt, { beiWahl, beiSchliessen }) {
@@ -167,7 +169,11 @@ export class Tabs {
   zeichnen() {
     const fokusPfad = this.leiste.contains(document.activeElement)
       ? (document.activeElement.closest("[data-pfad]") || {}).dataset?.pfad : null;
-    this.leiste.replaceChildren(...this.liste.map((t) => this.reiter(t)));
+    // D-236: ab AUFRAEUMEN_AB Tabs steht am Ende der Leiste „Andere schließen“ (sonst nur im Kontextmenü)
+    const aufraeumen = this.liste.length >= AUFRAEUMEN_AB && this.aktiv
+      ? [h("button", { type: "button", class: "tab-aufraeumen", tid: "tab-andere-schliessen", tabindex: "-1",
+        title: "Alle Tabs außer dem aktuellen schließen", onclick: () => this.andereSchliessen(this.aktiv) }, "Andere schließen")] : [];
+    this.leiste.replaceChildren(...this.liste.map((t) => this.reiter(t)), ...aufraeumen);
     this.leiste.hidden = this.liste.length === 0;
     if (this.beiZeichnen) this.beiZeichnen(this.liste.length);
     if (fokusPfad) {

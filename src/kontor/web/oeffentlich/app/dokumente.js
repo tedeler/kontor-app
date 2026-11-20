@@ -197,7 +197,7 @@ async function mailAnsicht(dok, betrachten) {
       bilderLeiste.replaceChildren(
         h("span", null, bilderAn ? `${externe} ${externe === 1 ? "Bild" : "Bilder"} von fremden Servern geladen.`
           : `${externe} ${externe === 1 ? "Bild" : "Bilder"} von fremden Servern nicht geladen.`),
-        bilderAn ? null : knopf("Bilder laden", { class: "knopf knopf-klein", tid: "mail-bilder-laden", onclick: () => { bilderAn = true; zeigen(); } }),
+        ...(bilderAn ? [] : [knopf("Bilder laden", { class: "knopf knopf-klein", tid: "mail-bilder-laden", onclick: () => { bilderAn = true; zeigen(); } })]),
         h("label", { class: "klein" }, merken, " immer laden"));
     };
     const umschalter = m.html ? knopf("", { class: "knopf knopf-klein", tid: "mail-ansicht-umschalten" }) : null;
@@ -227,8 +227,9 @@ async function mailAnsicht(dok, betrachten) {
         h("a", { href: `${url}?herunterladen=true`, class: "knopf-link klein", tid: `mail-anhang-laden-${a.nr}`, download: a.dateiname },
           "Herunterladen"));
     })) : null;
-    flaeche.replaceChildren(kopf, umschalter ? h("div", { class: "mail-umschalter" }, umschalter) : null, bilderLeiste, koerper,
-      anh ? h("h3", { class: "klein" }, "Anhänge") : null, anh);
+    // replaceChildren schreibt null als Wort „null“: leere Teile vorher aussortieren
+    flaeche.replaceChildren(...[kopf, umschalter ? h("div", { class: "mail-umschalter" }, umschalter) : null, bilderLeiste, koerper,
+      anh ? h("h3", { class: "klein" }, "Anhänge") : null, anh].filter(Boolean));
   } catch (e) {
     flaeche.replaceChildren(h("p", { class: "fehler" }, e.message || "Die E-Mail konnte nicht gelesen werden."));
   }

@@ -155,6 +155,13 @@ def empfaenger_konten(con, eid: int) -> list[dict]:
         " GROUP BY s.konto_id ORDER BY anzahl DESC, s.konto_id", (eid, *BESTAND))]
 
 
+def empfaenger_anzahlen(con) -> list[dict]:
+    """Zahl der Buchungen je Empfänger für die Empfängerliste (D-236); Empfänger ohne Buchung fehlen."""
+    return [{"empfaenger_id": r["empfaenger_id"], "anzahl": r["anzahl"]} for r in con.execute(
+        "SELECT empfaenger_id, COUNT(*) AS anzahl FROM buchung WHERE empfaenger_id IS NOT NULL"
+        " GROUP BY empfaenger_id ORDER BY empfaenger_id")]
+
+
 def empfaenger_loeschen(con, eid: int) -> None:
     buch.empfaenger_lesen(con, eid)
     if con.execute("SELECT 1 FROM buchung WHERE empfaenger_id = ? LIMIT 1", (eid,)).fetchone():
