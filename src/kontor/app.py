@@ -33,7 +33,7 @@ from starlette.staticfiles import StaticFiles
 from . import (__version__, ausdruck, auswertungen, berichte, buch, db, export, kredite, lernerklaerung, lernmodell, lernregeln, mock_lerndaten, mail, monatsbericht, pflege, protokoll, regeln,
                sicherung, verschieben, vorlagen, wiederkehrend)
 from . import aktualisierung
-from . import abgleich, bankzugang, bestellmail, dokumente, erwartung, kontonamen
+from . import abgleich, anbieter, bankzugang, bestellmail, dokumente, erwartung, kontonamen
 from . import anmeldung as anm
 from . import version as versionsinfo
 from .geheimnisse import REST_NAMEN
@@ -352,6 +352,7 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     pfad = config.aktive_datenbank
     protokolle_absichern()
     db.schema_anlegen(pfad)  # vor der Rückkehr: Datei und Schema existieren
+    anbieter.einrichten(config.anbieter_verzeichnis)  # D-230: zugeladene Anbieter-Beschreibungen
     pflege.altbestand_umwandeln(pfad)  # D-219: Standardkategorien früherer Versionen werden Regeln
     kontonamen.altbestand_bereinigen(pfad)  # D-218: gleichnamige Konten früherer Versionen
     modus = "mock" if config.mock_modus else "echt"

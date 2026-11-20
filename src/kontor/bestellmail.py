@@ -18,37 +18,36 @@ import datetime as dt
 import email
 import hashlib
 import logging
-import re
 import threading
 
-from . import db, dokumente, protokoll
+from . import anbieter, db, dokumente, protokoll
 from .config import KontorConfig
 from .validierung import ApiFehler
 
 log = logging.getLogger("kontor.bestellmail")
 _SPERRE = threading.Lock()
 
-NUMMER = re.compile(r"(?<!\d)\d{3}-\d{7}-\d{7}(?!\d)")
-# Grobfilter in SQL, damit nur Texte mit einer möglichen Nummer gelesen werden
-_GLOB_GROB = "*[0-9]-*[0-9]*-*[0-9]*"
+def _mit_kennung() -> list:
+    """Anbieter, deren Beschreibung eine Kennung im Verwendungszweck nennt (D-230; bisher nur die
+    Amazon-Bestellnummer)."""
+    return [a for a in anbieter.aktive() if a.bank.kennung is not None]
 
 
 def nummern(*texte: str | None) -> list[str]:
-    """Amazon-Bestellnummern in den Texten, in der Reihenfolge des ersten Auftretens. Bankzeilen brechen die
-    Nummer manchmal um, deshalb wird zusätzlich ohne Leerraum gesucht."""
+    """Kennungen aller Anbieter in den Texten (z. B. Amazon-Bestellnummern), in der Reihenfolge des ersten
+    Auftretens je Anbieter. Bankzeilen brechen die Nummer manchmal um; Anbieter mit ``ohne_leerraum`` werden
+    deshalb zusätzlich ohne Leerraum gesucht."""
     aus: list[str] = []
-    for t in texte:
-        if not t:
-            continue
-        for fassung in (t, re.sub(r"\s+", "", t)):
-            for n in NUMMER.findall(fassung):
-                if n not in aus:
-                    aus.append(n)
+    for a in _mit_kennung():
+        for n in a.kennungen(*texte):
+            if n not in aus:
+                aus.append(n)
     return aus
 
 
-def nummern_der_mail(betreff: str | None, text: str | None, roh: bytes | None) -> list[str]:
-    """Bestellnummern einer Mail: Betreff, gespiegelter Text und – mit Rohfassung – alle Textteile im Quelltext.
+def nummern_der_mail(betreff: str | None, text: str | None, roh: bytes | None,
+                     absender: str | None = None) -> list[str]:
+    """Kennungen einer Mail (Anbieter ohne ``alle_mails`` nur in ihren eigenen Mails): Betreff, gespiegelter Text und – mit Rohfassung – alle Textteile im Quelltext.
     Der gespiegelte Text ist nur der erste Klartextteil; Amazon nennt die Nummer oft nur im HTML-Teil oder in
     den Adressen der Verweise (``orderId=…``), die beim Entfernen der Auszeichnung verloren gehen."""
     texte = [betreff, text]
@@ -65,8 +64,10 @@ def nummern_der_mail(betreff: str | None, text: str | None, roh: bytes | None) -
         except Exception:  # noqa: BLE001 - eine unlesbare Rohfassung zählt nur mit Betreff und Text
             pass
     aus: list[str] = []
-    for t in texte:
-        for n in NUMMER.findall(t or ""):
+    for a in _mit_kennung():
+        if not a.bank.alle_mails and not a.gehoert(absender or ""):
+            continue
+        for n in a.kennungen(*texte, mit_leerraum_variante=False):
             if n not in aus:
                 aus.append(n)
     return aus
@@ -77,11 +78,19 @@ def _mails_je_nummer(con) -> dict[str, list]:
     nur einmal durchsucht; das Ergebnis steht in ``bestellmail_nummer`` (leere Nummer = durchsucht)."""
     con.execute("DELETE FROM bestellmail_nummer WHERE NOT EXISTS"
                 " (SELECT 1 FROM mail_nachricht m WHERE m.id = bestellmail_nummer.spiegel_id)")
-    neu = con.execute("SELECT id, betreff, text, roh FROM mail_nachricht WHERE id NOT IN"
+    # D-230: Mit geänderten Mustern (neuer Anbieter, geänderte Beschreibung) werden alle Mails neu durchsucht
+    stand = anbieter.signatur(tuple(_mit_kennung()))
+    gemerkt = con.execute("SELECT wert FROM meta WHERE schluessel = 'bestellmail_muster'").fetchone()
+    if gemerkt is None or gemerkt["wert"] != stand:
+        con.execute("DELETE FROM bestellmail_nummer")
+        con.execute("INSERT INTO meta (schluessel, wert) VALUES ('bestellmail_muster', ?)"
+                    " ON CONFLICT(schluessel) DO UPDATE SET wert = excluded.wert", (stand,))
+    neu = con.execute("SELECT id, absender, betreff, text, roh FROM mail_nachricht WHERE id NOT IN"
                       " (SELECT spiegel_id FROM bestellmail_nummer)").fetchall()
     for r in neu:
         con.executemany("INSERT INTO bestellmail_nummer (spiegel_id, nummer) VALUES (?, ?)",
-                        [(r["id"], n) for n in ["", *nummern_der_mail(r["betreff"], r["text"], r["roh"])]])
+                        [(r["id"], n) for n in ["", *nummern_der_mail(r["betreff"], r["text"], r["roh"],
+                                                                      r["absender"])]])
     aus: dict[str, list] = {}
     gesehen: set[tuple[str, str]] = set()
     for r in con.execute("SELECT x.nummer, m.id, m.nachricht_id FROM bestellmail_nummer x"
@@ -95,9 +104,17 @@ def _mails_je_nummer(con) -> dict[str, list]:
 
 def _buchungen_mit_nummer(con) -> list[tuple[int, list[str]]]:
     aus = []
+    # Grobfilter in SQL (bank.glob), damit nur Texte mit einer möglichen Kennung gelesen werden; nennt ein Anbieter
+    # keinen, werden alle Buchungen gelesen
+    globs = [a.bank.glob for a in _mit_kennung()]
+    if not globs:
+        return aus
+    wo, par = "", []
+    if all(globs):
+        wo = " WHERE " + " OR ".join("b.verwendungszweck GLOB ? OR e.name GLOB ?" for _ in globs)
+        par = [g for g in globs for _ in (0, 1)]
     for r in con.execute("SELECT b.id, b.verwendungszweck, e.name FROM buchung b"
-                         " LEFT JOIN empfaenger e ON e.id = b.empfaenger_id"
-                         " WHERE b.verwendungszweck GLOB ? OR e.name GLOB ? ORDER BY b.id", (_GLOB_GROB, _GLOB_GROB)):
+                         " LEFT JOIN empfaenger e ON e.id = b.empfaenger_id" + wo + " ORDER BY b.id", par):
         gefunden = nummern(r["verwendungszweck"], r["name"])
         if gefunden:
             aus.append((r["id"], gefunden))
@@ -204,6 +221,7 @@ def von_hand(con, nachricht_db_id: int, buchung_id: int, zeitpunkt: str) -> dict
 def laufen(config: KontorConfig, jetzt: dt.datetime) -> dict | None:
     if not config.mail_bestellnummer:
         return None
+    anbieter.einrichten(config.anbieter_verzeichnis)
     zeit = jetzt.astimezone(dt.timezone.utc).replace(microsecond=0).strftime("%Y-%m-%dT%H:%M:%SZ")
     with _SPERRE:
         con = db.verbinde(config.aktive_datenbank)

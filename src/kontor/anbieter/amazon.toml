@@ -1,0 +1,45 @@
+# Anbieter-Beschreibung „Amazon“ (D-230). Aufbau und Bausteine: siehe ANBIETER.md.
+name = "amazon"
+titel = "Amazon"
+# Domain des Absenders (klein geschrieben): amazon.de, bestellung.amazon.de, amazon.example.invalid …
+absender = '(^|\.)amazon\.'
+
+# Jede Mail braucht die Bestellnummer; gesucht wird erst im Betreff, dann im Text.
+[kennung]
+muster = '\b(\d{3}-\d{7}-\d{7})\b'
+suche_in = ["betreff", "text"]
+
+# Mailarten in dieser Reihenfolge; die erste, deren Betreff passt, gilt.
+[[art]]
+name = "storno"
+rolle = "storno"
+betreff = '(?i)storniert|stornierung'
+gesamt = { fest = 0 }
+
+[[art]]
+name = "erstattung"
+rolle = "erstattung"
+betreff = '(?i)erstattung'
+gesamt = { betrag_nach = '(?i)(Gesamt)?erstattung(sbetrag)?|Erstattete?r? Betrag' }
+bezug = { kennung = true }
+
+[[art]]
+name = "bestellung"
+rolle = "ausgabe"
+grund = "bestellung"
+betreff = '(?i)bestell|bestätig'
+gesamt = { betrag_nach = '(?i)Gesamtsumme|Gesamtbetrag|Endbetrag|Summe der Bestellung|Bestellsumme' }
+guthaben = { betrag_nach = '(?i)Geschenkgutschein|Gutschein(e)?\s*(eingelöst)?|Amazon-Guthaben|Guthaben' }
+
+[art.artikel]
+zeile = '^(?:\d+\s*x\s+)?(?P<name>.{3,}?)\s+(?P<betrag>(?:€|EUR)\s*[\d.,]+|[\d.,]+\s*(?:€|EUR))$'
+ausser = '(?i)summe|betrag|zwischen|versand|verpackung|gutschein|guthaben|steuer|mwst|rabatt|erstattung|bestellnr|zahlung'
+
+# Bankseite: woran die Buchung zu erkennen ist und wie die Kennung im Verwendungszweck aussieht.
+[bank]
+namen = ["amazon", "amzn"]
+kennung = '(?<!\d)\d{3}-\d{7}-\d{7}(?!\d)'
+glob = "*[0-9]-*[0-9]*-*[0-9]*"
+ohne_leerraum = true
+# Auch Mails anderer Absender (Marketplace-Händler, Paketdienste) nennen die Bestellnummer.
+alle_mails = true

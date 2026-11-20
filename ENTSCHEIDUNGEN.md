@@ -3216,3 +3216,29 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - **Folge:** Mit geladenen Bildern erfährt der Absender, dass und von welcher Adresse die Mail geöffnet wurde.
 - **Prüfung:** `tests/test_browser_sammel3.py::test_mail_bilder_serverseitig` und
   `::test_mail_bilder_nachladen_im_kontoblatt` (Bild vom eigenen Testserver, nur Loopback).
+
+## D-230 Anbieter-Beschreibungen: Mail-Abgleich als zuladbare Module
+
+- **Anlass:** Auftrag vom 2026-11-20: den Abgleich von Mail und Buchung für Amazon verallgemeinern und als
+  zuladbare Module beschreiben (mit regulären Ausdrücken), damit er auch für PayPal und weitere Anbieter gilt.
+- **Lösung:** Paket `kontor.anbieter`: Eine Beschreibung (TOML) nennt Absender, Kennung, Mailarten mit Rolle
+  (`ausgabe`, `erstattung`, `storno`), Bausteine für Beträge und Texte und die Bankseite (Namen, Kennungsmuster).
+  Mitgeliefert `amazon.toml` und `paypal.toml`; weitere aus `anbieter_verzeichnis`
+  (`KONTOR_ANBIETER_VERZEICHNIS`). Beschreibung des Formats: `ANBIETER.md`.
+- **Deckungsgleich mit dem bisherigen Code:** `tests/test_anbieter_eigen.py` vergleicht die beiden Beschreibungen
+  mit der eingefrorenen bisherigen Erkennung (`tests/referenz_mailerkennung.py`) über 6000 zufällig gebaute Mails
+  je Lauf, feste Beispiele und die Mock-Mails; ein zweiter Test stellt sicher, dass dabei jede Mailart beider
+  Anbieter vorkommt. Kein Unterschied gefunden. Die Abnahmetests M20 und M24 bleiben wie zuvor.
+- **Verallgemeinert:** (1) Erwartete Zahlungen: Schlüssel `<anbieter>:<mailart>:<kennung>` (für Amazon und PayPal
+  unverändert), Storno und Erstattung beziehen sich auf die Mailart mit Rolle `ausgabe`. (2) „Name steht in der
+  Buchung“: aus `bank.namen` statt des fest eingebauten „amzn“. (3) Anhängen über die Kennung (bisher nur
+  Amazon-Bestellnummer, D-208): für jeden Anbieter mit `bank.kennung`; für PayPal der 17-stellige Transaktionscode,
+  gesucht nur in PayPal-Mails (`alle_mails` aus), für Amazon weiter in allen Mails.
+- **Datenbank:** Schemaversion 15: `erwartung.anbieter` lässt jeden Namen einer Beschreibung zu (Tabelle wird
+  umgebaut, Inhalt und Zähler bleiben). Gemerkte Kennungen der Mails (`bestellmail_nummer`) werden einmal neu
+  gesucht, wenn sich die Muster ändern (`meta.bestellmail_muster`).
+- **Grenzen:** Der Grund einer erwarteten Zahlung bleibt `bestellung` oder `paypal` (Vertrag der Schnittstelle).
+  Python-`re` kennt kein Zeitlimit; geschützt wird über die Länge der Ausdrücke (500) und des ausgewerteten Textes
+  (200 000 Zeichen). Beschreibungen sind Dateien des Betreibers, nicht aus der Oberfläche änderbar.
+- **Offen:** Ob der PayPal-Transaktionscode im Verwendungszweck der Bank steht, ist mit echten Auszügen zu prüfen;
+  sonst greift für PayPal nur Betrag und Name.

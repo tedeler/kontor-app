@@ -22,7 +22,7 @@ import datetime as dt
 import json
 import re
 
-from . import buch, dokumente, mailerkennung, wiederkehrend
+from . import anbieter, buch, dokumente, mailerkennung, wiederkehrend
 from .validierung import ApiFehler, Feld, Validierungsfehler, datum_gueltig, fehler_eintrag, pruefe_objekt
 
 GRUENDE = ("bestellung", "paypal", "rueckerstattung", "manuell")
@@ -321,26 +321,26 @@ def erkennen(con, frist_tage: int, zeitpunkt: str) -> dict:
             continue
         datum = r["empfangen"][:10]
         frist = _plus(datum, frist_tage)
-        if e.art == "storno":
-            z = _nach_schluessel(con, f"amazon:bestellung:{e.kennung}")
+        # D-230: Was eine Mailart bedeutet, sagt die Beschreibung des Anbieters (Rolle, Grund); der Schlüssel der
+        # erwarteten Zahlung ist „<anbieter>:<mailart>:<kennung>“.
+        modul = anbieter.nach_name(e.anbieter)
+        art = modul.art(e.art)
+        ausgabe = modul.ausgabe
+        if art.rolle == "storno":
+            z = _nach_schluessel(con, f"{modul.name}:{ausgabe.name}:{e.kennung}")
             if z is not None and z["zustand"] == "offen" and z["buchung_ids"] == "[]":
                 con.execute("UPDATE erwartung SET zustand = 'storniert' WHERE id = ?", (z["id"],))
                 _mail_hinzu(con, z, r)
                 storniert += 1
             continue
-        if e.art == "bestellung":
-            schluessel, grund, richtung, bezug = f"amazon:bestellung:{e.kennung}", "bestellung", "ausgabe", None
-        elif e.art == "zahlung":
-            schluessel, grund, richtung, bezug = f"paypal:zahlung:{e.kennung}", "paypal", "ausgabe", None
+        if art.rolle == "ausgabe":
+            schluessel, grund, richtung, bezug = f"{modul.name}:{art.name}:{e.kennung}", art.grund, "ausgabe", None
         else:
-            schluessel = f"{e.anbieter}:erstattung:{e.kennung}:{e.gesamt}"
+            schluessel = f"{modul.name}:{art.name}:{e.kennung}:{e.gesamt}"
             grund, richtung = "rueckerstattung", "eingang"
-            ur = None
-            if e.bezug:
-                ur = _nach_schluessel(con, f"amazon:bestellung:{e.bezug}" if e.anbieter == "amazon"
-                                      else f"paypal:zahlung:{e.bezug}")
+            ur = _nach_schluessel(con, f"{modul.name}:{ausgabe.name}:{e.bezug}") if e.bezug else None
             bezug = ur["id"] if ur is not None else None
-            if ur is not None and e.anbieter == "paypal" and e.haendler == "PayPal":
+            if ur is not None and e.haendler == modul.titel:   # kein eigener Händler in der Mail: den der Zahlung
                 e = mailerkennung.Erkennung(e.anbieter, e.art, e.kennung, ur["haendler"], e.gesamt, e.guthaben,
                                             e.bezug, e.artikel)
         z = _nach_schluessel(con, schluessel)
@@ -350,7 +350,7 @@ def erkennen(con, frist_tage: int, zeitpunkt: str) -> dict:
             _mail_hinzu(con, z, r)
             continue
         _neu(con, grund=grund, richtung=richtung, anbieter=e.anbieter, schluessel=schluessel, kennung=e.kennung,
-             referenz=e.bezug if e.art == "zahlung" and e.bezug else "", haendler=e.haendler,
+             referenz=e.bezug if art.rolle == "ausgabe" and e.bezug else "", haendler=e.haendler,
              beschreibung=_beschreibung(e), gesamt=e.gesamt, guthaben=e.guthaben, datum=datum, frist=frist,
              bezug_id=bezug, mails=[_mail_eintrag(r)], zeitpunkt=zeitpunkt)
         neu += 1
@@ -376,11 +376,11 @@ def _kennung_passt(z, b: dict) -> bool:
 
 def _anbieter_passt(z, b: dict) -> bool:
     text = ((b["verwendungszweck"] or "") + " " + (b["empfaenger"] or "")).casefold()
-    namen = [z["anbieter"]] if z["anbieter"] else []
+    modul = anbieter.nach_name(z["anbieter"])
+    # D-230: Namen, unter denen der Anbieter in Bankbuchungen steht, nennt seine Beschreibung (bank.namen)
+    namen = list(modul.bank.namen) if modul is not None else ([z["anbieter"]] if z["anbieter"] else [])
     if z["haendler"] and len(z["haendler"]) >= 3:
         namen.append(z["haendler"].casefold())
-    if z["anbieter"] == "amazon":
-        namen += ["amzn"]
     return any(n and n in text for n in namen)
 
 
@@ -707,7 +707,8 @@ def pruefe_inhalt(zeilen: list[tuple]) -> bool:
         f = dict(zip(_SPALTEN, r))
         try:
             ok = (f["grund"] in GRUENDE and f["richtung"] in RICHTUNGEN and f["zustand"] in ZUSTAENDE
-                  and f["anbieter"] in (None, "amazon", "paypal") and datum_gueltig(f["datum"])
+                  and (f["anbieter"] is None or (isinstance(f["anbieter"], str)
+                                                 and re.fullmatch(r"[a-z][a-z0-9_]{0,29}", f["anbieter"]))) and datum_gueltig(f["datum"])
                   and datum_gueltig(f["frist"]) and all(type(f[k]) is int and 0 <= f[k] <= MAX_BETRAG
                                                         for k in ("betrag", "gesamt", "guthaben"))
                   and all(isinstance(json.loads(f[k]), list) for k in ("buchung_ids", "mails", "dokument_ids")))
