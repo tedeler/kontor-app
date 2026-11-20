@@ -1487,3 +1487,10 @@ html[data-thema="dunkel"] .mail-zuordnung[data-zustand="erfuellt"] .mail-marke {
 .auswahl-summen { white-space: nowrap; }
 [data-layout="mobil"] .seite-konto .auswahl-summen { display: none; }   /* mobil stehen sie im Auswahlkopf */
 .auswahl-kopf-summen { white-space: nowrap; margin-left: .5rem; }
+
+/* Konfiguration (D-235) */
+.hinweis-kasten { padding: .5rem .7rem; border: 1px solid var(--rand); border-left: 4px solid var(--fokus); border-radius: 6px;
+  background: var(--hg-2); max-width: 60rem; }
+.konfiguration-tabelle code { overflow-wrap: anywhere; }
+.konfiguration-geaendert td:first-child { font-weight: 600; }
+.konfiguration-tabelle td:first-child code, .konfiguration-tabelle td:last-child code { overflow-wrap: normal; white-space: nowrap; }

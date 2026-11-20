@@ -8,6 +8,7 @@ Transaktion. Mehrere Apps im selben Prozess teilen keinen Zustand.
 from __future__ import annotations
 
 import hashlib
+import os
 import contextlib
 import datetime as dt
 import functools
@@ -33,7 +34,7 @@ from starlette.staticfiles import StaticFiles
 from . import (__version__, ausdruck, auswertungen, berichte, buch, db, export, kredite, lernerklaerung, lernmodell, lernregeln, mock_lerndaten, mail, monatsbericht, pflege, protokoll, regeln,
                sicherung, verschieben, vorlagen, wiederkehrend)
 from . import aktualisierung
-from . import abgleich, anbieter, bankzugang, bestellmail, dokumente, erwartung, kontonamen
+from . import abgleich, anbieter, bankzugang, bestellmail, config_anzeige, dokumente, erwartung, kontonamen
 from . import anmeldung as anm
 from . import version as versionsinfo
 from .geheimnisse import REST_NAMEN
@@ -51,7 +52,7 @@ log = logging.getLogger("kontor")
 
 WEB = pathlib.Path(__file__).parent / "web"
 #: Routen der Oberfläche (oberflaeche.md 3) und Links aus Benachrichtigungen (/buchungen/<id>, /sync/konten)
-SPA_ROUTEN = ["/", "/konten", "/konten/{konto_id:int}", "/kategorien", "/tags", "/erwartet", "/mail", "/kredite",
+SPA_ROUTEN = ["/", "/konten", "/konten/{konto_id:int}", "/kategorien", "/tags", "/konfiguration", "/erwartet", "/mail", "/kredite",
               "/kredite/{kredit_id:int}", "/berichte", "/berichte/monat", "/import", "/einstellungen", "/protokoll", "/empfaenger", "/regeln", "/lernmodell",
               "/vorlagen", "/dubletten", "/sync", "/sync/konten", "/benachrichtigungen", "/suche", "/tan/{tan_id:int}",
               "/mail/postfaecher/{postfach_id:int}", "/buchungen/{buchung_id:int}"]
@@ -512,6 +513,14 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
         """About-Fenster (D-105): Version, Build, Laufzeit und Schemaversionen."""
         return {**versionsinfo.info(), "modus": modus, "datenbank": str(pathlib.Path(pfad).resolve()),
                 "datenbank_schema": db.SCHEMA_VERSION, "sicherung_schema": sicherung.SCHEMAVERSION}
+
+    @endpunkt("GET", "/api/konfiguration")
+    async def konfiguration(request: Request):
+        """D-235: Konfiguration dieser Instanz zum Nachsehen (später nur im Entwicklermodus). ``umgebung``: die
+        gesetzten ``KONTOR_…``-Variablen des Prozesses, wie sie in der Umgebungsdatei stehen; ``wirksam``: jede
+        Einstellung mit ihrem geltenden Wert und der Vorgabe. Werte, deren Name nach einem Geheimnis klingt,
+        werden nie ausgegeben."""
+        return config_anzeige.anzeige(config, os.environ)
 
     # ------------------------------------------------------------ Aktualisierung (D-107)
     @endpunkt("GET", "/api/update")

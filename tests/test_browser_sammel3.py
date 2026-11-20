@@ -346,3 +346,19 @@ def test_meldung_mit_rueckgaengig_ist_aus_und_einschaltbar(tmp_path, browser):
         tid(page, "einstellung-erfolgsmeldung").check()
         bestaetigen(1)
         expect(tid(page, "meldung-rueckgaengig")).to_be_visible()
+
+
+def test_konfiguration_seite(tmp_path, browser):
+    with server(tmp_path) as (url, _), seite(browser, url, **DESKTOP) as page:
+        page.goto(url + "/")
+        bereit(page, "uebersicht")
+        tid(page, "navlink-konfiguration").click()
+        bereit(page, "konfiguration")
+        expect(tid(page, "konfiguration-hinweis")).to_contain_text("Entwicklermodus")
+        expect(tid(page, "konfiguration-mock_modus")).to_have_attribute("data-geaendert", "ja")
+        expect(tid(page, "konfiguration-mock_modus")).to_contain_text("KONTOR_MOCK_MODUS")
+        alle = page.locator("[data-testid=konfiguration-wirksam] tbody tr").count()
+        tid(page, "konfiguration-nur-geaendert").check()
+        geaendert = page.locator("[data-testid=konfiguration-wirksam] tbody tr")
+        assert 0 < geaendert.count() < alle
+        expect(page.locator("[data-testid=konfiguration-wirksam] tbody tr[data-geaendert=nein]")).to_have_count(0)

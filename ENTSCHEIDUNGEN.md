@@ -3297,3 +3297,21 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - **Folge für die Abnahme:** Browsertests, die die Erfolgsmeldung erwarten (oberflaeche.md 4.3), brauchen die
   Einstellung vorab, wie die Person (`browser_fixtures.neue_seite`). Die eigenen Rauchtests setzen sie in
   `tests/test_browser.py::seite`.
+
+## D-235 Seite „Konfiguration“ (Umgebungsdatei zum Nachsehen)
+
+- **Anlass:** Auftrag vom 2026-11-20: eine Seite, die alle in der Umgebungsdatei gesetzten Konfigurationen zeigt; sie
+  soll später in einem Entwicklermodus verschwinden.
+- **Seite `/konfiguration`** (Navigation `navlink-konfiguration` unter „Betrieb“, auf dem Handy nicht in der
+  Navigation; Palette „Gehe zu: Konfiguration“), nur lesend: (1) „In der Umgebung gesetzt“ – alle Variablen
+  `KONTOR_…` (und `CREDENTIALS_DIRECTORY`) des laufenden Prozesses mit ihrem Text; Variablen, die Kontor nicht
+  kennt, tragen „unbekannt“. (2) „Was gilt“ – jede Einstellung mit geltendem Wert, Vorgabe und Name der Variable,
+  Abweichungen von der Vorgabe hervorgehoben und filterbar.
+- **Schnittstelle** `GET /api/konfiguration` → `{umgebung: [{variable, wert, verborgen, bekannt}], wirksam: [{name,
+  variable, gesetzt, wert, vorgabe, geaendert, verborgen}]}`; geschützt wie alle Endpunkte (Anmeldung).
+- **Nie ausgegeben** werden Werte, deren Name nach einem Geheimnis klingt (Secret, Token außer `…_token_url`,
+  Passwort, PIN außer `bank_pin_quelle`), sowie die Bank-Zugangskennungen `fints_benutzer` und `fints_kunden_id`;
+  dort steht nur „verborgen“. Andere Umgebungsvariablen des Prozesses erscheinen nicht.
+- **Grenze:** Gezeigt wird die Umgebung des Prozesses, nicht die Datei selbst; Kommentare und auskommentierte Zeilen
+  der Datei sieht man nicht, dafür auch Werte aus der systemd-Unit.
+- **Prüfung:** `tests/test_konfiguration_eigen.py`, `tests/test_browser_sammel3.py::test_konfiguration_seite`.

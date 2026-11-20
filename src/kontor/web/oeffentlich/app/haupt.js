@@ -242,6 +242,7 @@ const ROUTEN = [
   [/^\/konten\/(\d+)$/, "konto", "konten", (seite, id, suche) => kontoSeite(seite, id, suche)],
   [/^\/kategorien$/, "kategorien", "kategorien", S.kategorienSeite],
   [/^\/tags$/, "tags", "tags", S.tagsSeite],
+  [/^\/konfiguration$/, "konfiguration", "konfiguration", S.konfigurationSeite],
   [/^\/erwartet$/, "erwartet", "erwartet", erwartetSeite],
   [/^\/mail$/, "mail", "mail", mailSeite],
   [/^\/kredite$/, "kredite", "kredite", S.kredite],
@@ -401,7 +402,7 @@ async function zeigen(optionen) {
   app.dataset.bereit = "ja";
 }
 
-const TITEL = { uebersicht: "Finanzübersicht", konten: "Konten", konto: "Konto", kategorien: "Kategorien", tags: "Tags",
+const TITEL = { uebersicht: "Finanzübersicht", konten: "Konten", konto: "Konto", kategorien: "Kategorien", tags: "Tags", konfiguration: "Konfiguration",
   kredite: "Kredite", kredit: "Kredit", berichte: "Berichte", import: "Import",
   einstellungen: "Einstellungen", protokoll: "Änderungsprotokoll", empfaenger: "Empfänger", regeln: "Regeln", lernmodell: "Lernmodell",
   vorlagen: "Split-Vorlagen", dubletten: "Dubletten", sync: "Synchronisation", benachrichtigungen: "Benachrichtigungen",
@@ -769,6 +770,7 @@ const BEFEHLE = [
   ["gehe-protokoll", "Gehe zu: Änderungsprotokoll", () => gehe("/protokoll")],
   ["gehe-empfaenger", "Gehe zu: Empfänger", () => gehe("/empfaenger")],
   ["gehe-tags", "Gehe zu: Tags", () => gehe("/tags")],
+  ["gehe-konfiguration", "Gehe zu: Konfiguration (Umgebungsdatei)", () => gehe("/konfiguration")],
   ["gehe-regeln", "Gehe zu: Regeln", () => gehe("/regeln")],
   ["gehe-vorlagen", "Gehe zu: Split-Vorlagen", () => gehe("/vorlagen")],
   ["gehe-dubletten", "Gehe zu: Dubletten", () => gehe("/dubletten")],

@@ -184,6 +184,43 @@ export async function kategorienSeite(seite) {
   return { titel: "Kategorien" };
 }
 
+// ------------------------------------------------------------------ Konfiguration (D-235)
+/** Zeigt die Konfiguration der Instanz (Umgebungsdatei und geltende Werte). Nur lesend; zieht später in einen
+ *  Entwicklermodus um. */
+export async function konfigurationSeite(seite) {
+  kopf(seite, "Konfiguration");
+  const k = await api("GET", "/api/konfiguration");
+  const wert = (w) => (w === null || w === undefined ? h("span", { class: "klein" }, "–")
+    : w === true ? "ja" : w === false ? "nein" : h("code", null, String(w)));
+  const nurGeaendert = h("input", { type: "checkbox", tid: "konfiguration-nur-geaendert" });
+  const wirksam = h("div", { tid: "konfiguration-wirksam-rahmen" });
+  const wirksamZeichnen = () => {
+    const liste = k.wirksam.filter((e) => !nurGeaendert.checked || e.geaendert);
+    wirksam.replaceChildren(tabelle({ class: "tabelle konfiguration-tabelle", tid: "konfiguration-wirksam" },
+      ["Einstellung", "Gilt", "Vorgabe", "Variable"], liste.map((e) => h("tr", {
+        tid: `konfiguration-${e.name}`, "data-geaendert": e.geaendert ? "ja" : "nein", class: e.geaendert ? "konfiguration-geaendert" : null },
+      h("td", null, h("code", null, e.name)), h("td", null, wert(e.wert)), h("td", null, wert(e.vorgabe)),
+      h("td", null, h("code", { class: e.gesetzt ? null : "klein" }, e.variable), e.gesetzt ? " (gesetzt)" : ""))),
+      ["titel", "info:Gilt", "info:Vorgabe", "info:Variable"]));
+  };
+  nurGeaendert.addEventListener("change", wirksamZeichnen);
+  seite.append(
+    h("p", { class: "hinweis-kasten", tid: "konfiguration-hinweis" },
+      "Nur zum Nachsehen: Diese Seite zeigt, was in der Umgebungsdatei steht und was daraus gilt. Ändern lässt es sich nur "
+      + "in der Datei, danach Kontor neu starten. Die Seite zieht später in einen Entwicklermodus um."),
+    h("section", { class: "karte" }, h("h2", null, "In der Umgebung gesetzt"),
+      k.umgebung.length ? tabelle({ class: "tabelle konfiguration-tabelle", tid: "konfiguration-umgebung" }, ["Variable", "Wert"],
+        k.umgebung.map((e) => h("tr", { tid: `umgebung-${e.variable}`, "data-bekannt": e.bekannt ? "ja" : "nein" },
+          h("td", null, h("code", null, e.variable), e.bekannt ? "" : h("span", { class: "klein", title: "Kontor kennt diese Variable nicht (Tippfehler oder veraltet?)" }, " unbekannt")),
+          h("td", null, e.verborgen ? h("span", { class: "klein" }, "verborgen") : h("code", null, e.wert)))),
+        ["titel", "info:Wert"])
+        : leer("Keine KONTOR_-Variable gesetzt; es gelten die Vorgaben (oder die Instanz wurde ohne Umgebungsdatei gestartet).")),
+    h("section", { class: "karte" }, h("h2", null, "Was gilt"),
+      h("label", { class: "wahl" }, nurGeaendert, " nur Abweichungen von der Vorgabe"), wirksam));
+  wirksamZeichnen();
+  return { titel: "Konfiguration" };
+}
+
 // ------------------------------------------------------------------ Tags (D-225)
 function tagDialog(t, ausloeser) {
   dialog("tag-dialog", t ? `Tag „${t.name}“ umbenennen` : "Tag anlegen", (inhalt, d) => {
