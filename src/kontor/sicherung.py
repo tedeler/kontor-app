@@ -41,7 +41,7 @@ from .validierung import ApiFehler, datum_gueltig
 
 FORMAT = "kontor-sicherung"
 FORMATVERSION = 1
-SCHEMAVERSION = 9
+SCHEMAVERSION = 10
 OBJEKTE = protokoll.OBJEKTE
 # Objektarten aus M9 (immer in ``anzahl``) und ab M5 nur bei Vorhandensein (sicherung.md 2.5, E-109)
 OBJEKTE_IMMER = ("konto", "empfaenger", "tag", "buchung", "regel", "verdacht", "abstimmung", "vorlage")
@@ -52,12 +52,13 @@ MAX_MANIFEST = 1024 ** 2
 
 # Objektarten je Schemaversion der Sicherungsdatei (für spätere Meilensteine, sicherung.md 2.3, 3.4).
 OBJEKTE_JE_VERSION = {1: OBJEKTE_IMMER, 2: OBJEKTE_IMMER + ("kredit",), 3: OBJEKTE_IMMER + ("kredit", "postfach"),
-                      4: OBJEKTE_IMMER + ("kredit", "postfach", "dokument"), 5: OBJEKTE, 6: OBJEKTE, 7: OBJEKTE, 8: OBJEKTE, 9: OBJEKTE}
+                      4: OBJEKTE_IMMER + ("kredit", "postfach", "dokument"), 5: OBJEKTE, 6: OBJEKTE, 7: OBJEKTE, 8: OBJEKTE, 9: OBJEKTE, 10: OBJEKTE}
 # Tabellen, die erst ab einer Schemaversion der Sicherungsdatei existieren (ältere Sicherungen: leer, 3.4)
 TABELLEN_AB = {"kredit": 2, "kredit_zuordnung": 2, "kredit_abgleich": 2, "postfach": 3,
                "dokument_inhalt": 4, "dokument": 4, "dokument_buchung": 4, "erwartung": 5,
                "empfaenger_wiederkehrend": 6, "empfaenger_tag": 7,
-               "regel_automatisch": 8, "empfaenger_lernregel_sperre": 8, "regel_tag": 9}
+               "regel_automatisch": 8, "empfaenger_lernregel_sperre": 8, "regel_tag": 9,
+               "erwartung_wiederholung": 10}
 
 # Tabellen der Sicherungsdatei (Schemaversion 1): Name → [(Spalte, Typ, nullbar)]. Die Namen entsprechen den
 # Tabellen der App-Datenbank; ``id_zaehler`` hält die höchste je vergebene ID je Objektart (auch Splits).
@@ -127,10 +128,14 @@ SPALTEN: dict[str, list[tuple[str, str, bool]]] = {
     "empfaenger_lernregel_sperre": [("empfaenger_id", "int", False)],
     # Schemaversion 9 (D-215): Tags, die eine Regel vergibt
     "regel_tag": [("regel_id", "int", False), ("tag_id", "int", False)],
+    # Schemaversion 10 (D-238): Wiederholung geplanter Zahlungen
+    "erwartung_wiederholung": [("erwartung_id", "int", False), ("rhythmus", "str", False), ("tag", "int", False),
+                               ("bis", "str", True), ("vorgaenger_id", "int", True)],
 }
 _ORDNUNG = {
     "split": "buchung_id, position, id",     "empfaenger_alias": "empfaenger_id, alias",
     "empfaenger_wiederkehrend": "empfaenger_id", "empfaenger_tag": "empfaenger_id, tag_id",
+    "erwartung_wiederholung": "erwartung_id",
     "regel_automatisch": "regel_id", "empfaenger_lernregel_sperre": "empfaenger_id", "regel_tag": "regel_id, tag_id",
     "buchung_tag": "buchung_id, tag_id", "buchung_extern": "buchung_id, extern_id",
     "vorschlag": "buchung_id", "verdacht_kandidat": "verdacht_id, buchung_id", "sync_kennung": "kennung",
@@ -140,6 +145,7 @@ _ORDNUNG = {
 }
 _SCHLUESSEL = {"empfaenger_alias": "PRIMARY KEY (empfaenger_id, alias)",
                "empfaenger_wiederkehrend": "PRIMARY KEY (empfaenger_id)",
+               "erwartung_wiederholung": "PRIMARY KEY (erwartung_id)",
                "regel_automatisch": "PRIMARY KEY (regel_id)",
                "regel_tag": "PRIMARY KEY (regel_id, tag_id)",
                "empfaenger_lernregel_sperre": "PRIMARY KEY (empfaenger_id)",
@@ -156,7 +162,7 @@ BUCH_TABELLEN = ("konto", "empfaenger", "empfaenger_alias", "empfaenger_wiederke
                  "tag", "empfaenger_tag", "regel", "regel_automatisch", "regel_tag", "abstimmung", "buchung", "split",
                  "buchung_tag", "buchung_extern", "vorschlag", "dublettenverdacht", "verdacht_kandidat", "vorlage",
                  "kredit", "kredit_zuordnung", "kredit_abgleich", "postfach", "dokument_inhalt", "dokument",
-                 "dokument_buchung", "erwartung")
+                 "dokument_buchung", "erwartung", "erwartung_wiederholung")
 # Objektart (bzw. "split") → Tabelle der App-Datenbank mit AUTOINCREMENT-Zähler.
 ZAEHLER = {"konto": "konto", "empfaenger": "empfaenger", "tag": "tag", "buchung": "buchung", "split": "split",
            "regel": "regel", "verdacht": "dublettenverdacht", "abstimmung": "abstimmung", "vorlage": "vorlage",
@@ -554,6 +560,8 @@ def _inhalt_pruefen(zeilen: dict[str, list[tuple]]) -> dict[str, dict[int, dict]
         schlecht("Postfach")
     if not erwartung.pruefe_inhalt(zeilen["erwartung"]):
         schlecht("Erwartete Zahlung")
+    if not erwartung.pruefe_wiederholung(zeilen["erwartung_wiederholung"], zeilen["erwartung"]):
+        schlecht("Wiederholung geplanter Zahlungen")
     inhalte = {}
     for sha, inhalt in zeilen["dokument_inhalt"]:
         if not _SHA.match(sha) or hashlib.sha256(inhalt).hexdigest() != sha:
@@ -727,7 +735,7 @@ def probelauf(con, s: Sicherung) -> dict:
     return _ergebnis(s, True, not _identisch(aktuell, s), None, unterschied, betroffen)
 
 
-_LOESCHEN = ("erwartung", "dokument_buchung", "dokument", "postfach", "kredit_abgleich", "kredit_zuordnung", "kredit", "vorschlag", "buchung_tag", "empfaenger_tag", "buchung_extern", "verdacht_kandidat", "dublettenverdacht", "split",
+_LOESCHEN = ("erwartung_wiederholung", "erwartung", "dokument_buchung", "dokument", "postfach", "kredit_abgleich", "kredit_zuordnung", "kredit", "vorschlag", "buchung_tag", "empfaenger_tag", "buchung_extern", "verdacht_kandidat", "dublettenverdacht", "split",
              "buchung", "abstimmung", "regel_automatisch", "regel_tag", "regel", "vorlage", "empfaenger_lernregel_sperre", "empfaenger_wiederkehrend", "empfaenger_alias", "empfaenger", "tag",
              "konto")
 

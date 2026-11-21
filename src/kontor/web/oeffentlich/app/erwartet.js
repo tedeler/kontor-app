@@ -6,7 +6,9 @@ import { bestaetigen, dialog, feld, imDialog, knopf, knopfLeiste, kontextmenue, 
 import { betrachter } from "./dokumente.js";
 
 const GRUND = { bestellung: "Bestellung", paypal: "PayPal", rueckerstattung: "Rückerstattung",
-  manuell: "Manuell" };
+  manuell: "Geplant" };
+const WIEDERHOLUNG = { keine: "einmalig", monatlich: "monatlich", vierteljaehrlich: "vierteljährlich", halbjaehrlich: "halbjährlich",
+  jaehrlich: "jährlich" };
 const ZUSTAND = { offen: "offen", erfuellt: "erfüllt", guthaben: "aus Guthaben", storniert: "storniert",
   erledigt: "erledigt" };
 // Schnellfilter „Zustand“: Vorgabe ist „Offen“ (enthält die überfälligen); „Erledigt“ fasst die Abschlüsse zusammen
@@ -57,7 +59,7 @@ export async function erwartetSeite(seite, _param, suche) {
   const kopfEl = h("div", { class: "seiten-kopf" }, h("h1", null, "Was kommt noch?"),
     h("div", { class: "werkzeuge" },
       knopf("Jetzt abgleichen", { tid: "erwartet-abgleichen", onclick: abgleichen }),
-      knopf("Erwartete Zahlung anlegen…", { tid: "erwartet-neu", onclick: (e) => bearbeiten(null, e.currentTarget) })));
+      knopf("Zahlung planen…", { tid: "erwartet-neu", title: "Erwartete Zahlung von Hand anlegen, einmalig oder mit Wiederholung", onclick: (e) => bearbeiten(null, e.currentTarget) })));
   const filterEl = h("div", { class: "chip-leiste", tid: "erwartet-filter" });
   const sucheEl = h("input", { type: "search", tid: "erwartet-suche", placeholder: "Händler, Bestellnummer, Artikel",
     "aria-label": "Suche", value: f.suche });
@@ -115,7 +117,12 @@ export async function erwartetSeite(seite, _param, suche) {
     const tr = h("tr", { tid: `erwartung-${String(e.id).replace(/[^a-z0-9-]/gi, "-")}`, tabindex: "0", class: "klickbar" + (e.ueberfaellig ? " ueberfaellig" : ""),
       "data-zustand": e.ueberfaellig ? "ueberfaellig" : e.zustand, "data-grund": e.grund },
     datumEl("td", e.frist, { class: "e-frist" }), h("td", { class: "e-grund" }, h("span", { class: "marke grund-marke" }, GRUND[e.grund] || e.grund)),
-    h("td", { class: "e-haendler" }, h("div", null, e.haendler), e.beschreibung ? h("small", { class: "klein" }, e.beschreibung) : null),
+    h("td", { class: "e-haendler" }, h("div", null, e.haendler,
+      // D-238: geplante Zahlung mit Wiederholung
+      e.wiederholung ? h("span", { class: "marke e-wiederholung", tid: `erwartung-wiederholung-${e.id}`,
+        title: e.wiederholung.bis ? `wiederholt sich bis ${datumText(e.wiederholung.bis)}` : "wiederholt sich ohne Ende" },
+      `↻ ${WIEDERHOLUNG[e.wiederholung.rhythmus] || e.wiederholung.rhythmus}`) : null),
+    e.beschreibung ? h("small", { class: "klein" }, e.beschreibung) : null),
     h("td", { class: "e-kennung" }, e.kennung || e.referenz || ""),
     betragEl("td", e.vorzeichen_betrag, { class: "zahl e-betrag" }), h("td", { class: "e-zustand" }, zustandText),
     h("td", { class: "aktionen e-aktionen" }, mehr));
@@ -170,7 +177,7 @@ export async function erwartetSeite(seite, _param, suche) {
 
   // ---------------------------------------------------------------- Anlegen/Bearbeiten
   function bearbeiten(e, ausloeser) {
-    dialog("erwartung-dialog", e ? "Erwartete Zahlung bearbeiten" : "Erwartete Zahlung anlegen", (inhalt, d) => {
+    dialog("erwartung-dialog", e ? "Erwartete Zahlung bearbeiten" : "Zahlung planen", (inhalt, d) => {
       const richtung = h("select", { tid: "erwartung-richtung", disabled: !!e },
         h("option", { value: "ausgabe" }, "Ausgabe (Geld geht ab)"), h("option", { value: "eingang" }, "Eingang (Erstattung)"));
       if (e) richtung.value = e.richtung;
@@ -180,6 +187,16 @@ export async function erwartetSeite(seite, _param, suche) {
       const datum = h("input", { type: "date", tid: "erwartung-datum", value: e ? e.datum : "" });
       const frist = h("input", { type: "date", tid: "erwartung-frist", value: e ? e.frist : "" });
       const beschreibung = h("input", { tid: "erwartung-beschreibung", value: e ? e.beschreibung : "", maxlength: "2000" });
+      // D-238: Wiederholung nur für von Hand angelegte Zahlungen
+      const geplant = !e || e.grund === "manuell";
+      const wdh = h("select", { tid: "erwartung-wiederholung" },
+        Object.entries(WIEDERHOLUNG).map(([w, t]) => h("option", { value: w }, t)));
+      wdh.value = e && e.wiederholung ? e.wiederholung.rhythmus : "keine";
+      const wdhBis = h("input", { type: "date", tid: "erwartung-wiederholung-bis", value: e && e.wiederholung && e.wiederholung.bis ? e.wiederholung.bis : "" });
+      const wdhBisFeld = feld("Wiederholen bis", wdhBis, "leer: ohne Ende");
+      const wdhZeigen = () => { wdhBisFeld.hidden = wdh.value === "keine"; };
+      wdh.addEventListener("change", wdhZeigen);
+      wdhZeigen();
       const ok = knopf(e ? "Speichern" : "Anlegen", { tid: "erwartung-ok", class: "knopf knopf-haupt" });
       ok.addEventListener("click", () => imDialog(d, ok, async () => {
         const cent = betragLesen(betrag.value);
@@ -187,13 +204,19 @@ export async function erwartetSeite(seite, _param, suche) {
         const k = { haendler: haendler.value, betrag: cent, beschreibung: beschreibung.value };
         if (datum.value) k.datum = datum.value;
         if (frist.value) k.frist = frist.value;
+        const hatte = !!(e && e.wiederholung);
+        if (geplant && (wdh.value !== "keine" || hatte)) {
+          k.wiederholung = wdh.value;
+          if (wdh.value !== "keine" && (wdhBis.value || (hatte && e.wiederholung.bis))) k.wiederholung_bis = wdhBis.value || null;
+        }
         await aktion(() => (e ? api("PATCH", `/api/erwartungen/${e.id}`, k)
           : api("POST", "/api/erwartungen", { ...k, richtung: richtung.value })), { danach: () => d.schliessen(true) });
         await laden();
       }));
       inhalt.append(feld("Richtung", richtung), feld("Händler / Zahlungsempfänger", haendler),
-        feld("Betrag (Bankanteil)", betrag), feld("Datum", datum, "leer: heute"),
+        feld("Betrag (Bankanteil)", betrag), feld("Datum", datum, "leer: heute; darf in der Zukunft liegen"),
         feld("Fällig bis", frist, "leer: Datum + Frist aus den Einstellungen"), feld("Beschreibung", beschreibung),
+        ...(geplant ? [feld("Wiederholung", wdh, "Ist die Zahlung da oder erledigt, entsteht die nächste. „Storniert“ beendet die Wiederholung."), wdhBisFeld] : []),
         knopfLeiste(ok, knopf("Abbrechen", { onclick: () => d.schliessen(null) })));
     }, { ausloeser });
   }

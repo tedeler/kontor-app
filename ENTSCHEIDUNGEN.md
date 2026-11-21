@@ -3374,3 +3374,71 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   Protokolleintrag. Neues Modul `app/aenderung.js` (in `sw.js` eingetragen).
 - **Nicht enthalten:** Rückgängig aus dem Fenster heraus (bleibt in der Liste).
 - **Prüfung:** `tests/test_browser_aenderung.py` (Desktop und Handy, angelegt/geändert, große Änderung, Suche).
+
+## D-238 Geplante Zahlungen: Wiederholung, Vorschau, Zuordnung nach Namen
+
+- **Anlass:** Auftrag vom 2026-11-21 im Sammelthread nach dem Vergleich mit KMyMoney und GnuCash: Zahlungen, die
+  Kontor noch nicht aus der Vergangenheit ablesen kann (neuer Vertrag, einmalige Rechnung, seltene Beiträge), von
+  Hand planen – einmalig oder mit Wiederholung –, in der Vorschau sehen und mit der Bankbuchung erledigen.
+- **Grundlage:** Von Hand angelegte erwartete Zahlungen (Grund `manuell`, M20) gab es schon. Sie heißen in der
+  Oberfläche jetzt „Geplant“; der Knopf auf „Was kommt noch?“ heißt „Zahlung planen…“ (`erwartet-neu` unverändert).
+- **Wiederholung:** `POST`/`PATCH /api/erwartungen` nehmen `wiederholung` (`keine`, `monatlich`,
+  `vierteljaehrlich`, `halbjaehrlich`, `jaehrlich`) und `wiederholung_bis` (Datum oder `null`); nur für Grund
+  `manuell` (sonst 422 `wiederholung_nur_geplant`), ein Ende ohne Wiederholung ist 422 `wiederholung_fehlt`. Die
+  Antwort trägt `wiederholung: {rhythmus, bis}` nur, wenn eine besteht – Einträge ohne Wiederholung sehen aus wie
+  bisher (auch im Protokoll und in der Inhaltsprüfsumme der Sicherung).
+- **Fortsetzung:** Wird eine solche Zahlung erfüllt (Buchung zugeordnet) oder als „erledigt“ geschlossen, entsteht in
+  derselben Änderung die nächste: gleiche Angaben, Datum um den Rhythmus weiter (am Tag im Monat der ersten
+  Fälligkeit, in kürzeren Monaten am Monatsletzten), gleiche Frist in Tagen. Keine Folge, wenn das Ende
+  überschritten wäre oder es schon eine gibt. „Storniert“ und Löschen beenden die Wiederholung. Wird die Zahlung
+  wieder offen (Zustand zurück, Zuordnung gelöst, Buchung gelöscht), entfällt ihre noch unberührte Folge.
+  Rückgängig stellt beides gemeinsam wieder her.
+- **Zuordnung:** Das Zeitfenster bleibt wie in erwartungen.md 5.1 (3 Tage vor dem Datum bis 45 Tage danach). Der
+  Name passt, wenn ein aussagekräftiges Wort im Verwendungszweck oder Empfänger steht (wie D-232); automatisch
+  zugeordnet wird die einzige Buchung mit gleichem Betrag, in der der Name steht – andere Buchungen mit gleichem
+  Betrag stören nicht mehr. Der automatische Abgleich läuft weiter nur mit `mail_abgleich` (erwartungen.md).
+- **Vorschau:** `GET /api/berichte/vorschau` enthält offene geplante Zahlungen samt Wiederholungen bis zum Ende des
+  Zeitraums als Ereignisse mit `quelle = "geplant"`, `konto_id = null`, `rhythmus` (oder `einmalig`) und
+  `erwartung_id`; schon fällige stehen am Folgetag. Sie zählen bei jeder Kontenwahl (geplante Zahlungen haben kein
+  Konto) und werden nicht mit erkannten Serien abgeglichen: Wer eine schon erkannte Serie zusätzlich plant, sieht
+  sie doppelt.
+- **Datenmodell:** Tabelle `erwartung_wiederholung` (Rhythmus, Tag, Ende, Vorgänger) als Teil der Objektart
+  `erwartung`; Datenbankschema 16, Sicherungsdatei Schemaversion 10 (ältere Sicherungen: ohne Wiederholungen).
+- **Prüfung:** `tests/test_geplant_eigen.py`, `tests/test_browser_geplant.py`.
+
+## D-239 Betrieb nur über HTTPS: Tailscale Serve, Skript `kontor-https`
+
+- **Anlass:** Auftrag vom 2026-11-21 im Sammelthread: künftig nur noch über HTTPS arbeiten, mit Tailscale; ein
+  Installationsskript für Debian; die Testinstanz bleibt per Skript leicht startbar; gut dokumentiert.
+- **Grundsatz bleibt:** Kontor spricht kein TLS (`sicherheit.md` 12, `betrieb.md` 2: `proxy_headers=False`). Am
+  Anwendungsserver ändert sich nichts außer einer Warnung beim Start.
+- **Weg:** Tailscale Serve auf dem Kontor-Server nimmt HTTPS mit dem Zertifikat des Tailnet-Namens entgegen und
+  reicht an Kontor auf 127.0.0.1 weiter. Verworfen: eigener Proxy mit eigener Zertifizierungsstelle (Zertifikat
+  auf jedem Gerät installieren) und Let's Encrypt über eine eigene Domain (mehr Einrichtung); Tailscale ist
+  vorhanden. Nie Funnel (öffentliches Internet).
+- **Skript** `kontor-https` (`betrieb/kontor-https.sh`, Ziel `/usr/local/bin/kontor-https`):
+  `einrichten [--tailscale-installieren] [--name <name>] [--test-port <port>]`, `status`, `zurueck`. Reihenfolge
+  beim Einrichten: prüfen → Freigabe einrichten (scheitert sie, bleibt Kontor unverändert) → Umgebungsdatei einmalig
+  als `*.vor-https` sichern → `KONTOR_HOST=127.0.0.1`, `KONTOR_SITZUNG_COOKIE_SECURE=1`,
+  `KONTOR_OEFFENTLICHE_URL=https://<name>` setzen → Neustart → Testinstanz ebenso (Adresse mit Port, Vorgabe
+  8443; Umgebungsdatei bei Bedarf aus der Vorlage) → Abfrage über HTTPS. Wiederholbar; `zurueck` stellt genau diese
+  drei Variablen aus der Sicherung wieder her und beendet die Freigaben. Die ausgelieferte `kontor.env` bleibt bei
+  `0.0.0.0` (betrieb.md 3); umgestellt wird nur die installierte Datei.
+- **`KONTOR_OEFFENTLICHE_URL` ist hinter dem Proxy Pflicht:** Kontor sieht nur `http`, der Browser meldet die
+  `https`-Herkunft; die Herkunftsprüfung (`sicherheit.md` 4.6) lässt sie nur über die öffentliche Adresse zu. Fehlt
+  sie bei `KONTOR_SITZUNG_COOKIE_SECURE=1`, warnt Kontor beim Start.
+- **Netzbeschränkung:** `KONTOR_ERLAUBTE_NETZE` sieht hinter dem Proxy nur 127.0.0.1 und schützt nicht mehr; den
+  Zugriff regelt das Tailnet (dokumentiert in HTTPS.md).
+- **Testinstanz:** `kontor-test` bleibt die Bedienung. Steht in `kontor-test.env` eine `https://`-Adresse, schaltet
+  `start`/`neu` die Freigabe (`tailscale serve --bg --https=<port>`) ein, `stop`/`loeschen` aus; `status` und die
+  Ausgabe nennen die https-Adresse. Ohne die Zeile unverändert http.
+- **Tailscale installieren** nur auf ausdrücklichen Wunsch (`--tailscale-installieren`, offizielles
+  Installationsskript); die Anmeldung (`tailscale up`) bleibt ein Schritt von Hand, weil sie einen Browser braucht.
+- **Prüfung:** `tests/test_https_skript_eigen.py` (Tailscale und systemctl als Attrappen: Umstellung, Wiederholung,
+  Rücknahme, Fehlerfälle, Testinstanz-Skript, Startwarnung, Herkunftsprüfung). Nicht geprüft: ein echter Lauf mit
+  Tailscale auf einem Server.
+- **Nachtrag Tests (2026-11-21):** `tests/test_https_proxy_eigen.py` prüft den Betrieb hinter einem echten
+  TLS-Proxy auf Loopback (für den Lauf erzeugtes Zertifikat): Anmelden, Schreiben, Secure-Cookie, fremde Herkunft,
+  fehlende öffentliche Adresse, direkter http-Zugriff ohne Sitzung, Proxy mit ersetztem Host-Kopf – per HTTP-Client
+  und im Browser (Desktop, Handy). Dabei behoben: `kontor-https` hängte an eine Umgebungsdatei ohne Zeilenende
+  die neue Variable an die letzte Zeile an.

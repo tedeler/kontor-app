@@ -362,6 +362,10 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     elif not config.mock_modus:
         log.warning("Die Anmeldung ist abgeschaltet (KONTOR_ANMELDUNG): Kontor ist ohne Passwort erreichbar. "
                     "Für den Betrieb KONTOR_ANMELDUNG=1 setzen.")
+    if config.sitzung_cookie_secure and not (config.oeffentliche_url or "").lower().startswith("https://"):
+        # D-239: hinter einem HTTPS-Proxy sieht Kontor nur http; ohne die öffentliche Adresse scheitert die Herkunftsprüfung
+        log.warning("KONTOR_SITZUNG_COOKIE_SECURE=1 ohne https-Adresse in KONTOR_OEFFENTLICHE_URL: Hinter einem "
+                    "HTTPS-Proxy werden schreibende Anfragen dann mit 403 abgelehnt. Siehe HTTPS.md.")
     sync = SyncDienst(config)
     sync.neustart_aufraeumen()  # synchronisation.md 10
     sync.zustellung.vorbereiten()  # M6: neue Benachrichtigungen ausstehend oder „keine“ (benachrichtigungen.md 4.1)
@@ -1824,7 +1828,8 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     async def erwartung_zustand(request: Request):
         d = json_koerper(await request.body())
         eid = pid(request, "erwartung_id")
-        return await aendern("erwartung_zustand", lambda con: erwartung.zustand_setzen(con, eid, d, _heute()))
+        return await aendern("erwartung_zustand", mit_uhr(
+            lambda con, z: erwartung.zustand_setzen(con, eid, d, _heute(), z)))
 
     @endpunkt("GET", "/api/erwartungen/{erwartung_id:int}/kandidaten")
     async def erwartung_kandidaten(request: Request):

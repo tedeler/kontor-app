@@ -34,12 +34,17 @@ FENSTER_VOR = 3      # Kandidaten: Buchungsdatum frühestens so viele Tage vor d
 FENSTER_NACH = 45    # … und spätestens so viele Tage danach
 MAX_BETRAG = 999999999999
 
+RHYTHMEN = ("monatlich", "vierteljaehrlich", "halbjaehrlich", "jaehrlich")      # D-238
+MONATE = {"monatlich": 1, "vierteljaehrlich": 3, "halbjaehrlich": 6, "jaehrlich": 12}
 S = Feld
 NEU = {"richtung": S("enum", pflicht=True, werte=RICHTUNGEN),
        "haendler": S("str", pflicht=True, min_len=1, max_len=200, strip=True),
        "betrag": S("int", pflicht=True), "datum": S("datum"), "frist": S("datum"),
-       "beschreibung": S("str", max_len=2000), "kennung": S("str", max_len=200)}
-AENDERUNG = {k: S(v.typ, min_len=v.min_len, max_len=v.max_len, strip=v.strip) for k, v in NEU.items()
+       "beschreibung": S("str", max_len=2000), "kennung": S("str", max_len=200),
+       # D-238: geplante Zahlung mit Wiederholung; „keine“ nimmt sie zurück
+       "wiederholung": S("enum", werte=("keine",) + RHYTHMEN), "wiederholung_bis": S("datum", nullbar=True)}
+AENDERUNG = {k: S(v.typ, min_len=v.min_len, max_len=v.max_len, strip=v.strip, werte=v.werte, nullbar=v.nullbar)
+             for k, v in NEU.items()
              if k != "richtung"}
 
 
@@ -72,11 +77,20 @@ def _form(r) -> dict:
             "erstellt_am": r["erstellt_am"]}
 
 
+def _wiederholung_form(w) -> dict:
+    return {"rhythmus": w["rhythmus"], "tag": w["tag"], "bis": w["bis"], "vorgaenger_id": w["vorgaenger_id"]}
+
+
 def formen(con, ids: list[int]) -> dict[int, dict]:
     aus = {}
     for teil in buch._stueckweise(sorted(set(ids))):
         for r in con.execute(f"SELECT * FROM erwartung WHERE id IN ({buch._platzhalter(len(teil))})", teil):
             aus[r["id"]] = _form(r)
+        # Wiederholung (D-238): nur in Formen geplanter Zahlungen, die eine haben
+        for w in con.execute("SELECT * FROM erwartung_wiederholung WHERE erwartung_id IN"
+                             f" ({buch._platzhalter(len(teil))})", teil):
+            if w["erwartung_id"] in aus:
+                aus[w["erwartung_id"]]["wiederholung"] = _wiederholung_form(w)
     return aus
 
 
@@ -90,6 +104,10 @@ def einfuegen(con, f: dict) -> None:
     werte = [json.dumps(f[s], ensure_ascii=False) if s in ("buchung_ids", "mails", "dokument_ids") else f[s]
              for s in _SPALTEN]
     con.execute(f"INSERT INTO erwartung ({', '.join(_SPALTEN)}) VALUES ({', '.join('?' * len(_SPALTEN))})", werte)
+    w = f.get("wiederholung")
+    if w:
+        con.execute("INSERT INTO erwartung_wiederholung (erwartung_id, rhythmus, tag, bis, vorgaenger_id)"
+                    " VALUES (?, ?, ?, ?, ?)", (f["id"], w["rhythmus"], w["tag"], w["bis"], w["vorgaenger_id"]))
 
 
 def _zeile(con, eid: int):
@@ -131,6 +149,9 @@ def erwartung_dict(con, r, heute: str) -> dict:
     f["offen_betrag"] = max(0, f["betrag"] - zug) if f["zustand"] == "offen" else 0
     f["ueberfaellig"] = f["zustand"] == "offen" and f["frist"] < heute
     f["vorzeichen_betrag"] = -f["betrag"] if f["richtung"] == "ausgabe" else f["betrag"]
+    w = con.execute("SELECT * FROM erwartung_wiederholung WHERE erwartung_id = ?", (r["id"],)).fetchone()
+    if w is not None:   # D-238: Feld nur bei geplanten Zahlungen mit Wiederholung
+        f["wiederholung"] = {"rhythmus": w["rhythmus"], "bis": w["bis"]}
     return f
 
 
@@ -389,7 +410,11 @@ def _anbieter_passt(z, b: dict) -> bool:
         return anbieter.name_in_teilen(z["haendler"], roh, modul.haendler_der_buchung(roh))
     if z["haendler"] and len(z["haendler"]) >= 3:
         namen.append(z["haendler"].casefold())
-    return any(n and n in text for n in namen)
+    if any(n and n in text for n in namen):
+        return True
+    # D-238: bei von Hand geplanten Zahlungen genügt ein aussagekräftiges Wort des Namens (Banken kürzen Namen)
+    return z["grund"] == "manuell" and anbieter.name_in_teilen(
+        z["haendler"], (b["verwendungszweck"] or "") + " " + (b["empfaenger"] or ""))
 
 
 def _fenster(z) -> tuple[int, int]:
@@ -401,6 +426,11 @@ def _fenster(z) -> tuple[int, int]:
 
 
 def _streng(z) -> bool:
+    """Zählt für die automatische Zuordnung nur eine Buchung, in der der Name steht? Bei Anbietern mit
+    ``haendler_noetig`` (D-232) und bei von Hand geplanten Zahlungen (D-238: der Name ist dort die einzige Angabe
+    außer Betrag und Datum; andere Buchungen mit gleichem Betrag stören nicht)."""
+    if z["grund"] == "manuell":
+        return True
     modul = anbieter.nach_name(z["anbieter"])
     return modul is not None and modul.bank.haendler_noetig
 
@@ -515,6 +545,8 @@ def _zuordnen(con, z, buchung_ids: list[int], zeitpunkt: str) -> None:
     zustand = "erfuellt" if _zugeordnet(con, neu) >= z["betrag"] else "offen"
     con.execute("UPDATE erwartung SET buchung_ids = ?, dokument_ids = ?, zustand = ? WHERE id = ?",
                 (json.dumps(neu), json.dumps(dok), zustand, z["id"]))
+    if zustand == "erfuellt":
+        folge_anlegen(con, z["id"], zeitpunkt)
 
 
 def zuordnen(con, eid: int, d, zeitpunkt: str, heute: str) -> dict:
@@ -555,6 +587,8 @@ def loesen(con, eid: int, buchung_id: int, heute: str) -> dict:
         con.execute("DELETE FROM dokument_buchung WHERE dokument_id = ? AND buchung_id = ?", (d, buchung_id))
     zustand = "offen" if z["zustand"] == "erfuellt" else z["zustand"]
     con.execute("UPDATE erwartung SET buchung_ids = ?, zustand = ? WHERE id = ?", (json.dumps(ids), zustand, z["id"]))
+    if zustand == "offen":
+        folge_entfernen(con, z["id"])
     # Dokumente ohne Buchung entfallen schon hier, damit die Antwort den Stand nach der Änderung zeigt (D-136)
     dokumente.verwaiste_entfernen(con)
     verwaiste_entfernen(con)
@@ -626,6 +660,12 @@ def anlegen(con, d, heute: str, frist_tage: int, zeitpunkt: str) -> dict:
                kennung=d.get("kennung") or "", referenz="", haendler=d["haendler"].strip(),
                beschreibung=d.get("beschreibung") or "", gesamt=_betrag(d), guthaben=0, datum=datum, frist=frist,
                bezug_id=None, mails=[], zeitpunkt=zeitpunkt)
+    if d.get("wiederholung") not in (None, "keine"):
+        bis = _datum(d, "wiederholung_bis", "") or None
+        con.execute("INSERT INTO erwartung_wiederholung (erwartung_id, rhythmus, tag, bis, vorgaenger_id)"
+                    " VALUES (?, ?, ?, ?, NULL)", (eid, d["wiederholung"], int(datum[8:10]), bis))
+    elif d.get("wiederholung_bis") is not None:
+        raise _fehler("wiederholung_fehlt", "Ein Ende der Wiederholung braucht eine Wiederholung.")
     return lesen(con, eid, heute)
 
 
@@ -656,10 +696,65 @@ def aendern(con, eid: int, d, heute: str) -> dict:
         if z["zustand"] in ("offen", "erfuellt") and z["buchung_ids"] != "[]":
             zustand = "erfuellt" if _zugeordnet(con, json.loads(z["buchung_ids"])) >= z["betrag"] else "offen"
             con.execute("UPDATE erwartung SET zustand = ? WHERE id = ?", (zustand, z["id"]))
+    if "wiederholung" in d or "wiederholung_bis" in d:
+        _wiederholung_aendern(con, _zeile(con, eid), d)
     return lesen(con, eid, heute)
 
 
-def zustand_setzen(con, eid: int, d, heute: str) -> dict:
+def _wiederholung_aendern(con, z, d: dict) -> None:
+    """D-238: Wiederholung einer geplanten Zahlung setzen, ändern oder („keine“) zurücknehmen."""
+    if z["grund"] != "manuell":
+        raise _fehler("wiederholung_nur_geplant", "Nur von Hand angelegte Zahlungen können sich wiederholen.")
+    alt = con.execute("SELECT * FROM erwartung_wiederholung WHERE erwartung_id = ?", (z["id"],)).fetchone()
+    rhythmus = d.get("wiederholung", alt["rhythmus"] if alt is not None else None)
+    if rhythmus in (None, "keine"):
+        if d.get("wiederholung_bis") is not None:
+            raise _fehler("wiederholung_fehlt", "Ein Ende der Wiederholung braucht eine Wiederholung.")
+        con.execute("DELETE FROM erwartung_wiederholung WHERE erwartung_id = ?", (z["id"],))
+        return
+    bis = (_datum(d, "wiederholung_bis", "") or None) if "wiederholung_bis" in d else (alt["bis"] if alt is not None else None)
+    tag = int(z["datum"][8:10]) if alt is None or "datum" in d else alt["tag"]
+    con.execute("INSERT INTO erwartung_wiederholung (erwartung_id, rhythmus, tag, bis, vorgaenger_id) VALUES (?, ?, ?, ?, ?)"
+                " ON CONFLICT(erwartung_id) DO UPDATE SET rhythmus = excluded.rhythmus, tag = excluded.tag, bis = excluded.bis",
+                (z["id"], rhythmus, tag, bis, alt["vorgaenger_id"] if alt is not None else None))
+
+
+def naechstes_datum(datum: str, rhythmus: str, tag: int) -> str:
+    """Nächste Fälligkeit: ``MONATE[rhythmus]`` Monate weiter, am Tag ``tag`` (im kürzeren Monat am Monatsletzten)."""
+    d = dt.date.fromisoformat(datum)
+    m = d.year * 12 + (d.month - 1) + MONATE[rhythmus]
+    jahr, monat = divmod(m, 12)
+    letzter = (dt.date(jahr + (monat == 11), (monat + 1) % 12 + 1, 1) - dt.timedelta(days=1)).day
+    return dt.date(jahr, monat + 1, min(tag, letzter)).isoformat()
+
+
+def folge_anlegen(con, eid: int, zeitpunkt: str) -> int | None:
+    """D-238: Ist eine geplante Zahlung mit Wiederholung erfüllt oder erledigt, entsteht in derselben Änderung die
+    nächste (gleiche Angaben, nächste Fälligkeit, gleiche Frist in Tagen) – außer das Ende ist erreicht oder es
+    gibt sie schon."""
+    w = con.execute("SELECT * FROM erwartung_wiederholung WHERE erwartung_id = ?", (eid,)).fetchone()
+    if w is None or con.execute("SELECT 1 FROM erwartung_wiederholung WHERE vorgaenger_id = ?", (eid,)).fetchone():
+        return None
+    z = con.execute("SELECT * FROM erwartung WHERE id = ?", (eid,)).fetchone()
+    datum = naechstes_datum(z["datum"], w["rhythmus"], w["tag"])
+    if w["bis"] and datum > w["bis"]:
+        return None
+    tage = (dt.date.fromisoformat(z["frist"]) - dt.date.fromisoformat(z["datum"])).days
+    neu = _neu(con, grund="manuell", richtung=z["richtung"], anbieter=None, schluessel=None, kennung=z["kennung"],
+               referenz="", haendler=z["haendler"], beschreibung=z["beschreibung"], gesamt=z["gesamt"], guthaben=0,
+               datum=datum, frist=_plus(datum, max(0, tage)), bezug_id=None, mails=[], zeitpunkt=zeitpunkt)
+    con.execute("INSERT INTO erwartung_wiederholung (erwartung_id, rhythmus, tag, bis, vorgaenger_id) VALUES (?, ?, ?, ?, ?)",
+                (neu, w["rhythmus"], w["tag"], w["bis"], eid))
+    return neu
+
+
+def folge_entfernen(con, eid: int) -> None:
+    """Wird eine geplante Zahlung wieder offen, entfällt ihre noch unberührte Folge (offen, ohne Buchung)."""
+    con.execute("DELETE FROM erwartung WHERE zustand = 'offen' AND buchung_ids = '[]' AND id IN"
+                " (SELECT erwartung_id FROM erwartung_wiederholung WHERE vorgaenger_id = ?)", (eid,))
+
+
+def zustand_setzen(con, eid: int, d, heute: str, zeitpunkt: str) -> dict:
     z = _zeile(con, eid)
     if not isinstance(d, dict) or set(d) != {"zustand"} or d["zustand"] not in SCHLIESSEN + ("offen",):
         raise Validierungsfehler([fehler_eintrag(["body", "zustand"],
@@ -672,6 +767,11 @@ def zustand_setzen(con, eid: int, d, heute: str) -> dict:
     elif z["zustand"] != "offen":
         raise _fehler("zustand_unzulaessig", "Nur offene erwartete Zahlungen lassen sich schließen.", 409)
     con.execute("UPDATE erwartung SET zustand = ? WHERE id = ?", (ziel, z["id"]))
+    # D-238: „erledigt“ führt die Wiederholung fort, „storniert“ beendet sie; wieder offen nimmt die Folge zurück
+    if ziel == "erledigt":
+        folge_anlegen(con, z["id"], zeitpunkt)
+    elif ziel == "offen":
+        folge_entfernen(con, z["id"])
     return lesen(con, eid, heute)
 
 
@@ -699,6 +799,7 @@ def verwaiste_entfernen(con) -> None:
         zustand = r["zustand"]
         if zustand == "erfuellt" and _zugeordnet(con, b_neu) < r["betrag"]:
             zustand = "offen"
+            folge_entfernen(con, r["id"])
         con.execute("UPDATE erwartung SET buchung_ids = ?, dokument_ids = ?, zustand = ? WHERE id = ?",
                     (json.dumps(b_neu), json.dumps(d_neu), zustand, r["id"]))
 
@@ -741,3 +842,36 @@ def pruefe_inhalt(zeilen: list[tuple]) -> bool:
         if not ok:
             return False
     return True
+
+
+def pruefe_wiederholung(zeilen: list[tuple], erwartungen: list[tuple]) -> bool:
+    """Sicherung: Werte der Tabelle ``erwartung_wiederholung`` plausibel (D-238)?"""
+    ids = {r[0] for r in erwartungen}
+    for eid, rhythmus, tag, bis, vorgaenger in zeilen:
+        if eid not in ids or rhythmus not in RHYTHMEN or type(tag) is not int or not 1 <= tag <= 31:
+            return False
+        if bis is not None and not datum_gueltig(bis):
+            return False
+        if vorgaenger is not None and type(vorgaenger) is not int:
+            return False
+    return True
+
+
+def geplante(con, heute: str, bis: str) -> list[dict]:
+    """Offene, von Hand geplante Zahlungen samt ihrer Wiederholungen bis ``bis`` – für die Vorschau des
+    Kontostands (D-238). Schon fällige stehen am Folgetag von ``heute`` (sie werden jeden Tag erwartet)."""
+    aus = []
+    morgen = _plus(heute, 1)
+    for z in con.execute("SELECT e.*, w.rhythmus, w.tag, w.bis AS w_bis FROM erwartung e LEFT JOIN erwartung_wiederholung w"
+                         " ON w.erwartung_id = e.id WHERE e.grund = 'manuell' AND e.zustand = 'offen' ORDER BY e.datum, e.id"):
+        offen = z["betrag"] - _zugeordnet(con, json.loads(z["buchung_ids"]))
+        datum, betrag = z["datum"], offen
+        while datum <= bis and betrag > 0:
+            aus.append({"id": z["id"], "datum": max(datum, morgen), "betrag": betrag, "richtung": z["richtung"],
+                        "haendler": z["haendler"], "rhythmus": z["rhythmus"]})
+            if not z["rhythmus"]:
+                break
+            datum, betrag = naechstes_datum(datum, z["rhythmus"], z["tag"]), z["betrag"]
+            if z["w_bis"] and datum > z["w_bis"]:
+                break
+    return aus

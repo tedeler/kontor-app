@@ -32,7 +32,9 @@ geändert hat.
 
 1. Als root auf dem Server anmelden.
 2. Branch einrichten und starten: `kontor-test start monatsbericht`
-3. Warten, bis das Skript die Adresse ausgibt, z. B. `http://10.0.0.12:8081`.
+3. Warten, bis das Skript die Adresse ausgibt, z. B. `http://10.0.0.12:8081` –
+   oder, wenn Kontor auf HTTPS umgestellt ist, `https://kontor.<tailnet>.ts.net:8443`
+   (siehe „Mit HTTPS“ unten).
    Das erste Einrichten legt eine eigene virtuelle Umgebung an und dauert länger.
 4. Adresse im Browser öffnen und mit dem Haushaltspasswort anmelden.
 
@@ -65,6 +67,22 @@ Der Befehl erledigt in einem Zug:
 `kontor-test neu` verwendet den Branch vom letzten `start`; das Skript merkt
 ihn sich in `/root/.kontor-test-branch`.
 
+## Mit HTTPS
+
+Ist Kontor mit `kontor-https einrichten` auf HTTPS umgestellt
+([HTTPS.md](HTTPS.md), D-239), bleibt die Bedienung gleich:
+
+- `kontor-test start <branch>` und `kontor-test neu` geben die Testinstanz
+  zusätzlich über Tailscale frei (eigener HTTPS-Port, Vorgabe 8443) und nennen
+  die https-Adresse.
+- `kontor-test stop` und `kontor-test loeschen` nehmen die Freigabe zurück.
+- `kontor-test status` zeigt die https-Adresse.
+
+Das Skript erkennt HTTPS an einer `https://`-Adresse unter
+`KONTOR_OEFFENTLICHE_URL` in `/etc/kontor/kontor-test.env`; `kontor-https`
+trägt sie dort ein. Nach einem Kontor-Update, das dieses Skript ändert, den
+`install`-Aufruf von oben wiederholen.
+
 ## Gut zu wissen
 
 - **Jedes Einrichten ersetzt alles.** Branch und Datenkopie werden neu
@@ -90,6 +108,7 @@ ihn sich in `/root/.kontor-test-branch`.
 | `No module named kontor.testinstanz` | Hauptinstanz ist älter als 0.22; zuerst aktualisieren. |
 | Klonen scheitert | Branchnamen prüfen; ist er gepusht, erreicht der Server GitHub? |
 | Port antwortet nicht | Das Skript zeigt die letzten Protokollzeilen; mehr mit `kontor-test log`. |
+| „Die HTTPS-Freigabe ist fehlgeschlagen“ | Die Testinstanz läuft, ist aber nur auf dem Server selbst erreichbar. `kontor-https status` ansehen, dann `kontor-test neu`; siehe [HTTPS.md](HTTPS.md). |
 | Dienst startet nicht, Hinweise auf Rechte oder Pfade | Betrifft vermutlich die Härtung der Unit oder die Rechte des Benutzers `kontor`; Protokollauszug an den Implementierungs-Thread geben. |
 
 ## Ohne Skript

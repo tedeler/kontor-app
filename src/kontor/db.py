@@ -15,7 +15,7 @@ from collections.abc import Iterator
 
 from .text import norm
 
-SCHEMA_VERSION = 15
+SCHEMA_VERSION = 16
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (
@@ -482,6 +482,17 @@ CREATE TABLE IF NOT EXISTS erwartung (
     erstellt_am TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS erwartung_zustand ON erwartung(zustand, frist);
+
+-- ------------------------------------------------------------ Geplante Zahlungen mit Wiederholung (D-238)
+-- Gehört zur Objektart ``erwartung`` (nur von Hand angelegte): Rhythmus, Tag im Monat der ersten Fälligkeit (damit
+-- 31. → 28. → 31. nicht abdriftet), optionales Ende und die Erwartung, aus deren Abschluss diese entstanden ist.
+CREATE TABLE IF NOT EXISTS erwartung_wiederholung (
+    erwartung_id INTEGER PRIMARY KEY REFERENCES erwartung(id) ON DELETE CASCADE,
+    rhythmus TEXT NOT NULL CHECK (rhythmus IN ('monatlich','vierteljaehrlich','halbjaehrlich','jaehrlich')),
+    tag INTEGER NOT NULL CHECK (tag BETWEEN 1 AND 31),
+    bis TEXT,
+    vorgaenger_id INTEGER
+);
 
 -- ------------------------------------------------------------ Betragsfilter wiederkehrender Buchungen (D-137)
 -- Eigene Einstellung je Empfänger (Buchbestand, gehört zur Objektart ``empfaenger``); ohne Zeile gilt die Vorgabe

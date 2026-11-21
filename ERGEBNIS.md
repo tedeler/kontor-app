@@ -1,5 +1,30 @@
 # Ergebnis der Implementierung
 
+## Sammelbranch `feature/sammel3`, D-239 HTTPS über Tailscale (2026-11-21), gegen kontor-tests `c99b6ac`
+
+- **Umfang:** Skript `kontor-https` (einrichten, status, zurueck), HTTPS-Freigabe der Testinstanz in `kontor-test`,
+  Warnung beim Start, Anleitung `HTTPS.md`. Am Anwendungsserver sonst keine Änderung.
+- **Eigene Tests:** `python -m pytest tests -n 4` → 542 bestanden, 2 rot (die beiden Versionstests, die auf
+  Feature-Branches immer rot sind; auf main grün). Neu: `tests/test_https_skript_eigen.py` (15, Skripte mit
+  Attrappen), `tests/test_https_proxy_eigen.py` (8, echter TLS-Proxy auf Loopback, auch im Browser).
+- **Abnahmetests M7** (Sicherheit, Betrieb): 167 von 167 grün.
+- **Einschränkung:** Die Skripte sind nur mit Attrappen für Tailscale und systemd geprüft; ein echter Lauf auf einem
+  Server mit Tailscale steht aus.
+
+## Sammelbranch `feature/sammel3`, D-237 und D-238 (2026-11-21), gegen kontor-tests `c99b6ac`
+
+- **Umfang:** Einzelheiten je Änderung im Änderungsprotokoll (D-237, nur Oberfläche); geplante Zahlungen mit
+  Wiederholung, Vorschau und Zuordnung nach Namen (D-238; Datenbankschema 16, Sicherungsdatei Schemaversion 10).
+- **Eigene Tests:** `python -m pytest tests -n 4` → 520 bestanden, 2 rot wie zuvor (die beiden Versionstests, die auf
+  Feature-Branches immer rot sind). Neu: `tests/test_browser_aenderung.py`,
+  `tests/test_geplant_eigen.py`, `tests/test_browser_geplant.py`.
+- **Abnahmetests (`--voll`, M3, M9, M13, M20, M24, M25):** gegenüber dem Stand davor kein neuer Fehlschlag. Rot
+  bleiben die Folgen früherer Features (Regelform mit `ausdruck`, Standardkategorie D-219, Kontonamen D-218,
+  `test_automatisch_ueber_betrag_nur_eindeutig` D-232).
+- **Noch nicht im Vertrag:** Felder `wiederholung`/`wiederholung_bis` der erwarteten Zahlungen, Ereignisse mit
+  `quelle = "geplant"` in der Vorschau, Tabelle `erwartung_wiederholung` der Sicherungsdatei; automatische Zuordnung
+  geplanter Zahlungen auch bei mehreren Buchungen gleichen Betrags, wenn nur in einer der Name steht.
+
 ## Sammelbranch `feature/sammel3`, UX-Durchgang D-236 (2026-11-20), gegen kontor-tests `c99b6ac`
 
 - **Umfang:** 14 Funde aus dem UX-Durchgang umgesetzt (ENTSCHEIDUNGEN.md D-236): Mail-Ansicht ohne „null“,
