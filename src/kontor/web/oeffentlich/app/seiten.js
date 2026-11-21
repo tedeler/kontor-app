@@ -10,6 +10,7 @@ import {
 } from "./ui.js";
 import { kategorienBaum, kontoMenue, langeBeruehrung } from "./baum.js";
 import { regelEditor, regelnSeite } from "./regeleditor.js";
+import { aenderungFenster, zusammenfassung } from "./aenderung.js";
 
 const kopf = (seite, titel, ...werkzeuge) => {
   seite.append(h("div", { class: "seiten-kopf" }, h("h1", null, titel),
@@ -836,6 +837,10 @@ export async function protokoll(seite) {
       zeitEl("span", a.zeitpunkt, { class: "zeit" }), " ", h("span", { class: "marke" }, QUELLEN[a.quelle] || a.quelle), " ",
       h("span", null, a.beschreibung),
       a.rueckgaengig_durch ? h("span", { class: "klein" }, ` (rückgängig gemacht durch #${a.rueckgaengig_durch})`) : null,
+      // D-237: Einzelheiten der Änderung (je Objekt vorher → nachher) in einem eigenen Fenster
+      knopf("Einzelheiten…", { tid: `aenderung-einzelheiten-${a.id}`, class: "knopf knopf-klein", "aria-haspopup": "dialog",
+        "aria-label": `Einzelheiten der Änderung ${a.id}`, title: zusammenfassung(a.eintraege),
+        onclick: (ev) => aenderungFenster(a.id, ev.currentTarget).catch((e) => melde("fehler", e.message)) }),
       wirksam ? knopf("Rückgängig", { tid: `aenderung-rueckgaengig-${a.id}`,
         "aria-label": `Änderung ${a.id} rückgängig machen`, onclick: async () => {
           try { await api("POST", `/api/aenderungen/${a.id}/rueckgaengig`); melde("erfolg", "Rückgängig gemacht."); await oberflaeche.neuLaden(); }

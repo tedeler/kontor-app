@@ -222,6 +222,8 @@ Commit-Nachrichten sind auf Deutsch.
   `standardkategorie_id` bleibt in der Empfängerform und ist immer `null`.
 - Bestätigungs-Tags heißen „B-<Name>“ (`personTag`/`personVonTag` in `app/kern.js`, D-223).
 - `/statistik` und `GET /api/statistik` gibt es nicht mehr (D-221); `/tags` ist neu (D-225).
+- Änderungsprotokoll: Einzelheiten je Änderung zeigt `app/aenderung.js` (D-237). Neue Felder der Protokollform
+  bekommen dort einen Namen in `FELD_NAMEN` (sonst erscheint der Schlüssel) und ggf. eine Deutung in `wertText`.
 
 ## Hinweise zu den Einstellungen (Feature `einstellungen`, D-207)
 

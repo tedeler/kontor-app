@@ -3356,3 +3356,21 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - **Nicht geändert:** grüne Hinterlegung kategorisierter Zeilen (M22).
 - **Prüfung:** `tests/test_browser_ux.py`; `tests/test_browser_sammel3.py` angepasst (Spaltenraster wird ganz nach
   rechts gerollt gemessen).
+
+## D-237 Änderungsprotokoll: Einzelheiten je Änderung in einem eigenen Fenster
+
+- **Anlass:** Auftrag vom 2026-11-21 im Sammelthread: Das Änderungsprotokoll zeigt für jede Änderung eine
+  detaillierte Liste der Änderungen in einem Extrafenster.
+- **Entscheidung:** Jede Zeile des Protokolls hat den Knopf „Einzelheiten…“ (`aenderung-einzelheiten-<id>`; Tooltip:
+  Umfang in Worten). Er öffnet das Fenster `aenderung-dialog` mit Zeitpunkt, Quelle, Vorgang (Code der Aktion),
+  Umfang („3 Buchungen geändert, 1 Tag angelegt“), Stand (wirksam / rückgängig gemacht durch #n) und je betroffenem
+  Objekt einem Abschnitt `ae-eintrag-<objekt>-<id>`: bei „geändert“ nur die abweichenden Angaben mit Vorher und
+  Nachher, bei „angelegt“ und „gelöscht“ alle nicht leeren Angaben. Kennungen erscheinen als Namen (Konto mit Pfad,
+  Empfänger, Tags; bei gelöschten Objekten aus derselben Änderung, sonst „#id“), Beträge in Euro, Datumsangaben
+  deutsch, die Aufteilung je Split als „Konto: Betrag (Notiz)“.
+- **Große Änderungen** (Import, Sicherung): zunächst 50 Objekte, „Weitere anzeigen“ in Schritten von 50; ab sechs
+  Objekten ein Suchfeld über Titel und Angaben.
+- **Daten:** `GET /api/aenderungen/{id}` (vorhanden, unverändert); kein neuer Endpunkt, nur lesend, kein
+  Protokolleintrag. Neues Modul `app/aenderung.js` (in `sw.js` eingetragen).
+- **Nicht enthalten:** Rückgängig aus dem Fenster heraus (bleibt in der Liste).
+- **Prüfung:** `tests/test_browser_aenderung.py` (Desktop und Handy, angelegt/geändert, große Änderung, Suche).

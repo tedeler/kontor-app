@@ -1600,3 +1600,24 @@ tr.ueberfaellig td.e-zustand, tr.ueberfaellig td.e-frist { color: var(--gefahr);
 .tab-leiste { scroll-padding-right: 9.5rem; }
 /* Trenner der überdeckten Spalten bleiben über der klebenden Betragsspalte greifbar (Spaltenbreiten, M22) */
 .buchungsliste[data-kompakt="nein"] .liste-kopf .spalten-trenner { z-index: 3; }
+/* ---------------------------------------------------------------- Einzelheiten einer Änderung (D-237) */
+.dialog-aenderung { width: min(62rem, 96vw); }
+.ae-kopf { display: grid; grid-template-columns: max-content 1fr; gap: .15rem 1rem; margin: 0 0 .8rem; }
+.ae-kopf dt { color: var(--text-2); }
+.ae-kopf dd { margin: 0; overflow-wrap: anywhere; }
+.ae-liste { display: flex; flex-direction: column; gap: .8rem; margin: .5rem 0; }
+.ae-eintrag { border: 1px solid var(--rand); border-radius: var(--radius); padding: .5rem .7rem; }
+.ae-eintrag h3 { margin: 0 0 .35rem; font-size: 1rem; overflow-wrap: anywhere; }
+.ae-art { font-size: .78rem; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; padding: .05rem .4rem; border-radius: 99px;
+  background: var(--hg-2); }
+.ae-angelegt { color: var(--positiv, #2e7d46); }
+.ae-geloescht { color: var(--gefahr); }
+.ae-tabelle { width: 100%; table-layout: fixed; }
+.ae-tabelle th[scope="row"] { width: 12rem; text-align: left; font-weight: 400; color: var(--text-2); vertical-align: top; }
+.ae-tabelle td { white-space: pre-line; overflow-wrap: anywhere; vertical-align: top; }
+.ae-tabelle td.ae-vorher { background: color-mix(in srgb, var(--gefahr) 9%, transparent); }
+.ae-tabelle td.ae-nachher { background: color-mix(in srgb, #2e7d46 12%, transparent); }
+.aenderung .knopf-klein { margin-left: .4rem; }
+[data-layout="mobil"] .ae-tabelle th[scope="row"] { width: 6.5rem; font-size: .85rem; }
+.ae-eintrag h3 small { margin-left: .3rem; font-weight: 400; }
+.ae-tabelle th[scope="row"] { hyphens: auto; overflow-wrap: anywhere; }
