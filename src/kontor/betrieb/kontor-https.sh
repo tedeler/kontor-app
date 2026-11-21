@@ -58,7 +58,7 @@ setze() {
     if grep -q "^${var}=" "$datei"; then
         awk -v var="$var" -v neu="$neu" 'BEGIN { FS = "=" } $1 == var { print var "=" neu; next } { print }' "$datei" > "$tmp"
     else
-        cat "$datei" > "$tmp"
+        awk '{ print }' "$datei" > "$tmp"      # schliesst auch eine letzte Zeile ohne Zeilenende ab
         printf '%s=%s\n' "$var" "$neu" >> "$tmp"
     fi
     chmod --reference="$datei" "$tmp"

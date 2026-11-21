@@ -3437,3 +3437,8 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - **Prüfung:** `tests/test_https_skript_eigen.py` (Tailscale und systemctl als Attrappen: Umstellung, Wiederholung,
   Rücknahme, Fehlerfälle, Testinstanz-Skript, Startwarnung, Herkunftsprüfung). Nicht geprüft: ein echter Lauf mit
   Tailscale auf einem Server.
+- **Nachtrag Tests (2026-11-21):** `tests/test_https_proxy_eigen.py` prüft den Betrieb hinter einem echten
+  TLS-Proxy auf Loopback (für den Lauf erzeugtes Zertifikat): Anmelden, Schreiben, Secure-Cookie, fremde Herkunft,
+  fehlende öffentliche Adresse, direkter http-Zugriff ohne Sitzung, Proxy mit ersetztem Host-Kopf – per HTTP-Client
+  und im Browser (Desktop, Handy). Dabei behoben: `kontor-https` hängte an eine Umgebungsdatei ohne Zeilenende
+  die neue Variable an die letzte Zeile an.

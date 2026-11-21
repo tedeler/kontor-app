@@ -4,8 +4,9 @@
 
 - **Umfang:** Skript `kontor-https` (einrichten, status, zurueck), HTTPS-Freigabe der Testinstanz in `kontor-test`,
   Warnung beim Start, Anleitung `HTTPS.md`. Am Anwendungsserver sonst keine Änderung.
-- **Eigene Tests:** `python -m pytest tests -n 4` → 528 bestanden, 3 rot wie zuvor (zwei Versionstests auf dem
-  Feature-Branch, `test_tags_im_kontoblatt_bearbeiten` nur im Parallellauf). Neu: `tests/test_https_skript_eigen.py` (9).
+- **Eigene Tests:** `python -m pytest tests -n 4` → 542 bestanden, 2 rot (die beiden Versionstests, die auf
+  Feature-Branches immer rot sind; auf main grün). Neu: `tests/test_https_skript_eigen.py` (15, Skripte mit
+  Attrappen), `tests/test_https_proxy_eigen.py` (8, echter TLS-Proxy auf Loopback, auch im Browser).
 - **Abnahmetests M7** (Sicherheit, Betrieb): 167 von 167 grün.
 - **Einschränkung:** Die Skripte sind nur mit Attrappen für Tailscale und systemd geprüft; ein echter Lauf auf einem
   Server mit Tailscale steht aus.

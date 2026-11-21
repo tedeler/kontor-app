@@ -245,3 +245,71 @@ def test_herkunftspruefung_hinter_https_proxy_braucht_die_oeffentliche_adresse(t
         with TestClient(create_app(config), base_url=f"http://{NAME}") as c:
             r = c.post("/api/anmeldung", json={"passwort": "synthetisch-falsch"}, headers=herkunft)
             assert r.status_code == erwartet, (url, r.text)      # 409: Herkunft angenommen, nur noch nicht eingerichtet
+
+
+@ROOT
+def test_umgebungsdatei_ohne_zeilenende_und_mit_doppelten_zeilen(umgebung):
+    """Die Umstellung verträgt eine letzte Zeile ohne Zeilenende und ersetzt jede vorhandene Zeile der Variablen."""
+    umg, tmp, haupt, test, aufrufe, port = umgebung
+    haupt.write_text(f"KONTOR_HOST=0.0.0.0\nKONTOR_PORT={port}\nKONTOR_HOST=192.168.0.5\nKONTOR_LOG_STUFE=INFO", encoding="utf-8")
+    assert _lauf(umg, "einrichten").returncode == 0
+    zeilen = haupt.read_text(encoding="utf-8").splitlines()
+    assert zeilen == ["KONTOR_HOST=127.0.0.1", f"KONTOR_PORT={port}", "KONTOR_HOST=127.0.0.1", "KONTOR_LOG_STUFE=INFO",
+                      "KONTOR_SITZUNG_COOKIE_SECURE=1", f"KONTOR_OEFFENTLICHE_URL=https://{NAME}"]
+    assert haupt.read_text(encoding="utf-8").endswith("\n")
+
+
+@ROOT
+def test_zurueck_ohne_sicherung_aendert_nichts(umgebung):
+    umg, tmp, haupt, test, aufrufe, _ = umgebung
+    vorher = haupt.read_text(encoding="utf-8")
+    e = _lauf(umg, "zurueck")
+    assert e.returncode == 0 and "Keine Sicherung" in e.stderr
+    assert haupt.read_text(encoding="utf-8") == vorher and not test.exists()
+
+
+@ROOT
+def test_einrichten_nach_zurueck_und_spaetere_aenderungen_bleiben(umgebung):
+    """Einrichten → eigene Änderung an der Datei → zurück: nur die drei Variablen gehen zurück, die Änderung bleibt."""
+    umg, tmp, haupt, test, aufrufe, port = umgebung
+    assert _lauf(umg, "einrichten").returncode == 0
+    haupt.write_text(haupt.read_text(encoding="utf-8") + "KONTOR_MAIL_ABGLEICH=1\n", encoding="utf-8")
+    assert _lauf(umg, "zurueck").returncode == 0
+    w = _werte(haupt)
+    assert w["KONTOR_MAIL_ABGLEICH"] == "1" and w["KONTOR_HOST"] == "0.0.0.0" and "KONTOR_OEFFENTLICHE_URL" not in w
+    assert _lauf(umg, "einrichten").returncode == 0
+    assert _werte(haupt)["KONTOR_OEFFENTLICHE_URL"] == f"https://{NAME}" and _werte(haupt)["KONTOR_MAIL_ABGLEICH"] == "1"
+
+
+@ROOT
+def test_testinstanz_skript_mit_https_ohne_portangabe(umgebung):
+    """Steht in der Adresse der Testinstanz kein Port, gilt 443."""
+    umg, tmp, haupt, test, aufrufe, port = umgebung
+    programm = tmp / "python-attrappe"
+    _attrappe(programm, f'echo "python $*" >> "{aufrufe}"\n')
+    test.write_text(f"KONTOR_PORT={port}\nKONTOR_OEFFENTLICHE_URL=https://test.example.invalid\n", encoding="utf-8")
+    e = _lauf({**umg, "KONTOR_PYTHON": str(programm)}, "start", "main", skript="kontor-test.sh")
+    assert e.returncode == 0, e.stderr
+    assert f"tailscale serve --bg --https=443 http://127.0.0.1:{port}" in _aufrufe(aufrufe)
+    assert "https://test.example.invalid" in e.stdout
+
+
+def test_ausgelieferte_dateien_passen_zur_anleitung():
+    """Was HTTPS.md nennt, gibt es: Skripte im Paket, die drei Variablen, die Befehle."""
+    import pathlib
+    anleitung = (pathlib.Path(__file__).resolve().parents[1] / "HTTPS.md").read_text(encoding="utf-8")
+    skript = pathlib.Path(_skript()).read_text(encoding="utf-8")
+    for var in ("KONTOR_HOST", "KONTOR_SITZUNG_COOKIE_SECURE", "KONTOR_OEFFENTLICHE_URL"):
+        assert var in anleitung and var in skript
+    for befehl in ("kontor-https einrichten", "kontor-https status", "kontor-https zurueck", "--tailscale-installieren",
+                   "--test-port", "--name"):
+        assert befehl in anleitung, befehl
+    # nur „serve“ (Tailnet), nie „funnel“ (öffentliches Internet)
+    assert "serve --bg --https=" in skript and "funnel" not in "".join(
+        z for z in skript.splitlines() if not z.lstrip().startswith("#"))
+    # die drei Werte, wie das Skript sie schreibt, nimmt die Konfiguration an
+    from kontor.config import KontorConfig
+    config = KontorConfig.from_env({"KONTOR_DATENBANK": "/tmp/x.sqlite3", "KONTOR_HOST": "127.0.0.1", "KONTOR_SITZUNG_COOKIE_SECURE": "1",
+                           "KONTOR_OEFFENTLICHE_URL": "https://kontor.example.invalid:8443"})
+    assert (config.host, config.sitzung_cookie_secure, config.oeffentliche_url) == (
+        "127.0.0.1", True, "https://kontor.example.invalid:8443")
