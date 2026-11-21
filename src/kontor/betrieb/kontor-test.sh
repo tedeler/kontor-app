@@ -18,6 +18,12 @@
 #   kontor-test log                Protokoll mitlesen (Strg+C beendet)
 #
 # <branch>: "feature/monatsbericht", kurz "monatsbericht", oder "main".
+#
+# HTTPS: Ist Kontor mit "kontor-https einrichten" auf HTTPS umgestellt (D-239),
+# steht in der Umgebungsdatei der Testinstanz ihre https-Adresse
+# (KONTOR_OEFFENTLICHE_URL). Dann schaltet "start"/"neu" die Tailscale-Freigabe
+# fuer die Testinstanz ein und "stop"/"loeschen" wieder aus; sonst bleibt alles
+# wie bisher bei http.
 
 set -euo pipefail
 
@@ -25,6 +31,7 @@ PYTHON="${KONTOR_PYTHON:-/opt/kontor/venv/bin/python}"
 DIENST="kontor-test.service"
 ENV_DATEI="${KONTOR_TEST_ENV:-/etc/kontor/kontor-test.env}"
 MERKDATEI="${KONTOR_TEST_MERKDATEI:-/root/.kontor-test-branch}"
+TAILSCALE="${KONTOR_TAILSCALE:-tailscale}"
 WARTEZEIT=30   # Sekunden, bis der Port antworten muss
 
 # Der Port steht in der Umgebungsdatei der Testinstanz und laesst sich dort aendern.
@@ -56,10 +63,47 @@ branch_name() {
     esac
 }
 
+# https-Adresse der Testinstanz aus der Umgebungsdatei; leer, wenn HTTPS nicht eingerichtet ist
+https_adresse() {
+    local a=""
+    if [ -r "$ENV_DATEI" ]; then
+        a="$(sed -n 's/^KONTOR_OEFFENTLICHE_URL=\(https:\/\/.*\)$/\1/p' "$ENV_DATEI" | tail -n 1 | sed 's/[[:space:]]*$//')"
+    fi
+    echo "$a"
+}
+
+# HTTPS-Port aus der Adresse (https://name:8443 -> 8443, ohne Angabe 443)
+https_port() {
+    local p
+    p="$(https_adresse | sed -n 's#^https://[^/:]*:\([0-9][0-9]*\).*$#\1#p')"
+    echo "${p:-443}"
+}
+
 adresse() {
-    local ip
+    local ip a
+    a="$(https_adresse)"
+    if [ -n "$a" ]; then
+        echo "$a"
+        return
+    fi
     ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
     echo "http://${ip:-<container-ip>}:$(port)"
+}
+
+# Tailscale-Freigabe der Testinstanz ein- und ausschalten (nur wenn HTTPS eingerichtet ist)
+freigabe_ein() {
+    [ -n "$(https_adresse)" ] || return 0
+    echo "==> Gebe die Testinstanz ueber HTTPS frei (Port $(https_port))"
+    if ! "$TAILSCALE" serve --bg --https="$(https_port)" "http://127.0.0.1:$(port)" > /dev/null; then
+        echo "Die HTTPS-Freigabe ist fehlgeschlagen; die Testinstanz laeuft, ist aber nur auf dem Server selbst erreichbar." >&2
+        echo "Pruefen: kontor-https status   Wiederholen: $0 neu" >&2
+        exit 1
+    fi
+}
+
+freigabe_aus() {
+    [ -n "$(https_adresse)" ] || return 0
+    "$TAILSCALE" serve --https="$(https_port)" off > /dev/null 2>&1 || true
 }
 
 warte_auf_port() {
@@ -83,6 +127,7 @@ einrichten() {
 
     echo "==> Warte auf Port $(port) ..."
     if warte_auf_port; then
+        freigabe_ein
         echo "==> Testinstanz laeuft: $(adresse)"
         echo "    Anmeldung mit dem Haushaltspasswort."
     else
@@ -107,11 +152,13 @@ case "$befehl" in
         ;;
     stop)
         pruefe_umgebung
+        freigabe_aus
         "$PYTHON" -m kontor.testinstanz stoppen
         echo "==> Testinstanz angehalten. Die Datenkopie bleibt erhalten."
         ;;
     loeschen)
         pruefe_umgebung
+        freigabe_aus
         "$PYTHON" -m kontor.testinstanz stoppen --loeschen
         echo "==> Testinstanz angehalten, Datenkopie geloescht."
         ;;

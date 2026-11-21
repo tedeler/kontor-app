@@ -362,6 +362,10 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     elif not config.mock_modus:
         log.warning("Die Anmeldung ist abgeschaltet (KONTOR_ANMELDUNG): Kontor ist ohne Passwort erreichbar. "
                     "Für den Betrieb KONTOR_ANMELDUNG=1 setzen.")
+    if config.sitzung_cookie_secure and not (config.oeffentliche_url or "").lower().startswith("https://"):
+        # D-239: hinter einem HTTPS-Proxy sieht Kontor nur http; ohne die öffentliche Adresse scheitert die Herkunftsprüfung
+        log.warning("KONTOR_SITZUNG_COOKIE_SECURE=1 ohne https-Adresse in KONTOR_OEFFENTLICHE_URL: Hinter einem "
+                    "HTTPS-Proxy werden schreibende Anfragen dann mit 403 abgelehnt. Siehe HTTPS.md.")
     sync = SyncDienst(config)
     sync.neustart_aufraeumen()  # synchronisation.md 10
     sync.zustellung.vorbereiten()  # M6: neue Benachrichtigungen ausstehend oder „keine“ (benachrichtigungen.md 4.1)

@@ -3405,3 +3405,35 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - **Datenmodell:** Tabelle `erwartung_wiederholung` (Rhythmus, Tag, Ende, Vorgänger) als Teil der Objektart
   `erwartung`; Datenbankschema 16, Sicherungsdatei Schemaversion 10 (ältere Sicherungen: ohne Wiederholungen).
 - **Prüfung:** `tests/test_geplant_eigen.py`, `tests/test_browser_geplant.py`.
+
+## D-239 Betrieb nur über HTTPS: Tailscale Serve, Skript `kontor-https`
+
+- **Anlass:** Auftrag vom 2026-11-21 im Sammelthread: künftig nur noch über HTTPS arbeiten, mit Tailscale; ein
+  Installationsskript für Debian; die Testinstanz bleibt per Skript leicht startbar; gut dokumentiert.
+- **Grundsatz bleibt:** Kontor spricht kein TLS (`sicherheit.md` 12, `betrieb.md` 2: `proxy_headers=False`). Am
+  Anwendungsserver ändert sich nichts außer einer Warnung beim Start.
+- **Weg:** Tailscale Serve auf dem Kontor-Server nimmt HTTPS mit dem Zertifikat des Tailnet-Namens entgegen und
+  reicht an Kontor auf 127.0.0.1 weiter. Verworfen: eigener Proxy mit eigener Zertifizierungsstelle (Zertifikat
+  auf jedem Gerät installieren) und Let's Encrypt über eine eigene Domain (mehr Einrichtung); Tailscale ist
+  vorhanden. Nie Funnel (öffentliches Internet).
+- **Skript** `kontor-https` (`betrieb/kontor-https.sh`, Ziel `/usr/local/bin/kontor-https`):
+  `einrichten [--tailscale-installieren] [--name <name>] [--test-port <port>]`, `status`, `zurueck`. Reihenfolge
+  beim Einrichten: prüfen → Freigabe einrichten (scheitert sie, bleibt Kontor unverändert) → Umgebungsdatei einmalig
+  als `*.vor-https` sichern → `KONTOR_HOST=127.0.0.1`, `KONTOR_SITZUNG_COOKIE_SECURE=1`,
+  `KONTOR_OEFFENTLICHE_URL=https://<name>` setzen → Neustart → Testinstanz ebenso (Adresse mit Port, Vorgabe
+  8443; Umgebungsdatei bei Bedarf aus der Vorlage) → Abfrage über HTTPS. Wiederholbar; `zurueck` stellt genau diese
+  drei Variablen aus der Sicherung wieder her und beendet die Freigaben. Die ausgelieferte `kontor.env` bleibt bei
+  `0.0.0.0` (betrieb.md 3); umgestellt wird nur die installierte Datei.
+- **`KONTOR_OEFFENTLICHE_URL` ist hinter dem Proxy Pflicht:** Kontor sieht nur `http`, der Browser meldet die
+  `https`-Herkunft; die Herkunftsprüfung (`sicherheit.md` 4.6) lässt sie nur über die öffentliche Adresse zu. Fehlt
+  sie bei `KONTOR_SITZUNG_COOKIE_SECURE=1`, warnt Kontor beim Start.
+- **Netzbeschränkung:** `KONTOR_ERLAUBTE_NETZE` sieht hinter dem Proxy nur 127.0.0.1 und schützt nicht mehr; den
+  Zugriff regelt das Tailnet (dokumentiert in HTTPS.md).
+- **Testinstanz:** `kontor-test` bleibt die Bedienung. Steht in `kontor-test.env` eine `https://`-Adresse, schaltet
+  `start`/`neu` die Freigabe (`tailscale serve --bg --https=<port>`) ein, `stop`/`loeschen` aus; `status` und die
+  Ausgabe nennen die https-Adresse. Ohne die Zeile unverändert http.
+- **Tailscale installieren** nur auf ausdrücklichen Wunsch (`--tailscale-installieren`, offizielles
+  Installationsskript); die Anmeldung (`tailscale up`) bleibt ein Schritt von Hand, weil sie einen Browser braucht.
+- **Prüfung:** `tests/test_https_skript_eigen.py` (Tailscale und systemctl als Attrappen: Umstellung, Wiederholung,
+  Rücknahme, Fehlerfälle, Testinstanz-Skript, Startwarnung, Herkunftsprüfung). Nicht geprüft: ein echter Lauf mit
+  Tailscale auf einem Server.

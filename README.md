@@ -223,7 +223,7 @@ bzw. `EnvironmentFile`) ausführen.
 | --- | --- |
 | `KONTOR_ANMELDUNG` | Haushalts-Login einschalten (Vorgabe aus; **im Betrieb `1`**, ausgelieferte `kontor.env`) |
 | `KONTOR_SITZUNG_LEERLAUF_SEKUNDEN`, `KONTOR_SITZUNG_HOECHSTDAUER_SEKUNDEN` | Ablauf der Sitzung (1 Tag ohne Aktivität, höchstens 30 Tage) |
-| `KONTOR_SITZUNG_COOKIE_SECURE` | `Secure`-Cookie erzwingen (`1`, hinter HTTPS-Proxy) oder verbieten; leer = nur bei HTTPS-Anfragen |
+| `KONTOR_SITZUNG_COOKIE_SECURE` | `Secure`-Cookie erzwingen (`1`, hinter HTTPS-Proxy; dann auch `KONTOR_OEFFENTLICHE_URL` setzen, siehe [HTTPS.md](HTTPS.md)) oder verbieten; leer = nur bei HTTPS-Anfragen |
 | `KONTOR_ANMELDUNG_FEHLVERSUCHE`, `KONTOR_ANMELDUNG_SPERRE_SEKUNDEN` | Bremse: nach 5 Fehlversuchen 60 s Sperre, danach verdoppelt |
 | `KONTOR_ERLAUBTE_NETZE` | CIDR-Liste, z. B. `127.0.0.0/8,192.168.0.0/16`; andere Adressen → 403 (leer = alle) |
 | `KONTOR_UPLOAD_MAX_MIB`, `KONTOR_ANFRAGE_MAX_KIB` | Größengrenzen für Importe/Sicherungen (200 MiB) und andere Körper (4 096 KiB) |
@@ -284,7 +284,7 @@ von systemd verschlüsselt bereitgestellt (siehe unten).
 | `KONTOR_NTFY_URL`, `KONTOR_NTFY_TOPIC` | ntfy-Server (Vorgabe `https://ntfy.sh`) und Thema (Pflicht bei `ntfy`) |
 | `KONTOR_ZUSTELLUNG_MAX_VERSUCHE`, `KONTOR_ZUSTELLUNG_WIEDERHOLUNG_MINUTEN` | Wiederholung nach Fehlschlag (10 Versuche, alle 5 Minuten) |
 | `KONTOR_TAN_ERINNERUNG_MINUTEN`, `KONTOR_TAN_ERINNERUNG_ANZAHL` | Erinnerungen an offene TANs (alle 5 Minuten, höchstens 3; `0` = keine) |
-| `KONTOR_OEFFENTLICHE_URL` | Adresse von Kontor im Heimnetz für Links in Push-Nachrichten (z. B. `http://kontor.lan:8000`) |
+| `KONTOR_OEFFENTLICHE_URL` | Adresse, unter der Kontor im Browser aufgerufen wird (z. B. `http://kontor.lan:8000` oder `https://kontor.<tailnet>.ts.net`): für Links in Push-Nachrichten und, hinter einem HTTPS-Proxy, für die Herkunftsprüfung |
 | `KONTOR_GEHEIMNIS_SCHLUESSEL_DATEI` | Schlüsseldatei des Geheimnisspeichers (Vorgabe neben der Datenbank, `*.schluessel`) |
 | `KONTOR_TLS_CA_DATEI` | eigene Vertrauensanker (PEM) für alle ausgehenden TLS-Verbindungen |
 
@@ -438,9 +438,14 @@ journalctl -u kontor-test -f
 - Voraussetzung: `git` und Netzzugang zu GitHub und PyPI auf dem Server; das
   erste Einrichten legt eine eigene virtuelle Umgebung an und dauert länger.
 
-HTTPS: Kontor selbst spricht kein TLS. Wer es will, setzt einen Reverse-Proxy
-auf demselben Host davor (Kontor dann auf `127.0.0.1` binden) und
-`KONTOR_SITZUNG_COOKIE_SECURE=1`.
+**HTTPS:** Kontor selbst spricht kein TLS. Für den Betrieb nur über HTTPS stellt
+`kontor-https einrichten` Tailscale Serve davor (gültiges Zertifikat, Zugriff
+nur aus dem eigenen Tailnet) und stellt Haupt- und Testinstanz um; mit
+`kontor-https zurueck` wieder zurück. Schritt-für-Schritt-Anleitung:
+[HTTPS.md](HTTPS.md) (D-239). Mit einem anderen Reverse-Proxy auf demselben
+Host: Kontor auf `127.0.0.1` binden, `KONTOR_SITZUNG_COOKIE_SECURE=1` und
+`KONTOR_OEFFENTLICHE_URL=https://…` setzen (ohne die Adresse lehnt Kontor
+schreibende Anfragen mit 403 ab; es warnt beim Start davor).
 
 Lehnt die Bank die PIN ab (oder sperrt den Zugang), verwendet Kontor die PIN
 bis zum nächsten Neustart des Dienstes nicht mehr (Schutz vor Kontosperre).
@@ -659,6 +664,7 @@ kontor-tests gegen diese installierte App). Ergebnis des letzten Laufs:
 | `ENTSCHEIDUNGEN.md` | Entscheidungen der Implementierung |
 | `WIDERSPRUECHE.md` | Widersprüche zwischen Tests und Spezifikation |
 | `ERGEBNIS.md` | Ergebnis des letzten vollständigen Testlaufs |
+| `HTTPS.md` | Betrieb nur über HTTPS mit Tailscale: Skript `kontor-https`, Testinstanz, Rücknahme, Fehlersuche (D-239) |
 
 ## Kontostand bei der Synchronisation (M11)
 

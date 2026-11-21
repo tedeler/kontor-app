@@ -1,5 +1,15 @@
 # Ergebnis der Implementierung
 
+## Sammelbranch `feature/sammel3`, D-239 HTTPS über Tailscale (2026-11-21), gegen kontor-tests `c99b6ac`
+
+- **Umfang:** Skript `kontor-https` (einrichten, status, zurueck), HTTPS-Freigabe der Testinstanz in `kontor-test`,
+  Warnung beim Start, Anleitung `HTTPS.md`. Am Anwendungsserver sonst keine Änderung.
+- **Eigene Tests:** `python -m pytest tests -n 4` → 528 bestanden, 3 rot wie zuvor (zwei Versionstests auf dem
+  Feature-Branch, `test_tags_im_kontoblatt_bearbeiten` nur im Parallellauf). Neu: `tests/test_https_skript_eigen.py` (9).
+- **Abnahmetests M7** (Sicherheit, Betrieb): 167 von 167 grün.
+- **Einschränkung:** Die Skripte sind nur mit Attrappen für Tailscale und systemd geprüft; ein echter Lauf auf einem
+  Server mit Tailscale steht aus.
+
 ## Sammelbranch `feature/sammel3`, D-237 und D-238 (2026-11-21), gegen kontor-tests `c99b6ac`
 
 - **Umfang:** Einzelheiten je Änderung im Änderungsprotokoll (D-237, nur Oberfläche); geplante Zahlungen mit
