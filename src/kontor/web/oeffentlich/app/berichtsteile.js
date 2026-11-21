@@ -11,7 +11,8 @@ export const MONATE = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Ju
 export const MONATE_KURZ = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
 export const WOCHENTAGE = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"];
 export const WOCHENTAGE_KURZ = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
-export const RHYTHMUS = { monatlich: "monatlich", vierteljaehrlich: "vierteljährlich", jaehrlich: "jährlich" };
+export const RHYTHMUS = { monatlich: "monatlich", vierteljaehrlich: "vierteljährlich", halbjaehrlich: "halbjährlich", jaehrlich: "jährlich",
+  einmalig: "einmalig" };
 export const MONAT_MUSTER = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 export const monatText = (m) => `${MONATE[Number(m.slice(5)) - 1]} ${m.slice(0, 4)}`;

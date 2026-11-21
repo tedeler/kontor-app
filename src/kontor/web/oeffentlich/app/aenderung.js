@@ -17,7 +17,9 @@ const FELD_NAMEN = { datum: "Datum", empfaenger_id: "Empfänger", verwendungszwe
   buchung_ids: "Buchungen", iban: "IBAN", waehrung: "Währung", bedingungen: "Bedingungen", aktionen: "Aktionen", aktiv: "Aktiv",
   position: "Reihenfolge", automatisch: "Automatisch anwenden", wiederkehrend: "Wiederkehrend", stichtag: "Stichtag", saldo: "Saldo",
   adresse: "Adresse", dateiname: "Dateiname", typ: "Typ", groesse: "Größe", zustand: "Zustand", anbieter: "Anbieter", grund: "Grund",
-  kandidaten: "Mögliche Gegenstücke", erstellt_am: "Erstellt am", faellig: "Fällig", frist: "Frist", herkunft: "Herkunft", versteckt: "Versteckt" };
+  kandidaten: "Mögliche Gegenstücke", erstellt_am: "Erstellt am", faellig: "Fällig", frist: "Frist", herkunft: "Herkunft", versteckt: "Versteckt",
+  wiederholung: "Wiederholung", rhythmus: "Rhythmus", bis: "Bis", vorgaenger_id: "Folge von", haendler: "Händler / Zahlungsempfänger",
+  richtung: "Richtung", beschreibung: "Beschreibung", kennung: "Kennung", gesamt: "Gesamtbetrag", guthaben: "Guthaben", mails: "Mails" };
 const GRENZE = 50;           // so viele Objekte zeigt das Fenster zunächst; weitere auf Knopfdruck
 const gleich = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const istLeer = (w) => w === null || w === undefined || w === "" || (Array.isArray(w) && !w.length);

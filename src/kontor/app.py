@@ -1824,7 +1824,8 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     async def erwartung_zustand(request: Request):
         d = json_koerper(await request.body())
         eid = pid(request, "erwartung_id")
-        return await aendern("erwartung_zustand", lambda con: erwartung.zustand_setzen(con, eid, d, _heute()))
+        return await aendern("erwartung_zustand", mit_uhr(
+            lambda con, z: erwartung.zustand_setzen(con, eid, d, _heute(), z)))
 
     @endpunkt("GET", "/api/erwartungen/{erwartung_id:int}/kandidaten")
     async def erwartung_kandidaten(request: Request):

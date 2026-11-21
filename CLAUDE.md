@@ -80,7 +80,7 @@ Commit-Nachrichten sind auf Deutsch.
 | `src/kontor/sicherung.py` | M9: Datensicherung (eigenes Schema der Sicherungsdatei `SPALTEN`, Version `SCHEMAVERSION`), Prüfung nach sicherung.md 5.1, Inhaltsprüfung in einer App-Datenbank im Arbeitsspeicher, Probelauf, Einspielen |
 | `src/kontor/anbieter/` | D-230: Anbieter-Beschreibungen für den Mail-Abgleich (`amazon.toml`, `paypal.toml`, Zusatzdateien aus `anbieter_verzeichnis`); `__init__.py` liest, prüft und wertet sie aus; Format in `ANBIETER.md`. Änderungen an den mitgelieferten Dateien gegen `tests/test_anbieter_eigen.py` prüfen (Vergleich mit `tests/referenz_mailerkennung.py`) |
 | `src/kontor/kontonamen.py` | Sammelbranch sammel3 (D-218): Kontonamen je Ebene eindeutig – `pruefen` (409 `konto_existiert`, aufgerufen am Ende von `protokoll.protokolliert`), `bereinigen` (Altbestand, Importe, Sicherung), `freier_name` |
-| `src/kontor/db.py` | SQLite-Schema (Version 15), WAL, Migration früherer Versionen ohne Datenverlust, Verbindungen, `checkpoint` |
+| `src/kontor/db.py` | SQLite-Schema (Version 16), WAL, Migration früherer Versionen ohne Datenverlust, Verbindungen, `checkpoint` |
 | `src/kontor/geheimnisse.py` | M6: verschlüsselter Geheimnisspeicher (AES-256-GCM, Schlüssel aus systemd-creds oder Schlüsseldatei), `verwaiste_entfernen` |
 | `src/kontor/mail.py` | M6: Postfächer (Buchbestand), Betriebszustand, OAuth2 mit PKCE, `zugang` (Token-Erneuerung, Ablauf, Widerruf), paralleler Abruf, Spiegel |
 | `src/kontor/zustellung.py` | M6: Zustellung der Benachrichtigungen über das Benachrichtigungs-Plugin (erster Versuch, Wiederholung, Status) |
@@ -222,6 +222,9 @@ Commit-Nachrichten sind auf Deutsch.
   `standardkategorie_id` bleibt in der Empfängerform und ist immer `null`.
 - Bestätigungs-Tags heißen „B-<Name>“ (`personTag`/`personVonTag` in `app/kern.js`, D-223).
 - `/statistik` und `GET /api/statistik` gibt es nicht mehr (D-221); `/tags` ist neu (D-225).
+- Geplante Zahlungen (D-238): Wiederholung in `erwartung_wiederholung` (Teil der Objektart `erwartung`,
+  Sicherungsdatei Schemaversion 10); Fortsetzung und Rücknahme in `erwartung.folge_anlegen`/`folge_entfernen`, Vorschau über
+  `erwartung.geplante`. Das Feld `wiederholung` erscheint nur, wenn eine besteht.
 - Änderungsprotokoll: Einzelheiten je Änderung zeigt `app/aenderung.js` (D-237). Neue Felder der Protokollform
   bekommen dort einen Namen in `FELD_NAMEN` (sonst erscheint der Schlüssel) und ggf. eine Deutung in `wertText`.
 

@@ -1,5 +1,19 @@
 # Ergebnis der Implementierung
 
+## Sammelbranch `feature/sammel3`, D-237 und D-238 (2026-11-21), gegen kontor-tests `c99b6ac`
+
+- **Umfang:** Einzelheiten je Änderung im Änderungsprotokoll (D-237, nur Oberfläche); geplante Zahlungen mit
+  Wiederholung, Vorschau und Zuordnung nach Namen (D-238; Datenbankschema 16, Sicherungsdatei Schemaversion 10).
+- **Eigene Tests:** `python -m pytest tests -n 4` → 520 bestanden, 2 rot wie zuvor (die beiden Versionstests, die auf
+  Feature-Branches immer rot sind). Neu: `tests/test_browser_aenderung.py`,
+  `tests/test_geplant_eigen.py`, `tests/test_browser_geplant.py`.
+- **Abnahmetests (`--voll`, M3, M9, M13, M20, M24, M25):** gegenüber dem Stand davor kein neuer Fehlschlag. Rot
+  bleiben die Folgen früherer Features (Regelform mit `ausdruck`, Standardkategorie D-219, Kontonamen D-218,
+  `test_automatisch_ueber_betrag_nur_eindeutig` D-232).
+- **Noch nicht im Vertrag:** Felder `wiederholung`/`wiederholung_bis` der erwarteten Zahlungen, Ereignisse mit
+  `quelle = "geplant"` in der Vorschau, Tabelle `erwartung_wiederholung` der Sicherungsdatei; automatische Zuordnung
+  geplanter Zahlungen auch bei mehreren Buchungen gleichen Betrags, wenn nur in einer der Name steht.
+
 ## Sammelbranch `feature/sammel3`, UX-Durchgang D-236 (2026-11-20), gegen kontor-tests `c99b6ac`
 
 - **Umfang:** 14 Funde aus dem UX-Durchgang umgesetzt (ENTSCHEIDUNGEN.md D-236): Mail-Ansicht ohne „null“,

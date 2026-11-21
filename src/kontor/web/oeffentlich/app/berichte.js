@@ -190,8 +190,10 @@ export function vorschauSeite(seite, _param, suche) {
       const zeilen = b.ereignisse.map((e, i) => {
         lauf += e.betrag;
         return h("tr", { tid: `mb-ereignis-${i}` }, h("td", null, datumText(e.datum)),
-          h("td", null, h("span", { class: "mb-name" }, empfName(e.empfaenger), e.quelle === "kredit" ? h("span", { class: "mb-marke" }, "Kreditrate") : null),
-            h("span", { class: "klein" }, `${RHYTHMUS[e.rhythmus] || e.rhythmus} · ${kontoName(e.konto_id)}`)),
+          h("td", null, h("span", { class: "mb-name" }, empfName(e.empfaenger), e.quelle === "kredit" ? h("span", { class: "mb-marke" }, "Kreditrate") : null,
+            e.quelle === "geplant" ? h("span", { class: "mb-marke", tid: `mb-ereignis-geplant-${i}` }, "Geplant") : null),
+            h("span", { class: "klein" }, e.konto_id === null ? RHYTHMUS[e.rhythmus] || e.rhythmus
+              : `${RHYTHMUS[e.rhythmus] || e.rhythmus} · ${kontoName(e.konto_id)}`)),
           betragEl("td", e.betrag, { class: "zahl" }), betragEl("td", lauf, { class: "zahl" }));
       });
       return [
@@ -210,7 +212,7 @@ export function vorschauSeite(seite, _param, suche) {
             h("span", null, `Eingänge ${betragText(b.summen.eingaenge)}`), h("span", null, `fest ${betragText(b.summen.feste_ausgaben)}, üblich ${betragText(b.summen.variabel)}`))),
         karte("mb-vorschau", "Erwarteter Kontostand",
           "Die dicke Linie rechnet feste Zahlungen und die üblichen täglichen Ausgaben ein, die dünne nur die festen Zahlungen. Die Vorschau ist eine Schätzung aus den bisherigen Buchungen.", k.verlauf),
-        karte("mb-ereignisse", "Erwartete Zahlungen", "Eingänge und feste Zahlungen aus den erkannten wiederkehrenden Buchungen und den Kreditraten; rechts der Stand danach ohne übliche Ausgaben.",
+        karte("mb-ereignisse", "Erwartete Zahlungen", "Eingänge und feste Zahlungen aus den erkannten wiederkehrenden Buchungen, den Kreditraten und den von Hand geplanten Zahlungen („Was kommt noch?“); rechts der Stand danach ohne übliche Ausgaben.",
           zeilen.length ? h("div", { class: "mb-rollen" }, h("table", { class: "tabelle mb-tabelle", tid: "mb-ereignisse-tabelle" },
             h("thead", null, h("tr", null, h("th", { scope: "col" }, "Datum"), h("th", { scope: "col" }, "Zahlung"), h("th", { scope: "col", class: "zahl" }, "Betrag"),
               h("th", { scope: "col", class: "zahl" }, "Stand danach"))), h("tbody", null, zeilen))) : leer("Im Zeitraum sind keine wiederkehrenden Zahlungen fällig."))];

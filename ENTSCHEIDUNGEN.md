@@ -3374,3 +3374,34 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   Protokolleintrag. Neues Modul `app/aenderung.js` (in `sw.js` eingetragen).
 - **Nicht enthalten:** Rückgängig aus dem Fenster heraus (bleibt in der Liste).
 - **Prüfung:** `tests/test_browser_aenderung.py` (Desktop und Handy, angelegt/geändert, große Änderung, Suche).
+
+## D-238 Geplante Zahlungen: Wiederholung, Vorschau, Zuordnung nach Namen
+
+- **Anlass:** Auftrag vom 2026-11-21 im Sammelthread nach dem Vergleich mit KMyMoney und GnuCash: Zahlungen, die
+  Kontor noch nicht aus der Vergangenheit ablesen kann (neuer Vertrag, einmalige Rechnung, seltene Beiträge), von
+  Hand planen – einmalig oder mit Wiederholung –, in der Vorschau sehen und mit der Bankbuchung erledigen.
+- **Grundlage:** Von Hand angelegte erwartete Zahlungen (Grund `manuell`, M20) gab es schon. Sie heißen in der
+  Oberfläche jetzt „Geplant“; der Knopf auf „Was kommt noch?“ heißt „Zahlung planen…“ (`erwartet-neu` unverändert).
+- **Wiederholung:** `POST`/`PATCH /api/erwartungen` nehmen `wiederholung` (`keine`, `monatlich`,
+  `vierteljaehrlich`, `halbjaehrlich`, `jaehrlich`) und `wiederholung_bis` (Datum oder `null`); nur für Grund
+  `manuell` (sonst 422 `wiederholung_nur_geplant`), ein Ende ohne Wiederholung ist 422 `wiederholung_fehlt`. Die
+  Antwort trägt `wiederholung: {rhythmus, bis}` nur, wenn eine besteht – Einträge ohne Wiederholung sehen aus wie
+  bisher (auch im Protokoll und in der Inhaltsprüfsumme der Sicherung).
+- **Fortsetzung:** Wird eine solche Zahlung erfüllt (Buchung zugeordnet) oder als „erledigt“ geschlossen, entsteht in
+  derselben Änderung die nächste: gleiche Angaben, Datum um den Rhythmus weiter (am Tag im Monat der ersten
+  Fälligkeit, in kürzeren Monaten am Monatsletzten), gleiche Frist in Tagen. Keine Folge, wenn das Ende
+  überschritten wäre oder es schon eine gibt. „Storniert“ und Löschen beenden die Wiederholung. Wird die Zahlung
+  wieder offen (Zustand zurück, Zuordnung gelöst, Buchung gelöscht), entfällt ihre noch unberührte Folge.
+  Rückgängig stellt beides gemeinsam wieder her.
+- **Zuordnung:** Das Zeitfenster bleibt wie in erwartungen.md 5.1 (3 Tage vor dem Datum bis 45 Tage danach). Der
+  Name passt, wenn ein aussagekräftiges Wort im Verwendungszweck oder Empfänger steht (wie D-232); automatisch
+  zugeordnet wird die einzige Buchung mit gleichem Betrag, in der der Name steht – andere Buchungen mit gleichem
+  Betrag stören nicht mehr. Der automatische Abgleich läuft weiter nur mit `mail_abgleich` (erwartungen.md).
+- **Vorschau:** `GET /api/berichte/vorschau` enthält offene geplante Zahlungen samt Wiederholungen bis zum Ende des
+  Zeitraums als Ereignisse mit `quelle = "geplant"`, `konto_id = null`, `rhythmus` (oder `einmalig`) und
+  `erwartung_id`; schon fällige stehen am Folgetag. Sie zählen bei jeder Kontenwahl (geplante Zahlungen haben kein
+  Konto) und werden nicht mit erkannten Serien abgeglichen: Wer eine schon erkannte Serie zusätzlich plant, sieht
+  sie doppelt.
+- **Datenmodell:** Tabelle `erwartung_wiederholung` (Rhythmus, Tag, Ende, Vorgänger) als Teil der Objektart
+  `erwartung`; Datenbankschema 16, Sicherungsdatei Schemaversion 10 (ältere Sicherungen: ohne Wiederholungen).
+- **Prüfung:** `tests/test_geplant_eigen.py`, `tests/test_browser_geplant.py`.

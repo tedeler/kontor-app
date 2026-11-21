@@ -63,6 +63,7 @@ _TABELLEN = {
     "dokument": ("dokument", "id"),
     "dokument_buchung": ("buchung", "buchung_id"),
     "erwartung": ("erwartung", "id"),
+    "erwartung_wiederholung": ("erwartung", "erwartung_id"),
 }
 
 BESCHREIBUNG = {

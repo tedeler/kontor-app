@@ -11,7 +11,7 @@ from __future__ import annotations
 import datetime as dt
 from collections import defaultdict
 
-from . import buch, wiederkehrend
+from . import buch, erwartung, wiederkehrend
 from .buch import BESTAND, ApiFehler
 from .monatsbericht import (_Posten, _grenzen, _konten_waehlen, _laden, _monat_plus, _schluessel, monat_lesen)
 from .statistik import _median
@@ -258,6 +258,12 @@ def vorschau(con, tage: int, konto_ids: list[int], heute: str) -> dict:
                                    "empfaenger": {"id": None, "name": k["name"]}, "konto_id": k["zahlungskonto_id"],
                                    "rhythmus": "monatlich", "quelle": "kredit"})
             j, m = _monat_plus(j, m, 1)
+    # D-238: von Hand geplante Zahlungen (samt Wiederholungen). Sie haben kein Konto und zählen bei jeder Kontenwahl.
+    for g in erwartung.geplante(con, heute, ende.isoformat()):
+        ereignisse.append({"datum": g["datum"], "betrag": -g["betrag"] if g["richtung"] == "ausgabe" else g["betrag"],
+                           "art": "ausgabe" if g["richtung"] == "ausgabe" else "einnahme",
+                           "empfaenger": {"id": None, "name": g["haendler"]}, "konto_id": None,
+                           "rhythmus": g["rhythmus"] or "einmalig", "quelle": "geplant", "erwartung_id": g["id"]})
     ereignisse.sort(key=lambda e: (e["datum"], e["betrag"], e["empfaenger"]["name"]))
     basis_von = h - dt.timedelta(days=89)
     posten, _ = _laden(con, menge, konten, basis_von, h)

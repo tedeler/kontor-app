@@ -1621,3 +1621,5 @@ tr.ueberfaellig td.e-zustand, tr.ueberfaellig td.e-frist { color: var(--gefahr);
 [data-layout="mobil"] .ae-tabelle th[scope="row"] { width: 6.5rem; font-size: .85rem; }
 .ae-eintrag h3 small { margin-left: .3rem; font-weight: 400; }
 .ae-tabelle th[scope="row"] { hyphens: auto; overflow-wrap: anywhere; }
+/* Geplante Zahlungen (D-238) */
+.e-wiederholung { margin-left: .5rem; font-weight: 400; white-space: nowrap; }
