@@ -18,6 +18,7 @@ const DATEIEN = [
   "/oeffentlich/app/dokumente.js",
   "/oeffentlich/app/erwartet.js",
   "/oeffentlich/app/mail.js",
+  "/oeffentlich/app/aenderung.js",
   "/oeffentlich/app/zweck.js",
   "/oeffentlich/app/monatsbericht.js",
   "/oeffentlich/app/berichtsteile.js",
