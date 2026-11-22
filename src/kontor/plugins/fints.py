@@ -550,12 +550,22 @@ class FintsBankPlugin(BankPlugin):
         c = self._config
         pin = self._pin()  # höchstens einmal je Dialog, unmittelbar vor dessen Beginn
         verbindung = _Verbindung(c, self.diagnose)
-        try:
-            client = FinTS3PinTanClient(c.fints_blz, c.fints_benutzer, pin, c.fints_url,
-                                        customer_id=c.fints_kunden_id or c.fints_benutzer,
-                                        product_id=c.fints_produkt_id, from_data=self._daten)
-        except Exception:  # noqa: BLE001
-            raise BankFehler("Der FinTS-Zugang konnte nicht vorbereitet werden.") from None
+        client = None
+        if self._daten is not None:
+            try:
+                client = FinTS3PinTanClient(c.fints_blz, c.fints_benutzer, pin, c.fints_url,
+                                            customer_id=c.fints_kunden_id or c.fints_benutzer,
+                                            product_id=c.fints_produkt_id, from_data=self._daten)
+            except Exception:  # noqa: BLE001 - D-242: gespeicherte Parameter unlesbar (z. B. UPD ohne Konten)
+                self._diag("Gespeicherte Bank- und Benutzerparameter nicht lesbar; neuer Abruf")
+                self._daten = None
+        if client is None:
+            try:
+                client = FinTS3PinTanClient(c.fints_blz, c.fints_benutzer, pin, c.fints_url,
+                                            customer_id=c.fints_kunden_id or c.fints_benutzer,
+                                            product_id=c.fints_produkt_id)
+            except Exception:  # noqa: BLE001 - Texte der Bibliothek nie weitergeben
+                raise BankFehler("Der FinTS-Zugang konnte nicht vorbereitet werden.") from None
         del pin
         client.connection = verbindung
         if c.fints_tan_verfahren and not client.selected_security_function:

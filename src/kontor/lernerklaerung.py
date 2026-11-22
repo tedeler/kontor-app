@@ -37,8 +37,7 @@ def regeln_automatisch(con, vorgabe: bool) -> bool:
 
 def einstellungen(con, vorgabe_regeln: bool, lernmodell_automatisch: bool) -> dict:
     return {"schwelle_promille": lernmodell.schwelle_promille(con),
-            "regeln_automatisch": regeln_automatisch(con, vorgabe_regeln),
-            "lernmodell_automatisch": lernmodell_automatisch}
+            "regeln_automatisch": regeln_automatisch(con, vorgabe_regeln)}
 
 
 def einstellungen_setzen(con, d: dict, vorgabe_regeln: bool, lernmodell_automatisch: bool) -> dict:
@@ -112,7 +111,9 @@ def erklaeren(con, buchung_id: int) -> dict:
     b = buch.buchungen_laden(con, [buchung_id])[0]
     merkmale = []
     for f in sorted(m, key=lambda x: ("evb".index(x[0]), x)):
-        e = {"merkmal": f, "art": _art(f), "anzahl": modell.nf[f], "bekannt": modell.nf[f] > 0}
+        # E-280 (D-242): Zählungen immer vorhanden (0 bzw. ``null``, wenn es keine beste/zweite Kategorie gibt)
+        e = {"merkmal": f, "art": _art(f), "anzahl": modell.nf[f], "bekannt": modell.nf[f] > 0,
+             "anzahl_kategorie": 0, "anzahl_vergleich": 0, "faktor_promille": None}
         if f[0] == "e":
             e["text"] = b["empfaenger"]["name"] if b["empfaenger"] else f[2:]
         elif f[0] == "v":
@@ -130,6 +131,8 @@ def erklaeren(con, buchung_id: int) -> dict:
         "buchung_id": buchung_id, "grund": grund, "schwelle_promille": lernmodell.schwelle_promille(con),
         "kategorie_id": v.kategorie_id, "sicherheit": v.sicherheit,
         "kandidaten": [{"kategorie_id": c, "sicherheit": s} for c, s in v.kandidaten],
+        # E-280 (D-242): die Vorhersage auch als Objekt wie bei POST /api/lernmodell/vorhersage
+        "vorhersage": v.als_dict(),
         "beste_kategorie_id": beste, "vergleich_kategorie_id": zweite,
         "trainingsbuchungen": modell.n, "merkmale": merkmale,
         "grundwert": None if beste is None else {
@@ -193,7 +196,8 @@ def uebersicht(con, vorgabe_regeln: bool, lernmodell_automatisch: bool) -> dict:
         with _cache_sperre:
             _cache.clear()
             _cache[schluessel] = treffer
-    return {**treffer, "einstellungen": einstellungen(con, vorgabe_regeln, lernmodell_automatisch)}
+    return {**treffer, "einstellungen": einstellungen(con, vorgabe_regeln, lernmodell_automatisch),
+            "lernmodell_automatisch": lernmodell_automatisch}
 
 
 def _berechnen(con, schwelle: int) -> dict:

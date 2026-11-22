@@ -3483,3 +3483,22 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   dort eingeklappt (`ansicht-umschalten`). Das beschreibt Definition 4 (Paket 4) und zieht der Test-Thread dort
   nach – kein Widerspruch zu M30.
 - **Prüfung:** `tests/app/m30` 418/418 grün; frühere Filtertests (M8, M12, M17, M26, M28) am Desktop grün.
+
+## D-242 Abnahme M31 (übrige Features vor sammel3): Nachbesserungen
+
+- **Anlass:** Die Abnahmetests zu Meilenstein 31 (kontor-tests `be6d7d8`) liefen erstmals gegen die Anwendung.
+- **Entscheidung:**
+  1. `GET /api/lernmodell/einstellungen` liefert nur `schwelle_promille` und `regeln_automatisch`; ob der Server
+     neue Buchungen automatisch vorschlägt (`lernmodell_automatisch`), steht in der Übersicht.
+  2. Erklärung je Buchung (E-280): zusätzlich `vorhersage` (wie `POST /api/lernmodell/vorhersage`); jedes
+     Merkmal trägt immer `anzahl_kategorie`, `anzahl_vergleich` (0 ohne beste/zweite Kategorie) und
+     `faktor_promille` (`null` ohne Vergleich).
+  3. Monatsbericht (E-282): Kennzahlen `konto_ids`, `ausgaben` (netto), `einnahmen`, `fest`, `variabel`,
+     `umbuchungen` auf oberster Ebene.
+  4. FinTS: Lassen sich die gespeicherten Bank- und Benutzerparameter nicht wieder lesen (die Bibliothek scheitert
+     an Benutzerparametern ohne Kontoeinträge), beginnt der Dialog ohne sie (Diagnosezeile).
+  5. Oberfläche: `/berichte/monat` wird vor der Wahl des Tabs auf `/berichte?art=monat` umgeschrieben (ein Tab);
+     eine leere Postfachliste zeigt „Noch kein Postfach eingerichtet.“
+- **Offen als Widerspruch:** W-017 bis W-021 (an den Test-Thread übergeben).
+- **Prüfung:** `tests/app/m29` ohne Browser 211/211 (mit Attrappentests); `tests/app/m31` ohne Browser 88/91
+  (W-017, W-018, W-019 offen; `betrag` in `angehaengt` kommt mit Definition 4).

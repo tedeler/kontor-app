@@ -154,7 +154,7 @@ export async function lernmodellSeite(seite) {
       h("li", null, h("strong", null, zahl(u.trainingsbuchungen)), " kategorisierte Buchungen als Grundlage"),
       h("li", null, h("strong", null, zahl(u.kategorien)), " Kategorien, ", h("strong", null, zahl(u.merkmale)), " verschiedene Merkmale"),
       h("li", null, "Vorschläge bei neuen Buchungen (Abruf, Erfassen): ",
-        h("strong", null, e.lernmodell_automatisch ? "an" : "aus"), " (Einstellung des Servers)")),
+        h("strong", null, u.lernmodell_automatisch ? "an" : "aus"), " (Einstellung des Servers)")),
     h("label", { class: "lern-schalter" }, auto, " Eindeutig Gelerntes automatisch als Regel anlegen (mindestens 5 "
       + "gleiche Zuordnungen eines Empfängers, mindestens 95 % davon in derselben Kategorie)")));
   const p = u.pruefung;

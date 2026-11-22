@@ -270,3 +270,11 @@ Stand: Meilenstein 8 (getestet gegen kontor-tests `bf35445`); kein offener Eintr
   fünf ohne). Abhilfe im Test: Die Attrappe erhöht die Version der Benutzerparameter, wenn eine der Betriebsarten
   `upd_…` umgeschaltet wird, oder der Test nutzt für jeden Zustand eine neue App-Instanz mit neuer Datenbank.
   Dem Test-Thread am 2026-11-22 als Text gemeldet.
+
+## W-017 bis W-021 M31/M29: Erklärung bei `unbekannt`, ähnliche Buchungen, 3000 Lerndaten, „Erweitert“ im Bankzugang, Balkenvergleich
+
+- Ausführlich als Text an den Test-Thread übergeben (2026-11-22, Paket 4): W-017 bekannte Betragsmerkmale bei
+  `grund = unbekannt` (`lernmodell.md` 8.1 verlangt sie), W-018 Testdaten ohne eindeutig beste ähnliche Buchung,
+  W-019 3000 Lerndaten plus Eröffnungsbuchung „Anfangsbestand“, W-020 M29-Browsertests erwarten Produkt-ID und
+  Diagnoseprotokoll sichtbar, obwohl sie nach D-207 in „Erweitert“ eingeklappt sind, W-021 `_pruefe_tiefe`
+  vergleicht Listen mit Tupeln.

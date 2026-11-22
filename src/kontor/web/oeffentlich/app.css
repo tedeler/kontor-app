@@ -1624,3 +1624,6 @@ tr.ueberfaellig td.e-zustand, tr.ueberfaellig td.e-frist { color: var(--gefahr);
 .ae-tabelle th[scope="row"] { hyphens: auto; overflow-wrap: anywhere; }
 /* Geplante Zahlungen (D-238) */
 .e-wiederholung { margin-left: .5rem; font-weight: 400; white-space: nowrap; }
+
+/* D-242: leere Postfachliste mit Hinweis statt unsichtbar */
+[data-testid="postfaecher"]:empty::before { content: "Noch kein Postfach eingerichtet."; color: var(--text-2); font-size: .9em; }
