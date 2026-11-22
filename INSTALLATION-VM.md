@@ -67,7 +67,7 @@ B=$(/opt/kontor/venv/bin/python -c 'import importlib.resources as r; print(r.fil
 ## 4. Benutzer, Units und Umgebungsdatei
 
 ```bash
-install -m 0644 "$B/kontor.sysusers" /etc/sysusers.d/kontor.conf && systemd-sysusers
+install -D -m 0644 "$B/kontor.sysusers" /etc/sysusers.d/kontor.conf && systemd-sysusers
 install -d -m 0750 -o root -g kontor /etc/kontor
 install -m 0640 -o root -g kontor "$B/kontor.env" /etc/kontor/kontor.env
 install -m 0644 "$B/kontor.service" "$B/kontor-sicherung.service" "$B/kontor-sicherung.timer" \
