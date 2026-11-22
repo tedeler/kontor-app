@@ -80,6 +80,7 @@ Commit-Nachrichten sind auf Deutsch.
 | `src/kontor/sicherung.py` | M9: Datensicherung (eigenes Schema der Sicherungsdatei `SPALTEN`, Version `SCHEMAVERSION`), Prüfung nach sicherung.md 5.1, Inhaltsprüfung in einer App-Datenbank im Arbeitsspeicher, Probelauf, Einspielen |
 | `src/kontor/anbieter/` | D-230: Anbieter-Beschreibungen für den Mail-Abgleich (`amazon.toml`, `paypal.toml`, Zusatzdateien aus `anbieter_verzeichnis`); `__init__.py` liest, prüft und wertet sie aus; Format in `ANBIETER.md`. Änderungen an den mitgelieferten Dateien gegen `tests/test_anbieter_eigen.py` prüfen (Vergleich mit `tests/referenz_mailerkennung.py`) |
 | `src/kontor/kontonamen.py` | Sammelbranch sammel3 (D-218): Kontonamen je Ebene eindeutig – `pruefen` (409 `konto_existiert`, aufgerufen am Ende von `protokoll.protokolliert`), `bereinigen` (Altbestand, Importe, Sicherung), `freier_name` |
+| `src/kontor/umbuchung.py` | Sammelbranch sammel4 (D-242): Zuordnung von Hand auf Kategorie oder Bestandskonto (`zuordnen`, `mehrfach`, `gegenbuchungen`) hinter `PUT /api/buchungen/{id}/kategorie`; beim Bestandskonto Umbuchung, passende Gegenseite des Zielkontos wird zusammengeführt |
 | `src/kontor/db.py` | SQLite-Schema (Version 16), WAL, Migration früherer Versionen ohne Datenverlust, Verbindungen, `checkpoint` |
 | `src/kontor/geheimnisse.py` | M6: verschlüsselter Geheimnisspeicher (AES-256-GCM, Schlüssel aus systemd-creds oder Schlüsseldatei), `verwaiste_entfernen` |
 | `src/kontor/mail.py` | M6: Postfächer (Buchbestand), Betriebszustand, OAuth2 mit PKCE, `zugang` (Token-Erneuerung, Ablauf, Widerruf), paralleler Abruf, Spiegel |
@@ -228,6 +229,14 @@ Commit-Nachrichten sind auf Deutsch.
   `erwartung.geplante`. Das Feld `wiederholung` erscheint nur, wenn eine besteht.
 - Änderungsprotokoll: Einzelheiten je Änderung zeigt `app/aenderung.js` (D-237). Neue Felder der Protokollform
   bekommen dort einen Namen in `FELD_NAMEN` (sonst erscheint der Schlüssel) und ggf. eine Deutung in `wertText`.
+
+## Hinweise zum Sammelbranch `feature/sammel4` (ab D-242)
+
+- `kategorie_id` der Zuordnung von Hand kann ein Bestandskonto sein (D-242). Wer Buchungen nach „genau ein
+  Gegensplit“ behandelt, muss Umbuchungen aus zwei Bestandssplits bedenken (`umbuchung.ziel_split`).
+- Die Synchronisation hängt einen Umsatz an eine bestehende Umbuchung, deren Seite auf diesem Konto noch keinen
+  Bankumsatz trägt (Betrag gleich, Datum im Fenster `umbuchung_fenster_tage`).
+- Regeln, Vorlagen und Lernmodell kennen weiter nur Kategorien als Ziel.
 
 ## Hinweise zu den Einstellungen (Feature `einstellungen`, D-207)
 

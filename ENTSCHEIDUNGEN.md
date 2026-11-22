@@ -3472,3 +3472,46 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   `oberflaeche.md` 15.4 ab und steht in der Meilenstein-Definition des Features.
 - **Nicht geändert:** `pin-eingabe.conf` und `kontor.env` sind in `betrieb.md` 3 und 4.2 wörtlich festgelegt; der
   Fehler der Spezifikation ist W-015.
+
+## D-242 Unter „Kategorie“ auch ein Bestandskonto: die Zuordnung wird zur Umbuchung (Sammelbranch `feature/sammel4`)
+
+- **Anlass:** Auftrag vom 2026-11-22: unter „Kategorie“ soll auch ein normales Konto stehen können; dann ist es
+  keine Kategoriezuordnung, sondern eine Umbuchung. Umfang: nur die Zuordnung von Hand; Regeln folgen später.
+- **Datenmodell unverändert:** Eine Umbuchung ist weiter keine eigene Art, sondern abgeleitet (alle Splits auf
+  Bestandskonten, `ist_umbuchung`). Berichte, Lernmodell und Auswertungen schließen sie damit von selbst aus.
+- **Schnittstelle:** `PUT /api/buchungen/{id}/kategorie` und `POST /api/buchungen/mehrfach/kategorie` nehmen in
+  `kategorie_id` eine Kategorie (Aufwand, Ertrag) oder ein Bestandskonto. Neu, alle optional:
+  `konto_id` (das Konto, aus dessen Blatt zugeordnet wird; es bleibt) und – nur einzeln – `gegenbuchung_id`
+  (Zahl: genau diese Buchung zusammenführen; `null`: keine zusammenführen; fehlt: automatisch).
+  Neu lesend: `GET /api/buchungen/{id}/gegenbuchungen?konto_id=<ziel>[&sicht_konto_id=<blatt>]` →
+  `{"kandidaten": [Buchung, …]}`.
+- **Welche Seite sich ändert:** der eine Gegensplit (Kategorie, „Unkategorisiert“). Ist die Buchung schon eine
+  Umbuchung aus zwei Splits, die Seite ohne Bankumsatz (keine Kennung `bank:<IBAN des Kontos>:…`, nicht
+  abgestimmt); tragen beide keinen, entscheidet `konto_id`; tragen beide einen, lässt sich nichts umhängen
+  (422 `nicht_kategorisierbar`) – ein echter Bankumsatz verlässt sein Konto nie über die Kategorie.
+- **Gegenseite schon da:** Auf dem Zielkonto passt eine Buchung, wenn sie genau zwei Splits hat, die Bankseite
+  den Betrag des Gegensplits trägt, die andere Seite noch nicht zugeordnet ist („Unkategorisiert“ oder nur ein
+  Vorschlag), sie nicht gesperrt ist, das Datum höchstens `umbuchung_fenster_tage` abweicht und ihre Gegen-IBAN
+  (falls bekannt) die IBAN des eigenen Kontos ist. Genau eine: beide werden zu einer Buchung zusammengeführt
+  (die zugeordnete bleibt, Bankseite der anderen mit ihrer Split-ID, Kennungen und Tags gehen über). Mehrere:
+  409 `gegenbuchung_mehrdeutig` mit `details.kandidaten`; die Oberfläche fragt vorher nach. Bei der
+  Mehrfachzuordnung wird bei Mehrdeutigkeit (auch: zwei gewählte Buchungen teilen sich eine Gegenseite) nichts
+  geändert (`details.buchung_ids`).
+- **Gegenseite kommt später:** Die Synchronisation behandelt eine Umbuchung, deren Seite auf dem abgerufenen
+  Konto noch keinen Bankumsatz trägt, als sicheren Treffer, wenn der Betrag stimmt und das Datum höchstens
+  `umbuchung_fenster_tage` abweicht – Name und Tag dürfen abweichen (bisher: nur gleicher Tag und passender
+  Empfänger, sonst neue Buchung mit Dublettenverdacht). Die Eindeutigkeitsregel bleibt (ein Umsatz, ein Kandidat).
+- **Fehlerfälle:** Ziel weder Kategorie noch Bestandskonto → 422 `kategorie_ungueltig`; Ziel = das andere Konto
+  der Buchung → 422 `konto_ungueltig`; gesplittet → 422 `nicht_kategorisierbar`; gesperrt → 409
+  `buchung_gesperrt`; `gegenbuchung_id` passt nicht oder Ziel ist eine Kategorie → 422 `keine_umbuchung`.
+- **Protokoll:** eine Änderung `kategorie_setzen` bzw. `mehrfach_kategorie`, auch mit Zusammenführen; Rückgängig
+  stellt beide Buchungen wieder her.
+- **Oberfläche:** Die Kategorie-Auswahl zeigt unter den Kategorien den Abschnitt „Umbuchung auf ein Konto“
+  (`kategorie-auswahl-konten`; Einträge `kategorie-option-<id>` mit `data-umbuchung="ja"`, ohne das Konto des
+  Blatts und ohne geschlossene Konten). Bei mehreren möglichen Gegenseiten fragt `gegenbuchung-dialog`
+  (`gegenbuchung-<id>`, `gegenbuchung-keine`, `gegenbuchung-abbrechen`). Die Kategoriespalte zeigt im Blatt eines
+  Bestandskontos „Umbuchung → <Konto>“ (Geld geht dorthin) bzw. „Umbuchung ← <Konto>“, sonst wie bisher
+  „Umbuchung“. Ziehen einer Buchung auf ein Bestandskonto im Kontenbaum bucht ebenso um.
+- **Nicht umgesetzt:** Regeln, Vorlagen und Lernmodell mit einem Konto als Ziel (Regeln folgen); eine
+  zusammengeführte Umbuchung wieder trennen (nur über Rückgängig).
+- **Prüfung:** `tests/test_umbuchung_zuordnen_eigen.py`, `tests/test_browser_umbuchung.py`.

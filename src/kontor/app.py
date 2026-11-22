@@ -35,6 +35,7 @@ from . import (__version__, ausdruck, auswertungen, berichte, buch, db, export, 
                sicherung, verschieben, vorlagen, wiederkehrend)
 from . import aktualisierung
 from . import abgleich, anbieter, bankzugang, bestellmail, config_anzeige, dokumente, erwartung, kontonamen
+from . import umbuchung
 from . import anmeldung as anm
 from . import version as versionsinfo
 from .geheimnisse import REST_NAMEN
@@ -125,10 +126,13 @@ BUCHUNG_AENDERUNG = {
     "tag_ids": S("int_liste"),
 }
 SPLITS_ERSETZEN = {"splits": S("objekte", pflicht=True, unter=SPLIT_NEU)}
-KATEGORIE = {"kategorie_id": S("int", pflicht=True)}
+# D-242: ``kategorie_id`` darf auch ein Bestandskonto sein (Umbuchung); ``konto_id`` = Konto, aus dessen Blatt
+# zugeordnet wird; ``gegenbuchung_id`` = Bankumsatz der Gegenseite (null: keinen zusammenführen, fehlt: automatisch)
+KATEGORIE = {"kategorie_id": S("int", pflicht=True), "konto_id": S("int"), "gegenbuchung_id": S("int", nullbar=True)}
 MEHRFACH_KATEGORIE = {
     "buchung_ids": S("int_liste", pflicht=True, min_items=1, eindeutig=True),
     "kategorie_id": S("int", pflicht=True),
+    "konto_id": S("int"),
 }
 MEHRFACH_TAGS = {
     "buchung_ids": S("int_liste", pflicht=True, min_items=1, eindeutig=True),
@@ -644,7 +648,8 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     @endpunkt("POST", "/api/buchungen/mehrfach/kategorie")
     async def mehrfach_kategorie(request: Request):
         d = await koerper(request, MEHRFACH_KATEGORIE)
-        return await aendern("mehrfach_kategorie", buch.mehrfach_kategorie, d["buchung_ids"], d["kategorie_id"])
+        return await aendern("mehrfach_kategorie", umbuchung.mehrfach, d["buchung_ids"], d["kategorie_id"],
+                             config.umbuchung_fenster_tage, d.get("konto_id"))
 
     @endpunkt("POST", "/api/buchungen/mehrfach/tags")
     async def mehrfach_tags(request: Request):
@@ -702,7 +707,21 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     @endpunkt("PUT", "/api/buchungen/{buchung_id:int}/kategorie")
     async def kategorie_setzen(request: Request):
         d = await koerper(request, KATEGORIE)
-        return await aendern("kategorie_setzen", buch.kategorie_setzen, pid(request, "buchung_id"), d["kategorie_id"])
+        return await aendern("kategorie_setzen", umbuchung.zuordnen, pid(request, "buchung_id"), d["kategorie_id"],
+                             config.umbuchung_fenster_tage, d.get("gegenbuchung_id", umbuchung.AUTOMATISCH),
+                             d.get("konto_id"))
+
+    @endpunkt("GET", "/api/buchungen/{buchung_id:int}/gegenbuchungen")
+    async def gegenbuchungen(request: Request):
+        """D-242: Buchungen des Zielkontos, die beim Umbuchen als Gegenseite zusammengeführt würden."""
+        p = Query(request.query_params)
+        ziel = p.ganzzahl("konto_id", 1)
+        sicht = p.ganzzahl("sicht_konto_id", 1)
+        p.pruefen()
+        if ziel is None:
+            raise Validierungsfehler([fehler_eintrag(["query", "konto_id"], "Pflichtangabe.")])
+        return await lesen(umbuchung.gegenbuchungen, pid(request, "buchung_id"), ziel,
+                           config.umbuchung_fenster_tage, sicht)
 
     # ------------------------------------------------- Vorschläge (M2)
     @endpunkt("POST", "/api/buchungen/{buchung_id:int}/vorschlag")

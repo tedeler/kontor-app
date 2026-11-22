@@ -1654,11 +1654,20 @@ class Kontoansicht {
     this.detailsZeichnen();
   }
 
+  /** D-242: „Umbuchung → Tagesgeld“ (Geld geht dorthin) bzw. „Umbuchung ← Giro“ im Blatt eines Bestandskontos. */
+  umbuchungText(b) {
+    if (this.istKategorie || b.splits.length !== 2) return "Umbuchung";
+    const hier = b.splits.find((s) => s.konto_id === this.konto.id);
+    const dort = b.splits.find((s) => s.konto_id !== this.konto.id);
+    if (!hier || !dort || !kontoNach(dort.konto_id)) return "Umbuchung";
+    return `Umbuchung ${hier.betrag < 0 ? "→" : "←"} ${pfadVon(dort.konto_id)}`;
+  }
+
   zeile(b, kompakt) {
     const gegen = gegensplits(b);
     // oberflaeche.md 7.2: Pfad; ohne kategorie_id „Gesplittet“, „Umbuchung“ oder der Pfad des einen Gegensplits
     const katText = b.kategorie_id ? pfadVon(b.kategorie_id)
-      : (gegen.length > 1 ? "Gesplittet" : gegen.length === 0 ? "Umbuchung" : pfadVon(gegen[0].konto_id));
+      : (gegen.length > 1 ? "Gesplittet" : gegen.length === 0 ? this.umbuchungText(b) : pfadVon(gegen[0].konto_id));
     const vs = b.vorschlag ? this.vorschlagText(b.vorschlag) : null;
     const kat = h("div", { role: "gridcell", class: "zelle zelle-kategorie", "data-feld": "kategorie",
       "data-kategorie-id": b.kategorie_id ? String(b.kategorie_id) : "" },
@@ -2517,18 +2526,49 @@ class Kontoansicht {
   async kategorieWaehlen(ids, ausloeser) {
     if (!ids.length) return;
     const kat = await kategorieAuswahl(ids.length === 1 ? "Kategorie setzen" : `Kategorie für ${ids.length} Buchungen`,
-      ausloeser);
+      ausloeser, { konten: true, ohneKonto: this.istKategorie ? null : this.konto.id });
     if (kat) await this.kategorieSetzen(ids, kat);
   }
 
+  /** Kategorie oder – D-242 – Bestandskonto als Gegenseite setzen; beim Konto wird die Buchung zur Umbuchung. */
   async kategorieSetzen(ids, kategorieId) {
     const sortiert = ids.slice().sort((a, b) => a - b);
+    const umbuchung = BESTAND.has((kontoNach(kategorieId) || {}).art);
+    const sicht = this.istKategorie ? {} : { konto_id: this.konto.id };   // das Konto des Blatts bleibt
+    const einzeln = { kategorie_id: kategorieId, ...sicht };
+    if (umbuchung && sortiert.length === 1) {
+      const wahl = await this.gegenbuchungWaehlen(sortiert[0], kategorieId);
+      if (wahl === undefined) return;
+      if (wahl !== "auto") einzeln.gegenbuchung_id = wahl;
+    }
     try {
       await aktion(() => (sortiert.length === 1
-        ? api("PUT", `/api/buchungen/${sortiert[0]}/kategorie`, { kategorie_id: kategorieId })
-        : api("POST", "/api/buchungen/mehrfach/kategorie", { buchung_ids: sortiert, kategorie_id: kategorieId })),
-      { erfolg: `Kategorie „${pfadVon(kategorieId)}“ gesetzt.` });
+        ? api("PUT", `/api/buchungen/${sortiert[0]}/kategorie`, einzeln)
+        : api("POST", "/api/buchungen/mehrfach/kategorie", { buchung_ids: sortiert, kategorie_id: kategorieId, ...sicht })),
+      { erfolg: umbuchung ? `Umbuchung auf „${pfadVon(kategorieId)}“.` : `Kategorie „${pfadVon(kategorieId)}“ gesetzt.` });
     } catch (e) { /* gemeldet, Liste zeigt den Stand des Servers */ }
+  }
+
+  /** Passen auf dem Zielkonto mehrere Bankumsätze als Gegenseite, fragt ein Fenster, welcher gemeint ist.
+   *  Ergebnis: "auto" (der Server entscheidet), eine Buchungs-ID, null (keinen zusammenführen), undefined (Abbruch). */
+  async gegenbuchungWaehlen(id, zielId) {
+    let kand = [];
+    try {
+      const sicht = this.istKategorie ? "" : `&sicht_konto_id=${this.konto.id}`;
+      kand = (await api("GET", `/api/buchungen/${id}/gegenbuchungen?konto_id=${zielId}${sicht}`)).kandidaten;
+    } catch (e) { return "auto"; }   // der Fehler erscheint beim Setzen
+    if (kand.length < 2) return "auto";
+    const d = dialog("gegenbuchung-dialog", "Welche Buchung ist die Gegenseite?", (inhalt, dd) => {
+      inhalt.append(h("p", null, `Auf „${pfadVon(zielId)}“ passen ${kand.length} Buchungen. Die gewählte wird mit dieser `
+        + "Buchung zu einer Umbuchung zusammengeführt."),
+      h("div", { class: "auswahl-liste", role: "list" }, kand.map((k) => h("button", { type: "button", role: "listitem",
+        class: "option", tid: `gegenbuchung-${k.id}`, onclick: () => dd.schliessen(k.id) },
+      `${datumText(k.datum)} · ${k.empfaenger ? k.empfaenger.name : "ohne Empfänger"} · ${k.verwendungszweck || ""}`))),
+      knopfLeiste(knopf("Keine – nur umbuchen", { tid: "gegenbuchung-keine", onclick: () => dd.schliessen(null) }),
+        knopf("Abbrechen", { tid: "gegenbuchung-abbrechen", onclick: () => dd.schliessen(undefined) })));
+    });
+    const w = await d.ergebnis;
+    return typeof w === "number" || w === null ? w : undefined;
   }
 
   async vorschlag(e, ids, was) {
@@ -2700,7 +2740,8 @@ class Kontoansicht {
       return;
     }
     const gegen = gegensplits(b);
-    if (feld === "kategorie" && gegen.length !== 1) {
+    const umbuchung = gegen.length === 0 && b.splits.length === 2;   // D-242: Gegenkonto lässt sich umhängen
+    if (feld === "kategorie" && gegen.length !== 1 && !umbuchung) {
       melde("hinweis", "Gesplittete Buchungen über „Splitten…“ bearbeiten.");
       return;
     }
@@ -2725,9 +2766,14 @@ class Kontoansicht {
       alt = betragEingabeText(b.betrag);
       editor = h("input", { type: "text", inputmode: "decimal", value: alt, "aria-label": "Betrag" });
     } else {
-      alt = b.kategorie_id ? String(b.kategorie_id) : "";
+      const dort = umbuchung && !this.istKategorie ? b.splits.find((s) => s.konto_id !== this.konto.id) : null;
+      alt = b.kategorie_id ? String(b.kategorie_id) : dort ? String(dort.konto_id) : "";
+      const konten = baumFolge(stamm.konten.filter((k) => BESTAND.has(k.art) && (!k.geschlossen || String(k.id) === alt)
+        && (this.istKategorie || k.id !== this.konto.id)));
       editor = h("select", { "aria-label": "Kategorie" }, h("option", { value: "" }, "– Kategorie wählen –"),
-        kategorien().map(({ konto }) => h("option", { value: String(konto.id) }, kontoPfad(konto))));
+        kategorien().map(({ konto }) => h("option", { value: String(konto.id) }, kontoPfad(konto))),
+        konten.length ? h("optgroup", { label: "Umbuchung auf ein Konto" },
+          konten.map(({ konto }) => h("option", { value: String(konto.id), "data-umbuchung": "ja" }, `→ ${kontoPfad(konto)}`))) : null);
       editor.value = alt;
     }
     editor.dataset.testid = "inline-editor";
@@ -2779,9 +2825,9 @@ class Kontoansicht {
       if (wert === alt || (feld === "datum" && !wert) || (feld === "kategorie" && !wert)) return;
       if (feld === "status") { await this.statusSetzen([id], wert, z); return; }
       if (feld === "betrag" && cent === null) return;
+      if (feld === "kategorie") { await this.kategorieSetzen([id], Number(wert)); return; }
       try {
         await aktion(() => {
-          if (feld === "kategorie") return api("PUT", `/api/buchungen/${id}/kategorie`, { kategorie_id: Number(wert) });
           if (feld === "betrag") return api("PUT", `/api/buchungen/${id}/splits`, { splits: this.betragSplits(b, cent) });
           if (feld === "empfaenger") return api("PATCH", `/api/buchungen/${id}`, { empfaenger_id: wert === "" ? null : Number(wert) });
           return api("PATCH", `/api/buchungen/${id}`, { [feld]: wert });
