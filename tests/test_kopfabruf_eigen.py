@@ -43,11 +43,14 @@ class Attrappe(MailPlugin):
         self.voll_abgerufen += 1
         return [n for n in self.liste if n.empfangen >= seit]
 
-    def koepfe(self, postfach, seit):
+    def koepfe(self, postfach, seit, fortschritt=None):
+        self.seit = seit
+        if fortschritt:
+            fortschritt(len(self.liste), len(self.liste))
         return [MailKopf(n.nachricht_id, n.postfach, n.empfangen, n.absender, n.betreff, f"7:{i}")
                 for i, n in enumerate(self.liste) if n.empfangen >= seit]
 
-    def inhalte(self, postfach, koepfe):
+    def inhalte(self, postfach, koepfe, fortschritt=None):
         self.verlangt.append(sorted(k.nachricht_id for k in koepfe))
         je_id = {n.nachricht_id: n for n in self.liste}
         return {k.nachricht_id: je_id[k.nachricht_id] for k in koepfe if k.nachricht_id in je_id}

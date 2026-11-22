@@ -1,6 +1,6 @@
 /* Mail-Blatt: abgerufene Mails und ihre Zuordnung zu erwarteten Zahlungen und Buchungen. */
 import { BESTAND, abfrage, aktion, api, betragEl, datumText, h, kontoNach, nameAnzeige, oberflaeche, zeitEl, zeitText } from "./kern.js";
-import { dialog, feld, imDialog, knopf, knopfLeiste } from "./ui.js";
+import { bestaetigen, dialog, feld, imDialog, knopf, knopfLeiste } from "./ui.js";
 
 const GRUND = { bestellung: "Bestellung", paypal: "PayPal", rueckerstattung: "Rückerstattung", manuell: "Manuell" };
 const ZUSTAND = {
@@ -41,7 +41,12 @@ export async function mailSeite(seite, _param, suche) {
   const leseEl = h("article", { class: "karte mail-lesen", tid: "mail-lesen", tabindex: "-1",
     "aria-label": "Inhalt der ausgewählten Mail" });
   const blaetterEl = h("div", { class: "mail-blaetter", tid: "mail-blaetter" });
-  const abrufKnopf = knopf("Mails abrufen", { tid: "mail-abrufen", onclick: abrufen });
+  const abrufKnopf = knopf("Mails abrufen", { tid: "mail-abrufen", onclick: () => abrufen(false) });
+  // D-246: das ganze Postfach erneut als Kopfzeilen holen (nur mit KONTOR_MAIL_NUR_KOEPFE=1 sichtbar)
+  const alleKnopf = knopf("Alle Kopfzeilen neu abrufen …", { tid: "mail-alle-koepfe", onclick: (ev) => alleAbrufen(ev.currentTarget) });
+  alleKnopf.hidden = true;
+  const fortschrittEl = h("div", { class: "mail-fortschritt", tid: "mail-fortschritt", role: "status", "aria-live": "polite" });
+  fortschrittEl.hidden = true;
   // D-226: einfache Suche in Absender, Betreff und Text (alle Wörter müssen vorkommen)
   const suchFeld = h("input", { type: "search", tid: "mail-suche", class: "mail-suche", placeholder: "Absender, Betreff, Text …",
     "aria-label": "Mails durchsuchen", value: suchtext, maxlength: "200" });
@@ -55,8 +60,9 @@ export async function mailSeite(seite, _param, suche) {
   suchFeld.addEventListener("search", () => { clearTimeout(suchUhr); suchen(); });
   seite.append(
     h("div", { class: "seiten-kopf" }, h("h1", null, "Mail-Blatt"),
-      h("div", { class: "werkzeuge" }, abrufKnopf)),
+      h("div", { class: "werkzeuge" }, abrufKnopf, alleKnopf)),
     standEl,
+    fortschrittEl,
     h("div", { class: "mail-werkzeug" }, suchFeld, h("div", { class: "chip-leiste", tid: "mail-filter" })),
     // D-236: Blättern steht unter der Liste, damit sie weiter oben beginnt
     h("div", { class: "mail-blatt" }, h("div", { class: "mail-listen-spalte" }, listeEl, blaetterEl), leseEl));
@@ -68,6 +74,7 @@ export async function mailSeite(seite, _param, suche) {
     schritt(ev.key === "ArrowDown" ? 1 : -1);
   });
   await laden();
+  abrufStandPruefen();
   return { titel: "Mail-Blatt" };
 
   function adresseSchreiben() {
@@ -290,26 +297,82 @@ export async function mailSeite(seite, _param, suche) {
     return !postfach && ((stand && stand.postfaecher) || []).length > 1;
   }
 
-  async function abrufen() {
-    abrufKnopf.disabled = true;
-    abrufKnopf.textContent = "Abruf läuft…";
+  function knoepfeSperren(an) {
+    abrufKnopf.disabled = an;
+    alleKnopf.disabled = an;
+    abrufKnopf.textContent = an ? "Abruf läuft…" : "Mails abrufen";
+  }
+
+  /** D-246: läuft schon ein Abruf (Planer, anderer Tab), seinen Fortschritt zeigen. */
+  async function abrufStandPruefen() {
+    let st;
+    try { st = await api("GET", "/api/mail/abruf/stand"); } catch (e) { return; }
+    alleKnopf.hidden = !st.nur_koepfe;
+    if (st.laeuft) abrufen(false, true);
+  }
+
+  async function alleAbrufen(ausloeser) {
+    const ok = await bestaetigen("Die Kopfzeilen aller Mails im Postfach neu abrufen? Mails, die Kontor schon hat, "
+      + "bleiben unverändert; ältere kommen mit Absender und Betreff dazu, Inhalte nur für Mails bekannter Anbieter. "
+      + "Bei vielen Mails kann das einige Minuten dauern.", { titel: "Alle Kopfzeilen neu abrufen", ja: "Abrufen", ausloeser });
+    if (ok) abrufen(true);
+  }
+
+  async function abrufen(alle, nurVerfolgen) {
+    knoepfeSperren(true);
     abrufText = "";
     standEl.className = "mail-stand";
     standEl.textContent = "Mails werden abgerufen…";
     try {
-      const erg = await api("POST", "/api/mail/abruf", {});
-      abrufText = abrufErgebnis(erg);
+      if (!nurVerfolgen) {
+        try {
+          await api("POST", "/api/mail/abruf" + abfrage({ hintergrund: "ja", ...(alle ? { alle_koepfe: "ja" } : {}) }), {});
+        } catch (e) {
+          if (e.code !== "mail_abruf_laeuft") throw e;   // läuft schon: diesem folgen
+        }
+      }
+      const st = await verfolgen();
+      if (st.fehler) throw new Error(st.fehler.meldung);
+      abrufText = st.ergebnis ? abrufErgebnis(st.ergebnis) : "";
       seiteNr = 1;
       await laden();
     } catch (e) {
       standEl.textContent = e.message || "Der Abruf ist fehlgeschlagen.";
       standEl.className = "mail-stand fehler";
     } finally {
-      abrufKnopf.disabled = false;
-      abrufKnopf.textContent = "Mails abrufen";
+      knoepfeSperren(false);
+      fortschrittEl.hidden = true;
     }
   }
+
+  async function verfolgen() {
+    for (;;) {
+      const st = await api("GET", "/api/mail/abruf/stand");
+      fortschrittZeigen(st);
+      if (!st.laeuft) return st;
+      await new Promise((r) => { setTimeout(r, 1000); });
+    }
+  }
+
+  function fortschrittZeigen(st) {
+    const zeilen = (st.postfaecher || []).map((p) => {
+      const zahl = p.gesamt != null && ["koepfe", "inhalte", "speichern"].includes(p.schritt)
+        ? ` ${tausend(p.erledigt || 0)} von ${tausend(p.gesamt)}` : "";
+      const balken = p.gesamt ? h("progress", { max: String(p.gesamt), value: String(p.erledigt || 0) }) : null;
+      return h("div", { class: "mail-fortschritt-zeile", tid: `mail-fortschritt-${p.postfach_id}`, "data-schritt": p.schritt },
+        h("span", null, `${p.adresse}: ${SCHRITT[p.schritt] || p.schritt}${zahl}`), balken);
+    });
+    fortschrittEl.replaceChildren(st.alle_koepfe ? h("p", { class: "klein" }, "Alle Kopfzeilen werden neu abgerufen.") : "",
+      ...zeilen);
+    fortschrittEl.hidden = !st.laeuft || !zeilen.length;
+  }
 }
+
+const SCHRITT = {
+  wartet: "wartet", anmelden: "verbindet", nachrichten: "lädt Mails", koepfe: "Kopfzeilen",
+  inhalte: "Inhalte bekannter Anbieter", speichern: "speichert", fertig: "fertig", fehlgeschlagen: "fehlgeschlagen",
+  anmeldung_erforderlich: "Anmeldung nötig",
+};
 
 function abrufErgebnis(erg) {
   const kaesten = erg.postfaecher || [];

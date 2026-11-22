@@ -55,16 +55,22 @@ class MockMailPlugin(MailPlugin):
         aus.sort(key=lambda m: (m.empfangen, m.nachricht_id))
         return aus
 
-    def koepfe(self, postfach: str, seit: dt.datetime) -> list[MailKopf]:
-        return [MailKopf(m.nachricht_id, m.postfach, m.empfangen, m.absender, m.betreff, m.nachricht_id)
-                for m in self.nachrichten(postfach, seit)]
+    def koepfe(self, postfach: str, seit: dt.datetime, fortschritt=None) -> list[MailKopf]:
+        aus = [MailKopf(m.nachricht_id, m.postfach, m.empfangen, m.absender, m.betreff, m.nachricht_id)
+               for m in self.nachrichten(postfach, seit)]
+        if fortschritt is not None:
+            fortschritt(len(aus), len(aus))
+        return aus
 
-    def inhalte(self, postfach: str, koepfe: list[MailKopf]) -> dict[str, MailNachricht]:
+    def inhalte(self, postfach: str, koepfe: list[MailKopf], fortschritt=None) -> dict[str, MailNachricht]:
         if not koepfe:
             return {}
         gesucht = {k.nachricht_id for k in koepfe}
         frueheste = min(k.empfangen for k in koepfe)
-        return {m.nachricht_id: m for m in self.nachrichten(postfach, frueheste) if m.nachricht_id in gesucht}
+        aus = {m.nachricht_id: m for m in self.nachrichten(postfach, frueheste) if m.nachricht_id in gesucht}
+        if fortschritt is not None:
+            fortschritt(len(aus), len(koepfe))
+        return aus
 
 
 __all__ = ["MockMailPlugin"]
