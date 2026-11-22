@@ -15,7 +15,7 @@ from collections.abc import Iterator
 
 from .text import norm
 
-SCHEMA_VERSION = 16
+SCHEMA_VERSION = 17
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (
@@ -570,6 +570,9 @@ _NEUE_SPALTEN = (
     ("sync_lauf_konto", "saldo_abgleich", "TEXT"),
     # Dokumente (D-123): Rohfassung gespiegelter Mails (Betriebszustand), damit sie als Dokument übernommen werden
     ("mail_nachricht", "roh", "BLOB"),
+    # Schema 17 (D-242): Spiegel nur mit Kopfzeilen (inhalt = 0, Text leer) und Fundstelle zum Nachladen
+    ("mail_nachricht", "inhalt", "INTEGER NOT NULL DEFAULT 1 CHECK (inhalt IN (0, 1))"),
+    ("mail_nachricht", "ort", "TEXT"),
 )
 _NACH_MIGRATION = (
     "CREATE INDEX IF NOT EXISTS split_abstimmung ON split(abstimmung_id)",

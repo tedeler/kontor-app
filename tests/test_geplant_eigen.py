@@ -161,4 +161,4 @@ def test_sicherung_und_altbestand(umgebung, tmp_path):
     r = c.post("/api/sicherung/einspielen", params={"bestaetigt": "true"}, files={"datei": ("s.zip", r.content, "application/zip")})
     assert r.status_code == 200, r.text
     assert ok(c.get(f"/api/erwartungen/{e['id']}"))["wiederholung"] == {"rhythmus": "halbjaehrlich", "bis": None}
-    assert db.SCHEMA_VERSION == 16
+    assert db.SCHEMA_VERSION >= 16   # D-238; ab D-242 Schema 17

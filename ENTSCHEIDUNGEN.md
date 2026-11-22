@@ -3472,3 +3472,39 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   `oberflaeche.md` 15.4 ab und steht in der Meilenstein-Definition des Features.
 - **Nicht geändert:** `pin-eingabe.conf` und `kontor.env` sind in `betrieb.md` 3 und 4.2 wörtlich festgelegt; der
   Fehler der Spezifikation ist W-015.
+
+## D-242 Feature kopfabruf: erst Kopfzeilen, Inhalt nur bei Bedarf; Pflicht-Vorauswahl der Anbieter (2026-11-22)
+
+- **Anlass:** Ein Postfach mit 13 000 Mails; der Abruf lud jede Mail des Zeitraums samt Anhängen in den Spiegel,
+  obwohl die Erkennung nur Bestell- und Zahlungsmails braucht. Der Absenderfilter des Postfachs griff erst nach dem
+  Herunterladen.
+- **Anbieter-Beschreibungen:** Pflichtangabe `[vorauswahl]` mit `absender` und/oder `betreff` (je ein Ausdruck;
+  mit beiden müssen beide treffen). Sie bestimmt, welche Mails zum Anbieter gehören (`Anbieter.gehoert(absender,
+  betreff)`), und damit, welche Inhalte geladen werden. Das bisherige `absender` auf oberster Ebene bleibt als
+  Kurzform gültig, beides zugleich ist ein Fehler, ohne beides wird die Datei übergangen. Die mitgelieferten
+  Beschreibungen tragen nur `absender` (Verhalten unverändert, Vergleich mit der Referenzerkennung grün).
+- **Einstellung:** `mail_nur_koepfe` (`KONTOR_MAIL_NUR_KOEPFE`), Vorgabe aus, in `kontor.env` und `kontor-test.env`
+  an. Aus: Abruf wie bisher über `nachrichten()`.
+- **Abruf mit Einstellung:** Plugins mit `kann_koepfe` liefern `koepfe(postfach, seit)` (Kennung, Zeit, Absender,
+  Betreff, Fundstelle `ort`) und `inhalte(postfach, koepfe)`. IMAP holt die Köpfe mit
+  `BODY.PEEK[HEADER.FIELDS (MESSAGE-ID FROM SUBJECT)]`, Inhalte mit `BODY.PEEK[]` (keine Markierung ändert sich);
+  `ort` ist `<UIDVALIDITY>:<UID>`, bei geänderter UIDVALIDITY wird über die Message-ID gesucht. Das Mock-Plugin kann
+  es ebenfalls. Gleich mitgeladen wird der Inhalt einer neuen Mail, wenn die Vorauswahl eines Anbieters trifft oder
+  – mit `mail_bestellnummer` – ihr Betreff eine Kennung eines Anbieters mit `bank.alle_mails` trägt. Alle anderen
+  stehen im Spiegel mit leerem Text, ohne Rohfassung und `inhalt = 0`. Kopf-Mails, die eine neue oder geänderte
+  Vorauswahl jetzt betrifft, lädt jeder Abruf nach (ihre Kennungen werden danach neu gesucht). Scheitert das Laden
+  der Inhalte, scheitert der Abruf des Postfachs wie bisher; gespeichert wird nichts.
+- **Bei Bedarf:** `POST /api/mail/nachrichten/{id}/inhalt` lädt den Inhalt einer Kopf-Mail nach (Antwort `id`,
+  `text`, `nachgeladen`; ist er schon da, geschieht nichts) und lässt danach den Abgleich laufen wie nach einem
+  Abruf. Fehler: 404 unbekannte Mail, 409 `geheimnisse_gesperrt`, `anmeldung_erforderlich`,
+  `mail_nicht_mehr_vorhanden` (im Postfach gelöscht), sonst der Code des Plugins. `POST …/buchung` (von Hand
+  anhängen) lädt vorher nach. Das Mail-Blatt lädt beim Lesen einer Kopf-Mail nach („Erneut laden“ nach einem
+  Fehler).
+- **Schnittstelle:** Einträge von `GET /api/mail/nachrichten` tragen `ohne_inhalt: true` nur bei Kopf-Mails; das
+  Abrufergebnis je Postfach trägt `nachrichten_ohne_inhalt` und `nachrichten_nachgeladen` nur mit der Einstellung.
+- **Datenbank:** Schema 17, Spalten `mail_nachricht.inhalt` (Vorgabe 1) und `ort`; der Spiegel bleibt
+  Betriebszustand (nicht im Protokoll, nicht in der Sicherung).
+- **Grenzen:** Die Suche im Mail-Blatt findet in Kopf-Mails nur Absender und Betreff. Die Bestellnummer-Regel sieht
+  in Kopf-Mails nur den Betreff. Eine im Postfach gelöschte Kopf-Mail lässt sich nicht mehr lesen.
+- **Prüfung:** `tests/test_kopfabruf_eigen.py` (Attrappen-Plugin, IMAP gegen eine Loopback-Attrappe, Vorauswahl),
+  `tests/test_browser_kopfabruf.py`.

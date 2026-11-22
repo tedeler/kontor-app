@@ -229,6 +229,14 @@ Commit-Nachrichten sind auf Deutsch.
 - Änderungsprotokoll: Einzelheiten je Änderung zeigt `app/aenderung.js` (D-237). Neue Felder der Protokollform
   bekommen dort einen Namen in `FELD_NAMEN` (sonst erscheint der Schlüssel) und ggf. eine Deutung in `wertText`.
 
+## Hinweise zum Kopfabruf (Feature `kopfabruf`, D-242)
+
+- Mit `mail_nur_koepfe` kann eine Zeile in `mail_nachricht` nur Kopfzeilen tragen (`inhalt = 0`, `text` leer,
+  `roh` NULL). Wer Text oder Rohfassung einer Mail braucht, die nicht über die Vorauswahl kam, lädt vorher mit
+  `MailDienst.inhalt_laden` nach (Netz, nie in einer offenen Transaktion).
+- Jede Anbieter-Beschreibung braucht eine Vorauswahl (`absender` und/oder `betreff`); `Anbieter.gehoert` immer mit
+  Absender **und** Betreff aufrufen.
+
 ## Hinweise zu den Einstellungen (Feature `einstellungen`, D-207)
 
 - `app/einstellungen.js`: Bereiche (`BEREICHE`), Adresse `/einstellungen?bereich=<name>` (ein Tab), Suche über

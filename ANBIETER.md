@@ -16,7 +16,10 @@ selbst (erwartete Zahlungen, Zuordnen in Stufen, Mails als Dokumente anhängen, 
 ```toml
 name = "kaufhaus"                       # Kleinbuchstaben, Ziffern, _ ; steht an der erwarteten Zahlung
 titel = "Kaufhaus Muster"               # Händlername, wenn die Mail keinen eigenen nennt
+
+[vorauswahl]                            # Pflicht: welche Mails zum Anbieter gehören – nur aus den Kopfzeilen
 absender = '(^|\.)kaufhaus\.example$'   # Ausdruck auf die Domain des Absenders (klein geschrieben)
+betreff = '(?i)auftrag|rechnung'        # Ausdruck auf den Betreff; mindestens eins von beiden
 
 [kennung]                               # Pflicht: ohne Kennung wird die Mail nicht gelesen
 muster = 'Auftrag\s+(K\d{6})'           # Gruppe 1 ist die Kennung
@@ -47,6 +50,20 @@ haendler_noetig = false                 # true: ohne Kennung zählt nur eine Buc
 tage_vor = 3                            # Zeitfenster um das Maildatum (Vorgabe 3 Tage davor, 45 danach)
 tage_nach = 45
 ```
+
+## Vorauswahl (Pflicht)
+
+Die Vorauswahl entscheidet allein aus **Absender und Betreff**, ob eine Mail zum Anbieter gehört. Angegeben wird
+`absender`, `betreff` oder beides; mit beiden müssen beide treffen. Ohne Vorauswahl wird die Beschreibung
+übergangen. Die frühere Schreibweise `absender = '…'` auf oberster Ebene gilt weiter als Kurzform von
+`vorauswahl.absender` (nicht beides zugleich).
+
+Mit `KONTOR_MAIL_NUR_KOEPFE=1` (D-242) holt der Abruf vom Postfach zuerst nur Absender und Betreff. Den Inhalt samt
+Anhängen lädt er gleich mit für Mails, die die Vorauswahl eines Anbieters erfüllen, und – mit
+`KONTOR_MAIL_BESTELLNUMMER=1` – für Mails, deren Betreff eine Kennung eines Anbieters mit `bank.alle_mails` trägt.
+Alle anderen Mails bleiben ohne Inhalt, bis er gebraucht wird (Mail lesen, von Hand an eine Buchung hängen). Eine
+neue oder geänderte Vorauswahl lädt beim nächsten Abruf den Inhalt der Mails nach, die sie jetzt betrifft. Eine
+Vorauswahl sollte deshalb nicht zu eng sein: Was sie nicht trifft, sieht die Erkennung nie.
 
 Ausdrücke sind Python-`re`; Groß-/Kleinschreibung nur mit `(?i)` egal. In TOML stehen sie am besten in einfachen
 Anführungszeichen (`'…'`), dann braucht `\` keine Verdopplung. Höchstens 500 Zeichen je Ausdruck.
@@ -95,7 +112,8 @@ Statt eines Bausteins ist eine Liste erlaubt; der erste mit Ergebnis gilt. Betr�
 3. **Von Hand:** Alles andere erscheint als Vorschlag unter „Was kommt noch?“.
 
 Mit `KONTOR_MAIL_BESTELLNUMMER=1` gilt zusätzlich, unabhängig von erwarteten Zahlungen: Jede Mail, in der eine
-Kennung nach `bank.kennung` steht, hängt als Dokument an jeder Buchung mit derselben Kennung.
+Kennung nach `bank.kennung` steht, hängt als Dokument an jeder Buchung mit derselben Kennung. Mit
+`KONTOR_MAIL_NUR_KOEPFE=1` wird in Mails ohne geladenen Inhalt nur der Betreff durchsucht.
 
 ## Prüfen
 
