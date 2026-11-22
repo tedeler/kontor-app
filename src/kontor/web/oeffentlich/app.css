@@ -1103,7 +1103,7 @@ html[data-thema="dunkel"] .wirkung-abweichend { background: #5a3412; color: #ffd
 .tag-auswahl-vorhanden { display: flex; flex-wrap: wrap; gap: .25rem; align-items: center; min-height: 1.6rem; }
 .feld-titel { display: block; font-size: .85rem; color: var(--text-2); margin-bottom: .15rem; }
 .regel-tags { display: flex; flex-wrap: wrap; gap: .25rem; margin: .1rem 0 .3rem; }
-.regel-tags:empty { display: none; }
+.regel-tags:empty { min-height: 1.4rem; }   /* D-241: leere Liste bleibt sichtbar (Platz für Tags) */
 .regel-tag { display: inline-flex; align-items: center; gap: .2rem; font-size: .85rem; padding: .05rem .2rem .05rem .55em; }
 .regel-tag[data-neu="true"] { outline: 1px dashed var(--rand); }
 .regel-tag-weg { border: 0; background: none; color: inherit; cursor: pointer; padding: 0 .3rem; font-size: 1rem; line-height: 1; border-radius: 50%; }
@@ -1128,6 +1128,7 @@ html[data-thema="dunkel"] .wirkung-abweichend { background: #5a3412; color: #ffd
 .filter-optionen { display: flex; flex-wrap: wrap; gap: .4rem 1rem; align-items: center; }
 .filter-optionen .knopf { margin-left: auto; }
 .filter-alte { display: inline-flex; flex-wrap: wrap; gap: .3rem; align-items: center; }
+.filter-alte[hidden] { display: none; }
 [data-layout="mobil"] .filter-leiste, .app[data-layout="mobil"] .filter-leiste { display: block; grid-template-columns: none; }
 [data-layout="mobil"] .bk-zeile, .app[data-layout="mobil"] ~ .dialog-huelle .bk-zeile {
   display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: .3rem; }

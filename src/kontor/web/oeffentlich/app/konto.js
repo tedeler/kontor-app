@@ -558,7 +558,10 @@ class Kontoansicht {
     if (f.zweck_leer !== undefined && f.zweck_leer !== "true") delete f.zweck_leer;
     for (const p of ["unterkategorien", "unterkonten"]) if (f[p] !== undefined && f[p] !== "true") delete f[p];
     if (this.istKategorie) delete f.unterkategorien;   // 22.2: entfällt in der Kategorieansicht
-    return alteFilterUebernehmen(f, this.istKategorie);
+    const vorher = Object.keys(f).length;
+    const aus = alteFilterUebernehmen(f, this.istKategorie);
+    this.adresseUmschreiben = Object.keys(aus).length !== vorher || aus.filter !== (q.get("filter") || undefined);
+    return aus;
   }
 
   gruppierungAusUrl(suche) {
@@ -603,6 +606,8 @@ class Kontoansicht {
   // ---------------------------------------------------------------- Laden
   async start() {
     this.aufbauen();
+    // D-241: übernommene alte Parameter stehen danach als ``filter=…`` in der Adresse (39.2)
+    if (this.adresseUmschreiben && this.sprungId === null) this.urlSchreiben();
     await this.laden();
     if (this.sprungId !== null) await this.springen(this.sprungId);
   }
@@ -746,6 +751,7 @@ class Kontoansicht {
 
   // ------------------------------------------------- Filterausdruck (D-185, Konzept 5.4)
   ausdruckFilterAufbauen() {
+    if (!this.alteEl) this.alteEl = h("div", { class: "filter-alte", hidden: true });
     let uhr;
     const anwenden = () => {
       clearTimeout(uhr);
@@ -788,7 +794,7 @@ class Kontoansicht {
       "data-ansicht": "zu" },
     h("div", { class: "ausdruck-filter-zeile" }, this.ansichtKnopf, ausdruckFeld("Filter", this.ausdruckEingabe), leeren, menue,
       this.bkKnopf),
-    this.zusammenfassungEl,
+    this.zusammenfassungEl, this.alteEl,
     // Zeitraum und Gruppierung teilen sich eine Zeile: die Auswahl-Summen oben verschieben so nichts mehr (D-236)
     h("div", { class: "ansicht-zeile" }, chips, this.gruppierungLeiste()));
     return this.ausdruckFilterEl;
@@ -907,8 +913,11 @@ class Kontoansicht {
       h("div", { class: "filter-optionen" },
         this.istKategorie ? null : option("unterkategorien", "mit Unterkategorien", "filter-unterkategorien"),
         option("unterkonten", "mit Unterkonten", "filter-unterkonten"),
-        alte.length ? h("span", { class: "filter-alte" }, h("span", { class: "klein" }, "Weitere Filter: "), alte) : null,
         zurueck));
+    // D-241: Filter ohne Entsprechung im Ausdruck stehen sichtbar unter dem Ausdruck, auch bei eingeklapptem Baukasten
+    if (!this.alteEl) this.alteEl = h("div", { class: "filter-alte" });
+    this.alteEl.replaceChildren(...(alte.length ? [h("span", { class: "klein" }, "Weitere Filter: "), ...alte] : []));
+    this.alteEl.hidden = !alte.length;
     return leiste;
   }
 

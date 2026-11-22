@@ -3458,3 +3458,28 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
      TAN, wird die erste Anforderung als beantwortet abgeschlossen und eine neue angelegt; der Lauf wartet weiter.
 - **Offen als Widerspruch:** W-015 (600 Zeilen), W-016 (Benutzerparameter ohne neue Version).
 - **Prüfung:** `tests/app/m29` ohne Browsertests: 183 bestanden, 2 offen (W-015, W-016).
+
+## D-241 Abnahme M30 (Kontor-Ausdrücke, Regeleditor): Nachbesserungen
+
+- **Anlass:** Die Abnahmetests zu Meilenstein 30 (kontor-tests `f2e6273`) liefen erstmals gegen die Anwendung.
+- **Entscheidung:**
+  1. `GET /api/ausdruck/sprache`: die Datumswörter stehen unter `schluesselwoerter.datum` (Aufbau frei, E-272),
+     nicht mehr als eigenes Feld auf oberster Ebene (Schema ohne Zusatzfelder); `schluesselwoerter.logik` nennt
+     die Schlüsselwörter. Die Vervollständigung liest sie dort.
+  2. `POST /api/ausdruck/pruefen`: `zusammenfassung` auch im Kontext `regel`; jedes als Freitext gelesene Wort
+     bekommt einen Hinweis (mit „Meinten Sie …?“, wenn es einem Feldnamen ähnelt); eine Dauer mit unbekannter
+     Einheit (`-5x`) ist `einheit_unbekannt`; zweistellige Jahre richten sich nach dem Bezugstag (`stichtag`);
+     Ausdrücke über 4000 Zeichen sind 200 mit `zu_lang` statt 422 `validierung` (die Körperprüfung lässt
+     längere Texte durch).
+  3. `POST /api/regeln/test`: `wirkung` ist ein einzelner Wert (`RegelWirkung`), nicht mehr eine Liste.
+  4. Regeleditor: der Anwenden-Knopf zählt bei „n × Kategorie“ nur die Buchungen, deren Kategorie mit der Vorgabe
+     gesetzt wird (`neu`); abweichende bietet das Fenster an. Die leere Tag-Liste `regel-tags` bleibt sichtbar.
+     Der Knopf „Bearbeiten…“ der Regelliste heißt für Hilfstechnik „Bearbeiten: Regel <Name>“ (sichtbarer Text
+     am Anfang des Namens).
+  5. Kontoblatt: Filter ohne Entsprechung im Ausdruck (`filter-alt-<name>`) stehen unter dem Ausdrucksfeld und
+     sind auch bei eingeklapptem Baukasten sichtbar; übernommene alte Parameter werden beim Öffnen als
+     `filter=…` in die Adresse geschrieben.
+- **Offen:** Die Handy-Fälle von `m8::test_filter` erwarten das Filterfeld am Handy sichtbar; seit D-236 ist es
+  dort eingeklappt (`ansicht-umschalten`). Das beschreibt Definition 4 (Paket 4) und zieht der Test-Thread dort
+  nach – kein Widerspruch zu M30.
+- **Prüfung:** `tests/app/m30` 418/418 grün; frühere Filtertests (M8, M12, M17, M26, M28) am Desktop grün.

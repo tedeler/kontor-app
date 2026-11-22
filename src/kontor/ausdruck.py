@@ -113,13 +113,13 @@ def sprache(kontext: str) -> dict:
     felder = [{"name": f.name, "kurz": f.kurz, "typ": f.typ, "bezeichnung": f.label, "operatoren": ops[f.typ],
                "werte": list(f.werte), "nur_filter": f.nur_filter}
               for f in FELDER.values() if kontext == "filter" or not f.nur_filter]
-    aus: dict[str, Any] = {"kontext": kontext, "felder": felder, "schluesselwoerter": ["and", "or", "not", "in", "is",
-                           "None", "True", "False"], "aliase": {"&&": "and", "||": "or", "!": "not"},
-                           "methoden": list(METHODEN), "kwargs": list(KWARGS)}
+    worte: dict[str, Any] = {"logik": ["and", "or", "not", "in", "is", "None", "True", "False"]}
     if kontext == "filter":
-        aus["datum"] = {"tagwoerter": list(TAGWOERTER), "zeitwoerter": list(ZEITWOERTER),
-                        "einheiten": ["d", "w", "m", "q", "y"], "monate": MONATSKURZ[1:]}
-    return aus
+        # D-241: Datumswörter stehen hier (Aufbau von ``schluesselwoerter`` frei, E-272), nicht auf oberster Ebene
+        worte["datum"] = {"tagwoerter": list(TAGWOERTER), "zeitwoerter": list(ZEITWOERTER),
+                          "einheiten": ["d", "w", "m", "q", "y"], "monate": MONATSKURZ[1:]}
+    return {"kontext": kontext, "felder": felder, "schluesselwoerter": worte,
+            "aliase": {"&&": "and", "||": "or", "!": "not"}, "methoden": list(METHODEN), "kwargs": list(KWARGS)}
 
 
 # =================================================================== Fehler
@@ -172,11 +172,17 @@ _LEX = re.compile(r"""
 """, re.VERBOSE)
 
 
+_DAUER_FALSCH = re.compile(r"\d+[^\W\d_]+(?!\w)")
+
+
 def lexen(quelle: str) -> list[Tok]:
     aus: list[Tok] = []
     i = 0
     while i < len(quelle):
         m = _LEX.match(quelle, i)
+        falsch = _DAUER_FALSCH.match(quelle, i) if m is None else None
+        if falsch is not None:
+            raise AusdruckFehler([_fehler(quelle, "einheit_unbekannt", "Einheiten: d, w, m, q, y.", i, falsch.end())])
         if m is None:
             raise AusdruckFehler([_fehler(quelle, "syntax", f"Unerwartetes Zeichen „{quelle[i]}“.", i, i + 1)])
         art = m.lastgroup or ""
@@ -505,6 +511,7 @@ class _Pruefer:
         self.fehler: list[dict] = []
         self.hinweise: list[dict] = []
         self.freitexte: list[dict] = []
+        self.bezug_jahr: int | None = None
 
     def melden(self, n: dict, code: str, meldung: str) -> None:
         self.fehler.append(_fehler(self.q, code, meldung, n["s"], n["e"]))
@@ -556,9 +563,9 @@ class _Pruefer:
         name = wert if isinstance(wert, str) else str(wert)
         if re.fullmatch(r"[^\W\d]\w*", name):
             nahe = difflib.get_close_matches(_fold_ident(name), list(_FELDNAMEN), n=1, cutoff=0.8)
-            if nahe and len(name) > 3:
-                self.hinweise.append({**_fehler(self.q, "freitext", f"„{name}“ wird als Freitext gesucht. Meinten Sie "
-                                                f"das Feld „{_FELDNAMEN[nahe[0]]}“?", n["s"], n["e"])})
+            frage = (f" Meinten Sie das Feld „{_FELDNAMEN[nahe[0]]}“?" if nahe and len(name) > 3 else "")
+            self.hinweise.append({**_fehler(self.q, "freitext", f"„{name}“ wird als Freitext gesucht.{frage}",
+                                            n["s"], n["e"])})
         self.freitexte.append({"wert": name, "s": n["s"], "e": n["e"]})
         return {"t": "freitext", "wert": name}
 
@@ -862,7 +869,7 @@ class _Pruefer:
         if k == "tag":
             teile = x["text"].split(".")
             d, m = int(teile[0]), int(teile[1])
-            j = _jahr_aus(teile[2]) if teile[2] else None
+            j = _jahr_aus(teile[2], self.bezug_jahr) if teile[2] else None
             _tag_pruefen(j, m, d)
             return {"a": "tag", "j": j, "m": m, "d": d}
         if k == "isodatum":
@@ -1197,7 +1204,7 @@ class Ergebnis:
     freitexte: list[dict]
 
 
-def uebersetzen(quelle: str, kontext: str, bez: Bezuege) -> Ergebnis:
+def uebersetzen(quelle: str, kontext: str, bez: Bezuege, heute: dt.date | None = None) -> Ergebnis:
     """Parst und prüft; wirft ``AusdruckFehler``. Ergebnis: typisierter Baum."""
     if kontext not in KONTEXTE:  # pragma: no cover - Aufrufer prüfen
         raise ValueError(kontext)
@@ -1212,6 +1219,7 @@ def uebersetzen(quelle: str, kontext: str, bez: Bezuege) -> Ergebnis:
                 return Ergebnis(ft, [], [{"wert": x["wert"]} for x in (ft["teile"] if ft["t"] == "und" else [ft])])
         raise
     p = _Pruefer(quelle, kontext, bez)
+    p.bezug_jahr = heute.year if heute is not None else None
     baum = p.bool_knoten(roh)
     if p.fehler:
         p.fehler.sort(key=lambda f: (f["zeile"], f["spalte"]))
@@ -1268,7 +1276,7 @@ def pruefen(con, quelle: str, kontext: str, heute: dt.date, festschreiben_: bool
     """POST /api/ausdruck/pruefen (Konzept 6.2). Antwort auch bei Fehlern im Ausdruck."""
     bez = Bezuege.laden(con)
     try:
-        e = uebersetzen(quelle, kontext, bez)
+        e = uebersetzen(quelle, kontext, bez, heute)
     except AusdruckFehler as f:
         return {"gueltig": False, "fehler": f.fehler, "kanonisch": None, "baum": None, "baukasten_faehig": False,
                 "hinweise": [], "datumsangaben": [], "freitext": [], "zusammenfassung": []}
@@ -1284,10 +1292,10 @@ def pruefen(con, quelle: str, kontext: str, heute: dt.date, festschreiben_: bool
                        "tage": (x1 - x0).days + 1, "relativ": ist_relativ(z)})
         aus["datumsangaben"] = dz
         aus["freitext"] = [f["wert"] for f in e.freitexte]
-        teile = e.baum["teile"] if e.baum["t"] == "und" else [e.baum]
-        aus["zusammenfassung"] = [_zusammenfassung_teil(x, bez, heute) for x in teile]
     else:
-        aus["datumsangaben"], aus["freitext"], aus["zusammenfassung"] = [], [], []
+        aus["datumsangaben"], aus["freitext"] = [], []
+    teile = e.baum["teile"] if e.baum["t"] == "und" else [e.baum]
+    aus["zusammenfassung"] = [_zusammenfassung_teil(x, bez, heute) for x in teile]
     return aus
 
 
