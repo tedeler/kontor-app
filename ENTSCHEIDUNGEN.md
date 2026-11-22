@@ -3442,3 +3442,33 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   fehlende öffentliche Adresse, direkter http-Zugriff ohne Sitzung, Proxy mit ersetztem Host-Kopf – per HTTP-Client
   und im Browser (Desktop, Handy). Dabei behoben: `kontor-https` hängte an eine Umgebungsdatei ohne Zeilenende
   die neue Variable an die letzte Zeile an.
+
+## D-240 Feature saldo-tan: Kontostand auch bei zweischrittig gekennzeichnetem HKSAL (2026-11-22)
+
+- **Anlass:** Eine echte Bank kennzeichnet in HIPINS sowohl HKCAZ als auch HKSAL als „mit TAN-Segment“, antwortet
+  auf HKTAN Prozess 4 aber mit 3076 (keine starke Authentifizierung nötig). Kontor schickte HKSAL in diesem Fall
+  gar nicht und meldete „Bank meldet keinen Kontostand“.
+- **Entscheidung:** Ist HKSAL zweischrittig gekennzeichnet, geht es zusammen mit HKTAN Prozess 4 an die Bank, wie
+  der Umsatzabruf. Antwortet die Bank zu HKTAN mit 0030 (TAN nötig) oder 3955 (Freigabe in einer App), bleibt der
+  Saldo None; es wird nie eine TAN für den Saldo verlangt oder gesendet (`kontostand.md` 1), der Dialog endet mit
+  HKEND wie sonst. Weiterhin genau ein HKSAL je Umsatzabruf (`kontostand.md` 1.2).
+- **Diagnose:** Jeder Ausgang ohne Saldo hat jetzt eine Zeile im Diagnoseprotokoll (keine passende Version,
+  Freigabe verlangt, Fehlercodes 9xxx – nur die Codes –, kein HISAL, HISAL ohne gebuchten EUR-Saldo); ein
+  übernommener Saldo „Saldo: übernommen“ ohne Betrag.
+- **Prüfung:** `tests/test_saldo_tan_eigen.py`; die Attrappe aus kontor-tests kennzeichnet HKSAL nicht
+  zweischrittig, ihre Tests (M11) laufen unverändert.
+
+## D-241 Feature saldo-tan: PIN über systemd-creds ohne PIN-Datei (2026-11-22)
+
+- **Anlass:** Mit installiertem `pin-eingabe.conf` lud der Dienst die PIN-Datei nicht mehr, Kontor blieb aber bei
+  `KONTOR_BANK_PIN_QUELLE=systemd-creds`: Ein Wert aus `EnvironmentFile=` (`kontor.env`) hat in systemd Vorrang
+  vor `Environment=` im Drop-in. Jeder Abruf scheiterte mit `bank_pin_fehlt`, die Oberfläche öffnete den
+  PIN-Dialog, der die Eingabe mit 409 `pin_quelle_systemd` ablehnte.
+- **Entscheidung:** (1) Beim Start warnt Kontor, wenn `bank_pin_quelle = systemd-creds` gilt, im
+  Credentials-Verzeichnis aber keine Datei `kontor-bank-pin` liegt, und nennt beide Auswege (PIN-Datei ohne
+  Drop-in, oder `KONTOR_BANK_PIN_QUELLE=eingabe` in `kontor.env`). (2) Die Oberfläche öffnet bei `bank_pin_fehlt`
+  /`bank_pin_falsch` den PIN-Dialog nur noch bei `pin_quelle = eingabe` (aus `GET /api/sync/status`); bei
+  `systemd-creds` erscheint stattdessen eine Fehlermeldung mit dem, was auf dem Server zu tun ist. Das weicht von
+  `oberflaeche.md` 15.4 ab und steht in der Meilenstein-Definition des Features.
+- **Nicht geändert:** `pin-eingabe.conf` und `kontor.env` sind in `betrieb.md` 3 und 4.2 wörtlich festgelegt; der
+  Fehler der Spezifikation ist W-015.

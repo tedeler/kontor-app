@@ -764,7 +764,12 @@ class FintsBankPlugin(BankPlugin):
         return False
 
     def _saldo(self, d: _Dialog, iban: str, konto) -> BankSaldo | None:
-        """Genau ein HKSAL im Dialog des Umsatzabrufs; scheitert nur die Saldenabfrage, ist der Saldo None."""
+        """Genau ein HKSAL im Dialog des Umsatzabrufs; scheitert nur die Saldenabfrage, ist der Saldo None.
+
+        Kennzeichnet die Bank HKSAL als zweischrittig, geht HKTAN Prozess 4 mit (wie beim Umsatzabruf, D-240).
+        Viele Banken antworten darauf mit 3076 (keine starke Authentifizierung nötig) und liefern den Saldo.
+        Verlangen sie tatsächlich eine TAN (0030) oder eine App-Freigabe (3955), bleibt der Saldo None: für den
+        Saldo nie eine TAN (kontostand.md 1)."""
         from fints.segments.saldo import HKSAL5, HKSAL6, HKSAL7
         if not self._saldo_angeboten(d, iban):
             self._diag("Saldo: nicht abgefragt, HKSAL ist für dieses Konto laut Benutzerparametern nicht erlaubt")
@@ -772,20 +777,33 @@ class FintsBankPlugin(BankPlugin):
         try:
             klasse = d.client._find_highest_supported_command(HKSAL5, HKSAL6, HKSAL7)
             seg = klasse(account=klasse._fields["account"].type.from_sepa_account(konto), all_accounts=False)
-        except Exception:  # noqa: BLE001 - FinTSUnsupportedOperation o. ä.: keine passende Version
+        except Exception as e:  # noqa: BLE001 - FinTSUnsupportedOperation o. ä.: keine passende Version
+            self._diag(f"Saldo: nicht abgefragt, keine passende HKSAL-Version ({type(e).__name__})")
             return None
-        if self._tan_noetig(d, seg):
-            self._diag("Saldo: nicht abgefragt, die Bank verlangt für HKSAL eine TAN-Einreichung")
-            return None  # für den Saldo nie eine TAN (kontostand.md 1)
         try:
-            antwort = self._senden(d, seg)
-        except KontorFehler:
+            if self._tan_noetig(d, seg):
+                tan_seg = d.client._get_tan_segment(seg, "4")
+                antwort = self._senden(d, seg, tan_seg)
+                tan_codes = _codes(antwort, tan_seg)
+                if "0030" in tan_codes or "3955" in tan_codes:
+                    self._diag("Saldo: nicht übernommen, die Bank verlangt dafür eine TAN-Freigabe")
+                    return None
+            else:
+                antwort = self._senden(d, seg)
+        except KontorFehler as e:
+            self._diag(f"Saldo: Abfrage gescheitert ({type(e).__name__})")
             return None
-        if any(c.startswith("9") for c in _codes(antwort, seg)):
+        fehler = [c for c in _codes(antwort, seg) if c.startswith("9")]
+        if fehler:
+            self._diag(f"Saldo: von der Bank abgelehnt ({','.join(fehler)})")
             return None
         for h in list(antwort.response_segments(seg, "HISAL")) or [
                 h for h in antwort.find_segments("HISAL") if h.header.reference is None]:
-            return _saldo_aus_hisal(iban, h)
+            saldo = _saldo_aus_hisal(iban, h)
+            self._diag("Saldo: übernommen" if saldo is not None
+                       else "Saldo: Antwort ohne verwertbaren gebuchten Saldo in EUR")
+            return saldo
+        self._diag("Saldo: die Antwort enthält kein HISAL")
         return None
 
     def _seite_lesen(self, antwort, seg, camt: bool, seiten: list) -> str | None:
