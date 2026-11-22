@@ -740,6 +740,15 @@ _LOESCHEN = ("erwartung_wiederholung", "erwartung", "dokument_buchung", "dokumen
              "konto")
 
 
+def _vor_version(version, grenze: tuple[int, int]) -> bool:
+    """True, wenn ``version`` (MAJOR.MINOR) älter als ``grenze`` ist; Unlesbares gilt als älter."""
+    try:
+        teile = tuple(int(x) for x in str(version).split(".")[:2])
+    except ValueError:
+        return True
+    return len(teile) < 2 or teile < grenze
+
+
 def einspielen(con, s: Sicherung, zeitpunkt: str) -> dict:
     """sicherung.md 5.3: ersetzt den fachlichen Zustand in einer Transaktion (eine Änderung) oder nichts."""
     erg: dict = {}
@@ -779,7 +788,8 @@ def einspielen(con, s: Sicherung, zeitpunkt: str) -> dict:
                 elif neu != hier:
                     con.execute("UPDATE sqlite_sequence SET seq = ? WHERE name = ?", (neu, tabelle))
             pflege.standardkategorien_umwandeln(con)  # D-219: ältere Sicherungen können Standardkategorien enthalten
-            pflege.personentags_umbenennen(con)  # D-223
+            if _vor_version(s.manifest.get("app_version"), (0, 35)):
+                pflege.personentags_umbenennen(con)  # D-223/D-244: nur Sicherungen von vor „B-<Name>“ (bis 0.34)
             kontonamen.bereinigen(con)  # D-218: ältere Sicherungen können gleichnamige Konten enthalten
     aid = k.aenderung_id if erg["geaendert"] else None
     return _ergebnis(s, False, erg["geaendert"], aid, erg["unterschied"], erg["betroffen"])

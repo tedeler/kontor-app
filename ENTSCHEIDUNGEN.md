@@ -3518,3 +3518,14 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   5. Oberfläche: `empfaenger-treffer` trägt `data-anzahl`; die Einträge der Spaltenwahl sind
      `menuitemcheckbox` mit `aria-checked` (E-306).
 - **Offen als Widerspruch:** W-022 bis W-026 (an den Test-Thread übergeben).
+
+## D-244 Gesamtlauf der Abnahme: Personen-Tags beim Einspielen, Lerndaten
+
+- **Anlass:** Gesamtlauf aller Abnahmetests (kontor-tests `fca9a20`) gegen `feature/sammel3`.
+- **Entscheidung:**
+  1. Beim Einspielen werden „Torsten“/„Tina“ nur bei Sicherungen von vor der Umstellung auf „B-<Name>“
+     (`app_version` vor 0.35, Unlesbares gilt als älter) umbenannt (D-223: „ältere Sicherungen“). Eine
+     Rundreise mit gewöhnlichen Tags dieser Namen bleibt unverändert.
+  2. Mock-Lerndaten: Prüfbuchungen stehen auf dem technischen Konto „Unkategorisiert“ (Kennung
+     `kontor:unkategorisiert`), nicht auf einem zweiten gleichnamigen Eigenkapitalkonto.
+- **Offen als Widerspruch:** W-027 bis W-030 (an den Test-Thread übergeben).

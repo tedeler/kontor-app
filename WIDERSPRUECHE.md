@@ -285,3 +285,7 @@ Stand: Meilenstein 8 (getestet gegen kontor-tests `bf35445`); kein offener Eintr
   App-Uhr, W-023 `_mail_dokument` legt „Giro“ zweimal an (D-218), W-024 `bilder=vielleicht` → 422 fehlt in
   `openapi.yaml`, W-025 `em-im-konto` mit `empfaenger_id` gegen `oberflaeche.md` 39.2 (`filter=`), W-026
   Browser-Mails vom Juni 2024 außerhalb des Erstabrufs bei `m8.HEUTE = 2024-12-31`.
+
+## W-027 bis W-030 Gesamtlauf: „Girokonto“ doppelt (M18), `ausdruck` nach PATCH (M2), Löschorakel mit Pfad (M3), `empfaenger_geaendert` (M19)
+
+- Als Text an den Test-Thread übergeben (2026-11-22, `spec/definitionen/widersprueche-gesamtlauf.md`).
