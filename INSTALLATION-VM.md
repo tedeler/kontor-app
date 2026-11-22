@@ -52,8 +52,22 @@ Das virtuelle TPM ist optional, macht die verschlüsselten Geheimnisse aber an d
 
    Debian 13 bringt Python 3.13 mit (Kontor verlangt ≥ 3.11). `unattended-upgrades` spielt
    Sicherheitsupdates von Debian automatisch ein.
-4. Prüfen, ob das TPM erkannt wird (nur mit TPM): `systemd-creds has-tpm2` soll `yes` bzw. `partial` mit
-   `+driver +subsystem` zeigen.
+4. Prüfen, ob das TPM erkannt wird (nur mit TPM):
+
+   ```bash
+   systemd-analyze has-tpm2        # früher: systemd-creds has-tpm2
+   ```
+
+   Erwartet wird `yes` und darunter nur Zeilen mit `+` (`+firmware`, `+driver`, `+system`, `+subsystem`,
+   `+libraries`). Bedeutung der `-`-Zeilen:
+
+   | Zeile | Ursache | Abhilfe |
+   | --- | --- | --- |
+   | `-firmware`, `-driver` | Die VM sieht kein TPM | In Proxmox unter Hardware „TPM-State“ (v2.0) hinzufügen, dann die VM **herunterfahren und neu starten** (ein Neustart innerhalb der VM übernimmt neue Hardware nicht). Prüfen: `ls /dev/tpm*` |
+   | `-libraries` mit `libtss2-…` | Die TPM-Bibliotheken fehlen | `apt install tpm2-tools` (bringt `libtss2-esys`, `-rc`, `-mu` mit); prüfen: `ldconfig -p \| grep libtss2` |
+
+   Bleibt es bei `partial` oder `no`, funktioniert Kontor trotzdem: `systemd-creds` nimmt dann nur den
+   Host-Schlüssel (wie im LXC-Container).
 
 ## 3. Kontor installieren
 
@@ -83,7 +97,8 @@ in dieser Datei (README, „Konfiguration der echten Anbindungen“).
 ## 5. Geheimnisse verschlüsselt ablegen
 
 Ohne `--with-key` wählt `systemd-creds` selbst: mit TPM den Host-Schlüssel **und** das TPM, sonst nur den
-Host-Schlüssel. Die PIN wird nie in eine Datei, Umgebungsvariable oder Kommandozeile geschrieben.
+Host-Schlüssel. Daher erst Schritt 2.4 klären, dann die Dateien anlegen; wer später ein TPM nachrüstet, legt sie
+neu an, damit sie es nutzen. Die PIN wird nie in eine Datei, Umgebungsvariable oder Kommandozeile geschrieben.
 
 ```bash
 systemd-ask-password -n "Banking-PIN:" | systemd-creds encrypt --name=kontor-bank-pin - /etc/kontor/kontor-bank-pin.cred
@@ -179,7 +194,7 @@ set -a; . /etc/kontor/kontor.env; set +a; sudo -u kontor -E /opt/kontor/venv/bin
 
 | Anzeichen | Abhilfe |
 | --- | --- |
-| `systemd-creds has-tpm2` meldet kein TPM | Bei der VM „TPM-State“ (v2.0) hinzufügen, `tpm2-tools` installieren, VM neu starten; ohne TPM funktioniert alles mit dem Host-Schlüssel |
+| `systemd-analyze has-tpm2` meldet `partial` oder `no` | siehe Tabelle in Schritt 2.4; ohne TPM funktioniert alles mit dem Host-Schlüssel |
 | Kontor startet nicht: Credential lässt sich nicht entschlüsseln | `.cred`-Dateien wurden auf einer anderen Maschine oder vor einem TPM-Tausch angelegt: Schritt 5 wiederholen |
 | Seite lädt nicht | Gerät im Tailnet? `tailscale status` auf dem Gerät und in der VM |
 | Nach Monaten plötzlich nicht erreichbar | Schlüssel der VM abgelaufen: `tailscale up` in der VM, danach „Disable key expiry“ |
