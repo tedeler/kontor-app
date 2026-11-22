@@ -1,7 +1,65 @@
 # kontor-app
 
 Implementierung von **Kontor**, einer selbst gehosteten Finanz-Web-App
-(Python, FastAPI, SQLite, Single-Page-Weboberfläche). Stand: **Meilenstein 10** (M1–M10)
+(Python, FastAPI, SQLite, Single-Page-Weboberfläche). Die verbindliche Spezifikation und die Abnahmetests
+liegen im getrennten Repository **kontor-tests**.
+
+## Schnellzugriff
+
+**Einrichtung und Installation**
+
+| Thema | Wo |
+| --- | --- |
+| Ausprobieren ohne echte Daten (lokal, Mock-Modus) | [Schnellstart im Mock-Modus](#schnellstart-im-mock-modus) |
+| Installation in einer VM (Debian 13, mit Tailscale/HTTPS) | [INSTALLATION-VM.md](INSTALLATION-VM.md) |
+| Installation im Proxmox-LXC-Container | [Installation als systemd-Dienst](#installation-als-systemd-dienst-im-proxmox-lxc-container) |
+| Empfohlene Einstellungen für den Betrieb | [Empfohlene Konfiguration](#empfohlene-konfiguration-für-den-betrieb) |
+| Login einrichten, Passwort vergessen | [Installation, Schritt 6](#installation-als-systemd-dienst-im-proxmox-lxc-container) · [Anmeldung ausprobieren](#anmeldung-ausprobieren) |
+| Nur über HTTPS (Tailscale) | [HTTPS.md](HTTPS.md) · [Kurzfassung](#https) |
+| Testinstanz für einen Feature-Branch | [TESTINSTANZ.md](TESTINSTANZ.md) · [Kurzfassung](#testinstanz-für-entwicklungsbranches) |
+| Updates einspielen | [Updates](#updates) |
+| Datensicherung und Wiederherstellung | [Datensicherung im Betrieb](#datensicherung-im-betrieb) |
+
+**Anbindungen**
+
+| Thema | Wo |
+| --- | --- |
+| Bankzugang (FinTS/camt), TAN, Diagnose | [Bankzugang einrichten](#bankzugang-fints-einrichten) |
+| Gmail-Postfächer (OAuth2) | [Gmail über ein eigenes Google-Cloud-Projekt](#gmail-über-ein-eigenes-google-cloud-projekt) |
+| Push-Benachrichtigungen | [ntfy](#ntfy) |
+| Anbieter für den Mail-Abgleich (Amazon, PayPal, eigene) | [ANBIETER.md](ANBIETER.md) |
+| Kontostand-Abgleich mit der Bank | [Kontostand bei der Synchronisation](#kontostand-bei-der-synchronisation-m11) |
+
+**Konfiguration (alle Umgebungsvariablen)**
+
+[Allgemein](#konfiguration) · [Sicherheit und Betrieb](#sicherheit-und-betrieb-m7) · [Echte Anbindungen](#konfiguration-der-echten-anbindungen-m6)
+
+**Bedienung**
+
+[Synchronisation im Mock-Modus](#synchronisation-im-mock-modus-ausprobieren) · [Weboberfläche](#weboberfläche) · [Tastaturkürzel](#tastaturkürzel) · [Handy](#handy) · [Installation als App (PWA)](#design-und-installation-als-app-pwa)
+
+**Meilensteine, Spezifikation und Tests**
+
+| Thema | Wo |
+| --- | --- |
+| Meilensteine (Übersicht und Stand) | [kontor-tests: spec/meilensteine.md](https://github.com/tedeler/kontor-tests/blob/main/spec/meilensteine.md) · [Funktionsumfang kurz](#funktionsumfang) |
+| Fachkonzept / Testkonzept | [spec/konzept.md](https://github.com/tedeler/kontor-tests/blob/main/spec/konzept.md) · [spec/testkonzept.md](https://github.com/tedeler/kontor-tests/blob/main/spec/testkonzept.md) |
+| Schnittstellen (REST, Oberfläche, Datenmodell …) | [kontor-tests: spec/api/](https://github.com/tedeler/kontor-tests/blob/main/spec/api) |
+| Abnahmetests ausführen | [kontor-tests: TESTS_AUSFUEHREN.md](https://github.com/tedeler/kontor-tests/blob/main/TESTS_AUSFUEHREN.md) · [Tests](#tests) |
+| Ergebnis des letzten Testlaufs | [ERGEBNIS.md](ERGEBNIS.md) |
+| Entscheidungen, Widersprüche | [ENTSCHEIDUNGEN.md](ENTSCHEIDUNGEN.md) · [WIDERSPRUECHE.md](WIDERSPRUECHE.md) |
+| Python-Schnittstelle | [Python-Schnittstelle (Auszug)](#python-schnittstelle-auszug) |
+| Regeln für Implementierungs-Threads | [CLAUDE.md](CLAUDE.md) |
+
+(Die Links nach kontor-tests funktionieren nur mit Zugriff auf das private Repository.)
+
+## Funktionsumfang
+
+Kurzüberblick über die ersten Meilensteine; der vollständige, aktuelle Stand steht in
+[spec/meilensteine.md](https://github.com/tedeler/kontor-tests/blob/main/spec/meilensteine.md).
+
+<details>
+<summary>M1–M9 und FinTS/camt aufklappen</summary>
 
 - M1: KMyMoney-Import, Finanzübersicht, Konten- und Buchungsliste mit Filtern
   und Mehrfachbearbeitung, doppelte Buchführung mit Splits und Tags,
@@ -70,14 +128,13 @@ Implementierung von **Kontor**, einer selbst gehosteten Finanz-Web-App
   Oberfläche eingestellt (Einstellungen → Bankzugang), TANs schon bei der Anmeldung an der Bank werden
   unterstützt. Das frühere AqBanking-Plugin (M10) ist entfallen.
 
+</details>
+
 **Alles lässt sich im Mock-Modus ohne echte Daten ausprobieren:** Mock-Bank,
 Mock-Postfächer und Mock-Benachrichtigungen (Liste unter
 `GET /api/mock/zustellungen`) arbeiten mit synthetischen Daten und bauen nie
 eine Verbindung auf; auf Wunsch stellt der Mock-Modus auch per ntfy zu (Titel
 beginnt mit `[Mock]`).
-
-Die verbindliche Spezifikation liegt im getrennten Repository **kontor-tests**
-(`spec/konzept.md`, `spec/api/*`); dort liegen auch die Tests.
 
 ## Schnellstart im Mock-Modus
 
@@ -171,7 +228,9 @@ python -m kontor
    der Lauf scheitert ohne Datenverlust, es entsteht genau eine
    Benachrichtigung je Fehlercode, solange sie ungelesen ist.
 
-## Anmeldung (Login) ausprobieren – Mock-Modus
+## Anmeldung ausprobieren
+
+Im Mock-Modus:
 
 ```bash
 export KONTOR_DATENBANK="$PWD/daten/kontor.sqlite3"
@@ -321,6 +380,9 @@ und `KONTOR_AQBANKING_*` in `/etc/kontor/kontor.env` können entfernt werden.
 
 ### Installation als systemd-Dienst im Proxmox-LXC-Container
 
+> **Eigene VM statt Container?** Schritt-für-Schritt-Anleitung für eine VM mit Debian 13, virtuellem TPM und
+> Tailscale (HTTPS von Anfang an): [INSTALLATION-VM.md](INSTALLATION-VM.md).
+
 Kontor liefert alle Betriebsdateien im Paket `kontor.betrieb` aus
 (`kontor.service`, `kontor-sicherung.service`, `kontor-sicherung.timer`,
 `kontor-update.path`, `kontor-update.service`, `kontor-test.service`, `kontor-test.env`, `kontor-test.sh`,
@@ -384,7 +446,9 @@ Neustartschleife (`RestartPreventExitStatus=2`). Beim Stoppen hat ein laufender
 Abruf bis zu 20 s, danach schreibt Kontor das WAL zurück – ein Snapshot oder
 eine Kopie von `kontor.sqlite3` ist dann vollständig.
 
-**Updates (D-107):** Kontor fragt beim Start und alle 24 Stunden bei GitHub nach
+#### Updates
+
+(D-107) Kontor fragt beim Start und alle 24 Stunden bei GitHub nach
 dem neuesten Release (`KONTOR_UPDATE_PRUEFEN=1` in der Umgebungsdatei; `0`
 schaltet das ab). Gibt es eine neuere Version, trägt der Versionsknopf unten in
 der Navigation einen Punkt. Im About-Dialog (Klick auf den Versionsknopf)
@@ -400,7 +464,9 @@ einmal nach Schritt 3 und 5 ein (Units kopieren, `KONTOR_UPDATE_PRUEFEN=1` und
 es weiterhin mit `/opt/kontor/venv/bin/pip install --upgrade /opt/kontor/src`
 (nach `git pull`) und `systemctl restart kontor`.
 
-**Testinstanz für Entwicklungsbranches (D-205):** Einen Branch probiert man nicht
+#### Testinstanz für Entwicklungsbranches
+
+(D-205) Einen Branch probiert man nicht
 über den Update-Dienst aus, sondern in einer zweiten, getrennten Instanz. Die
 Hauptinstanz läuft dabei unverändert weiter.
 Schritt-für-Schritt-Anleitung und das Bedienskript `kontor-test` für die
@@ -438,7 +504,9 @@ journalctl -u kontor-test -f
 - Voraussetzung: `git` und Netzzugang zu GitHub und PyPI auf dem Server; das
   erste Einrichten legt eine eigene virtuelle Umgebung an und dauert länger.
 
-**HTTPS:** Kontor selbst spricht kein TLS. Für den Betrieb nur über HTTPS stellt
+#### HTTPS
+
+Kontor selbst spricht kein TLS. Für den Betrieb nur über HTTPS stellt
 `kontor-https einrichten` Tailscale Serve davor (gültiges Zertifikat, Zugriff
 nur aus dem eigenen Tailnet) und stellt Haupt- und Testinstanz um; mit
 `kontor-https zurueck` wieder zurück. Schritt-für-Schritt-Anleitung:
@@ -446,6 +514,8 @@ nur aus dem eigenen Tailnet) und stellt Haupt- und Testinstanz um; mit
 Host: Kontor auf `127.0.0.1` binden, `KONTOR_SITZUNG_COOKIE_SECURE=1` und
 `KONTOR_OEFFENTLICHE_URL=https://…` setzen (ohne die Adresse lehnt Kontor
 schreibende Anfragen mit 403 ab; es warnt beim Start davor).
+
+#### PIN und Geheimnisschlüssel ohne systemd
 
 Lehnt die Bank die PIN ab (oder sperrt den Zugang), verwendet Kontor die PIN
 bis zum nächsten Neustart des Dienstes nicht mehr (Schutz vor Kontosperre).
@@ -665,6 +735,9 @@ kontor-tests gegen diese installierte App). Ergebnis des letzten Laufs:
 | `WIDERSPRUECHE.md` | Widersprüche zwischen Tests und Spezifikation |
 | `ERGEBNIS.md` | Ergebnis des letzten vollständigen Testlaufs |
 | `HTTPS.md` | Betrieb nur über HTTPS mit Tailscale: Skript `kontor-https`, Testinstanz, Rücknahme, Fehlersuche (D-239) |
+| `INSTALLATION-VM.md` | Installation in einer VM mit Debian 13 und Tailscale (HTTPS) |
+| `TESTINSTANZ.md` | Testinstanz für Entwicklungsbranches: Skript `kontor-test`, Starten, Fehlersuche (D-213) |
+| `ANBIETER.md` | Anbieter-Beschreibungen (TOML) für den Abgleich von Mails und Buchungen |
 
 ## Kontostand bei der Synchronisation (M11)
 
