@@ -319,6 +319,14 @@ die Bank denselben Umsatz über camt mit anderer Kennung, wird er der vorhandene
 Konto, gleicher Betrag, gleicher Buchungstag) und nicht doppelt gebucht. Die Zeilen `KONTOR_BANK_PLUGIN=aqbanking`
 und `KONTOR_AQBANKING_*` in `/etc/kontor/kontor.env` können entfernt werden.
 
+### Installation auf Debian 13 mit Tailscale
+
+Für eine frische Debian-13-Installation mit systemd kann `install.sh` als root ausgeführt werden. Tailscale
+muss vorher installiert und über `tailscale up` angemeldet sein; MagicDNS und HTTPS-Zertifikate müssen in der
+Tailscale-Admin-Konsole aktiviert sein. Das Skript installiert Tailscale nicht und bricht bei vorhandenen
+Kontor-Dateien ab. Bei einem Fehler nach Beginn der Installation den unvollständigen Zustand vor einem erneuten
+Versuch prüfen. Ein vollständiger Installationstest mit systemd und HTTPS steht noch aus.
+
 ### Installation als systemd-Dienst im Proxmox-LXC-Container
 
 Kontor liefert alle Betriebsdateien im Paket `kontor.betrieb` aus
