@@ -164,7 +164,8 @@ function alteFilterUebernehmen(f, istKategorie) {
   if (f.zweck_gleich) nimm("zweck_gleich", `vwz == ${qText(f.zweck_gleich)}`);
   if (f.zweck_leer) nimm("zweck_leer", 'vwz == ""');
   if (f.suche) nimm("suche", qText(f.suche));
-  if (f.kategorie_id && !f.unterkategorien) {
+  // D-245: in der Kontoansicht einer Kategorie bleibt ``kategorie_id`` der Filter ``filter-konto`` (22.2, E-274)
+  if (f.kategorie_id && !f.unterkategorien && !istKategorie) {
     const k = kontoNach(Number(f.kategorie_id));
     if (k) nimm("kategorie_id", `${istKategorie ? "konto" : "kategorie"} == ${qText(kontoPfad(k))}`);
   }
@@ -797,6 +798,10 @@ class Kontoansicht {
     this.zusammenfassungEl, this.alteEl,
     // Zeitraum und Gruppierung teilen sich eine Zeile: die Auswahl-Summen oben verschieben so nichts mehr (D-236)
     h("div", { class: "ansicht-zeile" }, chips, this.gruppierungLeiste()));
+    // D-245: Esc im Filterfeld (auch bei offener Vervollständigung) führt zurück in die Liste (D-167)
+    this.ausdruckFilterEl.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && e.target.closest('[data-testid="filter-ausdruck"]')) setTimeout(() => this.listeFokussieren());
+    }, true);
     return this.ausdruckFilterEl;
   }
 
@@ -892,7 +897,7 @@ class Kontoansicht {
         h("button", { type: "button", class: "knopf-flach", "aria-label": `${text} entfernen`,
           onclick: () => this.filterSetzen(k, "").then(() => this.filterLeisteNeu()) }, "×"));
     });
-    if (f.kategorie_id) {   // nur mit Unterkategorien bleibt die Kategorie ein Einzelfilter
+    if (f.kategorie_id && !this.istKategorie) {   // nur mit Unterkategorien bleibt die Kategorie ein Einzelfilter
       alte.push(h("span", { class: "chip", tid: "filter-alt-kategorie_id" }, `${this.istKategorie ? "Konto" : "Kategorie"}: ${pfadVon(Number(f.kategorie_id))} `,
         h("button", { type: "button", class: "knopf-flach", "aria-label": "Kategorie entfernen",
           onclick: () => this.filterSetzen("kategorie_id", "").then(() => this.filterLeisteNeu()) }, "×")));
@@ -912,6 +917,7 @@ class Kontoansicht {
     leiste.append(platz, this.bkHinweis,
       h("div", { class: "filter-optionen" },
         this.istKategorie ? null : option("unterkategorien", "mit Unterkategorien", "filter-unterkategorien"),
+        this.istKategorie ? this.kontoWahl(f) : null,
         option("unterkonten", "mit Unterkonten", "filter-unterkonten"),
         zurueck));
     // D-241: Filter ohne Entsprechung im Ausdruck stehen sichtbar unter dem Ausdruck, auch bei eingeklapptem Baukasten
@@ -919,6 +925,16 @@ class Kontoansicht {
     this.alteEl.replaceChildren(...(alte.length ? [h("span", { class: "klein" }, "Weitere Filter: "), ...alte] : []));
     this.alteEl.hidden = !alte.length;
     return leiste;
+  }
+
+  /** D-245: In der Kontoansicht einer Kategorie: Auswahl eines Bestandskontos (``filter-konto`` → ``kategorie_id``). */
+  kontoWahl(f) {
+    const konten = baumFolge(stamm.konten.filter((k) => BESTAND.has(k.art))).map((x) => x.konto);
+    const sel = h("select", { tid: "filter-konto", "aria-label": "Konto" },
+      h("option", { value: "" }, "Alle Konten"),
+      konten.map((k) => h("option", { value: String(k.id), selected: f.kategorie_id === String(k.id) }, kontoPfad(k))));
+    sel.addEventListener("change", () => this.filterSetzen("kategorie_id", sel.value));
+    return h("label", { class: "wahl" }, "Konto ", sel);
   }
 
   /** Baukasten aus dem geprüften Ausdruck nachziehen (wenn der Ausdruck oben getippt wurde). */
@@ -1337,7 +1353,7 @@ class Kontoansicht {
       "aria-pressed": String(this.gruppierung === art && (!art || this.tiefe === tiefe)),
       onclick: () => this.gruppierungSetzen(art, tiefe) }, text);
     return h("div", { class: "gruppierung-zeile" },
-      h("div", { class: "gruppierung", role: "group", "aria-label": "Buchungen nach Datum gruppieren bis" },
+      h("div", { class: "gruppierung", role: "group", "aria-label": "Buchungen gruppieren" },
         stufe("", null, "Keine", "Nicht gruppieren"),
         EBENEN.map((t, i) => stufe("datum", t, EBENE_TEXT[t],
           `Gruppieren bis ${EBENE_TEXT[t]}: ${EBENEN.slice(0, i + 1).map((e) => EBENE_TEXT[e]).join(" → ")}`))),

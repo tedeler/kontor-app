@@ -3529,3 +3529,15 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   2. Mock-Lerndaten: Prüfbuchungen stehen auf dem technischen Konto „Unkategorisiert“ (Kennung
      `kontor:unkategorisiert`), nicht auf einem zweiten gleichnamigen Eigenkapitalkonto.
 - **Offen als Widerspruch:** W-027 bis W-030 (an den Test-Thread übergeben).
+
+## D-245 Gesamtlauf der Browsertests: Gruppierung, Kontoauswahl in Kategorien, Esc im Filterfeld
+
+- **Anlass:** Browsertests aller Meilensteine gegen `feature/sammel3`.
+- **Entscheidung:**
+  1. Die Gruppe der Gruppierungsknöpfe heißt wieder „Buchungen gruppieren“ (`oberflaeche.md` 37).
+  2. Kontoansicht einer Kategorie: `filter-konto` (Bestandskonten, Pfad als Beschriftung) steht im Baukasten und
+     bildet auf `kategorie_id` ab (22.2, E-274); dort wird `kategorie_id` nicht in den Ausdruck übernommen und
+     erscheint nicht als „Weitere Filter“.
+  3. Esc im Filterfeld führt immer in die Liste zurück, auch wenn die Vervollständigung offen war (D-167).
+- **Offen:** `m15::test_details_vorschlag_und_kandidaten` und `m8::test_seiten_im_mindestumfang` (beide schon vor
+  diesem Auftrag auf main rot; der zweite wartet auf eine Erfolgsmeldung, die seit D-234 ausgeliefert aus ist).
