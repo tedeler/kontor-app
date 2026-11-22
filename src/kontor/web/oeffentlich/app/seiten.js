@@ -999,6 +999,7 @@ export async function empfaenger(seite) {
     }
     ids = sichtbar;
     trefferEl.textContent = w.length ? `${n} von ${liste.length}` : `${liste.length} Empfänger`;
+    trefferEl.dataset.anzahl = String(w.length ? n : liste.length);   // D-243 (E-306)
     pruefen();
   };
   suchFeld.addEventListener("input", suchen);

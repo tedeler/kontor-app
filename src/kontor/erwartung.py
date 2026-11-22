@@ -749,9 +749,23 @@ def folge_anlegen(con, eid: int, zeitpunkt: str) -> int | None:
 
 
 def folge_entfernen(con, eid: int) -> None:
-    """Wird eine geplante Zahlung wieder offen, entfällt ihre noch unberührte Folge (offen, ohne Buchung)."""
-    con.execute("DELETE FROM erwartung WHERE zustand = 'offen' AND buchung_ids = '[]' AND id IN"
-                " (SELECT erwartung_id FROM erwartung_wiederholung WHERE vorgaenger_id = ?)", (eid,))
+    """Wird eine geplante Zahlung wieder offen, entfällt ihre noch unberührte Folge (sammel3.md 14.2: seit dem
+    Anlegen unverändert – D-243: offen, ohne Buchung, Mails, Dokumente und mit den Angaben, die das Anlegen aus
+    der Vorgängerin übernommen hätte)."""
+    v = con.execute("SELECT * FROM erwartung WHERE id = ?", (eid,)).fetchone()
+    for f in con.execute("SELECT e.*, w.rhythmus, w.tag, w.bis AS w_bis FROM erwartung e JOIN erwartung_wiederholung w"
+                         " ON w.erwartung_id = e.id WHERE w.vorgaenger_id = ?", (eid,)).fetchall():
+        vw = con.execute("SELECT * FROM erwartung_wiederholung WHERE erwartung_id = ?", (eid,)).fetchone()
+        datum = naechstes_datum(v["datum"], f["rhythmus"], f["tag"])
+        tage = (dt.date.fromisoformat(v["frist"]) - dt.date.fromisoformat(v["datum"])).days
+        unberuehrt = (
+            f["zustand"] == "offen" and f["buchung_ids"] == "[]" and f["mails"] == "[]" and f["dokument_ids"] == "[]"
+            and (f["richtung"], f["kennung"], f["haendler"], f["beschreibung"], f["gesamt"], f["guthaben"])
+            == (v["richtung"], v["kennung"], v["haendler"], v["beschreibung"], v["gesamt"], 0)
+            and f["datum"] == datum and f["frist"] == _plus(datum, max(0, tage))
+            and vw is not None and (f["rhythmus"], f["w_bis"]) == (vw["rhythmus"], vw["bis"]))
+        if unberuehrt:
+            con.execute("DELETE FROM erwartung WHERE id = ?", (f["id"],))
 
 
 def zustand_setzen(con, eid: int, d, heute: str, zeitpunkt: str) -> dict:

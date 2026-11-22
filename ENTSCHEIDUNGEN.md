@@ -3502,3 +3502,19 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - **Offen als Widerspruch:** W-017 bis W-021 (an den Test-Thread übergeben).
 - **Prüfung:** `tests/app/m29` ohne Browser 211/211 (mit Attrappentests); `tests/app/m31` ohne Browser 88/91
   (W-017, W-018, W-019 offen; `betrag` in `angehaengt` kommt mit Definition 4).
+
+## D-243 Abnahme M32 (Sammelbranch sammel3): Nachbesserungen
+
+- **Anlass:** Die Abnahmetests zu Meilenstein 32 (kontor-tests `752b407`) liefen erstmals gegen die Anwendung.
+- **Entscheidung:**
+  1. Wiederholung geplanter Zahlungen: nach außen (Protokoll, Inhaltsprüfsumme) nur `{rhythmus, bis}`; Tag der
+     ersten Fälligkeit und Vorgängerin bleiben in der gespeicherten Protokollform für Rückgängig.
+  2. Eine Folge gilt nur als „unberührt“ (entfällt beim Wiederöffnen), wenn sie seit dem Anlegen unverändert ist:
+     offen, ohne Buchungen, Mails, Dokumente und mit den Angaben, die das Anlegen aus der Vorgängerin übernommen
+     hätte.
+  3. Mail-Liste: `stand` zählt ohne `suche` (E-299).
+  4. `POST /api/mail/nachrichten/{id}/buchung`: Prüfreihenfolge 404 Nachricht → 422 Körper → 404 Buchung; ein
+     zweiter Aufruf mit derselben Buchung gibt das vorhandene Dokument zurück, statt ein zweites anzulegen.
+  5. Oberfläche: `empfaenger-treffer` trägt `data-anzahl`; die Einträge der Spaltenwahl sind
+     `menuitemcheckbox` mit `aria-checked` (E-306).
+- **Offen als Widerspruch:** W-022 bis W-026 (an den Test-Thread übergeben).

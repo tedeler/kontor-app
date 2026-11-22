@@ -1810,7 +1810,7 @@ class Kontoansicht {
     const letzte = this.spaltenAus.size >= this.spalten.length - 1;
     return this.spalten.map(([feld, text]) => {
       const an = !this.spaltenAus.has(feld);
-      return { tid: `km-spalte-${feld}`, text: `${an ? "✓" : " "} ${text}`, aktiv: !(an && letzte),
+      return { tid: `km-spalte-${feld}`, text: `${an ? "✓" : " "} ${text}`, aktiv: !(an && letzte), an,
         tun: () => this.spalteUmschalten(feld) };
     });
   }

@@ -1113,10 +1113,12 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     @endpunkt("POST", "/api/mail/nachrichten/{nachricht_id:int}/buchung", 201)
     async def mail_an_buchung(request: Request):
         """D-226: Mail von Hand als Dokument an eine Buchung hängen."""
+        nid = pid(request, "nachricht_id")
+        # E-299: Prüfreihenfolge 404 Nachricht → 422 Körper → 404 Buchung
+        await lesen(lambda con: bestellmail.nachricht_pruefen(con, nid))
         d = json_koerper(await request.body())
         if not isinstance(d, dict) or type(d.get("buchung_id")) is not int or set(d) - {"buchung_id"}:
             raise Validierungsfehler([fehler_eintrag(["body", "buchung_id"], "Genau das Feld 'buchung_id' (ganze Zahl).")])
-        nid = pid(request, "nachricht_id")
         return await aendern("dokument_aus_mail", mit_uhr(
             lambda con, z: bestellmail.von_hand(con, nid, d["buchung_id"], z)))
 

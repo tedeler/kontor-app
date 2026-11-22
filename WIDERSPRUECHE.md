@@ -278,3 +278,10 @@ Stand: Meilenstein 8 (getestet gegen kontor-tests `bf35445`); kein offener Eintr
   W-019 3000 Lerndaten plus Eröffnungsbuchung „Anfangsbestand“, W-020 M29-Browsertests erwarten Produkt-ID und
   Diagnoseprotokoll sichtbar, obwohl sie nach D-207 in „Erweitert“ eingeklappt sind, W-021 `_pruefe_tiefe`
   vergleicht Listen mit Tupeln.
+
+## W-022 bis W-026 M32: Mail nach der App-Uhr, „Giro“ doppelt, 422 ohne Schema, `empfaenger_id` gegen `filter=`, Erstabruf
+
+- Als Text an den Test-Thread übergeben (2026-11-22): W-022 Mail-Gruppen mit einer Mail nach dem Datum der
+  App-Uhr, W-023 `_mail_dokument` legt „Giro“ zweimal an (D-218), W-024 `bilder=vielleicht` → 422 fehlt in
+  `openapi.yaml`, W-025 `em-im-konto` mit `empfaenger_id` gegen `oberflaeche.md` 39.2 (`filter=`), W-026
+  Browser-Mails vom Juni 2024 außerhalb des Erstabrufs bei `m8.HEUTE = 2024-12-31`.
