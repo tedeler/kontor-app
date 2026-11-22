@@ -164,11 +164,11 @@ def zuordnen(con, bid: int, ziel_id: int, fenster: int, gegenbuchung=AUTOMATISCH
 def mehrfach(con, ids: list[int], ziel_id: int, fenster: int, sicht_konto: int | None = None) -> dict:
     """Mehrere Buchungen einer Kategorie oder einem Bestandskonto zuordnen. Passen bei einer Buchung mehrere Gegenseiten oder teilen sich zwei gewählte
     Buchungen eine Gegenseite, wird nichts geändert (409 ``gegenbuchung_mehrdeutig``)."""
-    art = _ziel(con, ziel_id)
     vorhanden = buch._vorhandene_buchungen(con, ids)
     fehlend = sorted(set(ids) - vorhanden)
     if fehlend:
         raise ApiFehler(422, "referenz_unbekannt", "Unbekannte Buchungen.", {"buchung_ids": fehlend})
+    art = _ziel(con, ziel_id)   # Prüfreihenfolge wie bisher: erst die Buchungen, dann das Ziel
     art_von = buch.kontoarten(con)
     buchungen = buch.buchungen_laden(con, sorted(ids), art_von=art_von)
     if art not in BESTAND and not any(b["ist_umbuchung"] for b in buchungen):

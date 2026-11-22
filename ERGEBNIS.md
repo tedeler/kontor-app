@@ -1,5 +1,23 @@
 # Ergebnis der Implementierung
 
+## Sammelbranch `feature/sammel4`, D-240 Konto unter „Kategorie“ = Umbuchung (2026-11-22), gegen kontor-tests `752b407`
+
+- **Umfang:** Zuordnung von Hand (einzeln, mehrfach, Ziehen auf den Kontenbaum) nimmt auch ein Bestandskonto; die
+  Buchung wird zur Umbuchung, eine passende Gegenseite des Zielkontos wird zusammengeführt, eine später
+  abgerufene Gegenseite hängt die Synchronisation an. Regeln mit einem Konto als Ziel folgen.
+- **Eigene Tests:** `python -m pytest tests` → 554 bestanden, 2 rot (die beiden Versionstests, die auf
+  Feature-Branches immer rot sind). Neu: `tests/test_umbuchung_zuordnen_eigen.py` (11),
+  `tests/test_browser_umbuchung.py` (1).
+- **Abnahmetests, Schnelllauf:** 85 rot von 3670. Gegenüber main neu rot sind fünf Tests, die ein Bestandskonto
+  als Ziel der Kategoriezuordnung als Fehler erwarten: `test_buchungen.py::test_kategorie_setzen_fehler`,
+  `test_mehrfach.py::test_kategorie_ziel_ungueltig[giro]`, `…[spar]`, `test_kategorie_pruefreihenfolge`,
+  `test_mehrfach_kategorie_gegen_modell`. Dazu wie auf jedem Feature-Branch `test_huelle_kopf_und_skripte`
+  (Branch-Anzeige). Die übrigen 79 sind auch auf main rot.
+- **Nicht gelaufen:** Browser-Abnahme (`browser`), `leistung`, `langsam`.
+- **Noch nicht im Vertrag:** `kategorie_id` als Bestandskonto, Felder `konto_id` und `gegenbuchung_id`, Fehler
+  `gegenbuchung_mehrdeutig`, `GET /api/buchungen/{id}/gegenbuchungen`, Zuordnung eines Bankumsatzes zu einer
+  bestehenden Umbuchung in der Synchronisation, Text „Umbuchung → <Konto>“ in der Kategoriespalte.
+
 ## Sammelbranch `feature/sammel3`, D-239 HTTPS über Tailscale (2026-11-21), gegen kontor-tests `c99b6ac`
 
 - **Umfang:** Skript `kontor-https` (einrichten, status, zurueck), HTTPS-Freigabe der Testinstanz in `kontor-test`,
