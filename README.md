@@ -11,7 +11,8 @@ liegen im getrennten Repository **kontor-tests**.
 | Thema | Wo |
 | --- | --- |
 | Ausprobieren ohne echte Daten (lokal, Mock-Modus) | [Schnellstart im Mock-Modus](#schnellstart-im-mock-modus) |
-| Installation im Betrieb (systemd, Proxmox-LXC) | [Installation als systemd-Dienst](#installation-als-systemd-dienst-im-proxmox-lxc-container) |
+| Installation in einer VM (Debian 13, mit Tailscale/HTTPS) | [INSTALLATION-VM.md](INSTALLATION-VM.md) |
+| Installation im Proxmox-LXC-Container | [Installation als systemd-Dienst](#installation-als-systemd-dienst-im-proxmox-lxc-container) |
 | Empfohlene Einstellungen für den Betrieb | [Empfohlene Konfiguration](#empfohlene-konfiguration-für-den-betrieb) |
 | Login einrichten, Passwort vergessen | [Installation, Schritt 6](#installation-als-systemd-dienst-im-proxmox-lxc-container) · [Anmeldung ausprobieren](#anmeldung-ausprobieren) |
 | Nur über HTTPS (Tailscale) | [HTTPS.md](HTTPS.md) · [Kurzfassung](#https) |
@@ -379,6 +380,9 @@ und `KONTOR_AQBANKING_*` in `/etc/kontor/kontor.env` können entfernt werden.
 
 ### Installation als systemd-Dienst im Proxmox-LXC-Container
 
+> **Eigene VM statt Container?** Schritt-für-Schritt-Anleitung für eine VM mit Debian 13, virtuellem TPM und
+> Tailscale (HTTPS von Anfang an): [INSTALLATION-VM.md](INSTALLATION-VM.md).
+
 Kontor liefert alle Betriebsdateien im Paket `kontor.betrieb` aus
 (`kontor.service`, `kontor-sicherung.service`, `kontor-sicherung.timer`,
 `kontor-update.path`, `kontor-update.service`, `kontor-test.service`, `kontor-test.env`, `kontor-test.sh`,
@@ -731,6 +735,7 @@ kontor-tests gegen diese installierte App). Ergebnis des letzten Laufs:
 | `WIDERSPRUECHE.md` | Widersprüche zwischen Tests und Spezifikation |
 | `ERGEBNIS.md` | Ergebnis des letzten vollständigen Testlaufs |
 | `HTTPS.md` | Betrieb nur über HTTPS mit Tailscale: Skript `kontor-https`, Testinstanz, Rücknahme, Fehlersuche (D-239) |
+| `INSTALLATION-VM.md` | Installation in einer VM mit Debian 13 und Tailscale (HTTPS) |
 | `TESTINSTANZ.md` | Testinstanz für Entwicklungsbranches: Skript `kontor-test`, Starten, Fehlersuche (D-213) |
 | `ANBIETER.md` | Anbieter-Beschreibungen (TOML) für den Abgleich von Mails und Buchungen |
 

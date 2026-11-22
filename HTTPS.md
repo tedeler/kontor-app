@@ -41,6 +41,8 @@ Hinweise:
   --tailscale-installieren` installiert es mit dem offiziellen
   Installationsskript von tailscale.com. Danach einmal `tailscale up`
   ausführen, dem angezeigten Link folgen und das Skript erneut starten.
+- **Eigene VM:** Tailscale läuft ohne Zusatzeinstellung; die vollständige Installation einer VM mit
+  Debian 13 samt Tailscale beschreibt [INSTALLATION-VM.md](INSTALLATION-VM.md).
 - **Proxmox-LXC-Container:** Tailscale braucht im Container das Gerät
   `/dev/net/tun`. In einem unprivilegierten Container muss es der Host
   durchreichen (Tailscale-Dokumentation, Stichwort „LXC“); ohne das startet
