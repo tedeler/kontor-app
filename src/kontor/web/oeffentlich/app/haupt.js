@@ -585,11 +585,28 @@ function laufText(lauf) {
     + (lauf.fehler && lauf.fehler.meldung ? " " + lauf.fehler.meldung : "");
 }
 
+// D-241: Kommt die PIN über systemd-creds, lässt sie sich in der Oberfläche nicht eingeben (409
+// pin_quelle_systemd). Statt des PIN-Dialogs erscheint dann ein Hinweis, was auf dem Server zu tun ist.
+const PIN_SYSTEMD = {
+  bank_pin_fehlt: "Die Bank-PIN fehlt: Kontor erwartet sie über systemd-creds, der Dienst hat aber keine Datei "
+    + "„kontor-bank-pin“ erhalten. Auf dem Server /etc/kontor/kontor-bank-pin.cred anlegen und Kontor neu starten; "
+    + "wer die PIN im Browser eingeben will, setzt in /etc/kontor/kontor.env KONTOR_BANK_PIN_QUELLE=eingabe.",
+  bank_pin_falsch: "Die Bank hat die PIN aus systemd-creds abgelehnt. Kontor verwendet sie bis zum nächsten Neustart "
+    + "des Dienstes nicht mehr. Auf dem Server /etc/kontor/kontor-bank-pin.cred neu anlegen und Kontor neu starten.",
+};
+
+async function pinFehlerZeigen(code) {
+  let quelle = "eingabe";
+  try { quelle = (await api("GET", "/api/sync/status")).pin_quelle || "eingabe"; } catch (e) { /* wie bisher */ }
+  if (quelle === "systemd-creds") melde("fehler", PIN_SYSTEMD[code]);
+  else pinDialog(code === "bank_pin_falsch");
+}
+
 function syncErgebnis(lauf, pinDialogOffen) {
   const code = lauf.fehler && lauf.fehler.code;
   if (PIN_FEHLER.has(code)) {
     if (pinDialogOffen) return lauf;
-    pinDialog(code === "bank_pin_falsch");
+    pinFehlerZeigen(code);
     return lauf;
   }
   if (lauf.status === "wartet_auf_tan" && lauf.tan_anforderung_id) {

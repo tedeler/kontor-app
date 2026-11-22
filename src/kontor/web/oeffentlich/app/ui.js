@@ -311,7 +311,7 @@ export function menuePosition(ev, el) {
 }
 
 // ------------------------------------------------------------------ Kategorie-Auswahl (9.1)
-/** ``optionen.konten``: auch Bestandskonten anbieten (D-240: die Zuordnung wird zur Umbuchung), ohne
+/** ``optionen.konten``: auch Bestandskonten anbieten (D-242: die Zuordnung wird zur Umbuchung), ohne
  *  ``optionen.ohneKonto`` (das Konto des Blatts). */
 export function kategorieAuswahl(titel, ausloeser, optionen) {
   const o = optionen || {};

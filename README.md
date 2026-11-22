@@ -422,6 +422,8 @@ Kontor liefert alle Betriebsdateien im Paket `kontor.betrieb` aus
    Wer die PIN nur in der Oberfläche eingeben will:
    `install -D -m 0644 "$B/pin-eingabe.conf" /etc/systemd/system/kontor.service.d/pin-eingabe.conf`
    und nur den Geheimnisschlüssel anlegen.
+   Zusätzlich in `/etc/kontor/kontor.env` `KONTOR_BANK_PIN_QUELLE=eingabe` setzen: Der Wert aus der
+   Umgebungsdatei hat Vorrang vor dem im Drop-in (W-015).
 5. **Starten:**
    ```bash
    systemctl daemon-reload

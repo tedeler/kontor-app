@@ -1654,7 +1654,7 @@ class Kontoansicht {
     this.detailsZeichnen();
   }
 
-  /** D-240: „Umbuchung → Tagesgeld“ (Geld geht dorthin) bzw. „Umbuchung ← Giro“ im Blatt eines Bestandskontos. */
+  /** D-242: „Umbuchung → Tagesgeld“ (Geld geht dorthin) bzw. „Umbuchung ← Giro“ im Blatt eines Bestandskontos. */
   umbuchungText(b) {
     if (this.istKategorie || b.splits.length !== 2) return "Umbuchung";
     const hier = b.splits.find((s) => s.konto_id === this.konto.id);
@@ -2530,7 +2530,7 @@ class Kontoansicht {
     if (kat) await this.kategorieSetzen(ids, kat);
   }
 
-  /** Kategorie oder – D-240 – Bestandskonto als Gegenseite setzen; beim Konto wird die Buchung zur Umbuchung. */
+  /** Kategorie oder – D-242 – Bestandskonto als Gegenseite setzen; beim Konto wird die Buchung zur Umbuchung. */
   async kategorieSetzen(ids, kategorieId) {
     const sortiert = ids.slice().sort((a, b) => a - b);
     const umbuchung = BESTAND.has((kontoNach(kategorieId) || {}).art);
@@ -2740,7 +2740,7 @@ class Kontoansicht {
       return;
     }
     const gegen = gegensplits(b);
-    const umbuchung = gegen.length === 0 && b.splits.length === 2;   // D-240: Gegenkonto lässt sich umhängen
+    const umbuchung = gegen.length === 0 && b.splits.length === 2;   // D-242: Gegenkonto lässt sich umhängen
     if (feld === "kategorie" && gegen.length !== 1 && !umbuchung) {
       melde("hinweis", "Gesplittete Buchungen über „Splitten…“ bearbeiten.");
       return;

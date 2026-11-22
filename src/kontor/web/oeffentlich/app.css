@@ -1624,6 +1624,6 @@ tr.ueberfaellig td.e-zustand, tr.ueberfaellig td.e-frist { color: var(--gefahr);
 /* Geplante Zahlungen (D-238) */
 .e-wiederholung { margin-left: .5rem; font-weight: 400; white-space: nowrap; }
 
-/* D-240: Konten in der Kategorie-Auswahl (Umbuchung) und Auswahl der Gegenbuchung */
+/* D-242: Konten in der Kategorie-Auswahl (Umbuchung) und Auswahl der Gegenbuchung */
 .auswahl-gruppe { padding: .5rem .6rem .25rem; font-size: .8rem; font-weight: 600; color: var(--text-2, inherit); border-top: 1px solid var(--rand); }
 button.option { width: 100%; border: 0; background: none; color: inherit; font: inherit; text-align: left; }

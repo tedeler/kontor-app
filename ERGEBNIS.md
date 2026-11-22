@@ -1,6 +1,6 @@
 # Ergebnis der Implementierung
 
-## Sammelbranch `feature/sammel4`, D-240 Konto unter „Kategorie“ = Umbuchung (2026-11-22), gegen kontor-tests `752b407`
+## Sammelbranch `feature/sammel4`, D-242 Konto unter „Kategorie“ = Umbuchung (2026-11-22), gegen kontor-tests `752b407`
 
 - **Umfang:** Zuordnung von Hand (einzeln, mehrfach, Ziehen auf den Kontenbaum) nimmt auch ein Bestandskonto; die
   Buchung wird zur Umbuchung, eine passende Gegenseite des Zielkontos wird zusammengeführt, eine später

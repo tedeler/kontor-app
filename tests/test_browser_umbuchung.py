@@ -1,4 +1,4 @@
-"""Browser-Rauchtest zu D-240 (sammel4): unter „Kategorie“ ein Konto wählen – die Buchung wird zur Umbuchung."""
+"""Browser-Rauchtest zu D-242 (sammel4): unter „Kategorie“ ein Konto wählen – die Buchung wird zur Umbuchung."""
 
 from __future__ import annotations
 

@@ -126,7 +126,7 @@ BUCHUNG_AENDERUNG = {
     "tag_ids": S("int_liste"),
 }
 SPLITS_ERSETZEN = {"splits": S("objekte", pflicht=True, unter=SPLIT_NEU)}
-# D-240: ``kategorie_id`` darf auch ein Bestandskonto sein (Umbuchung); ``konto_id`` = Konto, aus dessen Blatt
+# D-242: ``kategorie_id`` darf auch ein Bestandskonto sein (Umbuchung); ``konto_id`` = Konto, aus dessen Blatt
 # zugeordnet wird; ``gegenbuchung_id`` = Bankumsatz der Gegenseite (null: keinen zusammenführen, fehlt: automatisch)
 KATEGORIE = {"kategorie_id": S("int", pflicht=True), "konto_id": S("int"), "gegenbuchung_id": S("int", nullbar=True)}
 MEHRFACH_KATEGORIE = {
@@ -370,6 +370,13 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
         # D-239: hinter einem HTTPS-Proxy sieht Kontor nur http; ohne die öffentliche Adresse scheitert die Herkunftsprüfung
         log.warning("KONTOR_SITZUNG_COOKIE_SECURE=1 ohne https-Adresse in KONTOR_OEFFENTLICHE_URL: Hinter einem "
                     "HTTPS-Proxy werden schreibende Anfragen dann mit 403 abgelehnt. Siehe HTTPS.md.")
+    if (config.bank_pin_quelle == "systemd-creds" and config.credentials_verzeichnis is not None
+            and not (config.credentials_verzeichnis / "kontor-bank-pin").is_file()):
+        # D-241: typisch ein installiertes pin-eingabe.conf bei KONTOR_BANK_PIN_QUELLE=systemd-creds in kontor.env
+        log.warning("KONTOR_BANK_PIN_QUELLE=systemd-creds, aber der Dienst hat keine Datei kontor-bank-pin erhalten: "
+                    "Jeder Bankabruf scheitert mit „PIN fehlt“. Entweder /etc/kontor/kontor-bank-pin.cred anlegen "
+                    "(und kein pin-eingabe.conf verwenden) oder für die Eingabe im Browser "
+                    "KONTOR_BANK_PIN_QUELLE=eingabe in /etc/kontor/kontor.env setzen.")
     sync = SyncDienst(config)
     sync.neustart_aufraeumen()  # synchronisation.md 10
     sync.zustellung.vorbereiten()  # M6: neue Benachrichtigungen ausstehend oder „keine“ (benachrichtigungen.md 4.1)
@@ -706,7 +713,7 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
 
     @endpunkt("GET", "/api/buchungen/{buchung_id:int}/gegenbuchungen")
     async def gegenbuchungen(request: Request):
-        """D-240: Buchungen des Zielkontos, die beim Umbuchen als Gegenseite zusammengeführt würden."""
+        """D-242: Buchungen des Zielkontos, die beim Umbuchen als Gegenseite zusammengeführt würden."""
         p = Query(request.query_params)
         ziel = p.ganzzahl("konto_id", 1)
         sicht = p.ganzzahl("sicht_konto_id", 1)

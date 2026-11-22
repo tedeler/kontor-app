@@ -1,4 +1,4 @@
-"""Sammelbranch sammel4 (D-240): unter „Kategorie“ ein Bestandskonto wählen – die Zuordnung wird zur Umbuchung."""
+"""Sammelbranch sammel4 (D-242): unter „Kategorie“ ein Bestandskonto wählen – die Zuordnung wird zur Umbuchung."""
 
 from __future__ import annotations
 

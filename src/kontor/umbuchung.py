@@ -1,4 +1,4 @@
-"""Sammelbranch sammel4 (D-240): Zuordnung von Hand auf ein Bestandskonto – aus der Kategoriezuordnung wird eine
+"""Sammelbranch sammel4 (D-242): Zuordnung von Hand auf ein Bestandskonto – aus der Kategoriezuordnung wird eine
 Umbuchung.
 
 ``zuordnen`` ersetzt ``buch.kategorie_setzen`` hinter ``PUT /api/buchungen/{id}/kategorie``: Ziel ist eine Kategorie
