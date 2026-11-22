@@ -653,7 +653,7 @@ def testen(con, d: dict, heute: dt.date) -> dict:
     zaehlung = {w: 0 for w in WIRKUNGEN}
     for z in zeilen:
         zaehlung[z["wirkung"]] += 1
-    gewaehlt = [z for z in zeilen if not d.get("wirkung") or z["wirkung"] in d["wirkung"]]
+    gewaehlt = [z for z in zeilen if not d.get("wirkung") or z["wirkung"] == d["wirkung"]]
     seite, pro = d.get("seite") or 1, d.get("pro_seite") or 100
     return {"testmenge_anzahl": len(ids), "anzahl": len(zeilen), "zaehlung": zaehlung,
             "tags_anzahl": sum(1 for z in zeilen if z["tags_neu"]),

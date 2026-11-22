@@ -210,7 +210,8 @@ REGELN_ANWENDEN = {
     "trocken": S("bool"),
 }
 # D-185: Kontor-Ausdrücke
-AUSDRUCK_PRUEFEN = {"ausdruck": S("str", pflicht=True, max_len=4000), "kontext": S("enum", werte=("regel", "filter")),
+AUSDRUCK_PRUEFEN = {"ausdruck": S("str", pflicht=True, max_len=100_000),  # Länge prüft der Ausdruck (zu_lang)
+                    "kontext": S("enum", werte=("regel", "filter")),
                     "stichtag": S("datum"), "festschreiben": S("bool")}
 AUSDRUCK_ALS_REGEL = {"ausdruck": S("str", pflicht=True, min_len=1, max_len=4000),
                       "freitext_feld": S("enum", werte=("empfänger", "verwendungszweck"))}
@@ -218,7 +219,7 @@ REGELN_REIHENFOLGE = {"regel_ids": S("int_liste", pflicht=True, eindeutig=True)}
 REGEL_TEST = {"ausdruck": S("str", min_len=1, max_len=4000), "regel_id": S("int"), "kategorie_id": S("int", nullbar=True),
               "tag_ids": S("int_liste", eindeutig=True),
               "testmenge": S("str", max_len=4000), "konto_id": S("int"), "stichtag": S("datum"),
-              "wirkung": S("str_liste"),
+              "wirkung": S("enum", werte=regeln.WIRKUNGEN),
               "seite": S("int"), "pro_seite": S("int")}
 REGEL_ERKLAEREN = {"ausdruck": S("str", min_len=1, max_len=4000), "regel_id": S("int"), "buchung_id": S("int", pflicht=True),
                    "stichtag": S("datum")}
@@ -783,8 +784,6 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
         d = await koerper(request, REGEL_TEST)
         if (d.get("seite") is not None and d["seite"] < 1) or (d.get("pro_seite") is not None and not 1 <= d["pro_seite"] <= 500):
             raise ApiFehler(422, "validierung", "seite ≥ 1, pro_seite 1–500.")
-        if any(w not in regeln.WIRKUNGEN for w in d.get("wirkung") or []):
-            raise ApiFehler(422, "validierung", "Erlaubte Wirkungen: " + ", ".join(regeln.WIRKUNGEN) + ".")
         return await lesen(regeln.testen, d, _bezugstag(d))
 
     @endpunkt("POST", "/api/regeln/erklaeren")
@@ -1146,10 +1145,12 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     @endpunkt("POST", "/api/mail/nachrichten/{nachricht_id:int}/buchung", 201)
     async def mail_an_buchung(request: Request):
         """D-226: Mail von Hand als Dokument an eine Buchung hängen."""
+        nid = pid(request, "nachricht_id")
+        # E-299: Prüfreihenfolge 404 Nachricht → 422 Körper → 404 Buchung
+        await lesen(lambda con: bestellmail.nachricht_pruefen(con, nid))
         d = json_koerper(await request.body())
         if not isinstance(d, dict) or type(d.get("buchung_id")) is not int or set(d) - {"buchung_id"}:
             raise Validierungsfehler([fehler_eintrag(["body", "buchung_id"], "Genau das Feld 'buchung_id' (ganze Zahl).")])
-        nid = pid(request, "nachricht_id")
         await run_in_threadpool(maildienst.inhalt_laden, nid)   # D-243: nur mit Kopfzeilen gespiegelt → nachladen
         return await aendern("dokument_aus_mail", mit_uhr(
             lambda con, z: bestellmail.von_hand(con, nid, d["buchung_id"], z)))

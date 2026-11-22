@@ -271,7 +271,7 @@ def laden(con, buchungen: list[dict] | None = None) -> dict:
     giro = konto("Girokonto", "girokonto")
     eigene = {n: konto(n, a) for n, a in EIGENE.items()}
     kat = {n: konto(n, "aufwand") for n in AUFWAND} | {n: konto(n, "ertrag") for n in ERTRAG}
-    unk = konto("Unkategorisiert", "eigenkapital")
+    unk = buch.unkategorisiert_id(con)   # D-249: das technische Konto, kein zweites „Unkategorisiert“
     anfang = konto("Anfangsbestand", "eigenkapital")
     buch.buchung_einfuegen(con, buchungen[0]["datum"].isoformat(), None, "Anfangsbestand", "bestaetigt",
                            [{"konto_id": giro, "betrag": 500000}, {"konto_id": anfang, "betrag": -500000}], [])

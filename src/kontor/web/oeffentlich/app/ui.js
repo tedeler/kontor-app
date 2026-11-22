@@ -141,7 +141,9 @@ export function kontextmenue(x, y, eintraege, ausloeser) {
   let unterItems = [];
   const items = eintraege.map((e) => {
     const hatKinder = !!(e.kinder && e.kinder.length);
-    const el = h("div", { role: "menuitem", tid: e.tid, tabindex: "-1",
+    // D-248: Einträge mit ``an`` (true/false) sind Ankreuzeinträge mit aria-checked (E-306)
+    const el = h("div", { role: e.an === undefined ? "menuitem" : "menuitemcheckbox", tid: e.tid, tabindex: "-1",
+      "aria-checked": e.an === undefined ? null : String(e.an),
       class: "menue-eintrag" + (hatKinder ? " menue-mit-unter" : ""),
       "aria-disabled": e.aktiv === false ? "true" : null, "aria-haspopup": hatKinder ? "menu" : null,
       "aria-expanded": hatKinder ? "false" : null },
@@ -203,7 +205,8 @@ export function kontextmenue(x, y, eintraege, ausloeser) {
       "aria-label": e.text, tabindex: "-1" });
     unterEintraege = e.kinder;
     unterItems = e.kinder.map((k) => {
-      const kn = h("div", { role: "menuitem", tid: k.tid, tabindex: "-1", class: "menue-eintrag",
+      const kn = h("div", { role: k.an === undefined ? "menuitem" : "menuitemcheckbox", tid: k.tid, tabindex: "-1",
+        "aria-checked": k.an === undefined ? null : String(k.an), class: "menue-eintrag",
         "aria-disabled": k.aktiv === false ? "true" : null }, k.text);
       kn.addEventListener("click", (ev) => { ev.stopPropagation(); ausfuehren(k); });
       return kn;

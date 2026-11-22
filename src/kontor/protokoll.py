@@ -397,7 +397,11 @@ def aussen(objekt: str, form: dict | None) -> dict | None:
     """Protokollform ohne interne Felder (erwartungen.md 12)."""
     if form is None or objekt not in _INTERN:
         return form
-    return {k: v for k, v in form.items() if k not in _INTERN[objekt]}
+    aus = {k: v for k, v in form.items() if k not in _INTERN[objekt]}
+    if objekt == "erwartung" and isinstance(aus.get("wiederholung"), dict):
+        # D-248: nach außen nur {rhythmus, bis} (sammel3.md 14.1); Tag und Vorgänger bleiben intern für Rückgängig
+        aus["wiederholung"] = {"rhythmus": aus["wiederholung"]["rhythmus"], "bis": aus["wiederholung"]["bis"]}
+    return aus
 
 
 def _aenderungen_dicts(con, zeilen: list) -> list[dict]:

@@ -111,7 +111,7 @@ export async function regelnSeite(seite, kopf) {
       "automatisch angelegt") : null,
       h("div", { class: "regel-bedingung", tid: `regel-ausdruck-${r.id}`, title: r.ausdruck }, hervorgehoben(r.ausdruck || "", felder))),
     knopfLeiste(
-      knopf("Bearbeiten…", { "aria-label": `Regel ${r.name} bearbeiten`, onclick: (e) => regelEditor(r, e.currentTarget) }),
+      knopf("Bearbeiten…", { "aria-label": `Bearbeiten: Regel ${r.name}`, onclick: (e) => regelEditor(r, e.currentTarget) }),
       knopf("Duplizieren", { "aria-label": `Regel ${r.name} duplizieren`, onclick: (e) =>
         regelEditor({ ...r, id: null, name: `${r.name} (Kopie)` }, e.currentTarget) }),
       knopf("Löschen", { "aria-label": `Regel ${r.name} löschen`, onclick: async (e) => {
@@ -749,7 +749,7 @@ class Testbereich {
     if (ohne) body.ausdruck = "True";
     else if (!alt) body.ausdruck = r.ausdruck;
     if (r.regel_id && !ohne) body.regel_id = r.regel_id;
-    if (this.wirkung && !ohne) body.wirkung = [this.wirkung];
+    if (this.wirkung && !ohne) body.wirkung = this.wirkung;
     this.el.dataset.geladen = "nein";
     if (!this.statusEl.textContent) this.veraltet();
     let t;
@@ -783,12 +783,14 @@ class Testbereich {
     const ne = t.nicht_erfasst.anzahl;
     this.erfasstEl.textContent = ne && r.kategorie_id
       ? `Nicht erfasst: ${ne} Buchung(en) haben „${pfadVon(r.kategorie_id)}“, treffen aber nicht.` : "";
-    const wirksam = (t.zaehlung.neu || 0) + (t.zaehlung.abweichend || 0);
+    // D-246: n = Buchungen, deren Kategorie mit der Vorgabe gesetzt wird (nur „neu“); abweichende bietet das Fenster an
+    const wirksam = t.zaehlung.neu || 0;
+    const abweichend = t.zaehlung.abweichend || 0;
     // Neu anzulegende Tags fehlen jeder nicht gesperrten Buchung.
     const mitTags = this.tagsNeu.length ? t.anzahl - (t.gesperrt_anzahl || 0) : t.tags_anzahl || 0;
     this.tagsAnzahl = mitTags;
     this.zahlenEl.dataset.tags = String(mitTags);
-    this.anwendenKnopf.disabled = ohne || !(wirksam || mitTags);
+    this.anwendenKnopf.disabled = ohne || !(wirksam || abweichend || mitTags);
     const hatTags = (r.tag_ids || []).length || this.tagsNeu.length;
     this.anwendenKnopf.textContent = !hatTags ? `Auf ${wirksam} Buchung(en) anwenden…`
       : r.kategorie_id ? `Anwenden: ${wirksam} × Kategorie, ${mitTags} × Tags…` : `Tags an ${mitTags} Buchung(en) vergeben…`;

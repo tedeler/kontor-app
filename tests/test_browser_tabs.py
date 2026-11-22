@@ -122,7 +122,7 @@ def test_tabs_bleiben_ueber_neuladen_mit_filtern(umgebung):
     # der gespeicherte Tab lädt beim Aktivieren mit seinem Filter
     _tab(page, giro).get_by_test_id("tab-titel").click()
     bereit(page, "konto")
-    expect(page).to_have_url(url + giro + "?verwendungszweck=Einkauf+1")
+    expect(page).to_have_url(url + giro + "?filter=%22Einkauf+1%22+in+vwz")   # D-246: alte Adresse → filter=
     expect(tid(page, "filter-anzahl")).to_have_attribute("data-anzahl", "1")
     # direkter Aufruf ohne Abfrageteil: die URL gilt
     page.goto(url + giro)

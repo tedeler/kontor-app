@@ -834,11 +834,16 @@ class MailDienst:
         if postfach_id is not None:
             teile.append("p.id = ?")
             par.append(buch.sichere_id(postfach_id))
-        for wort in (suche or "").split():   # D-226: jedes Wort muss in Absender, Betreff oder Text vorkommen
-            teile.append("instr(norm(COALESCE(n.absender, '') || ' ' || COALESCE(n.betreff, '') || ' '"
-                         " || COALESCE(n.text, '')), norm(?)) > 0")
-            par.append(wort)
         wo = (" WHERE " + " AND ".join(teile)) if teile else ""
+        # D-226: jedes Wort muss in Absender, Betreff oder Text vorkommen; ``stand`` zählt ohne Suche (D-248)
+        such_teile, such_par = list(teile), list(par)
+        for wort in (suche or "").split():
+            such_teile.append("instr(norm(COALESCE(n.absender, '') || ' ' || COALESCE(n.betreff, '') || ' '"
+                              " || COALESCE(n.text, '')), norm(?)) > 0")
+            such_par.append(wort)
+        treffer = None if not (suche or "").split() else {r[0] for r in con.execute(
+            "SELECT n.id FROM mail_nachricht n JOIN postfach p ON p.adresse_cf = n.adresse_cf WHERE "
+            + " AND ".join(such_teile), such_par)}
         from . import bestellmail, erwartung
         zuord = erwartung.zuordnungen_nach_mail(con, heute) if heute else {}
         # D-208: über die Bestellnummer angehaengte Mails; das Feld gibt es nur mit ``mail_bestellnummer``
@@ -859,7 +864,7 @@ class MailDienst:
             if art != "zugeordnet" and angehaengt:
                 art = "zugeordnet"
             zaehler[art] += 1
-            if zuordnung is None or art == zuordnung:
+            if (zuordnung is None or art == zuordnung) and (treffer is None or r["id"] in treffer):
                 gewaehlt.append(r["id"])
                 bezuege[r["id"]] = ({f"e{e['erwartung_id']}" for e in eintraege}
                                     | {f"b{b['id']}" for e in eintraege for b in e["buchungen"]}

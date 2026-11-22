@@ -208,6 +208,12 @@ def von_hand_vorhanden(con) -> bool:
     return con.execute("SELECT 1 FROM bestellmail WHERE nummer = '' LIMIT 1").fetchone() is not None
 
 
+def nachricht_pruefen(con, nachricht_db_id: int) -> None:
+    from . import buch
+    if con.execute("SELECT 1 FROM mail_nachricht WHERE id = ?", (buch.sichere_id(nachricht_db_id),)).fetchone() is None:
+        raise buch.nicht_gefunden("Die E-Mail")
+
+
 def von_hand(con, nachricht_db_id: int, buchung_id: int, zeitpunkt: str) -> dict:
     """D-226: eine gespiegelte Mail von Hand als Dokument an eine Buchung hängen. Der Vermerk in ``bestellmail``
     (leere Nummer) lässt das Mail-Blatt die Zuordnung zeigen; er entfällt mit dem Dokument an der Buchung."""
@@ -215,6 +221,12 @@ def von_hand(con, nachricht_db_id: int, buchung_id: int, zeitpunkt: str) -> dict
     r = con.execute("SELECT nachricht_id FROM mail_nachricht WHERE id = ?", (buch.sichere_id(nachricht_db_id),)).fetchone()
     if r is None:
         raise buch.nicht_gefunden("Die E-Mail")
+    # D-248 (E-299): ein zweiter Aufruf mit derselben Buchung legt kein zweites Dokument an
+    alt = con.execute("SELECT b.dokument_id FROM bestellmail b JOIN dokument_buchung db ON db.dokument_id = b.dokument_id"
+                      " AND db.buchung_id = b.buchung_id WHERE b.buchung_id = ? AND b.nachricht_id = ?",
+                      (buch.sichere_id(buchung_id), r["nachricht_id"])).fetchone()
+    if alt is not None:
+        return dokumente.dokument_lesen(con, alt["dokument_id"])
     dok = dokumente.aus_mail(con, nachricht_db_id, [buchung_id], zeitpunkt)
     con.execute("INSERT INTO bestellmail (buchung_id, nachricht_id, nummer, dokument_id) VALUES (?, ?, '', ?)"
                 " ON CONFLICT(buchung_id, nachricht_id) DO UPDATE SET dokument_id = excluded.dokument_id",

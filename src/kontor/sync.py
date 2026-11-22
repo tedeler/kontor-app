@@ -280,6 +280,10 @@ class SyncDienst:
                     self._lauf_abbrechen(con, lid, jetzt)
                 con.execute("UPDATE tan_anforderung SET status = 'abgebrochen', beendet_am = ?, bild = NULL"
                             " WHERE status = 'offen'", (jetzt,))
+            if self.config.bank_plugin == "fints":
+                # Der Schalter des Diagnoseprotokolls gilt ab dem Start, nicht erst ab dem ersten Bankabruf
+                # (bankzugang.md: die Einstellung übersteht einen Neustart)
+                self.diagnose.einschalten(bankzugang.diagnose_an(con))
         finally:
             con.close()
 
@@ -770,6 +774,13 @@ class SyncDienst:
                     with db.transaktion(con):
                         self._tan_ablaufen(con, tid, lid)
                     raise ApiFehler(409, "tan_abgelaufen", "Die TAN-Anforderung ist abgelaufen.") from None
+                except TanErforderlich as e:
+                    # Die TAN galt der Anmeldung; für den Abruf selbst verlangt die Bank eine weitere
+                    # (fints.md: zweite Anforderung im selben Dialog). Der Lauf wartet mit einer neuen Anforderung.
+                    with db.transaktion(con):
+                        self._tan_beenden(con, tid, "beantwortet")
+                    self._tan_anlegen(con, lid, k, von, bis, e, plugin)
+                    return self.lauf_lesen(con, lid)
                 except Exception as e:  # noqa: BLE001
                     code, meldung = self._pluginfehler(e)
                     with db.transaktion(con):
@@ -1212,3 +1223,24 @@ def planer_takt(app) -> dict | None:
 
 
 __all__ = ["planer_takt", "SyncDienst"]
+
+
+def kennungen_als_alt_markieren(config: KontorConfig) -> None:
+    """Markiert alle Bank-Kennungen, die die Datenbank jetzt kennt, als „alt“ (bankzugang.md 3.1, D-245).
+
+    Ergebnis wie beim ersten Start mit dieser Fassung: Kennungen an Buchungen und gemerkte Kennungen gelöschter
+    Buchungen gelten als aus der Zeit vor der Umstellung des Bankabrufs. Betriebszustand – kein Protokoll, keine
+    Wirkung auf den Buchbestand, keine Verbindung nach außen; mehrfach aufrufbar. Nicht während eines Laufs."""
+    pfad = config.aktive_datenbank
+    db.schema_anlegen(pfad)
+    con = db.verbinde(pfad)
+    try:
+        with db.transaktion(con):
+            con.execute("DELETE FROM sync_kennung_alt")
+            con.execute("INSERT OR IGNORE INTO sync_kennung_alt (kennung) SELECT extern_id FROM buchung_extern"
+                        " WHERE substr(extern_id, 1, 5) = 'bank:'")
+            con.execute("INSERT OR IGNORE INTO sync_kennung_alt (kennung) SELECT kennung FROM sync_kennung"
+                        " WHERE substr(kennung, 1, 5) = 'bank:'")
+            con.execute("INSERT OR REPLACE INTO meta (schluessel, wert) VALUES ('bank_uebergang', '1')")
+    finally:
+        con.close()

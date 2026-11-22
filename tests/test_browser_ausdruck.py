@@ -132,7 +132,7 @@ def test_regeleditor_tags(tmp_path, browser):  # noqa: F811
         expect(ziel).to_contain_text("+ Urlaub")
         expect(page.locator(".regel-zeile strong").first).to_have_text("Einkauf → #Urlaub")
         # erneut öffnen: Tag ist jetzt vorhanden, Kategorie bleibt leer, nichts mehr zu vergeben
-        page.get_by_role("button", name="Regel Einkauf → #Urlaub bearbeiten").click()
+        page.get_by_role("button", name="Bearbeiten: Regel Einkauf → #Urlaub").click()
         expect(tid(page, "regel-kategorie")).to_have_value("")
         expect(tid(page, "regel-tags")).to_have_text("Urlaub×")
         expect(tid(page, "test-zahlen")).to_have_attribute("data-tags", "0")

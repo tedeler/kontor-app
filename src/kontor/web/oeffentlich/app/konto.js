@@ -164,7 +164,8 @@ function alteFilterUebernehmen(f, istKategorie) {
   if (f.zweck_gleich) nimm("zweck_gleich", `vwz == ${qText(f.zweck_gleich)}`);
   if (f.zweck_leer) nimm("zweck_leer", 'vwz == ""');
   if (f.suche) nimm("suche", qText(f.suche));
-  if (f.kategorie_id && !f.unterkategorien) {
+  // D-250: in der Kontoansicht einer Kategorie bleibt ``kategorie_id`` der Filter ``filter-konto`` (22.2, E-274)
+  if (f.kategorie_id && !f.unterkategorien && !istKategorie) {
     const k = kontoNach(Number(f.kategorie_id));
     if (k) nimm("kategorie_id", `${istKategorie ? "konto" : "kategorie"} == ${qText(kontoPfad(k))}`);
   }
@@ -558,7 +559,10 @@ class Kontoansicht {
     if (f.zweck_leer !== undefined && f.zweck_leer !== "true") delete f.zweck_leer;
     for (const p of ["unterkategorien", "unterkonten"]) if (f[p] !== undefined && f[p] !== "true") delete f[p];
     if (this.istKategorie) delete f.unterkategorien;   // 22.2: entfällt in der Kategorieansicht
-    return alteFilterUebernehmen(f, this.istKategorie);
+    const vorher = Object.keys(f).length;
+    const aus = alteFilterUebernehmen(f, this.istKategorie);
+    this.adresseUmschreiben = Object.keys(aus).length !== vorher || aus.filter !== (q.get("filter") || undefined);
+    return aus;
   }
 
   gruppierungAusUrl(suche) {
@@ -603,6 +607,8 @@ class Kontoansicht {
   // ---------------------------------------------------------------- Laden
   async start() {
     this.aufbauen();
+    // D-246: übernommene alte Parameter stehen danach als ``filter=…`` in der Adresse (39.2)
+    if (this.adresseUmschreiben && this.sprungId === null) this.urlSchreiben();
     await this.laden();
     if (this.sprungId !== null) await this.springen(this.sprungId);
   }
@@ -746,6 +752,7 @@ class Kontoansicht {
 
   // ------------------------------------------------- Filterausdruck (D-185, Konzept 5.4)
   ausdruckFilterAufbauen() {
+    if (!this.alteEl) this.alteEl = h("div", { class: "filter-alte", hidden: true });
     let uhr;
     const anwenden = () => {
       clearTimeout(uhr);
@@ -788,9 +795,13 @@ class Kontoansicht {
       "data-ansicht": "zu" },
     h("div", { class: "ausdruck-filter-zeile" }, this.ansichtKnopf, ausdruckFeld("Filter", this.ausdruckEingabe), leeren, menue,
       this.bkKnopf),
-    this.zusammenfassungEl,
+    this.zusammenfassungEl, this.alteEl,
     // Zeitraum und Gruppierung teilen sich eine Zeile: die Auswahl-Summen oben verschieben so nichts mehr (D-236)
     h("div", { class: "ansicht-zeile" }, chips, this.gruppierungLeiste()));
+    // D-250: Esc im Filterfeld (auch bei offener Vervollständigung) führt zurück in die Liste (D-167)
+    this.ausdruckFilterEl.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && e.target.closest('[data-testid="filter-ausdruck"]')) setTimeout(() => this.listeFokussieren());
+    }, true);
     return this.ausdruckFilterEl;
   }
 
@@ -886,7 +897,7 @@ class Kontoansicht {
         h("button", { type: "button", class: "knopf-flach", "aria-label": `${text} entfernen`,
           onclick: () => this.filterSetzen(k, "").then(() => this.filterLeisteNeu()) }, "×"));
     });
-    if (f.kategorie_id) {   // nur mit Unterkategorien bleibt die Kategorie ein Einzelfilter
+    if (f.kategorie_id && !this.istKategorie) {   // nur mit Unterkategorien bleibt die Kategorie ein Einzelfilter
       alte.push(h("span", { class: "chip", tid: "filter-alt-kategorie_id" }, `${this.istKategorie ? "Konto" : "Kategorie"}: ${pfadVon(Number(f.kategorie_id))} `,
         h("button", { type: "button", class: "knopf-flach", "aria-label": "Kategorie entfernen",
           onclick: () => this.filterSetzen("kategorie_id", "").then(() => this.filterLeisteNeu()) }, "×")));
@@ -906,10 +917,24 @@ class Kontoansicht {
     leiste.append(platz, this.bkHinweis,
       h("div", { class: "filter-optionen" },
         this.istKategorie ? null : option("unterkategorien", "mit Unterkategorien", "filter-unterkategorien"),
+        this.istKategorie ? this.kontoWahl(f) : null,
         option("unterkonten", "mit Unterkonten", "filter-unterkonten"),
-        alte.length ? h("span", { class: "filter-alte" }, h("span", { class: "klein" }, "Weitere Filter: "), alte) : null,
         zurueck));
+    // D-246: Filter ohne Entsprechung im Ausdruck stehen sichtbar unter dem Ausdruck, auch bei eingeklapptem Baukasten
+    if (!this.alteEl) this.alteEl = h("div", { class: "filter-alte" });
+    this.alteEl.replaceChildren(...(alte.length ? [h("span", { class: "klein" }, "Weitere Filter: "), ...alte] : []));
+    this.alteEl.hidden = !alte.length;
     return leiste;
+  }
+
+  /** D-250: In der Kontoansicht einer Kategorie: Auswahl eines Bestandskontos (``filter-konto`` → ``kategorie_id``). */
+  kontoWahl(f) {
+    const konten = baumFolge(stamm.konten.filter((k) => BESTAND.has(k.art))).map((x) => x.konto);
+    const sel = h("select", { tid: "filter-konto", "aria-label": "Konto" },
+      h("option", { value: "" }, "Alle Konten"),
+      konten.map((k) => h("option", { value: String(k.id), selected: f.kategorie_id === String(k.id) }, kontoPfad(k))));
+    sel.addEventListener("change", () => this.filterSetzen("kategorie_id", sel.value));
+    return h("label", { class: "wahl" }, "Konto ", sel);
   }
 
   /** Baukasten aus dem geprüften Ausdruck nachziehen (wenn der Ausdruck oben getippt wurde). */
@@ -1328,7 +1353,7 @@ class Kontoansicht {
       "aria-pressed": String(this.gruppierung === art && (!art || this.tiefe === tiefe)),
       onclick: () => this.gruppierungSetzen(art, tiefe) }, text);
     return h("div", { class: "gruppierung-zeile" },
-      h("div", { class: "gruppierung", role: "group", "aria-label": "Buchungen nach Datum gruppieren bis" },
+      h("div", { class: "gruppierung", role: "group", "aria-label": "Buchungen gruppieren" },
         stufe("", null, "Keine", "Nicht gruppieren"),
         EBENEN.map((t, i) => stufe("datum", t, EBENE_TEXT[t],
           `Gruppieren bis ${EBENE_TEXT[t]}: ${EBENEN.slice(0, i + 1).map((e) => EBENE_TEXT[e]).join(" → ")}`))),
@@ -1810,7 +1835,7 @@ class Kontoansicht {
     const letzte = this.spaltenAus.size >= this.spalten.length - 1;
     return this.spalten.map(([feld, text]) => {
       const an = !this.spaltenAus.has(feld);
-      return { tid: `km-spalte-${feld}`, text: `${an ? "✓" : " "} ${text}`, aktiv: !(an && letzte),
+      return { tid: `km-spalte-${feld}`, text: `${an ? "✓" : " "} ${text}`, aktiv: !(an && letzte), an,
         tun: () => this.spalteUmschalten(feld) };
     });
   }

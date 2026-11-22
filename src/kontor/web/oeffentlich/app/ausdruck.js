@@ -9,7 +9,7 @@ export async function sprache(kontext) {
   if (!SPRACHE.has(kontext)) {
     SPRACHE.set(kontext, api("GET", `/api/ausdruck/sprache?kontext=${kontext}`).catch(() => {
       SPRACHE.delete(kontext);
-      return { felder: [], schluesselwoerter: [], methoden: [] };
+      return { felder: [], schluesselwoerter: {}, methoden: [] };
     }));
   }
   return SPRACHE.get(kontext);
@@ -290,7 +290,7 @@ export class AusdruckEingabe {
         if (f.kurz) kandidaten.push([f.kurz, `${f.bezeichnung} (Kurzform)`]);
       }
       for (const k of ["and", "or", "not", "in", "is", "None", "True", "False"]) kandidaten.push([k, "Schlüsselwort"]);
-      if (this.sp.datum) for (const w of [...this.sp.datum.tagwoerter, ...this.sp.datum.zeitwoerter]) kandidaten.push([w, "Datum"]);
+      const dw = this.sp.schluesselwoerter?.datum; if (dw) for (const w of [...dw.tagwoerter, ...dw.zeitwoerter]) kandidaten.push([w, "Datum"]);
     }
     const passend = kandidaten.filter(([k]) => falten(k).startsWith(wort) && falten(k) !== wort).slice(0, 8);
     if (!passend.length) { this.liste.hidden = true; return; }

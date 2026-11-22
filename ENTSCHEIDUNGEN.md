@@ -3570,3 +3570,102 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - **Rückgängig:** stellt das Postfach wieder her; Spiegel, Anmeldung und Benachrichtigungen kommen nicht zurück
   (Betriebszustand), ein neuer Abruf holt die Mails wieder.
 - **Prüfung:** `tests/test_postfach_loeschen_eigen.py`, `tests/test_browser_postfach_loeschen.py`.
+
+## D-245 Abnahme M29 (Bankabruf über FinTS/camt): Nachbesserungen
+
+- **Anlass:** Die Abnahmetests zu Meilenstein 29 (kontor-tests `8304dfb`) liefen erstmals gegen die Anwendung.
+- **Entscheidung:**
+  1. **Naht `kontor.sync.kennungen_als_alt_markieren(config)`** (E-264, `bankzugang.md` 3.1): ersetzt die Menge
+     der „alten“ Kennungen durch alle jetzt bekannten Bank-Kennungen (an Buchungen und gemerkte); Betriebszustand,
+     kein Protokoll, mehrfach aufrufbar, legt die Datenbank bei Bedarf an.
+  2. **Diagnoseschalter gilt ab dem Start:** Die gespeicherte Einstellung wird beim Start der Instanz gelesen,
+     nicht erst beim ersten Zugriff auf den Bankzugang.
+  3. **TAN-Verfahren ohne Angabe „erlaubt“:** Nennt die Bank keine zugelassenen Verfahren (Rückmeldung 3920
+     fehlt), liefert `tan_verfahren()` alle Zwei-Schritt-Verfahren der Bankparameter (`bankzugang.md` 2.1).
+  4. **Zweite TAN im selben Lauf:** Verlangt die Bank nach der TAN zur Anmeldung für den Umsatzabruf eine weitere
+     TAN, wird die erste Anforderung als beantwortet abgeschlossen und eine neue angelegt; der Lauf wartet weiter.
+- **Offen als Widerspruch:** W-016 (600 Zeilen), W-017 (Benutzerparameter ohne neue Version).
+- **Prüfung:** `tests/app/m29` ohne Browsertests: 183 bestanden, 2 offen (W-016, W-017).
+
+## D-246 Abnahme M30 (Kontor-Ausdrücke, Regeleditor): Nachbesserungen
+
+- **Anlass:** Die Abnahmetests zu Meilenstein 30 (kontor-tests `f2e6273`) liefen erstmals gegen die Anwendung.
+- **Entscheidung:**
+  1. `GET /api/ausdruck/sprache`: die Datumswörter stehen unter `schluesselwoerter.datum` (Aufbau frei, E-272),
+     nicht mehr als eigenes Feld auf oberster Ebene (Schema ohne Zusatzfelder); `schluesselwoerter.logik` nennt
+     die Schlüsselwörter. Die Vervollständigung liest sie dort.
+  2. `POST /api/ausdruck/pruefen`: `zusammenfassung` auch im Kontext `regel`; jedes als Freitext gelesene Wort
+     bekommt einen Hinweis (mit „Meinten Sie …?“, wenn es einem Feldnamen ähnelt); eine Dauer mit unbekannter
+     Einheit (`-5x`) ist `einheit_unbekannt`; zweistellige Jahre richten sich nach dem Bezugstag (`stichtag`);
+     Ausdrücke über 4000 Zeichen sind 200 mit `zu_lang` statt 422 `validierung` (die Körperprüfung lässt
+     längere Texte durch).
+  3. `POST /api/regeln/test`: `wirkung` ist ein einzelner Wert (`RegelWirkung`), nicht mehr eine Liste.
+  4. Regeleditor: der Anwenden-Knopf zählt bei „n × Kategorie“ nur die Buchungen, deren Kategorie mit der Vorgabe
+     gesetzt wird (`neu`); abweichende bietet das Fenster an. Die leere Tag-Liste `regel-tags` bleibt sichtbar.
+     Der Knopf „Bearbeiten…“ der Regelliste heißt für Hilfstechnik „Bearbeiten: Regel <Name>“ (sichtbarer Text
+     am Anfang des Namens).
+  5. Kontoblatt: Filter ohne Entsprechung im Ausdruck (`filter-alt-<name>`) stehen unter dem Ausdrucksfeld und
+     sind auch bei eingeklapptem Baukasten sichtbar; übernommene alte Parameter werden beim Öffnen als
+     `filter=…` in die Adresse geschrieben.
+- **Offen:** Die Handy-Fälle von `m8::test_filter` erwarten das Filterfeld am Handy sichtbar; seit D-236 ist es
+  dort eingeklappt (`ansicht-umschalten`). Das beschreibt Definition 4 (Paket 4) und zieht der Test-Thread dort
+  nach – kein Widerspruch zu M30.
+- **Prüfung:** `tests/app/m30` 418/418 grün; frühere Filtertests (M8, M12, M17, M26, M28) am Desktop grün.
+
+## D-247 Abnahme M31 (übrige Features vor sammel3): Nachbesserungen
+
+- **Anlass:** Die Abnahmetests zu Meilenstein 31 (kontor-tests `be6d7d8`) liefen erstmals gegen die Anwendung.
+- **Entscheidung:**
+  1. `GET /api/lernmodell/einstellungen` liefert nur `schwelle_promille` und `regeln_automatisch`; ob der Server
+     neue Buchungen automatisch vorschlägt (`lernmodell_automatisch`), steht in der Übersicht.
+  2. Erklärung je Buchung (E-280): zusätzlich `vorhersage` (wie `POST /api/lernmodell/vorhersage`); jedes
+     Merkmal trägt immer `anzahl_kategorie`, `anzahl_vergleich` (0 ohne beste/zweite Kategorie) und
+     `faktor_promille` (`null` ohne Vergleich).
+  3. Monatsbericht (E-282): Kennzahlen `konto_ids`, `ausgaben` (netto), `einnahmen`, `fest`, `variabel`,
+     `umbuchungen` auf oberster Ebene.
+  4. FinTS: Lassen sich die gespeicherten Bank- und Benutzerparameter nicht wieder lesen (die Bibliothek scheitert
+     an Benutzerparametern ohne Kontoeinträge), beginnt der Dialog ohne sie (Diagnosezeile).
+  5. Oberfläche: `/berichte/monat` wird vor der Wahl des Tabs auf `/berichte?art=monat` umgeschrieben (ein Tab);
+     eine leere Postfachliste zeigt „Noch kein Postfach eingerichtet.“
+- **Offen als Widerspruch:** W-018 bis W-022 (an den Test-Thread übergeben).
+- **Prüfung:** `tests/app/m29` ohne Browser 211/211 (mit Attrappentests); `tests/app/m31` ohne Browser 88/91
+  (W-018, W-019, W-020 offen; `betrag` in `angehaengt` kommt mit Definition 4).
+
+## D-248 Abnahme M32 (Sammelbranch sammel3): Nachbesserungen
+
+- **Anlass:** Die Abnahmetests zu Meilenstein 32 (kontor-tests `752b407`) liefen erstmals gegen die Anwendung.
+- **Entscheidung:**
+  1. Wiederholung geplanter Zahlungen: nach außen (Protokoll, Inhaltsprüfsumme) nur `{rhythmus, bis}`; Tag der
+     ersten Fälligkeit und Vorgängerin bleiben in der gespeicherten Protokollform für Rückgängig.
+  2. Eine Folge gilt nur als „unberührt“ (entfällt beim Wiederöffnen), wenn sie seit dem Anlegen unverändert ist:
+     offen, ohne Buchungen, Mails, Dokumente und mit den Angaben, die das Anlegen aus der Vorgängerin übernommen
+     hätte.
+  3. Mail-Liste: `stand` zählt ohne `suche` (E-299).
+  4. `POST /api/mail/nachrichten/{id}/buchung`: Prüfreihenfolge 404 Nachricht → 422 Körper → 404 Buchung; ein
+     zweiter Aufruf mit derselben Buchung gibt das vorhandene Dokument zurück, statt ein zweites anzulegen.
+  5. Oberfläche: `empfaenger-treffer` trägt `data-anzahl`; die Einträge der Spaltenwahl sind
+     `menuitemcheckbox` mit `aria-checked` (E-306).
+- **Offen als Widerspruch:** W-023 bis W-027 (an den Test-Thread übergeben).
+
+## D-249 Gesamtlauf der Abnahme: Personen-Tags beim Einspielen, Lerndaten
+
+- **Anlass:** Gesamtlauf aller Abnahmetests (kontor-tests `fca9a20`) gegen `feature/sammel3`.
+- **Entscheidung:**
+  1. Beim Einspielen werden „Torsten“/„Tina“ nur bei Sicherungen von vor der Umstellung auf „B-<Name>“
+     (`app_version` vor 0.35, Unlesbares gilt als älter) umbenannt (D-223: „ältere Sicherungen“). Eine
+     Rundreise mit gewöhnlichen Tags dieser Namen bleibt unverändert.
+  2. Mock-Lerndaten: Prüfbuchungen stehen auf dem technischen Konto „Unkategorisiert“ (Kennung
+     `kontor:unkategorisiert`), nicht auf einem zweiten gleichnamigen Eigenkapitalkonto.
+- **Offen als Widerspruch:** W-028 bis W-031 (an den Test-Thread übergeben).
+
+## D-250 Gesamtlauf der Browsertests: Gruppierung, Kontoauswahl in Kategorien, Esc im Filterfeld
+
+- **Anlass:** Browsertests aller Meilensteine gegen `feature/sammel3`.
+- **Entscheidung:**
+  1. Die Gruppe der Gruppierungsknöpfe heißt wieder „Buchungen gruppieren“ (`oberflaeche.md` 37).
+  2. Kontoansicht einer Kategorie: `filter-konto` (Bestandskonten, Pfad als Beschriftung) steht im Baukasten und
+     bildet auf `kategorie_id` ab (22.2, E-274); dort wird `kategorie_id` nicht in den Ausdruck übernommen und
+     erscheint nicht als „Weitere Filter“.
+  3. Esc im Filterfeld führt immer in die Liste zurück, auch wenn die Vervollständigung offen war (D-167).
+- **Offen:** `m15::test_details_vorschlag_und_kandidaten` und `m8::test_seiten_im_mindestumfang` (beide schon vor
+  diesem Auftrag auf main rot; der zweite wartet auf eine Erfolgsmeldung, die seit D-234 ausgeliefert aus ist).
