@@ -1,6 +1,6 @@
 # Kontor in einer VM mit Debian 13 und Tailscale installieren
 
-Diese Anleitung beschreibt die Installation in einer eigenen virtuellen Maschine (z. B. unter Proxmox VE) mit
+Alle Befehle werden **als root** ausgeführt (`su -` bzw. `sudo -i`). Diese Anleitung beschreibt die Installation in einer eigenen virtuellen Maschine (z. B. unter Proxmox VE) mit
 Debian 13 „trixie“. Zugriff gibt es danach nur über HTTPS und nur aus dem eigenen Tailnet. Für einen
 Proxmox-LXC-Container gilt die Anleitung in der [README](README.md#installation-als-systemd-dienst-im-proxmox-lxc-container),
 für HTTPS die Anleitung in [HTTPS.md](HTTPS.md).
@@ -111,6 +111,11 @@ Wer die PIN lieber nur in der Oberfläche eingibt, legt nur den Geheimnisschlüs
 install -D -m 0644 "$B/pin-eingabe.conf" /etc/systemd/system/kontor.service.d/pin-eingabe.conf
 ```
 
+und ändert in `/etc/kontor/kontor.env` die Zeile auf `KONTOR_BANK_PIN_QUELLE=eingabe`. Ohne diese Änderung bleibt
+Kontor bei `systemd-creds` (der Wert aus der Umgebungsdatei hat Vorrang vor dem im Drop-in) und jeder Abruf
+scheitert mit „PIN fehlt“. Prüfen: `ls /run/credentials/kontor.service/` zeigt bei PIN aus der Datei
+`kontor-bank-pin`.
+
 Wichtig: Mit TPM lassen sich die `.cred`-Dateien nur in **dieser** VM entschlüsseln. Das TPM-State-Laufwerk
 gehört deshalb in das VM-Backup (Proxmox sichert es mit). Geht es verloren, beide Dateien neu anlegen; im
 Geheimnisspeicher abgelegte Tokens und Passwörter müssen dann neu eingetragen werden.
@@ -198,4 +203,6 @@ set -a; . /etc/kontor/kontor.env; set +a; sudo -u kontor -E /opt/kontor/venv/bin
 | Kontor startet nicht: Credential lässt sich nicht entschlüsseln | `.cred`-Dateien wurden auf einer anderen Maschine oder vor einem TPM-Tausch angelegt: Schritt 5 wiederholen |
 | Seite lädt nicht | Gerät im Tailnet? `tailscale status` auf dem Gerät und in der VM |
 | Nach Monaten plötzlich nicht erreichbar | Schlüssel der VM abgelaufen: `tailscale up` in der VM, danach „Disable key expiry“ |
+| Synchronisation meldet „PIN fehlt“ trotz PIN-Datei | `ls /run/credentials/kontor.service/`: fehlt `kontor-bank-pin`, ist `pin-eingabe.conf` installiert – entfernen (`/etc/systemd/system/kontor.service.d/`), `systemctl daemon-reload`, Neustart |
+| `systemd-creds encrypt` meldet `InteractiveAuthenticationRequired` | nicht als root aufgerufen: erst `su -` bzw. `sudo -i` |
 | Weitere Fehlerbilder | [HTTPS.md](HTTPS.md#wenn-etwas-nicht-klappt) |
