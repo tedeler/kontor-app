@@ -1,5 +1,28 @@
 # Ergebnis der Implementierung
 
+## Abnahme seit M28 gegen main (2026-11-22), Version 0.44, gegen kontor-tests `b6f94f1`
+
+Auftrag: Test-Thread schreibt die Tests nach den Spezifikationen aller Features seit M28, danach Prüfung gegen
+main. Vier Pakete als M29 (FinTS/camt), M30 (Ausdrücke, Regeln), M31 (übrige Features vor sammel3), M32
+(sammel3); kontor-tests E-258 bis E-314.
+
+- Nachbesserungen der App: D-245 (M29), D-246 (M30), D-247 (M31), D-248 (M32), D-249 und D-250 (Gesamtlauf).
+- Widersprüche W-016 bis W-031 (dem Test-Thread als W-015 bis W-030 gemeldet), alle vom Test-Thread gelöst
+  (E-289/E-290, E-309 bis E-314).
+- **Ohne Browser:** 3765 bestanden, 8 fehlgeschlagen. **Browser:** 487 bestanden, 6 fehlgeschlagen.
+- Fehlschläge aus Features, die parallel auf main kamen und noch keine Abnahmedefinition haben (keine Fehler
+  dieses Auftrags, Tests erwarten das frühere Verhalten):
+  - `feature/kopfabruf` (D-242/D-243 auf main): neue öffentliche Methoden `koepfe`, `inhalte` des Mail-Plugins →
+    `test_plugins.py::test_nur_lesende_oeffentliche_methoden[mock|echt]`, `m6/test_m6_paket.py::test_oeffentliche_methoden`.
+  - `feature/sammel4` (D-242 auf main, Konto unter „Kategorie“ = Umbuchung) → `test_buchungen.py::test_kategorie_setzen_fehler`,
+    `test_mehrfach.py::test_kategorie_ziel_ungueltig[giro|spar]`, `::test_kategorie_pruefreihenfolge`,
+    `::test_mehrfach_kategorie_gegen_modell`, `m8/test_m8_kontoansicht.py::test_liste_gleich_rest_und_darstellung[desktop|handy]`
+    („Umbuchung → Tagesgeld“), `m8/test_m8_kontextmenue.py::test_kategorie_setzen_umbuchung_meldet_ablehnung`,
+    `m8/test_m8_split_dnd.py::test_umbuchung_auf_kategorie_ziehen_aendert_nichts`.
+- Offen aus der Zeit vor diesem Auftrag (schon vorher auf main rot): `m15::test_details_vorschlag_und_kandidaten`,
+  `m8::test_seiten_im_mindestumfang` (wartet auf eine Erfolgsmeldung, seit D-234 ausgeliefert aus).
+- Leistungstests (`leistung`) nicht gelaufen.
+
 ## Sammelbranch `feature/sammel4`, D-242 Konto unter „Kategorie“ = Umbuchung (2026-11-22), gegen kontor-tests `752b407`
 
 - **Umfang:** Zuordnung von Hand (einzeln, mehrfach, Ziehen auf den Kontenbaum) nimmt auch ein Bestandskonto; die
