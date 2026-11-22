@@ -382,6 +382,18 @@ class KontorConfig:
         return self.mock_datenbank if self.mock_datenbank is not None else self.standard_mock_datenbank
 
     @classmethod
+    def fuer_werkzeug(cls, umgebung: Mapping[str, str] | None = None) -> "KontorConfig":
+        """D-245: Konfiguration für Werkzeuge außerhalb des Dienstes, die nie mit der Bank sprechen (Sicherung,
+        ``passwort-setzen``). Sie laufen ohne Credentials (``kontor-sicherung.service`` bekommt bewusst keine); eine
+        PIN-Quelle ``systemd-creds`` ohne ``$CREDENTIALS_DIRECTORY`` gilt für sie deshalb als ``eingabe``. Alle
+        übrigen Angaben werden wie im Dienst geprüft."""
+        env = dict(os.environ if umgebung is None else umgebung)
+        if ((env.get("KONTOR_BANK_PIN_QUELLE") or "").strip() == "systemd-creds"
+                and not (env.get("CREDENTIALS_DIRECTORY") or "").strip()):
+            env["KONTOR_BANK_PIN_QUELLE"] = "eingabe"
+        return cls.from_env(env)
+
+    @classmethod
     def from_env(cls, umgebung: Mapping[str, str] | None = None) -> "KontorConfig":
         env = os.environ if umgebung is None else umgebung
 

@@ -335,7 +335,7 @@ def main(argv: list[str] | None = None) -> int:
         print("Aufruf: python -m kontor.anmeldung passwort-setzen  (Passwort über stdin)", file=sys.stderr)
         return 2
     try:
-        config = KontorConfig.from_env()
+        config = KontorConfig.fuer_werkzeug()   # D-245: ohne Credentials lauffähig
     except KonfigurationsFehler as e:
         print(f"Konfigurationsfehler: {e}", file=sys.stderr)
         return 2
