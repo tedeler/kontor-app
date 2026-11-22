@@ -221,7 +221,7 @@ def von_hand(con, nachricht_db_id: int, buchung_id: int, zeitpunkt: str) -> dict
     r = con.execute("SELECT nachricht_id FROM mail_nachricht WHERE id = ?", (buch.sichere_id(nachricht_db_id),)).fetchone()
     if r is None:
         raise buch.nicht_gefunden("Die E-Mail")
-    # D-243 (E-299): ein zweiter Aufruf mit derselben Buchung legt kein zweites Dokument an
+    # D-248 (E-299): ein zweiter Aufruf mit derselben Buchung legt kein zweites Dokument an
     alt = con.execute("SELECT b.dokument_id FROM bestellmail b JOIN dokument_buchung db ON db.dokument_id = b.dokument_id"
                       " AND db.buchung_id = b.buchung_id WHERE b.buchung_id = ? AND b.nachricht_id = ?",
                       (buch.sichere_id(buchung_id), r["nachricht_id"])).fetchone()

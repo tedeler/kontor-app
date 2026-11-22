@@ -243,7 +243,12 @@ Stand: Meilenstein 8 (getestet gegen kontor-tests `bf35445`); kein offener Eintr
   ohne langen Text; die Liste wächst nicht nach dem Inhalt, der sichtbare Bereich endet vor dem Panel. Dem
   Test-Thread am 2026-11-16 als Text gemeldet.
 
-## W-015 M29: 600 Zeilen des Diagnoseprotokolls – gleiche Zeilenzahl je Aufruf angenommen
+> Hinweis zur Nummerierung: W-016 bis W-031 wurden dem Test-Thread als W-015 bis W-030 gemeldet (dort in
+> `spec/definitionen/widersprueche-*.md` und E-289/E-290, E-309 bis E-314 unter den alten Nummern). Auf main
+> war W-015 parallel vergeben; hier deshalb um eins verschoben. Ebenso heißen D-240 bis D-245 dieses Auftrags
+> hier D-245 bis D-250.
+
+## W-016 M29: 600 Zeilen des Diagnoseprotokolls – gleiche Zeilenzahl je Aufruf angenommen
 
 - **Test:** `tests/app/m29/test_m29_diagnose.py::test_hoechstens_600_zeilen_aelteste_zuerst`.
 - **Erwartung des Tests:** Der Test misst, wie viele Zeilen der erste Abruf schreibt, und wiederholt den Abruf so
@@ -256,7 +261,7 @@ Stand: Meilenstein 8 (getestet gegen kontor-tests `bf35445`); kein offener Eintr
   584 Zeilen, die Grenze wird nie erreicht. Abhilfe im Test: wiederholen, bis die Zeilenzahl nicht mehr wächst
   oder 600 erreicht sind (mit Obergrenze der Wiederholungen). Dem Test-Thread am 2026-11-22 als Text gemeldet.
 
-## W-016 M29: Attrappe ändert die Benutzerparameter ohne neue Version
+## W-017 M29: Attrappe ändert die Benutzerparameter ohne neue Version
 
 - **Test:** `tests/app/m29/test_m29_bankzugang_rest.py::test_konten_abrufen_behaelt_auswahl_und_ersetzt_die_liste`.
 - **Erwartung des Tests:** Nach dem Umschalten der Attrappe auf „keine Kontoeinträge in den Benutzerparametern“
@@ -271,21 +276,21 @@ Stand: Meilenstein 8 (getestet gegen kontor-tests `bf35445`); kein offener Eintr
   `upd_…` umgeschaltet wird, oder der Test nutzt für jeden Zustand eine neue App-Instanz mit neuer Datenbank.
   Dem Test-Thread am 2026-11-22 als Text gemeldet.
 
-## W-017 bis W-021 M31/M29: Erklärung bei `unbekannt`, ähnliche Buchungen, 3000 Lerndaten, „Erweitert“ im Bankzugang, Balkenvergleich
+## W-018 bis W-022 M31/M29: Erklärung bei `unbekannt`, ähnliche Buchungen, 3000 Lerndaten, „Erweitert“ im Bankzugang, Balkenvergleich
 
-- Ausführlich als Text an den Test-Thread übergeben (2026-11-22, Paket 4): W-017 bekannte Betragsmerkmale bei
-  `grund = unbekannt` (`lernmodell.md` 8.1 verlangt sie), W-018 Testdaten ohne eindeutig beste ähnliche Buchung,
-  W-019 3000 Lerndaten plus Eröffnungsbuchung „Anfangsbestand“, W-020 M29-Browsertests erwarten Produkt-ID und
-  Diagnoseprotokoll sichtbar, obwohl sie nach D-207 in „Erweitert“ eingeklappt sind, W-021 `_pruefe_tiefe`
+- Ausführlich als Text an den Test-Thread übergeben (2026-11-22, Paket 4): W-018 bekannte Betragsmerkmale bei
+  `grund = unbekannt` (`lernmodell.md` 8.1 verlangt sie), W-019 Testdaten ohne eindeutig beste ähnliche Buchung,
+  W-020 3000 Lerndaten plus Eröffnungsbuchung „Anfangsbestand“, W-021 M29-Browsertests erwarten Produkt-ID und
+  Diagnoseprotokoll sichtbar, obwohl sie nach D-207 in „Erweitert“ eingeklappt sind, W-022 `_pruefe_tiefe`
   vergleicht Listen mit Tupeln.
 
-## W-022 bis W-026 M32: Mail nach der App-Uhr, „Giro“ doppelt, 422 ohne Schema, `empfaenger_id` gegen `filter=`, Erstabruf
+## W-023 bis W-027 M32: Mail nach der App-Uhr, „Giro“ doppelt, 422 ohne Schema, `empfaenger_id` gegen `filter=`, Erstabruf
 
-- Als Text an den Test-Thread übergeben (2026-11-22): W-022 Mail-Gruppen mit einer Mail nach dem Datum der
-  App-Uhr, W-023 `_mail_dokument` legt „Giro“ zweimal an (D-218), W-024 `bilder=vielleicht` → 422 fehlt in
-  `openapi.yaml`, W-025 `em-im-konto` mit `empfaenger_id` gegen `oberflaeche.md` 39.2 (`filter=`), W-026
+- Als Text an den Test-Thread übergeben (2026-11-22): W-023 Mail-Gruppen mit einer Mail nach dem Datum der
+  App-Uhr, W-024 `_mail_dokument` legt „Giro“ zweimal an (D-218), W-025 `bilder=vielleicht` → 422 fehlt in
+  `openapi.yaml`, W-026 `em-im-konto` mit `empfaenger_id` gegen `oberflaeche.md` 39.2 (`filter=`), W-027
   Browser-Mails vom Juni 2024 außerhalb des Erstabrufs bei `m8.HEUTE = 2024-12-31`.
 
-## W-027 bis W-030 Gesamtlauf: „Girokonto“ doppelt (M18), `ausdruck` nach PATCH (M2), Löschorakel mit Pfad (M3), `empfaenger_geaendert` (M19)
+## W-028 bis W-031 Gesamtlauf: „Girokonto“ doppelt (M18), `ausdruck` nach PATCH (M2), Löschorakel mit Pfad (M3), `empfaenger_geaendert` (M19)
 
 - Als Text an den Test-Thread übergeben (2026-11-22, `spec/definitionen/widersprueche-gesamtlauf.md`).

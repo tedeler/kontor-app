@@ -694,7 +694,7 @@ class MailDienst:
             teile.append("p.id = ?")
             par.append(buch.sichere_id(postfach_id))
         wo = (" WHERE " + " AND ".join(teile)) if teile else ""
-        # D-226: jedes Wort muss in Absender, Betreff oder Text vorkommen; ``stand`` zählt ohne Suche (D-243)
+        # D-226: jedes Wort muss in Absender, Betreff oder Text vorkommen; ``stand`` zählt ohne Suche (D-248)
         such_teile, such_par = list(teile), list(par)
         for wort in (suche or "").split():
             such_teile.append("instr(norm(COALESCE(n.absender, '') || ' ' || COALESCE(n.betreff, '') || ' '"

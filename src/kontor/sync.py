@@ -1220,7 +1220,7 @@ __all__ = ["planer_takt", "SyncDienst"]
 
 
 def kennungen_als_alt_markieren(config: KontorConfig) -> None:
-    """Markiert alle Bank-Kennungen, die die Datenbank jetzt kennt, als „alt“ (bankzugang.md 3.1, D-240).
+    """Markiert alle Bank-Kennungen, die die Datenbank jetzt kennt, als „alt“ (bankzugang.md 3.1, D-245).
 
     Ergebnis wie beim ersten Start mit dieser Fassung: Kennungen an Buchungen und gemerkte Kennungen gelöschter
     Buchungen gelten als aus der Zeit vor der Umstellung des Bankabrufs. Betriebszustand – kein Protokoll, keine

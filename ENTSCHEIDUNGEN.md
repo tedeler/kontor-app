@@ -3443,7 +3443,7 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   und im Browser (Desktop, Handy). Dabei behoben: `kontor-https` hängte an eine Umgebungsdatei ohne Zeilenende
   die neue Variable an die letzte Zeile an.
 
-## D-240 Abnahme M29 (Bankabruf über FinTS/camt): Nachbesserungen
+## D-245 Abnahme M29 (Bankabruf über FinTS/camt): Nachbesserungen
 
 - **Anlass:** Die Abnahmetests zu Meilenstein 29 (kontor-tests `8304dfb`) liefen erstmals gegen die Anwendung.
 - **Entscheidung:**
@@ -3456,10 +3456,10 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
      fehlt), liefert `tan_verfahren()` alle Zwei-Schritt-Verfahren der Bankparameter (`bankzugang.md` 2.1).
   4. **Zweite TAN im selben Lauf:** Verlangt die Bank nach der TAN zur Anmeldung für den Umsatzabruf eine weitere
      TAN, wird die erste Anforderung als beantwortet abgeschlossen und eine neue angelegt; der Lauf wartet weiter.
-- **Offen als Widerspruch:** W-015 (600 Zeilen), W-016 (Benutzerparameter ohne neue Version).
-- **Prüfung:** `tests/app/m29` ohne Browsertests: 183 bestanden, 2 offen (W-015, W-016).
+- **Offen als Widerspruch:** W-016 (600 Zeilen), W-017 (Benutzerparameter ohne neue Version).
+- **Prüfung:** `tests/app/m29` ohne Browsertests: 183 bestanden, 2 offen (W-016, W-017).
 
-## D-241 Abnahme M30 (Kontor-Ausdrücke, Regeleditor): Nachbesserungen
+## D-246 Abnahme M30 (Kontor-Ausdrücke, Regeleditor): Nachbesserungen
 
 - **Anlass:** Die Abnahmetests zu Meilenstein 30 (kontor-tests `f2e6273`) liefen erstmals gegen die Anwendung.
 - **Entscheidung:**
@@ -3484,7 +3484,7 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   nach – kein Widerspruch zu M30.
 - **Prüfung:** `tests/app/m30` 418/418 grün; frühere Filtertests (M8, M12, M17, M26, M28) am Desktop grün.
 
-## D-242 Abnahme M31 (übrige Features vor sammel3): Nachbesserungen
+## D-247 Abnahme M31 (übrige Features vor sammel3): Nachbesserungen
 
 - **Anlass:** Die Abnahmetests zu Meilenstein 31 (kontor-tests `be6d7d8`) liefen erstmals gegen die Anwendung.
 - **Entscheidung:**
@@ -3499,11 +3499,11 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
      an Benutzerparametern ohne Kontoeinträge), beginnt der Dialog ohne sie (Diagnosezeile).
   5. Oberfläche: `/berichte/monat` wird vor der Wahl des Tabs auf `/berichte?art=monat` umgeschrieben (ein Tab);
      eine leere Postfachliste zeigt „Noch kein Postfach eingerichtet.“
-- **Offen als Widerspruch:** W-017 bis W-021 (an den Test-Thread übergeben).
+- **Offen als Widerspruch:** W-018 bis W-022 (an den Test-Thread übergeben).
 - **Prüfung:** `tests/app/m29` ohne Browser 211/211 (mit Attrappentests); `tests/app/m31` ohne Browser 88/91
-  (W-017, W-018, W-019 offen; `betrag` in `angehaengt` kommt mit Definition 4).
+  (W-018, W-019, W-020 offen; `betrag` in `angehaengt` kommt mit Definition 4).
 
-## D-243 Abnahme M32 (Sammelbranch sammel3): Nachbesserungen
+## D-248 Abnahme M32 (Sammelbranch sammel3): Nachbesserungen
 
 - **Anlass:** Die Abnahmetests zu Meilenstein 32 (kontor-tests `752b407`) liefen erstmals gegen die Anwendung.
 - **Entscheidung:**
@@ -3517,9 +3517,9 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
      zweiter Aufruf mit derselben Buchung gibt das vorhandene Dokument zurück, statt ein zweites anzulegen.
   5. Oberfläche: `empfaenger-treffer` trägt `data-anzahl`; die Einträge der Spaltenwahl sind
      `menuitemcheckbox` mit `aria-checked` (E-306).
-- **Offen als Widerspruch:** W-022 bis W-026 (an den Test-Thread übergeben).
+- **Offen als Widerspruch:** W-023 bis W-027 (an den Test-Thread übergeben).
 
-## D-244 Gesamtlauf der Abnahme: Personen-Tags beim Einspielen, Lerndaten
+## D-249 Gesamtlauf der Abnahme: Personen-Tags beim Einspielen, Lerndaten
 
 - **Anlass:** Gesamtlauf aller Abnahmetests (kontor-tests `fca9a20`) gegen `feature/sammel3`.
 - **Entscheidung:**
@@ -3528,9 +3528,9 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
      Rundreise mit gewöhnlichen Tags dieser Namen bleibt unverändert.
   2. Mock-Lerndaten: Prüfbuchungen stehen auf dem technischen Konto „Unkategorisiert“ (Kennung
      `kontor:unkategorisiert`), nicht auf einem zweiten gleichnamigen Eigenkapitalkonto.
-- **Offen als Widerspruch:** W-027 bis W-030 (an den Test-Thread übergeben).
+- **Offen als Widerspruch:** W-028 bis W-031 (an den Test-Thread übergeben).
 
-## D-245 Gesamtlauf der Browsertests: Gruppierung, Kontoauswahl in Kategorien, Esc im Filterfeld
+## D-250 Gesamtlauf der Browsertests: Gruppierung, Kontoauswahl in Kategorien, Esc im Filterfeld
 
 - **Anlass:** Browsertests aller Meilensteine gegen `feature/sammel3`.
 - **Entscheidung:**

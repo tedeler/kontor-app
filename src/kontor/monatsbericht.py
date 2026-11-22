@@ -404,7 +404,7 @@ def bericht(con, monat: tuple[int, int], konto_ids: list[int], heute: str) -> di
                           if je_monat.get("%04d-%02d" % _monat_plus(jahr, mon, -n))])
     basis_empf = [p for p in historie if p.datum >= _grenzen(*_monat_plus(jahr, mon, -VERGLEICH_MONATE))[0]]
     return {
-        # Kennzahlen nach berichte.md 6.2 (E-282, D-242)
+        # Kennzahlen nach berichte.md 6.2 (E-282, D-247)
         "konto_ids": sorted(gewaehlt), "ausgaben": netto,
         "einnahmen": sum(p.betrag for p in aktuell if p.art == "einnahme"),
         "fest": fix_summe, "variabel": netto - fix_summe, "umbuchungen": umbuchungen.get(_schluessel(von), 0),

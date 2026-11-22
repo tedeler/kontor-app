@@ -750,7 +750,7 @@ def folge_anlegen(con, eid: int, zeitpunkt: str) -> int | None:
 
 def folge_entfernen(con, eid: int) -> None:
     """Wird eine geplante Zahlung wieder offen, entfällt ihre noch unberührte Folge (sammel3.md 14.2: seit dem
-    Anlegen unverändert – D-243: offen, ohne Buchung, Mails, Dokumente und mit den Angaben, die das Anlegen aus
+    Anlegen unverändert – D-248: offen, ohne Buchung, Mails, Dokumente und mit den Angaben, die das Anlegen aus
     der Vorgängerin übernommen hätte)."""
     v = con.execute("SELECT * FROM erwartung WHERE id = ?", (eid,)).fetchone()
     for f in con.execute("SELECT e.*, w.rhythmus, w.tag, w.bis AS w_bis FROM erwartung e JOIN erwartung_wiederholung w"

@@ -141,7 +141,7 @@ export function kontextmenue(x, y, eintraege, ausloeser) {
   let unterItems = [];
   const items = eintraege.map((e) => {
     const hatKinder = !!(e.kinder && e.kinder.length);
-    // D-243: Einträge mit ``an`` (true/false) sind Ankreuzeinträge mit aria-checked (E-306)
+    // D-248: Einträge mit ``an`` (true/false) sind Ankreuzeinträge mit aria-checked (E-306)
     const el = h("div", { role: e.an === undefined ? "menuitem" : "menuitemcheckbox", tid: e.tid, tabindex: "-1",
       "aria-checked": e.an === undefined ? null : String(e.an),
       class: "menue-eintrag" + (hatKinder ? " menue-mit-unter" : ""),

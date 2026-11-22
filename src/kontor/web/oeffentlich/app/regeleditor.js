@@ -783,7 +783,7 @@ class Testbereich {
     const ne = t.nicht_erfasst.anzahl;
     this.erfasstEl.textContent = ne && r.kategorie_id
       ? `Nicht erfasst: ${ne} Buchung(en) haben „${pfadVon(r.kategorie_id)}“, treffen aber nicht.` : "";
-    // D-241: n = Buchungen, deren Kategorie mit der Vorgabe gesetzt wird (nur „neu“); abweichende bietet das Fenster an
+    // D-246: n = Buchungen, deren Kategorie mit der Vorgabe gesetzt wird (nur „neu“); abweichende bietet das Fenster an
     const wirksam = t.zaehlung.neu || 0;
     const abweichend = t.zaehlung.abweichend || 0;
     // Neu anzulegende Tags fehlen jeder nicht gesperrten Buchung.

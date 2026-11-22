@@ -556,7 +556,7 @@ class FintsBankPlugin(BankPlugin):
                 client = FinTS3PinTanClient(c.fints_blz, c.fints_benutzer, pin, c.fints_url,
                                             customer_id=c.fints_kunden_id or c.fints_benutzer,
                                             product_id=c.fints_produkt_id, from_data=self._daten)
-            except Exception:  # noqa: BLE001 - D-242: gespeicherte Parameter unlesbar (z. B. UPD ohne Konten)
+            except Exception:  # noqa: BLE001 - D-247: gespeicherte Parameter unlesbar (z. B. UPD ohne Konten)
                 self._diag("Gespeicherte Bank- und Benutzerparameter nicht lesbar; neuer Abruf")
                 self._daten = None
         if client is None:

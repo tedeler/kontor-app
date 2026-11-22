@@ -115,7 +115,7 @@ def sprache(kontext: str) -> dict:
               for f in FELDER.values() if kontext == "filter" or not f.nur_filter]
     worte: dict[str, Any] = {"logik": ["and", "or", "not", "in", "is", "None", "True", "False"]}
     if kontext == "filter":
-        # D-241: Datumswörter stehen hier (Aufbau von ``schluesselwoerter`` frei, E-272), nicht auf oberster Ebene
+        # D-246: Datumswörter stehen hier (Aufbau von ``schluesselwoerter`` frei, E-272), nicht auf oberster Ebene
         worte["datum"] = {"tagwoerter": list(TAGWOERTER), "zeitwoerter": list(ZEITWOERTER),
                           "einheiten": ["d", "w", "m", "q", "y"], "monate": MONATSKURZ[1:]}
     return {"kontext": kontext, "felder": felder, "schluesselwoerter": worte,

@@ -330,7 +330,7 @@ async function tabZeigen(t, route, o) {
 async function zeigen(optionen) {
   const o = optionen || {};
   const nr = ++renderNr;
-  // D-242: frühere Adresse des Monatsberichts → Berichte mit ?art=monat, vor der Wahl des Tabs (ein Tab je Pfad)
+  // D-247: frühere Adresse des Monatsberichts → Berichte mit ?art=monat, vor der Wahl des Tabs (ein Tab je Pfad)
   if (location.pathname === "/berichte/monat") {
     const rest = location.search ? "&" + location.search.slice(1) : "";
     history.replaceState(history.state, "", "/berichte?art=monat" + rest);

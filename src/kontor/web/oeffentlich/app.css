@@ -1103,7 +1103,7 @@ html[data-thema="dunkel"] .wirkung-abweichend { background: #5a3412; color: #ffd
 .tag-auswahl-vorhanden { display: flex; flex-wrap: wrap; gap: .25rem; align-items: center; min-height: 1.6rem; }
 .feld-titel { display: block; font-size: .85rem; color: var(--text-2); margin-bottom: .15rem; }
 .regel-tags { display: flex; flex-wrap: wrap; gap: .25rem; margin: .1rem 0 .3rem; }
-.regel-tags:empty { min-height: 1.4rem; }   /* D-241: leere Liste bleibt sichtbar (Platz für Tags) */
+.regel-tags:empty { min-height: 1.4rem; }   /* D-246: leere Liste bleibt sichtbar (Platz für Tags) */
 .regel-tag { display: inline-flex; align-items: center; gap: .2rem; font-size: .85rem; padding: .05rem .2rem .05rem .55em; }
 .regel-tag[data-neu="true"] { outline: 1px dashed var(--rand); }
 .regel-tag-weg { border: 0; background: none; color: inherit; cursor: pointer; padding: 0 .3rem; font-size: 1rem; line-height: 1; border-radius: 50%; }
@@ -1625,5 +1625,5 @@ tr.ueberfaellig td.e-zustand, tr.ueberfaellig td.e-frist { color: var(--gefahr);
 /* Geplante Zahlungen (D-238) */
 .e-wiederholung { margin-left: .5rem; font-weight: 400; white-space: nowrap; }
 
-/* D-242: leere Postfachliste mit Hinweis statt unsichtbar */
+/* D-247: leere Postfachliste mit Hinweis statt unsichtbar */
 [data-testid="postfaecher"]:empty::before { content: "Noch kein Postfach eingerichtet."; color: var(--text-2); font-size: .9em; }
