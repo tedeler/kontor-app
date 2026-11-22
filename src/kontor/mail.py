@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import base64
 import concurrent.futures
+import contextlib
 import datetime as dt
 import hashlib
 import http.client
@@ -133,7 +134,15 @@ def postfach_aendern(con, pid: int, d: dict) -> dict:
 
 
 def postfach_loeschen(con, pid: int) -> None:
-    postfach_lesen(con, pid)
+    p = postfach_lesen(con, pid)
+    cf = p["adresse"].casefold()
+    # D-244: was nur über dieses Postfach Sinn hat, entfällt in derselben Änderung – Benachrichtigungen, die auf
+    # seine Seite verweisen (Anmeldung läuft ab, Abruf fehlgeschlagen …), und die gemerkten Kennungen seiner Mails.
+    # Dokumente an Buchungen, erwartete Zahlungen und der Vermerk „Mail hängt an Buchung“ bleiben: Sie stehen für
+    # sich, und nach dem Neuanlegen erkennt der Abgleich dieselben Mails wieder, ohne sie doppelt anzuhängen.
+    con.execute("DELETE FROM benachrichtigung WHERE link = ?", (f"/mail/postfaecher/{pid}",))
+    con.execute("DELETE FROM bestellmail_nummer WHERE spiegel_id IN"
+                " (SELECT id FROM mail_nachricht WHERE adresse_cf = ?)", (cf,))
     con.execute("DELETE FROM postfach WHERE id = ?", (pid,))
     # Anmeldung (ohne Widerruf), Spiegel und Betriebszustand entfallen in derselben Transaktion
     # (protokoll.protokolliert ruft geheimnisse.verwaiste_entfernen auf).
@@ -577,6 +586,16 @@ class MailDienst:
                                 " WHERE adresse_cf = ?", (cf,))
         finally:
             con.close()
+
+    @contextlib.contextmanager
+    def ohne_abruf(self):
+        """D-244: Solange der Block läuft, startet kein Abruf; läuft gerade einer, 409 ``mail_abruf_laeuft``."""
+        if not self._abruf.acquire(blocking=False):
+            raise ApiFehler(409, "mail_abruf_laeuft", "Es läuft gerade ein Mail-Abruf; bitte danach erneut versuchen.")
+        try:
+            yield
+        finally:
+            self._abruf.release()
 
     def abruf(self) -> dict:
         if not self._abruf.acquire(blocking=False):

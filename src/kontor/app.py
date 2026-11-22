@@ -1085,7 +1085,8 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
 
     @endpunkt("DELETE", "/api/mail/postfaecher/{postfach_id:int}", 204)
     async def postfach_loeschen(request: Request):
-        await aendern("postfach_loeschen", mail.postfach_loeschen, pid(request, "postfach_id"))
+        with maildienst.ohne_abruf():   # D-244: kein Abruf schreibt mehr in den Spiegel des gelöschten Postfachs
+            await aendern("postfach_loeschen", mail.postfach_loeschen, pid(request, "postfach_id"))
 
     @endpunkt("GET", "/api/mail/postfaecher/{postfach_id:int}/status")
     async def postfach_status(request: Request):
