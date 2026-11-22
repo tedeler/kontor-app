@@ -3669,3 +3669,17 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   3. Esc im Filterfeld führt immer in die Liste zurück, auch wenn die Vervollständigung offen war (D-167).
 - **Offen:** `m15::test_details_vorschlag_und_kandidaten` und `m8::test_seiten_im_mindestumfang` (beide schon vor
   diesem Auftrag auf main rot; der zweite wartet auf eine Erfolgsmeldung, die seit D-234 ausgeliefert aus ist).
+
+## D-245 Sicherung und `passwort-setzen` ohne Credentials auch bei PIN-Quelle systemd-creds (2026-11-22)
+
+- **Anlass:** Mit `KONTOR_BANK_PIN_QUELLE=systemd-creds` in `kontor.env` scheiterte `kontor-sicherung.service` mit
+  „Für bank_pin_quelle „systemd-creds“ muss credentials_verzeichnis ($CREDENTIALS_DIRECTORY) gesetzt sein“. Die
+  Unit bekommt bewusst keine Credentials. Weil das Update vorher eine Sicherung anlegt, brach auch jedes Update aus
+  der Oberfläche ab („systemctl start kontor-sicherung.service … Rückgabecode 1“).
+- **Entscheidung:** Werkzeuge außerhalb des Dienstes, die nie mit der Bank sprechen (`python -m kontor.sicherung`,
+  `python -m kontor.anmeldung passwort-setzen`), lesen die Konfiguration über `KontorConfig.fuer_werkzeug`: Ohne
+  `$CREDENTIALS_DIRECTORY` gilt eine PIN-Quelle `systemd-creds` für sie als `eingabe`. Alle anderen Prüfungen
+  bleiben. Der Dienst selbst prüft unverändert streng (python-api.md 13.1).
+- **Übergang:** Die schon installierte Fassung hat den Fehler noch. Für das Update auf die behobene Fassung die
+  Zeile in `/etc/kontor/kontor.env` vorübergehend auskommentieren und danach wiederherstellen.
+- **Prüfung:** `tests/test_sicherung_pinquelle_eigen.py`.
