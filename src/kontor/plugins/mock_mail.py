@@ -62,7 +62,7 @@ class MockMailPlugin(MailPlugin):
             fortschritt(len(aus), len(aus))
         return aus
 
-    def inhalte(self, postfach: str, koepfe: list[MailKopf], fortschritt=None) -> dict[str, MailNachricht]:
+    def inhalte(self, postfach: str, koepfe: list[MailKopf], fortschritt=None, abgeben=None) -> dict[str, MailNachricht]:
         if not koepfe:
             return {}
         gesucht = {k.nachricht_id for k in koepfe}
@@ -70,6 +70,9 @@ class MockMailPlugin(MailPlugin):
         aus = {m.nachricht_id: m for m in self.nachrichten(postfach, frueheste) if m.nachricht_id in gesucht}
         if fortschritt is not None:
             fortschritt(len(aus), len(koepfe))
+        if abgeben is not None:
+            abgeben(aus)
+            return {}
         return aus
 
 

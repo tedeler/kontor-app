@@ -275,7 +275,10 @@ class ImapMailPlugin(MailPlugin):
             return aus
         return self._nur_neueste(self._sitzung(p, token, suchen), seit)
 
-    def inhalte(self, postfach: str, koepfe: list[MailKopf], fortschritt=None) -> dict[str, MailNachricht]:
+    def inhalte(self, postfach: str, koepfe: list[MailKopf], fortschritt=None,
+                abgeben=None) -> dict[str, MailNachricht]:
+        """Inhalte zu ``koepfe`` in Teilen zu je ``_TEIL`` Mails in einer Verbindung. Mit ``abgeben`` (D-253) geht jeder
+        Teil sofort an den Aufrufer und wird nicht gesammelt; das Ergebnis ist dann leer."""
         if not koepfe:
             return {}
         p, token = self._postfach_und_token(postfach)
@@ -291,15 +294,25 @@ class ImapMailPlugin(MailPlugin):
                     treffer = sorted(int(x) for x in b" ".join(d for d in (daten or []) if d).split()) if typ == "OK" else []
                     if treffer:
                         je_uid[treffer[0]] = k
-            gesammelt = self._holen(v, sorted(je_uid), "BODY.PEEK[]", fortschritt)
+            uids = sorted(je_uid)
             aus: dict[str, MailNachricht] = {}
-            for uid, (zeit, roh) in sorted(gesammelt.items()):
-                k = je_uid.get(uid)
-                if k is None:
-                    continue
-                n = abbilden(roh, p.adresse, zeit, uidvalidity, uid)
-                aus.setdefault(k.nachricht_id, mit_roh(MailNachricht(k.nachricht_id, n.postfach, n.empfangen,
-                                                                     n.absender, n.betreff, n.text), roh))
+            if fortschritt is not None:
+                fortschritt(0, len(uids))
+            for i in range(0, len(uids), _TEIL):
+                teil: dict[str, MailNachricht] = {}
+                for uid, (zeit, roh) in sorted(self._holen(v, uids[i:i + _TEIL], "BODY.PEEK[]").items()):
+                    k = je_uid.get(uid)
+                    if k is None:
+                        continue
+                    n = abbilden(roh, p.adresse, zeit, uidvalidity, uid)
+                    teil.setdefault(k.nachricht_id, mit_roh(MailNachricht(k.nachricht_id, n.postfach, n.empfangen,
+                                                                          n.absender, n.betreff, n.text), roh))
+                if abgeben is not None:
+                    abgeben(teil)
+                else:
+                    aus.update(teil)
+                if fortschritt is not None:
+                    fortschritt(min(i + _TEIL, len(uids)), len(uids))
             return aus
         return self._sitzung(p, token, holen)
 

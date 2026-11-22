@@ -61,9 +61,10 @@ class MailPlugin(abc.ABC):
         ``fortschritt(erledigt, gesamt)`` meldet unterwegs, wie viele Kopfzeilen schon da sind (D-252)."""
         raise NotImplementedError
 
-    def inhalte(self, postfach: str, koepfe: list[MailKopf],
-                fortschritt: Fortschritt | None = None) -> dict[str, MailNachricht]:
-        """Vollständige Nachrichten zu ``koepfe``, nach ``nachricht_id``; nicht mehr vorhandene fehlen im Ergebnis."""
+    def inhalte(self, postfach: str, koepfe: list[MailKopf], fortschritt: Fortschritt | None = None,
+                abgeben: Callable[[dict[str, MailNachricht]], None] | None = None) -> dict[str, MailNachricht]:
+        """Vollständige Nachrichten zu ``koepfe``, nach ``nachricht_id``; nicht mehr vorhandene fehlen im Ergebnis.
+        Mit ``abgeben`` (D-253) gehen sie in Teilen an den Aufrufer, sobald sie da sind; das Ergebnis ist dann leer."""
         raise NotImplementedError
 
     def schliessen(self) -> None:

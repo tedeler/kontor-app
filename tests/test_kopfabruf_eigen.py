@@ -50,10 +50,15 @@ class Attrappe(MailPlugin):
         return [MailKopf(n.nachricht_id, n.postfach, n.empfangen, n.absender, n.betreff, f"7:{i}")
                 for i, n in enumerate(self.liste) if n.empfangen >= seit]
 
-    def inhalte(self, postfach, koepfe, fortschritt=None):
+    def inhalte(self, postfach, koepfe, fortschritt=None, abgeben=None):
         self.verlangt.append(sorted(k.nachricht_id for k in koepfe))
         je_id = {n.nachricht_id: n for n in self.liste}
-        return {k.nachricht_id: je_id[k.nachricht_id] for k in koepfe if k.nachricht_id in je_id}
+        aus = {k.nachricht_id: je_id[k.nachricht_id] for k in koepfe if k.nachricht_id in je_id}
+        if abgeben is None:
+            return aus
+        for nid, n in aus.items():   # wie IMAP: in Teilen (hier je Mail)
+            abgeben({nid: n})
+        return {}
 
 
 MAILS = [

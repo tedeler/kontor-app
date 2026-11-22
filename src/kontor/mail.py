@@ -731,34 +731,14 @@ class MailDienst:
                 self._zustand_sichern(con, cf)
                 con.execute("UPDATE postfach_zustand SET letzter_abruf_am = ? WHERE adresse_cf = ?",
                             (zeit_text(beginn), cf))
-            nur_koepfe = self.config.mail_nur_koepfe and getattr(plugin, "kann_koepfe", False)
-            inhalte: dict | None = None
-            nachladen: list = []
+            self._stand_setzen(p["id"], "anmelden")
+            if self.config.mail_nur_koepfe and getattr(plugin, "kann_koepfe", False):
+                return self._kopfweise(con, plugin, p, cf, seit, beginn, aus)   # D-243, D-253
             try:
-                self._stand_setzen(p["id"], "anmelden")
-                if nur_koepfe:   # D-243: erst die Kopfzeilen, Inhalt nur für Mails, die er betrifft
-                    liste, inhalte, nachladen = self._koepfe_und_inhalte(con, plugin, p, cf, seit)
-                    aus.update(nachrichten_ohne_inhalt=0, nachrichten_nachgeladen=0)
-                else:
-                    self._stand_setzen(p["id"], "nachrichten")
-                    liste = plugin.nachrichten(p["adresse"], seit)
+                self._stand_setzen(p["id"], "nachrichten")
+                liste = plugin.nachrichten(p["adresse"], seit)
             except Exception as e:  # noqa: BLE001 - ein Pluginfehler führt nie zu 5xx
-                code, meldung = _fehler_von(e)
-                with db.transaktion(con):
-                    con.execute("UPDATE postfach_zustand SET fehler_code = ?, fehler_meldung = ? WHERE adresse_cf = ?",
-                                (code, meldung, cf))
-                    if isinstance(e, (MailTokenAbgelaufen, MailTokenWiderrufen)) and not self.config.mock_modus:
-                        pass  # Status und Benachrichtigung schon in zugang (mail.md 6.3)
-                    elif isinstance(e, MailTokenAbgelaufen):
-                        self._melden(con, "mail_token_abgelaufen", p["id"], 0)
-                    else:
-                        buch.benachrichtigung_anlegen(
-                            con, "mail_fehler", f"mail_fehler:{p['id']}:{code}", "Mail-Abruf fehlgeschlagen",
-                            f"Der Abruf eines Postfachs ist fehlgeschlagen (Fehler „{code}“). Kontor versucht es beim "
-                            "nächsten Abruf erneut; bereits abgerufene Mails bleiben erhalten.",
-                            f"/mail/postfaecher/{p['id']}", self.jetzt_text(), "ungelesen")
-                aus.update(status="fehlgeschlagen", fehler={"code": code, "meldung": meldung})
-                return aus
+                return self._fehler_vermerken(con, p, cf, e, aus)
             filt = [f.casefold() for f in p["absender_filter"]]
             self._stand_setzen(p["id"], "speichern", None, len(liste))
             with db.transaktion(con):
@@ -771,34 +751,100 @@ class MailDienst:
                     if filt and not any(f in n.absender.casefold() for f in filt):
                         aus["nachrichten_gefiltert"] += 1
                         continue
-                    ort = None
-                    if inhalte is not None:
-                        ort = n.ort
-                        voll = inhalte.get(n.nachricht_id)
-                        if voll is None:
-                            con.execute("INSERT INTO mail_nachricht (adresse_cf, nachricht_id, empfangen, absender,"
-                                        " betreff, text, roh, inhalt, ort) VALUES (?, ?, ?, ?, ?, '', NULL, 0, ?)",
-                                        (cf, n.nachricht_id, zeit_text(n.empfangen), n.absender, n.betreff, ort))
-                            aus["nachrichten_neu"] += 1
-                            aus["nachrichten_ohne_inhalt"] += 1
-                            continue
-                        n = voll
                     roh = getattr(n, "roh", None)
                     if not isinstance(roh, bytes) or len(roh) > self.config.upload_max_mib * 1024 * 1024:
                         roh = None  # ohne Rohfassung wird die Mail beim Anhängen aus den Feldern gebaut (D-123)
                     con.execute("INSERT INTO mail_nachricht (adresse_cf, nachricht_id, empfangen, absender, betreff,"
-                                " text, roh, ort) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                                (cf, n.nachricht_id, zeit_text(n.empfangen), n.absender, n.betreff, n.text, roh, ort))
+                                " text, roh) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                                (cf, n.nachricht_id, zeit_text(n.empfangen), n.absender, n.betreff, n.text, roh))
                     aus["nachrichten_neu"] += 1
-                for k in nachladen:   # D-243: Kopf-Mails, die eine (neue) Vorauswahl jetzt betrifft
-                    voll = (inhalte or {}).get(k.nachricht_id)
-                    if voll is not None and self._inhalt_eintragen(con, cf, voll):
-                        aus["nachrichten_nachgeladen"] += 1
                 con.execute("UPDATE postfach_zustand SET letzter_erfolg_am = ?, fehler_code = NULL, fehler_meldung = NULL"
                             " WHERE adresse_cf = ?", (zeit_text(beginn), cf))
             return aus
         finally:
             con.close()
+
+    def _fehler_vermerken(self, con, p: dict, cf: str, e: Exception, aus: dict) -> dict:
+        """Fehler des Plugins am Postfach vermerken und melden; bereits Gespeichertes bleibt."""
+        code, meldung = _fehler_von(e)
+        with db.transaktion(con):
+            con.execute("UPDATE postfach_zustand SET fehler_code = ?, fehler_meldung = ? WHERE adresse_cf = ?",
+                        (code, meldung, cf))
+            if isinstance(e, (MailTokenAbgelaufen, MailTokenWiderrufen)) and not self.config.mock_modus:
+                pass  # Status und Benachrichtigung schon in zugang (mail.md 6.3)
+            elif isinstance(e, MailTokenAbgelaufen):
+                self._melden(con, "mail_token_abgelaufen", p["id"], 0)
+            else:
+                buch.benachrichtigung_anlegen(
+                    con, "mail_fehler", f"mail_fehler:{p['id']}:{code}", "Mail-Abruf fehlgeschlagen",
+                    f"Der Abruf eines Postfachs ist fehlgeschlagen (Fehler „{code}“). Kontor versucht es beim "
+                    "nächsten Abruf erneut; bereits abgerufene Mails bleiben erhalten.",
+                    f"/mail/postfaecher/{p['id']}", self.jetzt_text(), "ungelesen")
+        aus.update(status="fehlgeschlagen", fehler={"code": code, "meldung": meldung})
+        return aus
+
+    def _kopfweise(self, con, plugin, p: dict, cf: str, seit: dt.datetime, beginn: dt.datetime, aus: dict) -> dict:
+        """D-243/D-253: erst alle Kopfzeilen speichern, dann die nötigen Inhalte in Teilen laden und je Teil sofort
+        speichern – nie alle Mails zugleich im Arbeitsspeicher. Bricht der Abruf unterwegs ab, bleiben Kopfzeilen und
+        schon geladene Inhalte; der nächste Abruf lädt die fehlenden Inhalte nach."""
+        from .plugins.mail import MailKopf
+        aus.update(nachrichten_ohne_inhalt=0, nachrichten_nachgeladen=0)
+        try:
+            koepfe = plugin.koepfe(p["adresse"], seit,
+                                   fortschritt=lambda e, g: self._stand_setzen(p["id"], "koepfe", e, g))
+        except Exception as e:  # noqa: BLE001 - ein Pluginfehler führt nie zu 5xx
+            return self._fehler_vermerken(con, p, cf, e, aus)
+        filt = [f.casefold() for f in p["absender_filter"]]
+        self._stand_setzen(p["id"], "speichern", None, len(koepfe))
+        neu: set[str] = set()
+        with db.transaktion(con):
+            for k in koepfe:
+                aus["nachrichten_gesamt"] += 1
+                if con.execute("SELECT 1 FROM mail_nachricht WHERE adresse_cf = ? AND nachricht_id = ?",
+                               (cf, k.nachricht_id)).fetchone():
+                    aus["nachrichten_vorhanden"] += 1
+                    continue
+                if filt and not any(f in k.absender.casefold() for f in filt):
+                    aus["nachrichten_gefiltert"] += 1
+                    continue
+                con.execute("INSERT INTO mail_nachricht (adresse_cf, nachricht_id, empfangen, absender, betreff, text,"
+                            " roh, inhalt, ort) VALUES (?, ?, ?, ?, ?, '', NULL, 0, ?)",
+                            (cf, k.nachricht_id, zeit_text(k.empfangen), k.absender, k.betreff, k.ort))
+                neu.add(k.nachricht_id)
+        aus["nachrichten_neu"] = len(neu)
+        del koepfe
+        noetig = self._inhalt_noetig()
+        offen = [MailKopf(r["nachricht_id"], p["adresse"], zeit_lesen(r["empfangen"]), r["absender"], r["betreff"],
+                          r["ort"] or "")
+                 for r in con.execute("SELECT nachricht_id, empfangen, absender, betreff, ort FROM mail_nachricht"
+                                      " WHERE adresse_cf = ? AND inhalt = 0 ORDER BY empfangen, id", (cf,))
+                 if noetig(r["absender"], r["betreff"])]
+        geladen = 0
+
+        def abgeben(teil: dict) -> None:
+            nonlocal geladen
+            with db.transaktion(con):
+                for n in teil.values():
+                    if self._inhalt_eintragen(con, cf, n):
+                        if n.nachricht_id in neu:
+                            geladen += 1
+                        else:
+                            aus["nachrichten_nachgeladen"] += 1
+
+        fehler = None
+        if offen:
+            try:
+                plugin.inhalte(p["adresse"], offen, abgeben=abgeben,
+                               fortschritt=lambda e, g: self._stand_setzen(p["id"], "inhalte", e, g))
+            except Exception as e:  # noqa: BLE001 - ein Pluginfehler führt nie zu 5xx
+                fehler = e
+        aus["nachrichten_ohne_inhalt"] = len(neu) - geladen
+        if fehler is not None:
+            return self._fehler_vermerken(con, p, cf, fehler, aus)
+        with db.transaktion(con):
+            con.execute("UPDATE postfach_zustand SET letzter_erfolg_am = ?, fehler_code = NULL, fehler_meldung = NULL"
+                        " WHERE adresse_cf = ?", (zeit_text(beginn), cf))
+        return aus
 
     # ------------------------------------------------------------ D-243: Kopfzeilen, Inhalt bei Bedarf
     def _inhalt_noetig(self) -> Callable[[str, str], bool]:
@@ -815,27 +861,6 @@ class MailDienst:
             return (any(a.gehoert(absender or "", betreff or "") for a in liste)
                     or any(a.kennungen(betreff or "") for a in mit_kennung))
         return pruefen
-
-    def _koepfe_und_inhalte(self, con, plugin, p: dict, cf: str, seit: dt.datetime):
-        """Kopfzeilen ab ``seit``; Inhalte der neuen Mails, die ihn brauchen, und der schon gespiegelten Kopf-Mails,
-        die ihn inzwischen brauchen (neue oder geänderte Anbieter-Beschreibung). Eine Verbindung je Schritt."""
-        from .plugins.mail import MailKopf
-        koepfe = plugin.koepfe(p["adresse"], seit,
-                               fortschritt=lambda e, g: self._stand_setzen(p["id"], "koepfe", e, g))
-        vorhanden = {r[0] for r in con.execute("SELECT nachricht_id FROM mail_nachricht WHERE adresse_cf = ?", (cf,))}
-        filt = [f.casefold() for f in p["absender_filter"]]
-        noetig = self._inhalt_noetig()
-        gesucht = [k for k in koepfe if k.nachricht_id not in vorhanden
-                   and (not filt or any(f in k.absender.casefold() for f in filt)) and noetig(k.absender, k.betreff)]
-        nachladen = [MailKopf(r["nachricht_id"], p["adresse"], zeit_lesen(r["empfangen"]), r["absender"],
-                              r["betreff"], r["ort"] or "")
-                     for r in con.execute("SELECT nachricht_id, empfangen, absender, betreff, ort FROM mail_nachricht"
-                                          " WHERE adresse_cf = ? AND inhalt = 0 ORDER BY empfangen, id", (cf,))
-                     if noetig(r["absender"], r["betreff"])]
-        inhalte = plugin.inhalte(p["adresse"], gesucht + nachladen,
-                                 fortschritt=lambda e, g: self._stand_setzen(p["id"], "inhalte", e, g)) \
-            if (gesucht or nachladen) else {}
-        return koepfe, inhalte, nachladen
 
     def _inhalt_eintragen(self, con, cf: str, n) -> bool:
         """Nachgeladenen Inhalt in den Spiegel schreiben; die Mail wird danach neu nach Kennungen durchsucht."""

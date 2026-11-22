@@ -3705,3 +3705,18 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   Öffnen schon ein Abruf, folgt die Seite ihm. Knopf `mail-alle-koepfe` „Alle Kopfzeilen neu abrufen …“ mit
   Rückfrage, nur mit `mail_nur_koepfe` sichtbar.
 - **Prüfung:** `tests/test_mail_fortschritt_eigen.py`, `tests/test_browser_mail_fortschritt.py`.
+
+## D-253 Feature mail-teilweise: Inhalte in Teilen laden und sofort speichern (2026-11-22)
+
+- **Anlass:** „Alle Kopfzeilen neu abrufen“ an einem echten Postfach: 17 000 Kopfzeilen, danach 4 000 Inhalte; nach
+  etwa zwei Dritteln meldete die Oberfläche 502. Der Abruf hielt alle Inhalte samt Anhängen gleichzeitig im
+  Arbeitsspeicher und schrieb sie erst am Ende in einer Transaktion. Vermutete Ursache: Der Prozess wurde wegen
+  Speichermangels beendet, der Proxy antwortete 502 (am Server nicht bestätigt). Gespeichert war danach nichts.
+- **Entscheidung (mit `mail_nur_koepfe`):** Erst werden alle neuen Kopfzeilen in einer Transaktion gespeichert,
+  dann die nötigen Inhalte (neue und früher offen gebliebene Kopf-Mails, die die Vorauswahl trifft) in Teilen zu
+  200 Mails geladen; jeder Teil wird sofort in einer eigenen Transaktion eingetragen und nicht behalten.
+  `inhalte()` der Plugins hat dafür das optionale Argument `abgeben(teil)`; mit ihm ist das Ergebnis leer. Ohne
+  `mail_nur_koepfe` bleibt der Abruf über `nachrichten()` unverändert.
+- **Abbruch unterwegs:** Kopfzeilen und schon geladene Inhalte bleiben; `letzter_erfolg_am` bleibt stehen, das
+  Postfach gilt als fehlgeschlagen. Der nächste Abruf lädt die fehlenden Inhalte nach (`nachrichten_nachgeladen`).
+- **Prüfung:** `tests/test_mail_teilweise_eigen.py` (Abbruch nach dem ersten Teil, IMAP in Teilen).
