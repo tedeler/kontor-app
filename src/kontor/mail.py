@@ -625,8 +625,15 @@ class MailDienst:
                 self._zustand_sichern(con, cf)
                 con.execute("UPDATE postfach_zustand SET letzter_abruf_am = ? WHERE adresse_cf = ?",
                             (zeit_text(beginn), cf))
+            nur_koepfe = self.config.mail_nur_koepfe and getattr(plugin, "kann_koepfe", False)
+            inhalte: dict | None = None
+            nachladen: list = []
             try:
-                liste = plugin.nachrichten(p["adresse"], seit)
+                if nur_koepfe:   # D-243: erst die Kopfzeilen, Inhalt nur für Mails, die er betrifft
+                    liste, inhalte, nachladen = self._koepfe_und_inhalte(con, plugin, p, cf, seit)
+                    aus.update(nachrichten_ohne_inhalt=0, nachrichten_nachgeladen=0)
+                else:
+                    liste = plugin.nachrichten(p["adresse"], seit)
             except Exception as e:  # noqa: BLE001 - ein Pluginfehler führt nie zu 5xx
                 code, meldung = _fehler_von(e)
                 with db.transaktion(con):
@@ -655,18 +662,133 @@ class MailDienst:
                     if filt and not any(f in n.absender.casefold() for f in filt):
                         aus["nachrichten_gefiltert"] += 1
                         continue
+                    ort = None
+                    if inhalte is not None:
+                        ort = n.ort
+                        voll = inhalte.get(n.nachricht_id)
+                        if voll is None:
+                            con.execute("INSERT INTO mail_nachricht (adresse_cf, nachricht_id, empfangen, absender,"
+                                        " betreff, text, roh, inhalt, ort) VALUES (?, ?, ?, ?, ?, '', NULL, 0, ?)",
+                                        (cf, n.nachricht_id, zeit_text(n.empfangen), n.absender, n.betreff, ort))
+                            aus["nachrichten_neu"] += 1
+                            aus["nachrichten_ohne_inhalt"] += 1
+                            continue
+                        n = voll
                     roh = getattr(n, "roh", None)
                     if not isinstance(roh, bytes) or len(roh) > self.config.upload_max_mib * 1024 * 1024:
                         roh = None  # ohne Rohfassung wird die Mail beim Anhängen aus den Feldern gebaut (D-123)
                     con.execute("INSERT INTO mail_nachricht (adresse_cf, nachricht_id, empfangen, absender, betreff,"
-                                " text, roh) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                                (cf, n.nachricht_id, zeit_text(n.empfangen), n.absender, n.betreff, n.text, roh))
+                                " text, roh, ort) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                                (cf, n.nachricht_id, zeit_text(n.empfangen), n.absender, n.betreff, n.text, roh, ort))
                     aus["nachrichten_neu"] += 1
+                for k in nachladen:   # D-243: Kopf-Mails, die eine (neue) Vorauswahl jetzt betrifft
+                    voll = (inhalte or {}).get(k.nachricht_id)
+                    if voll is not None and self._inhalt_eintragen(con, cf, voll):
+                        aus["nachrichten_nachgeladen"] += 1
                 con.execute("UPDATE postfach_zustand SET letzter_erfolg_am = ?, fehler_code = NULL, fehler_meldung = NULL"
                             " WHERE adresse_cf = ?", (zeit_text(beginn), cf))
             return aus
         finally:
             con.close()
+
+    # ------------------------------------------------------------ D-243: Kopfzeilen, Inhalt bei Bedarf
+    def _inhalt_noetig(self) -> Callable[[str, str], bool]:
+        """Entscheidet allein aus Absender und Betreff, ob der Inhalt einer Mail gleich mitgeladen wird: wenn die
+        Pflicht-Vorauswahl einer Anbieter-Beschreibung trifft oder – mit ``mail_bestellnummer`` – der Betreff eine
+        Kennung eines Anbieters trägt, dessen Kennung in allen Mails gesucht wird (``bank.alle_mails``)."""
+        from . import anbieter
+        anbieter.einrichten(self.config.anbieter_verzeichnis)
+        liste = anbieter.aktive()
+        mit_kennung = [a for a in liste if a.bank.alle_mails and a.bank.kennung is not None] \
+            if self.config.mail_bestellnummer else []
+
+        def pruefen(absender: str, betreff: str) -> bool:
+            return (any(a.gehoert(absender or "", betreff or "") for a in liste)
+                    or any(a.kennungen(betreff or "") for a in mit_kennung))
+        return pruefen
+
+    def _koepfe_und_inhalte(self, con, plugin, p: dict, cf: str, seit: dt.datetime):
+        """Kopfzeilen ab ``seit``; Inhalte der neuen Mails, die ihn brauchen, und der schon gespiegelten Kopf-Mails,
+        die ihn inzwischen brauchen (neue oder geänderte Anbieter-Beschreibung). Eine Verbindung je Schritt."""
+        from .plugins.mail import MailKopf
+        koepfe = plugin.koepfe(p["adresse"], seit)
+        vorhanden = {r[0] for r in con.execute("SELECT nachricht_id FROM mail_nachricht WHERE adresse_cf = ?", (cf,))}
+        filt = [f.casefold() for f in p["absender_filter"]]
+        noetig = self._inhalt_noetig()
+        gesucht = [k for k in koepfe if k.nachricht_id not in vorhanden
+                   and (not filt or any(f in k.absender.casefold() for f in filt)) and noetig(k.absender, k.betreff)]
+        nachladen = [MailKopf(r["nachricht_id"], p["adresse"], zeit_lesen(r["empfangen"]), r["absender"],
+                              r["betreff"], r["ort"] or "")
+                     for r in con.execute("SELECT nachricht_id, empfangen, absender, betreff, ort FROM mail_nachricht"
+                                          " WHERE adresse_cf = ? AND inhalt = 0 ORDER BY empfangen, id", (cf,))
+                     if noetig(r["absender"], r["betreff"])]
+        inhalte = plugin.inhalte(p["adresse"], gesucht + nachladen) if (gesucht or nachladen) else {}
+        return koepfe, inhalte, nachladen
+
+    def _inhalt_eintragen(self, con, cf: str, n) -> bool:
+        """Nachgeladenen Inhalt in den Spiegel schreiben; die Mail wird danach neu nach Kennungen durchsucht."""
+        roh = getattr(n, "roh", None)
+        if not isinstance(roh, bytes) or len(roh) > self.config.upload_max_mib * 1024 * 1024:
+            roh = None
+        r = con.execute("SELECT id FROM mail_nachricht WHERE adresse_cf = ? AND nachricht_id = ? AND inhalt = 0",
+                        (cf, n.nachricht_id)).fetchone()
+        if r is None:
+            return False
+        con.execute("UPDATE mail_nachricht SET text = ?, roh = ?, inhalt = 1 WHERE id = ?", (n.text, roh, r["id"]))
+        con.execute("DELETE FROM bestellmail_nummer WHERE spiegel_id = ?", (r["id"],))
+        return True
+
+    def inhalt_laden(self, nachricht_db_id: int) -> dict:
+        """D-243: Inhalt einer nur mit Kopfzeilen gespiegelten Mail aus dem Postfach nachladen (Anzeige, Anhängen).
+        Ist er schon da, geschieht nichts. Danach läuft der Abgleich wie nach einem Abruf."""
+        from .plugins.mail import MailKopf
+        con = self._con()
+        try:
+            r = con.execute("SELECT * FROM mail_nachricht WHERE id = ?", (buch.sichere_id(nachricht_db_id),)).fetchone()
+            zeile = None if r is None else con.execute("SELECT * FROM postfach WHERE adresse_cf = ?",
+                                                       (r["adresse_cf"],)).fetchone()
+            if r is None or zeile is None:
+                raise buch.nicht_gefunden("Die E-Mail")
+            if r["inhalt"]:
+                return {"id": r["id"], "text": r["text"], "nachgeladen": False}
+            if self._geheim.gesperrt(con):
+                raise ApiFehler(409, "geheimnisse_gesperrt", "Die Geheimnisse sind gesperrt; bitte mit dem "
+                                "Login-Passwort entsperren, dann lässt sich der Inhalt der Mail laden.")
+            p = postfach_dict(zeile)
+            cf = r["adresse_cf"]
+        finally:
+            con.close()
+        self.anmeldungen_pruefen(cf)
+        con = self._con()
+        try:
+            z = self._zustand_zeile(con, cf)
+        finally:
+            con.close()
+        if not self.config.mock_modus and (z["anmeldung"] if z else "fehlt") != "angemeldet":
+            raise ApiFehler(409, "anmeldung_erforderlich", "Für das Postfach ist eine neue Anmeldung nötig, bevor "
+                            "der Inhalt der Mail geladen werden kann.")
+        plugin = self._plugin([p])
+        if not getattr(plugin, "kann_koepfe", False):
+            raise ApiFehler(409, "mail_inhalt_nicht_ladbar", "Das Mail-Plugin kann einzelne Mails nicht nachladen.")
+        kopf = MailKopf(r["nachricht_id"], p["adresse"], zeit_lesen(r["empfangen"]), r["absender"], r["betreff"],
+                        r["ort"] or "")
+        try:
+            voll = plugin.inhalte(p["adresse"], [kopf]).get(r["nachricht_id"])
+        except Exception as e:  # noqa: BLE001 - ein Pluginfehler führt nie zu 5xx
+            code, meldung = _fehler_von(e)
+            raise ApiFehler(409, code, meldung) from None
+        if voll is None:
+            raise ApiFehler(409, "mail_nicht_mehr_vorhanden", "Die Mail ist im Postfach nicht mehr vorhanden; ihr "
+                            "Inhalt lässt sich nicht nachladen.")
+        con = self._con()
+        try:
+            with db.transaktion(con):
+                self._inhalt_eintragen(con, cf, voll)
+        finally:
+            con.close()
+        if self.nach_abruf is not None:
+            self.nach_abruf()
+        return {"id": r["id"], "text": voll.text, "nachgeladen": True}
 
     def faellig(self) -> bool:
         """mail.md 6.4."""
@@ -733,6 +855,7 @@ class MailDienst:
                                "postfach": r["postfach_bezeichnung"] or r["postfach_adresse"],
                                "nachricht_id": r["nachricht_id"], "empfangen": r["empfangen"],
                                "absender": r["absender"], "betreff": r["betreff"], "text": r["text"],
+                               **({} if r["inhalt"] else {"ohne_inhalt": True}),   # D-243
                                "zuordnung": zuord.get((r["adresse_cf"], r["nachricht_id"]), []),
                                **({} if haengt is None else {"angehaengt": haengt.get(r["nachricht_id"], [])}),
                                **({"gruppe": gruppe.get(r["id"])} if gruppieren else {})}

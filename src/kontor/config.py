@@ -117,6 +117,10 @@ class KontorConfig:
     # Feature amazon-bestellnummer (D-208): Mails mit der Amazon-Bestellnummer einer Buchung als Dokumente an
     # diese Buchung hängen. Vorgabe aus; die ausgelieferte Umgebungsdatei schaltet ein.
     mail_bestellnummer: bool = False
+    # Feature kopfabruf (D-243): vom Postfach zuerst nur Kopfzeilen (Absender, Betreff) spiegeln; den Inhalt nur für
+    # Mails laden, die die Vorauswahl einer Anbieter-Beschreibung erfüllen, und sonst erst, wenn er gebraucht wird
+    # (Anzeige, Anhängen). Vorgabe aus; die ausgelieferten Umgebungsdateien schalten ein.
+    mail_nur_koepfe: bool = False
     # Meilenstein 6: echte Anbindungen und Benachrichtigungen (python-api.md 13.1). Keine Geheimnisse.
     bank_pin_quelle: str = "eingabe"
     credentials_verzeichnis: pathlib.Path | None = None
@@ -189,6 +193,8 @@ class KontorConfig:
                                        feld="wiederkehrend_automatisch")
         if not isinstance(self.mail_bestellnummer, bool):
             raise KonfigurationsFehler("mail_bestellnummer muss wahr oder falsch sein.", feld="mail_bestellnummer")
+        if not isinstance(self.mail_nur_koepfe, bool):
+            raise KonfigurationsFehler("mail_nur_koepfe muss wahr oder falsch sein.", feld="mail_nur_koepfe")
         if not isinstance(self.mail_abgleich, bool):
             raise KonfigurationsFehler("mail_abgleich muss wahr oder falsch sein.", feld="mail_abgleich")
         f = self.mail_abgleich_frist_tage
@@ -407,6 +413,7 @@ class KontorConfig:
                                                    "KONTOR_WIEDERKEHREND_AUTOMATISCH", False)
         mail_abgleich = _wahrheitswert(wert("KONTOR_MAIL_ABGLEICH"), "KONTOR_MAIL_ABGLEICH", False)
         mail_bestellnummer = _wahrheitswert(wert("KONTOR_MAIL_BESTELLNUMMER"), "KONTOR_MAIL_BESTELLNUMMER", False)
+        mail_nur_koepfe = _wahrheitswert(wert("KONTOR_MAIL_NUR_KOEPFE"), "KONTOR_MAIL_NUR_KOEPFE", False)
         text = wert("KONTOR_MAIL_ABGLEICH_FRIST_TAGE")
         if text:
             if not text.isascii() or not text.isdigit() or int(text) > 366:
@@ -450,6 +457,7 @@ class KontorConfig:
             sync_konten_anlegen=sync_konten_anlegen,
             mail_abgleich=mail_abgleich,
             mail_bestellnummer=mail_bestellnummer,
+            mail_nur_koepfe=mail_nur_koepfe,
             **ganz,
             **m6,
             **m7,

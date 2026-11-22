@@ -65,7 +65,7 @@ def nummern_der_mail(betreff: str | None, text: str | None, roh: bytes | None,
             pass
     aus: list[str] = []
     for a in _mit_kennung():
-        if not a.bank.alle_mails and not a.gehoert(absender or ""):
+        if not a.bank.alle_mails and not a.gehoert(absender or "", betreff or ""):
             continue
         for n in a.kennungen(*texte, mit_leerraum_variante=False):
             if n not in aus:

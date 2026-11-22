@@ -18,6 +18,18 @@ class MailNachricht:
     text: str
 
 
+@dataclass(frozen=True)
+class MailKopf:
+    """D-243: nur die Kopfzeilen einer Nachricht (Kennung, Zeit, Absender, Betreff). ``ort`` ist die Fundstelle
+    des Plugins zum Nachladen des Inhalts (IMAP: ``<UIDVALIDITY>:<UID>``); für Kontor ohne Bedeutung."""
+    nachricht_id: str
+    postfach: str
+    empfangen: dt.datetime
+    absender: str
+    betreff: str
+    ort: str = ""
+
+
 def mit_roh(n: MailNachricht, roh: bytes) -> MailNachricht:
     """Rohfassung (RFC 5322) als Zusatzattribut ``roh`` – kein Feld der Datenklasse (plugins.md legt die Felder
     fest); Vergleich und Darstellung bleiben unverändert. Genutzt für Dokumente aus Mails (D-123)."""
@@ -37,8 +49,20 @@ class MailPlugin(abc.ABC):
     @abc.abstractmethod
     def nachrichten(self, postfach: str, seit: dt.datetime) -> list[MailNachricht]: ...
 
+    # D-243: zweistufiger Abruf – erst die Kopfzeilen, den Inhalt nur bei Bedarf. Freiwillig; ein Plugin ohne diese
+    # Fähigkeit wird wie bisher über ``nachrichten`` vollständig abgerufen.
+    kann_koepfe: ClassVar[bool] = False
+
+    def koepfe(self, postfach: str, seit: dt.datetime) -> list[MailKopf]:
+        """Kopfzeilen aller Nachrichten ab ``seit`` (gleiche Auswahl, Reihenfolge und Kennungen wie ``nachrichten``)."""
+        raise NotImplementedError
+
+    def inhalte(self, postfach: str, koepfe: list[MailKopf]) -> dict[str, MailNachricht]:
+        """Vollständige Nachrichten zu ``koepfe``, nach ``nachricht_id``; nicht mehr vorhandene fehlen im Ergebnis."""
+        raise NotImplementedError
+
     def schliessen(self) -> None:
         return None
 
 
-__all__ = ["MailPlugin", "MailNachricht", "mit_roh"]
+__all__ = ["MailPlugin", "MailNachricht", "MailKopf", "mit_roh"]

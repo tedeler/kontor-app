@@ -7,12 +7,13 @@ import pathlib
 
 from ..fehler import MailTokenAbgelaufen, PostfachUnbekannt
 from . import mock_daten as md
-from .mail import MailNachricht, MailPlugin
+from .mail import MailKopf, MailNachricht, MailPlugin
 
 
 class MockMailPlugin(MailPlugin):
     name = "mock"
     ist_mock = True
+    kann_koepfe = True
 
     def __init__(self, daten: pathlib.Path | None = None, szenario: str = "normal",
                  heute: dt.date | None = None) -> None:
@@ -53,6 +54,17 @@ class MockMailPlugin(MailPlugin):
         aus = [m for m in quelle if m.empfangen >= seit and m.empfangen.astimezone(dt.timezone.utc).date() <= heute]
         aus.sort(key=lambda m: (m.empfangen, m.nachricht_id))
         return aus
+
+    def koepfe(self, postfach: str, seit: dt.datetime) -> list[MailKopf]:
+        return [MailKopf(m.nachricht_id, m.postfach, m.empfangen, m.absender, m.betreff, m.nachricht_id)
+                for m in self.nachrichten(postfach, seit)]
+
+    def inhalte(self, postfach: str, koepfe: list[MailKopf]) -> dict[str, MailNachricht]:
+        if not koepfe:
+            return {}
+        gesucht = {k.nachricht_id for k in koepfe}
+        frueheste = min(k.empfangen for k in koepfe)
+        return {m.nachricht_id: m for m in self.nachrichten(postfach, frueheste) if m.nachricht_id in gesucht}
 
 
 __all__ = ["MockMailPlugin"]

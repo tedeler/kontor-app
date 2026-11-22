@@ -3,7 +3,7 @@
 Je Aufruf von ``nachrichten`` eine eigene Verbindung (Postfächer lassen sich parallel aus mehreren Threads
 abrufen). Anmeldung über ``AUTHENTICATE XOAUTH2`` mit einem Access-Token aus ``zugang`` oder – für Postfächer mit
 App-Passwort (D-130, z. B. Gmail ohne eigenes Google-Cloud-Projekt) – über ``LOGIN`` mit dem App-Passwort, das
-``ImapPostfach.passwort`` erst unmittelbar vor der Anmeldung liefert. Ordner werden nur mit ``EXAMINE`` geöffnet, Inhalte nur mit ``BODY.PEEK[]``
+``ImapPostfach.passwort`` erst unmittelbar vor der Anmeldung liefert. Ordner werden nur mit ``EXAMINE`` geöffnet, Inhalte nur mit ``BODY.PEEK[]`` (bzw. ``BODY.PEEK[HEADER.FIELDS …]`` für die Kopfzeilen, D-243)
 gelesen – der Abruf ändert weder Inhalt noch Markierungen. Tokens erscheinen nie in Meldungen, ``details``,
 ``repr()`` oder Protokollen.
 """
@@ -28,13 +28,15 @@ from ..config import KontorConfig
 from ..fehler import (MailAnmeldungAbgelehnt, MailAnmeldungFehlt, MailFehler, MailOrdnerUnbekannt,
                       MailVerbindungsFehler, PluginNichtVerfuegbar, PostfachUnbekannt)
 from ..netz import tls_kontext
-from .mail import MailNachricht, MailPlugin, mit_roh
+from .mail import MailKopf, MailNachricht, MailPlugin, mit_roh
 
 UTC = dt.timezone.utc
 _MONATE = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 _INTERN = re.compile(rb'INTERNALDATE "\s?(\d{1,2})-([A-Za-z]{3})-(\d{4}) (\d{2}):(\d{2}):(\d{2}) ([+-])(\d{2})(\d{2})"')
 _UID = re.compile(rb"\bUID (\d+)")
 _TEIL = 200  # UIDs je FETCH
+# D-243: nur die Kopfzeilen, die Kontor zum Spiegeln braucht (BODY.PEEK ändert keine Markierungen)
+_KOPF = "BODY.PEEK[HEADER.FIELDS (MESSAGE-ID FROM SUBJECT)]"
 
 
 @dataclass(frozen=True)
@@ -250,6 +252,108 @@ class ImapMailPlugin(MailPlugin):
                     pass
 
     def _abrufen(self, p: ImapPostfach, seit: dt.datetime, token: str | None) -> list[MailNachricht]:
+        def suchen(v, uidvalidity):
+            gesammelt = self._holen(v, self._suchen_seit(v, seit), "BODY.PEEK[]")
+            return [abbilden(roh, p.adresse, zeit, uidvalidity, uid) for uid, (zeit, roh) in sorted(gesammelt.items())]
+        return self._nur_neueste(self._sitzung(p, token, suchen), seit)
+
+    # ------------------------------------------------------------ D-243: Kopfzeilen und Inhalt bei Bedarf
+    kann_koepfe = True
+
+    def koepfe(self, postfach: str, seit: dt.datetime) -> list[MailKopf]:
+        if not isinstance(seit, dt.datetime) or seit.tzinfo is None or seit.utcoffset() is None:
+            raise ValueError("seit muss ein zeitzonenbehafteter Zeitpunkt sein.")
+        p, token = self._postfach_und_token(postfach)
+
+        def suchen(v, uidvalidity):
+            gesammelt = self._holen(v, self._suchen_seit(v, seit), _KOPF)
+            aus = []
+            for uid, (zeit, roh) in sorted(gesammelt.items()):
+                n = abbilden(roh, p.adresse, zeit, uidvalidity, uid)
+                aus.append(MailKopf(n.nachricht_id, n.postfach, n.empfangen, n.absender, n.betreff,
+                                    f"{uidvalidity}:{uid}"))
+            return aus
+        return self._nur_neueste(self._sitzung(p, token, suchen), seit)
+
+    def inhalte(self, postfach: str, koepfe: list[MailKopf]) -> dict[str, MailNachricht]:
+        if not koepfe:
+            return {}
+        p, token = self._postfach_und_token(postfach)
+
+        def holen(v, uidvalidity):
+            je_uid: dict[int, MailKopf] = {}
+            for k in koepfe:
+                gueltig, _, uid = (k.ort or "").partition(":")
+                if gueltig == uidvalidity and uid.isdigit():
+                    je_uid[int(uid)] = k
+                elif k.nachricht_id.startswith("<"):   # UIDVALIDITY geändert: über die Message-ID suchen
+                    typ, daten = v.uid("SEARCH", "HEADER", "Message-ID", _quoten(k.nachricht_id))
+                    treffer = sorted(int(x) for x in b" ".join(d for d in (daten or []) if d).split()) if typ == "OK" else []
+                    if treffer:
+                        je_uid[treffer[0]] = k
+            gesammelt = self._holen(v, sorted(je_uid), "BODY.PEEK[]")
+            aus: dict[str, MailNachricht] = {}
+            for uid, (zeit, roh) in sorted(gesammelt.items()):
+                k = je_uid.get(uid)
+                if k is None:
+                    continue
+                n = abbilden(roh, p.adresse, zeit, uidvalidity, uid)
+                aus.setdefault(k.nachricht_id, mit_roh(MailNachricht(k.nachricht_id, n.postfach, n.empfangen,
+                                                                     n.absender, n.betreff, n.text), roh))
+            return aus
+        return self._sitzung(p, token, holen)
+
+    def _postfach_und_token(self, postfach: str) -> tuple[ImapPostfach, str | None]:
+        ziel = str(postfach).casefold()
+        p = next((x for x in self._postfaecher if x.adresse.casefold() == ziel), None)
+        if p is None:
+            raise PostfachUnbekannt("Das Postfach ist unbekannt.")
+        if getattr(p, "passwort", None) is not None and self._config is not None:
+            return p, None
+        if self._zugang is None or self._config is None:
+            raise PluginNichtVerfuegbar("Für das Postfach ist kein OAuth2-Zugang eingerichtet.")
+        return p, self._zugang(p.adresse, False)
+
+    @staticmethod
+    def _nur_neueste(liste: list, seit: dt.datetime) -> list:
+        """Bei gleicher Kennung die kleinste UID (E-123); nur Nachrichten ab ``seit``, sortiert."""
+        je_id: dict[str, object] = {}
+        for n in liste:
+            je_id.setdefault(n.nachricht_id, n)
+        aus = [n for n in je_id.values() if n.empfangen >= seit]
+        aus.sort(key=lambda n: (n.empfangen, n.nachricht_id))
+        return aus
+
+    @staticmethod
+    def _suchen_seit(v: imaplib.IMAP4, seit: dt.datetime) -> list[int]:
+        s = seit.astimezone(UTC)
+        kriterium = f"{s.day:02d}-{_MONATE[s.month - 1]}-{s.year}"
+        typ, daten = v.uid("SEARCH", "SINCE", kriterium)
+        if typ != "OK":
+            raise MailVerbindungsFehler("Der Mailserver hat die Suche nicht beantwortet.")
+        return sorted({int(x) for x in b" ".join(d for d in daten if d).split()})
+
+    @staticmethod
+    def _holen(v: imaplib.IMAP4, uids: list[int], teil_art: str) -> dict[int, tuple[dt.datetime, bytes]]:
+        gesammelt: dict[int, tuple[dt.datetime, bytes]] = {}
+        for i in range(0, len(uids), _TEIL):
+            teil = ",".join(str(u) for u in uids[i:i + _TEIL])
+            typ, daten = v.uid("FETCH", teil, f"(UID INTERNALDATE {teil_art})")
+            if typ != "OK":
+                raise MailVerbindungsFehler("Der Mailserver hat den Abruf nicht beantwortet.")
+            for eintrag in daten:
+                if not isinstance(eintrag, tuple) or len(eintrag) < 2:
+                    continue
+                kopf, inhalt = eintrag[0], eintrag[1]
+                m = _UID.search(kopf)
+                zeit = _internaldate(kopf)
+                if m is None or zeit is None:
+                    raise MailVerbindungsFehler("Unerwartete Antwort des Mailservers.")
+                gesammelt[int(m[1])] = (zeit, bytes(inhalt))
+        return gesammelt
+
+    def _sitzung(self, p: ImapPostfach, token: str | None, arbeit):
+        """Anmelden, Ordner lesend öffnen, ``arbeit(verbindung, uidvalidity)`` ausführen, abmelden."""
         v = self._verbinden()
         try:
             try:
@@ -268,32 +372,13 @@ class ImapMailPlugin(MailPlugin):
                     raise MailOrdnerUnbekannt("Der IMAP-Ordner ist im Postfach unbekannt.")
                 _, werte = v.response("UIDVALIDITY")
                 uidvalidity = (werte[0].decode("ascii", "replace") if werte and werte[0] else "0").strip()
-                s = seit.astimezone(UTC)
-                kriterium = f"{s.day:02d}-{_MONATE[s.month - 1]}-{s.year}"
-                typ, daten = v.uid("SEARCH", "SINCE", kriterium)
-                if typ != "OK":
-                    raise MailVerbindungsFehler("Der Mailserver hat die Suche nicht beantwortet.")
-                uids = sorted({int(x) for x in b" ".join(d for d in daten if d).split()})
-                gesammelt: dict[int, tuple[dt.datetime, bytes]] = {}
-                for i in range(0, len(uids), _TEIL):
-                    teil = ",".join(str(u) for u in uids[i:i + _TEIL])
-                    typ, daten = v.uid("FETCH", teil, "(UID INTERNALDATE BODY.PEEK[])")
-                    if typ != "OK":
-                        raise MailVerbindungsFehler("Der Mailserver hat den Abruf nicht beantwortet.")
-                    for eintrag in daten:
-                        if not isinstance(eintrag, tuple) or len(eintrag) < 2:
-                            continue
-                        kopf, inhalt = eintrag[0], eintrag[1]
-                        m = _UID.search(kopf)
-                        zeit = _internaldate(kopf)
-                        if m is None or zeit is None:
-                            raise MailVerbindungsFehler("Unerwartete Antwort des Mailservers.")
-                        gesammelt[int(m[1])] = (zeit, bytes(inhalt))
+                ergebnis = arbeit(v, uidvalidity)
                 try:
                     v.logout()
                 except (OSError, imaplib.IMAP4.error, EOFError):
                     pass
                 v = None
+                return ergebnis
             except (OSError, imaplib.IMAP4.abort, ssl.SSLError, EOFError):
                 raise MailVerbindungsFehler("Die Verbindung zum Mailserver wurde unterbrochen.") from None
             except imaplib.IMAP4.error:
@@ -304,14 +389,5 @@ class ImapMailPlugin(MailPlugin):
                     v.shutdown()
                 except Exception:  # noqa: BLE001
                     pass
-        nachrichten: dict[str, MailNachricht] = {}
-        for uid in sorted(gesammelt):
-            zeit, roh = gesammelt[uid]
-            n = abbilden(roh, p.adresse, zeit, uidvalidity, uid)
-            nachrichten.setdefault(n.nachricht_id, n)  # bei gleicher Kennung die kleinste UID (E-123)
-        aus = [n for n in nachrichten.values() if n.empfangen >= seit]
-        aus.sort(key=lambda n: (n.empfangen, n.nachricht_id))
-        return aus
-
 
 __all__ = ["ImapMailPlugin", "ImapPostfach", "ImapPasswortPostfach", "utf7_imap", "abbilden"]

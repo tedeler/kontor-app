@@ -153,6 +153,27 @@ export async function mailSeite(seite, _param, suche) {
       "aria-label": "Mail schließen", onclick: () => auswahlSetzen("", false) }, "✕")] : [];
     leseEl.replaceChildren(...zu, ...(mail ? lesen(mail, (ausloeser) => zuordnenDialog(mail, ausloeser, laden))
       : [h("p", { class: "leer" }, "Keine Mail ausgewählt.")]));
+    if (mail && mail.ohne_inhalt) {
+      const erneut = leseEl.querySelector("[data-testid=mail-inhalt-laden]");
+      if (erneut) erneut.addEventListener("click", () => { delete mail.inhaltFehler; inhaltZeigen(); });
+      else inhaltHolen(mail);
+    }
+  }
+
+  /** D-243: Von der Mail sind nur Kopfzeilen gespiegelt; den Inhalt beim ersten Lesen aus dem Postfach holen. */
+  async function inhaltHolen(mail) {
+    if (mail.inhaltLaedt) return;
+    mail.inhaltLaedt = true;
+    try {
+      const r = await api("POST", `/api/mail/nachrichten/${mail.id}/inhalt`, {});
+      mail.text = r.text;
+      delete mail.ohne_inhalt;
+    } catch (e) {
+      mail.inhaltFehler = e.message || "Der Inhalt konnte nicht geladen werden.";
+    } finally {
+      mail.inhaltLaedt = false;
+    }
+    if (String(mail.id) === gewaehlt) inhaltZeigen();
   }
 
   function auswahlSetzen(id, fokus) {
@@ -295,7 +316,8 @@ function abrufErgebnis(erg) {
   if (!kaesten.length) return "Abruf beendet: kein aktives Postfach.";
   return "Abruf beendet: " + kaesten.map((p) => {
     if (p.status !== "erfolgreich") return `${p.adresse}: ${p.fehler && p.fehler.meldung ? p.fehler.meldung : p.status}`;
-    return `${p.adresse}: ${p.nachrichten_neu} neu, ${p.nachrichten_vorhanden} schon da`;
+    const kopf = p.nachrichten_ohne_inhalt ? ` (${p.nachrichten_ohne_inhalt} nur mit Absender und Betreff)` : "";
+    return `${p.adresse}: ${p.nachrichten_neu} neu${kopf}, ${p.nachrichten_vorhanden} schon da`;
   }).join("; ");
 }
 
@@ -458,8 +480,17 @@ function lesen(m, zuordnen) {
     h("div", null, zuordnungAusfuehrlich(m)),
     zuordnen ? h("p", null, knopf("Buchung zuordnen…", { tid: "mail-zuordnen", onclick: (ev) => zuordnen(ev.currentTarget) })) : null,
     h("h3", null, "Text"),
-    h("pre", { class: "mail-text", tid: "mail-text" }, m.text || ""),
+    m.ohne_inhalt ? textOhneInhalt(m) : h("pre", { class: "mail-text", tid: "mail-text" }, m.text || ""),
   ];
+}
+
+function textOhneInhalt(m) {
+  if (m.inhaltFehler) {
+    return h("div", { class: "mail-text", tid: "mail-text", "data-inhalt": "fehler" },
+      h("p", { role: "alert" }, m.inhaltFehler), knopf("Erneut laden", { tid: "mail-inhalt-laden" }));
+  }
+  return h("p", { class: "mail-text klein", tid: "mail-text", "data-inhalt": "laedt", role: "status" },
+    "Von dieser Mail sind nur Absender und Betreff gespeichert. Der Inhalt wird aus dem Postfach geladen …");
 }
 
 function standDerMail(m) {

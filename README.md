@@ -339,6 +339,7 @@ von systemd verschlüsselt bereitgestellt (siehe unten).
 | `KONTOR_OAUTH_VORWARNUNG_STUNDEN` | Vorwarnung vor dem Ablauf (Vorgabe 24) |
 | `KONTOR_MAIL_INTERVALL_MINUTEN` | automatischer Mail-Abruf (Vorgabe 0 = aus) |
 | `KONTOR_MAIL_ERSTABRUF_TAGE`, `KONTOR_MAIL_UEBERLAPPUNG_STUNDEN` | Zeitraum des ersten Abrufs (30 Tage) und Überlappung (24 h) |
+| `KONTOR_MAIL_NUR_KOEPFE` | D-243: zuerst nur Absender und Betreff spiegeln, den Inhalt nur für Mails bekannter Anbieter (Vorauswahl in `ANBIETER.md`) und sonst beim Lesen oder Anhängen nachladen (Vorgabe aus, ausgeliefert an) |
 | `KONTOR_BENACHRICHTIGUNG_PLUGIN` | `keins` (Vorgabe im Echtbetrieb), `mock` (Vorgabe im Mock-Modus), `ntfy` |
 | `KONTOR_NTFY_URL`, `KONTOR_NTFY_TOPIC` | ntfy-Server (Vorgabe `https://ntfy.sh`) und Thema (Pflicht bei `ntfy`) |
 | `KONTOR_ZUSTELLUNG_MAX_VERSUCHE`, `KONTOR_ZUSTELLUNG_WIEDERHOLUNG_MINUTEN` | Wiederholung nach Fehlschlag (10 Versuche, alle 5 Minuten) |

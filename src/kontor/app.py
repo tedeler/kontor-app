@@ -1137,6 +1137,11 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
         return await lesen(maildienst.nachrichten_liste, postfach_id, seite or 1, pro_seite or 50,
                            sync.heute().isoformat(), zuordnung, neueste, suche, gruppieren)
 
+    @endpunkt("POST", "/api/mail/nachrichten/{nachricht_id:int}/inhalt")
+    async def mail_inhalt(request: Request):
+        """D-243: Inhalt einer nur mit Kopfzeilen gespiegelten Mail aus dem Postfach laden."""
+        return await run_in_threadpool(maildienst.inhalt_laden, pid(request, "nachricht_id"))
+
     @endpunkt("POST", "/api/mail/nachrichten/{nachricht_id:int}/buchung", 201)
     async def mail_an_buchung(request: Request):
         """D-226: Mail von Hand als Dokument an eine Buchung hängen."""
@@ -1144,6 +1149,7 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
         if not isinstance(d, dict) or type(d.get("buchung_id")) is not int or set(d) - {"buchung_id"}:
             raise Validierungsfehler([fehler_eintrag(["body", "buchung_id"], "Genau das Feld 'buchung_id' (ganze Zahl).")])
         nid = pid(request, "nachricht_id")
+        await run_in_threadpool(maildienst.inhalt_laden, nid)   # D-243: nur mit Kopfzeilen gespiegelt → nachladen
         return await aendern("dokument_aus_mail", mit_uhr(
             lambda con, z: bestellmail.von_hand(con, nid, d["buchung_id"], z)))
 

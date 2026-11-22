@@ -202,12 +202,19 @@ class Bank:
 class Anbieter:
     name: str
     titel: str
-    absender: re.Pattern
+    absender: re.Pattern | None       # Vorauswahl (D-243): Ausdruck auf die Domain des Absenders
     kennung: re.Pattern
     kennung_in: tuple[str, ...]
     arten: tuple[Mailart, ...]
     bank: Bank
     quelle: str = ""
+    betreff: re.Pattern | None = None  # Vorauswahl (D-243): Ausdruck auf den Betreff
+
+    @property
+    def vorauswahl(self) -> str:
+        """Kurzfassung der Vorauswahl (für Signaturen und Meldungen)."""
+        return (f"absender={self.absender.pattern if self.absender else ''}"
+                f";betreff={self.betreff.pattern if self.betreff else ''}")
 
     @property
     def ausgabe(self) -> Mailart | None:
@@ -219,9 +226,17 @@ class Anbieter:
 
     # ---------------------------------------------------------------- Mail lesen
 
-    def gehoert(self, absender: str) -> bool:
-        dom = absender.casefold().rsplit("@", 1)[-1].rstrip(">").strip()
-        return self.absender.search(dom) is not None
+    def gehoert(self, absender: str, betreff: str | None = None) -> bool:
+        """Pflicht-Vorauswahl (D-243): Die Mail gehört zum Anbieter, wenn jede angegebene Bedingung trifft – der
+        Ausdruck ``absender`` auf die Domain des Absenders und der Ausdruck ``betreff`` auf den Betreff. Beides
+        steht schon in den Kopfzeilen; mehr braucht die Entscheidung, ob der Inhalt geladen wird, nicht."""
+        if self.absender is not None:
+            dom = (absender or "").casefold().rsplit("@", 1)[-1].rstrip(">").strip()
+            if self.absender.search(dom) is None:
+                return False
+        if self.betreff is not None and self.betreff.search((betreff or "")[:MAX_TEXT]) is None:
+            return False
+        return True
 
     def lesen(self, betreff: str, text: str) -> Erkennung | None:
         """Mail dieses Anbieters lesen; ``None``, wenn Kennung, Mailart oder Betrag fehlen."""
@@ -386,7 +401,7 @@ def _art(d, wo: str) -> Mailart:
 
 def aus_beschreibung(d: dict, quelle: str = "") -> Anbieter:
     """Geprüfter Anbieter aus einer gelesenen Beschreibung; ``BeschreibungsFehler`` mit der fehlerhaften Stelle."""
-    _nur(d, {"name", "titel", "absender", "kennung", "art", "bank"}, "Beschreibung")
+    _nur(d, {"name", "titel", "absender", "vorauswahl", "kennung", "art", "bank"}, "Beschreibung")
     name = d.get("name")
     if not isinstance(name, str) or not re.fullmatch(r"[a-z][a-z0-9_]{0,29}", name):
         raise BeschreibungsFehler("name besteht aus Kleinbuchstaben, Ziffern und _ (höchstens 30 Zeichen).")
@@ -428,8 +443,25 @@ def aus_beschreibung(d: dict, quelle: str = "") -> Anbieter:
                 _muster(b["kennung"], "bank.kennung") if "kennung" in b else None, glob, b.get("ohne_leerraum") is True,
                 b.get("alle_mails") is True, haendler, b.get("haendler_noetig") is True, b.get("tage_vor"),
                 b.get("tage_nach"))
-    return Anbieter(name, titel.strip(), _muster(d.get("absender"), "absender"), rx, tuple(bereiche), gelesen, bank,
-                    quelle)
+    absender, betreff = _vorauswahl(d)
+    return Anbieter(name, titel.strip(), absender, rx, tuple(bereiche), gelesen, bank, quelle, betreff)
+
+
+def _vorauswahl(d: dict) -> tuple[re.Pattern | None, re.Pattern | None]:
+    """D-243: Pflichtangabe ``[vorauswahl]`` mit ``absender`` und/oder ``betreff``. Das bisherige ``absender`` auf
+    oberster Ebene gilt weiter als Kurzform von ``vorauswahl.absender`` (nicht beides zugleich)."""
+    v = d.get("vorauswahl")
+    if v is None:
+        if "absender" not in d:
+            raise BeschreibungsFehler("vorauswahl fehlt: Es braucht eine Regel auf absender und/oder betreff.")
+        return _muster(d["absender"], "absender"), None
+    _nur(v, {"absender", "betreff"}, "vorauswahl")
+    if "absender" in d:
+        raise BeschreibungsFehler("absender steht entweder oben oder in vorauswahl, nicht an beiden Stellen.")
+    if not v:
+        raise BeschreibungsFehler("vorauswahl: Es braucht absender und/oder betreff.")
+    return (_muster(v["absender"], "vorauswahl.absender") if "absender" in v else None,
+            _muster(v["betreff"], "vorauswahl.betreff") if "betreff" in v else None)
 
 
 def aus_toml(text: str, quelle: str = "") -> Anbieter:
@@ -509,7 +541,7 @@ def erkennen(absender: str, betreff: str, text: str,
              anbieter: tuple[Anbieter, ...] | None = None) -> Erkennung | None:
     """Erkennt eine Mail eines bekannten Anbieters; ``None`` wenn nicht eindeutig."""
     for a in (anbieter if anbieter is not None else aktive()):
-        if a.gehoert(absender or ""):
+        if a.gehoert(absender or "", betreff or ""):
             try:
                 return a.lesen(betreff or "", text or "")
             except (ValueError, IndexError):
@@ -520,4 +552,4 @@ def erkennen(absender: str, betreff: str, text: str,
 def signatur(anbieter: tuple[Anbieter, ...]) -> str:
     """Kurzfassung der Bank-Kennungsmuster; ändert sie sich, werden gemerkte Kennungen der Mails neu gesucht."""
     return "|".join(f"{a.name}:{a.bank.kennung.pattern if a.bank.kennung else ''}:{int(a.bank.alle_mails)}"
-                    f":{a.absender.pattern}" for a in anbieter)
+                    f":{a.vorauswahl}" for a in anbieter)
