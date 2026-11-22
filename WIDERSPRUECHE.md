@@ -242,3 +242,31 @@ Stand: Meilenstein 8 (getestet gegen kontor-tests `bf35445`); kein offener Eintr
   werden waagerecht geblättert). Die Mindestbreiten der Spalten (~730 px) übersteigen den Bereich (~480 px) schon
   ohne langen Text; die Liste wächst nicht nach dem Inhalt, der sichtbare Bereich endet vor dem Panel. Dem
   Test-Thread am 2026-11-16 als Text gemeldet.
+
+## W-015 M29: 600 Zeilen des Diagnoseprotokolls – gleiche Zeilenzahl je Aufruf angenommen
+
+- **Test:** `tests/app/m29/test_m29_diagnose.py::test_hoechstens_600_zeilen_aelteste_zuerst`.
+- **Erwartung des Tests:** Der Test misst, wie viele Zeilen der erste Abruf schreibt, und wiederholt den Abruf so
+  oft, wie nach dieser Zahl nötig wäre, um 600 Zeilen zu überschreiten; danach erwartet er genau 600 Zeilen.
+- **Spezifikation:** `bankzugang.md` (Diagnoseprotokoll): höchstens 600 Zeilen, älteste zuerst, ältere entfallen;
+  „Wortlaut und Aufbau der Zeilen sind frei“ (E-265, 11). Dass jeder Aufruf gleich viele Zeilen schreibt, ist
+  nicht festgelegt.
+- **Widerspruch:** Der erste Aufruf einer Instanz schreibt mehr Zeilen als die folgenden (einmalige Angaben zu
+  den Bankparametern und zur Synchronisierung; gemessen 66 gegenüber 37). Die Schleife des Tests endet deshalb bei
+  584 Zeilen, die Grenze wird nie erreicht. Abhilfe im Test: wiederholen, bis die Zeilenzahl nicht mehr wächst
+  oder 600 erreicht sind (mit Obergrenze der Wiederholungen). Dem Test-Thread am 2026-11-22 als Text gemeldet.
+
+## W-016 M29: Attrappe ändert die Benutzerparameter ohne neue Version
+
+- **Test:** `tests/app/m29/test_m29_bankzugang_rest.py::test_konten_abrufen_behaelt_auswahl_und_ersetzt_die_liste`.
+- **Erwartung des Tests:** Nach dem Umschalten der Attrappe auf „keine Kontoeinträge in den Benutzerparametern“
+  liefert derselbe Zugang beim nächsten Kontenabruf alle fünf SEPA-Kontoverbindungen ohne Namen und Inhaber.
+- **Spezifikation:** `fints.md` 6 (Verhalten der Attrappe, „das einer FinTS-Bank“): Bank- und Benutzerparameter
+  werden bei der Dialoginitialisierung nur „bei veralteter Version“ gesendet. `fints.md` 3.2: die
+  Benutzerparameter der Bank ergänzen die Kontoverbindungen.
+- **Widerspruch:** Die Attrappe ändert den Inhalt ihrer Benutzerparameter, meldet aber dieselbe Versionsnummer.
+  Ein Kunde, der die Benutzerparameter der Version 1 schon hat, nennt diese Version und bekommt – wie der Standard
+  es vorsieht – keine neuen; er ergänzt die Konten weiter mit den bekannten Einträgen (drei Konten mit Namen statt
+  fünf ohne). Abhilfe im Test: Die Attrappe erhöht die Version der Benutzerparameter, wenn eine der Betriebsarten
+  `upd_…` umgeschaltet wird, oder der Test nutzt für jeden Zustand eine neue App-Instanz mit neuer Datenbank.
+  Dem Test-Thread am 2026-11-22 als Text gemeldet.

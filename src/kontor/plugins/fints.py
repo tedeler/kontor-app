@@ -375,6 +375,17 @@ class _Offen:
 _KONTEN = ""  # „Konto“ einer offenen TAN-Anforderung, die zum Kontenabruf gehört
 
 
+def _verfahren_der_bankparameter(client) -> dict:
+    """Alle Zwei-Schritt-Verfahren aus den Bankparametern (HITANS), unabhängig von der Liste der erlaubten."""
+    from fints.client import IMPLEMENTED_HKTAN_VERSIONS
+    aus: dict = {}
+    for version in sorted(IMPLEMENTED_HKTAN_VERSIONS.keys()):
+        for seg in client.bpd.find_segments("HITANS", version):
+            for parameter in seg.parameter.twostep_parameters:
+                aus[parameter.security_function] = parameter
+    return aus
+
+
 class FintsBankPlugin(BankPlugin):
     name = "fints"
     ist_mock = False
@@ -464,6 +475,10 @@ class FintsBankPlugin(BankPlugin):
             erlaubt = [str(x) for x in (client.allowed_security_functions or [])]
             self._diag(f"TAN-Verfahren: Bank kennt {','.join(str(k) for k in verfahren) or '-'}; "
                        f"für diesen Zugang erlaubt: {','.join(erlaubt) or 'keine Angabe (3920 fehlt)'}")
+            if not erlaubt:
+                # Nennt die Bank keine erlaubten Verfahren, gelten alle Zwei-Schritt-Verfahren der Bankparameter
+                # (bankzugang.md 2.1). Die Bibliothek liefert in diesem Fall nichts, weil sie nach „erlaubt“ filtert.
+                verfahren = _verfahren_der_bankparameter(client)
             aus = []
             for code, p in verfahren.items():
                 code = str(code)

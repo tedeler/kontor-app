@@ -3442,3 +3442,19 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   fehlende öffentliche Adresse, direkter http-Zugriff ohne Sitzung, Proxy mit ersetztem Host-Kopf – per HTTP-Client
   und im Browser (Desktop, Handy). Dabei behoben: `kontor-https` hängte an eine Umgebungsdatei ohne Zeilenende
   die neue Variable an die letzte Zeile an.
+
+## D-240 Abnahme M29 (Bankabruf über FinTS/camt): Nachbesserungen
+
+- **Anlass:** Die Abnahmetests zu Meilenstein 29 (kontor-tests `8304dfb`) liefen erstmals gegen die Anwendung.
+- **Entscheidung:**
+  1. **Naht `kontor.sync.kennungen_als_alt_markieren(config)`** (E-264, `bankzugang.md` 3.1): ersetzt die Menge
+     der „alten“ Kennungen durch alle jetzt bekannten Bank-Kennungen (an Buchungen und gemerkte); Betriebszustand,
+     kein Protokoll, mehrfach aufrufbar, legt die Datenbank bei Bedarf an.
+  2. **Diagnoseschalter gilt ab dem Start:** Die gespeicherte Einstellung wird beim Start der Instanz gelesen,
+     nicht erst beim ersten Zugriff auf den Bankzugang.
+  3. **TAN-Verfahren ohne Angabe „erlaubt“:** Nennt die Bank keine zugelassenen Verfahren (Rückmeldung 3920
+     fehlt), liefert `tan_verfahren()` alle Zwei-Schritt-Verfahren der Bankparameter (`bankzugang.md` 2.1).
+  4. **Zweite TAN im selben Lauf:** Verlangt die Bank nach der TAN zur Anmeldung für den Umsatzabruf eine weitere
+     TAN, wird die erste Anforderung als beantwortet abgeschlossen und eine neue angelegt; der Lauf wartet weiter.
+- **Offen als Widerspruch:** W-015 (600 Zeilen), W-016 (Benutzerparameter ohne neue Version).
+- **Prüfung:** `tests/app/m29` ohne Browsertests: 183 bestanden, 2 offen (W-015, W-016).
