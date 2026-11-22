@@ -321,6 +321,9 @@ und `KONTOR_AQBANKING_*` in `/etc/kontor/kontor.env` können entfernt werden.
 
 ### Installation als systemd-Dienst im Proxmox-LXC-Container
 
+Für eine einfache Installation auf einer frischen Debian-Maschine mit
+Tailscale siehe die [Schritt-für-Schritt-Anleitung](INSTALLATION.md).
+
 Kontor liefert alle Betriebsdateien im Paket `kontor.betrieb` aus
 (`kontor.service`, `kontor-sicherung.service`, `kontor-sicherung.timer`,
 `kontor-update.path`, `kontor-update.service`, `kontor-test.service`, `kontor-test.env`, `kontor-test.sh`,
