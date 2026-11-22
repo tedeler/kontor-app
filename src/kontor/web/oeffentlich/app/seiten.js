@@ -1566,8 +1566,29 @@ export async function postfach(seite, id) {
   knopf("Anmeldung abschließen", { tid: "postfach-abschliessen", onclick: async () => {
     try { await api("POST", "/api/mail/anmeldung/abschluss", { antwort_url: antwort.value.trim() }); antwort.value = ""; melde("erfolg", "Postfach angemeldet."); await oberflaeche.neuLaden(); }
     catch (e) { melde("fehler", e.message); }
-  } })));
+  } })),
+  loeschenAbschnitt(id, p, st));
   return { titel: p.adresse };
+}
+
+// D-244: Postfach löschen. Rückfrage nennt, was entfällt und was bleibt; danach zurück zu den Mail-Einstellungen.
+function loeschenAbschnitt(id, p, st) {
+  const loeschen = knopf("Postfach löschen …", { tid: "postfach-loeschen", class: "knopf knopf-gefahr", onclick: async (e) => {
+    const ausloeser = e.currentTarget;
+    const n = st.nachrichten === 1 ? "1 gespeicherte Mail" : `${st.nachrichten} gespeicherte Mails`;
+    const ok = await bestaetigen(`„${p.adresse}“ löschen? Es entfallen ${n} und die Anmeldung (App-Passwort bzw. OAuth). `
+      + "Dokumente, die schon an Buchungen hängen, und erwartete Zahlungen bleiben. Im Postfach selbst wird nichts gelöscht.",
+    { titel: "Postfach löschen", ja: "Löschen", ausloeser });
+    if (!ok) return;
+    try {
+      await aktion(() => api("DELETE", `/api/mail/postfaecher/${id}`), {
+        erfolg: "Postfach gelöscht.", danach: () => oberflaeche.gehe("/einstellungen?bereich=mail", true) });
+    } catch (f) { /* gemeldet */ }
+  } });
+  return abschnitt("Postfach löschen", h("p", { class: "klein" },
+    "Entfernt das Postfach aus Kontor samt der hier gespeicherten Mails. Lässt sich über „Rückgängig“ zurücknehmen; "
+    + "die gespeicherten Mails und die Anmeldung kommen dabei nicht zurück, ein neuer Abruf holt die Mails wieder."),
+  h("div", { class: "knopf-leiste" }, loeschen));
 }
 
 // D-130: Zugang mit App-Passwort und Ordner (Gmail-Label), nur lesend

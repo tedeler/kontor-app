@@ -3551,3 +3551,22 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   in Kopf-Mails nur den Betreff. Eine im Postfach gelöschte Kopf-Mail lässt sich nicht mehr lesen.
 - **Prüfung:** `tests/test_kopfabruf_eigen.py` (Attrappen-Plugin, IMAP gegen eine Loopback-Attrappe, Vorauswahl),
   `tests/test_browser_kopfabruf.py`.
+
+## D-244 Feature postfach-loeschen: Postfach in der Oberfläche löschen, Bestand bleibt stimmig (2026-11-22)
+
+- **Anlass:** Ein Postfach ließ sich nur über `DELETE /api/mail/postfaecher/{id}` löschen, nicht in der Oberfläche.
+- **Oberfläche:** Abschnitt „Postfach löschen“ auf der Seite `/mail/postfaecher/{id}` mit Knopf `postfach-loeschen`
+  und Rückfrage (`bestaetigen-dialog`). Sie nennt die Zahl der gespeicherten Mails und was bleibt. Nach dem Löschen
+  geht es zu `/einstellungen?bereich=mail`; Rückgängig wie jede Aktion.
+- **Was entfällt (eine Änderung `postfach_loeschen`):** Postfach; wie bisher Spiegel, Betriebszustand und
+  Anmeldegeheimnisse (`geheimnisse.verwaiste_entfernen`); neu die Benachrichtigungen mit dem Verweis auf die Seite
+  des Postfachs (sonst führten sie ins Leere und würden ggf. noch zugestellt) und die gemerkten Kennungen seiner
+  Mails (`bestellmail_nummer`).
+- **Was bleibt:** Dokumente an Buchungen, erwartete Zahlungen (ihre Mailverweise zeigen dann „nicht mehr im
+  Spiegel“, wie schon vorgesehen) und der Vermerk `bestellmail` – nach dem Neuanlegen erkennt der Abgleich dieselben
+  Mails an ihrer Kennung und hängt sie nicht doppelt an. Im Postfach beim Anbieter wird nichts gelöscht.
+- **Kein Löschen während eines Abrufs:** `DELETE` hält die Abrufsperre; läuft ein Abruf, 409 `mail_abruf_laeuft`.
+  So schreibt kein laufender Abruf mehr Mails eines gelöschten Postfachs in den Spiegel.
+- **Rückgängig:** stellt das Postfach wieder her; Spiegel, Anmeldung und Benachrichtigungen kommen nicht zurück
+  (Betriebszustand), ein neuer Abruf holt die Mails wieder.
+- **Prüfung:** `tests/test_postfach_loeschen_eigen.py`, `tests/test_browser_postfach_loeschen.py`.
