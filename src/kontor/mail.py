@@ -48,6 +48,9 @@ def zeit_text(z: dt.datetime) -> str:
     return z.astimezone(UTC).replace(microsecond=0).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+_ANFANG = dt.datetime(1970, 1, 2, tzinfo=dt.timezone.utc)   # D-252: „alle Kopfzeilen“ – ab hier suchen
+
+
 def zeit_lesen(s: str) -> dt.datetime:
     return dt.datetime.strptime(s, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC)
 
@@ -192,6 +195,8 @@ class MailDienst:
         self._offen: dict[str, _Anmeldung] = {}
         self._zustand = threading.Lock()
         self._abruf = threading.Lock()
+        self._stand_sperre = threading.Lock()   # D-252: Fortschritt des Abrufs
+        self._stand: dict = {}
         self._token_sperre = threading.Lock()
         self._mock_plugin = None
         self.nach_abruf: Callable[[], object] | None = None  # D-128: Mail-Abgleich nach jedem Abruf
@@ -597,43 +602,125 @@ class MailDienst:
         finally:
             self._abruf.release()
 
-    def abruf(self) -> dict:
+    # ------------------------------------------------------------ D-252: Fortschritt und Abruf im Hintergrund
+    def _stand_neu(self, aktive: list[dict], beginn: dt.datetime, alle_koepfe: bool) -> None:
+        with self._stand_sperre:
+            self._stand = {"laeuft": True, "alle_koepfe": alle_koepfe, "gestartet_am": zeit_text(beginn),
+                           "beendet_am": None, "ergebnis": None, "fehler": None,
+                           "postfaecher": [{"postfach_id": p["id"], "adresse": p["adresse"], "schritt": "wartet",
+                                            "erledigt": None, "gesamt": None} for p in aktive]}
+
+    def _stand_setzen(self, pid: int, schritt: str, erledigt: int | None = None, gesamt: int | None = None) -> None:
+        with self._stand_sperre:
+            for e in self._stand.get("postfaecher", []):
+                if e["postfach_id"] == pid:
+                    e.update(schritt=schritt, erledigt=erledigt, gesamt=gesamt)
+
+    def _stand_ende(self, ergebnis: dict | None, fehler: dict | None) -> None:
+        with self._stand_sperre:
+            self._stand.update(laeuft=False, beendet_am=self.jetzt_text(), ergebnis=ergebnis, fehler=fehler)
+
+    def stand(self) -> dict:
+        """D-252: Stand des laufenden bzw. letzten Abrufs (nur im Arbeitsspeicher; nach einem Neustart leer)."""
+        with self._stand_sperre:
+            aus = json.loads(json.dumps(self._stand))
+        aus.setdefault("laeuft", False)
+        aus["nur_koepfe"] = self.config.mail_nur_koepfe
+        return aus
+
+    def _alle_koepfe_pruefen(self, alle_koepfe: bool) -> None:
+        if alle_koepfe and not self.config.mail_nur_koepfe:
+            raise ApiFehler(409, "mail_nur_koepfe_aus", "Alle Kopfzeilen neu abrufen gibt es nur mit "
+                            "KONTOR_MAIL_NUR_KOEPFE=1; sonst würde das ganze Postfach samt Anhängen geladen.")
+
+    def abruf(self, alle_koepfe: bool = False) -> dict:
+        """Abruf aller aktiven Postfächer; mit ``alle_koepfe`` (D-252) ab dem ältesten Datum statt ab dem letzten
+        Erfolg – vorhandene Mails bleiben, fehlende kommen als Kopfzeilen dazu."""
+        self._alle_koepfe_pruefen(alle_koepfe)
         if not self._abruf.acquire(blocking=False):
             raise ApiFehler(409, "mail_abruf_laeuft", "Es läuft bereits ein Mail-Abruf.")
         try:
-            beginn = self._jetzt()
-            con = self._con()
+            return self._abruf_ausfuehren(alle_koepfe)
+        finally:
+            self._abruf.release()
+
+    def abruf_starten(self, alle_koepfe: bool = False) -> dict:
+        """D-252: Abruf im Hintergrund; der Fortschritt steht in ``stand()``. Antwort: der Stand zu Beginn."""
+        self._alle_koepfe_pruefen(alle_koepfe)
+        if not self._abruf.acquire(blocking=False):
+            raise ApiFehler(409, "mail_abruf_laeuft", "Es läuft bereits ein Mail-Abruf.")
+        with self._stand_sperre:
+            self._stand = {"laeuft": True, "alle_koepfe": alle_koepfe, "gestartet_am": self.jetzt_text(),
+                           "beendet_am": None, "ergebnis": None, "fehler": None, "postfaecher": []}
+
+        def laufen():
             try:
-                if self._geheim.gesperrt(con):  # D-129: ohne Datenschlüssel keine Zugangsdaten
-                    raise ApiFehler(409, "geheimnisse_gesperrt", "Die Geheimnisse sind gesperrt; bitte mit dem "
-                                    "Login-Passwort entsperren, dann ist der Abruf wieder möglich.")
-                aktive = [postfach_dict(r) for r in con.execute("SELECT * FROM postfach WHERE aktiv = 1 ORDER BY id")]
+                self._abruf_ausfuehren(alle_koepfe)
+            except ApiFehler as e:
+                self._stand_ende(None, {"code": e.code, "meldung": e.meldung})
+            except Exception:  # noqa: BLE001 - ein Fehler im Hintergrund darf den Dienst nicht stören
+                log.exception("Mail-Abruf im Hintergrund fehlgeschlagen")
+                self._stand_ende(None, {"code": "mail_fehler", "meldung": "Der Mail-Abruf ist fehlgeschlagen."})
             finally:
-                con.close()
-            ergebnisse: list[dict] = []
+                self._abruf.release()
+
+        try:
+            threading.Thread(target=laufen, name="kontor-mail-abruf", daemon=True).start()
+        except BaseException:
+            self._abruf.release()
+            raise
+        return self.stand()
+
+    def _abruf_ausfuehren(self, alle_koepfe: bool) -> dict:
+        beginn = self._jetzt()
+        con = self._con()
+        try:
+            if self._geheim.gesperrt(con):  # D-129: ohne Datenschlüssel keine Zugangsdaten
+                raise ApiFehler(409, "geheimnisse_gesperrt", "Die Geheimnisse sind gesperrt; bitte mit dem "
+                                "Login-Passwort entsperren, dann ist der Abruf wieder möglich.")
+            aktive = [postfach_dict(r) for r in con.execute("SELECT * FROM postfach WHERE aktiv = 1 ORDER BY id")]
+        finally:
+            con.close()
+        self._stand_neu(aktive, beginn, alle_koepfe)
+        ergebnisse: list[dict] = []
+        try:
             if aktive:
                 plugin = self._plugin(aktive)
                 with concurrent.futures.ThreadPoolExecutor(max_workers=len(aktive),
                                                            thread_name_prefix="kontor-mail") as pool:
-                    ergebnisse = list(pool.map(lambda p: self._postfach_abrufen(plugin, p, beginn), aktive))
+                    ergebnisse = list(pool.map(lambda p: self._postfach_abrufen(plugin, p, beginn, alle_koepfe),
+                                               aktive))
                 if self.nach_abruf is not None:
                     self.nach_abruf()
-            return {"gestartet_am": zeit_text(beginn), "beendet_am": self.jetzt_text(), "postfaecher": ergebnisse}
-        finally:
-            self._abruf.release()
+        except BaseException:
+            self._stand_ende(None, {"code": "mail_fehler", "meldung": "Der Mail-Abruf ist fehlgeschlagen."})
+            raise
+        erg = {"gestartet_am": zeit_text(beginn), "beendet_am": self.jetzt_text(), "postfaecher": ergebnisse}
+        self._stand_ende(erg, None)
+        return erg
 
     def _seit(self, z, beginn: dt.datetime) -> dt.datetime:
         if z is not None and z["letzter_erfolg_am"]:
             return zeit_lesen(z["letzter_erfolg_am"]) - dt.timedelta(hours=self.config.mail_ueberlappung_stunden)
         return beginn - dt.timedelta(days=self.config.mail_erstabruf_tage)
 
-    def _postfach_abrufen(self, plugin, p: dict, beginn: dt.datetime) -> dict:
+    def _postfach_abrufen(self, plugin, p: dict, beginn: dt.datetime, alle_koepfe: bool = False) -> dict:
+        try:
+            aus = self._postfach_abrufen_innen(plugin, p, beginn, alle_koepfe)
+        except BaseException:
+            self._stand_setzen(p["id"], "fehlgeschlagen")
+            raise
+        self._stand_setzen(p["id"], "fertig" if aus["status"] == "erfolgreich" else aus["status"],
+                           aus["nachrichten_neu"], aus["nachrichten_gesamt"])
+        return aus
+
+    def _postfach_abrufen_innen(self, plugin, p: dict, beginn: dt.datetime, alle_koepfe: bool) -> dict:
         cf = p["adresse"].casefold()
         self.anmeldungen_pruefen(cf)
         con = self._con()
         try:
             z = self._zustand_zeile(con, cf)
-            seit = self._seit(z, beginn)
+            seit = _ANFANG if alle_koepfe else self._seit(z, beginn)   # D-252: das ganze Postfach
             aus = {"postfach_id": p["id"], "adresse": p["adresse"], "status": "erfolgreich", "seit": zeit_text(seit),
                    "nachrichten_gesamt": 0, "nachrichten_neu": 0, "nachrichten_vorhanden": 0,
                    "nachrichten_gefiltert": 0, "fehler": None}
@@ -648,10 +735,12 @@ class MailDienst:
             inhalte: dict | None = None
             nachladen: list = []
             try:
+                self._stand_setzen(p["id"], "anmelden")
                 if nur_koepfe:   # D-243: erst die Kopfzeilen, Inhalt nur für Mails, die er betrifft
                     liste, inhalte, nachladen = self._koepfe_und_inhalte(con, plugin, p, cf, seit)
                     aus.update(nachrichten_ohne_inhalt=0, nachrichten_nachgeladen=0)
                 else:
+                    self._stand_setzen(p["id"], "nachrichten")
                     liste = plugin.nachrichten(p["adresse"], seit)
             except Exception as e:  # noqa: BLE001 - ein Pluginfehler führt nie zu 5xx
                 code, meldung = _fehler_von(e)
@@ -671,6 +760,7 @@ class MailDienst:
                 aus.update(status="fehlgeschlagen", fehler={"code": code, "meldung": meldung})
                 return aus
             filt = [f.casefold() for f in p["absender_filter"]]
+            self._stand_setzen(p["id"], "speichern", None, len(liste))
             with db.transaktion(con):
                 for n in liste:
                     aus["nachrichten_gesamt"] += 1
@@ -730,7 +820,8 @@ class MailDienst:
         """Kopfzeilen ab ``seit``; Inhalte der neuen Mails, die ihn brauchen, und der schon gespiegelten Kopf-Mails,
         die ihn inzwischen brauchen (neue oder geänderte Anbieter-Beschreibung). Eine Verbindung je Schritt."""
         from .plugins.mail import MailKopf
-        koepfe = plugin.koepfe(p["adresse"], seit)
+        koepfe = plugin.koepfe(p["adresse"], seit,
+                               fortschritt=lambda e, g: self._stand_setzen(p["id"], "koepfe", e, g))
         vorhanden = {r[0] for r in con.execute("SELECT nachricht_id FROM mail_nachricht WHERE adresse_cf = ?", (cf,))}
         filt = [f.casefold() for f in p["absender_filter"]]
         noetig = self._inhalt_noetig()
@@ -741,7 +832,9 @@ class MailDienst:
                      for r in con.execute("SELECT nachricht_id, empfangen, absender, betreff, ort FROM mail_nachricht"
                                           " WHERE adresse_cf = ? AND inhalt = 0 ORDER BY empfangen, id", (cf,))
                      if noetig(r["absender"], r["betreff"])]
-        inhalte = plugin.inhalte(p["adresse"], gesucht + nachladen) if (gesucht or nachladen) else {}
+        inhalte = plugin.inhalte(p["adresse"], gesucht + nachladen,
+                                 fortschritt=lambda e, g: self._stand_setzen(p["id"], "inhalte", e, g)) \
+            if (gesucht or nachladen) else {}
         return koepfe, inhalte, nachladen
 
     def _inhalt_eintragen(self, con, cf: str, n) -> bool:

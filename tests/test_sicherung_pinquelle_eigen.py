@@ -1,4 +1,4 @@
-"""Entwicklungstests zu D-245: Sicherung und ``passwort-setzen`` laufen ohne Credentials, auch wenn die
+"""Entwicklungstests zu D-251: Sicherung und ``passwort-setzen`` laufen ohne Credentials, auch wenn die
 Hauptinstanz die PIN über systemd-creds bekommt. Synthetische Daten."""
 
 from __future__ import annotations

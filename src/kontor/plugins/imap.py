@@ -260,13 +260,13 @@ class ImapMailPlugin(MailPlugin):
     # ------------------------------------------------------------ D-243: Kopfzeilen und Inhalt bei Bedarf
     kann_koepfe = True
 
-    def koepfe(self, postfach: str, seit: dt.datetime) -> list[MailKopf]:
+    def koepfe(self, postfach: str, seit: dt.datetime, fortschritt=None) -> list[MailKopf]:
         if not isinstance(seit, dt.datetime) or seit.tzinfo is None or seit.utcoffset() is None:
             raise ValueError("seit muss ein zeitzonenbehafteter Zeitpunkt sein.")
         p, token = self._postfach_und_token(postfach)
 
         def suchen(v, uidvalidity):
-            gesammelt = self._holen(v, self._suchen_seit(v, seit), _KOPF)
+            gesammelt = self._holen(v, self._suchen_seit(v, seit), _KOPF, fortschritt)
             aus = []
             for uid, (zeit, roh) in sorted(gesammelt.items()):
                 n = abbilden(roh, p.adresse, zeit, uidvalidity, uid)
@@ -275,7 +275,7 @@ class ImapMailPlugin(MailPlugin):
             return aus
         return self._nur_neueste(self._sitzung(p, token, suchen), seit)
 
-    def inhalte(self, postfach: str, koepfe: list[MailKopf]) -> dict[str, MailNachricht]:
+    def inhalte(self, postfach: str, koepfe: list[MailKopf], fortschritt=None) -> dict[str, MailNachricht]:
         if not koepfe:
             return {}
         p, token = self._postfach_und_token(postfach)
@@ -291,7 +291,7 @@ class ImapMailPlugin(MailPlugin):
                     treffer = sorted(int(x) for x in b" ".join(d for d in (daten or []) if d).split()) if typ == "OK" else []
                     if treffer:
                         je_uid[treffer[0]] = k
-            gesammelt = self._holen(v, sorted(je_uid), "BODY.PEEK[]")
+            gesammelt = self._holen(v, sorted(je_uid), "BODY.PEEK[]", fortschritt)
             aus: dict[str, MailNachricht] = {}
             for uid, (zeit, roh) in sorted(gesammelt.items()):
                 k = je_uid.get(uid)
@@ -334,8 +334,11 @@ class ImapMailPlugin(MailPlugin):
         return sorted({int(x) for x in b" ".join(d for d in daten if d).split()})
 
     @staticmethod
-    def _holen(v: imaplib.IMAP4, uids: list[int], teil_art: str) -> dict[int, tuple[dt.datetime, bytes]]:
+    def _holen(v: imaplib.IMAP4, uids: list[int], teil_art: str,
+               fortschritt=None) -> dict[int, tuple[dt.datetime, bytes]]:
         gesammelt: dict[int, tuple[dt.datetime, bytes]] = {}
+        if fortschritt is not None:
+            fortschritt(0, len(uids))
         for i in range(0, len(uids), _TEIL):
             teil = ",".join(str(u) for u in uids[i:i + _TEIL])
             typ, daten = v.uid("FETCH", teil, f"(UID INTERNALDATE {teil_art})")
@@ -350,6 +353,8 @@ class ImapMailPlugin(MailPlugin):
                 if m is None or zeit is None:
                     raise MailVerbindungsFehler("Unerwartete Antwort des Mailservers.")
                 gesammelt[int(m[1])] = (zeit, bytes(inhalt))
+            if fortschritt is not None:
+                fortschritt(min(i + _TEIL, len(uids)), len(uids))
         return gesammelt
 
     def _sitzung(self, p: ImapPostfach, token: str | None, arbeit):

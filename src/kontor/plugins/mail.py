@@ -5,7 +5,10 @@ from __future__ import annotations
 import abc
 import datetime as dt
 from dataclasses import dataclass
+from collections.abc import Callable
 from typing import ClassVar
+
+Fortschritt = Callable[[int, int], None]
 
 
 @dataclass(frozen=True)
@@ -53,11 +56,13 @@ class MailPlugin(abc.ABC):
     # Fähigkeit wird wie bisher über ``nachrichten`` vollständig abgerufen.
     kann_koepfe: ClassVar[bool] = False
 
-    def koepfe(self, postfach: str, seit: dt.datetime) -> list[MailKopf]:
-        """Kopfzeilen aller Nachrichten ab ``seit`` (gleiche Auswahl, Reihenfolge und Kennungen wie ``nachrichten``)."""
+    def koepfe(self, postfach: str, seit: dt.datetime, fortschritt: Fortschritt | None = None) -> list[MailKopf]:
+        """Kopfzeilen aller Nachrichten ab ``seit`` (gleiche Auswahl, Reihenfolge und Kennungen wie ``nachrichten``).
+        ``fortschritt(erledigt, gesamt)`` meldet unterwegs, wie viele Kopfzeilen schon da sind (D-252)."""
         raise NotImplementedError
 
-    def inhalte(self, postfach: str, koepfe: list[MailKopf]) -> dict[str, MailNachricht]:
+    def inhalte(self, postfach: str, koepfe: list[MailKopf],
+                fortschritt: Fortschritt | None = None) -> dict[str, MailNachricht]:
         """Vollständige Nachrichten zu ``koepfe``, nach ``nachricht_id``; nicht mehr vorhandene fehlen im Ergebnis."""
         raise NotImplementedError
 

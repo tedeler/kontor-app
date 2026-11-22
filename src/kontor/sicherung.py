@@ -846,7 +846,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--behalten", type=int, default=14)
     args = parser.parse_args(argv)
     try:
-        config = KontorConfig.fuer_werkzeug()   # D-245: ohne Credentials lauffähig
+        config = KontorConfig.fuer_werkzeug()   # D-251: ohne Credentials lauffähig
     except KonfigurationsFehler as e:
         print(f"Konfigurationsfehler: {e}", file=sys.stderr)
         return 2

@@ -383,7 +383,7 @@ class KontorConfig:
 
     @classmethod
     def fuer_werkzeug(cls, umgebung: Mapping[str, str] | None = None) -> "KontorConfig":
-        """D-245: Konfiguration für Werkzeuge außerhalb des Dienstes, die nie mit der Bank sprechen (Sicherung,
+        """D-251: Konfiguration für Werkzeuge außerhalb des Dienstes, die nie mit der Bank sprechen (Sicherung,
         ``passwort-setzen``). Sie laufen ohne Credentials (``kontor-sicherung.service`` bekommt bewusst keine); eine
         PIN-Quelle ``systemd-creds`` ohne ``$CREDENTIALS_DIRECTORY`` gilt für sie deshalb als ``eingabe``. Alle
         übrigen Angaben werden wie im Dienst geprüft."""

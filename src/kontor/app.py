@@ -1121,7 +1121,22 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
 
     @endpunkt("POST", "/api/mail/abruf")
     async def mail_abruf(request: Request):
-        return await run_in_threadpool(maildienst.abruf)
+        # D-252: ``alle_koepfe=ja`` holt die Kopfzeilen des ganzen Postfachs, ``hintergrund=ja`` antwortet sofort
+        # mit dem Stand; der Fortschritt steht dann in GET /api/mail/abruf/stand.
+        q = request.query_params
+        werte = {}
+        for name in ("alle_koepfe", "hintergrund"):
+            w = q.get(name)
+            if w is not None and w not in ("ja", "nein"):
+                raise Validierungsfehler([fehler_eintrag(["query", name], "Erlaubt sind ja und nein.")])
+            werte[name] = w == "ja"
+        if werte["hintergrund"]:
+            return await run_in_threadpool(maildienst.abruf_starten, werte["alle_koepfe"])
+        return await run_in_threadpool(maildienst.abruf, werte["alle_koepfe"])
+
+    @endpunkt("GET", "/api/mail/abruf/stand")
+    async def mail_abruf_stand(request: Request):
+        return maildienst.stand()
 
     @endpunkt("GET", "/api/mail/nachrichten")
     async def mail_nachrichten(request: Request):

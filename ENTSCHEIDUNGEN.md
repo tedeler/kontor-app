@@ -3670,7 +3670,7 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - **Offen:** `m15::test_details_vorschlag_und_kandidaten` und `m8::test_seiten_im_mindestumfang` (beide schon vor
   diesem Auftrag auf main rot; der zweite wartet auf eine Erfolgsmeldung, die seit D-234 ausgeliefert aus ist).
 
-## D-245 Sicherung und `passwort-setzen` ohne Credentials auch bei PIN-Quelle systemd-creds (2026-11-22)
+## D-251 Sicherung und `passwort-setzen` ohne Credentials auch bei PIN-Quelle systemd-creds (2026-11-22)
 
 - **Anlass:** Mit `KONTOR_BANK_PIN_QUELLE=systemd-creds` in `kontor.env` scheiterte `kontor-sicherung.service` mit
   „Für bank_pin_quelle „systemd-creds“ muss credentials_verzeichnis ($CREDENTIALS_DIRECTORY) gesetzt sein“. Die
@@ -3683,3 +3683,25 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - **Übergang:** Die schon installierte Fassung hat den Fehler noch. Für das Update auf die behobene Fassung die
   Zeile in `/etc/kontor/kontor.env` vorübergehend auskommentieren und danach wiederherstellen.
 - **Prüfung:** `tests/test_sicherung_pinquelle_eigen.py`.
+
+## D-252 Feature mail-fortschritt: Fortschritt des Abrufs, Abruf im Hintergrund, alle Kopfzeilen neu abrufen (2026-11-22)
+
+- **Anlass:** Ein großes Postfach braucht für den Abruf Minuten; die Oberfläche zeigte nur „Mails werden
+  abgerufen…“. Ältere Mails außerhalb des ersten Abrufzeitraums kamen nur über Löschen und Neuanlegen des
+  Postfachs dazu.
+- **Fortschritt:** Der Mail-Dienst führt je Postfach den Schritt (`wartet`, `anmelden`, `nachrichten`, `koepfe`,
+  `inhalte`, `speichern`, `fertig`, `fehlgeschlagen`, `anmeldung_erforderlich`) und, wo bekannt, `erledigt`/`gesamt`.
+  Plugins mit `kann_koepfe` melden über das neue optionale Argument `fortschritt(erledigt, gesamt)` von `koepfe` und
+  `inhalte` (IMAP nach je 200 UIDs). Der Stand lebt nur im Arbeitsspeicher, auch für Abrufe des Planers.
+- **`GET /api/mail/abruf/stand`:** `laeuft`, `nur_koepfe` (Einstellung), nach dem ersten Abruf zusätzlich
+  `alle_koepfe`, `gestartet_am`, `beendet_am`, `postfaecher` (je `postfach_id`, `adresse`, `schritt`, `erledigt`,
+  `gesamt`), `ergebnis` (Antwort des Abrufs) und `fehler` (`code`, `meldung`).
+- **`POST /api/mail/abruf`:** neue Abfrageparameter `hintergrund=ja|nein` (ja: Antwort sofort mit dem Stand, der
+  Abruf läuft weiter; 409 `mail_abruf_laeuft` wie bisher) und `alle_koepfe=ja|nein` (Suche ab dem 2. 1. 1970 statt
+  ab dem letzten Erfolg; vorhandene Mails bleiben, fehlende kommen als Kopfzeilen bzw. – Vorauswahl – vollständig
+  dazu; nur mit `mail_nur_koepfe`, sonst 409 `mail_nur_koepfe_aus`). Andere Werte: 422. Ohne Parameter wie bisher.
+- **Oberfläche (Mail-Blatt):** „Mails abrufen“ startet im Hintergrund und zeigt in `mail-fortschritt` je Postfach
+  Schritt, Zahl und Balken (`mail-fortschritt-<id>`, `data-schritt`), danach das Ergebnis wie bisher. Läuft beim
+  Öffnen schon ein Abruf, folgt die Seite ihm. Knopf `mail-alle-koepfe` „Alle Kopfzeilen neu abrufen …“ mit
+  Rückfrage, nur mit `mail_nur_koepfe` sichtbar.
+- **Prüfung:** `tests/test_mail_fortschritt_eigen.py`, `tests/test_browser_mail_fortschritt.py`.
