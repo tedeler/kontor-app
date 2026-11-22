@@ -311,7 +311,10 @@ export function menuePosition(ev, el) {
 }
 
 // ------------------------------------------------------------------ Kategorie-Auswahl (9.1)
-export function kategorieAuswahl(titel, ausloeser) {
+/** ``optionen.konten``: auch Bestandskonten anbieten (D-240: die Zuordnung wird zur Umbuchung), ohne
+ *  ``optionen.ohneKonto`` (das Konto des Blatts). */
+export function kategorieAuswahl(titel, ausloeser, optionen) {
+  const o = optionen || {};
   const d = dialog("kategorie-auswahl", titel || "Kategorie wählen", (inhalt, dd) => {
     const listeId = neueId("kat-liste");
     const suche = h("input", { type: "text", tid: "kategorie-auswahl-suche", role: "combobox",
@@ -326,11 +329,28 @@ export function kategorieAuswahl(titel, ausloeser) {
       el.addEventListener("click", () => dd.schliessen(konto.id));
       return { el, pfad, id: konto.id };
     });
+    let kontenKopf = null;
+    if (o.konten) {
+      const konten = baumFolge(stamm.konten.filter((k) => BESTAND.has(k.art) && !k.geschlossen && k.id !== o.ohneKonto));
+      if (konten.length) {
+        kontenKopf = h("div", { class: "auswahl-gruppe", role: "presentation", tid: "kategorie-auswahl-konten" },
+          "Umbuchung auf ein Konto");
+        alle.push({ el: kontenKopf, kopf: true });
+      }
+      for (const { konto } of konten) {
+        const pfad = kontoPfad(konto);
+        const el = h("div", { role: "option", id: neueId("kat-opt"), tid: `kategorie-option-${konto.id}`,
+          class: "option option-konto", "aria-selected": "false", "data-umbuchung": "ja" }, `→ ${pfad}`);
+        el.addEventListener("click", () => dd.schliessen(konto.id));
+        alle.push({ el, pfad, id: konto.id, konto: true });
+      }
+    }
+    const wahlbar = () => alle.filter((x) => !x.kopf);
     let markiert = -1;
-    const sichtbar = () => alle.filter((x) => !x.el.hidden);
+    const sichtbar = () => wahlbar().filter((x) => !x.el.hidden);
     function markieren(i) {
       const s = sichtbar();
-      alle.forEach((x) => x.el.setAttribute("aria-selected", "false"));
+      wahlbar().forEach((x) => x.el.setAttribute("aria-selected", "false"));
       markiert = s.length ? Math.max(0, Math.min(i, s.length - 1)) : -1;
       if (markiert >= 0) {
         s[markiert].el.setAttribute("aria-selected", "true");
@@ -339,9 +359,10 @@ export function kategorieAuswahl(titel, ausloeser) {
       } else suche.removeAttribute("aria-activedescendant");
     }
     function filtern() {
-      for (const x of alle) x.el.hidden = !passt(suche.value, x.pfad);
+      for (const x of wahlbar()) x.el.hidden = !passt(suche.value, x.pfad);
+      if (kontenKopf) kontenKopf.hidden = !wahlbar().some((x) => x.konto && !x.el.hidden);
       markiert = -1;
-      alle.forEach((x) => x.el.setAttribute("aria-selected", "false"));
+      wahlbar().forEach((x) => x.el.setAttribute("aria-selected", "false"));
       suche.removeAttribute("aria-activedescendant");
     }
     suche.addEventListener("input", filtern);
