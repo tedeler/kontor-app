@@ -974,7 +974,11 @@ class SyncDienst:
             tag = u.buchungstag
             exakt, aehnlich = set(), set()
             for c in con.execute(
-                    "SELECT DISTINCT b.id AS id, b.datum AS datum, e.name AS name FROM split s"
+                    "SELECT DISTINCT b.id AS id, b.datum AS datum, e.name AS name,"
+                    # D-240: Umbuchung, deren Seite auf diesem Konto noch keinen Bankumsatz trägt
+                    " NOT EXISTS (SELECT 1 FROM split t JOIN konto k ON k.id = t.konto_id WHERE t.buchung_id = b.id"
+                    "             AND k.art NOT IN ('girokonto', 'sparkonto', 'kreditkonto')) AS umbuchung"
+                    " FROM split s"
                     " JOIN buchung b ON b.id = s.buchung_id LEFT JOIN empfaenger e ON e.id = b.empfaenger_id"
                     " WHERE s.konto_id = ? AND s.betrag = ?"
                     " AND NOT EXISTS (SELECT 1 FROM buchung_extern x WHERE x.buchung_id = b.id"
@@ -983,6 +987,8 @@ class SyncDienst:
                 c_datum = dt.date.fromisoformat(c["datum"])
                 if c_datum == tag and passend(name, c["name"]):
                     exakt.add(c["id"])
+                elif c["umbuchung"] and abs((c_datum - tag).days) <= self.config.umbuchung_fenster_tage:
+                    exakt.add(c["id"])   # D-240: die Gegenseite einer Umbuchung, Name und Tag dürfen abweichen
                 elif abs((c_datum - tag).days) <= 3:
                     aehnlich.add(c["id"])
             bewertung.append((u, kennung, name, exakt, aehnlich - exakt))
