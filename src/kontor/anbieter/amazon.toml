@@ -1,6 +1,10 @@
 # Anbieter-Beschreibung „Amazon“ (D-230). Aufbau und Bausteine: siehe ANBIETER.md.
 name = "amazon"
 titel = "Amazon"
+
+# Pflicht (D-242): Welche Mails zu diesem Anbieter gehören, entscheiden allein Kopfzeilen (absender und/oder
+# betreff). Nur für diese Mails wird mit KONTOR_MAIL_NUR_KOEPFE=1 der Inhalt geladen.
+[vorauswahl]
 # Domain des Absenders (klein geschrieben): amazon.de, bestellung.amazon.de, amazon.example.invalid …
 absender = '(^|\.)amazon\.'
 
