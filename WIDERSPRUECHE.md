@@ -242,3 +242,17 @@ Stand: Meilenstein 8 (getestet gegen kontor-tests `bf35445`); kein offener Eintr
   werden waagerecht geblättert). Die Mindestbreiten der Spalten (~730 px) übersteigen den Bereich (~480 px) schon
   ohne langen Text; die Liste wächst nicht nach dem Inhalt, der sichtbare Bereich endet vor dem Panel. Dem
   Test-Thread am 2026-11-16 als Text gemeldet.
+
+## W-015 Betrieb: `pin-eingabe.conf` wirkt nicht zusammen mit `kontor.env`
+
+- **Kein Testfehlschlag**, sondern ein Fehler der Spezifikation, im Betrieb gefunden (2026-11-22).
+- **Spezifikation:** `betrieb.md` 3 verlangt in `kontor.env` `KONTOR_BANK_PIN_QUELLE=systemd-creds`; `betrieb.md`
+  4.2 legt das Drop-in `pin-eingabe.conf` mit `Environment=KONTOR_BANK_PIN_QUELLE=eingabe` fest, und `kontor.service`
+  liest `kontor.env` über `EnvironmentFile=` (4.1).
+- **Widerspruch:** In systemd überschreiben Werte aus `EnvironmentFile=` die aus `Environment=`. Mit dem Drop-in
+  entfällt die PIN-Datei, die Quelle bleibt aber `systemd-creds`: Jeder Bankabruf scheitert mit `bank_pin_fehlt`,
+  und die Eingabe in der Oberfläche wird mit 409 `pin_quelle_systemd` abgelehnt. Die Variante „PIN nur in der
+  Oberfläche“ funktioniert so nicht.
+- **Vorschlag als Text:** Das Drop-in setzt die Quelle über eine eigene, später gelesene Umgebungsdatei, oder die
+  Betreiberanleitung verlangt zusätzlich `KONTOR_BANK_PIN_QUELLE=eingabe` in `kontor.env`. Für den Test-Thread im
+  Text der Meilenstein-Definition des Features saldo-tan.

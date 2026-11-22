@@ -366,6 +366,13 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
         # D-239: hinter einem HTTPS-Proxy sieht Kontor nur http; ohne die öffentliche Adresse scheitert die Herkunftsprüfung
         log.warning("KONTOR_SITZUNG_COOKIE_SECURE=1 ohne https-Adresse in KONTOR_OEFFENTLICHE_URL: Hinter einem "
                     "HTTPS-Proxy werden schreibende Anfragen dann mit 403 abgelehnt. Siehe HTTPS.md.")
+    if (config.bank_pin_quelle == "systemd-creds" and config.credentials_verzeichnis is not None
+            and not (config.credentials_verzeichnis / "kontor-bank-pin").is_file()):
+        # D-241: typisch ein installiertes pin-eingabe.conf bei KONTOR_BANK_PIN_QUELLE=systemd-creds in kontor.env
+        log.warning("KONTOR_BANK_PIN_QUELLE=systemd-creds, aber der Dienst hat keine Datei kontor-bank-pin erhalten: "
+                    "Jeder Bankabruf scheitert mit „PIN fehlt“. Entweder /etc/kontor/kontor-bank-pin.cred anlegen "
+                    "(und kein pin-eingabe.conf verwenden) oder für die Eingabe im Browser "
+                    "KONTOR_BANK_PIN_QUELLE=eingabe in /etc/kontor/kontor.env setzen.")
     sync = SyncDienst(config)
     sync.neustart_aufraeumen()  # synchronisation.md 10
     sync.zustellung.vorbereiten()  # M6: neue Benachrichtigungen ausstehend oder „keine“ (benachrichtigungen.md 4.1)
