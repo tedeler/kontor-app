@@ -1,4 +1,4 @@
-"""Eigene Tests zu Meilenstein 5 (ergänzend zu kontor-tests): Migration der App-Datenbank auf Schemaversion 6
+"""Eigene Tests zu Meilenstein 5 (ergänzend zur Gesamtsuite in gesamt-tests): Migration der App-Datenbank auf Schemaversion 6
 ohne Datenverlust, Einspielen einer Sicherung der Schemaversion 1 (ohne Kredittabellen), Bereinigung von
 Anwendertexten im PDF, Kredit über die Oberfläche erreichbar."""
 

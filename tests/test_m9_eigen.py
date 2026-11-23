@@ -1,4 +1,4 @@
-"""Eigene Tests zu Meilenstein 9 (ergänzend zu kontor-tests): Rückgängig-Ketten mit Bankkonto-Zustand,
+"""Eigene Tests zu Meilenstein 9 (ergänzend zur Gesamtsuite in gesamt-tests): Rückgängig-Ketten mit Bankkonto-Zustand,
 lesende Python-Sicherung, Schema der Sicherungsdatei, Migration auf Schemaversion 5, Laufsperre."""
 
 from __future__ import annotations

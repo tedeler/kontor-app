@@ -1,4 +1,4 @@
-"""Eigene Tests zu Entscheidungen aus Meilenstein 2 (ergänzend zu kontor-tests)."""
+"""Eigene Tests zu Entscheidungen aus Meilenstein 2 (ergänzend zur Gesamtsuite in gesamt-tests)."""
 
 from __future__ import annotations
 

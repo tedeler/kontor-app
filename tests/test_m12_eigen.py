@@ -1,4 +1,4 @@
-"""Eigene Tests zu Meilenstein 12 (ergänzend zu kontor-tests): POST /api/buchungen/mehrfach/aendern über viele
+"""Eigene Tests zu Meilenstein 12 (ergänzend zur Gesamtsuite in gesamt-tests): POST /api/buchungen/mehrfach/aendern über viele
 Buchungen (stückweise SQL), Rückgängig in einem Schritt, Auslieferung der neuen Oberflächenteile. Nur synthetische
 Daten."""
 
