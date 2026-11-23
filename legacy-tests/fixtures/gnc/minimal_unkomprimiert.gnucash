@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<gnc-v2 xmlns:act="http://www.gnucash.org/XML/act" xmlns:book="http://www.gnucash.org/XML/book" xmlns:cd="http://www.gnucash.org/XML/cd" xmlns:cmdty="http://www.gnucash.org/XML/cmdty" xmlns:gnc="http://www.gnucash.org/XML/gnc" xmlns:slot="http://www.gnucash.org/XML/slot" xmlns:split="http://www.gnucash.org/XML/split" xmlns:trn="http://www.gnucash.org/XML/trn" xmlns:ts="http://www.gnucash.org/XML/ts">
+ <gnc:count-data cd:type="book">1</gnc:count-data>
+ <gnc:book version="2.0.0">
+  <book:id type="guid">c40092d14d3ab7917b0e4c6a7035bba6</book:id>
+  <gnc:count-data cd:type="commodity">1</gnc:count-data>
+  <gnc:count-data cd:type="account">4</gnc:count-data>
+  <gnc:count-data cd:type="transaction">2</gnc:count-data>
+  <gnc:commodity version="2.0.0">
+   <cmdty:space>CURRENCY</cmdty:space>
+   <cmdty:id>EUR</cmdty:id>
+  </gnc:commodity>
+  <gnc:account version="2.0.0">
+   <act:name>Root Account</act:name>
+   <act:id type="guid">2095851eac0bd4c7ac8ea5e576f17122</act:id>
+   <act:type>ROOT</act:type>
+  </gnc:account>
+  <gnc:account version="2.0.0">
+   <act:name>Girokonto</act:name>
+   <act:id type="guid">b028e3adcf7adbe44a71dd66f31e3bb6</act:id>
+   <act:type>BANK</act:type>
+   <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+   </act:commodity>
+   <act:commodity-scu>100</act:commodity-scu>
+   <act:code>DE04000000000000003001</act:code>
+   <act:parent type="guid">2095851eac0bd4c7ac8ea5e576f17122</act:parent>
+  </gnc:account>
+  <gnc:account version="2.0.0">
+   <act:name>Lebensmittel</act:name>
+   <act:id type="guid">b0ebedc8a45292a06c62d1cde4aa0588</act:id>
+   <act:type>EXPENSE</act:type>
+   <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+   </act:commodity>
+   <act:commodity-scu>100</act:commodity-scu>
+   <act:parent type="guid">2095851eac0bd4c7ac8ea5e576f17122</act:parent>
+  </gnc:account>
+  <gnc:account version="2.0.0">
+   <act:name>Gehalt</act:name>
+   <act:id type="guid">86eccf6f782e5aa4679c357f5d9b8beb</act:id>
+   <act:type>INCOME</act:type>
+   <act:commodity>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+   </act:commodity>
+   <act:commodity-scu>100</act:commodity-scu>
+   <act:parent type="guid">2095851eac0bd4c7ac8ea5e576f17122</act:parent>
+  </gnc:account>
+  <gnc:transaction version="2.0.0">
+   <trn:id type="guid">8364aa716f8eb3cc6e78714836e7616c</trn:id>
+   <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+   </trn:currency>
+   <trn:num />
+   <trn:date-posted>
+    <ts:date>2024-01-31 10:59:00 +0000</ts:date>
+   </trn:date-posted>
+   <trn:date-entered>
+    <ts:date>2025-01-05 08:00:00 +0000</ts:date>
+   </trn:date-entered>
+   <trn:description>Arbeitgeber Muster GmbH</trn:description>
+   <trn:slots>
+    <slot>
+     <slot:key>notes</slot:key>
+     <slot:value type="string">Gehalt Januar</slot:value>
+    </slot>
+   </trn:slots>
+   <trn:splits>
+    <trn:split>
+     <split:id type="guid">e2cc4a1470cfa7e1502ac36e9c4945b7</split:id>
+     <split:memo>Gehalt Januar</split:memo>
+     <split:reconciled-state>n</split:reconciled-state>
+     <split:value>100000/100</split:value>
+     <split:quantity>100000/100</split:quantity>
+     <split:account type="guid">b028e3adcf7adbe44a71dd66f31e3bb6</split:account>
+    </trn:split>
+    <trn:split>
+     <split:id type="guid">fcc7d7a2373adf923c0567cf8dff7c31</split:id>
+     <split:reconciled-state>n</split:reconciled-state>
+     <split:value>-100000/100</split:value>
+     <split:quantity>-100000/100</split:quantity>
+     <split:account type="guid">86eccf6f782e5aa4679c357f5d9b8beb</split:account>
+    </trn:split>
+   </trn:splits>
+  </gnc:transaction>
+  <gnc:transaction version="2.0.0">
+   <trn:id type="guid">7db3ae74b8a035da72e2c2b792f53937</trn:id>
+   <trn:currency>
+    <cmdty:space>CURRENCY</cmdty:space>
+    <cmdty:id>EUR</cmdty:id>
+   </trn:currency>
+   <trn:num />
+   <trn:date-posted>
+    <ts:date>2024-02-02 10:59:00 +0000</ts:date>
+   </trn:date-posted>
+   <trn:date-entered>
+    <ts:date>2025-01-05 08:00:00 +0000</ts:date>
+   </trn:date-entered>
+   <trn:description>Supermarkt Frischekorb</trn:description>
+   <trn:slots>
+    <slot>
+     <slot:key>notes</slot:key>
+     <slot:value type="string">Wocheneinkauf</slot:value>
+    </slot>
+   </trn:slots>
+   <trn:splits>
+    <trn:split>
+     <split:id type="guid">48142ec4c56b40d9f635df116653c511</split:id>
+     <split:memo>Wocheneinkauf</split:memo>
+     <split:reconciled-state>n</split:reconciled-state>
+     <split:value>-2500/100</split:value>
+     <split:quantity>-2500/100</split:quantity>
+     <split:account type="guid">b028e3adcf7adbe44a71dd66f31e3bb6</split:account>
+    </trn:split>
+    <trn:split>
+     <split:id type="guid">c3262744e7d4f86d42d67664cd18d026</split:id>
+     <split:reconciled-state>n</split:reconciled-state>
+     <split:value>2500/100</split:value>
+     <split:quantity>2500/100</split:quantity>
+     <split:account type="guid">b0ebedc8a45292a06c62d1cde4aa0588</split:account>
+    </trn:split>
+   </trn:splits>
+  </gnc:transaction>
+ </gnc:book>
+</gnc-v2>

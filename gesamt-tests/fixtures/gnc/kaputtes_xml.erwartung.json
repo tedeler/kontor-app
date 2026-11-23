@@ -1,0 +1,9 @@
+{
+  "art": "gnucash",
+  "beschreibung": "gzip ok, XML nicht wohlgeformt",
+  "erfolgreich": false,
+  "fehler_code": "import_datei_beschaedigt",
+  "fixture": "gnc/kaputtes_xml.gnucash",
+  "format": "gnc-xml-gzip",
+  "referenzen": []
+}

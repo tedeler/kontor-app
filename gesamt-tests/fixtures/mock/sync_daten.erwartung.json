@@ -1,0 +1,1207 @@
+{
+  "abgleich_altbestand": {
+    "S-00001": {
+      "ergebnis": "zusammengefuehrt",
+      "mit": [
+        "T000000000000000017"
+      ]
+    },
+    "S-00002": {
+      "ergebnis": "zusammengefuehrt",
+      "mit": [
+        "T000000000000000019"
+      ]
+    },
+    "S-00003": {
+      "ergebnis": "zusammengefuehrt",
+      "mit": [
+        "T000000000000000033"
+      ]
+    },
+    "S-00004": {
+      "ergebnis": "zusammengefuehrt",
+      "mit": [
+        "T000000000000000032"
+      ]
+    },
+    "S-00005": {
+      "ergebnis": "zusammengefuehrt",
+      "mit": [
+        "T000000000000000032"
+      ]
+    },
+    "S-00006": {
+      "ergebnis": "zusammengefuehrt",
+      "mit": [
+        "T000000000000000024"
+      ]
+    },
+    "S-00007": {
+      "ergebnis": "neu"
+    },
+    "S-00008": {
+      "ergebnis": "neu"
+    },
+    "S-00009": {
+      "ergebnis": "zusammengefuehrt",
+      "mit": [
+        "T000000000000000020"
+      ]
+    },
+    "S-00010": {
+      "ergebnis": "zusammengefuehrt",
+      "mit": [
+        "T000000000000000031"
+      ]
+    },
+    "S-00011": {
+      "ergebnis": "zusammengefuehrt",
+      "mit": [
+        "T000000000000000025"
+      ]
+    },
+    "S-00012": {
+      "ergebnis": "zusammengefuehrt",
+      "mit": [
+        "T000000000000000026"
+      ]
+    },
+    "S-00013": {
+      "ergebnis": "zusammengefuehrt",
+      "mit": [
+        "T000000000000000018"
+      ]
+    },
+    "S-00014": {
+      "ergebnis": "zur_pruefung",
+      "grund": "aehnlich",
+      "kandidaten": [
+        "T000000000000000021"
+      ]
+    },
+    "S-00015": {
+      "ergebnis": "zusammengefuehrt",
+      "mit": [
+        "T000000000000000030"
+      ]
+    },
+    "S-00016": {
+      "ergebnis": "zusammengefuehrt",
+      "mit": [
+        "T000000000000000022"
+      ]
+    },
+    "S-00017": {
+      "ergebnis": "zur_pruefung",
+      "grund": "aehnlich",
+      "kandidaten": [
+        "T000000000000000027"
+      ]
+    },
+    "S-00018": {
+      "ergebnis": "neu"
+    },
+    "S-00019": {
+      "ergebnis": "neu"
+    },
+    "S-00020": {
+      "ergebnis": "neu"
+    },
+    "S-00021": {
+      "ergebnis": "zusammengefuehrt",
+      "mit": [
+        "T000000000000000035"
+      ]
+    },
+    "S-00022": {
+      "ergebnis": "zusammengefuehrt",
+      "mit": [
+        "T000000000000000037"
+      ]
+    },
+    "S-00023": {
+      "ergebnis": "neu"
+    },
+    "S-00024": {
+      "ergebnis": "neu"
+    },
+    "S-00025": {
+      "ergebnis": "neu"
+    },
+    "S-00026": {
+      "ergebnis": "zusammengefuehrt",
+      "mit": [
+        "T000000000000000042"
+      ]
+    },
+    "S-00027": {
+      "ergebnis": "neu"
+    },
+    "S-00028": {
+      "ergebnis": "zusammengefuehrt",
+      "mit": [
+        "T000000000000000041"
+      ]
+    },
+    "S-00029": {
+      "ergebnis": "zusammengefuehrt",
+      "mit": [
+        "T000000000000000039"
+      ]
+    },
+    "S-00030": {
+      "ergebnis": "neu"
+    },
+    "S-00031": {
+      "ergebnis": "neu"
+    },
+    "S-00032": {
+      "ergebnis": "zusammengefuehrt",
+      "mit": [
+        "T000000000000000043"
+      ]
+    },
+    "S-00033": {
+      "ergebnis": "neu"
+    },
+    "S-00034": {
+      "ergebnis": "zusammengefuehrt",
+      "mit": [
+        "T000000000000000036"
+      ]
+    },
+    "S-00035": {
+      "ergebnis": "zusammengefuehrt",
+      "mit": [
+        "T000000000000000040"
+      ]
+    },
+    "S-00036": {
+      "ergebnis": "neu"
+    },
+    "S-00037": {
+      "ergebnis": "neu"
+    },
+    "S-00038": {
+      "ergebnis": "neu"
+    },
+    "S-00039": {
+      "ergebnis": "neu"
+    },
+    "S-00040": {
+      "ergebnis": "neu"
+    },
+    "S-00041": {
+      "ergebnis": "neu"
+    },
+    "S-00042": {
+      "ergebnis": "neu"
+    },
+    "S-00043": {
+      "ergebnis": "neu"
+    },
+    "S-00044": {
+      "ergebnis": "neu"
+    },
+    "S-00045": {
+      "ergebnis": "neu"
+    },
+    "S-00046": {
+      "ergebnis": "neu"
+    },
+    "S-00047": {
+      "ergebnis": "neu"
+    },
+    "S-00048": {
+      "ergebnis": "neu"
+    },
+    "S-00049": {
+      "ergebnis": "neu"
+    },
+    "S-00050": {
+      "ergebnis": "neu"
+    },
+    "S-00051": {
+      "ergebnis": "neu"
+    },
+    "S-00052": {
+      "ergebnis": "neu"
+    },
+    "S-00053": {
+      "ergebnis": "neu"
+    },
+    "S-00054": {
+      "ergebnis": "neu"
+    },
+    "S-00055": {
+      "ergebnis": "neu"
+    },
+    "S-00056": {
+      "ergebnis": "neu"
+    },
+    "S-00057": {
+      "ergebnis": "neu"
+    },
+    "S-00058": {
+      "ergebnis": "neu"
+    },
+    "S-00059": {
+      "ergebnis": "neu"
+    },
+    "S-00060": {
+      "ergebnis": "neu"
+    },
+    "S-00061": {
+      "ergebnis": "neu"
+    },
+    "S-00062": {
+      "ergebnis": "neu"
+    },
+    "S-00063": {
+      "ergebnis": "neu"
+    },
+    "S-00064": {
+      "ergebnis": "neu"
+    },
+    "S-00065": {
+      "ergebnis": "neu"
+    },
+    "S-00066": {
+      "ergebnis": "neu"
+    },
+    "S-00067": {
+      "ergebnis": "neu"
+    },
+    "S-00068": {
+      "ergebnis": "neu"
+    },
+    "S-00069": {
+      "ergebnis": "neu"
+    },
+    "S-00070": {
+      "ergebnis": "neu"
+    },
+    "S-00071": {
+      "ergebnis": "neu"
+    },
+    "S-00072": {
+      "ergebnis": "neu"
+    },
+    "S-00073": {
+      "ergebnis": "neu"
+    },
+    "S-00074": {
+      "ergebnis": "neu"
+    },
+    "S-00075": {
+      "ergebnis": "neu"
+    },
+    "S-00076": {
+      "ergebnis": "neu"
+    },
+    "S-00077": {
+      "ergebnis": "neu"
+    },
+    "S-00078": {
+      "ergebnis": "neu"
+    },
+    "S-00079": {
+      "ergebnis": "neu"
+    },
+    "S-00080": {
+      "ergebnis": "neu"
+    },
+    "S-00081": {
+      "ergebnis": "neu"
+    },
+    "S-00082": {
+      "ergebnis": "neu"
+    },
+    "S-00083": {
+      "ergebnis": "neu"
+    },
+    "S-00084": {
+      "ergebnis": "neu"
+    },
+    "S-00085": {
+      "ergebnis": "neu"
+    },
+    "S-00086": {
+      "ergebnis": "neu"
+    },
+    "S-00087": {
+      "ergebnis": "neu"
+    },
+    "S-00088": {
+      "ergebnis": "neu"
+    },
+    "S-00089": {
+      "ergebnis": "neu"
+    },
+    "S-00090": {
+      "ergebnis": "neu"
+    },
+    "S-00091": {
+      "ergebnis": "neu"
+    },
+    "S-00092": {
+      "ergebnis": "neu"
+    },
+    "S-00093": {
+      "ergebnis": "neu"
+    },
+    "S-00094": {
+      "ergebnis": "neu"
+    },
+    "S-00095": {
+      "ergebnis": "neu"
+    },
+    "S-00096": {
+      "ergebnis": "neu"
+    },
+    "S-00097": {
+      "ergebnis": "neu"
+    },
+    "S-00098": {
+      "ergebnis": "neu"
+    },
+    "S-00099": {
+      "ergebnis": "neu"
+    },
+    "S-00100": {
+      "ergebnis": "neu"
+    },
+    "S-00101": {
+      "ergebnis": "neu"
+    },
+    "S-00102": {
+      "ergebnis": "neu"
+    },
+    "S-00103": {
+      "ergebnis": "neu"
+    },
+    "S-00104": {
+      "ergebnis": "neu"
+    },
+    "S-00105": {
+      "ergebnis": "neu"
+    },
+    "S-00106": {
+      "ergebnis": "neu"
+    },
+    "S-00107": {
+      "ergebnis": "neu"
+    },
+    "S-00108": {
+      "ergebnis": "neu"
+    },
+    "S-00109": {
+      "ergebnis": "neu"
+    },
+    "S-00110": {
+      "ergebnis": "neu"
+    },
+    "S-00111": {
+      "ergebnis": "zusammengefuehrt",
+      "mit": [
+        "T000000000000000023"
+      ]
+    },
+    "S-00112": {
+      "ergebnis": "zur_pruefung",
+      "grund": "mehrdeutig",
+      "kandidaten": [
+        "T000000000000000028",
+        "T000000000000000029"
+      ]
+    },
+    "S-00113": {
+      "ergebnis": "zur_pruefung",
+      "grund": "mehrdeutig",
+      "kandidaten": [
+        "T000000000000000038"
+      ]
+    },
+    "S-00114": {
+      "ergebnis": "zur_pruefung",
+      "grund": "mehrdeutig",
+      "kandidaten": [
+        "T000000000000000038"
+      ]
+    },
+    "S-00115": {
+      "ergebnis": "vormerkung"
+    },
+    "S-00116": {
+      "ergebnis": "neu"
+    },
+    "S-00117": {
+      "ergebnis": "neu"
+    },
+    "S-00118": {
+      "ergebnis": "neu"
+    },
+    "S-00119": {
+      "ergebnis": "neu"
+    },
+    "S-00120": {
+      "ergebnis": "neu"
+    },
+    "S-00121": {
+      "ergebnis": "neu"
+    },
+    "S-00122": {
+      "ergebnis": "neu"
+    },
+    "S-00123": {
+      "ergebnis": "neu"
+    },
+    "S-00124": {
+      "ergebnis": "neu"
+    },
+    "S-00125": {
+      "ergebnis": "neu"
+    },
+    "S-00126": {
+      "ergebnis": "neu"
+    },
+    "S-00127": {
+      "ergebnis": "vormerkung"
+    },
+    "S-00128": {
+      "ergebnis": "neu"
+    },
+    "S-00129": {
+      "ergebnis": "neu"
+    },
+    "S-00130": {
+      "ergebnis": "neu"
+    },
+    "S-00131": {
+      "ergebnis": "neu"
+    },
+    "S-00132": {
+      "ergebnis": "neu"
+    },
+    "S-00133": {
+      "ergebnis": "neu"
+    },
+    "S-00134": {
+      "ergebnis": "neu"
+    },
+    "S-00135": {
+      "ergebnis": "vormerkung"
+    }
+  },
+  "altbestand_bis": "2024-02-15",
+  "anzahl_gebucht": {
+    "DE28000000000000008001": 100,
+    "DE71000000000000008003": 24,
+    "DE98000000000000008002": 8
+  },
+  "fall": {
+    "S-00001": "miete",
+    "S-00002": "strom",
+    "S-00003": "gehalt",
+    "S-00004": "umbuchung",
+    "S-00005": "umbuchung",
+    "S-00006": "umbuchung",
+    "S-00007": "umbuchung",
+    "S-00008": "super",
+    "S-00009": "super",
+    "S-00010": "super",
+    "S-00011": "super",
+    "S-00012": "super",
+    "S-00013": "super",
+    "S-00014": "cafe",
+    "S-00015": "cafe",
+    "S-00016": "baecker",
+    "S-00017": "tanken",
+    "S-00018": "abo_kredit",
+    "S-00019": "online",
+    "S-00020": "online",
+    "S-00021": "miete",
+    "S-00022": "strom",
+    "S-00023": "gehalt",
+    "S-00024": "umbuchung",
+    "S-00025": "umbuchung",
+    "S-00026": "umbuchung",
+    "S-00027": "umbuchung",
+    "S-00028": "super",
+    "S-00029": "super",
+    "S-00030": "super",
+    "S-00031": "super",
+    "S-00032": "super",
+    "S-00033": "super",
+    "S-00034": "cafe",
+    "S-00035": "baecker",
+    "S-00036": "tanken",
+    "S-00037": "abo_kredit",
+    "S-00038": "online",
+    "S-00039": "online",
+    "S-00040": "miete",
+    "S-00041": "strom",
+    "S-00042": "gehalt",
+    "S-00043": "umbuchung",
+    "S-00044": "umbuchung",
+    "S-00045": "umbuchung",
+    "S-00046": "umbuchung",
+    "S-00047": "super",
+    "S-00048": "super",
+    "S-00049": "super",
+    "S-00050": "super",
+    "S-00051": "super",
+    "S-00052": "super",
+    "S-00053": "cafe",
+    "S-00054": "baecker",
+    "S-00055": "tanken",
+    "S-00056": "abo_kredit",
+    "S-00057": "online",
+    "S-00058": "online",
+    "S-00059": "miete",
+    "S-00060": "strom_gmbh",
+    "S-00061": "gehalt",
+    "S-00062": "umbuchung",
+    "S-00063": "umbuchung",
+    "S-00064": "umbuchung",
+    "S-00065": "umbuchung",
+    "S-00066": "super",
+    "S-00067": "super",
+    "S-00068": "super",
+    "S-00069": "super",
+    "S-00070": "cafe",
+    "S-00071": "cafe",
+    "S-00072": "baecker",
+    "S-00073": "tanken",
+    "S-00074": "abo_kredit",
+    "S-00075": "online",
+    "S-00076": "online",
+    "S-00077": "miete",
+    "S-00078": "strom",
+    "S-00079": "gehalt",
+    "S-00080": "umbuchung",
+    "S-00081": "umbuchung",
+    "S-00082": "umbuchung",
+    "S-00083": "umbuchung",
+    "S-00084": "super",
+    "S-00085": "super",
+    "S-00086": "super",
+    "S-00087": "super",
+    "S-00088": "cafe",
+    "S-00089": "cafe",
+    "S-00090": "baecker",
+    "S-00091": "tanken",
+    "S-00092": "abo_kredit",
+    "S-00093": "online",
+    "S-00094": "miete",
+    "S-00095": "strom",
+    "S-00096": "gehalt",
+    "S-00097": "umbuchung",
+    "S-00098": "umbuchung",
+    "S-00099": "umbuchung",
+    "S-00100": "umbuchung",
+    "S-00101": "super",
+    "S-00102": "super",
+    "S-00103": "super",
+    "S-00104": "super",
+    "S-00105": "cafe",
+    "S-00106": "baecker",
+    "S-00107": "tanken",
+    "S-00108": "abo_kredit",
+    "S-00109": "online",
+    "S-00110": "online",
+    "S-00111": "bargeld",
+    "S-00112": "cafe",
+    "S-00113": "super",
+    "S-00114": "super",
+    "S-00115": "vormerkung",
+    "S-00116": "tanken",
+    "S-00117": "bargeld",
+    "S-00118": "cafe",
+    "S-00119": "cafe",
+    "S-00120": "kaufhaus_gross",
+    "S-00121": "storno",
+    "S-00122": "kiosk_karte",
+    "S-00123": "zinsen",
+    "S-00124": "kaufhaus_gross",
+    "S-00125": "kaufhaus_klein",
+    "S-00126": "lang",
+    "S-00127": "vormerkung",
+    "S-00128": "abo_giro",
+    "S-00129": "kiosk_leer",
+    "S-00130": "abo_kk_musik",
+    "S-00131": "abo_giro_musik",
+    "S-00132": "null",
+    "S-00133": "fremd",
+    "S-00134": "zinsen",
+    "S-00135": "vormerkung"
+  },
+  "fixture": "mock/sync_daten.json",
+  "ibans": {
+    "fremd": "DE48000000000000008999",
+    "giro": "DE28000000000000008001",
+    "kredit": "DE71000000000000008003",
+    "spar": "DE98000000000000008002"
+  },
+  "konto_namen": {
+    "DE28000000000000008001": "Girokonto",
+    "DE71000000000000008003": "Kreditkarte",
+    "DE98000000000000008002": "Tagesgeld"
+  },
+  "pin": "PIN-ATTRAPPE-4711-SYNTHETISCH",
+  "regel_ergebnis": {
+    "S-00001": {
+      "kategorie": "Miete",
+      "regel": "Miete"
+    },
+    "S-00002": {
+      "kategorie": "Strom",
+      "regel": "Strom"
+    },
+    "S-00003": {
+      "kategorie": "Gehalt",
+      "regel": "Gehalt"
+    },
+    "S-00004": null,
+    "S-00005": null,
+    "S-00006": null,
+    "S-00007": null,
+    "S-00008": {
+      "kategorie": "Lebensmittel",
+      "regel": "Supermarkt"
+    },
+    "S-00009": {
+      "kategorie": "Lebensmittel",
+      "regel": "Supermarkt"
+    },
+    "S-00010": {
+      "kategorie": "Lebensmittel",
+      "regel": "Supermarkt"
+    },
+    "S-00011": {
+      "kategorie": "Lebensmittel",
+      "regel": "Supermarkt"
+    },
+    "S-00012": {
+      "kategorie": "Lebensmittel",
+      "regel": "Supermarkt"
+    },
+    "S-00013": {
+      "kategorie": "Lebensmittel",
+      "regel": "Supermarkt"
+    },
+    "S-00014": {
+      "kategorie": "Café & Restaurant",
+      "regel": "Café"
+    },
+    "S-00015": {
+      "kategorie": "Café & Restaurant",
+      "regel": "Café"
+    },
+    "S-00016": {
+      "kategorie": "Lebensmittel",
+      "regel": "Bäckerei"
+    },
+    "S-00017": {
+      "kategorie": "Tanken",
+      "regel": "Tankstelle"
+    },
+    "S-00018": {
+      "kategorie": "Abos",
+      "regel": "Streaming (spät angelegt, Vorrang)"
+    },
+    "S-00019": null,
+    "S-00020": null,
+    "S-00021": {
+      "kategorie": "Miete",
+      "regel": "Miete"
+    },
+    "S-00022": {
+      "kategorie": "Strom",
+      "regel": "Strom"
+    },
+    "S-00023": {
+      "kategorie": "Gehalt",
+      "regel": "Gehalt"
+    },
+    "S-00024": null,
+    "S-00025": null,
+    "S-00026": null,
+    "S-00027": null,
+    "S-00028": {
+      "kategorie": "Lebensmittel",
+      "regel": "Supermarkt"
+    },
+    "S-00029": {
+      "kategorie": "Lebensmittel",
+      "regel": "Supermarkt"
+    },
+    "S-00030": {
+      "kategorie": "Lebensmittel",
+      "regel": "Supermarkt"
+    },
+    "S-00031": {
+      "kategorie": "Lebensmittel",
+      "regel": "Supermarkt"
+    },
+    "S-00032": {
+      "kategorie": "Lebensmittel",
+      "regel": "Supermarkt"
+    },
+    "S-00033": {
+      "kategorie": "Lebensmittel",
+      "regel": "Supermarkt"
+    },
+    "S-00034": {
+      "kategorie": "Café & Restaurant",
+      "regel": "Café"
+    },
+    "S-00035": {
+      "kategorie": "Lebensmittel",
+      "regel": "Bäckerei"
+    },
+    "S-00036": {
+      "kategorie": "Tanken",
+      "regel": "Tankstelle"
+    },
+    "S-00037": {
+      "kategorie": "Abos",
+      "regel": "Streaming (spät angelegt, Vorrang)"
+    },
+    "S-00038": null,
+    "S-00039": null,
+    "S-00040": {
+      "kategorie": "Miete",
+      "regel": "Miete"
+    },
+    "S-00041": {
+      "kategorie": "Strom",
+      "regel": "Strom"
+    },
+    "S-00042": {
+      "kategorie": "Gehalt",
+      "regel": "Gehalt"
+    },
+    "S-00043": null,
+    "S-00044": null,
+    "S-00045": null,
+    "S-00046": null,
+    "S-00047": {
+      "kategorie": "Lebensmittel",
+      "regel": "Supermarkt"
+    },
+    "S-00048": {
+      "kategorie": "Lebensmittel",
+      "regel": "Supermarkt"
+    },
+    "S-00049": {
+      "kategorie": "Lebensmittel",
+      "regel": "Supermarkt"
+    },
+    "S-00050": {
+      "kategorie": "Lebensmittel",
+      "regel": "Supermarkt"
+    },
+    "S-00051": {
+      "kategorie": "Lebensmittel",
+      "regel": "Supermarkt"
+    },
+    "S-00052": {
+      "kategorie": "Lebensmittel",
+      "regel": "Supermarkt"
+    },
+    "S-00053": {
+      "kategorie": "Café & Restaurant",
+      "regel": "Café"
+    },
+    "S-00054": {
+      "kategorie": "Lebensmittel",
+      "regel": "Bäckerei"
+    },
+    "S-00055": {
+      "kategorie": "Tanken",
+      "regel": "Tankstelle"
+    },
+    "S-00056": {
+      "kategorie": "Abos",
+      "regel": "Streaming (spät angelegt, Vorrang)"
+    },
+    "S-00057": null,
+    "S-00058": null,
+    "S-00059": {
+      "kategorie": "Miete",
+      "regel": "Miete"
+    },
+    "S-00060": null,
+    "S-00061": {
+      "kategorie": "Gehalt",
+      "regel": "Gehalt"
+    },
+    "S-00062": null,
+    "S-00063": null,
+    "S-00064": null,
+    "S-00065": null,
+    "S-00066": {
+      "kategorie": "Lebensmittel",
+      "regel": "Supermarkt"
+    },
+    "S-00067": {
+      "kategorie": "Lebensmittel",
+      "regel": "Supermarkt"
+    },
+    "S-00068": {
+      "kategorie": "Lebensmittel",
+      "regel": "Supermarkt"
+    },
+    "S-00069": {
+      "kategorie": "Lebensmittel",
+      "regel": "Supermarkt"
+    },
+    "S-00070": {
+      "kategorie": "Café & Restaurant",
+      "regel": "Café"
+    },
+    "S-00071": {
+      "kategorie": "Café & Restaurant",
+      "regel": "Café"
+    },
+    "S-00072": {
+      "kategorie": "Lebensmittel",
+      "regel": "Bäckerei"
+    },
+    "S-00073": {
+      "kategorie": "Tanken",
+      "regel": "Tankstelle"
+    },
+    "S-00074": {
+      "kategorie": "Abos",
+      "regel": "Streaming (spät angelegt, Vorrang)"
+    },
+    "S-00075": null,
+    "S-00076": null,
+    "S-00077": {
+      "kategorie": "Miete",
+      "regel": "Miete"
+    },
+    "S-00078": {
+      "kategorie": "Strom",
+      "regel": "Strom"
+    },
+    "S-00079": {
+      "kategorie": "Gehalt",
+      "regel": "Gehalt"
+    },
+    "S-00080": null,
+    "S-00081": null,
+    "S-00082": null,
+    "S-00083": null,
+    "S-00084": {
+      "kategorie": "Lebensmittel",
+      "regel": "Supermarkt"
+    },
+    "S-00085": {
+      "kategorie": "Lebensmittel",
+      "regel": "Supermarkt"
+    },
+    "S-00086": {
+      "kategorie": "Lebensmittel",
+      "regel": "Supermarkt"
+    },
+    "S-00087": {
+      "kategorie": "Lebensmittel",
+      "regel": "Supermarkt"
+    },
+    "S-00088": {
+      "kategorie": "Café & Restaurant",
+      "regel": "Café"
+    },
+    "S-00089": {
+      "kategorie": "Café & Restaurant",
+      "regel": "Café"
+    },
+    "S-00090": {
+      "kategorie": "Lebensmittel",
+      "regel": "Bäckerei"
+    },
+    "S-00091": {
+      "kategorie": "Tanken",
+      "regel": "Tankstelle"
+    },
+    "S-00092": {
+      "kategorie": "Abos",
+      "regel": "Streaming (spät angelegt, Vorrang)"
+    },
+    "S-00093": null,
+    "S-00094": {
+      "kategorie": "Miete",
+      "regel": "Miete"
+    },
+    "S-00095": {
+      "kategorie": "Strom",
+      "regel": "Strom"
+    },
+    "S-00096": {
+      "kategorie": "Gehalt",
+      "regel": "Gehalt"
+    },
+    "S-00097": null,
+    "S-00098": null,
+    "S-00099": null,
+    "S-00100": null,
+    "S-00101": {
+      "kategorie": "Lebensmittel",
+      "regel": "Supermarkt"
+    },
+    "S-00102": {
+      "kategorie": "Lebensmittel",
+      "regel": "Supermarkt"
+    },
+    "S-00103": {
+      "kategorie": "Lebensmittel",
+      "regel": "Supermarkt"
+    },
+    "S-00104": {
+      "kategorie": "Lebensmittel",
+      "regel": "Supermarkt"
+    },
+    "S-00105": {
+      "kategorie": "Café & Restaurant",
+      "regel": "Café"
+    },
+    "S-00106": {
+      "kategorie": "Lebensmittel",
+      "regel": "Bäckerei"
+    },
+    "S-00107": {
+      "kategorie": "Tanken",
+      "regel": "Tankstelle"
+    },
+    "S-00108": {
+      "kategorie": "Abos",
+      "regel": "Streaming (spät angelegt, Vorrang)"
+    },
+    "S-00109": null,
+    "S-00110": null,
+    "S-00111": null,
+    "S-00112": {
+      "kategorie": "Café & Restaurant",
+      "regel": "Café"
+    },
+    "S-00113": {
+      "kategorie": "Lebensmittel",
+      "regel": "Supermarkt"
+    },
+    "S-00114": {
+      "kategorie": "Lebensmittel",
+      "regel": "Supermarkt"
+    },
+    "S-00115": null,
+    "S-00116": {
+      "kategorie": "Tanken",
+      "regel": "Tankstelle"
+    },
+    "S-00117": null,
+    "S-00118": {
+      "kategorie": "Café & Restaurant",
+      "regel": "Café"
+    },
+    "S-00119": {
+      "kategorie": "Café & Restaurant",
+      "regel": "Café"
+    },
+    "S-00120": {
+      "kategorie": "Sonstiges",
+      "regel": "Kaufhaus groß"
+    },
+    "S-00121": null,
+    "S-00122": {
+      "kategorie": "Sonstiges",
+      "regel": "Kartenzahlung"
+    },
+    "S-00123": {
+      "kategorie": "Zinsertrag",
+      "regel": "Zinsen Tagesgeld"
+    },
+    "S-00124": {
+      "kategorie": "Sonstiges",
+      "regel": "Kaufhaus groß"
+    },
+    "S-00125": null,
+    "S-00126": null,
+    "S-00127": null,
+    "S-00128": {
+      "kategorie": "Abos",
+      "regel": "Streaming (spät angelegt, Vorrang)"
+    },
+    "S-00129": null,
+    "S-00130": {
+      "kategorie": "Abos",
+      "regel": "Abo Kreditkarte"
+    },
+    "S-00131": null,
+    "S-00132": null,
+    "S-00133": null,
+    "S-00134": {
+      "kategorie": "Zinsertrag",
+      "regel": "Zinsen Tagesgeld"
+    },
+    "S-00135": null
+  },
+  "saldo_veraenderung": {
+    "DE28000000000000008001": 695804,
+    "DE71000000000000008003": 173629,
+    "DE98000000000000008002": 182535
+  },
+  "startwert": 4711,
+  "stornos": [
+    "S-00121"
+  ],
+  "stufen": [
+    "2024-02-15",
+    "2024-04-30",
+    "2024-06-30"
+  ],
+  "tan": "TAN-ATTRAPPE-0815",
+  "vormerkungen": [
+    "S-00115",
+    "S-00127",
+    "S-00135"
+  ],
+  "wahre_kategorie": {
+    "S-00001": "Miete",
+    "S-00002": "Strom",
+    "S-00003": "Gehalt",
+    "S-00004": null,
+    "S-00005": null,
+    "S-00006": null,
+    "S-00007": null,
+    "S-00008": "Lebensmittel",
+    "S-00009": "Lebensmittel",
+    "S-00010": "Lebensmittel",
+    "S-00011": "Lebensmittel",
+    "S-00012": "Lebensmittel",
+    "S-00013": "Lebensmittel",
+    "S-00014": "Café & Restaurant",
+    "S-00015": "Café & Restaurant",
+    "S-00016": "Lebensmittel",
+    "S-00017": "Tanken",
+    "S-00018": "Abos",
+    "S-00019": "Sonstiges",
+    "S-00020": "Sonstiges",
+    "S-00021": "Miete",
+    "S-00022": "Strom",
+    "S-00023": "Gehalt",
+    "S-00024": null,
+    "S-00025": null,
+    "S-00026": null,
+    "S-00027": null,
+    "S-00028": "Lebensmittel",
+    "S-00029": "Lebensmittel",
+    "S-00030": "Lebensmittel",
+    "S-00031": "Lebensmittel",
+    "S-00032": "Lebensmittel",
+    "S-00033": "Lebensmittel",
+    "S-00034": "Café & Restaurant",
+    "S-00035": "Lebensmittel",
+    "S-00036": "Tanken",
+    "S-00037": "Abos",
+    "S-00038": "Sonstiges",
+    "S-00039": "Sonstiges",
+    "S-00040": "Miete",
+    "S-00041": "Strom",
+    "S-00042": "Gehalt",
+    "S-00043": null,
+    "S-00044": null,
+    "S-00045": null,
+    "S-00046": null,
+    "S-00047": "Lebensmittel",
+    "S-00048": "Lebensmittel",
+    "S-00049": "Lebensmittel",
+    "S-00050": "Lebensmittel",
+    "S-00051": "Lebensmittel",
+    "S-00052": "Lebensmittel",
+    "S-00053": "Café & Restaurant",
+    "S-00054": "Lebensmittel",
+    "S-00055": "Tanken",
+    "S-00056": "Abos",
+    "S-00057": "Sonstiges",
+    "S-00058": "Sonstiges",
+    "S-00059": "Miete",
+    "S-00060": "Strom",
+    "S-00061": "Gehalt",
+    "S-00062": null,
+    "S-00063": null,
+    "S-00064": null,
+    "S-00065": null,
+    "S-00066": "Lebensmittel",
+    "S-00067": "Lebensmittel",
+    "S-00068": "Lebensmittel",
+    "S-00069": "Lebensmittel",
+    "S-00070": "Café & Restaurant",
+    "S-00071": "Café & Restaurant",
+    "S-00072": "Lebensmittel",
+    "S-00073": "Tanken",
+    "S-00074": "Abos",
+    "S-00075": "Sonstiges",
+    "S-00076": "Sonstiges",
+    "S-00077": "Miete",
+    "S-00078": "Strom",
+    "S-00079": "Gehalt",
+    "S-00080": null,
+    "S-00081": null,
+    "S-00082": null,
+    "S-00083": null,
+    "S-00084": "Lebensmittel",
+    "S-00085": "Lebensmittel",
+    "S-00086": "Lebensmittel",
+    "S-00087": "Lebensmittel",
+    "S-00088": "Café & Restaurant",
+    "S-00089": "Café & Restaurant",
+    "S-00090": "Lebensmittel",
+    "S-00091": "Tanken",
+    "S-00092": "Abos",
+    "S-00093": "Sonstiges",
+    "S-00094": "Miete",
+    "S-00095": "Strom",
+    "S-00096": "Gehalt",
+    "S-00097": null,
+    "S-00098": null,
+    "S-00099": null,
+    "S-00100": null,
+    "S-00101": "Lebensmittel",
+    "S-00102": "Lebensmittel",
+    "S-00103": "Lebensmittel",
+    "S-00104": "Lebensmittel",
+    "S-00105": "Café & Restaurant",
+    "S-00106": "Lebensmittel",
+    "S-00107": "Tanken",
+    "S-00108": "Abos",
+    "S-00109": "Sonstiges",
+    "S-00110": "Sonstiges",
+    "S-00111": "Sonstiges",
+    "S-00112": "Café & Restaurant",
+    "S-00113": "Lebensmittel",
+    "S-00114": "Lebensmittel",
+    "S-00115": "Tanken",
+    "S-00116": "Tanken",
+    "S-00117": "Sonstiges",
+    "S-00118": "Café & Restaurant",
+    "S-00119": "Café & Restaurant",
+    "S-00120": "Sonstiges",
+    "S-00121": "Sonstiges",
+    "S-00122": "Sonstiges",
+    "S-00123": "Zinsertrag",
+    "S-00124": "Sonstiges",
+    "S-00125": "Sonstiges",
+    "S-00126": "Sonstiges",
+    "S-00127": "Sonstiges",
+    "S-00128": "Abos",
+    "S-00129": "Sonstiges",
+    "S-00130": "Abos",
+    "S-00131": "Abos",
+    "S-00132": "Sonstiges",
+    "S-00133": "Sonstiges",
+    "S-00134": "Zinsertrag",
+    "S-00135": "Café & Restaurant"
+  }
+}

@@ -1,0 +1,1375 @@
+{
+  "bank_name": "Synthetische Testbank Kontor",
+  "benutzer": "KONTOR-TEST-01",
+  "blz": "00000000",
+  "challenge": "Bitte scannen Sie den QR-Code mit Ihrer Banking-App und geben Sie die TAN ein.",
+  "format": "kontor-fints-attrappe",
+  "heute": "2024-06-30",
+  "konten": [
+    {
+      "anfangssaldo": 125000,
+      "bic": "TESTDEFFXXX",
+      "iban": "DE95000000000000006601",
+      "inhaber": "Erika Mustermann",
+      "inhaber2": "Max Mustermann",
+      "kontoart": 1,
+      "kontonummer": "0000006601",
+      "produkt": "Girokonto Komfort",
+      "waehrung": "EUR"
+    },
+    {
+      "anfangssaldo": 500000,
+      "bic": "TESTDEFFXXX",
+      "iban": "DE68000000000000006602",
+      "inhaber": "Erika Mustermann",
+      "kontoart": 10,
+      "kontonummer": "0000006602",
+      "produkt": "Tagesgeld Plus",
+      "waehrung": "EUR"
+    },
+    {
+      "anfangssaldo": 0,
+      "bic": "TESTDEFFXXX",
+      "iban": "DE41000000000000006603",
+      "inhaber": "Erika Mustermann",
+      "kontoart": 50,
+      "kontonummer": "0000006603",
+      "produkt": "Kreditkarte",
+      "waehrung": "EUR"
+    },
+    {
+      "anfangssaldo": 0,
+      "bic": "TESTDEFFXXX",
+      "iban": "DE14000000000000006604",
+      "inhaber": "Erika Mustermann",
+      "kontoart": 30,
+      "kontonummer": "0000006604",
+      "produkt": "Depot",
+      "waehrung": "EUR"
+    },
+    {
+      "anfangssaldo": 0,
+      "bic": "TESTDEFFXXX",
+      "iban": "DE84000000000000006605",
+      "inhaber": "Erika Mustermann",
+      "kontoart": 1,
+      "kontonummer": "0000006605",
+      "produkt": "Altkonto",
+      "sepa": false,
+      "waehrung": "EUR"
+    },
+    {
+      "anfangssaldo": 0,
+      "bic": "TESTDEFFXXX",
+      "iban": "DE57000000000000006606",
+      "inhaber": "Erika Mustermann",
+      "kontoart": 1,
+      "kontonummer": "0000006606",
+      "produkt": "Dollarkonto",
+      "waehrung": "USD"
+    }
+  ],
+  "kunden_id": null,
+  "pin": "SYNTH-PIN-48151",
+  "qr_png": "iVBORw0KGgoAAAANSUhEUgAAAJQAAACUCAAAAABQV18IAAAAJnRFWHRDb21tZW50AEtvbnRvci1UZXN0ZGF0ZW4gKHN5bnRoZXRpc2NoKR4xOlcAAFYvSURBVHgBASRW26kA/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////wD/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////AP////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////8A/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////wD/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////AP////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////8A/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////wD/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////AP////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////8A/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////wD/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////AP////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////8A/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////wD/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////AP////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////8A/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////wD/////////////////////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/////wAAAAD//////////wAAAAD/////AAAAAP//////////AAAAAP////8AAAAA/////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/////////////////////AP////////////////////8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/////AAAAAP//////////AAAAAP////8AAAAA//////////8AAAAA/////wAAAAD/////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP////////////////////8A/////////////////////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP////8AAAAA//////////8AAAAA/////wAAAAD//////////wAAAAD/////AAAAAP////8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/////////////////////wD/////////////////////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/////wAAAAD//////////wAAAAD/////AAAAAP//////////AAAAAP////8AAAAA/////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/////////////////////AP////////////////////8AAAAA//////////////////////////8AAAAA/////wAAAAAAAAAAAAAAAP////8AAAAAAAAAAAAAAAD/////////////////////AAAAAP//////////AAAAAP//////////////////////////AAAAAP////////////////////8A/////////////////////wAAAAD//////////////////////////wAAAAD/////AAAAAAAAAAAAAAAA/////wAAAAAAAAAAAAAAAP////////////////////8AAAAA//////////8AAAAA//////////////////////////8AAAAA/////////////////////wD/////////////////////AAAAAP//////////////////////////AAAAAP////8AAAAAAAAAAAAAAAD/////AAAAAAAAAAAAAAAA/////////////////////wAAAAD//////////wAAAAD//////////////////////////wAAAAD/////////////////////AP////////////////////8AAAAA//////////////////////////8AAAAA/////wAAAAAAAAAAAAAAAP////8AAAAAAAAAAAAAAAD/////////////////////AAAAAP//////////AAAAAP//////////////////////////AAAAAP////////////////////8A/////////////////////wAAAAD/////AAAAAAAAAAAAAAAA/////wAAAAAAAAAA/////wAAAAD/////AAAAAAAAAAD/////AAAAAP//////////AAAAAP////8AAAAA/////wAAAAAAAAAA/////wAAAAAAAAAAAAAAAP////8AAAAA/////////////////////wD/////////////////////AAAAAP////8AAAAAAAAAAAAAAAD/////AAAAAAAAAAD/////AAAAAP////8AAAAAAAAAAP////8AAAAA//////////8AAAAA/////wAAAAD/////AAAAAAAAAAD/////AAAAAAAAAAAAAAAA/////wAAAAD/////////////////////AP////////////////////8AAAAA/////wAAAAAAAAAAAAAAAP////8AAAAAAAAAAP////8AAAAA/////wAAAAAAAAAA/////wAAAAD//////////wAAAAD/////AAAAAP////8AAAAAAAAAAP////8AAAAAAAAAAAAAAAD/////AAAAAP////////////////////8A/////////////////////wAAAAD/////AAAAAAAAAAAAAAAA/////wAAAAAAAAAA/////wAAAAD/////AAAAAAAAAAD/////AAAAAP//////////AAAAAP////8AAAAA/////wAAAAAAAAAA/////wAAAAAAAAAAAAAAAP////8AAAAA/////////////////////wD/////////////////////AAAAAP////8AAAAAAAAAAAAAAAD/////AAAAAP//////////AAAAAP////8AAAAA/////wAAAAD//////////wAAAAAAAAAA//////////8AAAAA/////wAAAAD/////AAAAAAAAAAAAAAAA/////wAAAAD/////////////////////AP////////////////////8AAAAA/////wAAAAAAAAAAAAAAAP////8AAAAA//////////8AAAAA/////wAAAAD/////AAAAAP//////////AAAAAAAAAAD//////////wAAAAD/////AAAAAP////8AAAAAAAAAAAAAAAD/////AAAAAP////////////////////8A/////////////////////wAAAAD/////AAAAAAAAAAAAAAAA/////wAAAAD//////////wAAAAD/////AAAAAP////8AAAAA//////////8AAAAAAAAAAP//////////AAAAAP////8AAAAA/////wAAAAAAAAAAAAAAAP////8AAAAA/////////////////////wD/////////////////////AAAAAP////8AAAAAAAAAAAAAAAD/////AAAAAP//////////AAAAAP////8AAAAA/////wAAAAD//////////wAAAAAAAAAA//////////8AAAAA/////wAAAAD/////AAAAAAAAAAAAAAAA/////wAAAAD/////////////////////AP////////////////////8AAAAA/////wAAAAAAAAAAAAAAAP////8AAAAA//////////8AAAAA////////////////AAAAAAAAAAD///////////////8AAAAAAAAAAP////8AAAAAAAAAAP////8AAAAAAAAAAAAAAAD/////AAAAAP////////////////////8A/////////////////////wAAAAD/////AAAAAAAAAAAAAAAA/////wAAAAD//////////wAAAAD///////////////8AAAAAAAAAAP///////////////wAAAAAAAAAA/////wAAAAAAAAAA/////wAAAAAAAAAAAAAAAP////8AAAAA/////////////////////wD/////////////////////AAAAAP////8AAAAAAAAAAAAAAAD/////AAAAAP//////////AAAAAP///////////////wAAAAAAAAAA////////////////AAAAAAAAAAD/////AAAAAAAAAAD/////AAAAAAAAAAAAAAAA/////wAAAAD/////////////////////AP////////////////////8AAAAA/////wAAAAAAAAAAAAAAAP////8AAAAA//////////8AAAAA////////////////AAAAAAAAAAD///////////////8AAAAAAAAAAP////8AAAAAAAAAAP////8AAAAAAAAAAAAAAAD/////AAAAAP////////////////////8A/////////////////////wAAAAD//////////////////////////wAAAAD///////////////8AAAAA////////////////AAAAAP////8AAAAAAAAAAP//////////AAAAAAAAAAAAAAAA//////////////////////////8AAAAA/////////////////////wD/////////////////////AAAAAP//////////////////////////AAAAAP///////////////wAAAAD///////////////8AAAAA/////wAAAAAAAAAA//////////8AAAAAAAAAAAAAAAD//////////////////////////wAAAAD/////////////////////AP////////////////////8AAAAA//////////////////////////8AAAAA////////////////AAAAAP///////////////wAAAAD/////AAAAAAAAAAD//////////wAAAAAAAAAAAAAAAP//////////////////////////AAAAAP////////////////////8A/////////////////////wAAAAD//////////////////////////wAAAAD///////////////8AAAAA////////////////AAAAAP////8AAAAAAAAAAP//////////AAAAAAAAAAAAAAAA//////////////////////////8AAAAA/////////////////////wD/////////////////////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/////AAAAAP//////////////////////////AAAAAAAAAAAAAAAAAAAAAP///////////////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/////////////////////AP////////////////////8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP////8AAAAA//////////////////////////8AAAAAAAAAAAAAAAAAAAAA////////////////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP////////////////////8A/////////////////////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/////wAAAAD//////////////////////////wAAAAAAAAAAAAAAAAAAAAD///////////////8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/////////////////////wD/////////////////////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/////AAAAAP//////////////////////////AAAAAAAAAAAAAAAAAAAAAP///////////////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/////////////////////AP////////////////////8AAAAAAAAAAAAAAAD//////////wAAAAD/////AAAAAP//////////////////////////AAAAAP////8AAAAA//////////8AAAAA////////////////AAAAAP////8AAAAA/////wAAAAAAAAAA//////////////////////////8A/////////////////////wAAAAAAAAAAAAAAAP//////////AAAAAP////8AAAAA//////////////////////////8AAAAA/////wAAAAD//////////wAAAAD///////////////8AAAAA/////wAAAAD/////AAAAAAAAAAD//////////////////////////wD/////////////////////AAAAAAAAAAAAAAAA//////////8AAAAA/////wAAAAD//////////////////////////wAAAAD/////AAAAAP//////////AAAAAP///////////////wAAAAD/////AAAAAP////8AAAAAAAAAAP//////////////////////////AP////////////////////8AAAAAAAAAAAAAAAD//////////wAAAAD/////AAAAAP//////////////////////////AAAAAP////8AAAAA//////////8AAAAA////////////////AAAAAP////8AAAAA/////wAAAAAAAAAA//////////////////////////8A/////////////////////wAAAAAAAAAAAAAAAP////8AAAAA/////wAAAAAAAAAAAAAAAP///////////////wAAAAAAAAAA/////wAAAAD//////////////////////////wAAAAD//////////////////////////wAAAAD//////////////////////////wD/////////////////////AAAAAAAAAAAAAAAA/////wAAAAD/////AAAAAAAAAAAAAAAA////////////////AAAAAAAAAAD/////AAAAAP//////////////////////////AAAAAP//////////////////////////AAAAAP//////////////////////////AP////////////////////8AAAAAAAAAAAAAAAD/////AAAAAP////8AAAAAAAAAAAAAAAD///////////////8AAAAAAAAAAP////8AAAAA//////////////////////////8AAAAA//////////////////////////8AAAAA//////////////////////////8A/////////////////////wAAAAAAAAAAAAAAAP////8AAAAA/////wAAAAAAAAAAAAAAAP///////////////wAAAAAAAAAA/////wAAAAD//////////////////////////wAAAAD//////////////////////////wAAAAD//////////////////////////wD//////////////////////////wAAAAAAAAAA//////////8AAAAA//////////8AAAAA/////wAAAAAAAAAA/////wAAAAAAAAAAAAAAAAAAAAD//////////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/////////////////////AP//////////////////////////AAAAAAAAAAD//////////wAAAAD//////////wAAAAD/////AAAAAAAAAAD/////AAAAAAAAAAAAAAAAAAAAAP//////////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP////////////////////8A//////////////////////////8AAAAAAAAAAP//////////AAAAAP//////////AAAAAP////8AAAAAAAAAAP////8AAAAAAAAAAAAAAAAAAAAA//////////8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/////////////////////wD//////////////////////////wAAAAAAAAAA//////////8AAAAA//////////8AAAAA/////wAAAAAAAAAA/////wAAAAAAAAAAAAAAAAAAAAD//////////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/////////////////////AP////////////////////////////////////8AAAAAAAAAAP////8AAAAA/////wAAAAAAAAAA/////////////////////wAAAAAAAAAAAAAAAP////8AAAAA/////wAAAAD/////AAAAAP//////////AAAAAAAAAAAAAAAAAAAAAP////////////////////8A/////////////////////////////////////wAAAAAAAAAA/////wAAAAD/////AAAAAAAAAAD/////////////////////AAAAAAAAAAAAAAAA/////wAAAAD/////AAAAAP////8AAAAA//////////8AAAAAAAAAAAAAAAAAAAAA/////////////////////wD/////////////////////////////////////AAAAAAAAAAD/////AAAAAP////8AAAAAAAAAAP////////////////////8AAAAAAAAAAAAAAAD/////AAAAAP////8AAAAA/////wAAAAD//////////wAAAAAAAAAAAAAAAAAAAAD/////////////////////AP////////////////////////////////////8AAAAAAAAAAP////8AAAAA/////wAAAAAAAAAA/////////////////////wAAAAAAAAAAAAAAAP////8AAAAA/////wAAAAD/////AAAAAP//////////AAAAAAAAAAAAAAAAAAAAAP////////////////////8A////////////////////////////////AAAAAAAAAAAAAAAAAAAAAP////8AAAAAAAAAAP////8AAAAA////////////////AAAAAP////8AAAAA/////wAAAAAAAAAAAAAAAAAAAAAAAAAA/////////////////////wAAAAD//////////////////////////wD///////////////////////////////8AAAAAAAAAAAAAAAAAAAAA/////wAAAAAAAAAA/////wAAAAD///////////////8AAAAA/////wAAAAD/////AAAAAAAAAAAAAAAAAAAAAAAAAAD/////////////////////AAAAAP//////////////////////////AP///////////////////////////////wAAAAAAAAAAAAAAAAAAAAD/////AAAAAAAAAAD/////AAAAAP///////////////wAAAAD/////AAAAAP////8AAAAAAAAAAAAAAAAAAAAAAAAAAP////////////////////8AAAAA//////////////////////////8A////////////////////////////////AAAAAAAAAAAAAAAAAAAAAP////8AAAAAAAAAAP////8AAAAA////////////////AAAAAP////8AAAAA/////wAAAAAAAAAAAAAAAAAAAAAAAAAA/////////////////////wAAAAD//////////////////////////wD/////////////////////AAAAAP//////////AAAAAP//////////AAAAAAAAAAAAAAAA/////wAAAAD/////AAAAAAAAAAD///////////////8AAAAAAAAAAP//////////AAAAAP//////////AAAAAP////8AAAAAAAAAAP//////////////////////////AP////////////////////8AAAAA//////////8AAAAA//////////8AAAAAAAAAAAAAAAD/////AAAAAP////8AAAAAAAAAAP///////////////wAAAAAAAAAA//////////8AAAAA//////////8AAAAA/////wAAAAAAAAAA//////////////////////////8A/////////////////////wAAAAD//////////wAAAAD//////////wAAAAAAAAAAAAAAAP////8AAAAA/////wAAAAAAAAAA////////////////AAAAAAAAAAD//////////wAAAAD//////////wAAAAD/////AAAAAAAAAAD//////////////////////////wD/////////////////////AAAAAP//////////AAAAAP//////////AAAAAAAAAAAAAAAA/////wAAAAD/////AAAAAAAAAAD///////////////8AAAAAAAAAAP//////////AAAAAP//////////AAAAAP////8AAAAAAAAAAP//////////////////////////AP///////////////////////////////////////////////wAAAAAAAAAA//////////8AAAAA/////wAAAAD/////AAAAAAAAAAAAAAAAAAAAAAAAAAD///////////////8AAAAAAAAAAP//////////AAAAAAAAAAAAAAAAAAAAAP////////////////////8A////////////////////////////////////////////////AAAAAAAAAAD//////////wAAAAD/////AAAAAP////8AAAAAAAAAAAAAAAAAAAAAAAAAAP///////////////wAAAAAAAAAA//////////8AAAAAAAAAAAAAAAAAAAAA/////////////////////wD///////////////////////////////////////////////8AAAAAAAAAAP//////////AAAAAP////8AAAAA/////wAAAAAAAAAAAAAAAAAAAAAAAAAA////////////////AAAAAAAAAAD//////////wAAAAAAAAAAAAAAAAAAAAD/////////////////////AP///////////////////////////////////////////////wAAAAAAAAAA//////////8AAAAA/////wAAAAD/////AAAAAAAAAAAAAAAAAAAAAAAAAAD///////////////8AAAAAAAAAAP//////////AAAAAAAAAAAAAAAAAAAAAP////////////////////8A/////////////////////wAAAAD//////////wAAAAD/////AAAAAAAAAAD/////AAAAAP////8AAAAAAAAAAP//////////AAAAAAAAAAD//////////wAAAAD/////AAAAAP////8AAAAAAAAAAP//////////AAAAAP////8AAAAA/////////////////////wD/////////////////////AAAAAP//////////AAAAAP////8AAAAAAAAAAP////8AAAAA/////wAAAAAAAAAA//////////8AAAAAAAAAAP//////////AAAAAP////8AAAAA/////wAAAAAAAAAA//////////8AAAAA/////wAAAAD/////////////////////AP////////////////////8AAAAA//////////8AAAAA/////wAAAAAAAAAA/////wAAAAD/////AAAAAAAAAAD//////////wAAAAAAAAAA//////////8AAAAA/////wAAAAD/////AAAAAAAAAAD//////////wAAAAD/////AAAAAP////////////////////8A/////////////////////wAAAAD//////////wAAAAD/////AAAAAAAAAAD/////AAAAAP////8AAAAAAAAAAP//////////AAAAAAAAAAD//////////wAAAAD/////AAAAAP////8AAAAAAAAAAP//////////AAAAAP////8AAAAA/////////////////////wD/////////////////////AAAAAP////8AAAAA/////wAAAAAAAAAA////////////////AAAAAAAAAAD/////AAAAAP////8AAAAAAAAAAP//////////////////////////AAAAAAAAAAAAAAAA//////////8AAAAAAAAAAP//////////////////////////AP////////////////////8AAAAA/////wAAAAD/////AAAAAAAAAAD///////////////8AAAAAAAAAAP////8AAAAA/////wAAAAAAAAAA//////////////////////////8AAAAAAAAAAAAAAAD//////////wAAAAAAAAAA//////////////////////////8A/////////////////////wAAAAD/////AAAAAP////8AAAAAAAAAAP///////////////wAAAAAAAAAA/////wAAAAD/////AAAAAAAAAAD//////////////////////////wAAAAAAAAAAAAAAAP//////////AAAAAAAAAAD//////////////////////////wD/////////////////////AAAAAP////8AAAAA/////wAAAAAAAAAA////////////////AAAAAAAAAAD/////AAAAAP////8AAAAAAAAAAP//////////////////////////AAAAAAAAAAAAAAAA//////////8AAAAAAAAAAP//////////////////////////AP////////////////////////////////////////////////////8AAAAA//////////8AAAAAAAAAAP///////////////wAAAAD//////////////////////////wAAAAD/////AAAAAAAAAAAAAAAAAAAAAP//////////AAAAAP////////////////////8A/////////////////////////////////////////////////////wAAAAD//////////wAAAAAAAAAA////////////////AAAAAP//////////////////////////AAAAAP////8AAAAAAAAAAAAAAAAAAAAA//////////8AAAAA/////////////////////wD/////////////////////////////////////////////////////AAAAAP//////////AAAAAAAAAAD///////////////8AAAAA//////////////////////////8AAAAA/////wAAAAAAAAAAAAAAAAAAAAD//////////wAAAAD/////////////////////AP////////////////////////////////////////////////////8AAAAA//////////8AAAAAAAAAAP///////////////wAAAAD//////////////////////////wAAAAD/////AAAAAAAAAAAAAAAAAAAAAP//////////AAAAAP////////////////////8A/////////////////////wAAAAAAAAAAAAAAAAAAAAAAAAAA//////////8AAAAAAAAAAAAAAAD//////////wAAAAAAAAAA/////wAAAAD//////////wAAAAD///////////////8AAAAA////////////////AAAAAP///////////////////////////////wD/////////////////////AAAAAAAAAAAAAAAAAAAAAAAAAAD//////////wAAAAAAAAAAAAAAAP//////////AAAAAAAAAAD/////AAAAAP//////////AAAAAP///////////////wAAAAD///////////////8AAAAA////////////////////////////////AP////////////////////8AAAAAAAAAAAAAAAAAAAAAAAAAAP//////////AAAAAAAAAAAAAAAA//////////8AAAAAAAAAAP////8AAAAA//////////8AAAAA////////////////AAAAAP///////////////wAAAAD///////////////////////////////8A/////////////////////wAAAAAAAAAAAAAAAAAAAAAAAAAA//////////8AAAAAAAAAAAAAAAD//////////wAAAAAAAAAA/////wAAAAD//////////wAAAAD///////////////8AAAAA////////////////AAAAAP///////////////////////////////wD//////////////////////////wAAAAD/////AAAAAAAAAAAAAAAAAAAAAP////8AAAAA/////wAAAAD///////////////8AAAAA////////////////AAAAAP//////////AAAAAAAAAAD///////////////8AAAAAAAAAAAAAAAD/////////////////////AP//////////////////////////AAAAAP////8AAAAAAAAAAAAAAAAAAAAA/////wAAAAD/////AAAAAP///////////////wAAAAD///////////////8AAAAA//////////8AAAAAAAAAAP///////////////wAAAAAAAAAAAAAAAP////////////////////8A//////////////////////////8AAAAA/////wAAAAAAAAAAAAAAAAAAAAD/////AAAAAP////8AAAAA////////////////AAAAAP///////////////wAAAAD//////////wAAAAAAAAAA////////////////AAAAAAAAAAAAAAAA/////////////////////wD//////////////////////////wAAAAD/////AAAAAAAAAAAAAAAAAAAAAP////8AAAAA/////wAAAAD///////////////8AAAAA////////////////AAAAAP//////////AAAAAAAAAAD///////////////8AAAAAAAAAAAAAAAD/////////////////////AP///////////////////////////////wAAAAD/////AAAAAP////8AAAAAAAAAAP//////////AAAAAAAAAAD//////////wAAAAD/////AAAAAAAAAAD//////////wAAAAAAAAAA/////wAAAAD/////AAAAAAAAAAAAAAAAAAAAAP////////////////////8A////////////////////////////////AAAAAP////8AAAAA/////wAAAAAAAAAA//////////8AAAAAAAAAAP//////////AAAAAP////8AAAAAAAAAAP//////////AAAAAAAAAAD/////AAAAAP////8AAAAAAAAAAAAAAAAAAAAA/////////////////////wD///////////////////////////////8AAAAA/////wAAAAD/////AAAAAAAAAAD//////////wAAAAAAAAAA//////////8AAAAA/////wAAAAAAAAAA//////////8AAAAAAAAAAP////8AAAAA/////wAAAAAAAAAAAAAAAAAAAAD/////////////////////AP///////////////////////////////wAAAAD/////AAAAAP////8AAAAAAAAAAP//////////AAAAAAAAAAD//////////wAAAAD/////AAAAAAAAAAD//////////wAAAAAAAAAA/////wAAAAD/////AAAAAAAAAAAAAAAAAAAAAP////////////////////8A/////////////////////wAAAAD/////AAAAAAAAAAAAAAAA/////wAAAAAAAAAAAAAAAAAAAAD//////////wAAAAAAAAAA/////wAAAAAAAAAA/////wAAAAD/////AAAAAP////8AAAAA/////wAAAAAAAAAA//////////8AAAAA/////////////////////wD/////////////////////AAAAAP////8AAAAAAAAAAAAAAAD/////AAAAAAAAAAAAAAAAAAAAAP//////////AAAAAAAAAAD/////AAAAAAAAAAD/////AAAAAP////8AAAAA/////wAAAAD/////AAAAAAAAAAD//////////wAAAAD/////////////////////AP////////////////////8AAAAA/////wAAAAAAAAAAAAAAAP////8AAAAAAAAAAAAAAAAAAAAA//////////8AAAAAAAAAAP////8AAAAAAAAAAP////8AAAAA/////wAAAAD/////AAAAAP////8AAAAAAAAAAP//////////AAAAAP////////////////////8A/////////////////////wAAAAD/////AAAAAAAAAAAAAAAA/////wAAAAAAAAAAAAAAAAAAAAD//////////wAAAAAAAAAA/////wAAAAAAAAAA/////wAAAAD/////AAAAAP////8AAAAA/////wAAAAAAAAAA//////////8AAAAA/////////////////////wD/////////////////////AAAAAAAAAAD/////////////////////AAAAAAAAAAD/////AAAAAAAAAAAAAAAAAAAAAP////////////////////8AAAAAAAAAAAAAAAD/////AAAAAAAAAAAAAAAA//////////8AAAAAAAAAAP//////////////////////////AP////////////////////8AAAAAAAAAAP////////////////////8AAAAAAAAAAP////8AAAAAAAAAAAAAAAAAAAAA/////////////////////wAAAAAAAAAAAAAAAP////8AAAAAAAAAAAAAAAD//////////wAAAAAAAAAA//////////////////////////8A/////////////////////wAAAAAAAAAA/////////////////////wAAAAAAAAAA/////wAAAAAAAAAAAAAAAAAAAAD/////////////////////AAAAAAAAAAAAAAAA/////wAAAAAAAAAAAAAAAP//////////AAAAAAAAAAD//////////////////////////wD/////////////////////AAAAAAAAAAD/////////////////////AAAAAAAAAAD/////AAAAAAAAAAAAAAAAAAAAAP////////////////////8AAAAAAAAAAAAAAAD/////AAAAAAAAAAAAAAAA//////////8AAAAAAAAAAP//////////////////////////AP////////////////////8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/////wAAAAD/////AAAAAP////8AAAAAAAAAAP//////////AAAAAP//////////AAAAAP////8AAAAAAAAAAAAAAAD/////AAAAAAAAAAD///////////////////////////////8A/////////////////////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/////AAAAAP////8AAAAA/////wAAAAAAAAAA//////////8AAAAA//////////8AAAAA/////wAAAAAAAAAAAAAAAP////8AAAAAAAAAAP///////////////////////////////wD/////////////////////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP////8AAAAA/////wAAAAD/////AAAAAAAAAAD//////////wAAAAD//////////wAAAAD/////AAAAAAAAAAAAAAAA/////wAAAAAAAAAA////////////////////////////////AP////////////////////8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/////wAAAAD/////AAAAAP////8AAAAAAAAAAP//////////AAAAAP//////////AAAAAP////8AAAAAAAAAAAAAAAD/////AAAAAAAAAAD///////////////////////////////8A/////////////////////wAAAAD//////////////////////////wAAAAAAAAAAAAAAAP//////////AAAAAP////8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/////wAAAAD//////////////////////////wD/////////////////////AAAAAP//////////////////////////AAAAAAAAAAAAAAAA//////////8AAAAA/////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/////AAAAAP//////////////////////////AP////////////////////8AAAAA//////////////////////////8AAAAAAAAAAAAAAAD//////////wAAAAD/////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP////8AAAAA//////////////////////////8A/////////////////////wAAAAD//////////////////////////wAAAAAAAAAAAAAAAP//////////AAAAAP////8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/////wAAAAD//////////////////////////wD/////////////////////AAAAAP////8AAAAAAAAAAAAAAAD/////AAAAAP///////////////wAAAAD/////////////////////AAAAAP//////////AAAAAP////8AAAAAAAAAAP//////////AAAAAP//////////AAAAAP//////////////////////////AP////////////////////8AAAAA/////wAAAAAAAAAAAAAAAP////8AAAAA////////////////AAAAAP////////////////////8AAAAA//////////8AAAAA/////wAAAAAAAAAA//////////8AAAAA//////////8AAAAA//////////////////////////8A/////////////////////wAAAAD/////AAAAAAAAAAAAAAAA/////wAAAAD///////////////8AAAAA/////////////////////wAAAAD//////////wAAAAD/////AAAAAAAAAAD//////////wAAAAD//////////wAAAAD//////////////////////////wD/////////////////////AAAAAP////8AAAAAAAAAAAAAAAD/////AAAAAP///////////////wAAAAD/////////////////////AAAAAP//////////AAAAAP////8AAAAAAAAAAP//////////AAAAAP//////////AAAAAP//////////////////////////AP////////////////////8AAAAA/////wAAAAAAAAAAAAAAAP////8AAAAAAAAAAAAAAAAAAAAAAAAAAP//////////AAAAAAAAAAAAAAAAAAAAAAAAAAD//////////wAAAAAAAAAA/////wAAAAAAAAAAAAAAAAAAAAD///////////////////////////////8A/////////////////////wAAAAD/////AAAAAAAAAAAAAAAA/////wAAAAAAAAAAAAAAAAAAAAAAAAAA//////////8AAAAAAAAAAAAAAAAAAAAAAAAAAP//////////AAAAAAAAAAD/////AAAAAAAAAAAAAAAAAAAAAP///////////////////////////////wD/////////////////////AAAAAP////8AAAAAAAAAAAAAAAD/////AAAAAAAAAAAAAAAAAAAAAAAAAAD//////////wAAAAAAAAAAAAAAAAAAAAAAAAAA//////////8AAAAAAAAAAP////8AAAAAAAAAAAAAAAAAAAAA////////////////////////////////AP////////////////////8AAAAA/////wAAAAAAAAAAAAAAAP////8AAAAAAAAAAAAAAAAAAAAAAAAAAP//////////AAAAAAAAAAAAAAAAAAAAAAAAAAD//////////wAAAAAAAAAA/////wAAAAAAAAAAAAAAAAAAAAD///////////////////////////////8A/////////////////////wAAAAD/////AAAAAAAAAAAAAAAA/////wAAAAAAAAAA/////wAAAAD//////////////////////////wAAAAAAAAAAAAAAAP////8AAAAA////////////////AAAAAAAAAAAAAAAAAAAAAAAAAAD//////////////////////////wD/////////////////////AAAAAP////8AAAAAAAAAAAAAAAD/////AAAAAAAAAAD/////AAAAAP//////////////////////////AAAAAAAAAAAAAAAA/////wAAAAD///////////////8AAAAAAAAAAAAAAAAAAAAAAAAAAP//////////////////////////AP////////////////////8AAAAA/////wAAAAAAAAAAAAAAAP////8AAAAAAAAAAP////8AAAAA//////////////////////////8AAAAAAAAAAAAAAAD/////AAAAAP///////////////wAAAAAAAAAAAAAAAAAAAAAAAAAA//////////////////////////8A/////////////////////wAAAAD/////AAAAAAAAAAAAAAAA/////wAAAAAAAAAA/////wAAAAD//////////////////////////wAAAAAAAAAAAAAAAP////8AAAAA////////////////AAAAAAAAAAAAAAAAAAAAAAAAAAD//////////////////////////wD/////////////////////AAAAAP//////////////////////////AAAAAAAAAAAAAAAAAAAAAAAAAAD///////////////8AAAAA/////wAAAAAAAAAAAAAAAP////////////////////8AAAAA/////wAAAAAAAAAA/////wAAAAD/////////////////////AP////////////////////8AAAAA//////////////////////////8AAAAAAAAAAAAAAAAAAAAAAAAAAP///////////////wAAAAD/////AAAAAAAAAAAAAAAA/////////////////////wAAAAD/////AAAAAAAAAAD/////AAAAAP////////////////////8A/////////////////////wAAAAD//////////////////////////wAAAAAAAAAAAAAAAAAAAAAAAAAA////////////////AAAAAP////8AAAAAAAAAAAAAAAD/////////////////////AAAAAP////8AAAAAAAAAAP////8AAAAA/////////////////////wD/////////////////////AAAAAP//////////////////////////AAAAAAAAAAAAAAAAAAAAAAAAAAD///////////////8AAAAA/////wAAAAAAAAAAAAAAAP////////////////////8AAAAA/////wAAAAAAAAAA/////wAAAAD/////////////////////AP////////////////////8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//////////8AAAAAAAAAAAAAAAD//////////wAAAAD/////AAAAAP///////////////wAAAAAAAAAA/////wAAAAD/////AAAAAP////8AAAAA//////////////////////////8A/////////////////////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD//////////wAAAAAAAAAAAAAAAP//////////AAAAAP////8AAAAA////////////////AAAAAAAAAAD/////AAAAAP////8AAAAA/////wAAAAD//////////////////////////wD/////////////////////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP//////////AAAAAAAAAAAAAAAA//////////8AAAAA/////wAAAAD///////////////8AAAAAAAAAAP////8AAAAA/////wAAAAD/////AAAAAP//////////////////////////AP////////////////////8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//////////8AAAAAAAAAAAAAAAD//////////wAAAAD/////AAAAAP///////////////wAAAAAAAAAA/////wAAAAD/////AAAAAP////8AAAAA//////////////////////////8A/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////wD/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////AP////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////8A/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////wD/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////AP////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////8A/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////wD/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////AP////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////8A/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////wD/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////AP////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////8A/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////wD/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////AP////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////8A/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////439WciD+3+5AAAAAElFTkSuQmCC",
+  "startwert": 4711,
+  "tan": "623842",
+  "tan_verfahren": {
+    "funktion": "913",
+    "name": "QR-TAN synthetisch",
+    "technische_id": "QRTAN"
+  },
+  "umsaetze": [
+    {
+      "betrag": -100000,
+      "buchungstag": "2024-02-15",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">1000.00</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-02-15</Dt></BookgDt><ValDt><Dt>2024-02-15</Dt></ValDt><AcctSvcrRef>KTR4711000129</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+177</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE14000000000000006604</IBAN></Id></DbtrAcct></RltdPties><RmtInf><Ustrd>Kauf Wertpapier (nicht geliefert)</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE14000000000000006604",
+      "mt940": ":61:2402150215D1000,00NTRFNONREF\n:86:177?00UEBERWEISUNG?20Kauf Wertpapier (nicht geli?21efert)",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -10567,
+      "buchungstag": "2024-01-22",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">105.67</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-01-22</Dt></BookgDt><ValDt><Dt>2024-01-22</Dt></ValDt><AcctSvcrRef>KTR4711000122</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE41000000000000006603</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Tankstelle Blitz</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenumsatz 13</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE41000000000000006603",
+      "mt940": ":61:2401220122D105,67NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenumsatz 13?32Tankstelle Blitz",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -14034,
+      "buchungstag": "2024-02-01",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">140.34</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-02-01</Dt></BookgDt><ValDt><Dt>2024-02-01</Dt></ValDt><AcctSvcrRef>KTR4711000124</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE41000000000000006603</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Restaurant Zur Linde</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenumsatz 15</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE41000000000000006603",
+      "mt940": ":61:2402010201D140,34NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenumsatz 15?32Restaurant Zur Linde",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": 45000,
+      "buchungstag": "2024-02-01",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">450.00</Amt><CdtDbtInd>CRDT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-02-01</Dt></BookgDt><ValDt><Dt>2024-02-01</Dt></ValDt><AcctSvcrRef>KTR4711000128</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+166</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Erika Mustermann</Nm></Pty></Cdtr><CdtrAcct><Id><IBAN>DE41000000000000006603</IBAN></Id></CdtrAcct></RltdPties><RmtInf><Ustrd>Ausgleich Kreditkarte</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE41000000000000006603",
+      "mt940": ":61:2402010201C450,00NTRFNONREF\n:86:166?00GUTSCHRIFT?20Ausgleich Kreditkarte?31DE9500000000000000\n6601?32Erika Mustermann",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -12967,
+      "buchungstag": "2024-02-04",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">129.67</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-02-04</Dt></BookgDt><ValDt><Dt>2024-02-04</Dt></ValDt><AcctSvcrRef>KTR4711000119</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE41000000000000006603</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Restaurant Zur Linde</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenumsatz 10</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE41000000000000006603",
+      "mt940": ":61:2402040204D129,67NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenumsatz 10?32Restaurant Zur Linde",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -7998,
+      "buchungstag": "2024-02-17",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">79.98</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-02-17</Dt></BookgDt><ValDt><Dt>2024-02-17</Dt></ValDt><AcctSvcrRef>KTR4711000120</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE41000000000000006603</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Tankstelle Blitz</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenumsatz 11</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE41000000000000006603",
+      "mt940": ":61:2402170217D79,98NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenumsatz 11?32Tankstelle Blitz",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -17748,
+      "buchungstag": "2024-02-19",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">177.48</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-02-19</Dt></BookgDt><ValDt><Dt>2024-02-19</Dt></ValDt><AcctSvcrRef>KTR4711000110</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE41000000000000006603</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Hotel Beispielhof</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenumsatz 01</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE41000000000000006603",
+      "mt940": ":61:2402190219D177,48NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenumsatz 01?32Hotel Beispielhof",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -6397,
+      "buchungstag": "2024-03-05",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">63.97</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-03-05</Dt></BookgDt><ValDt><Dt>2024-03-05</Dt></ValDt><AcctSvcrRef>KTR4711000113</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE41000000000000006603</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Hotel Beispielhof</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenumsatz 04</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE41000000000000006603",
+      "mt940": ":61:2403050305D63,97NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenumsatz 04?32Hotel Beispielhof",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -22917,
+      "buchungstag": "2024-03-06",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">229.17</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-03-06</Dt></BookgDt><ValDt><Dt>2024-03-06</Dt></ValDt><AcctSvcrRef>KTR4711000126</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE41000000000000006603</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Online-Shop Sonnenschein</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenumsatz 17</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE41000000000000006603",
+      "mt940": ":61:2403060306D229,17NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenumsatz 17?32Online-Shop Sonnensch\nein",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -3630,
+      "buchungstag": "2024-03-12",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">36.30</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-03-12</Dt></BookgDt><ValDt><Dt>2024-03-12</Dt></ValDt><AcctSvcrRef>KTR4711000114</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE41000000000000006603</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Tankstelle Blitz</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenumsatz 05</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE41000000000000006603",
+      "mt940": ":61:2403120312D36,30NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenumsatz 05?32Tankstelle Blitz",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -14363,
+      "buchungstag": "2024-03-13",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">143.63</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-03-13</Dt></BookgDt><ValDt><Dt>2024-03-13</Dt></ValDt><AcctSvcrRef>KTR4711000123</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE41000000000000006603</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Tankstelle Blitz</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenumsatz 14</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE41000000000000006603",
+      "mt940": ":61:2403130313D143,63NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenumsatz 14?32Tankstelle Blitz",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -21678,
+      "buchungstag": "2024-03-22",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">216.78</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-03-22</Dt></BookgDt><ValDt><Dt>2024-03-22</Dt></ValDt><AcctSvcrRef>KTR4711000127</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE41000000000000006603</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Restaurant Zur Linde</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenumsatz 18</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE41000000000000006603",
+      "mt940": ":61:2403220322D216,78NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenumsatz 18?32Restaurant Zur Linde",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -19309,
+      "buchungstag": "2024-04-17",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">193.09</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-04-17</Dt></BookgDt><ValDt><Dt>2024-04-17</Dt></ValDt><AcctSvcrRef>KTR4711000111</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE41000000000000006603</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Online-Shop Sonnenschein</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenumsatz 02</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE41000000000000006603",
+      "mt940": ":61:2404170417D193,09NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenumsatz 02?32Online-Shop Sonnensch\nein",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -2620,
+      "buchungstag": "2024-04-24",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">26.20</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-04-24</Dt></BookgDt><ValDt><Dt>2024-04-24</Dt></ValDt><AcctSvcrRef>KTR4711000117</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE41000000000000006603</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Hotel Beispielhof</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenumsatz 08</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE41000000000000006603",
+      "mt940": ":61:2404240424D26,20NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenumsatz 08?32Hotel Beispielhof",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -2075,
+      "buchungstag": "2024-05-02",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">20.75</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-05-02</Dt></BookgDt><ValDt><Dt>2024-05-02</Dt></ValDt><AcctSvcrRef>KTR4711000116</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE41000000000000006603</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Online-Shop Sonnenschein</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenumsatz 07</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE41000000000000006603",
+      "mt940": ":61:2405020502D20,75NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenumsatz 07?32Online-Shop Sonnensch\nein",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -6015,
+      "buchungstag": "2024-05-14",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">60.15</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-05-14</Dt></BookgDt><ValDt><Dt>2024-05-14</Dt></ValDt><AcctSvcrRef>KTR4711000112</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE41000000000000006603</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Online-Shop Sonnenschein</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenumsatz 03</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE41000000000000006603",
+      "mt940": ":61:2405140514D60,15NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenumsatz 03?32Online-Shop Sonnensch\nein",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -2059,
+      "buchungstag": "2024-05-15",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">20.59</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-05-15</Dt></BookgDt><ValDt><Dt>2024-05-15</Dt></ValDt><AcctSvcrRef>KTR4711000121</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE41000000000000006603</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Restaurant Zur Linde</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenumsatz 12</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE41000000000000006603",
+      "mt940": ":61:2405150515D20,59NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenumsatz 12?32Restaurant Zur Linde",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -19598,
+      "buchungstag": "2024-05-27",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">195.98</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-05-27</Dt></BookgDt><ValDt><Dt>2024-05-27</Dt></ValDt><AcctSvcrRef>KTR4711000118</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE41000000000000006603</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Hotel Beispielhof</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenumsatz 09</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE41000000000000006603",
+      "mt940": ":61:2405270527D195,98NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenumsatz 09?32Hotel Beispielhof",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -17217,
+      "buchungstag": "2024-06-13",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">172.17</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-06-13</Dt></BookgDt><ValDt><Dt>2024-06-13</Dt></ValDt><AcctSvcrRef>KTR4711000125</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE41000000000000006603</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Restaurant Zur Linde</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenumsatz 16</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE41000000000000006603",
+      "mt940": ":61:2406130613D172,17NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenumsatz 16?32Restaurant Zur Linde",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -23891,
+      "buchungstag": "2024-06-23",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">238.91</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-06-23</Dt></BookgDt><ValDt><Dt>2024-06-23</Dt></ValDt><AcctSvcrRef>KTR4711000115</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE41000000000000006603</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Online-Shop Sonnenschein</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenumsatz 06</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE41000000000000006603",
+      "mt940": ":61:2406230623D238,91NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenumsatz 06?32Online-Shop Sonnensch\nein",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": 30000,
+      "buchungstag": "2024-01-25",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">300.00</Amt><CdtDbtInd>CRDT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-01-25</Dt></BookgDt><ValDt><Dt>2024-01-25</Dt></ValDt><AcctSvcrRef>KTR4711000011</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+166</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Erika Mustermann</Nm></Pty></Cdtr><CdtrAcct><Id><IBAN>DE68000000000000006602</IBAN></Id></CdtrAcct></RltdPties><RmtInf><Ustrd>Sparrate Tagesgeld</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE68000000000000006602",
+      "mt940": ":61:2401250125C300,00NTRFNONREF\n:86:166?00GUTSCHRIFT?20Sparrate Tagesgeld?31DE9500000000000000660\n1?32Erika Mustermann",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": 30000,
+      "buchungstag": "2024-02-25",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">300.00</Amt><CdtDbtInd>CRDT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-02-25</Dt></BookgDt><ValDt><Dt>2024-02-25</Dt></ValDt><AcctSvcrRef>KTR4711000027</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+166</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Erika Mustermann</Nm></Pty></Cdtr><CdtrAcct><Id><IBAN>DE68000000000000006602</IBAN></Id></CdtrAcct></RltdPties><RmtInf><Ustrd>Sparrate Tagesgeld</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE68000000000000006602",
+      "mt940": ":61:2402250225C300,00NTRFNONREF\n:86:166?00GUTSCHRIFT?20Sparrate Tagesgeld?31DE9500000000000000660\n1?32Erika Mustermann",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": 30000,
+      "buchungstag": "2024-03-25",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">300.00</Amt><CdtDbtInd>CRDT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-03-25</Dt></BookgDt><ValDt><Dt>2024-03-25</Dt></ValDt><AcctSvcrRef>KTR4711000041</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+166</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Erika Mustermann</Nm></Pty></Cdtr><CdtrAcct><Id><IBAN>DE68000000000000006602</IBAN></Id></CdtrAcct></RltdPties><RmtInf><Ustrd>Sparrate Tagesgeld</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE68000000000000006602",
+      "mt940": ":61:2403250325C300,00NTRFNONREF\n:86:166?00GUTSCHRIFT?20Sparrate Tagesgeld?31DE9500000000000000660\n1?32Erika Mustermann",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": 1003,
+      "buchungstag": "2024-03-28",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">10.03</Amt><CdtDbtInd>CRDT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-03-28</Dt></BookgDt><ValDt><Dt>2024-03-28</Dt></ValDt><AcctSvcrRef>KTR4711000108</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+804</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Cdtr><Pty><Nm>Erika Mustermann</Nm></Pty></Cdtr><CdtrAcct><Id><IBAN>DE68000000000000006602</IBAN></Id></CdtrAcct></RltdPties><RmtInf><Ustrd>Zinsgutschrift Q1/2024</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE68000000000000006602",
+      "mt940": ":61:2403280328C10,03NMSCNONREF\n:86:804?00ZINSEN?20Zinsgutschrift Q1/2024",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": 30000,
+      "buchungstag": "2024-04-25",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">300.00</Amt><CdtDbtInd>CRDT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-04-25</Dt></BookgDt><ValDt><Dt>2024-04-25</Dt></ValDt><AcctSvcrRef>KTR4711000053</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+166</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Erika Mustermann</Nm></Pty></Cdtr><CdtrAcct><Id><IBAN>DE68000000000000006602</IBAN></Id></CdtrAcct></RltdPties><RmtInf><Ustrd>Sparrate Tagesgeld</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE68000000000000006602",
+      "mt940": ":61:2404250425C300,00NTRFNONREF\n:86:166?00GUTSCHRIFT?20Sparrate Tagesgeld?31DE9500000000000000660\n1?32Erika Mustermann",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": 30000,
+      "buchungstag": "2024-05-25",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">300.00</Amt><CdtDbtInd>CRDT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-05-25</Dt></BookgDt><ValDt><Dt>2024-05-25</Dt></ValDt><AcctSvcrRef>KTR4711000069</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+166</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Erika Mustermann</Nm></Pty></Cdtr><CdtrAcct><Id><IBAN>DE68000000000000006602</IBAN></Id></CdtrAcct></RltdPties><RmtInf><Ustrd>Sparrate Tagesgeld</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE68000000000000006602",
+      "mt940": ":61:2405250525C300,00NTRFNONREF\n:86:166?00GUTSCHRIFT?20Sparrate Tagesgeld?31DE9500000000000000660\n1?32Erika Mustermann",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": 30000,
+      "buchungstag": "2024-06-25",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">300.00</Amt><CdtDbtInd>CRDT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-06-25</Dt></BookgDt><ValDt><Dt>2024-06-25</Dt></ValDt><AcctSvcrRef>KTR4711000082</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+166</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Erika Mustermann</Nm></Pty></Cdtr><CdtrAcct><Id><IBAN>DE68000000000000006602</IBAN></Id></CdtrAcct></RltdPties><RmtInf><Ustrd>Sparrate Tagesgeld</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE68000000000000006602",
+      "mt940": ":61:2406250625C300,00NTRFNONREF\n:86:166?00GUTSCHRIFT?20Sparrate Tagesgeld?31DE9500000000000000660\n1?32Erika Mustermann",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": 1006,
+      "buchungstag": "2024-06-28",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">10.06</Amt><CdtDbtInd>CRDT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-06-28</Dt></BookgDt><ValDt><Dt>2024-06-28</Dt></ValDt><AcctSvcrRef>KTR4711000109</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+804</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Cdtr><Pty><Nm>Erika Mustermann</Nm></Pty></Cdtr><CdtrAcct><Id><IBAN>DE68000000000000006602</IBAN></Id></CdtrAcct></RltdPties><RmtInf><Ustrd>Zinsgutschrift Q2/2024</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE68000000000000006602",
+      "mt940": ":61:2406280628C10,06NMSCNONREF\n:86:804?00ZINSEN?20Zinsgutschrift Q2/2024",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -2390,
+      "buchungstag": "2023-12-29",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">23.90</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2023-12-29</Dt></BookgDt><ValDt><Dt>2024-01-02</Dt></ValDt><AcctSvcrRef>KTR4711000001</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Bäckerei Müller &amp; Söhne</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung Jahresende</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2401021229D23,90NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung Jahresende?32Bäckerei Mül\nler & Söhne",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -98000,
+      "buchungstag": "2024-01-01",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">980.00</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-01-01</Dt></BookgDt><ValDt><Dt>2024-01-01</Dt></ValDt><AcctSvcrRef>KTR4711000002</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+105</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Wohnbau Beispiel eG</Nm></Pty></Cdtr><CdtrAcct><Id><IBAN>DE20000000000000006690</IBAN></Id></CdtrAcct></RltdPties><RmtInf><Ustrd>Miete 01/2024 Whg 3 links</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2401010101D980,00NDDTNONREF\n:86:105?00DAUERAUFTRAG?20Miete 01/2024 Whg 3 links?31DE2000000000\n0000006690?32Wohnbau Beispiel eG",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -9200,
+      "buchungstag": "2024-01-05",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">92.00</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-01-05</Dt></BookgDt><ValDt><Dt>2024-01-05</Dt></ValDt><AcctSvcrRef>KTR4711000003</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+105</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Stadtwerke Musterstadt</Nm></Pty></Cdtr><CdtrAcct><Id><IBAN>DE63000000000000006692</IBAN></Id></CdtrAcct></RltdPties><RmtInf><Ustrd>Abschlag Strom Vertrag 4711-0815</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2401050105D92,00NDDTNONREF\n:86:105?00LASTSCHRIFT?20Abschlag Strom Vertrag 4711?21-0815?30TES\nTDEFFXXX?31DE63000000000000006692?32Stadtwerke Musterstadt",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -3276,
+      "buchungstag": "2024-01-11",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">32.76</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-01-11</Dt></BookgDt><ValDt><Dt>2024-01-11</Dt></ValDt><AcctSvcrRef>KTR4711000004</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Supermarkt Frischekorb</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung Filiale 38</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2401110111D32,76NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung Filiale 38?32Supermarkt F\nrischekorb",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -5487,
+      "buchungstag": "2024-01-12",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">54.87</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-01-12</Dt></BookgDt><ValDt><Dt>2024-01-12</Dt></ValDt><AcctSvcrRef>KTR4711000005</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Supermarkt Frischekorb</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung Filiale 73</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2401120112D54,87NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung Filiale 73?32Supermarkt F\nrischekorb",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -8663,
+      "buchungstag": "2024-01-15",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">86.63</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-01-15</Dt></BookgDt><ValDt><Dt>2024-01-15</Dt></ValDt><AcctSvcrRef>KTR4711000006</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Supermarkt Frischekorb</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung Filiale 92</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2401150115D86,63NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung Filiale 92?32Supermarkt F\nrischekorb",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -4499,
+      "buchungstag": "2024-01-16",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">44.99</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-01-16</Dt></BookgDt><ValDt><Dt>2024-01-16</Dt></ValDt><AcctSvcrRef>KTR4711000007</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Supermarkt Frischekorb</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung Filiale 94</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2401160116D44,99NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung Filiale 94?32Supermarkt F\nrischekorb",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -4952,
+      "buchungstag": "2024-01-20",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">49.52</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-01-20</Dt></BookgDt><ValDt><Dt>2024-01-20</Dt></ValDt><AcctSvcrRef>KTR4711000008</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Supermarkt Frischekorb</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung Filiale 86</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2401200120D49,52NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung Filiale 86?32Supermarkt F\nrischekorb",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -4870,
+      "buchungstag": "2024-01-22",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">48.70</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-01-22</Dt></BookgDt><ValDt><Dt>2024-01-22</Dt></ValDt><AcctSvcrRef>KTR4711000009</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Supermarkt Frischekorb</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung Filiale 52</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2401220122D48,70NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung Filiale 52?32Supermarkt F\nrischekorb",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -30000,
+      "buchungstag": "2024-01-25",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">300.00</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-01-25</Dt></BookgDt><ValDt><Dt>2024-01-25</Dt></ValDt><AcctSvcrRef>KTR4711000010</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+177</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Erika Mustermann</Nm></Pty></Cdtr><CdtrAcct><Id><IBAN>DE68000000000000006602</IBAN></Id></CdtrAcct></RltdPties><RmtInf><Ustrd>Sparrate Tagesgeld</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2401250125D300,00NTRFNONREF\n:86:177?00UEBERWEISUNG?20Sparrate Tagesgeld?31DE68000000000000006\n602?32Erika Mustermann",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -3884,
+      "buchungstag": "2024-01-25",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">38.84</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-01-25</Dt></BookgDt><ValDt><Dt>2024-01-25</Dt></ValDt><AcctSvcrRef>KTR4711000012</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Supermarkt Frischekorb</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung Filiale 77</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2401250125D38,84NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung Filiale 77?32Supermarkt F\nrischekorb",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -4849,
+      "buchungstag": "2024-01-26",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">48.49</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-01-26</Dt></BookgDt><ValDt><Dt>2024-01-26</Dt></ValDt><AcctSvcrRef>KTR4711000013</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Supermarkt Frischekorb</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung Filiale 35</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2401260126D48,49NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung Filiale 35?32Supermarkt F\nrischekorb",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -7101,
+      "buchungstag": "2024-01-27",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">71.01</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-01-27</Dt></BookgDt><ValDt><Dt>2024-01-27</Dt></ValDt><AcctSvcrRef>KTR4711000014</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Supermarkt Frischekorb</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung Filiale 42</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2401270127D71,01NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung Filiale 42?32Supermarkt F\nrischekorb",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": 335000,
+      "buchungstag": "2024-01-28",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">3350.00</Amt><CdtDbtInd>CRDT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-01-28</Dt></BookgDt><ValDt><Dt>2024-01-28</Dt></ValDt><AcctSvcrRef>KTR4711000015</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+166</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Arbeitgeber Muster GmbH</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE90000000000000006691</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Erika Mustermann</Nm></Pty></Cdtr><CdtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></CdtrAcct></RltdPties><RmtInf><Ustrd>LOHN/GEHALT 01/2024</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2401280128C3350,00NTRFNONREF\n:86:166?00GUTSCHRIFT?20LOHN/GEHALT 01/2024?31DE900000000000000066\n91?32Arbeitgeber Muster GmbH",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -490,
+      "buchungstag": "2024-01-30",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">4.90</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-01-30</Dt></BookgDt><ValDt><Dt>2024-01-30</Dt></ValDt><AcctSvcrRef>KTR4711000016</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+805</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct></RltdPties><RmtInf><Ustrd>Kontoführung 01/2024</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2401300130D4,90NCHGNONREF\n:86:805?00ENTGELT?20Kontoführung 01/2024",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -98000,
+      "buchungstag": "2024-02-01",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">980.00</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-02-01</Dt></BookgDt><ValDt><Dt>2024-02-01</Dt></ValDt><AcctSvcrRef>KTR4711000017</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+105</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Wohnbau Beispiel eG</Nm></Pty></Cdtr><CdtrAcct><Id><IBAN>DE20000000000000006690</IBAN></Id></CdtrAcct></RltdPties><RmtInf><Ustrd>Miete 02/2024 Whg 3 links</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2402010201D980,00NDDTNONREF\n:86:105?00DAUERAUFTRAG?20Miete 02/2024 Whg 3 links?31DE2000000000\n0000006690?32Wohnbau Beispiel eG",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -2421,
+      "buchungstag": "2024-02-01",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">24.21</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-02-01</Dt></BookgDt><ValDt><Dt>2024-02-01</Dt></ValDt><AcctSvcrRef>KTR4711000018</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Supermarkt Frischekorb</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung Filiale 93</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2402010201D24,21NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung Filiale 93?32Supermarkt F\nrischekorb",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -9200,
+      "buchungstag": "2024-02-05",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">92.00</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-02-05</Dt></BookgDt><ValDt><Dt>2024-02-05</Dt></ValDt><AcctSvcrRef>KTR4711000019</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+105</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Stadtwerke Musterstadt</Nm></Pty></Cdtr><CdtrAcct><Id><IBAN>DE63000000000000006692</IBAN></Id></CdtrAcct></RltdPties><RmtInf><Ustrd>Abschlag Strom Vertrag 4711-0815</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2402050205D92,00NDDTNONREF\n:86:105?00LASTSCHRIFT?20Abschlag Strom Vertrag 4711?21-0815?30TES\nTDEFFXXX?31DE63000000000000006692?32Stadtwerke Musterstadt",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -4999,
+      "buchungstag": "2024-02-05",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">49.99</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-02-05</Dt></BookgDt><ValDt><Dt>2024-02-05</Dt></ValDt><AcctSvcrRef>KTR4711000091</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+105</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Versandhaus Beispiel</Nm></Pty></Cdtr><CdtrAcct><Id><IBAN>DE36000000000000006693</IBAN></Id></CdtrAcct></RltdPties><RmtInf><Ustrd>Bestellung 4711 Lastschrift</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2402050205D49,99NDDTNONREF\n:86:105?00LASTSCHRIFT?20Bestellung 4711 Lastschrift?31DE360000000\n00000006693?32Versandhaus Beispiel",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -3934,
+      "buchungstag": "2024-02-07",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">39.34</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-02-07</Dt></BookgDt><ValDt><Dt>2024-02-07</Dt></ValDt><AcctSvcrRef>KTR4711000020</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Supermarkt Frischekorb</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung Filiale 01</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2402070207D39,34NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung Filiale 01?32Supermarkt F\nrischekorb",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": 4999,
+      "buchungstag": "2024-02-07",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">49.99</Amt><CdtDbtInd>CRDT</CdtDbtInd><RvslInd>true</RvslInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-02-07</Dt></BookgDt><ValDt><Dt>2024-02-07</Dt></ValDt><AcctSvcrRef>KTR4711000092</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+109</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Versandhaus Beispiel</Nm></Pty></Cdtr><CdtrAcct><Id><IBAN>DE36000000000000006693</IBAN></Id></CdtrAcct></RltdPties><RmtInf><Ustrd>Rücklastschrift Bestellung 4711</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2402070207RD49,99NMSCNONREF\n:86:109?00STORNO?20Rücklastschrift Bestellung ?214711?31DE3600000\n0000000006693?32Versandhaus Beispiel",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -4206,
+      "buchungstag": "2024-02-13",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">42.06</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-02-13</Dt></BookgDt><ValDt><Dt>2024-02-13</Dt></ValDt><AcctSvcrRef>KTR4711000021</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Supermarkt Frischekorb</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung Filiale 68</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2402130213D42,06NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung Filiale 68?32Supermarkt F\nrischekorb",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -2150,
+      "buchungstag": "2024-02-15",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">21.50</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-02-15</Dt></BookgDt><ValDt><Dt>2024-02-15</Dt></ValDt><AcctSvcrRef>KTR4711000022</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Supermarkt Frischekorb</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung Filiale 37</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2402150215D21,50NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung Filiale 37?32Supermarkt F\nrischekorb",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -2176,
+      "buchungstag": "2024-02-16",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">21.76</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-02-16</Dt></BookgDt><ValDt><Dt>2024-02-16</Dt></ValDt><AcctSvcrRef>KTR4711000023</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Supermarkt Frischekorb</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung Filiale 66</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2402160216D21,76NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung Filiale 66?32Supermarkt F\nrischekorb",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -8214,
+      "buchungstag": "2024-02-21",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">82.14</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-02-21</Dt></BookgDt><ValDt><Dt>2024-02-21</Dt></ValDt><AcctSvcrRef>KTR4711000024</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Supermarkt Frischekorb</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung Filiale 11</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2402210221D82,14NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung Filiale 11?32Supermarkt F\nrischekorb",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -1794,
+      "buchungstag": "2024-02-22",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">17.94</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-02-22</Dt></BookgDt><ValDt><Dt>2024-02-22</Dt></ValDt><AcctSvcrRef>KTR4711000025</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Supermarkt Frischekorb</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung Filiale 92</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2402220222D17,94NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung Filiale 92?32Supermarkt F\nrischekorb",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -30000,
+      "buchungstag": "2024-02-25",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">300.00</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-02-25</Dt></BookgDt><ValDt><Dt>2024-02-25</Dt></ValDt><AcctSvcrRef>KTR4711000026</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+177</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Erika Mustermann</Nm></Pty></Cdtr><CdtrAcct><Id><IBAN>DE68000000000000006602</IBAN></Id></CdtrAcct></RltdPties><RmtInf><Ustrd>Sparrate Tagesgeld</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2402250225D300,00NTRFNONREF\n:86:177?00UEBERWEISUNG?20Sparrate Tagesgeld?31DE68000000000000006\n602?32Erika Mustermann",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -4920,
+      "buchungstag": "2024-02-26",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">49.20</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-02-26</Dt></BookgDt><ValDt><Dt>2024-02-26</Dt></ValDt><AcctSvcrRef>KTR4711000028</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Supermarkt Frischekorb</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung Filiale 30</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2402260226D49,20NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung Filiale 30?32Supermarkt F\nrischekorb",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": 335000,
+      "buchungstag": "2024-02-28",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">3350.00</Amt><CdtDbtInd>CRDT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-02-28</Dt></BookgDt><ValDt><Dt>2024-02-28</Dt></ValDt><AcctSvcrRef>KTR4711000029</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+166</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Arbeitgeber Muster GmbH</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE90000000000000006691</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Erika Mustermann</Nm></Pty></Cdtr><CdtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></CdtrAcct></RltdPties><RmtInf><Ustrd>LOHN/GEHALT 02/2024</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2402280228C3350,00NTRFNONREF\n:86:166?00GUTSCHRIFT?20LOHN/GEHALT 02/2024?31DE900000000000000066\n91?32Arbeitgeber Muster GmbH",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -490,
+      "buchungstag": "2024-02-29",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">4.90</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-02-29</Dt></BookgDt><ValDt><Dt>2024-02-29</Dt></ValDt><AcctSvcrRef>KTR4711000030</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+805</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct></RltdPties><RmtInf><Ustrd>Kontoführung 02/2024</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2402290229D4,90NCHGNONREF\n:86:805?00ENTGELT?20Kontoführung 02/2024",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -98000,
+      "buchungstag": "2024-03-01",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">980.00</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-03-01</Dt></BookgDt><ValDt><Dt>2024-03-01</Dt></ValDt><AcctSvcrRef>KTR4711000031</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+105</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Wohnbau Beispiel eG</Nm></Pty></Cdtr><CdtrAcct><Id><IBAN>DE20000000000000006690</IBAN></Id></CdtrAcct></RltdPties><RmtInf><Ustrd>Miete 03/2024 Whg 3 links</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2403010301D980,00NDDTNONREF\n:86:105?00DAUERAUFTRAG?20Miete 03/2024 Whg 3 links?31DE2000000000\n0000006690?32Wohnbau Beispiel eG",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -9200,
+      "buchungstag": "2024-03-05",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">92.00</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-03-05</Dt></BookgDt><ValDt><Dt>2024-03-05</Dt></ValDt><AcctSvcrRef>KTR4711000032</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+105</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Stadtwerke Musterstadt</Nm></Pty></Cdtr><CdtrAcct><Id><IBAN>DE63000000000000006692</IBAN></Id></CdtrAcct></RltdPties><RmtInf><Ustrd>Abschlag Strom Vertrag 4711-0815</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2403050305D92,00NDDTNONREF\n:86:105?00LASTSCHRIFT?20Abschlag Strom Vertrag 4711?21-0815?30TES\nTDEFFXXX?31DE63000000000000006692?32Stadtwerke Musterstadt",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -6115,
+      "buchungstag": "2024-03-06",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">61.15</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-03-06</Dt></BookgDt><ValDt><Dt>2024-03-06</Dt></ValDt><AcctSvcrRef>KTR4711000033</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Supermarkt Frischekorb</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung Filiale 68</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2403060306D61,15NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung Filiale 68?32Supermarkt F\nrischekorb",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -4952,
+      "buchungstag": "2024-03-11",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">49.52</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-03-11</Dt></BookgDt><ValDt><Dt>2024-03-11</Dt></ValDt><AcctSvcrRef>KTR4711000034</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Supermarkt Frischekorb</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung Filiale 87</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2403110311D49,52NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung Filiale 87?32Supermarkt F\nrischekorb",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": 10000,
+      "buchungstag": "2024-03-11",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">100.00</Amt><CdtDbtInd>CRDT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-03-11</Dt></BookgDt><ValDt><Dt>2024-03-11</Dt></ValDt><AcctSvcrRef>KTR4711000093</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+166</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erstattung Beispiel AG</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE09000000000000006694</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Erika Mustermann</Nm></Pty></Cdtr><CdtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></CdtrAcct></RltdPties><RmtInf><Ustrd>Erstattung Vorgang 12</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2403110311C100,00NTRFNONREF\n:86:166?00GUTSCHRIFT?20Erstattung Vorgang 12?31DE0900000000000000\n6694?32Erstattung Beispiel AG",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -5457,
+      "buchungstag": "2024-03-12",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">54.57</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-03-12</Dt></BookgDt><ValDt><Dt>2024-03-12</Dt></ValDt><AcctSvcrRef>KTR4711000035</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Supermarkt Frischekorb</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung Filiale 48</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2403120312D54,57NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung Filiale 48?32Supermarkt F\nrischekorb",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -10000,
+      "buchungstag": "2024-03-12",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">100.00</Amt><CdtDbtInd>DBIT</CdtDbtInd><RvslInd>true</RvslInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-03-12</Dt></BookgDt><ValDt><Dt>2024-03-12</Dt></ValDt><AcctSvcrRef>KTR4711000094</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+109</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erstattung Beispiel AG</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE09000000000000006694</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Erika Mustermann</Nm></Pty></Cdtr><CdtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></CdtrAcct></RltdPties><RmtInf><Ustrd>Storno Erstattung Vorgang 12</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2403120312RC100,00NMSCNONREF\n:86:109?00STORNO?20Storno Erstattung Vorgang 1?212?31DE0900000000\n0000006694?32Erstattung Beispiel AG",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -1402,
+      "buchungstag": "2024-03-14",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">14.02</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-03-14</Dt></BookgDt><ValDt><Dt>2024-03-14</Dt></ValDt><AcctSvcrRef>KTR4711000036</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Supermarkt Frischekorb</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung Filiale 61</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2403140314D14,02NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung Filiale 61?32Supermarkt F\nrischekorb",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -3183,
+      "buchungstag": "2024-03-18",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">31.83</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-03-18</Dt></BookgDt><ValDt><Dt>2024-03-18</Dt></ValDt><AcctSvcrRef>KTR4711000037</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Supermarkt Frischekorb</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung Filiale 96</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2403180318D31,83NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung Filiale 96?32Supermarkt F\nrischekorb",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -7073,
+      "buchungstag": "2024-03-21",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">70.73</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-03-21</Dt></BookgDt><ValDt><Dt>2024-03-21</Dt></ValDt><AcctSvcrRef>KTR4711000038</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Supermarkt Frischekorb</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung Filiale 67</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2403210321D70,73NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung Filiale 67?32Supermarkt F\nrischekorb",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -6426,
+      "buchungstag": "2024-03-23",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">64.26</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-03-23</Dt></BookgDt><ValDt><Dt>2024-03-23</Dt></ValDt><AcctSvcrRef>KTR4711000039</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Supermarkt Frischekorb</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung Filiale 94</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2403230323D64,26NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung Filiale 94?32Supermarkt F\nrischekorb",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -30000,
+      "buchungstag": "2024-03-25",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">300.00</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-03-25</Dt></BookgDt><ValDt><Dt>2024-03-25</Dt></ValDt><AcctSvcrRef>KTR4711000040</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+177</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Erika Mustermann</Nm></Pty></Cdtr><CdtrAcct><Id><IBAN>DE68000000000000006602</IBAN></Id></CdtrAcct></RltdPties><RmtInf><Ustrd>Sparrate Tagesgeld</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2403250325D300,00NTRFNONREF\n:86:177?00UEBERWEISUNG?20Sparrate Tagesgeld?31DE68000000000000006\n602?32Erika Mustermann",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": 335000,
+      "buchungstag": "2024-03-28",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">3350.00</Amt><CdtDbtInd>CRDT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-03-28</Dt></BookgDt><ValDt><Dt>2024-03-28</Dt></ValDt><AcctSvcrRef>KTR4711000042</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+166</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Arbeitgeber Muster GmbH</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE90000000000000006691</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Erika Mustermann</Nm></Pty></Cdtr><CdtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></CdtrAcct></RltdPties><RmtInf><Ustrd>LOHN/GEHALT 03/2024</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2403280328C3350,00NTRFNONREF\n:86:166?00GUTSCHRIFT?20LOHN/GEHALT 03/2024?31DE900000000000000066\n91?32Arbeitgeber Muster GmbH",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -1861,
+      "buchungstag": "2024-03-28",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">18.61</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-03-28</Dt></BookgDt><ValDt><Dt>2024-03-28</Dt></ValDt><AcctSvcrRef>KTR4711000043</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Supermarkt Frischekorb</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung Filiale 27</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2403280328D18,61NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung Filiale 27?32Supermarkt F\nrischekorb",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -490,
+      "buchungstag": "2024-03-30",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">4.90</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-03-30</Dt></BookgDt><ValDt><Dt>2024-03-30</Dt></ValDt><AcctSvcrRef>KTR4711000044</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+805</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct></RltdPties><RmtInf><Ustrd>Kontoführung 03/2024</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2403300330D4,90NCHGNONREF\n:86:805?00ENTGELT?20Kontoführung 03/2024",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -98000,
+      "buchungstag": "2024-04-01",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">980.00</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-04-01</Dt></BookgDt><ValDt><Dt>2024-04-01</Dt></ValDt><AcctSvcrRef>KTR4711000045</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+105</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Wohnbau Beispiel eG</Nm></Pty></Cdtr><CdtrAcct><Id><IBAN>DE20000000000000006690</IBAN></Id></CdtrAcct></RltdPties><RmtInf><Ustrd>Miete 04/2024 Whg 3 links</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2404010401D980,00NDDTNONREF\n:86:105?00DAUERAUFTRAG?20Miete 04/2024 Whg 3 links?31DE2000000000\n0000006690?32Wohnbau Beispiel eG",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -9200,
+      "buchungstag": "2024-04-05",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">92.00</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-04-05</Dt></BookgDt><ValDt><Dt>2024-04-05</Dt></ValDt><AcctSvcrRef>KTR4711000046</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+105</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Stadtwerke Musterstadt</Nm></Pty></Cdtr><CdtrAcct><Id><IBAN>DE63000000000000006692</IBAN></Id></CdtrAcct></RltdPties><RmtInf><Ustrd>Abschlag Strom Vertrag 4711-0815</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2404050405D92,00NDDTNONREF\n:86:105?00LASTSCHRIFT?20Abschlag Strom Vertrag 4711?21-0815?30TES\nTDEFFXXX?31DE63000000000000006692?32Stadtwerke Musterstadt",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -340,
+      "buchungstag": "2024-04-09",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">3.40</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-04-09</Dt></BookgDt><ValDt><Dt>2024-04-09</Dt></ValDt><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Café Bohne</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung Café</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2404090409D3,40NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung Café?32Café Bohne",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -340,
+      "buchungstag": "2024-04-09",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">3.40</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-04-09</Dt></BookgDt><ValDt><Dt>2024-04-09</Dt></ValDt><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Café Bohne</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung Café</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2404090409D3,40NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung Café?32Café Bohne",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -3674,
+      "buchungstag": "2024-04-09",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">36.74</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-04-09</Dt></BookgDt><ValDt><Dt>2024-04-09</Dt></ValDt><AcctSvcrRef>KTR4711000047</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Supermarkt Frischekorb</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung Filiale 92</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2404090409D36,74NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung Filiale 92?32Supermarkt F\nrischekorb",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -18990,
+      "buchungstag": "2024-04-15",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">189.90</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-04-15</Dt></BookgDt><ValDt><Dt>2024-04-15</Dt></ValDt><AcctSvcrRef>KTR4711000097</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+105</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Verkehrsverbund Musterregion Abo-Service GmbH</Nm></Pty></Cdtr><CdtrAcct><Id><IBAN>DE79000000000000006695</IBAN></Id></CdtrAcct></RltdPties><RmtInf><Ustrd>Rechnung 2024-0042 Kundennummer 99887766 Leistungszeitraum Januar bis </Ustrd><Ustrd>März Straßenbahn-Abo und Zusatzleistungen gemäß Vertrag</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2404150415D189,90NDDTNONREF\n:86:105?00LASTSCHRIFT?20Rechnung 2024-0042 Kundennu?21mmer 998877\n66 Leistungszeit?22raum Januar bis März Straße?23nbahn-Abo und Zu\nsatzleistun?24gen gemäß Vertrag?31DE79000000000000006695?32Verkeh\nrsverbund Musterregio?33n Abo-Service GmbH",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -5246,
+      "buchungstag": "2024-04-16",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">52.46</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-04-16</Dt></BookgDt><ValDt><Dt>2024-04-16</Dt></ValDt><AcctSvcrRef>KTR4711000048</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Supermarkt Frischekorb</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung Filiale 99</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2404160416D52,46NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung Filiale 99?32Supermarkt F\nrischekorb",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -5638,
+      "buchungstag": "2024-04-19",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">56.38</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-04-19</Dt></BookgDt><ValDt><Dt>2024-04-19</Dt></ValDt><AcctSvcrRef>KTR4711000049</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Supermarkt Frischekorb</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung Filiale 03</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2404190419D56,38NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung Filiale 03?32Supermarkt F\nrischekorb",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -1354,
+      "buchungstag": "2024-04-20",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">13.54</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-04-20</Dt></BookgDt><ValDt><Dt>2024-04-20</Dt></ValDt><AcctSvcrRef>KTR4711000050</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Supermarkt Frischekorb</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung Filiale 83</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2404200420D13,54NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung Filiale 83?32Supermarkt F\nrischekorb",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -3328,
+      "buchungstag": "2024-04-22",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">33.28</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-04-22</Dt></BookgDt><ValDt><Dt>2024-04-22</Dt></ValDt><AcctSvcrRef>KTR4711000051</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Supermarkt Frischekorb</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung Filiale 44</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2404220422D33,28NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung Filiale 44?32Supermarkt F\nrischekorb",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -30000,
+      "buchungstag": "2024-04-25",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">300.00</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-04-25</Dt></BookgDt><ValDt><Dt>2024-04-25</Dt></ValDt><AcctSvcrRef>KTR4711000052</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+177</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Erika Mustermann</Nm></Pty></Cdtr><CdtrAcct><Id><IBAN>DE68000000000000006602</IBAN></Id></CdtrAcct></RltdPties><RmtInf><Ustrd>Sparrate Tagesgeld</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2404250425D300,00NTRFNONREF\n:86:177?00UEBERWEISUNG?20Sparrate Tagesgeld?31DE68000000000000006\n602?32Erika Mustermann",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": 335000,
+      "buchungstag": "2024-04-28",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">3350.00</Amt><CdtDbtInd>CRDT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-04-28</Dt></BookgDt><ValDt><Dt>2024-04-28</Dt></ValDt><AcctSvcrRef>KTR4711000054</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+166</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Arbeitgeber Muster GmbH</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE90000000000000006691</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Erika Mustermann</Nm></Pty></Cdtr><CdtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></CdtrAcct></RltdPties><RmtInf><Ustrd>LOHN/GEHALT 04/2024</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2404280428C3350,00NTRFNONREF\n:86:166?00GUTSCHRIFT?20LOHN/GEHALT 04/2024?31DE900000000000000066\n91?32Arbeitgeber Muster GmbH",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -490,
+      "buchungstag": "2024-04-30",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">4.90</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-04-30</Dt></BookgDt><ValDt><Dt>2024-04-30</Dt></ValDt><AcctSvcrRef>KTR4711000055</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+805</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct></RltdPties><RmtInf><Ustrd>Kontoführung 04/2024</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2404300430D4,90NCHGNONREF\n:86:805?00ENTGELT?20Kontoführung 04/2024",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -98000,
+      "buchungstag": "2024-05-01",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">980.00</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-05-01</Dt></BookgDt><ValDt><Dt>2024-05-01</Dt></ValDt><AcctSvcrRef>KTR4711000056</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+105</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Wohnbau Beispiel eG</Nm></Pty></Cdtr><CdtrAcct><Id><IBAN>DE20000000000000006690</IBAN></Id></CdtrAcct></RltdPties><RmtInf><Ustrd>Miete 05/2024 Whg 3 links</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2405010501D980,00NDDTNONREF\n:86:105?00DAUERAUFTRAG?20Miete 05/2024 Whg 3 links?31DE2000000000\n0000006690?32Wohnbau Beispiel eG",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -1529,
+      "buchungstag": "2024-05-02",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">15.29</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-05-02</Dt></BookgDt><ValDt><Dt>2024-05-02</Dt></ValDt><AcctSvcrRef>KTR4711000057</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Supermarkt Frischekorb</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung Filiale 38</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2405020502D15,29NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung Filiale 38?32Supermarkt F\nrischekorb",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -7413,
+      "buchungstag": "2024-05-03",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">74.13</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-05-03</Dt></BookgDt><ValDt><Dt>2024-05-03</Dt></ValDt><AcctSvcrRef>KTR4711000058</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Supermarkt Frischekorb</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung Filiale 52</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2405030503D74,13NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung Filiale 52?32Supermarkt F\nrischekorb",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -1922,
+      "buchungstag": "2024-05-04",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">19.22</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-05-04</Dt></BookgDt><ValDt><Dt>2024-05-04</Dt></ValDt><AcctSvcrRef>KTR4711000059</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Supermarkt Frischekorb</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung Filiale 42</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2405040504D19,22NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung Filiale 42?32Supermarkt F\nrischekorb",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -9200,
+      "buchungstag": "2024-05-05",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">92.00</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-05-05</Dt></BookgDt><ValDt><Dt>2024-05-05</Dt></ValDt><AcctSvcrRef>KTR4711000060</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+105</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Stadtwerke Musterstadt</Nm></Pty></Cdtr><CdtrAcct><Id><IBAN>DE63000000000000006692</IBAN></Id></CdtrAcct></RltdPties><RmtInf><Ustrd>Abschlag Strom Vertrag 4711-0815</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2405050505D92,00NDDTNONREF\n:86:105?00LASTSCHRIFT?20Abschlag Strom Vertrag 4711?21-0815?30TES\nTDEFFXXX?31DE63000000000000006692?32Stadtwerke Musterstadt",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -2881,
+      "buchungstag": "2024-05-06",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">28.81</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-05-06</Dt></BookgDt><ValDt><Dt>2024-05-06</Dt></ValDt><AcctSvcrRef>KTR4711000061</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Supermarkt Frischekorb</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung Filiale 72</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2405060506D28,81NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung Filiale 72?32Supermarkt F\nrischekorb",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -2500,
+      "buchungstag": "2024-05-06",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">25.00</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-05-06</Dt></BookgDt><ValDt><Dt>2024-05-03</Dt></ValDt><AcctSvcrRef>KTR4711000098</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+105</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Verein für Testzwecke e.V.</Nm></Pty></Cdtr><CdtrAcct><Id><IBAN>1234567890</IBAN></Id></CdtrAcct></RltdPties><RmtInf><Ustrd>Mitgliedsbeitrag 2024</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2405030506D25,00NDDTNONREF\n:86:105?00LASTSCHRIFT?20Mitgliedsbeitrag 2024?311234567890?32Vere\nin für Testzwecke e.V.",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -4092,
+      "buchungstag": "2024-05-08",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">40.92</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-05-08</Dt></BookgDt><ValDt><Dt>2024-05-08</Dt></ValDt><AcctSvcrRef>KTR4711000062</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Supermarkt Frischekorb</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung Filiale 90</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2405080508D40,92NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung Filiale 90?32Supermarkt F\nrischekorb",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -7371,
+      "buchungstag": "2024-05-10",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">73.71</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-05-10</Dt></BookgDt><ValDt><Dt>2024-05-10</Dt></ValDt><AcctSvcrRef>KTR4711000063</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Supermarkt Frischekorb</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung Filiale 17</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2405100510D73,71NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung Filiale 17?32Supermarkt F\nrischekorb",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -8789,
+      "buchungstag": "2024-05-11",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">87.89</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-05-11</Dt></BookgDt><ValDt><Dt>2024-05-11</Dt></ValDt><AcctSvcrRef>KTR4711000064</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Supermarkt Frischekorb</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung Filiale 35</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2405110511D87,89NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung Filiale 35?32Supermarkt F\nrischekorb",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -5572,
+      "buchungstag": "2024-05-14",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">55.72</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-05-14</Dt></BookgDt><ValDt><Dt>2024-05-14</Dt></ValDt><AcctSvcrRef>KTR4711000065</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Supermarkt Frischekorb</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung Filiale 90</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2405140514D55,72NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung Filiale 90?32Supermarkt F\nrischekorb",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -5497,
+      "buchungstag": "2024-05-15",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">54.97</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-05-15</Dt></BookgDt><ValDt><Dt>2024-05-15</Dt></ValDt><AcctSvcrRef>KTR4711000066</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Supermarkt Frischekorb</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung Filiale 82</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2405150515D54,97NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung Filiale 82?32Supermarkt F\nrischekorb",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -1500,
+      "buchungstag": "2024-05-21",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">15.00</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-05-21</Dt></BookgDt><AcctSvcrRef>KTR4711000099</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Kiosk am Markt</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Barverfügung Zuschlag</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2405210521D15,00NMSCNONREF\n:86:106?00UEBERWEISUNG?20Barverfügung Zuschlag?32Kiosk am Markt",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -2750,
+      "buchungstag": "2024-05-22",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">27.50</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><ValDt><Dt>2024-05-22</Dt></ValDt><AcctSvcrRef>KTR4711000100</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Buchhandlung Seitenweise</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung Bücher</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2405220522D27,50NMSCNONREF\n:86:106?00UEBERWEISUNG?20Kartenzahlung Bücher?32Buchhandlung Seit\nenweise",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -4242,
+      "buchungstag": "2024-05-23",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">42.42</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-05-23</Dt></BookgDt><ValDt><Dt>2024-05-23</Dt></ValDt><AcctSvcrRef>KTR4711000067</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Supermarkt Frischekorb</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung Filiale 80</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2405230523D42,42NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung Filiale 80?32Supermarkt F\nrischekorb",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -1999,
+      "buchungstag": "2024-05-23",
+      "camt": "<Ntry><Amt Ccy=\"USD\">19.99</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-05-23</Dt></BookgDt><ValDt><Dt>2024-05-23</Dt></ValDt><AcctSvcrRef>KTR4711000101</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Online Shop USA (fiktiv)</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Card payment</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": "",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -30000,
+      "buchungstag": "2024-05-25",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">300.00</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-05-25</Dt></BookgDt><ValDt><Dt>2024-05-25</Dt></ValDt><AcctSvcrRef>KTR4711000068</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+177</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Erika Mustermann</Nm></Pty></Cdtr><CdtrAcct><Id><IBAN>DE68000000000000006602</IBAN></Id></CdtrAcct></RltdPties><RmtInf><Ustrd>Sparrate Tagesgeld</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2405250525D300,00NTRFNONREF\n:86:177?00UEBERWEISUNG?20Sparrate Tagesgeld?31DE68000000000000006\n602?32Erika Mustermann",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": 335000,
+      "buchungstag": "2024-05-28",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">3350.00</Amt><CdtDbtInd>CRDT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-05-28</Dt></BookgDt><ValDt><Dt>2024-05-28</Dt></ValDt><AcctSvcrRef>KTR4711000070</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+166</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Arbeitgeber Muster GmbH</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE90000000000000006691</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Erika Mustermann</Nm></Pty></Cdtr><CdtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></CdtrAcct></RltdPties><RmtInf><Ustrd>LOHN/GEHALT 05/2024</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2405280528C3350,00NTRFNONREF\n:86:166?00GUTSCHRIFT?20LOHN/GEHALT 05/2024?31DE900000000000000066\n91?32Arbeitgeber Muster GmbH",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -490,
+      "buchungstag": "2024-05-30",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">4.90</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-05-30</Dt></BookgDt><ValDt><Dt>2024-05-30</Dt></ValDt><AcctSvcrRef>KTR4711000071</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+805</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct></RltdPties><RmtInf><Ustrd>Kontoführung 05/2024</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2405300530D4,90NCHGNONREF\n:86:805?00ENTGELT?20Kontoführung 05/2024",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -8115,
+      "buchungstag": "2024-05-30",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">81.15</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-05-30</Dt></BookgDt><ValDt><Dt>2024-05-30</Dt></ValDt><AcctSvcrRef>KTR4711000072</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Supermarkt Frischekorb</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung Filiale 84</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2405300530D81,15NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung Filiale 84?32Supermarkt F\nrischekorb",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -98000,
+      "buchungstag": "2024-06-01",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">980.00</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-06-01</Dt></BookgDt><ValDt><Dt>2024-06-01</Dt></ValDt><AcctSvcrRef>KTR4711000073</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+105</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Wohnbau Beispiel eG</Nm></Pty></Cdtr><CdtrAcct><Id><IBAN>DE20000000000000006690</IBAN></Id></CdtrAcct></RltdPties><RmtInf><Ustrd>Miete 06/2024 Whg 3 links</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2406010601D980,00NDDTNONREF\n:86:105?00DAUERAUFTRAG?20Miete 06/2024 Whg 3 links?31DE2000000000\n0000006690?32Wohnbau Beispiel eG",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -7149,
+      "buchungstag": "2024-06-01",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">71.49</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-06-01</Dt></BookgDt><ValDt><Dt>2024-06-01</Dt></ValDt><AcctSvcrRef>KTR4711000074</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Supermarkt Frischekorb</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung Filiale 17</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2406010601D71,49NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung Filiale 17?32Supermarkt F\nrischekorb",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -4585,
+      "buchungstag": "2024-06-03",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">45.85</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-06-03</Dt></BookgDt><ValDt><Dt>2024-06-03</Dt></ValDt><AcctSvcrRef>KTR4711000075</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Supermarkt Frischekorb</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung Filiale 41</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2406030603D45,85NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung Filiale 41?32Supermarkt F\nrischekorb",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -6141,
+      "buchungstag": "2024-06-04",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">61.41</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-06-04</Dt></BookgDt><ValDt><Dt>2024-06-04</Dt></ValDt><AcctSvcrRef>KTR4711000076</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Supermarkt Frischekorb</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung Filiale 17</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2406040604D61,41NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung Filiale 17?32Supermarkt F\nrischekorb",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -9200,
+      "buchungstag": "2024-06-05",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">92.00</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-06-05</Dt></BookgDt><ValDt><Dt>2024-06-05</Dt></ValDt><AcctSvcrRef>KTR4711000077</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+105</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Stadtwerke Musterstadt</Nm></Pty></Cdtr><CdtrAcct><Id><IBAN>DE63000000000000006692</IBAN></Id></CdtrAcct></RltdPties><RmtInf><Ustrd>Abschlag Strom Vertrag 4711-0815</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2406050605D92,00NDDTNONREF\n:86:105?00LASTSCHRIFT?20Abschlag Strom Vertrag 4711?21-0815?30TES\nTDEFFXXX?31DE63000000000000006692?32Stadtwerke Musterstadt",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -8093,
+      "buchungstag": "2024-06-08",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">80.93</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-06-08</Dt></BookgDt><ValDt><Dt>2024-06-08</Dt></ValDt><AcctSvcrRef>KTR4711000078</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Supermarkt Frischekorb</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung Filiale 39</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2406080608D80,93NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung Filiale 39?32Supermarkt F\nrischekorb",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -7376,
+      "buchungstag": "2024-06-11",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">73.76</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-06-11</Dt></BookgDt><ValDt><Dt>2024-06-11</Dt></ValDt><AcctSvcrRef>KTR4711000079</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Supermarkt Frischekorb</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung Filiale 39</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2406110611D73,76NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung Filiale 39?32Supermarkt F\nrischekorb",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -6982,
+      "buchungstag": "2024-06-19",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">69.82</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-06-19</Dt></BookgDt><ValDt><Dt>2024-06-19</Dt></ValDt><AcctSvcrRef>KTR4711000080</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Supermarkt Frischekorb</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung Filiale 94</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2406190619D69,82NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung Filiale 94?32Supermarkt F\nrischekorb",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -30000,
+      "buchungstag": "2024-06-25",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">300.00</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-06-25</Dt></BookgDt><ValDt><Dt>2024-06-25</Dt></ValDt><AcctSvcrRef>KTR4711000081</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+177</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Erika Mustermann</Nm></Pty></Cdtr><CdtrAcct><Id><IBAN>DE68000000000000006602</IBAN></Id></CdtrAcct></RltdPties><RmtInf><Ustrd>Sparrate Tagesgeld</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2406250625D300,00NTRFNONREF\n:86:177?00UEBERWEISUNG?20Sparrate Tagesgeld?31DE68000000000000006\n602?32Erika Mustermann",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -7364,
+      "buchungstag": "2024-06-26",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">73.64</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-06-26</Dt></BookgDt><ValDt><Dt>2024-06-26</Dt></ValDt><AcctSvcrRef>KTR4711000083</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Supermarkt Frischekorb</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung Filiale 64</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2406260626D73,64NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung Filiale 64?32Supermarkt F\nrischekorb",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": 335000,
+      "buchungstag": "2024-06-28",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">3350.00</Amt><CdtDbtInd>CRDT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-06-28</Dt></BookgDt><ValDt><Dt>2024-06-28</Dt></ValDt><AcctSvcrRef>KTR4711000084</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+166</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Arbeitgeber Muster GmbH</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE90000000000000006691</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Erika Mustermann</Nm></Pty></Cdtr><CdtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></CdtrAcct></RltdPties><RmtInf><Ustrd>LOHN/GEHALT 06/2024</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2406280628C3350,00NTRFNONREF\n:86:166?00GUTSCHRIFT?20LOHN/GEHALT 06/2024?31DE900000000000000066\n91?32Arbeitgeber Muster GmbH",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -6450,
+      "buchungstag": "2024-06-29",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">64.50</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>PDNG</Cd></Sts><BookgDt><Dt>2024-06-29</Dt></BookgDt><ValDt><Dt>2024-06-29</Dt></ValDt><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Tankstelle Blitz</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Vorgemerkt: Kartenzahlung</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": "",
+      "sichtbar_ab": "2024-06-27",
+      "sichtbar_bis": "2024-06-29",
+      "vormerkung": true
+    },
+    {
+      "betrag": -5211,
+      "buchungstag": "2024-06-29",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">52.11</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-06-29</Dt></BookgDt><ValDt><Dt>2024-06-29</Dt></ValDt><AcctSvcrRef>KTR4711000085</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Supermarkt Frischekorb</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung Filiale 02</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2406290629D52,11NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung Filiale 02?32Supermarkt F\nrischekorb",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -6450,
+      "buchungstag": "2024-06-29",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">64.50</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-06-29</Dt></BookgDt><ValDt><Dt>2024-06-29</Dt></ValDt><AcctSvcrRef>KTR4711000103</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Tankstelle Blitz</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2406290629D64,50NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung?32Tankstelle Blitz",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -490,
+      "buchungstag": "2024-06-30",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">4.90</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-06-30</Dt></BookgDt><ValDt><Dt>2024-06-30</Dt></ValDt><AcctSvcrRef>KTR4711000086</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+805</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct></RltdPties><RmtInf><Ustrd>Kontoführung 06/2024</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2406300630D4,90NCHGNONREF\n:86:805?00ENTGELT?20Kontoführung 06/2024",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -2290,
+      "buchungstag": "2024-07-01",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">22.90</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>PDNG</Cd></Sts><BookgDt><Dt>2024-07-01</Dt></BookgDt><ValDt><Dt>2024-07-01</Dt></ValDt><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Supermarkt Frischekorb</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Vorgemerkt: Kartenzahlung</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": "",
+      "sichtbar_ab": "2024-06-29",
+      "sichtbar_bis": "2024-07-01",
+      "vormerkung": true
+    },
+    {
+      "betrag": -98000,
+      "buchungstag": "2024-07-01",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">980.00</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-07-01</Dt></BookgDt><ValDt><Dt>2024-07-01</Dt></ValDt><AcctSvcrRef>KTR4711000087</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+105</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Wohnbau Beispiel eG</Nm></Pty></Cdtr><CdtrAcct><Id><IBAN>DE20000000000000006690</IBAN></Id></CdtrAcct></RltdPties><RmtInf><Ustrd>Miete 07/2024 Whg 3 links</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2407010701D980,00NDDTNONREF\n:86:105?00DAUERAUFTRAG?20Miete 07/2024 Whg 3 links?31DE2000000000\n0000006690?32Wohnbau Beispiel eG",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -2290,
+      "buchungstag": "2024-07-01",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">22.90</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-07-01</Dt></BookgDt><ValDt><Dt>2024-07-01</Dt></ValDt><AcctSvcrRef>KTR4711000105</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Supermarkt Frischekorb</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2407010701D22,90NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung?32Supermarkt Frischekorb",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -1250,
+      "buchungstag": "2024-07-02",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">12.50</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>PDNG</Cd></Sts><BookgDt><Dt>2024-07-02</Dt></BookgDt><ValDt><Dt>2024-07-02</Dt></ValDt><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Café Ölfass &amp; Co.</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Vorgemerkt: Kartenzahlung</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": "",
+      "sichtbar_ab": "2024-06-30",
+      "sichtbar_bis": "2024-07-02",
+      "vormerkung": true
+    },
+    {
+      "betrag": -1250,
+      "buchungstag": "2024-07-02",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">12.50</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-07-02</Dt></BookgDt><ValDt><Dt>2024-07-02</Dt></ValDt><AcctSvcrRef>KTR4711000107</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Café Ölfass &amp; Co.</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2407020702D12,50NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung?32Café Ölfass & Co.",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -6294,
+      "buchungstag": "2024-07-04",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">62.94</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-07-04</Dt></BookgDt><ValDt><Dt>2024-07-04</Dt></ValDt><AcctSvcrRef>KTR4711000088</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Supermarkt Frischekorb</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung Filiale 91</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2407040704D62,94NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung Filiale 91?32Supermarkt F\nrischekorb",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -9200,
+      "buchungstag": "2024-07-05",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">92.00</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-07-05</Dt></BookgDt><ValDt><Dt>2024-07-05</Dt></ValDt><AcctSvcrRef>KTR4711000089</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+105</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Stadtwerke Musterstadt</Nm></Pty></Cdtr><CdtrAcct><Id><IBAN>DE63000000000000006692</IBAN></Id></CdtrAcct></RltdPties><RmtInf><Ustrd>Abschlag Strom Vertrag 4711-0815</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2407050705D92,00NDDTNONREF\n:86:105?00LASTSCHRIFT?20Abschlag Strom Vertrag 4711?21-0815?30TES\nTDEFFXXX?31DE63000000000000006692?32Stadtwerke Musterstadt",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    },
+    {
+      "betrag": -3905,
+      "buchungstag": "2024-07-05",
+      "camt": "<Ntry><Amt Ccy=\"EUR\">39.05</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2024-07-05</Dt></BookgDt><ValDt><Dt>2024-07-05</Dt></ValDt><AcctSvcrRef>KTR4711000090</AcctSvcrRef><BkTxCd><Prtry><Cd>NTRF+106</Cd><Issr>DK</Issr></Prtry></BkTxCd><NtryDtls><TxDtls><RltdPties><Dbtr><Pty><Nm>Erika Mustermann</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE95000000000000006601</IBAN></Id></DbtrAcct><Cdtr><Pty><Nm>Supermarkt Frischekorb</Nm></Pty></Cdtr></RltdPties><RmtInf><Ustrd>Kartenzahlung Filiale 73</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>",
+      "iban": "DE95000000000000006601",
+      "mt940": ":61:2407050705D39,05NMSCNONREF\n:86:106?00KARTENZAHLUNG?20Kartenzahlung Filiale 73?32Supermarkt F\nrischekorb",
+      "sichtbar_ab": null,
+      "sichtbar_bis": null,
+      "vormerkung": false
+    }
+  ],
+  "version": 1
+}

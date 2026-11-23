@@ -1,0 +1,581 @@
+{
+  "art": "kmymoney",
+  "buchungen": [
+    {
+      "datum": "2024-03-01",
+      "empfaenger": "Supermarkt Frischekorb",
+      "extern_id": "kmy:T000000000000000001",
+      "kategorie_extern_id": "kmy:A000002",
+      "splits": [
+        {
+          "betrag": -2350,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Dublettentest 1"
+        },
+        {
+          "betrag": 2350,
+          "konto_extern_id": "kmy:A000002",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 2350,
+      "verwendungszweck": "Dublettentest 1",
+      "wahre_kategorie_extern_id": "kmy:A000002"
+    },
+    {
+      "datum": "2024-03-05",
+      "empfaenger": "Café Bohne",
+      "extern_id": "kmy:T000000000000000002",
+      "kategorie_extern_id": "kmy:A000003",
+      "splits": [
+        {
+          "betrag": -320,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Dublettentest 2"
+        },
+        {
+          "betrag": 320,
+          "konto_extern_id": "kmy:A000003",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 320,
+      "verwendungszweck": "Dublettentest 2",
+      "wahre_kategorie_extern_id": "kmy:A000003"
+    },
+    {
+      "datum": "2024-03-10",
+      "empfaenger": "Café Bohne",
+      "extern_id": "kmy:T000000000000000003",
+      "kategorie_extern_id": "kmy:A000003",
+      "splits": [
+        {
+          "betrag": -450,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Dublettentest 3"
+        },
+        {
+          "betrag": 450,
+          "konto_extern_id": "kmy:A000003",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 450,
+      "verwendungszweck": "Dublettentest 3",
+      "wahre_kategorie_extern_id": "kmy:A000003"
+    },
+    {
+      "datum": "2024-03-10",
+      "empfaenger": "Café Bohne",
+      "extern_id": "kmy:T000000000000000004",
+      "kategorie_extern_id": "kmy:A000003",
+      "splits": [
+        {
+          "betrag": -450,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Dublettentest 4"
+        },
+        {
+          "betrag": 450,
+          "konto_extern_id": "kmy:A000003",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 450,
+      "verwendungszweck": "Dublettentest 4",
+      "wahre_kategorie_extern_id": "kmy:A000003"
+    },
+    {
+      "datum": "2024-03-16",
+      "empfaenger": "Tankstelle Blitz",
+      "extern_id": "kmy:T000000000000000005",
+      "kategorie_extern_id": "kmy:A000004",
+      "splits": [
+        {
+          "betrag": -6000,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Dublettentest 5"
+        },
+        {
+          "betrag": 6000,
+          "konto_extern_id": "kmy:A000004",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 6000,
+      "verwendungszweck": "Dublettentest 5",
+      "wahre_kategorie_extern_id": "kmy:A000004"
+    },
+    {
+      "datum": "2024-03-20",
+      "empfaenger": "Stadtwerke Musterstadt GmbH",
+      "extern_id": "kmy:T000000000000000006",
+      "kategorie_extern_id": "kmy:A000005",
+      "splits": [
+        {
+          "betrag": -8900,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Dublettentest 6"
+        },
+        {
+          "betrag": 8900,
+          "konto_extern_id": "kmy:A000005",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 8900,
+      "verwendungszweck": "Dublettentest 6",
+      "wahre_kategorie_extern_id": "kmy:A000005"
+    },
+    {
+      "datum": "2024-03-25",
+      "empfaenger": "BAECKEREI MUELLER",
+      "extern_id": "kmy:T000000000000000007",
+      "kategorie_extern_id": "kmy:A000002",
+      "splits": [
+        {
+          "betrag": -275,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Dublettentest 7"
+        },
+        {
+          "betrag": 275,
+          "konto_extern_id": "kmy:A000002",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 275,
+      "verwendungszweck": "Dublettentest 7",
+      "wahre_kategorie_extern_id": "kmy:A000002"
+    },
+    {
+      "datum": "2024-03-28",
+      "empfaenger": null,
+      "extern_id": "kmy:T000000000000000008",
+      "kategorie_extern_id": "kmy:A000002",
+      "splits": [
+        {
+          "betrag": -1000,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Dublettentest 8"
+        },
+        {
+          "betrag": 1000,
+          "konto_extern_id": "kmy:A000002",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 1000,
+      "verwendungszweck": "Dublettentest 8",
+      "wahre_kategorie_extern_id": "kmy:A000002"
+    },
+    {
+      "datum": "2024-03-29",
+      "empfaenger": "Supermarkt Frischekorb",
+      "extern_id": "kmy:T000000000000000009",
+      "kategorie_extern_id": "kmy:A000002",
+      "splits": [
+        {
+          "betrag": -5000,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Dublettentest 9"
+        },
+        {
+          "betrag": 5000,
+          "konto_extern_id": "kmy:A000002",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 5000,
+      "verwendungszweck": "Dublettentest 9",
+      "wahre_kategorie_extern_id": "kmy:A000002"
+    },
+    {
+      "datum": "2024-03-06",
+      "empfaenger": "Streamio",
+      "extern_id": "kmy:T000000000000000010",
+      "kategorie_extern_id": "kmy:A000006",
+      "splits": [
+        {
+          "betrag": -1999,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Dublettentest 10"
+        },
+        {
+          "betrag": 1999,
+          "konto_extern_id": "kmy:A000006",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 1999,
+      "verwendungszweck": "Dublettentest 10",
+      "wahre_kategorie_extern_id": "kmy:A000006"
+    }
+  ],
+  "dubletten": {
+    "ergebnis": {
+      "buchungen_neu": 7,
+      "buchungen_uebersprungen": 0,
+      "buchungen_vorhanden": 0,
+      "buchungen_zur_pruefung": 5,
+      "buchungen_zusammengefuehrt": 3,
+      "empfaenger_neu": 2,
+      "empfaenger_vorhanden": 4,
+      "erfolgreich": true,
+      "format": "kmy-gzip",
+      "kategorien_neu": 3,
+      "kategorien_vorhanden": 2,
+      "konten_neu": 0,
+      "konten_vorhanden": 1,
+      "splits_neu": 14,
+      "tags_neu": 0,
+      "tags_vorhanden": 0
+    },
+    "konten_zuordnung": {
+      "kmy:A000001": "K_GIRO",
+      "kmy:A000002": "K_LEBENSMITTEL",
+      "kmy:A000003": "K_CAFE"
+    },
+    "neu_ohne_verdacht": [
+      "T000000000000000009",
+      "T000000000000000010"
+    ],
+    "verdachte": [
+      {
+        "buchung": "T000000000000000002",
+        "grund": "mehrdeutig",
+        "kandidaten": [
+          "V2",
+          "V3"
+        ]
+      },
+      {
+        "buchung": "T000000000000000003",
+        "grund": "mehrdeutig",
+        "kandidaten": [
+          "V4"
+        ]
+      },
+      {
+        "buchung": "T000000000000000004",
+        "grund": "mehrdeutig",
+        "kandidaten": [
+          "V4"
+        ]
+      },
+      {
+        "buchung": "T000000000000000005",
+        "grund": "aehnlich",
+        "kandidaten": [
+          "V5"
+        ]
+      },
+      {
+        "buchung": "T000000000000000006",
+        "grund": "aehnlich",
+        "kandidaten": [
+          "V6"
+        ]
+      }
+    ],
+    "zusammengefuehrt": {
+      "T000000000000000001": "V1",
+      "T000000000000000007": "V7",
+      "T000000000000000008": "V8"
+    }
+  },
+  "empfaenger": [
+    {
+      "extern_id": "kmy:P000001",
+      "name": "Supermarkt Frischekorb"
+    },
+    {
+      "extern_id": "kmy:P000002",
+      "name": "Café Bohne"
+    },
+    {
+      "extern_id": "kmy:P000003",
+      "name": "Tankstelle Blitz"
+    },
+    {
+      "extern_id": "kmy:P000004",
+      "name": "Stadtwerke Musterstadt GmbH"
+    },
+    {
+      "extern_id": "kmy:P000005",
+      "name": "BAECKEREI MUELLER"
+    },
+    {
+      "extern_id": "kmy:P000006",
+      "name": "Streamio"
+    }
+  ],
+  "erfolgreich": true,
+  "ergebnis": {
+    "buchungen_neu": 10,
+    "buchungen_uebersprungen": 0,
+    "buchungen_vorhanden": 0,
+    "buchungen_zur_pruefung": 0,
+    "buchungen_zusammengefuehrt": 0,
+    "empfaenger_neu": 6,
+    "empfaenger_vorhanden": 0,
+    "erfolgreich": true,
+    "format": "kmy-gzip",
+    "kategorien_neu": 5,
+    "kategorien_vorhanden": 0,
+    "konten_neu": 1,
+    "konten_vorhanden": 0,
+    "splits_neu": 20,
+    "tags_neu": 0,
+    "tags_vorhanden": 0
+  },
+  "fehler_code": null,
+  "fixture": "kmy/dubletten.kmy",
+  "konten": [
+    {
+      "anzahl_buchungen": 10,
+      "art": "girokonto",
+      "eltern_extern_id": null,
+      "eroeffnet_am": null,
+      "extern_id": "kmy:A000001",
+      "geschlossen": false,
+      "iban": "DE67000000000000004001",
+      "ist_kategorie": false,
+      "name": "Girokonto",
+      "notiz": "",
+      "saldo": -26744,
+      "saldo_gesamt": -26744
+    },
+    {
+      "anzahl_buchungen": 4,
+      "art": "aufwand",
+      "eltern_extern_id": null,
+      "eroeffnet_am": null,
+      "extern_id": "kmy:A000002",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Lebensmittel",
+      "notiz": "",
+      "saldo": 8625,
+      "saldo_gesamt": 8625
+    },
+    {
+      "anzahl_buchungen": 3,
+      "art": "aufwand",
+      "eltern_extern_id": null,
+      "eroeffnet_am": null,
+      "extern_id": "kmy:A000003",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Café",
+      "notiz": "",
+      "saldo": 1220,
+      "saldo_gesamt": 1220
+    },
+    {
+      "anzahl_buchungen": 1,
+      "art": "aufwand",
+      "eltern_extern_id": null,
+      "eroeffnet_am": null,
+      "extern_id": "kmy:A000004",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Tanken",
+      "notiz": "",
+      "saldo": 6000,
+      "saldo_gesamt": 6000
+    },
+    {
+      "anzahl_buchungen": 1,
+      "art": "aufwand",
+      "eltern_extern_id": null,
+      "eroeffnet_am": null,
+      "extern_id": "kmy:A000005",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Strom",
+      "notiz": "",
+      "saldo": 8900,
+      "saldo_gesamt": 8900
+    },
+    {
+      "anzahl_buchungen": 1,
+      "art": "aufwand",
+      "eltern_extern_id": null,
+      "eroeffnet_am": null,
+      "extern_id": "kmy:A000006",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Streaming",
+      "notiz": "",
+      "saldo": 1999,
+      "saldo_gesamt": 1999
+    }
+  ],
+  "startwert": 4711,
+  "summen": {
+    "anzahl_buchungen": 10,
+    "anzahl_splits": 20,
+    "anzahl_transaktionen_in_datei": 10,
+    "summe_bestand": -26744,
+    "summe_gesamt": 0
+  },
+  "tags": [],
+  "umbuchungen": [],
+  "vorbestand": {
+    "buchungen": [
+      {
+        "betrag": -2350,
+        "datum": "2024-03-01",
+        "empfaenger": "E_SUPERMARKT",
+        "kategorie": "K_LEBENSMITTEL",
+        "ref": "V1"
+      },
+      {
+        "betrag": -320,
+        "datum": "2024-03-05",
+        "empfaenger": "E_CAFE",
+        "kategorie": "K_CAFE",
+        "ref": "V2"
+      },
+      {
+        "betrag": -320,
+        "datum": "2024-03-05",
+        "empfaenger": "E_CAFE",
+        "kategorie": "K_CAFE",
+        "ref": "V3"
+      },
+      {
+        "betrag": -450,
+        "datum": "2024-03-10",
+        "empfaenger": "E_CAFE",
+        "kategorie": "K_CAFE",
+        "ref": "V4"
+      },
+      {
+        "betrag": -6000,
+        "datum": "2024-03-15",
+        "empfaenger": "E_TANKSTELLE",
+        "kategorie": "K_LEBENSMITTEL",
+        "ref": "V5"
+      },
+      {
+        "betrag": -8900,
+        "datum": "2024-03-20",
+        "empfaenger": "E_STADTWERKE",
+        "kategorie": "K_LEBENSMITTEL",
+        "ref": "V6"
+      },
+      {
+        "betrag": -275,
+        "datum": "2024-03-25",
+        "empfaenger": "E_BAECKEREI",
+        "kategorie": "K_LEBENSMITTEL",
+        "ref": "V7"
+      },
+      {
+        "betrag": -1000,
+        "datum": "2024-03-28",
+        "empfaenger": null,
+        "kategorie": "K_LEBENSMITTEL",
+        "ref": "V8"
+      },
+      {
+        "betrag": -1999,
+        "datum": "2024-03-02",
+        "empfaenger": "E_STREAMIO",
+        "kategorie": "K_LEBENSMITTEL",
+        "ref": "V9"
+      },
+      {
+        "betrag": -2351,
+        "datum": "2024-03-01",
+        "empfaenger": "E_SUPERMARKT",
+        "kategorie": "K_LEBENSMITTEL",
+        "ref": "V10"
+      }
+    ],
+    "empfaenger": [
+      {
+        "name": "Supermarkt Frischekorb",
+        "ref": "E_SUPERMARKT"
+      },
+      {
+        "name": "Café Bohne",
+        "ref": "E_CAFE"
+      },
+      {
+        "name": "Tankstelle Blitz",
+        "ref": "E_TANKSTELLE"
+      },
+      {
+        "name": "Stadtwerke Musterstadt",
+        "ref": "E_STADTWERKE"
+      },
+      {
+        "name": "Bäckerei Müller",
+        "ref": "E_BAECKEREI"
+      },
+      {
+        "name": "Streamio",
+        "ref": "E_STREAMIO"
+      }
+    ],
+    "konten": [
+      {
+        "art": "girokonto",
+        "iban": "DE67000000000000004001",
+        "name": "Girokonto Vorbestand",
+        "ref": "K_GIRO"
+      },
+      {
+        "art": "aufwand",
+        "iban": null,
+        "name": "Lebensmittel",
+        "ref": "K_LEBENSMITTEL"
+      },
+      {
+        "art": "aufwand",
+        "iban": null,
+        "name": "Café",
+        "ref": "K_CAFE"
+      }
+    ]
+  },
+  "warnungen": []
+}

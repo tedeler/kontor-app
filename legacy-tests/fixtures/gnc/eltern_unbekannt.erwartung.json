@@ -1,0 +1,11 @@
+{
+  "art": "gnucash",
+  "beschreibung": "act:parent verweist auf unbekanntes Konto",
+  "erfolgreich": false,
+  "fehler_code": "import_inhalt_ungueltig",
+  "fixture": "gnc/eltern_unbekannt.gnucash",
+  "format": "gnc-xml-gzip",
+  "referenzen": [
+    "b028e3adcf7adbe44a71dd66f31e3bb6"
+  ]
+}

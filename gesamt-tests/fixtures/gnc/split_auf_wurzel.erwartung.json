@@ -1,0 +1,11 @@
+{
+  "art": "gnucash",
+  "beschreibung": "Split bucht auf das Wurzelkonto (ROOT)",
+  "erfolgreich": false,
+  "fehler_code": "import_inhalt_ungueltig",
+  "fixture": "gnc/split_auf_wurzel.gnucash",
+  "format": "gnc-xml-gzip",
+  "referenzen": [
+    "8364aa716f8eb3cc6e78714836e7616c"
+  ]
+}

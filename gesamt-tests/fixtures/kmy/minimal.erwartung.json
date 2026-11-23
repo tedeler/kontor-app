@@ -1,0 +1,147 @@
+{
+  "art": "kmymoney",
+  "buchungen": [
+    {
+      "datum": "2024-01-31",
+      "empfaenger": "Arbeitgeber Muster GmbH",
+      "extern_id": "kmy:T000000000000000001",
+      "kategorie_extern_id": "kmy:A000003",
+      "splits": [
+        {
+          "betrag": 100000,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Gehalt Januar"
+        },
+        {
+          "betrag": -100000,
+          "konto_extern_id": "kmy:A000003",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 100000,
+      "verwendungszweck": "Gehalt Januar",
+      "wahre_kategorie_extern_id": "kmy:A000003"
+    },
+    {
+      "datum": "2024-02-02",
+      "empfaenger": "Supermarkt Frischekorb",
+      "extern_id": "kmy:T000000000000000002",
+      "kategorie_extern_id": "kmy:A000002",
+      "splits": [
+        {
+          "betrag": -2500,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Wocheneinkauf"
+        },
+        {
+          "betrag": 2500,
+          "konto_extern_id": "kmy:A000002",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [
+        "kmy:G000001"
+      ],
+      "umbuchung": false,
+      "umsatz": 2500,
+      "verwendungszweck": "Wocheneinkauf",
+      "wahre_kategorie_extern_id": "kmy:A000002"
+    }
+  ],
+  "empfaenger": [
+    {
+      "extern_id": "kmy:P000001",
+      "name": "Arbeitgeber Muster GmbH"
+    },
+    {
+      "extern_id": "kmy:P000002",
+      "name": "Supermarkt Frischekorb"
+    }
+  ],
+  "erfolgreich": true,
+  "ergebnis": {
+    "buchungen_neu": 2,
+    "buchungen_uebersprungen": 0,
+    "buchungen_vorhanden": 0,
+    "buchungen_zur_pruefung": 0,
+    "buchungen_zusammengefuehrt": 0,
+    "empfaenger_neu": 2,
+    "empfaenger_vorhanden": 0,
+    "erfolgreich": true,
+    "format": "kmy-gzip",
+    "kategorien_neu": 2,
+    "kategorien_vorhanden": 0,
+    "konten_neu": 1,
+    "konten_vorhanden": 0,
+    "splits_neu": 4,
+    "tags_neu": 1,
+    "tags_vorhanden": 0
+  },
+  "fehler_code": null,
+  "fixture": "kmy/minimal.kmy",
+  "konten": [
+    {
+      "anzahl_buchungen": 2,
+      "art": "girokonto",
+      "eltern_extern_id": null,
+      "eroeffnet_am": "2024-01-01",
+      "extern_id": "kmy:A000001",
+      "geschlossen": false,
+      "iban": "DE04000000000000003001",
+      "ist_kategorie": false,
+      "name": "Girokonto",
+      "notiz": "",
+      "saldo": 97500,
+      "saldo_gesamt": 97500
+    },
+    {
+      "anzahl_buchungen": 1,
+      "art": "aufwand",
+      "eltern_extern_id": null,
+      "eroeffnet_am": null,
+      "extern_id": "kmy:A000002",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Lebensmittel",
+      "notiz": "",
+      "saldo": 2500,
+      "saldo_gesamt": 2500
+    },
+    {
+      "anzahl_buchungen": 1,
+      "art": "ertrag",
+      "eltern_extern_id": null,
+      "eroeffnet_am": null,
+      "extern_id": "kmy:A000003",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Gehalt",
+      "notiz": "",
+      "saldo": -100000,
+      "saldo_gesamt": -100000
+    }
+  ],
+  "startwert": 4711,
+  "summen": {
+    "anzahl_buchungen": 2,
+    "anzahl_splits": 4,
+    "anzahl_transaktionen_in_datei": 2,
+    "summe_bestand": 97500,
+    "summe_gesamt": 0
+  },
+  "tags": [
+    {
+      "anzahl_buchungen": 1,
+      "extern_id": "kmy:G000001",
+      "name": "Haushalt"
+    }
+  ],
+  "umbuchungen": [],
+  "warnungen": []
+}

@@ -1,0 +1,8 @@
+{
+  "art": "kmymoney",
+  "beschreibung": "gzip mit wohlgeformtem XML, aber Wurzel gnc-v2 (GnuCash)",
+  "erfolgreich": false,
+  "fehler_code": "import_format_ungueltig",
+  "fixture": "kmy/falsches_format.kmy",
+  "format": null
+}

@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE KMYMONEY-FILE>
+<KMYMONEY-FILE>
+ <FILEINFO>
+  <CREATION_DATE date="2021-12-31" />
+  <LAST_MODIFIED_DATE date="2025-01-05" />
+  <VERSION id="1" />
+  <FIXVERSION id="5" />
+ </FILEINFO>
+ <USER email="erika.mustermann@example.invalid" name="Erika Mustermann (fiktiv)">
+  <ADDRESS street="Musterweg 1" city="Musterstadt" zipcode="00000" county="" telephone="" />
+ </USER>
+ <INSTITUTIONS count="1">
+  <INSTITUTION id="I000001" name="Testbank (fiktiv)" manager="" sortcode="00000000">
+   <ADDRESS street="" city="" zip="" telephone="" />
+   <ACCOUNTIDS>
+    <ACCOUNTID id="A000001" />
+   </ACCOUNTIDS>
+  </INSTITUTION>
+ </INSTITUTIONS>
+ <PAYEES count="2">
+  <PAYEE id="P000001" name="Arbeitgeber Muster GmbH" reference="" email="" matchingenabled="0">
+   <ADDRESS street="" city="" postcode="" telephone="" state="" />
+  </PAYEE>
+  <PAYEE id="P000002" name="Supermarkt Frischekorb" reference="" email="" matchingenabled="0">
+   <ADDRESS street="" city="" postcode="" telephone="" state="" />
+  </PAYEE>
+ </PAYEES>
+ <COSTCENTERS count="0" />
+ <TAGS count="1">
+  <TAG id="G000001" name="Haushalt" closed="0" tagcolor="#3daee9" />
+ </TAGS>
+ <ACCOUNTS count="8">
+  <ACCOUNT id="AStd::Asset" parentaccount="" lastmodified="" lastreconciled="" institution="" number="" opened="" type="9" name="Anlage" description="" currency="EUR">
+   <SUBACCOUNTS>
+    <SUBACCOUNT id="A000001" />
+   </SUBACCOUNTS>
+  </ACCOUNT>
+  <ACCOUNT id="AStd::Liability" parentaccount="" lastmodified="" lastreconciled="" institution="" number="" opened="" type="10" name="Verbindlichkeit" description="" currency="EUR" />
+  <ACCOUNT id="AStd::Expense" parentaccount="" lastmodified="" lastreconciled="" institution="" number="" opened="" type="13" name="Ausgabe" description="" currency="EUR">
+   <SUBACCOUNTS>
+    <SUBACCOUNT id="A000002" />
+   </SUBACCOUNTS>
+  </ACCOUNT>
+  <ACCOUNT id="AStd::Income" parentaccount="" lastmodified="" lastreconciled="" institution="" number="" opened="" type="12" name="Einnahme" description="" currency="EUR">
+   <SUBACCOUNTS>
+    <SUBACCOUNT id="A000003" />
+   </SUBACCOUNTS>
+  </ACCOUNT>
+  <ACCOUNT id="AStd::Equity" parentaccount="" lastmodified="" lastreconciled="" institution="" number="" opened="" type="16" name="Eigenkapital" description="" currency="EUR" />
+  <ACCOUNT id="A000001" parentaccount="AStd::Asset" lastmodified="" lastreconciled="" institution="I000001" number="" opened="2024-01-01" type="1" name="Girokonto" description="" currency="EUR">
+   <KEYVALUEPAIRS>
+    <PAIR key="iban" value="DE04000000000000003001" />
+   </KEYVALUEPAIRS>
+  </ACCOUNT>
+  <ACCOUNT id="A000002" parentaccount="AStd::Expense" lastmodified="" lastreconciled="" institution="" number="" opened="" type="13" name="Lebensmittel" description="" currency="EUR" />
+  <ACCOUNT id="A000003" parentaccount="AStd::Income" lastmodified="" lastreconciled="" institution="" number="" opened="" type="12" name="Gehalt" description="" currency="EUR" />
+ </ACCOUNTS>
+ <TRANSACTIONS count="2">
+  <TRANSACTION id="T000000000000000001" postdate="2024-01-31" memo="Gehalt Januar" entrydate="2024-01-31" commodity="EUR">
+   <SPLITS>
+    <SPLIT id="S0001" payee="P000001" reconciledate="" action="" reconcileflag="0" value="100000/100" shares="100000/100" price="1/1" memo="Gehalt Januar" account="A000001" number="" bankid="" />
+    <SPLIT id="S0002" payee="P000001" reconciledate="" action="" reconcileflag="0" value="-100000/100" shares="-100000/100" price="1/1" memo="" account="A000003" number="" bankid="" />
+   </SPLITS>
+  </TRANSACTION>
+  <TRANSACTION id="T000000000000000002" postdate="2024-02-02" memo="Wocheneinkauf" entrydate="2024-02-02" commodity="EUR">
+   <SPLITS>
+    <SPLIT id="S0001" payee="P000002" reconciledate="" action="" reconcileflag="0" value="-2500/100" shares="-2500/100" price="1/1" memo="Wocheneinkauf" account="A000001" number="" bankid="">
+     <TAG id="G000001" />
+    </SPLIT>
+    <SPLIT id="S0002" payee="P000002" reconciledate="" action="" reconcileflag="0" value="2500/100" shares="2500/100" price="1/1" memo="" account="A000002" number="" bankid="" />
+   </SPLITS>
+  </TRANSACTION>
+ </TRANSACTIONS>
+ <KEYVALUEPAIRS>
+  <PAIR key="kmm-baseCurrency" value="EUR" />
+  <PAIR key="kmm-id" value="{00000000-0000-4000-8000-000000004711}" />
+ </KEYVALUEPAIRS>
+ <SCHEDULES count="0" />
+ <SECURITIES count="0" />
+ <CURRENCIES count="1">
+  <CURRENCY id="EUR" name="Euro" symbol="€" type="3" saf="100" scf="100" pp="4" rounding-method="7" />
+ </CURRENCIES>
+ <PRICES count="0" />
+ <REPORTS count="0" />
+ <BUDGETS count="0" />
+ <ONLINEJOBS count="0" />
+</KMYMONEY-FILE>

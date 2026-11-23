@@ -1,0 +1,9 @@
+{
+  "art": "gnucash",
+  "beschreibung": "DTD mit Entitätsdeklarationen (unkomprimiert)",
+  "erfolgreich": false,
+  "fehler_code": "import_format_ungueltig",
+  "fixture": "gnc/entitaeten.gnucash",
+  "format": "gnc-xml",
+  "referenzen": []
+}

@@ -1,0 +1,67 @@
+{
+  "format": "kontor-mail-attrappe",
+  "ordner_reihenfolge": {
+    "haushalt.eins@example.invalid": [
+      "INBOX",
+      "[Gmail]/Alle Nachrichten"
+    ],
+    "haushalt.zwei@example.invalid": [
+      "INBOX",
+      "Bestellungen/Bücher"
+    ]
+  },
+  "postfaecher": {
+    "haushalt.eins@example.invalid": {
+      "INBOX": {
+        "datei": "eins_inbox.mbox",
+        "uids": [
+          3,
+          4,
+          5,
+          6,
+          9,
+          12,
+          13,
+          14,
+          16,
+          17,
+          18
+        ],
+        "uidvalidity": 1700000011
+      },
+      "[Gmail]/Alle Nachrichten": {
+        "datei": "eins_alle.mbox",
+        "uids": [
+          1,
+          3
+        ],
+        "uidvalidity": 1700000022
+      }
+    },
+    "haushalt.zwei@example.invalid": {
+      "Bestellungen/Bücher": {
+        "datei": "zwei_buecher.mbox",
+        "uids": [
+          1,
+          4,
+          5,
+          7,
+          10
+        ],
+        "uidvalidity": 1700000044
+      },
+      "INBOX": {
+        "datei": "zwei_inbox.mbox",
+        "uids": [
+          1,
+          2,
+          4,
+          5
+        ],
+        "uidvalidity": 1700000033
+      }
+    }
+  },
+  "startwert": 4711,
+  "version": 1
+}

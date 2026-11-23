@@ -1,0 +1,9 @@
+{
+  "art": "gnucash",
+  "beschreibung": "0 Bytes",
+  "erfolgreich": false,
+  "fehler_code": "import_datei_leer",
+  "fixture": "gnc/leer.gnucash",
+  "format": null,
+  "referenzen": []
+}

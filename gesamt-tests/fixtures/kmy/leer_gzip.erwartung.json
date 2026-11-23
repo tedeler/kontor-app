@@ -1,0 +1,8 @@
+{
+  "art": "kmymoney",
+  "beschreibung": "gzip mit leerem Inhalt",
+  "erfolgreich": false,
+  "fehler_code": "import_datei_leer",
+  "fixture": "kmy/leer_gzip.kmy",
+  "format": "kmy-gzip"
+}

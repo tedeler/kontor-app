@@ -1,0 +1,9 @@
+{
+  "art": "gnucash",
+  "beschreibung": "KMyMoney-Datei (Wurzel KMYMONEY-FILE)",
+  "erfolgreich": false,
+  "fehler_code": "import_format_ungueltig",
+  "fixture": "gnc/kmy_datei.gnucash",
+  "format": "gnc-xml-gzip",
+  "referenzen": []
+}

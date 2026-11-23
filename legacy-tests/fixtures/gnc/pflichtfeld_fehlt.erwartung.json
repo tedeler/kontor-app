@@ -1,0 +1,11 @@
+{
+  "art": "gnucash",
+  "beschreibung": "Split ohne split:value",
+  "erfolgreich": false,
+  "fehler_code": "import_inhalt_ungueltig",
+  "fixture": "gnc/pflichtfeld_fehlt.gnucash",
+  "format": "gnc-xml-gzip",
+  "referenzen": [
+    "7db3ae74b8a035da72e2c2b792f53937"
+  ]
+}

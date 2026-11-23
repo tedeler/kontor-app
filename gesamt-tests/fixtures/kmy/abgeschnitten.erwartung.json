@@ -1,0 +1,8 @@
+{
+  "art": "kmymoney",
+  "beschreibung": "gzip nach der Hälfte abgeschnitten",
+  "erfolgreich": false,
+  "fehler_code": "import_datei_beschaedigt",
+  "fixture": "kmy/abgeschnitten.kmy",
+  "format": "kmy-gzip"
+}

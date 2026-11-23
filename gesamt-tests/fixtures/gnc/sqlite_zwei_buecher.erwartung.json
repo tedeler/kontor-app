@@ -1,0 +1,9 @@
+{
+  "art": "gnucash",
+  "beschreibung": "zwei Zeilen in books",
+  "erfolgreich": false,
+  "fehler_code": "import_format_ungueltig",
+  "fixture": "gnc/sqlite_zwei_buecher.gnucash",
+  "format": "gnc-sqlite",
+  "referenzen": []
+}

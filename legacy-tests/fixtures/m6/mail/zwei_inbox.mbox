@@ -1,0 +1,76 @@
+From MAILER-DAEMON Sat Jan 20 09:15:45 2024
+Message-ID: <KONTOR-4711-0012@mail.example.invalid>
+From: =?iso-8859-1?q?B=FCcherstube_=28fiktiv=29?= <bestellung@buecherstube.example.invalid>
+To: haushalt.zwei@example.invalid
+Subject: =?utf-8?q?Ihre_Bestellung_B=2D2001_bei_der_B=C3=BCcherstu?=
+ =?utf-8?q?be_=E2=80=93_Best=C3=A4tigung_und_Zahlungsinformationen?=
+Date: Sat, 20 Jan 2024 10:15:45 +0100
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="==grenze-B-2001=="
+
+Dies ist eine MIME-Nachricht.
+--==grenze-B-2001==
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+Guten Tag Erika Mustermann,
+
+vielen Dank f=C3=BCr Ihre Bestellung Nr. B-2001.
+Artikel: =E2=80=9EGr=C3=B6=C3=9Fenwahn & =C3=9Cbermut=E2=80=9C (Taschenbuch=
+), Menge 1, Preis 12,99 =E2=82=AC
+Gesamtbetrag: 12,99 =E2=82=AC
+Zahlungsart: Lastschrift
+
+Ihre B=C3=BCcherstube (fiktiv)
+
+--==grenze-B-2001==
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+<html><body><p>Guten Tag Erika Mustermann,</p><p>Bestellung <b>B-2001</b>: =
+&bdquo;Gr&ouml;&szlig;enwahn &amp; &Uuml;bermut&ldquo; &ndash; 12,99&nbsp;&=
+euro;</p></body></html>
+--==grenze-B-2001==--
+
+From MAILER-DAEMON Mon Jan 22 07:05:22 2024
+Message-ID: <KONTOR-4711-0013@mail.example.invalid>
+From: versand@paket.example.invalid
+To: haushalt.zwei@example.invalid
+Subject: Versandbestaetigung
+Date: Mon, 22 Jan 2024 08:05:22 +0100
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+
+Ihre Sendung ist unterwegs.
+Sendungsnummer: SYNTH-00012345
+
+From MAILER-DAEMON Fri Mar 15 06:30:43 2024
+Message-ID: <KONTOR-4711-0014@mail.example.invalid>
+From: Werbung <newsletter@werbung.example.invalid>
+To: haushalt.zwei@example.invalid
+Subject: Angebote der Woche
+Date: Fri, 15 Mar 2024 07:30:43 +0100
+MIME-Version: 1.0
+Content-Type: text/plain; charset=x-kontor-unbekannt
+Content-Transfer-Encoding: 8bit
+
+Angebote der Woche: Kaffee für 3,99 € – nur heute!
+
+From MAILER-DAEMON Sun May 05 18:40:34 2024
+Message-ID: <KONTOR-4711-0015@mail.example.invalid>
+From: Bezahldienst <zahlung@bezahldienst.example.invalid>
+To: haushalt.zwei@example.invalid
+Subject: =?iso-8859-15?b?WmFobHVuZ3NiZXN05HRpZ3VuZyD8YmVyIDQxLDAwIKQ=?=
+Date: Sun, 05 May 2024 19:40:34 +0100
+MIME-Version: 1.0
+Content-Type: text/html; charset=iso-8859-15
+Content-Transfer-Encoding: base64
+
+PGh0bWw+PGhlYWQ+PHN0eWxlPnAgeyBjb2xvcjogIzMzMzsgfTwvc3R5bGU+PHNjcmlwdD52YXIg
+eCA9ICc8Yj5uaWNodCBhbnplaWdlbjwvYj4nOzwvc2NyaXB0PjwvaGVhZD48Ym9keT48aDE+WmFo
+bHVuZyBlcmhhbHRlbjwvaDE+PHA+V2lyIGhhYmVuIElocmUgWmFobHVuZyD8YmVyIDQxLDAwJm5i
+c3A7JmV1cm87IGVyaGFsdGVuLjwvcD48cD5FbXBm5G5nZXI6IEJlemFobGRpZW5zdCAmYW1wOyBQ
+YXJ0bmVyIChmaWt0aXYpPC9wPjxwPlZvcmdhbmdzbnVtbWVyOiYjMTYwO1pELTM4Nzg5MTwvcD48
+L2JvZHk+PC9odG1sPg==
+

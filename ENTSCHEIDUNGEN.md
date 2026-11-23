@@ -3705,3 +3705,17 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   Öffnen schon ein Abruf, folgt die Seite ihm. Knopf `mail-alle-koepfe` „Alle Kopfzeilen neu abrufen …“ mit
   Rückfrage, nur mit `mail_nur_koepfe` sichtbar.
 - **Prüfung:** `tests/test_mail_fortschritt_eigen.py`, `tests/test_browser_mail_fortschritt.py`.
+
+## D-253 Testumbau: Tests und Spezifikation im Anwendungs-Repository, Core-Tests und TDD (2026-11-23)
+
+- **Anlass:** Auftrag vom 2026-11-23. Die strikte Trennung von kontor-app und kontor-tests (Meilenstein-Definition,
+  Test-Thread, Widersprüche als Text) kostete zu viele Tokens und machte die Zyklen langsam; der Volllauf der
+  Abnahmetests dauerte über 25 Minuten.
+- **Entscheidung:** kontor-tests ist aufgegeben. `spec/` (Spezifikation), `legacy-tests/` (eingefrorene Referenz),
+  `gesamt-tests/` (gekürzte Abnahmetests) und `tests/core/` (Core-Tests, vor dem Feature geschrieben, zusammen unter
+  30 Sekunden) liegen in kontor-app. Die Gesamttests laufen nur in der CI auf main, in zwei parallelen Jobs mit je
+  unter 5 Minuten, vor dem Release (ändert den Ablauf von D-105: das Release hängt an den Testjobs).
+- **Ersetzt:** die Rollentrennung in `CLAUDE.md`; `WIDERSPRUECHE.md` und `ERGEBNIS.md` werden nicht fortgeführt
+  (das Ergebnis steht im CI-Lauf). Entscheidungen der Spezifikation (`spec/api/entscheidungen.md`, `E-…`) bleiben
+  als Bestand; neue Entscheidungen stehen hier.
+- **Einzelheiten, Messungen, Auswahlregel und geänderte Tests:** `TESTUMBAU.md`.

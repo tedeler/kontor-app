@@ -1,0 +1,9 @@
+{
+  "art": "gnucash",
+  "beschreibung": "Klartext ohne gzip, SQLite und XML",
+  "erfolgreich": false,
+  "fehler_code": "import_format_ungueltig",
+  "fixture": "gnc/kein_xml.gnucash",
+  "format": null,
+  "referenzen": []
+}

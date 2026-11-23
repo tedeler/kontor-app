@@ -1,0 +1,9 @@
+{
+  "art": "gnucash",
+  "beschreibung": "SQLite-Datei ohne GnuCash-Tabellen",
+  "erfolgreich": false,
+  "fehler_code": "import_format_ungueltig",
+  "fixture": "gnc/sqlite_fremd.gnucash",
+  "format": "gnc-sqlite",
+  "referenzen": []
+}

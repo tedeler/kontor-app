@@ -1,0 +1,8 @@
+{
+  "art": "kmymoney",
+  "beschreibung": "Klartext ohne gzip und ohne XML",
+  "erfolgreich": false,
+  "fehler_code": "import_format_ungueltig",
+  "fixture": "kmy/kein_xml.kmy",
+  "format": null
+}

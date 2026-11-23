@@ -1,0 +1,100 @@
+# Testumbau: Tests im Anwendungs-Repository
+
+Stand 2026-11-23. Ausgangsstand der Messungen: kontor-app `667af00` (Version 0.46), kontor-tests `b6f94f1`.
+Alle Zeiten auf 2 Kernen (`-n 2`); „Rechenzeit“ ist die Summe der Testdauern.
+
+## Beschlossen
+
+- kontor-tests wird aufgegeben. Spezifikation, Tests, Fixtures und Generator liegen in kontor-app.
+- Neue Features: zuerst Core-Tests (eigener Commit vor dem Feature-Code), dann TDD. Muss ein Core-Test in der
+  Schleife angepasst werden, wird das in `tests/core/AENDERUNGEN.md` dokumentiert.
+- Zeitbudgets: Core-Tests unter 30 Sekunden; die Gesamttests laufen in zwei parallelen CI-Jobs (ohne Browser,
+  mit Browser), jeder unter 5 Minuten.
+- Die Gesamttests laufen nur in der CI auf main, vor dem Release.
+
+## Aufbau
+
+| Pfad | Inhalt | läuft |
+| --- | --- | --- |
+| `spec/` | Spezifikation (Konzept, Testkonzept, `api/`, Meilensteine, Definitionen) | – |
+| `tests/core/` | Core-Tests der Entwicklungsschleife, Regeln in `tests/core/README.md` | bei jeder Änderung, CI |
+| `tests/` | eigene Tests je Feature; `test_browser*.py` tragen den Marker `browser` | CI |
+| `gesamt-tests/` | gekürzte Fassung der früheren Abnahmetests (eigene `pytest.ini`, Fixtures, Generator) | CI |
+| `legacy-tests/` | unveränderter Stand von kontor-tests, nur Referenz | nie |
+
+Aufrufe:
+
+```bash
+python -m pytest tests/core                                  # Entwicklungsschleife
+python -m pytest -n auto -m "not browser and not core" tests # eigene Tests ohne Browser
+python -m pytest -n auto -m browser tests                    # eigene Browsertests
+cd gesamt-tests && python -m pytest -n auto -m "not browser" # Gesamtsuite ohne Browser
+cd gesamt-tests && python -m pytest -n auto -m browser       # Gesamtsuite mit Browser
+cd gesamt-tests && python -m pytest -n auto --alle           # auch die abgewählten Tests
+```
+
+## Messung
+
+| Lauf | Tests | Dauer | Rechenzeit |
+| --- | --- | --- | --- |
+| vorher: legacy-tests, Volllauf | 4288 | 25:20 min | 2996 s |
+| vorher: eigene Tests | 589 | 3:18 min | 377 s |
+| **jetzt: Job ohne Browser** (Core 2, eigene 500, Gesamtsuite 2971) | 3473 | 6:35 min | etwa 790 s |
+| **jetzt: Job mit Browser** (eigene 89, Gesamtsuite 191) | 280 | 4:16 min | etwa 475 s |
+
+Die beiden Jobs laufen in der CI gleichzeitig und auf 4 Kernen. Die Dauer dort steht erst nach dem ersten Lauf auf
+main fest; erwartet sind je 3 bis 4 Minuten einschließlich Installation.
+
+### Wohin die Zeit ging
+
+| Ursache | Anteil am Volllauf | Maßnahme |
+| --- | --- | --- |
+| Browser-, Leistungs- und Großdatentests (618 Tests) | 34 % | Browsertests ausgewählt (unten); `leistung` und `langsam` laufen nicht in der CI |
+| Zufallstests mit 40 Beispielen | 22 % | Hypothesis-Profil `schnell` (10 Beispiele) ist die Vorgabe |
+| Ein Thread mit Ereignisschleife je REST-Anfrage (Starlette `TestClient`) | etwa 13 % | eine gemeinsame Schleife je Testprozess (`tests/hilfen/api.py`, `tests/conftest.py`) |
+| App-Aufbau je Test (etwa 0,1 s: 235 Routen, Schema) | etwa 12 % | unverändert; nur über weniger Tests zu senken |
+| übrige Testarbeit | Rest | Auswahl (unten) |
+
+Berichtigung zur ersten Fassung dieses Dokuments: Der App-Aufbau je Test ist mit rund 370 s über alle Tests sehr
+wohl ein spürbarer Anteil, nur kein einzelner Engpass.
+
+## Auswahl
+
+`gesamt-tests/abgewaehlt.txt` nennt 998 Tests, die nur mit `--alle` laufen. Auswahlregel:
+
+1. **Ohne Browser (697 abgewählt, 2971 bleiben):** Für jeden Test wurde gemessen, welche Zeilen und Verzweigungen
+   von `src/kontor` er ausführt. Behalten wurden alle Tests unter 0,12 s, dann so lange der Test mit den meisten
+   neuen Verzweigungen je Sekunde, bis alle 26 501 gemessenen Verzweigungen abgedeckt waren, und schließlich von
+   jeder noch nicht vertretenen Testfunktion die schnellste Variante. Von 1720 Testfunktionen entfällt genau eine
+   ganz (`m31/test_m31_lernmodell.py::test_lerndaten_laden_und_rueckgaengig`, 8 s); sonst entfallen nur weitere
+   Parametervarianten.
+2. **Mit Browser (301 abgewählt, 191 bleiben):** Gemessen wurden die ausgeführten JavaScript-Blöcke je Test. Die
+   eigenen Browsertests bleiben vollständig; aus der Gesamtsuite bleiben die Tests, die darüber hinaus neue Blöcke
+   ausführen (125), und bis zum Zeitbudget weitere Testfunktionen (schnellste zuerst). Alle 3890 gemessenen Blöcke
+   bleiben abgedeckt; von 363 Testfunktionen bleiben 188.
+
+Grenze der Methode: Abgedeckter Code ist nicht dasselbe wie geprüftes Verhalten. Ein abgewählter Test kann eine
+Aussage prüfen, die kein verbleibender Test prüft, obwohl er denselben Code durchläuft. Die abgewählten Tests
+bleiben deshalb im Verzeichnis und sind mit `--alle` jederzeit ausführbar. Die Liste gilt nach Knoten-ID: wird ein
+Test umbenannt, läuft er wieder mit.
+
+Nicht übernommen: `tests/_selbstpruefung` (Wegwerf-Referenz und Mutanten; nur in `legacy-tests`).
+
+## Geänderte Tests gegenüber legacy-tests
+
+Im Ausgangsstand schlugen 19 Tests der Abnahmesuite und 3 eigene fehl. Kein Anwendungscode wurde geändert.
+
+| Test | Ursache | Änderung |
+| --- | --- | --- |
+| `m13/test_m13_oberflaeche` (2), `m8/test_m8_auslieferung` (1), `m8/test_m8_grundgeruest` (2), eigene `test_browser.py::test_ueber_fenster`, `test_versionierung_eigen.py::test_huelle_zeigt_version_in_der_navigation` | Auf einem Feature-Branch zeigt die App den Branch statt der Version; die Tests liefen nur auf main grün | Beide Suiten setzen den Branch für Tests außer Kraft (`_ohne_branch` bzw. `tests/conftest.py`) |
+| `test_buchungen.py::test_kategorie_setzen_fehler` | D-242: Bestandskonto ist als Ziel zulässig | erwartet `konto_ungueltig` für das eigene Konto, `kategorie_ungueltig` nur noch für Eigenkapital |
+| `test_mehrfach.py::test_kategorie_ziel_ungueltig` (2 Varianten), `test_kategorie_pruefreihenfolge`, `test_mehrfach_kategorie_gegen_modell` | D-242 | Bestandskonten als ungültiges Ziel entfernt bzw. durch Eigenkapital ersetzt |
+| `test_plugins.py::test_nur_lesende_oeffentliche_methoden` (2), `m6/test_m6_paket.py::test_oeffentliche_methoden` | D-243: Mail-Plugin hat `koepfe` und `inhalte` | erwartete Methodenmenge ergänzt |
+| `m8/test_m8_seiten.py::test_seiten_im_mindestumfang` | Ohne Treffer zeigt „Regeln anwenden“ nur die Erfolgsmeldung, die ausgeliefert aus ist | Seite mit eingeschalteter Erfolgsmeldung |
+| `m8/test_m8_split_dnd.py::test_umbuchung_auf_kategorie_ziehen_aendert_nichts` | D-242: Eine Umbuchung lässt sich jetzt zuordnen; die Aussage des Tests gilt nicht mehr | Test entfernt |
+| `m28/test_m28_kontoblatt.py::test_kuerzel_aktionen_und_vortasten` | Prüfte den Fokus ohne zu warten; schlug in 4 von 6 Läufen fehl (auch in legacy-tests) | wartet auf den Fokus |
+| `m30/test_m30_oberflaeche.py::test_regelliste` | Tastendruck auf einen Griff, den die Seite gerade neu aufbaut; schlug gelegentlich fehl | drückt erneut, solange die Reihenfolge unverändert ist |
+| `m15/test_m15_oberflaeche.py::test_details_vorschlag_und_kandidaten`, `m8/test_m8_kontextmenue.py::test_kategorie_setzen_umbuchung_meldet_ablehnung`, `m8/test_m8_kontoansicht.py::test_liste_gleich_rest_und_darstellung` (2) | schlagen fehl (die letzten drei wegen D-242, der erste nicht untersucht) | nicht angepasst; stehen in `abgewaehlt.txt` und schlagen mit `--alle` weiter fehl |
+| eigene `test_browser_ausdruck.py::test_tags_im_kontoblatt_bearbeiten` | schlug einmal in vier Läufen fehl, danach nicht mehr | unverändert; beobachten |
+
+Stabilität: Nach den Änderungen lief der Browser-Teil der Gesamtsuite viermal hintereinander grün.

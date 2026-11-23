@@ -1,0 +1,21 @@
+> **Eingefrorene Referenz.** Unveränderter Stand von kontor-tests (`b6f94f1`, 2026-11-22), übernommen beim
+> Testumbau (`../TESTUMBAU.md`). Läuft nicht in der CI und wird nicht weiterentwickelt; die gepflegte Fassung ist
+> `../gesamt-tests/`. Einzige Abweichungen: `spec` verweist auf `../spec`, `CLAUDE.md` heißt `REGELN-ALT.md`.
+
+# kontor-tests
+
+Konzept, Testkonzept, Schnittstellenspezifikation, Testdatengenerator und Tests
+für **Kontor**, eine selbst gehostete Finanz-Web-App (Python, FastAPI, SQLite,
+Single-Page-Weboberfläche).
+
+| Pfad | Inhalt |
+| --- | --- |
+| `spec/konzept.md` | Fachkonzept |
+| `spec/testkonzept.md` | Testkonzept |
+| `spec/api/` | Verbindliche Schnittstellenspezifikation (Datenmodell, Python-API, OpenAPI, Plugins, Entscheidungen) |
+| `generator/` | Testdatengenerator mit festem Startwert |
+| `fixtures/` | Vom Generator erzeugte Testdateien samt Erwartungsdateien |
+| `tests/` | pytest- und Hypothesis-Tests |
+
+Wie die Tests gegen eine installierte Anwendung laufen: siehe `TESTS_AUSFUEHREN.md`.
+Regeln für Arbeits-Threads in diesem Repository: siehe `CLAUDE.md`.
