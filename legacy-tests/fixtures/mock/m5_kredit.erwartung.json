@@ -1,0 +1,1216 @@
+{
+  "abruf": {
+    "bis": "2025-01-31",
+    "von": "2024-01-01"
+  },
+  "beschreibung": "Kredit in der Synchronisation (kredite.md 4, 5). Ablauf: Darlehenskonto (kreditkonto) und Kategorie Zinsen anlegen, Kredit mit 'kredit' und der Zinsmethode anlegen (zahlungskonto = Konto der IBAN, nach dem ersten Abruf), Abruf 2024-01-01 bis 2025-01-31. Die Sondertilgung bucht der Anwender auf das Darlehenskonto um; danach Jahresabgleich 2024 mit einem der Jahresauszüge.",
+  "iban": "DE37000000000000005511",
+  "kredit": {
+    "bedingungen": [
+      {
+        "feld": "empfaenger",
+        "operator": "gleich",
+        "wert": "Fiktivbank AG"
+      },
+      {
+        "feld": "verwendungszweck",
+        "operator": "enthaelt",
+        "wert": "Darlehen 0815"
+      }
+    ],
+    "erste_faelligkeit": "2024-01-30",
+    "name": "Darlehen Fiktivbank 0815",
+    "rate": 95000,
+    "restschuld": 15000000,
+    "sollzins": 38700,
+    "sondertilgungen": [
+      {
+        "betrag": 1000000,
+        "datum": "2024-07-15"
+      }
+    ],
+    "stand_datum": "2023-12-31"
+  },
+  "methoden": {
+    "30/360": {
+      "aufteilung": {
+        "K-0001": {
+          "faelligkeit": "2024-01-30",
+          "tilgung": 46625,
+          "zins": 48375
+        },
+        "K-0002": {
+          "faelligkeit": "2024-02-29",
+          "tilgung": 46775,
+          "zins": 48225
+        },
+        "K-0003": {
+          "faelligkeit": "2024-03-30",
+          "tilgung": 46926,
+          "zins": 48074
+        },
+        "K-0004": {
+          "faelligkeit": "2024-04-30",
+          "tilgung": 47078,
+          "zins": 47922
+        },
+        "K-0005": {
+          "faelligkeit": "2024-05-30",
+          "tilgung": 47229,
+          "zins": 47771
+        },
+        "K-0006": {
+          "faelligkeit": "2024-06-30",
+          "tilgung": 47382,
+          "zins": 47618
+        },
+        "K-0007": {
+          "faelligkeit": "2024-07-30",
+          "tilgung": 49147,
+          "zins": 45853
+        },
+        "K-0008": {
+          "faelligkeit": "2024-08-30",
+          "tilgung": 50918,
+          "zins": 44082
+        },
+        "K-0009": {
+          "faelligkeit": "2024-09-30",
+          "tilgung": 51082,
+          "zins": 43918
+        },
+        "K-0010": {
+          "faelligkeit": "2024-10-30",
+          "tilgung": 51247,
+          "zins": 43753
+        },
+        "K-0011": {
+          "faelligkeit": "2024-11-30",
+          "tilgung": 51412,
+          "zins": 43588
+        },
+        "K-0012": {
+          "faelligkeit": "2024-12-30",
+          "tilgung": 51578,
+          "zins": 43422
+        },
+        "K-0013": {
+          "faelligkeit": "2025-01-30",
+          "tilgung": 51744,
+          "zins": 43256
+        }
+      },
+      "jahresauszug_2024": {
+        "abweichend": {
+          "differenz_restschuld": -200,
+          "differenz_zinsen": 50,
+          "korrektur": [
+            {
+              "betrag": 50,
+              "konto": "zins",
+              "memo": "Zinskorrektur"
+            },
+            {
+              "betrag": 200,
+              "konto": "darlehen",
+              "memo": "Restschuldkorrektur"
+            },
+            {
+              "betrag": -250,
+              "konto": "korrekturen",
+              "memo": ""
+            }
+          ],
+          "restschuld": 13412401,
+          "restschuld_berechnet": 13412601,
+          "zinsen": 552651,
+          "zinsen_berechnet": 552601
+        },
+        "exakt": {
+          "differenz_restschuld": 0,
+          "differenz_zinsen": 0,
+          "korrektur": [],
+          "restschuld": 13412601,
+          "restschuld_berechnet": 13412601,
+          "zinsen": 552601,
+          "zinsen_berechnet": 552601
+        },
+        "nur_restschuld": {
+          "differenz_restschuld": 1,
+          "differenz_zinsen": 0,
+          "korrektur": [
+            {
+              "betrag": -1,
+              "konto": "darlehen",
+              "memo": "Restschuldkorrektur"
+            },
+            {
+              "betrag": 1,
+              "konto": "korrekturen",
+              "memo": ""
+            }
+          ],
+          "restschuld": 13412602,
+          "restschuld_berechnet": 13412601,
+          "zinsen": 552601,
+          "zinsen_berechnet": 552601
+        },
+        "nur_zinsen": {
+          "differenz_restschuld": 0,
+          "differenz_zinsen": -7,
+          "korrektur": [
+            {
+              "betrag": -7,
+              "konto": "zins",
+              "memo": "Zinskorrektur"
+            },
+            {
+              "betrag": 7,
+              "konto": "korrekturen",
+              "memo": ""
+            }
+          ],
+          "restschuld": 13412601,
+          "restschuld_berechnet": 13412601,
+          "zinsen": 552594,
+          "zinsen_berechnet": 552601
+        },
+        "zins_hoeher": {
+          "differenz_restschuld": 123,
+          "differenz_zinsen": 123,
+          "korrektur": [
+            {
+              "betrag": 123,
+              "konto": "zins",
+              "memo": "Zinskorrektur"
+            },
+            {
+              "betrag": -123,
+              "konto": "darlehen",
+              "memo": "Restschuldkorrektur"
+            }
+          ],
+          "restschuld": 13412724,
+          "restschuld_berechnet": 13412601,
+          "zinsen": 552724,
+          "zinsen_berechnet": 552601
+        }
+      },
+      "plan_zeilen_2024": [
+        {
+          "faelligkeit": "2024-01-30",
+          "nr": 1,
+          "rate": 95000,
+          "restschuld_nachher": 14953375,
+          "restschuld_vorher": 15000000,
+          "sondertilgung": 0,
+          "tilgung": 46625,
+          "zins": 48375,
+          "zinstage": 30
+        },
+        {
+          "faelligkeit": "2024-02-29",
+          "nr": 2,
+          "rate": 95000,
+          "restschuld_nachher": 14906600,
+          "restschuld_vorher": 14953375,
+          "sondertilgung": 0,
+          "tilgung": 46775,
+          "zins": 48225,
+          "zinstage": 30
+        },
+        {
+          "faelligkeit": "2024-03-30",
+          "nr": 3,
+          "rate": 95000,
+          "restschuld_nachher": 14859674,
+          "restschuld_vorher": 14906600,
+          "sondertilgung": 0,
+          "tilgung": 46926,
+          "zins": 48074,
+          "zinstage": 30
+        },
+        {
+          "faelligkeit": "2024-04-30",
+          "nr": 4,
+          "rate": 95000,
+          "restschuld_nachher": 14812596,
+          "restschuld_vorher": 14859674,
+          "sondertilgung": 0,
+          "tilgung": 47078,
+          "zins": 47922,
+          "zinstage": 30
+        },
+        {
+          "faelligkeit": "2024-05-30",
+          "nr": 5,
+          "rate": 95000,
+          "restschuld_nachher": 14765367,
+          "restschuld_vorher": 14812596,
+          "sondertilgung": 0,
+          "tilgung": 47229,
+          "zins": 47771,
+          "zinstage": 30
+        },
+        {
+          "faelligkeit": "2024-06-30",
+          "nr": 6,
+          "rate": 95000,
+          "restschuld_nachher": 14717985,
+          "restschuld_vorher": 14765367,
+          "sondertilgung": 0,
+          "tilgung": 47382,
+          "zins": 47618,
+          "zinstage": 30
+        },
+        {
+          "faelligkeit": "2024-07-30",
+          "nr": 7,
+          "rate": 95000,
+          "restschuld_nachher": 13668838,
+          "restschuld_vorher": 14717985,
+          "sondertilgung": 1000000,
+          "tilgung": 49147,
+          "zins": 45853,
+          "zinstage": 30
+        },
+        {
+          "faelligkeit": "2024-08-30",
+          "nr": 8,
+          "rate": 95000,
+          "restschuld_nachher": 13617920,
+          "restschuld_vorher": 13668838,
+          "sondertilgung": 0,
+          "tilgung": 50918,
+          "zins": 44082,
+          "zinstage": 30
+        },
+        {
+          "faelligkeit": "2024-09-30",
+          "nr": 9,
+          "rate": 95000,
+          "restschuld_nachher": 13566838,
+          "restschuld_vorher": 13617920,
+          "sondertilgung": 0,
+          "tilgung": 51082,
+          "zins": 43918,
+          "zinstage": 30
+        },
+        {
+          "faelligkeit": "2024-10-30",
+          "nr": 10,
+          "rate": 95000,
+          "restschuld_nachher": 13515591,
+          "restschuld_vorher": 13566838,
+          "sondertilgung": 0,
+          "tilgung": 51247,
+          "zins": 43753,
+          "zinstage": 30
+        },
+        {
+          "faelligkeit": "2024-11-30",
+          "nr": 11,
+          "rate": 95000,
+          "restschuld_nachher": 13464179,
+          "restschuld_vorher": 13515591,
+          "sondertilgung": 0,
+          "tilgung": 51412,
+          "zins": 43588,
+          "zinstage": 30
+        },
+        {
+          "faelligkeit": "2024-12-30",
+          "nr": 12,
+          "rate": 95000,
+          "restschuld_nachher": 13412601,
+          "restschuld_vorher": 13464179,
+          "sondertilgung": 0,
+          "tilgung": 51578,
+          "zins": 43422,
+          "zinstage": 30
+        },
+        {
+          "faelligkeit": "2025-01-30",
+          "nr": 13,
+          "rate": 95000,
+          "restschuld_nachher": 13360857,
+          "restschuld_vorher": 13412601,
+          "sondertilgung": 0,
+          "tilgung": 51744,
+          "zins": 43256,
+          "zinstage": 30
+        }
+      ],
+      "raten_2024": [
+        "K-0001",
+        "K-0002",
+        "K-0003",
+        "K-0004",
+        "K-0005",
+        "K-0006",
+        "K-0007",
+        "K-0008",
+        "K-0009",
+        "K-0010",
+        "K-0011",
+        "K-0012"
+      ]
+    },
+    "act/360": {
+      "aufteilung": {
+        "K-0001": {
+          "faelligkeit": "2024-01-30",
+          "tilgung": 46625,
+          "zins": 48375
+        },
+        "K-0002": {
+          "faelligkeit": "2024-02-29",
+          "tilgung": 46775,
+          "zins": 48225
+        },
+        "K-0003": {
+          "faelligkeit": "2024-03-30",
+          "tilgung": 46926,
+          "zins": 48074
+        },
+        "K-0004": {
+          "faelligkeit": "2024-04-30",
+          "tilgung": 45480,
+          "zins": 49520
+        },
+        "K-0005": {
+          "faelligkeit": "2024-05-30",
+          "tilgung": 47224,
+          "zins": 47776
+        },
+        "K-0006": {
+          "faelligkeit": "2024-06-30",
+          "tilgung": 45789,
+          "zins": 49211
+        },
+        "K-0007": {
+          "faelligkeit": "2024-07-30",
+          "tilgung": 49137,
+          "zins": 45863
+        },
+        "K-0008": {
+          "faelligkeit": "2024-08-30",
+          "tilgung": 49438,
+          "zins": 45562
+        },
+        "K-0009": {
+          "faelligkeit": "2024-09-30",
+          "tilgung": 49603,
+          "zins": 45397
+        },
+        "K-0010": {
+          "faelligkeit": "2024-10-30",
+          "tilgung": 51227,
+          "zins": 43773
+        },
+        "K-0011": {
+          "faelligkeit": "2024-11-30",
+          "tilgung": 49939,
+          "zins": 45061
+        },
+        "K-0012": {
+          "faelligkeit": "2024-12-30",
+          "tilgung": 51553,
+          "zins": 43447
+        },
+        "K-0013": {
+          "faelligkeit": "2025-01-30",
+          "tilgung": 50277,
+          "zins": 44723
+        }
+      },
+      "jahresauszug_2024": {
+        "abweichend": {
+          "differenz_restschuld": -200,
+          "differenz_zinsen": 50,
+          "korrektur": [
+            {
+              "betrag": 50,
+              "konto": "zins",
+              "memo": "Zinskorrektur"
+            },
+            {
+              "betrag": 200,
+              "konto": "darlehen",
+              "memo": "Restschuldkorrektur"
+            },
+            {
+              "betrag": -250,
+              "konto": "korrekturen",
+              "memo": ""
+            }
+          ],
+          "restschuld": 13420084,
+          "restschuld_berechnet": 13420284,
+          "zinsen": 560334,
+          "zinsen_berechnet": 560284
+        },
+        "exakt": {
+          "differenz_restschuld": 0,
+          "differenz_zinsen": 0,
+          "korrektur": [],
+          "restschuld": 13420284,
+          "restschuld_berechnet": 13420284,
+          "zinsen": 560284,
+          "zinsen_berechnet": 560284
+        },
+        "nur_restschuld": {
+          "differenz_restschuld": 1,
+          "differenz_zinsen": 0,
+          "korrektur": [
+            {
+              "betrag": -1,
+              "konto": "darlehen",
+              "memo": "Restschuldkorrektur"
+            },
+            {
+              "betrag": 1,
+              "konto": "korrekturen",
+              "memo": ""
+            }
+          ],
+          "restschuld": 13420285,
+          "restschuld_berechnet": 13420284,
+          "zinsen": 560284,
+          "zinsen_berechnet": 560284
+        },
+        "nur_zinsen": {
+          "differenz_restschuld": 0,
+          "differenz_zinsen": -7,
+          "korrektur": [
+            {
+              "betrag": -7,
+              "konto": "zins",
+              "memo": "Zinskorrektur"
+            },
+            {
+              "betrag": 7,
+              "konto": "korrekturen",
+              "memo": ""
+            }
+          ],
+          "restschuld": 13420284,
+          "restschuld_berechnet": 13420284,
+          "zinsen": 560277,
+          "zinsen_berechnet": 560284
+        },
+        "zins_hoeher": {
+          "differenz_restschuld": 123,
+          "differenz_zinsen": 123,
+          "korrektur": [
+            {
+              "betrag": 123,
+              "konto": "zins",
+              "memo": "Zinskorrektur"
+            },
+            {
+              "betrag": -123,
+              "konto": "darlehen",
+              "memo": "Restschuldkorrektur"
+            }
+          ],
+          "restschuld": 13420407,
+          "restschuld_berechnet": 13420284,
+          "zinsen": 560407,
+          "zinsen_berechnet": 560284
+        }
+      },
+      "plan_zeilen_2024": [
+        {
+          "faelligkeit": "2024-01-30",
+          "nr": 1,
+          "rate": 95000,
+          "restschuld_nachher": 14953375,
+          "restschuld_vorher": 15000000,
+          "sondertilgung": 0,
+          "tilgung": 46625,
+          "zins": 48375,
+          "zinstage": 30
+        },
+        {
+          "faelligkeit": "2024-02-29",
+          "nr": 2,
+          "rate": 95000,
+          "restschuld_nachher": 14906600,
+          "restschuld_vorher": 14953375,
+          "sondertilgung": 0,
+          "tilgung": 46775,
+          "zins": 48225,
+          "zinstage": 30
+        },
+        {
+          "faelligkeit": "2024-03-30",
+          "nr": 3,
+          "rate": 95000,
+          "restschuld_nachher": 14859674,
+          "restschuld_vorher": 14906600,
+          "sondertilgung": 0,
+          "tilgung": 46926,
+          "zins": 48074,
+          "zinstage": 30
+        },
+        {
+          "faelligkeit": "2024-04-30",
+          "nr": 4,
+          "rate": 95000,
+          "restschuld_nachher": 14814194,
+          "restschuld_vorher": 14859674,
+          "sondertilgung": 0,
+          "tilgung": 45480,
+          "zins": 49520,
+          "zinstage": 31
+        },
+        {
+          "faelligkeit": "2024-05-30",
+          "nr": 5,
+          "rate": 95000,
+          "restschuld_nachher": 14766970,
+          "restschuld_vorher": 14814194,
+          "sondertilgung": 0,
+          "tilgung": 47224,
+          "zins": 47776,
+          "zinstage": 30
+        },
+        {
+          "faelligkeit": "2024-06-30",
+          "nr": 6,
+          "rate": 95000,
+          "restschuld_nachher": 14721181,
+          "restschuld_vorher": 14766970,
+          "sondertilgung": 0,
+          "tilgung": 45789,
+          "zins": 49211,
+          "zinstage": 31
+        },
+        {
+          "faelligkeit": "2024-07-30",
+          "nr": 7,
+          "rate": 95000,
+          "restschuld_nachher": 13672044,
+          "restschuld_vorher": 14721181,
+          "sondertilgung": 1000000,
+          "tilgung": 49137,
+          "zins": 45863,
+          "zinstage": 30
+        },
+        {
+          "faelligkeit": "2024-08-30",
+          "nr": 8,
+          "rate": 95000,
+          "restschuld_nachher": 13622606,
+          "restschuld_vorher": 13672044,
+          "sondertilgung": 0,
+          "tilgung": 49438,
+          "zins": 45562,
+          "zinstage": 31
+        },
+        {
+          "faelligkeit": "2024-09-30",
+          "nr": 9,
+          "rate": 95000,
+          "restschuld_nachher": 13573003,
+          "restschuld_vorher": 13622606,
+          "sondertilgung": 0,
+          "tilgung": 49603,
+          "zins": 45397,
+          "zinstage": 31
+        },
+        {
+          "faelligkeit": "2024-10-30",
+          "nr": 10,
+          "rate": 95000,
+          "restschuld_nachher": 13521776,
+          "restschuld_vorher": 13573003,
+          "sondertilgung": 0,
+          "tilgung": 51227,
+          "zins": 43773,
+          "zinstage": 30
+        },
+        {
+          "faelligkeit": "2024-11-30",
+          "nr": 11,
+          "rate": 95000,
+          "restschuld_nachher": 13471837,
+          "restschuld_vorher": 13521776,
+          "sondertilgung": 0,
+          "tilgung": 49939,
+          "zins": 45061,
+          "zinstage": 31
+        },
+        {
+          "faelligkeit": "2024-12-30",
+          "nr": 12,
+          "rate": 95000,
+          "restschuld_nachher": 13420284,
+          "restschuld_vorher": 13471837,
+          "sondertilgung": 0,
+          "tilgung": 51553,
+          "zins": 43447,
+          "zinstage": 30
+        },
+        {
+          "faelligkeit": "2025-01-30",
+          "nr": 13,
+          "rate": 95000,
+          "restschuld_nachher": 13370007,
+          "restschuld_vorher": 13420284,
+          "sondertilgung": 0,
+          "tilgung": 50277,
+          "zins": 44723,
+          "zinstage": 31
+        }
+      ],
+      "raten_2024": [
+        "K-0001",
+        "K-0002",
+        "K-0003",
+        "K-0004",
+        "K-0005",
+        "K-0006",
+        "K-0007",
+        "K-0008",
+        "K-0009",
+        "K-0010",
+        "K-0011",
+        "K-0012"
+      ]
+    },
+    "act/365": {
+      "aufteilung": {
+        "K-0001": {
+          "faelligkeit": "2024-01-30",
+          "tilgung": 47288,
+          "zins": 47712
+        },
+        "K-0002": {
+          "faelligkeit": "2024-02-29",
+          "tilgung": 47438,
+          "zins": 47562
+        },
+        "K-0003": {
+          "faelligkeit": "2024-03-30",
+          "tilgung": 47589,
+          "zins": 47411
+        },
+        "K-0004": {
+          "faelligkeit": "2024-04-30",
+          "tilgung": 46165,
+          "zins": 48835
+        },
+        "K-0005": {
+          "faelligkeit": "2024-05-30",
+          "tilgung": 47887,
+          "zins": 47113
+        },
+        "K-0006": {
+          "faelligkeit": "2024-06-30",
+          "tilgung": 46474,
+          "zins": 48526
+        },
+        "K-0007": {
+          "faelligkeit": "2024-07-30",
+          "tilgung": 49778,
+          "zins": 45222
+        },
+        "K-0008": {
+          "faelligkeit": "2024-08-30",
+          "tilgung": 50077,
+          "zins": 44923
+        },
+        "K-0009": {
+          "faelligkeit": "2024-09-30",
+          "tilgung": 50242,
+          "zins": 44758
+        },
+        "K-0010": {
+          "faelligkeit": "2024-10-30",
+          "tilgung": 51846,
+          "zins": 43154
+        },
+        "K-0011": {
+          "faelligkeit": "2024-11-30",
+          "tilgung": 50578,
+          "zins": 44422
+        },
+        "K-0012": {
+          "faelligkeit": "2024-12-30",
+          "tilgung": 52171,
+          "zins": 42829
+        },
+        "K-0013": {
+          "faelligkeit": "2025-01-30",
+          "tilgung": 50915,
+          "zins": 44085
+        }
+      },
+      "jahresauszug_2024": {
+        "abweichend": {
+          "differenz_restschuld": -200,
+          "differenz_zinsen": 50,
+          "korrektur": [
+            {
+              "betrag": 50,
+              "konto": "zins",
+              "memo": "Zinskorrektur"
+            },
+            {
+              "betrag": 200,
+              "konto": "darlehen",
+              "memo": "Restschuldkorrektur"
+            },
+            {
+              "betrag": -250,
+              "konto": "korrekturen",
+              "memo": ""
+            }
+          ],
+          "restschuld": 13412267,
+          "restschuld_berechnet": 13412467,
+          "zinsen": 552517,
+          "zinsen_berechnet": 552467
+        },
+        "exakt": {
+          "differenz_restschuld": 0,
+          "differenz_zinsen": 0,
+          "korrektur": [],
+          "restschuld": 13412467,
+          "restschuld_berechnet": 13412467,
+          "zinsen": 552467,
+          "zinsen_berechnet": 552467
+        },
+        "nur_restschuld": {
+          "differenz_restschuld": 1,
+          "differenz_zinsen": 0,
+          "korrektur": [
+            {
+              "betrag": -1,
+              "konto": "darlehen",
+              "memo": "Restschuldkorrektur"
+            },
+            {
+              "betrag": 1,
+              "konto": "korrekturen",
+              "memo": ""
+            }
+          ],
+          "restschuld": 13412468,
+          "restschuld_berechnet": 13412467,
+          "zinsen": 552467,
+          "zinsen_berechnet": 552467
+        },
+        "nur_zinsen": {
+          "differenz_restschuld": 0,
+          "differenz_zinsen": -7,
+          "korrektur": [
+            {
+              "betrag": -7,
+              "konto": "zins",
+              "memo": "Zinskorrektur"
+            },
+            {
+              "betrag": 7,
+              "konto": "korrekturen",
+              "memo": ""
+            }
+          ],
+          "restschuld": 13412467,
+          "restschuld_berechnet": 13412467,
+          "zinsen": 552460,
+          "zinsen_berechnet": 552467
+        },
+        "zins_hoeher": {
+          "differenz_restschuld": 123,
+          "differenz_zinsen": 123,
+          "korrektur": [
+            {
+              "betrag": 123,
+              "konto": "zins",
+              "memo": "Zinskorrektur"
+            },
+            {
+              "betrag": -123,
+              "konto": "darlehen",
+              "memo": "Restschuldkorrektur"
+            }
+          ],
+          "restschuld": 13412590,
+          "restschuld_berechnet": 13412467,
+          "zinsen": 552590,
+          "zinsen_berechnet": 552467
+        }
+      },
+      "plan_zeilen_2024": [
+        {
+          "faelligkeit": "2024-01-30",
+          "nr": 1,
+          "rate": 95000,
+          "restschuld_nachher": 14952712,
+          "restschuld_vorher": 15000000,
+          "sondertilgung": 0,
+          "tilgung": 47288,
+          "zins": 47712,
+          "zinstage": 30
+        },
+        {
+          "faelligkeit": "2024-02-29",
+          "nr": 2,
+          "rate": 95000,
+          "restschuld_nachher": 14905274,
+          "restschuld_vorher": 14952712,
+          "sondertilgung": 0,
+          "tilgung": 47438,
+          "zins": 47562,
+          "zinstage": 30
+        },
+        {
+          "faelligkeit": "2024-03-30",
+          "nr": 3,
+          "rate": 95000,
+          "restschuld_nachher": 14857685,
+          "restschuld_vorher": 14905274,
+          "sondertilgung": 0,
+          "tilgung": 47589,
+          "zins": 47411,
+          "zinstage": 30
+        },
+        {
+          "faelligkeit": "2024-04-30",
+          "nr": 4,
+          "rate": 95000,
+          "restschuld_nachher": 14811520,
+          "restschuld_vorher": 14857685,
+          "sondertilgung": 0,
+          "tilgung": 46165,
+          "zins": 48835,
+          "zinstage": 31
+        },
+        {
+          "faelligkeit": "2024-05-30",
+          "nr": 5,
+          "rate": 95000,
+          "restschuld_nachher": 14763633,
+          "restschuld_vorher": 14811520,
+          "sondertilgung": 0,
+          "tilgung": 47887,
+          "zins": 47113,
+          "zinstage": 30
+        },
+        {
+          "faelligkeit": "2024-06-30",
+          "nr": 6,
+          "rate": 95000,
+          "restschuld_nachher": 14717159,
+          "restschuld_vorher": 14763633,
+          "sondertilgung": 0,
+          "tilgung": 46474,
+          "zins": 48526,
+          "zinstage": 31
+        },
+        {
+          "faelligkeit": "2024-07-30",
+          "nr": 7,
+          "rate": 95000,
+          "restschuld_nachher": 13667381,
+          "restschuld_vorher": 14717159,
+          "sondertilgung": 1000000,
+          "tilgung": 49778,
+          "zins": 45222,
+          "zinstage": 30
+        },
+        {
+          "faelligkeit": "2024-08-30",
+          "nr": 8,
+          "rate": 95000,
+          "restschuld_nachher": 13617304,
+          "restschuld_vorher": 13667381,
+          "sondertilgung": 0,
+          "tilgung": 50077,
+          "zins": 44923,
+          "zinstage": 31
+        },
+        {
+          "faelligkeit": "2024-09-30",
+          "nr": 9,
+          "rate": 95000,
+          "restschuld_nachher": 13567062,
+          "restschuld_vorher": 13617304,
+          "sondertilgung": 0,
+          "tilgung": 50242,
+          "zins": 44758,
+          "zinstage": 31
+        },
+        {
+          "faelligkeit": "2024-10-30",
+          "nr": 10,
+          "rate": 95000,
+          "restschuld_nachher": 13515216,
+          "restschuld_vorher": 13567062,
+          "sondertilgung": 0,
+          "tilgung": 51846,
+          "zins": 43154,
+          "zinstage": 30
+        },
+        {
+          "faelligkeit": "2024-11-30",
+          "nr": 11,
+          "rate": 95000,
+          "restschuld_nachher": 13464638,
+          "restschuld_vorher": 13515216,
+          "sondertilgung": 0,
+          "tilgung": 50578,
+          "zins": 44422,
+          "zinstage": 31
+        },
+        {
+          "faelligkeit": "2024-12-30",
+          "nr": 12,
+          "rate": 95000,
+          "restschuld_nachher": 13412467,
+          "restschuld_vorher": 13464638,
+          "sondertilgung": 0,
+          "tilgung": 52171,
+          "zins": 42829,
+          "zinstage": 30
+        },
+        {
+          "faelligkeit": "2025-01-30",
+          "nr": 13,
+          "rate": 95000,
+          "restschuld_nachher": 13361552,
+          "restschuld_vorher": 13412467,
+          "sondertilgung": 0,
+          "tilgung": 50915,
+          "zins": 44085,
+          "zinstage": 31
+        }
+      ],
+      "raten_2024": [
+        "K-0001",
+        "K-0002",
+        "K-0003",
+        "K-0004",
+        "K-0005",
+        "K-0006",
+        "K-0007",
+        "K-0008",
+        "K-0009",
+        "K-0010",
+        "K-0011",
+        "K-0012"
+      ]
+    }
+  },
+  "startwert": 4711,
+  "umsatz_art": {
+    "K-0001": {
+      "art": "rate",
+      "faelligkeit": "2024-01-30"
+    },
+    "K-0002": {
+      "art": "rate",
+      "faelligkeit": "2024-02-29"
+    },
+    "K-0003": {
+      "art": "rate",
+      "faelligkeit": "2024-03-30"
+    },
+    "K-0004": {
+      "art": "rate",
+      "faelligkeit": "2024-04-30"
+    },
+    "K-0005": {
+      "art": "rate",
+      "faelligkeit": "2024-05-30"
+    },
+    "K-0006": {
+      "art": "rate",
+      "faelligkeit": "2024-06-30"
+    },
+    "K-0007": {
+      "art": "rate",
+      "faelligkeit": "2024-07-30"
+    },
+    "K-0008": {
+      "art": "rate",
+      "faelligkeit": "2024-08-30"
+    },
+    "K-0009": {
+      "art": "rate",
+      "faelligkeit": "2024-09-30"
+    },
+    "K-0010": {
+      "art": "rate",
+      "faelligkeit": "2024-10-30"
+    },
+    "K-0011": {
+      "art": "rate",
+      "faelligkeit": "2024-11-30"
+    },
+    "K-0012": {
+      "art": "rate",
+      "faelligkeit": "2024-12-30"
+    },
+    "K-0013": {
+      "art": "rate",
+      "faelligkeit": "2025-01-30"
+    },
+    "K-0014": {
+      "art": "sondertilgung"
+    },
+    "K-0015": {
+      "art": "fremd_gleicher_betrag"
+    },
+    "K-0016": {
+      "art": "gebuehr"
+    },
+    "K-0017": {
+      "art": "anderer_zweck"
+    },
+    "K-0018": {
+      "art": "sonstig"
+    },
+    "K-0019": {
+      "art": "sonstig"
+    },
+    "K-0020": {
+      "art": "sonstig"
+    },
+    "K-0021": {
+      "art": "sonstig"
+    },
+    "K-0022": {
+      "art": "sonstig"
+    },
+    "K-0023": {
+      "art": "sonstig"
+    },
+    "K-0024": {
+      "art": "sonstig"
+    },
+    "K-0025": {
+      "art": "sonstig"
+    },
+    "K-0026": {
+      "art": "sonstig"
+    },
+    "K-0027": {
+      "art": "sonstig"
+    },
+    "K-0028": {
+      "art": "sonstig"
+    },
+    "K-0029": {
+      "art": "sonstig"
+    },
+    "K-0030": {
+      "art": "sonstig"
+    },
+    "K-0031": {
+      "art": "sonstig"
+    },
+    "K-0032": {
+      "art": "sonstig"
+    },
+    "K-0033": {
+      "art": "sonstig"
+    },
+    "K-0034": {
+      "art": "sonstig"
+    },
+    "K-0035": {
+      "art": "sonstig"
+    },
+    "K-0036": {
+      "art": "sonstig"
+    },
+    "K-0037": {
+      "art": "sonstig"
+    },
+    "K-0038": {
+      "art": "sonstig"
+    },
+    "K-0039": {
+      "art": "sonstig"
+    },
+    "K-0040": {
+      "art": "sonstig"
+    },
+    "K-0041": {
+      "art": "sonstig"
+    },
+    "K-0042": {
+      "art": "sonstig"
+    },
+    "K-0043": {
+      "art": "sonstig"
+    },
+    "K-0044": {
+      "art": "sonstig"
+    },
+    "K-0045": {
+      "art": "sonstig"
+    },
+    "K-0046": {
+      "art": "sonstig"
+    },
+    "K-0047": {
+      "art": "sonstig"
+    },
+    "K-0048": {
+      "art": "sonstig"
+    },
+    "K-0049": {
+      "art": "sonstig"
+    },
+    "K-0050": {
+      "art": "sonstig"
+    },
+    "K-0051": {
+      "art": "sonstig"
+    },
+    "K-0052": {
+      "art": "sonstig"
+    },
+    "K-0053": {
+      "art": "sonstig"
+    },
+    "K-0054": {
+      "art": "sonstig"
+    },
+    "K-0055": {
+      "art": "sonstig"
+    },
+    "K-0056": {
+      "art": "sonstig"
+    },
+    "K-0057": {
+      "art": "sonstig"
+    },
+    "K-0058": {
+      "art": "sonstig"
+    },
+    "K-0059": {
+      "art": "sonstig"
+    },
+    "K-0060": {
+      "art": "sonstig"
+    },
+    "K-0061": {
+      "art": "sonstig"
+    },
+    "K-0062": {
+      "art": "sonstig"
+    },
+    "K-0063": {
+      "art": "sonstig"
+    },
+    "K-0064": {
+      "art": "sonstig"
+    }
+  }
+}

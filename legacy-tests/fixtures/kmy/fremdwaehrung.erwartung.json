@@ -1,0 +1,246 @@
+{
+  "art": "kmymoney",
+  "buchungen": [
+    {
+      "datum": "2024-01-01",
+      "empfaenger": null,
+      "extern_id": "kmy:T000000000000000001",
+      "kategorie_extern_id": null,
+      "splits": [
+        {
+          "betrag": 200000,
+          "konto_extern_id": "kmy:A000001",
+          "memo": ""
+        },
+        {
+          "betrag": -200000,
+          "konto_extern_id": "kmy:A000006",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 200000,
+      "verwendungszweck": "Anfangsbestand",
+      "wahre_kategorie_extern_id": null
+    },
+    {
+      "datum": "2024-01-02",
+      "empfaenger": "Supermarkt Frischekorb",
+      "extern_id": "kmy:T000000000000000002",
+      "kategorie_extern_id": "kmy:A000007",
+      "splits": [
+        {
+          "betrag": -4500,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Einkauf"
+        },
+        {
+          "betrag": 4500,
+          "konto_extern_id": "kmy:A000007",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 4500,
+      "verwendungszweck": "Einkauf",
+      "wahre_kategorie_extern_id": "kmy:A000007"
+    },
+    {
+      "datum": "2024-01-07",
+      "empfaenger": "Broker (fiktiv)",
+      "extern_id": "kmy:T000000000000000007",
+      "kategorie_extern_id": "kmy:A000008",
+      "splits": [
+        {
+          "betrag": -995,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Depotgebühr"
+        },
+        {
+          "betrag": 995,
+          "konto_extern_id": "kmy:A000008",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 995,
+      "verwendungszweck": "Depotgebühr",
+      "wahre_kategorie_extern_id": "kmy:A000008"
+    },
+    {
+      "datum": "2024-01-08",
+      "empfaenger": null,
+      "extern_id": "kmy:T000000000000000008",
+      "kategorie_extern_id": null,
+      "splits": [
+        {
+          "betrag": -7000,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Sparrate"
+        },
+        {
+          "betrag": 7000,
+          "konto_extern_id": "kmy:A000005",
+          "memo": "Sparrate"
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": true,
+      "umsatz": 7000,
+      "verwendungszweck": "Sparrate",
+      "wahre_kategorie_extern_id": null
+    }
+  ],
+  "empfaenger": [
+    {
+      "extern_id": "kmy:P000001",
+      "name": "Supermarkt Frischekorb"
+    },
+    {
+      "extern_id": "kmy:P000002",
+      "name": "Broker (fiktiv)"
+    }
+  ],
+  "erfolgreich": true,
+  "ergebnis": {
+    "buchungen_neu": 4,
+    "buchungen_uebersprungen": 4,
+    "buchungen_vorhanden": 0,
+    "buchungen_zur_pruefung": 0,
+    "buchungen_zusammengefuehrt": 0,
+    "empfaenger_neu": 2,
+    "empfaenger_vorhanden": 0,
+    "erfolgreich": true,
+    "format": "kmy-gzip",
+    "kategorien_neu": 2,
+    "kategorien_vorhanden": 0,
+    "konten_neu": 3,
+    "konten_vorhanden": 0,
+    "splits_neu": 8,
+    "tags_neu": 0,
+    "tags_vorhanden": 0
+  },
+  "fehler_code": null,
+  "fixture": "kmy/fremdwaehrung.kmy",
+  "konten": [
+    {
+      "anzahl_buchungen": 4,
+      "art": "girokonto",
+      "eltern_extern_id": null,
+      "eroeffnet_am": null,
+      "extern_id": "kmy:A000001",
+      "geschlossen": false,
+      "iban": "DE33000000000000005001",
+      "ist_kategorie": false,
+      "name": "Girokonto",
+      "notiz": "",
+      "saldo": 187505,
+      "saldo_gesamt": 187505
+    },
+    {
+      "anzahl_buchungen": 1,
+      "art": "sparkonto",
+      "eltern_extern_id": null,
+      "eroeffnet_am": null,
+      "extern_id": "kmy:A000005",
+      "geschlossen": false,
+      "iban": "DE22000000000000005005",
+      "ist_kategorie": false,
+      "name": "Sparunterkonto",
+      "notiz": "",
+      "saldo": 7000,
+      "saldo_gesamt": 7000
+    },
+    {
+      "anzahl_buchungen": 1,
+      "art": "eigenkapital",
+      "eltern_extern_id": null,
+      "eroeffnet_am": null,
+      "extern_id": "kmy:A000006",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": false,
+      "name": "Anfangsbestand",
+      "notiz": "",
+      "saldo": -200000,
+      "saldo_gesamt": -200000
+    },
+    {
+      "anzahl_buchungen": 1,
+      "art": "aufwand",
+      "eltern_extern_id": null,
+      "eroeffnet_am": null,
+      "extern_id": "kmy:A000007",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Lebensmittel",
+      "notiz": "",
+      "saldo": 4500,
+      "saldo_gesamt": 4500
+    },
+    {
+      "anzahl_buchungen": 1,
+      "art": "aufwand",
+      "eltern_extern_id": null,
+      "eroeffnet_am": null,
+      "extern_id": "kmy:A000008",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Gebühren",
+      "notiz": "",
+      "saldo": 995,
+      "saldo_gesamt": 995
+    }
+  ],
+  "startwert": 4711,
+  "summen": {
+    "anzahl_buchungen": 4,
+    "anzahl_splits": 8,
+    "anzahl_transaktionen_in_datei": 8,
+    "summe_bestand": 194505,
+    "summe_gesamt": 0
+  },
+  "tags": [],
+  "umbuchungen": [
+    "kmy:T000000000000000008"
+  ],
+  "warnungen": [
+    {
+      "code": "fremdwaehrung",
+      "referenz": "A000002"
+    },
+    {
+      "code": "konto_uebersprungen",
+      "referenz": "A000003"
+    },
+    {
+      "code": "konto_uebersprungen",
+      "referenz": "A000004"
+    },
+    {
+      "code": "buchung_uebersprungen",
+      "referenz": "T000000000000000003"
+    },
+    {
+      "code": "buchung_uebersprungen",
+      "referenz": "T000000000000000004"
+    },
+    {
+      "code": "buchung_uebersprungen",
+      "referenz": "T000000000000000005"
+    },
+    {
+      "code": "buchung_uebersprungen",
+      "referenz": "T000000000000000006"
+    }
+  ]
+}

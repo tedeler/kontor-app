@@ -1,0 +1,8 @@
+{
+  "art": "kmymoney",
+  "beschreibung": "Letzte Transaktion verweist auf unbekanntes Konto A999999",
+  "erfolgreich": false,
+  "fehler_code": "import_inhalt_ungueltig",
+  "fixture": "kmy/inhalt_ungueltig.kmy",
+  "format": "kmy-gzip"
+}

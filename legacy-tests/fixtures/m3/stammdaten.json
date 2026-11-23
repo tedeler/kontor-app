@@ -1,0 +1,112 @@
+{
+  "beschreibung": "Stammdaten für Meilenstein 3 (buchhaltungspflege.md 2): zuerst Kategorien anlegen, dann Empfänger mit Aliasen und Standardkategorie (Name der Kategorie → ID), dann Regeln in Listenreihenfolge.",
+  "empfaenger": [
+    {
+      "aliase": [
+        "STADTWERKE MUSTERSTADT GMBH",
+        "SWM Energie"
+      ],
+      "name": "Stadtwerke Musterstadt",
+      "standardkategorie": "Strom"
+    },
+    {
+      "aliase": [
+        "Baeckerei Mueller"
+      ],
+      "name": "Bäckerei Müller",
+      "standardkategorie": "Lebensmittel"
+    },
+    {
+      "aliase": [
+        "Cafe Bohne",
+        "CAFÉ BOHNE"
+      ],
+      "name": "Café Bohne",
+      "standardkategorie": null
+    },
+    {
+      "aliase": [],
+      "name": "Supermarkt Frischekorb",
+      "standardkategorie": "Lebensmittel"
+    }
+  ],
+  "kategorien": [
+    {
+      "art": "ertrag",
+      "name": "Gehalt"
+    },
+    {
+      "art": "ertrag",
+      "name": "Zinsertrag"
+    },
+    {
+      "art": "aufwand",
+      "name": "Miete"
+    },
+    {
+      "art": "aufwand",
+      "name": "Strom"
+    },
+    {
+      "art": "aufwand",
+      "name": "Lebensmittel"
+    },
+    {
+      "art": "aufwand",
+      "name": "Café & Restaurant"
+    },
+    {
+      "art": "aufwand",
+      "name": "Freizeit"
+    },
+    {
+      "art": "aufwand",
+      "name": "Abos"
+    },
+    {
+      "art": "aufwand",
+      "name": "Sonstiges"
+    }
+  ],
+  "regeln": [
+    {
+      "aktiv": true,
+      "bedingungen": [
+        {
+          "feld": "verwendungszweck",
+          "operator": "enthaelt",
+          "wert": "nachzahlung"
+        }
+      ],
+      "kategorie": "Sonstiges",
+      "name": "Nachzahlung",
+      "prioritaet": 10
+    },
+    {
+      "aktiv": true,
+      "bedingungen": [
+        {
+          "feld": "empfaenger",
+          "operator": "gleich",
+          "wert": "café bohne"
+        }
+      ],
+      "kategorie": "Café & Restaurant",
+      "name": "Café",
+      "prioritaet": 20
+    },
+    {
+      "aktiv": true,
+      "bedingungen": [
+        {
+          "feld": "verwendungszweck",
+          "operator": "enthaelt",
+          "wert": "abo"
+        }
+      ],
+      "kategorie": "Abos",
+      "name": "Streaming",
+      "prioritaet": 30
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+[Unit]
+Description=Kontor – tägliche Sicherung
+
+[Timer]
+OnCalendar=*-*-* 03:15:00
+Persistent=yes
+
+[Install]
+WantedBy=timers.target

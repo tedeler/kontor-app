@@ -1,0 +1,9 @@
+{
+  "art": "gnucash",
+  "beschreibung": "SQLite-Kopf mit zerstörter erster Seite",
+  "erfolgreich": false,
+  "fehler_code": "import_datei_beschaedigt",
+  "fixture": "gnc/sqlite_kaputt.gnucash",
+  "format": "gnc-sqlite",
+  "referenzen": []
+}

@@ -1,0 +1,1275 @@
+{
+  "art": "kmymoney",
+  "buchungen": [
+    {
+      "datum": "2023-11-01",
+      "empfaenger": null,
+      "extern_id": "kmy:T000000000000000001",
+      "kategorie_extern_id": null,
+      "splits": [
+        {
+          "betrag": 500000,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Anfangsbestand"
+        },
+        {
+          "betrag": -500000,
+          "konto_extern_id": "kmy:A000018",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 500000,
+      "verwendungszweck": "Anfangsbestand",
+      "wahre_kategorie_extern_id": null
+    },
+    {
+      "datum": "2023-11-01",
+      "empfaenger": null,
+      "extern_id": "kmy:T000000000000000002",
+      "kategorie_extern_id": null,
+      "splits": [
+        {
+          "betrag": 1000000,
+          "konto_extern_id": "kmy:A000002",
+          "memo": "Anfangsbestand"
+        },
+        {
+          "betrag": -1000000,
+          "konto_extern_id": "kmy:A000018",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 1000000,
+      "verwendungszweck": "Anfangsbestand",
+      "wahre_kategorie_extern_id": null
+    },
+    {
+      "datum": "2023-11-03",
+      "empfaenger": "Wohnbau Beispiel eG",
+      "extern_id": "kmy:T000000000000000003",
+      "kategorie_extern_id": "kmy:A000011",
+      "splits": [
+        {
+          "betrag": -98000,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Miete 11/2023"
+        },
+        {
+          "betrag": 98000,
+          "konto_extern_id": "kmy:A000011",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 98000,
+      "verwendungszweck": "Miete 11/2023",
+      "wahre_kategorie_extern_id": "kmy:A000011"
+    },
+    {
+      "datum": "2023-11-05",
+      "empfaenger": "Stadtwerke Musterstadt",
+      "extern_id": "kmy:T000000000000000004",
+      "kategorie_extern_id": "kmy:A000012",
+      "splits": [
+        {
+          "betrag": -9200,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Abschlag Strom"
+        },
+        {
+          "betrag": 9200,
+          "konto_extern_id": "kmy:A000012",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 9200,
+      "verwendungszweck": "Abschlag Strom",
+      "wahre_kategorie_extern_id": "kmy:A000012"
+    },
+    {
+      "datum": "2023-11-09",
+      "empfaenger": "Supermarkt Frischekorb",
+      "extern_id": "kmy:T000000000000000005",
+      "kategorie_extern_id": "kmy:A000013",
+      "splits": [
+        {
+          "betrag": -1277,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Kartenzahlung alt"
+        },
+        {
+          "betrag": 1277,
+          "konto_extern_id": "kmy:A000013",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 1277,
+      "verwendungszweck": "Kartenzahlung alt",
+      "wahre_kategorie_extern_id": "kmy:A000013"
+    },
+    {
+      "datum": "2023-11-19",
+      "empfaenger": "Supermarkt Frischekorb",
+      "extern_id": "kmy:T000000000000000006",
+      "kategorie_extern_id": "kmy:A000013",
+      "splits": [
+        {
+          "betrag": -3257,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Kartenzahlung alt"
+        },
+        {
+          "betrag": 3257,
+          "konto_extern_id": "kmy:A000013",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 3257,
+      "verwendungszweck": "Kartenzahlung alt",
+      "wahre_kategorie_extern_id": "kmy:A000013"
+    },
+    {
+      "datum": "2023-11-23",
+      "empfaenger": "Supermarkt Frischekorb",
+      "extern_id": "kmy:T000000000000000007",
+      "kategorie_extern_id": "kmy:A000013",
+      "splits": [
+        {
+          "betrag": -1977,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Kartenzahlung alt"
+        },
+        {
+          "betrag": 1977,
+          "konto_extern_id": "kmy:A000013",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 1977,
+      "verwendungszweck": "Kartenzahlung alt",
+      "wahre_kategorie_extern_id": "kmy:A000013"
+    },
+    {
+      "datum": "2023-11-25",
+      "empfaenger": "Erika Mustermann (fiktiv)",
+      "extern_id": "kmy:T000000000000000008",
+      "kategorie_extern_id": null,
+      "splits": [
+        {
+          "betrag": -30000,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Sparrate"
+        },
+        {
+          "betrag": 30000,
+          "konto_extern_id": "kmy:A000002",
+          "memo": "Sparrate"
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": true,
+      "umsatz": 30000,
+      "verwendungszweck": "Sparrate",
+      "wahre_kategorie_extern_id": null
+    },
+    {
+      "datum": "2023-11-28",
+      "empfaenger": "Arbeitgeber Muster GmbH",
+      "extern_id": "kmy:T000000000000000009",
+      "kategorie_extern_id": "kmy:A000010",
+      "splits": [
+        {
+          "betrag": 335000,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "LOHN/GEHALT 11/2023"
+        },
+        {
+          "betrag": -335000,
+          "konto_extern_id": "kmy:A000010",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 335000,
+      "verwendungszweck": "LOHN/GEHALT 11/2023",
+      "wahre_kategorie_extern_id": "kmy:A000010"
+    },
+    {
+      "datum": "2023-12-03",
+      "empfaenger": "Wohnbau Beispiel eG",
+      "extern_id": "kmy:T000000000000000010",
+      "kategorie_extern_id": "kmy:A000011",
+      "splits": [
+        {
+          "betrag": -98000,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Miete 12/2023"
+        },
+        {
+          "betrag": 98000,
+          "konto_extern_id": "kmy:A000011",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 98000,
+      "verwendungszweck": "Miete 12/2023",
+      "wahre_kategorie_extern_id": "kmy:A000011"
+    },
+    {
+      "datum": "2023-12-04",
+      "empfaenger": "Supermarkt Frischekorb",
+      "extern_id": "kmy:T000000000000000011",
+      "kategorie_extern_id": "kmy:A000013",
+      "splits": [
+        {
+          "betrag": -4027,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Kartenzahlung alt"
+        },
+        {
+          "betrag": 4027,
+          "konto_extern_id": "kmy:A000013",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 4027,
+      "verwendungszweck": "Kartenzahlung alt",
+      "wahre_kategorie_extern_id": "kmy:A000013"
+    },
+    {
+      "datum": "2023-12-05",
+      "empfaenger": "Stadtwerke Musterstadt",
+      "extern_id": "kmy:T000000000000000012",
+      "kategorie_extern_id": "kmy:A000012",
+      "splits": [
+        {
+          "betrag": -9200,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Abschlag Strom"
+        },
+        {
+          "betrag": 9200,
+          "konto_extern_id": "kmy:A000012",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 9200,
+      "verwendungszweck": "Abschlag Strom",
+      "wahre_kategorie_extern_id": "kmy:A000012"
+    },
+    {
+      "datum": "2023-12-08",
+      "empfaenger": "Supermarkt Frischekorb",
+      "extern_id": "kmy:T000000000000000013",
+      "kategorie_extern_id": "kmy:A000013",
+      "splits": [
+        {
+          "betrag": -6957,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Kartenzahlung alt"
+        },
+        {
+          "betrag": 6957,
+          "konto_extern_id": "kmy:A000013",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 6957,
+      "verwendungszweck": "Kartenzahlung alt",
+      "wahre_kategorie_extern_id": "kmy:A000013"
+    },
+    {
+      "datum": "2023-12-11",
+      "empfaenger": "Supermarkt Frischekorb",
+      "extern_id": "kmy:T000000000000000014",
+      "kategorie_extern_id": "kmy:A000013",
+      "splits": [
+        {
+          "betrag": -1067,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Kartenzahlung alt"
+        },
+        {
+          "betrag": 1067,
+          "konto_extern_id": "kmy:A000013",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 1067,
+      "verwendungszweck": "Kartenzahlung alt",
+      "wahre_kategorie_extern_id": "kmy:A000013"
+    },
+    {
+      "datum": "2023-12-25",
+      "empfaenger": "Erika Mustermann (fiktiv)",
+      "extern_id": "kmy:T000000000000000015",
+      "kategorie_extern_id": null,
+      "splits": [
+        {
+          "betrag": -30000,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Sparrate"
+        },
+        {
+          "betrag": 30000,
+          "konto_extern_id": "kmy:A000002",
+          "memo": "Sparrate"
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": true,
+      "umsatz": 30000,
+      "verwendungszweck": "Sparrate",
+      "wahre_kategorie_extern_id": null
+    },
+    {
+      "datum": "2023-12-28",
+      "empfaenger": "Arbeitgeber Muster GmbH",
+      "extern_id": "kmy:T000000000000000016",
+      "kategorie_extern_id": "kmy:A000010",
+      "splits": [
+        {
+          "betrag": 335000,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "LOHN/GEHALT 12/2023"
+        },
+        {
+          "betrag": -335000,
+          "konto_extern_id": "kmy:A000010",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 335000,
+      "verwendungszweck": "LOHN/GEHALT 12/2023",
+      "wahre_kategorie_extern_id": "kmy:A000010"
+    },
+    {
+      "datum": "2024-01-03",
+      "empfaenger": "Wohnbau Beispiel eG",
+      "extern_id": "kmy:T000000000000000017",
+      "kategorie_extern_id": "kmy:A000011",
+      "splits": [
+        {
+          "betrag": -98000,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Miete 01/2024"
+        },
+        {
+          "betrag": 98000,
+          "konto_extern_id": "kmy:A000011",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 98000,
+      "verwendungszweck": "Miete 01/2024",
+      "wahre_kategorie_extern_id": "kmy:A000011"
+    },
+    {
+      "datum": "2024-01-03",
+      "empfaenger": "Supermarkt Frischekorb",
+      "extern_id": "kmy:T000000000000000018",
+      "kategorie_extern_id": "kmy:A000013",
+      "splits": [
+        {
+          "betrag": -1801,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Kartenzahlung 967"
+        },
+        {
+          "betrag": 1801,
+          "konto_extern_id": "kmy:A000013",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 1801,
+      "verwendungszweck": "Kartenzahlung 967",
+      "wahre_kategorie_extern_id": "kmy:A000013"
+    },
+    {
+      "datum": "2024-01-05",
+      "empfaenger": "Stadtwerke Musterstadt",
+      "extern_id": "kmy:T000000000000000019",
+      "kategorie_extern_id": "kmy:A000012",
+      "splits": [
+        {
+          "betrag": -9200,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Abschlag Strom"
+        },
+        {
+          "betrag": 9200,
+          "konto_extern_id": "kmy:A000012",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 9200,
+      "verwendungszweck": "Abschlag Strom",
+      "wahre_kategorie_extern_id": "kmy:A000012"
+    },
+    {
+      "datum": "2024-01-08",
+      "empfaenger": "Supermarkt Frischekorb",
+      "extern_id": "kmy:T000000000000000020",
+      "kategorie_extern_id": "kmy:A000013",
+      "splits": [
+        {
+          "betrag": -4742,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Kartenzahlung 235"
+        },
+        {
+          "betrag": 4742,
+          "konto_extern_id": "kmy:A000013",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 4742,
+      "verwendungszweck": "Kartenzahlung 235",
+      "wahre_kategorie_extern_id": "kmy:A000013"
+    },
+    {
+      "datum": "2024-01-10",
+      "empfaenger": "Café Bohne",
+      "extern_id": "kmy:T000000000000000021",
+      "kategorie_extern_id": "kmy:A000014",
+      "splits": [
+        {
+          "betrag": -720,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Kartenzahlung Café"
+        },
+        {
+          "betrag": 720,
+          "konto_extern_id": "kmy:A000014",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 720,
+      "verwendungszweck": "Kartenzahlung Café",
+      "wahre_kategorie_extern_id": "kmy:A000014"
+    },
+    {
+      "datum": "2024-01-11",
+      "empfaenger": "Baeckerei Korn & Soehne",
+      "extern_id": "kmy:T000000000000000022",
+      "kategorie_extern_id": "kmy:A000013",
+      "splits": [
+        {
+          "betrag": -716,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Brötchen und Brot"
+        },
+        {
+          "betrag": 716,
+          "konto_extern_id": "kmy:A000013",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 716,
+      "verwendungszweck": "Brötchen und Brot",
+      "wahre_kategorie_extern_id": "kmy:A000013"
+    },
+    {
+      "datum": "2024-01-12",
+      "empfaenger": null,
+      "extern_id": "kmy:T000000000000000023",
+      "kategorie_extern_id": "kmy:A000017",
+      "splits": [
+        {
+          "betrag": -5000,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Bargeldauszahlung Automat 12"
+        },
+        {
+          "betrag": 5000,
+          "konto_extern_id": "kmy:A000017",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 5000,
+      "verwendungszweck": "Bargeldauszahlung Automat 12",
+      "wahre_kategorie_extern_id": "kmy:A000017"
+    },
+    {
+      "datum": "2024-01-15",
+      "empfaenger": "Testbank Kartenservice (fiktiv)",
+      "extern_id": "kmy:T000000000000000024",
+      "kategorie_extern_id": "kmy:A000016",
+      "splits": [
+        {
+          "betrag": -25061,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Kreditkarte Ausgleich 01/2024"
+        },
+        {
+          "betrag": 25061,
+          "konto_extern_id": "kmy:A000016",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 25061,
+      "verwendungszweck": "Kreditkarte Ausgleich 01/2024",
+      "wahre_kategorie_extern_id": "kmy:A000016"
+    },
+    {
+      "datum": "2024-01-15",
+      "empfaenger": "Supermarkt Frischekorb",
+      "extern_id": "kmy:T000000000000000025",
+      "kategorie_extern_id": "kmy:A000013",
+      "splits": [
+        {
+          "betrag": -4258,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Kartenzahlung 392"
+        },
+        {
+          "betrag": 4258,
+          "konto_extern_id": "kmy:A000013",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 4258,
+      "verwendungszweck": "Kartenzahlung 392",
+      "wahre_kategorie_extern_id": "kmy:A000013"
+    },
+    {
+      "datum": "2024-01-17",
+      "empfaenger": "Supermarkt Frischekorb",
+      "extern_id": "kmy:T000000000000000026",
+      "kategorie_extern_id": "kmy:A000013",
+      "splits": [
+        {
+          "betrag": -8666,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Kartenzahlung 263"
+        },
+        {
+          "betrag": 8666,
+          "konto_extern_id": "kmy:A000013",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 8666,
+      "verwendungszweck": "Kartenzahlung 263",
+      "wahre_kategorie_extern_id": "kmy:A000013"
+    },
+    {
+      "datum": "2024-01-17",
+      "empfaenger": "Tankstelle Blitz Nord",
+      "extern_id": "kmy:T000000000000000027",
+      "kategorie_extern_id": "kmy:A000015",
+      "splits": [
+        {
+          "betrag": -5676,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Tanken"
+        },
+        {
+          "betrag": 5676,
+          "konto_extern_id": "kmy:A000015",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 5676,
+      "verwendungszweck": "Tanken",
+      "wahre_kategorie_extern_id": "kmy:A000015"
+    },
+    {
+      "datum": "2024-01-20",
+      "empfaenger": "Café Bohne",
+      "extern_id": "kmy:T000000000000000028",
+      "kategorie_extern_id": "kmy:A000014",
+      "splits": [
+        {
+          "betrag": -480,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Kartenzahlung Café"
+        },
+        {
+          "betrag": 480,
+          "konto_extern_id": "kmy:A000014",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 480,
+      "verwendungszweck": "Kartenzahlung Café",
+      "wahre_kategorie_extern_id": "kmy:A000014"
+    },
+    {
+      "datum": "2024-01-20",
+      "empfaenger": "Café Bohne",
+      "extern_id": "kmy:T000000000000000029",
+      "kategorie_extern_id": "kmy:A000014",
+      "splits": [
+        {
+          "betrag": -480,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Kartenzahlung Café"
+        },
+        {
+          "betrag": 480,
+          "konto_extern_id": "kmy:A000014",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 480,
+      "verwendungszweck": "Kartenzahlung Café",
+      "wahre_kategorie_extern_id": "kmy:A000014"
+    },
+    {
+      "datum": "2024-01-21",
+      "empfaenger": "Café Bohne",
+      "extern_id": "kmy:T000000000000000030",
+      "kategorie_extern_id": "kmy:A000014",
+      "splits": [
+        {
+          "betrag": -633,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Kartenzahlung Café"
+        },
+        {
+          "betrag": 633,
+          "konto_extern_id": "kmy:A000014",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 633,
+      "verwendungszweck": "Kartenzahlung Café",
+      "wahre_kategorie_extern_id": "kmy:A000014"
+    },
+    {
+      "datum": "2024-01-24",
+      "empfaenger": "Supermarkt Frischekorb",
+      "extern_id": "kmy:T000000000000000031",
+      "kategorie_extern_id": "kmy:A000013",
+      "splits": [
+        {
+          "betrag": -6255,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Kartenzahlung 469"
+        },
+        {
+          "betrag": 6255,
+          "konto_extern_id": "kmy:A000013",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 6255,
+      "verwendungszweck": "Kartenzahlung 469",
+      "wahre_kategorie_extern_id": "kmy:A000013"
+    },
+    {
+      "datum": "2024-01-25",
+      "empfaenger": "Erika Mustermann (fiktiv)",
+      "extern_id": "kmy:T000000000000000032",
+      "kategorie_extern_id": null,
+      "splits": [
+        {
+          "betrag": -30000,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Sparrate"
+        },
+        {
+          "betrag": 30000,
+          "konto_extern_id": "kmy:A000002",
+          "memo": "Sparrate"
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": true,
+      "umsatz": 30000,
+      "verwendungszweck": "Sparrate",
+      "wahre_kategorie_extern_id": null
+    },
+    {
+      "datum": "2024-01-28",
+      "empfaenger": "Arbeitgeber Muster GmbH",
+      "extern_id": "kmy:T000000000000000033",
+      "kategorie_extern_id": "kmy:A000010",
+      "splits": [
+        {
+          "betrag": 335000,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "LOHN/GEHALT 01/2024"
+        },
+        {
+          "betrag": -335000,
+          "konto_extern_id": "kmy:A000010",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 335000,
+      "verwendungszweck": "LOHN/GEHALT 01/2024",
+      "wahre_kategorie_extern_id": "kmy:A000010"
+    },
+    {
+      "datum": "2024-01-30",
+      "empfaenger": "Flohmarkt (fiktiv)",
+      "extern_id": "kmy:T000000000000000034",
+      "kategorie_extern_id": "kmy:A000017",
+      "splits": [
+        {
+          "betrag": -2007,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Barzahlung"
+        },
+        {
+          "betrag": 2007,
+          "konto_extern_id": "kmy:A000017",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 2007,
+      "verwendungszweck": "Barzahlung",
+      "wahre_kategorie_extern_id": "kmy:A000017"
+    },
+    {
+      "datum": "2024-02-03",
+      "empfaenger": "Wohnbau Beispiel eG",
+      "extern_id": "kmy:T000000000000000035",
+      "kategorie_extern_id": "kmy:A000011",
+      "splits": [
+        {
+          "betrag": -98000,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Miete 02/2024"
+        },
+        {
+          "betrag": 98000,
+          "konto_extern_id": "kmy:A000011",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 98000,
+      "verwendungszweck": "Miete 02/2024",
+      "wahre_kategorie_extern_id": "kmy:A000011"
+    },
+    {
+      "datum": "2024-02-03",
+      "empfaenger": "Café Bohne",
+      "extern_id": "kmy:T000000000000000036",
+      "kategorie_extern_id": "kmy:A000014",
+      "splits": [
+        {
+          "betrag": -908,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Kartenzahlung Café"
+        },
+        {
+          "betrag": 908,
+          "konto_extern_id": "kmy:A000014",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 908,
+      "verwendungszweck": "Kartenzahlung Café",
+      "wahre_kategorie_extern_id": "kmy:A000014"
+    },
+    {
+      "datum": "2024-02-05",
+      "empfaenger": "Stadtwerke Musterstadt",
+      "extern_id": "kmy:T000000000000000037",
+      "kategorie_extern_id": "kmy:A000012",
+      "splits": [
+        {
+          "betrag": -9200,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Abschlag Strom"
+        },
+        {
+          "betrag": 9200,
+          "konto_extern_id": "kmy:A000012",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 9200,
+      "verwendungszweck": "Abschlag Strom",
+      "wahre_kategorie_extern_id": "kmy:A000012"
+    },
+    {
+      "datum": "2024-02-07",
+      "empfaenger": "Supermarkt Frischekorb",
+      "extern_id": "kmy:T000000000000000038",
+      "kategorie_extern_id": "kmy:A000013",
+      "splits": [
+        {
+          "betrag": -2222,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Kartenzahlung 222"
+        },
+        {
+          "betrag": 2222,
+          "konto_extern_id": "kmy:A000013",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 2222,
+      "verwendungszweck": "Kartenzahlung 222",
+      "wahre_kategorie_extern_id": "kmy:A000013"
+    },
+    {
+      "datum": "2024-02-11",
+      "empfaenger": "Supermarkt Frischekorb",
+      "extern_id": "kmy:T000000000000000039",
+      "kategorie_extern_id": "kmy:A000013",
+      "splits": [
+        {
+          "betrag": -1819,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Kartenzahlung 597"
+        },
+        {
+          "betrag": 1819,
+          "konto_extern_id": "kmy:A000013",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 1819,
+      "verwendungszweck": "Kartenzahlung 597",
+      "wahre_kategorie_extern_id": "kmy:A000013"
+    },
+    {
+      "datum": "2024-02-11",
+      "empfaenger": "Bäckerei Korn & Söhne",
+      "extern_id": "kmy:T000000000000000040",
+      "kategorie_extern_id": "kmy:A000013",
+      "splits": [
+        {
+          "betrag": -619,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Brötchen und Brot"
+        },
+        {
+          "betrag": 619,
+          "konto_extern_id": "kmy:A000013",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 619,
+      "verwendungszweck": "Brötchen und Brot",
+      "wahre_kategorie_extern_id": "kmy:A000013"
+    },
+    {
+      "datum": "2024-02-13",
+      "empfaenger": "Supermarkt Frischekorb",
+      "extern_id": "kmy:T000000000000000041",
+      "kategorie_extern_id": "kmy:A000013",
+      "splits": [
+        {
+          "betrag": -3238,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Kartenzahlung 764"
+        },
+        {
+          "betrag": 3238,
+          "konto_extern_id": "kmy:A000013",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 3238,
+      "verwendungszweck": "Kartenzahlung 764",
+      "wahre_kategorie_extern_id": "kmy:A000013"
+    },
+    {
+      "datum": "2024-02-15",
+      "empfaenger": "Testbank Kartenservice (fiktiv)",
+      "extern_id": "kmy:T000000000000000042",
+      "kategorie_extern_id": "kmy:A000016",
+      "splits": [
+        {
+          "betrag": -58021,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Kreditkarte Ausgleich 02/2024"
+        },
+        {
+          "betrag": 58021,
+          "konto_extern_id": "kmy:A000016",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 58021,
+      "verwendungszweck": "Kreditkarte Ausgleich 02/2024",
+      "wahre_kategorie_extern_id": "kmy:A000016"
+    },
+    {
+      "datum": "2024-02-15",
+      "empfaenger": "Supermarkt Frischekorb",
+      "extern_id": "kmy:T000000000000000043",
+      "kategorie_extern_id": "kmy:A000013",
+      "splits": [
+        {
+          "betrag": -7054,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Kartenzahlung 202"
+        },
+        {
+          "betrag": 7054,
+          "konto_extern_id": "kmy:A000013",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 7054,
+      "verwendungszweck": "Kartenzahlung 202",
+      "wahre_kategorie_extern_id": "kmy:A000013"
+    }
+  ],
+  "empfaenger": [
+    {
+      "extern_id": "kmy:P000001",
+      "name": "Wohnbau Beispiel eG"
+    },
+    {
+      "extern_id": "kmy:P000002",
+      "name": "Stadtwerke Musterstadt"
+    },
+    {
+      "extern_id": "kmy:P000003",
+      "name": "Arbeitgeber Muster GmbH"
+    },
+    {
+      "extern_id": "kmy:P000004",
+      "name": "Erika Mustermann (fiktiv)"
+    },
+    {
+      "extern_id": "kmy:P000005",
+      "name": "Supermarkt Frischekorb"
+    },
+    {
+      "extern_id": "kmy:P000006",
+      "name": "Flohmarkt (fiktiv)"
+    },
+    {
+      "extern_id": "kmy:P000007",
+      "name": "Café Bohne"
+    },
+    {
+      "extern_id": "kmy:P000008",
+      "name": "Baeckerei Korn & Soehne"
+    },
+    {
+      "extern_id": "kmy:P000009",
+      "name": "Testbank Kartenservice (fiktiv)"
+    },
+    {
+      "extern_id": "kmy:P000010",
+      "name": "Tankstelle Blitz Nord"
+    },
+    {
+      "extern_id": "kmy:P000011",
+      "name": "Bäckerei Korn & Söhne"
+    }
+  ],
+  "erfolgreich": true,
+  "ergebnis": {
+    "buchungen_neu": 43,
+    "buchungen_uebersprungen": 0,
+    "buchungen_vorhanden": 0,
+    "buchungen_zur_pruefung": 0,
+    "buchungen_zusammengefuehrt": 0,
+    "empfaenger_neu": 11,
+    "empfaenger_vorhanden": 0,
+    "erfolgreich": true,
+    "format": "kmy-gzip",
+    "kategorien_neu": 8,
+    "kategorien_vorhanden": 0,
+    "konten_neu": 3,
+    "konten_vorhanden": 0,
+    "splits_neu": 86,
+    "tags_neu": 0,
+    "tags_vorhanden": 0
+  },
+  "fehler_code": null,
+  "fixture": "kmy/sync_altbestand.kmy",
+  "konten": [
+    {
+      "anzahl_buchungen": 42,
+      "art": "girokonto",
+      "eltern_extern_id": null,
+      "eroeffnet_am": "2023-01-01",
+      "extern_id": "kmy:A000001",
+      "geschlossen": false,
+      "iban": "DE28000000000000008001",
+      "ist_kategorie": false,
+      "name": "Girokonto",
+      "notiz": "",
+      "saldo": 827262,
+      "saldo_gesamt": 827262
+    },
+    {
+      "anzahl_buchungen": 4,
+      "art": "sparkonto",
+      "eltern_extern_id": null,
+      "eroeffnet_am": "2023-01-01",
+      "extern_id": "kmy:A000002",
+      "geschlossen": false,
+      "iban": "DE98000000000000008002",
+      "ist_kategorie": false,
+      "name": "Tagesgeld",
+      "notiz": "",
+      "saldo": 1090000,
+      "saldo_gesamt": 1090000
+    },
+    {
+      "anzahl_buchungen": 3,
+      "art": "ertrag",
+      "eltern_extern_id": null,
+      "eroeffnet_am": null,
+      "extern_id": "kmy:A000010",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Gehalt",
+      "notiz": "",
+      "saldo": -1005000,
+      "saldo_gesamt": -1005000
+    },
+    {
+      "anzahl_buchungen": 4,
+      "art": "aufwand",
+      "eltern_extern_id": null,
+      "eroeffnet_am": null,
+      "extern_id": "kmy:A000011",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Miete",
+      "notiz": "",
+      "saldo": 392000,
+      "saldo_gesamt": 392000
+    },
+    {
+      "anzahl_buchungen": 4,
+      "art": "aufwand",
+      "eltern_extern_id": null,
+      "eroeffnet_am": null,
+      "extern_id": "kmy:A000012",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Strom",
+      "notiz": "",
+      "saldo": 36800,
+      "saldo_gesamt": 36800
+    },
+    {
+      "anzahl_buchungen": 17,
+      "art": "aufwand",
+      "eltern_extern_id": null,
+      "eroeffnet_am": null,
+      "extern_id": "kmy:A000013",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Lebensmittel",
+      "notiz": "",
+      "saldo": 59952,
+      "saldo_gesamt": 59952
+    },
+    {
+      "anzahl_buchungen": 5,
+      "art": "aufwand",
+      "eltern_extern_id": null,
+      "eroeffnet_am": null,
+      "extern_id": "kmy:A000014",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Café & Restaurant",
+      "notiz": "",
+      "saldo": 3221,
+      "saldo_gesamt": 3221
+    },
+    {
+      "anzahl_buchungen": 1,
+      "art": "aufwand",
+      "eltern_extern_id": null,
+      "eroeffnet_am": null,
+      "extern_id": "kmy:A000015",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Tanken",
+      "notiz": "",
+      "saldo": 5676,
+      "saldo_gesamt": 5676
+    },
+    {
+      "anzahl_buchungen": 2,
+      "art": "aufwand",
+      "eltern_extern_id": null,
+      "eroeffnet_am": null,
+      "extern_id": "kmy:A000016",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Kreditkartenabrechnung",
+      "notiz": "",
+      "saldo": 83082,
+      "saldo_gesamt": 83082
+    },
+    {
+      "anzahl_buchungen": 2,
+      "art": "aufwand",
+      "eltern_extern_id": null,
+      "eroeffnet_am": null,
+      "extern_id": "kmy:A000017",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Sonstiges",
+      "notiz": "",
+      "saldo": 7007,
+      "saldo_gesamt": 7007
+    },
+    {
+      "anzahl_buchungen": 2,
+      "art": "eigenkapital",
+      "eltern_extern_id": null,
+      "eroeffnet_am": null,
+      "extern_id": "kmy:A000018",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": false,
+      "name": "Anfangsbestand",
+      "notiz": "",
+      "saldo": -1500000,
+      "saldo_gesamt": -1500000
+    }
+  ],
+  "startwert": 4711,
+  "summen": {
+    "anzahl_buchungen": 43,
+    "anzahl_splits": 86,
+    "anzahl_transaktionen_in_datei": 43,
+    "summe_bestand": 1917262,
+    "summe_gesamt": 0
+  },
+  "tags": [],
+  "umbuchungen": [
+    "kmy:T000000000000000008",
+    "kmy:T000000000000000015",
+    "kmy:T000000000000000032"
+  ],
+  "warnungen": []
+}

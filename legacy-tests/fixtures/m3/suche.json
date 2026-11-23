@@ -1,0 +1,181 @@
+{
+  "anfragen": [
+    {
+      "buchungen": [
+        "M-00065",
+        "M-00053",
+        "M-00041",
+        "M-00029",
+        "M-00017",
+        "M-00005"
+      ],
+      "empfaenger": [
+        "BAECKEREI MUELLER",
+        "Baeckerei Mueller",
+        "Bäckerei Müller",
+        "BÄCKEREI MÜLLER",
+        "Bäckerei Müller"
+      ],
+      "konten": [],
+      "q": "bäckerei"
+    },
+    {
+      "buchungen": [
+        "M-00065",
+        "M-00053",
+        "M-00041",
+        "M-00029",
+        "M-00017",
+        "M-00005"
+      ],
+      "empfaenger": [
+        "BAECKEREI MUELLER",
+        "Baeckerei Mueller",
+        "Bäckerei Müller",
+        "BÄCKEREI MÜLLER",
+        "Bäckerei Müller"
+      ],
+      "konten": [],
+      "q": "BAECKEREI müller"
+    },
+    {
+      "buchungen": [
+        "M-00066",
+        "M-00054",
+        "M-00042",
+        "M-00030",
+        "M-00018",
+        "M-00006"
+      ],
+      "empfaenger": [
+        "CAFÉ BOHNE",
+        "Cafe Bohne",
+        "Café Bohne",
+        "cafe bohne"
+      ],
+      "konten": [],
+      "q": "cafe"
+    },
+    {
+      "buchungen": [
+        "M-00066",
+        "M-00054",
+        "M-00042",
+        "M-00030",
+        "M-00018",
+        "M-00006"
+      ],
+      "empfaenger": [
+        "CAFÉ BOHNE",
+        "Cafe Bohne",
+        "Café Bohne",
+        "cafe bohne"
+      ],
+      "konten": [],
+      "q": "café bohne"
+    },
+    {
+      "buchungen": [
+        "M-00091",
+        "M-00089"
+      ],
+      "empfaenger": [
+        "MUSIKSCHULE STRASSER"
+      ],
+      "konten": [],
+      "q": "strasse"
+    },
+    {
+      "buchungen": [
+        "M-00091",
+        "M-00089"
+      ],
+      "empfaenger": [
+        "MUSIKSCHULE STRASSER"
+      ],
+      "konten": [],
+      "q": "STRAßE"
+    },
+    {
+      "buchungen": [
+        "M-00088",
+        "M-00087"
+      ],
+      "empfaenger": [],
+      "konten": [],
+      "q": "tagesgeld zins"
+    },
+    {
+      "buchungen": [
+        "M-00027"
+      ],
+      "empfaenger": [],
+      "konten": [],
+      "q": "Miete 03"
+    },
+    {
+      "buchungen": [
+        "M-00090"
+      ],
+      "empfaenger": [],
+      "konten": [],
+      "q": "kinofilm"
+    },
+    {
+      "buchungen": [
+        "M-00084",
+        "M-00083",
+        "M-00076",
+        "M-00075",
+        "M-00074",
+        "M-00073",
+        "M-00072",
+        "M-00071",
+        "M-00078",
+        "M-00077"
+      ],
+      "empfaenger": [],
+      "konten": [],
+      "q": "mustermann umbuchung"
+    },
+    {
+      "buchungen": [
+        "M-00070",
+        "M-00060",
+        "M-00048",
+        "M-00036",
+        "M-00024",
+        "M-00012"
+      ],
+      "empfaenger": [],
+      "konten": [],
+      "q": "kreditkarte abo"
+    },
+    {
+      "buchungen": [],
+      "empfaenger": [],
+      "konten": [],
+      "q": "gibtsnicht"
+    },
+    {
+      "buchungen": [
+        "M-00089"
+      ],
+      "empfaenger": [
+        "Möbelhaus Groß & Söhne"
+      ],
+      "konten": [],
+      "q": "groß söhne"
+    },
+    {
+      "buchungen": [
+        "M-00014",
+        "M-00013"
+      ],
+      "empfaenger": [],
+      "konten": [],
+      "q": "  sparrate   02/2024 "
+    }
+  ],
+  "beschreibung": "Suchanfragen gegen den Zustand nach einem Abruf von mock/m3_daten.json (von 2024-01-01 bis 2024-06-30) ohne Stammdaten, Regeln und Umbuchungserkennung. buchungen: Umsatz-IDs der Treffer, nach buchungstag absteigend (die Reihenfolge bei gleichem Datum ergibt sich aus den Buchungs-IDs und wird im Test geprüft); empfaenger, konten: Namen der Treffer, aufsteigend."
+}

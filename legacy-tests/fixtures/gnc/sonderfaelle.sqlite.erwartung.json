@@ -1,0 +1,1166 @@
+{
+  "art": "gnucash",
+  "buchungen": [
+    {
+      "datum": "2023-01-01",
+      "empfaenger": null,
+      "extern_id": "gnc:736ce5b831cbec99cda5e3f1bcc65a91",
+      "kategorie_extern_id": null,
+      "quelle": null,
+      "splits": [
+        {
+          "betrag": 100000,
+          "konto_extern_id": "gnc:442dba84a5f9c675b34ea83aad83135a",
+          "memo": "Start"
+        },
+        {
+          "betrag": -100000,
+          "konto_extern_id": "gnc:94e740dbf923849765a0199d49b9d511",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 100000,
+      "verwendungszweck": "Anfangsbestand",
+      "wahre_kategorie_extern_id": null
+    },
+    {
+      "datum": "2023-01-02",
+      "empfaenger": null,
+      "extern_id": "gnc:69fe7834516c1bc0f6f90a26ff9ceb24",
+      "kategorie_extern_id": null,
+      "quelle": null,
+      "splits": [
+        {
+          "betrag": 5000,
+          "konto_extern_id": "gnc:fdacc4a371f42598da1a573e81f8995d",
+          "memo": ""
+        },
+        {
+          "betrag": -5000,
+          "konto_extern_id": "gnc:94e740dbf923849765a0199d49b9d511",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 5000,
+      "verwendungszweck": "Anfangsbestand Altkonto",
+      "wahre_kategorie_extern_id": null
+    },
+    {
+      "datum": "2023-01-05",
+      "empfaenger": "Bäckerei Größenwahn – Inh. Jürgen Weiß",
+      "extern_id": "gnc:6a08621eea98a65b757a65beae360346",
+      "kategorie_extern_id": "gnc:ad5f6e81ee08241cdefd8ef5badf80e8",
+      "quelle": null,
+      "splits": [
+        {
+          "betrag": -1234,
+          "konto_extern_id": "gnc:442dba84a5f9c675b34ea83aad83135a",
+          "memo": ""
+        },
+        {
+          "betrag": 1234,
+          "konto_extern_id": "gnc:ad5f6e81ee08241cdefd8ef5badf80e8",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 1234,
+      "verwendungszweck": "Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit",
+      "wahre_kategorie_extern_id": "gnc:ad5f6e81ee08241cdefd8ef5badf80e8"
+    },
+    {
+      "datum": "2023-01-06",
+      "empfaenger": null,
+      "extern_id": "gnc:26f89eb8c5afa755e29ff34b5e875496",
+      "kategorie_extern_id": "gnc:5796e13457c1f874cd3e21248fe18dd9",
+      "quelle": null,
+      "splits": [
+        {
+          "betrag": -2000,
+          "konto_extern_id": "gnc:442dba84a5f9c675b34ea83aad83135a",
+          "memo": ""
+        },
+        {
+          "betrag": 2000,
+          "konto_extern_id": "gnc:5796e13457c1f874cd3e21248fe18dd9",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 2000,
+      "verwendungszweck": "",
+      "wahre_kategorie_extern_id": "gnc:5796e13457c1f874cd3e21248fe18dd9"
+    },
+    {
+      "datum": "2023-02-01",
+      "empfaenger": "Ça va? Café „Zum Ölfass“ <&> 'Zitat' \"doppelt\"",
+      "extern_id": "gnc:160c6d63bf15edd4873fdc482b62de24",
+      "kategorie_extern_id": null,
+      "quelle": null,
+      "splits": [
+        {
+          "betrag": -7878,
+          "konto_extern_id": "gnc:442dba84a5f9c675b34ea83aad83135a",
+          "memo": "Sammelrechnung"
+        },
+        {
+          "betrag": 101,
+          "konto_extern_id": "gnc:7ae96aae28e8a5a3d61f08da6fe5f42f",
+          "memo": "Position 1 – Ä0"
+        },
+        {
+          "betrag": 202,
+          "konto_extern_id": "gnc:98aa180fe6c4945943a8ce34828e06ce",
+          "memo": "Position 2 – Ä1"
+        },
+        {
+          "betrag": 303,
+          "konto_extern_id": "gnc:daebc70ad893a93dbc2d6c7759875425",
+          "memo": "Position 3 – Ä2"
+        },
+        {
+          "betrag": 404,
+          "konto_extern_id": "gnc:1766158db1f0105868b9f41c9e8e4d5b",
+          "memo": "Position 4 – Ä3"
+        },
+        {
+          "betrag": 505,
+          "konto_extern_id": "gnc:79ee1b67eee99a184297a9278a18585f",
+          "memo": "Position 5 – Ä4"
+        },
+        {
+          "betrag": 606,
+          "konto_extern_id": "gnc:b223e00ca3f4f0f415969e490eec0f44",
+          "memo": "Position 6 – Ä5"
+        },
+        {
+          "betrag": 707,
+          "konto_extern_id": "gnc:31a65d6bbe4985aa0baa908b1a54d351",
+          "memo": "Position 7 – Ä6"
+        },
+        {
+          "betrag": 808,
+          "konto_extern_id": "gnc:6581f1ef40c114e5f60006c4ec4007ac",
+          "memo": "Position 8 – Ä7"
+        },
+        {
+          "betrag": 909,
+          "konto_extern_id": "gnc:ebdf2f6449f9b478767e022e7c844194",
+          "memo": "Position 9 – Ä8"
+        },
+        {
+          "betrag": 1010,
+          "konto_extern_id": "gnc:3ea50c20f0a1ce191ac290b3fbc7d66b",
+          "memo": "Position 10 – Ä9"
+        },
+        {
+          "betrag": 1111,
+          "konto_extern_id": "gnc:bd1c96bb72e22607916c316537d65cd3",
+          "memo": "Position 11 – Ä10"
+        },
+        {
+          "betrag": 1212,
+          "konto_extern_id": "gnc:5621831a1dc5bf464bc3cc621102ef04",
+          "memo": "Position 12 – Ä11"
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 7878,
+      "verwendungszweck": "Sammelrechnung mit zwölf Positionen",
+      "wahre_kategorie_extern_id": null
+    },
+    {
+      "datum": "2023-02-02",
+      "empfaenger": "Ärger GmbH",
+      "extern_id": "gnc:971b79e46070544ca9a8f7dace0c0fd0",
+      "kategorie_extern_id": "gnc:5796e13457c1f874cd3e21248fe18dd9",
+      "quelle": null,
+      "splits": [
+        {
+          "betrag": -1234,
+          "konto_extern_id": "gnc:442dba84a5f9c675b34ea83aad83135a",
+          "memo": ""
+        },
+        {
+          "betrag": 1234,
+          "konto_extern_id": "gnc:5796e13457c1f874cd3e21248fe18dd9",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 1234,
+      "verwendungszweck": "Gekürzter Bruch",
+      "wahre_kategorie_extern_id": "gnc:5796e13457c1f874cd3e21248fe18dd9"
+    },
+    {
+      "datum": "2023-02-03",
+      "empfaenger": "Ärger GmbH",
+      "extern_id": "gnc:a5607e23ac967fdee51840d7a4d92735",
+      "kategorie_extern_id": "gnc:5796e13457c1f874cd3e21248fe18dd9",
+      "quelle": null,
+      "splits": [
+        {
+          "betrag": -1200,
+          "konto_extern_id": "gnc:442dba84a5f9c675b34ea83aad83135a",
+          "memo": ""
+        },
+        {
+          "betrag": 1200,
+          "konto_extern_id": "gnc:5796e13457c1f874cd3e21248fe18dd9",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 1200,
+      "verwendungszweck": "Ganze Euro ohne Nenner",
+      "wahre_kategorie_extern_id": "gnc:5796e13457c1f874cd3e21248fe18dd9"
+    },
+    {
+      "datum": "2023-02-04",
+      "empfaenger": null,
+      "extern_id": "gnc:2d9e33a46bf2225e76a63b0823b0be46",
+      "kategorie_extern_id": "gnc:ec847738a0e03ca662cc9c0811eec035",
+      "quelle": null,
+      "splits": [
+        {
+          "betrag": -123,
+          "konto_extern_id": "gnc:442dba84a5f9c675b34ea83aad83135a",
+          "memo": ""
+        },
+        {
+          "betrag": 123,
+          "konto_extern_id": "gnc:ec847738a0e03ca662cc9c0811eec035",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 123,
+      "verwendungszweck": "Nenner 1000",
+      "wahre_kategorie_extern_id": null
+    },
+    {
+      "datum": "2023-03-01",
+      "empfaenger": "☕ Emoji-Kiosk 🙂",
+      "extern_id": "gnc:5fa5280a46ff00ac53bcfc1b824b4b15",
+      "kategorie_extern_id": null,
+      "quelle": null,
+      "splits": [
+        {
+          "betrag": -999,
+          "konto_extern_id": "gnc:442dba84a5f9c675b34ea83aad83135a",
+          "memo": "Ohne Kategorie"
+        },
+        {
+          "betrag": 999,
+          "konto_extern_id": "kontor:unausgeglichen",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 999,
+      "verwendungszweck": "Buchung ohne Gegenbuchung",
+      "wahre_kategorie_extern_id": null
+    },
+    {
+      "datum": "2023-03-02",
+      "empfaenger": null,
+      "extern_id": "gnc:a04debc31c697a2a013d8885ce6a4c36",
+      "kategorie_extern_id": null,
+      "quelle": null,
+      "splits": [
+        {
+          "betrag": -1000,
+          "konto_extern_id": "gnc:442dba84a5f9c675b34ea83aad83135a",
+          "memo": ""
+        },
+        {
+          "betrag": 900,
+          "konto_extern_id": "gnc:ec847738a0e03ca662cc9c0811eec035",
+          "memo": ""
+        },
+        {
+          "betrag": 100,
+          "konto_extern_id": "kontor:unausgeglichen",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 1000,
+      "verwendungszweck": "Unausgeglichen um 1 Euro",
+      "wahre_kategorie_extern_id": null
+    },
+    {
+      "datum": "2023-03-03",
+      "empfaenger": null,
+      "extern_id": "gnc:f35e451e493928abc8dc3808fb921b50",
+      "kategorie_extern_id": null,
+      "quelle": null,
+      "splits": [
+        {
+          "betrag": 0,
+          "konto_extern_id": "gnc:5796e13457c1f874cd3e21248fe18dd9",
+          "memo": "Nullsplit"
+        },
+        {
+          "betrag": 0,
+          "konto_extern_id": "kontor:unausgeglichen",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 0,
+      "verwendungszweck": "Nur ein Nullsplit",
+      "wahre_kategorie_extern_id": null
+    },
+    {
+      "datum": "2023-03-04",
+      "empfaenger": null,
+      "extern_id": "gnc:ebcb916b1a8dd3c46af8597266ba3434",
+      "kategorie_extern_id": null,
+      "quelle": null,
+      "splits": [
+        {
+          "betrag": -5000,
+          "konto_extern_id": "gnc:fdacc4a371f42598da1a573e81f8995d",
+          "memo": ""
+        },
+        {
+          "betrag": 5000,
+          "konto_extern_id": "gnc:442dba84a5f9c675b34ea83aad83135a",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": true,
+      "umsatz": 5000,
+      "verwendungszweck": "Auflösung Altkonto",
+      "wahre_kategorie_extern_id": null
+    },
+    {
+      "datum": "2023-03-05",
+      "empfaenger": "☕ Emoji-Kiosk 🙂",
+      "extern_id": "gnc:156f2187994d4e580b576cbb4e2748b8",
+      "kategorie_extern_id": "gnc:5796e13457c1f874cd3e21248fe18dd9",
+      "quelle": null,
+      "splits": [
+        {
+          "betrag": -1500,
+          "konto_extern_id": "gnc:9d30cfda3540e186ebbc2cf5da87486f",
+          "memo": ""
+        },
+        {
+          "betrag": 1500,
+          "konto_extern_id": "gnc:5796e13457c1f874cd3e21248fe18dd9",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 1500,
+      "verwendungszweck": "Barzahlung ☕🙂",
+      "wahre_kategorie_extern_id": null
+    },
+    {
+      "datum": "2023-03-06",
+      "empfaenger": null,
+      "extern_id": "gnc:5697c14d5bb9d5aa5a4cd4079bfa1058",
+      "kategorie_extern_id": "gnc:455f07a07ca364f582443f0208124dc3",
+      "quelle": null,
+      "splits": [
+        {
+          "betrag": -800,
+          "konto_extern_id": "gnc:442dba84a5f9c675b34ea83aad83135a",
+          "memo": ""
+        },
+        {
+          "betrag": 800,
+          "konto_extern_id": "gnc:455f07a07ca364f582443f0208124dc3",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 800,
+      "verwendungszweck": "Falsch einsortiert",
+      "wahre_kategorie_extern_id": null
+    },
+    {
+      "datum": "2023-03-10",
+      "empfaenger": "Kino Lichtspiel",
+      "extern_id": "gnc:170d41489cd7faea57267b3de70a8cbf",
+      "kategorie_extern_id": "gnc:5a65f16cc173aa94bd03eb2d14aef971",
+      "quelle": null,
+      "splits": [
+        {
+          "betrag": -1700,
+          "konto_extern_id": "gnc:442dba84a5f9c675b34ea83aad83135a",
+          "memo": ""
+        },
+        {
+          "betrag": 1700,
+          "konto_extern_id": "gnc:5a65f16cc173aa94bd03eb2d14aef971",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 1700,
+      "verwendungszweck": "Zwei Karten",
+      "wahre_kategorie_extern_id": "gnc:5a65f16cc173aa94bd03eb2d14aef971"
+    },
+    {
+      "datum": "2023-03-11",
+      "empfaenger": null,
+      "extern_id": "gnc:aea76515403f4ea37dcd0c4a9265b081",
+      "kategorie_extern_id": null,
+      "quelle": null,
+      "splits": [
+        {
+          "betrag": 4000,
+          "konto_extern_id": "gnc:08d35532045efa03c468c89511b5d64d",
+          "memo": ""
+        },
+        {
+          "betrag": -1000,
+          "konto_extern_id": "gnc:1548fd3677fde5b126d2a311bb210d59",
+          "memo": ""
+        },
+        {
+          "betrag": -3000,
+          "konto_extern_id": "gnc:b965060b62f7211786913e08f067e041",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": true,
+      "umsatz": 4000,
+      "verwendungszweck": "Umbuchung zwischen Vermögen und Verbindlichkeiten",
+      "wahre_kategorie_extern_id": null
+    },
+    {
+      "datum": "2023-03-12",
+      "empfaenger": "Ça va? Café „Zum Ölfass“ <&> 'Zitat' \"doppelt\"",
+      "extern_id": "gnc:6c43f2a293388da69d231a10af1336e0",
+      "kategorie_extern_id": "gnc:4b23996ad67379c16d596a1c569e0ad7",
+      "quelle": null,
+      "splits": [
+        {
+          "betrag": -2599,
+          "konto_extern_id": "gnc:09b1df3b0fde562817cc965c6b0d146e",
+          "memo": ""
+        },
+        {
+          "betrag": 2599,
+          "konto_extern_id": "gnc:4b23996ad67379c16d596a1c569e0ad7",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 2599,
+      "verwendungszweck": "Kartenzahlung\nZeile 2",
+      "wahre_kategorie_extern_id": "gnc:4b23996ad67379c16d596a1c569e0ad7"
+    },
+    {
+      "datum": "2023-03-13",
+      "empfaenger": "Ärger GmbH",
+      "extern_id": "gnc:5968e5552e65c1bed508d4d7115f2532",
+      "kategorie_extern_id": "gnc:5796e13457c1f874cd3e21248fe18dd9",
+      "quelle": null,
+      "splits": [
+        {
+          "betrag": -330,
+          "konto_extern_id": "gnc:442dba84a5f9c675b34ea83aad83135a",
+          "memo": ""
+        },
+        {
+          "betrag": 330,
+          "konto_extern_id": "gnc:5796e13457c1f874cd3e21248fe18dd9",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 330,
+      "verwendungszweck": "",
+      "wahre_kategorie_extern_id": null
+    },
+    {
+      "datum": "2023-03-14",
+      "empfaenger": null,
+      "extern_id": "gnc:3d6562c5b7b093482f4615e6729facc0",
+      "kategorie_extern_id": null,
+      "quelle": null,
+      "splits": [
+        {
+          "betrag": 700,
+          "konto_extern_id": "gnc:fea1ec28ce83f62da91a9cf4ea9b457f",
+          "memo": ""
+        },
+        {
+          "betrag": -700,
+          "konto_extern_id": "gnc:94e740dbf923849765a0199d49b9d511",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 700,
+      "verwendungszweck": "Zweitkonto",
+      "wahre_kategorie_extern_id": null
+    },
+    {
+      "datum": "2023-03-15",
+      "empfaenger": null,
+      "extern_id": "gnc:8e45f8a83931b8aec32d9a78b337262d",
+      "kategorie_extern_id": "gnc:37cd828805582a15e221323db80ae141",
+      "quelle": null,
+      "splits": [
+        {
+          "betrag": 800,
+          "konto_extern_id": "gnc:ea5bd35f3060fe6a0a6163468933e6b9",
+          "memo": ""
+        },
+        {
+          "betrag": -800,
+          "konto_extern_id": "gnc:37cd828805582a15e221323db80ae141",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 800,
+      "verwendungszweck": "Auf Unterkonto des Depots",
+      "wahre_kategorie_extern_id": null
+    }
+  ],
+  "empfaenger": [
+    {
+      "extern_id": null,
+      "name": "Bäckerei Größenwahn – Inh. Jürgen Weiß"
+    },
+    {
+      "extern_id": null,
+      "name": "Ça va? Café „Zum Ölfass“ <&> 'Zitat' \"doppelt\""
+    },
+    {
+      "extern_id": null,
+      "name": "Ärger GmbH"
+    },
+    {
+      "extern_id": null,
+      "name": "☕ Emoji-Kiosk 🙂"
+    },
+    {
+      "extern_id": null,
+      "name": "Kino Lichtspiel"
+    }
+  ],
+  "erfolgreich": true,
+  "ergebnis": {
+    "buchungen_neu": 20,
+    "buchungen_uebersprungen": 3,
+    "buchungen_vorhanden": 0,
+    "buchungen_zur_pruefung": 0,
+    "buchungen_zusammengefuehrt": 0,
+    "empfaenger_neu": 5,
+    "empfaenger_vorhanden": 0,
+    "erfolgreich": true,
+    "format": "gnc-sqlite",
+    "kategorien_neu": 23,
+    "kategorien_vorhanden": 0,
+    "konten_neu": 10,
+    "konten_vorhanden": 0,
+    "splits_neu": 53,
+    "tags_neu": 0,
+    "tags_vorhanden": 0
+  },
+  "fehler_code": null,
+  "fixture": "gnc/sonderfaelle.sqlite.gnucash",
+  "konten": [
+    {
+      "anzahl_buchungen": 13,
+      "art": "girokonto",
+      "eltern_extern_id": null,
+      "eroeffnet_am": null,
+      "extern_id": "gnc:442dba84a5f9c675b34ea83aad83135a",
+      "geschlossen": false,
+      "iban": "DE96000000000000006001",
+      "ist_kategorie": false,
+      "name": "Girokonto Ünïcödé & <Test> \"Haupt\"",
+      "notiz": "Hauptkonto – fiktiv",
+      "saldo": 86502,
+      "saldo_gesamt": 86502
+    },
+    {
+      "anzahl_buchungen": 1,
+      "art": "girokonto",
+      "eltern_extern_id": null,
+      "eroeffnet_am": null,
+      "extern_id": "gnc:9d30cfda3540e186ebbc2cf5da87486f",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": false,
+      "name": "Bargeld",
+      "notiz": "",
+      "saldo": -1500,
+      "saldo_gesamt": -1500
+    },
+    {
+      "anzahl_buchungen": 1,
+      "art": "sparkonto",
+      "eltern_extern_id": null,
+      "eroeffnet_am": null,
+      "extern_id": "gnc:08d35532045efa03c468c89511b5d64d",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": false,
+      "name": "Sonstiges Vermögen",
+      "notiz": "",
+      "saldo": 4000,
+      "saldo_gesamt": 4000
+    },
+    {
+      "anzahl_buchungen": 1,
+      "art": "sparkonto",
+      "eltern_extern_id": null,
+      "eroeffnet_am": null,
+      "extern_id": "gnc:1548fd3677fde5b126d2a311bb210d59",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": false,
+      "name": "Forderungen",
+      "notiz": "",
+      "saldo": -1000,
+      "saldo_gesamt": -1000
+    },
+    {
+      "anzahl_buchungen": 1,
+      "art": "kreditkonto",
+      "eltern_extern_id": null,
+      "eroeffnet_am": null,
+      "extern_id": "gnc:b965060b62f7211786913e08f067e041",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": false,
+      "name": "Verbindlichkeiten",
+      "notiz": "",
+      "saldo": -3000,
+      "saldo_gesamt": -3000
+    },
+    {
+      "anzahl_buchungen": 1,
+      "art": "kreditkonto",
+      "eltern_extern_id": null,
+      "eroeffnet_am": null,
+      "extern_id": "gnc:09b1df3b0fde562817cc965c6b0d146e",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": false,
+      "name": "Kreditkarte",
+      "notiz": "",
+      "saldo": -2599,
+      "saldo_gesamt": -2599
+    },
+    {
+      "anzahl_buchungen": 2,
+      "art": "girokonto",
+      "eltern_extern_id": null,
+      "eroeffnet_am": null,
+      "extern_id": "gnc:fdacc4a371f42598da1a573e81f8995d",
+      "geschlossen": true,
+      "iban": "DE42000000000000006003",
+      "ist_kategorie": false,
+      "name": "Altkonto (versteckt)",
+      "notiz": "",
+      "saldo": 0,
+      "saldo_gesamt": 0
+    },
+    {
+      "anzahl_buchungen": 1,
+      "art": "girokonto",
+      "eltern_extern_id": null,
+      "eroeffnet_am": null,
+      "extern_id": "gnc:fea1ec28ce83f62da91a9cf4ea9b457f",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": false,
+      "name": "Zweitkonto gleiche IBAN",
+      "notiz": "",
+      "saldo": 700,
+      "saldo_gesamt": 700
+    },
+    {
+      "anzahl_buchungen": 1,
+      "art": "girokonto",
+      "eltern_extern_id": null,
+      "eroeffnet_am": null,
+      "extern_id": "gnc:ea5bd35f3060fe6a0a6163468933e6b9",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": false,
+      "name": "Konto mit falscher IBAN",
+      "notiz": "",
+      "saldo": 800,
+      "saldo_gesamt": 800
+    },
+    {
+      "anzahl_buchungen": 3,
+      "art": "eigenkapital",
+      "eltern_extern_id": null,
+      "eroeffnet_am": null,
+      "extern_id": "gnc:94e740dbf923849765a0199d49b9d511",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": false,
+      "name": "Anfangsbestand",
+      "notiz": "",
+      "saldo": -105700,
+      "saldo_gesamt": -105700
+    },
+    {
+      "anzahl_buchungen": 1,
+      "art": "aufwand",
+      "eltern_extern_id": null,
+      "eroeffnet_am": null,
+      "extern_id": "gnc:4b23996ad67379c16d596a1c569e0ad7",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Haushalt",
+      "notiz": "",
+      "saldo": 2599,
+      "saldo_gesamt": 3833
+    },
+    {
+      "anzahl_buchungen": 0,
+      "art": "aufwand",
+      "eltern_extern_id": "gnc:4b23996ad67379c16d596a1c569e0ad7",
+      "eroeffnet_am": null,
+      "extern_id": "gnc:4962ff3297c7548f571232e25c8c2466",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Küche",
+      "notiz": "",
+      "saldo": 0,
+      "saldo_gesamt": 1234
+    },
+    {
+      "anzahl_buchungen": 0,
+      "art": "aufwand",
+      "eltern_extern_id": "gnc:4962ff3297c7548f571232e25c8c2466",
+      "eroeffnet_am": null,
+      "extern_id": "gnc:54d42679dc65bd957f47fcbe76a0a51a",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Geräte",
+      "notiz": "",
+      "saldo": 0,
+      "saldo_gesamt": 1234
+    },
+    {
+      "anzahl_buchungen": 1,
+      "art": "aufwand",
+      "eltern_extern_id": "gnc:54d42679dc65bd957f47fcbe76a0a51a",
+      "eroeffnet_am": null,
+      "extern_id": "gnc:ad5f6e81ee08241cdefd8ef5badf80e8",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Kleingeräte & Zubehör",
+      "notiz": "",
+      "saldo": 1234,
+      "saldo_gesamt": 1234
+    },
+    {
+      "anzahl_buchungen": 6,
+      "art": "aufwand",
+      "eltern_extern_id": null,
+      "eroeffnet_am": null,
+      "extern_id": "gnc:5796e13457c1f874cd3e21248fe18dd9",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Geschenke",
+      "notiz": "Präsente – fiktiv",
+      "saldo": 6264,
+      "saldo_gesamt": 6264
+    },
+    {
+      "anzahl_buchungen": 2,
+      "art": "ertrag",
+      "eltern_extern_id": null,
+      "eroeffnet_am": null,
+      "extern_id": "gnc:ec847738a0e03ca662cc9c0811eec035",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Erstattungen",
+      "notiz": "",
+      "saldo": 1023,
+      "saldo_gesamt": 1023
+    },
+    {
+      "anzahl_buchungen": 1,
+      "art": "aufwand",
+      "eltern_extern_id": null,
+      "eroeffnet_am": null,
+      "extern_id": "gnc:455f07a07ca364f582443f0208124dc3",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Falsch einsortierte Ausgabe",
+      "notiz": "",
+      "saldo": 800,
+      "saldo_gesamt": 800
+    },
+    {
+      "anzahl_buchungen": 1,
+      "art": "aufwand",
+      "eltern_extern_id": null,
+      "eroeffnet_am": null,
+      "extern_id": "gnc:37cd828805582a15e221323db80ae141",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Unter dem Depot",
+      "notiz": "",
+      "saldo": -800,
+      "saldo_gesamt": -800
+    },
+    {
+      "anzahl_buchungen": 0,
+      "art": "aufwand",
+      "eltern_extern_id": null,
+      "eroeffnet_am": null,
+      "extern_id": "gnc:a7732aec0806cd930ff0ec652c4d9999",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Platzhalter Freizeit",
+      "notiz": "",
+      "saldo": 0,
+      "saldo_gesamt": 1700
+    },
+    {
+      "anzahl_buchungen": 1,
+      "art": "aufwand",
+      "eltern_extern_id": "gnc:a7732aec0806cd930ff0ec652c4d9999",
+      "eroeffnet_am": null,
+      "extern_id": "gnc:5a65f16cc173aa94bd03eb2d14aef971",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Kino",
+      "notiz": "",
+      "saldo": 1700,
+      "saldo_gesamt": 1700
+    },
+    {
+      "anzahl_buchungen": 0,
+      "art": "aufwand",
+      "eltern_extern_id": null,
+      "eroeffnet_am": null,
+      "extern_id": "gnc:562cc9ac56ee86a3e2c3fce4b10cc82d",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Sammelposten",
+      "notiz": "",
+      "saldo": 0,
+      "saldo_gesamt": 7878
+    },
+    {
+      "anzahl_buchungen": 1,
+      "art": "aufwand",
+      "eltern_extern_id": "gnc:562cc9ac56ee86a3e2c3fce4b10cc82d",
+      "eroeffnet_am": null,
+      "extern_id": "gnc:7ae96aae28e8a5a3d61f08da6fe5f42f",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Teil 01",
+      "notiz": "",
+      "saldo": 101,
+      "saldo_gesamt": 101
+    },
+    {
+      "anzahl_buchungen": 1,
+      "art": "aufwand",
+      "eltern_extern_id": "gnc:562cc9ac56ee86a3e2c3fce4b10cc82d",
+      "eroeffnet_am": null,
+      "extern_id": "gnc:98aa180fe6c4945943a8ce34828e06ce",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Teil 02",
+      "notiz": "",
+      "saldo": 202,
+      "saldo_gesamt": 202
+    },
+    {
+      "anzahl_buchungen": 1,
+      "art": "aufwand",
+      "eltern_extern_id": "gnc:562cc9ac56ee86a3e2c3fce4b10cc82d",
+      "eroeffnet_am": null,
+      "extern_id": "gnc:daebc70ad893a93dbc2d6c7759875425",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Teil 03",
+      "notiz": "",
+      "saldo": 303,
+      "saldo_gesamt": 303
+    },
+    {
+      "anzahl_buchungen": 1,
+      "art": "aufwand",
+      "eltern_extern_id": "gnc:562cc9ac56ee86a3e2c3fce4b10cc82d",
+      "eroeffnet_am": null,
+      "extern_id": "gnc:1766158db1f0105868b9f41c9e8e4d5b",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Teil 04",
+      "notiz": "",
+      "saldo": 404,
+      "saldo_gesamt": 404
+    },
+    {
+      "anzahl_buchungen": 1,
+      "art": "aufwand",
+      "eltern_extern_id": "gnc:562cc9ac56ee86a3e2c3fce4b10cc82d",
+      "eroeffnet_am": null,
+      "extern_id": "gnc:79ee1b67eee99a184297a9278a18585f",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Teil 05",
+      "notiz": "",
+      "saldo": 505,
+      "saldo_gesamt": 505
+    },
+    {
+      "anzahl_buchungen": 1,
+      "art": "aufwand",
+      "eltern_extern_id": "gnc:562cc9ac56ee86a3e2c3fce4b10cc82d",
+      "eroeffnet_am": null,
+      "extern_id": "gnc:b223e00ca3f4f0f415969e490eec0f44",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Teil 06",
+      "notiz": "",
+      "saldo": 606,
+      "saldo_gesamt": 606
+    },
+    {
+      "anzahl_buchungen": 1,
+      "art": "aufwand",
+      "eltern_extern_id": "gnc:562cc9ac56ee86a3e2c3fce4b10cc82d",
+      "eroeffnet_am": null,
+      "extern_id": "gnc:31a65d6bbe4985aa0baa908b1a54d351",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Teil 07",
+      "notiz": "",
+      "saldo": 707,
+      "saldo_gesamt": 707
+    },
+    {
+      "anzahl_buchungen": 1,
+      "art": "aufwand",
+      "eltern_extern_id": "gnc:562cc9ac56ee86a3e2c3fce4b10cc82d",
+      "eroeffnet_am": null,
+      "extern_id": "gnc:6581f1ef40c114e5f60006c4ec4007ac",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Teil 08",
+      "notiz": "",
+      "saldo": 808,
+      "saldo_gesamt": 808
+    },
+    {
+      "anzahl_buchungen": 1,
+      "art": "aufwand",
+      "eltern_extern_id": "gnc:562cc9ac56ee86a3e2c3fce4b10cc82d",
+      "eroeffnet_am": null,
+      "extern_id": "gnc:ebdf2f6449f9b478767e022e7c844194",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Teil 09",
+      "notiz": "",
+      "saldo": 909,
+      "saldo_gesamt": 909
+    },
+    {
+      "anzahl_buchungen": 1,
+      "art": "aufwand",
+      "eltern_extern_id": "gnc:562cc9ac56ee86a3e2c3fce4b10cc82d",
+      "eroeffnet_am": null,
+      "extern_id": "gnc:3ea50c20f0a1ce191ac290b3fbc7d66b",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Teil 10",
+      "notiz": "",
+      "saldo": 1010,
+      "saldo_gesamt": 1010
+    },
+    {
+      "anzahl_buchungen": 1,
+      "art": "aufwand",
+      "eltern_extern_id": "gnc:562cc9ac56ee86a3e2c3fce4b10cc82d",
+      "eroeffnet_am": null,
+      "extern_id": "gnc:bd1c96bb72e22607916c316537d65cd3",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Teil 11",
+      "notiz": "",
+      "saldo": 1111,
+      "saldo_gesamt": 1111
+    },
+    {
+      "anzahl_buchungen": 1,
+      "art": "aufwand",
+      "eltern_extern_id": "gnc:562cc9ac56ee86a3e2c3fce4b10cc82d",
+      "eroeffnet_am": null,
+      "extern_id": "gnc:5621831a1dc5bf464bc3cc621102ef04",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Teil 12",
+      "notiz": "",
+      "saldo": 1212,
+      "saldo_gesamt": 1212
+    },
+    {
+      "anzahl_buchungen": 3,
+      "art": "eigenkapital",
+      "eltern_extern_id": null,
+      "eroeffnet_am": null,
+      "extern_id": "kontor:unausgeglichen",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": false,
+      "name": "Unausgeglichen",
+      "notiz": "",
+      "saldo": 1099,
+      "saldo_gesamt": 1099
+    }
+  ],
+  "startwert": 4711,
+  "summen": {
+    "anzahl_buchungen": 20,
+    "anzahl_splits": 53,
+    "anzahl_transaktionen_in_datei": 23,
+    "summe_bestand": 83903,
+    "summe_gesamt": 0
+  },
+  "tags": [],
+  "umbuchungen": [
+    "gnc:ebcb916b1a8dd3c46af8597266ba3434",
+    "gnc:aea76515403f4ea37dcd0c4a9265b081"
+  ],
+  "warnungen": [
+    {
+      "code": "kontoart_ersetzt",
+      "referenz": "9d30cfda3540e186ebbc2cf5da87486f"
+    },
+    {
+      "code": "kontoart_ersetzt",
+      "referenz": "08d35532045efa03c468c89511b5d64d"
+    },
+    {
+      "code": "kontoart_ersetzt",
+      "referenz": "1548fd3677fde5b126d2a311bb210d59"
+    },
+    {
+      "code": "kontoart_ersetzt",
+      "referenz": "b965060b62f7211786913e08f067e041"
+    },
+    {
+      "code": "konto_uebersprungen",
+      "referenz": "d371cda30bbc4ed3a39a391718735cd7"
+    },
+    {
+      "code": "fremdwaehrung",
+      "referenz": "3d1dec460760084f9d560eb990dee097"
+    },
+    {
+      "code": "iban_doppelt",
+      "referenz": "fea1ec28ce83f62da91a9cf4ea9b457f"
+    },
+    {
+      "code": "iban_ungueltig",
+      "referenz": "ea5bd35f3060fe6a0a6163468933e6b9"
+    },
+    {
+      "code": "hierarchie_angepasst",
+      "referenz": "455f07a07ca364f582443f0208124dc3"
+    },
+    {
+      "code": "buchung_ausgeglichen",
+      "referenz": "5fa5280a46ff00ac53bcfc1b824b4b15"
+    },
+    {
+      "code": "buchung_ausgeglichen",
+      "referenz": "a04debc31c697a2a013d8885ce6a4c36"
+    },
+    {
+      "code": "buchung_ausgeglichen",
+      "referenz": "f35e451e493928abc8dc3808fb921b50"
+    },
+    {
+      "code": "buchung_uebersprungen",
+      "referenz": "5ff2e8ff3d10c3551a62d1365c4e1e1b"
+    },
+    {
+      "code": "buchung_uebersprungen",
+      "referenz": "5d32e9ac223fbf5e78f186a94d22226d"
+    },
+    {
+      "code": "buchung_uebersprungen",
+      "referenz": "f0a4e71151082d29bf9bfa0d732d1fef"
+    }
+  ]
+}

@@ -1,0 +1,309 @@
+{
+  "beispiele": [
+    {
+      "art": "tan_erforderlich",
+      "link": "/tan/3",
+      "mock_modus": false,
+      "ntfy_koerper": {
+        "click": "https://kontor.heim.example.invalid:8443/tan/3",
+        "message": "Synthetischer Text für tan_erforderlich (Ä Ö Ü ß €)",
+        "priority": 4,
+        "tags": [
+          "tan_erforderlich"
+        ],
+        "title": "TAN erforderlich",
+        "topic": "kontor-test-THEMA"
+      },
+      "oeffentliche_url": "https://kontor.heim.example.invalid:8443/",
+      "text": "Synthetischer Text für tan_erforderlich (Ä Ö Ü ß €)",
+      "titel": "TAN erforderlich"
+    },
+    {
+      "art": "tan_erinnerung",
+      "link": "/tan/3",
+      "mock_modus": true,
+      "ntfy_koerper": {
+        "click": "http://kontor.lan.example.invalid/tan/3",
+        "message": "Synthetischer Text für tan_erinnerung (Ä Ö Ü ß €)",
+        "priority": 4,
+        "tags": [
+          "tan_erinnerung"
+        ],
+        "title": "[Mock] Erinnerung: TAN erforderlich",
+        "topic": "kontor-test-THEMA"
+      },
+      "oeffentliche_url": "http://kontor.lan.example.invalid",
+      "text": "Synthetischer Text für tan_erinnerung (Ä Ö Ü ß €)",
+      "titel": "Erinnerung: TAN erforderlich"
+    },
+    {
+      "art": "sync_fehler",
+      "link": null,
+      "mock_modus": false,
+      "ntfy_koerper": {
+        "message": "Synthetischer Text für sync_fehler (Ä Ö Ü ß €)",
+        "priority": 3,
+        "tags": [
+          "sync_fehler"
+        ],
+        "title": "Synchronisation fehlgeschlagen",
+        "topic": "kontor-test-THEMA"
+      },
+      "oeffentliche_url": "https://kontor.heim.example.invalid",
+      "text": "Synthetischer Text für sync_fehler (Ä Ö Ü ß €)",
+      "titel": "Synchronisation fehlgeschlagen"
+    },
+    {
+      "art": "mail_token_laeuft_ab",
+      "link": "/mail/postfaecher/2",
+      "mock_modus": false,
+      "ntfy_koerper": {
+        "message": "Synthetischer Text für mail_token_laeuft_ab (Ä Ö Ü ß €)",
+        "priority": 3,
+        "tags": [
+          "mail_token_laeuft_ab"
+        ],
+        "title": "Mail-Anmeldung läuft ab",
+        "topic": "kontor-test-THEMA"
+      },
+      "oeffentliche_url": null,
+      "text": "Synthetischer Text für mail_token_laeuft_ab (Ä Ö Ü ß €)",
+      "titel": "Mail-Anmeldung läuft ab"
+    },
+    {
+      "art": "konto_fehlt",
+      "link": "/sync/konten",
+      "mock_modus": true,
+      "ntfy_koerper": {
+        "message": "Synthetischer Text für konto_fehlt (Ä Ö Ü ß €)",
+        "priority": 3,
+        "tags": [
+          "konto_fehlt"
+        ],
+        "title": "[Mock] Bankkonto ohne Konto",
+        "topic": "kontor-test-THEMA"
+      },
+      "oeffentliche_url": null,
+      "text": "Synthetischer Text für konto_fehlt (Ä Ö Ü ß €)",
+      "titel": "Bankkonto ohne Konto"
+    }
+  ],
+  "erinnerungen": [
+    {
+      "anzahl": 3,
+      "erinnerungen": [
+        [],
+        [
+          1
+        ],
+        [],
+        [
+          3
+        ],
+        [],
+        []
+      ],
+      "erstellt": "2024-06-30T09:52:59Z",
+      "gueltig_bis": "2024-06-30T10:52:59Z",
+      "intervall": 5,
+      "takte": [
+        "2024-06-30T09:56:59Z",
+        "2024-06-30T09:57:59Z",
+        "2024-06-30T09:58:59Z",
+        "2024-06-30T10:08:59Z",
+        "2024-06-30T10:13:59Z",
+        "2024-06-30T10:32:59Z"
+      ]
+    },
+    {
+      "anzahl": 1,
+      "erinnerungen": [
+        [],
+        [
+          1
+        ],
+        [],
+        [],
+        [],
+        []
+      ],
+      "erstellt": "2024-06-30T09:20:01Z",
+      "gueltig_bis": "2024-06-30T09:43:01Z",
+      "intervall": 10,
+      "takte": [
+        "2024-06-30T09:28:34Z",
+        "2024-06-30T09:39:28Z",
+        "2024-06-30T09:46:20Z",
+        "2024-06-30T09:55:50Z",
+        "2024-06-30T10:18:37Z",
+        "2024-06-30T10:25:06Z"
+      ]
+    },
+    {
+      "anzahl": 3,
+      "erinnerungen": [
+        [],
+        [],
+        [
+          1
+        ],
+        [
+          2
+        ],
+        [
+          3
+        ],
+        []
+      ],
+      "erstellt": "2024-06-30T09:50:34Z",
+      "gueltig_bis": "2024-06-30T09:58:34Z",
+      "intervall": 2,
+      "takte": [
+        "2024-06-30T09:51:30Z",
+        "2024-06-30T09:52:00Z",
+        "2024-06-30T09:54:15Z",
+        "2024-06-30T09:56:14Z",
+        "2024-06-30T09:57:13Z",
+        "2024-06-30T10:02:06Z"
+      ]
+    },
+    {
+      "anzahl": 5,
+      "erinnerungen": [
+        [
+          2
+        ],
+        [],
+        [
+          4
+        ],
+        [],
+        [],
+        []
+      ],
+      "erstellt": "2024-06-30T09:38:25Z",
+      "gueltig_bis": "2024-06-30T09:43:25Z",
+      "intervall": 1,
+      "takte": [
+        "2024-06-30T09:40:30Z",
+        "2024-06-30T09:41:17Z",
+        "2024-06-30T09:43:00Z",
+        "2024-06-30T09:43:49Z",
+        "2024-06-30T09:43:55Z",
+        "2024-06-30T09:44:11Z"
+      ]
+    },
+    {
+      "anzahl": 3,
+      "erinnerungen": [
+        [],
+        [],
+        [
+          3
+        ],
+        [],
+        [],
+        []
+      ],
+      "erstellt": "2024-06-30T09:00:56Z",
+      "gueltig_bis": "2024-06-30T09:12:56Z",
+      "intervall": 2,
+      "takte": [
+        "2024-06-30T09:02:02Z",
+        "2024-06-30T09:02:08Z",
+        "2024-06-30T09:07:18Z",
+        "2024-06-30T09:12:38Z",
+        "2024-06-30T09:12:59Z",
+        "2024-06-30T09:16:23Z"
+      ]
+    },
+    {
+      "anzahl": 0,
+      "erinnerungen": [
+        [],
+        [],
+        [],
+        [],
+        [],
+        []
+      ],
+      "erstellt": "2024-06-30T09:04:58Z",
+      "gueltig_bis": "2024-06-30T09:44:58Z",
+      "intervall": 10,
+      "takte": [
+        "2024-06-30T09:22:53Z",
+        "2024-06-30T09:23:56Z",
+        "2024-06-30T09:26:26Z",
+        "2024-06-30T09:33:02Z",
+        "2024-06-30T09:34:25Z",
+        "2024-06-30T09:43:13Z"
+      ]
+    },
+    {
+      "anzahl": 5,
+      "erinnerungen": [
+        [
+          2
+        ],
+        [
+          3
+        ],
+        [
+          4
+        ],
+        [],
+        [],
+        []
+      ],
+      "erstellt": "2024-06-30T09:47:19Z",
+      "gueltig_bis": "2024-06-30T10:09:19Z",
+      "intervall": 5,
+      "takte": [
+        "2024-06-30T09:59:02Z",
+        "2024-06-30T10:06:56Z",
+        "2024-06-30T10:08:33Z",
+        "2024-06-30T10:14:54Z",
+        "2024-06-30T10:16:31Z",
+        "2024-06-30T10:20:45Z"
+      ]
+    },
+    {
+      "anzahl": 0,
+      "erinnerungen": [
+        [],
+        [],
+        [],
+        [],
+        [],
+        []
+      ],
+      "erstellt": "2024-06-30T09:54:49Z",
+      "gueltig_bis": "2024-06-30T10:04:49Z",
+      "intervall": 2,
+      "takte": [
+        "2024-06-30T10:00:36Z",
+        "2024-06-30T10:01:55Z",
+        "2024-06-30T10:02:08Z",
+        "2024-06-30T10:04:30Z",
+        "2024-06-30T10:04:56Z",
+        "2024-06-30T10:05:32Z"
+      ]
+    }
+  ],
+  "prioritaet": {
+    "konto_fehlt": 3,
+    "mail_fehler": 3,
+    "mail_token_abgelaufen": 4,
+    "mail_token_laeuft_ab": 3,
+    "mail_token_widerrufen": 4,
+    "neuer_empfaenger": 3,
+    "split_abweichung": 3,
+    "sync_fehler": 3,
+    "tan_abgelaufen": 3,
+    "tan_erforderlich": 4,
+    "tan_erinnerung": 4,
+    "wiederkehrend_ausbleibend": 3,
+    "wiederkehrend_betrag": 3
+  },
+  "startwert": 4711
+}

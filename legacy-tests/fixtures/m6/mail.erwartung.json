@@ -1,0 +1,222 @@
+{
+  "postfaecher": {
+    "haushalt.eins@example.invalid": {
+      "INBOX": {
+        "nachrichten": [
+          {
+            "absender": "bestellung@buecherstube.example.invalid",
+            "betreff": "Ihre Bestellung B-1001 bei der Bücherstube – Bestätigung und Zahlungsinformationen",
+            "empfangen": "2024-01-15T09:15:21Z",
+            "nachricht_id": "<KONTOR-4711-0001@mail.example.invalid>",
+            "postfach": "haushalt.eins@example.invalid",
+            "text": "Guten Tag Erika Mustermann,\n\nvielen Dank für Ihre Bestellung Nr. B-1001.\nArtikel: „Größenwahn & Übermut“ (Taschenbuch), Menge 1, Preis 12,99 €\nGesamtbetrag: 12,99 €\nZahlungsart: Lastschrift\n\nIhre Bücherstube (fiktiv)\n",
+            "uid": 3
+          },
+          {
+            "absender": "zahlung@bezahldienst.example.invalid",
+            "betreff": "Zahlungsbestätigung über 13,00 €",
+            "empfangen": "2024-01-16T18:40:30Z",
+            "nachricht_id": "<KONTOR-4711-0002@mail.example.invalid>",
+            "postfach": "haushalt.eins@example.invalid",
+            "text": "Zahlung erhalten Wir haben Ihre Zahlung über 13,00 € erhalten. Empfänger: Bezahldienst & Partner (fiktiv) Vorgangsnummer: ZD-942086",
+            "uid": 4
+          },
+          {
+            "absender": "versand@paket.example.invalid",
+            "betreff": "Versandbestaetigung",
+            "empfangen": "2024-01-18T07:05:19Z",
+            "nachricht_id": "<KONTOR-4711-0003@mail.example.invalid>",
+            "postfach": "haushalt.eins@example.invalid",
+            "text": "Ihre Sendung ist unterwegs.\nSendungsnummer: SYNTH-00012345\n",
+            "uid": 5
+          },
+          {
+            "absender": "newsletter@werbung.example.invalid",
+            "betreff": "Angebote der Woche",
+            "empfangen": "2024-02-02T06:30:08Z",
+            "nachricht_id": "<KONTOR-4711-0004@mail.example.invalid>",
+            "postfach": "haushalt.eins@example.invalid",
+            "text": "Angebote der Woche: Kaffee für 3,99 € – nur heute!\n",
+            "uid": 6
+          },
+          {
+            "absender": "rechnung@stadtwerke.example.invalid",
+            "betreff": "Ihre Rechnung",
+            "empfangen": "2024-02-20T12:00:32Z",
+            "nachricht_id": "<KONTOR-4711-0005@mail.example.invalid>",
+            "postfach": "haushalt.eins@example.invalid",
+            "text": "Ihre Rechnung finden Sie im Anhang. Betrag: 42,00 €",
+            "uid": 9
+          },
+          {
+            "absender": "versand@paket.example.invalid",
+            "betreff": "Versandbestaetigung",
+            "empfangen": "2024-03-03T07:05:46Z",
+            "nachricht_id": "imap:1700000011:12",
+            "postfach": "haushalt.eins@example.invalid",
+            "text": "Ihre Sendung ist unterwegs.\nSendungsnummer: SYNTH-00012345\n",
+            "uid": 12
+          },
+          {
+            "absender": "bestellung@buecherstube.example.invalid",
+            "betreff": "Ihre Bestellung B-1002 bei der Bücherstube – Bestätigung und Zahlungsinformationen",
+            "empfangen": "2024-04-10T09:15:42Z",
+            "nachricht_id": "<KONTOR-4711-0006@mail.example.invalid>",
+            "postfach": "haushalt.eins@example.invalid",
+            "text": "Guten Tag Erika Mustermann,\n\nvielen Dank für Ihre Bestellung Nr. B-1002.\nArtikel: „Größenwahn & Übermut“ (Taschenbuch), Menge 1, Preis 12,99 €\nGesamtbetrag: 12,99 €\nZahlungsart: Lastschrift\n\nIhre Bücherstube (fiktiv)\n",
+            "uid": 13
+          },
+          {
+            "absender": "zahlung@bezahldienst.example.invalid",
+            "betreff": "Zahlungsbestätigung über 27,00 €",
+            "empfangen": "2024-04-11T18:40:16Z",
+            "nachricht_id": "<KONTOR-4711-0007@mail.example.invalid>",
+            "postfach": "haushalt.eins@example.invalid",
+            "text": "Zahlung erhalten Wir haben Ihre Zahlung über 27,00 € erhalten. Empfänger: Bezahldienst & Partner (fiktiv) Vorgangsnummer: ZD-352478",
+            "uid": 14
+          },
+          {
+            "absender": "newsletter@werbung.example.invalid",
+            "betreff": "Angebote der Woche",
+            "empfangen": "2024-05-06T06:30:45Z",
+            "nachricht_id": "<KONTOR-4711-0008@mail.example.invalid>",
+            "postfach": "haushalt.eins@example.invalid",
+            "text": "Angebote der Woche: Kaffee für 3,99 € – nur heute!\n",
+            "uid": 16
+          },
+          {
+            "absender": "bestellung@buecherstube.example.invalid",
+            "betreff": "Ihre Bestellung B-1003 bei der Bücherstube – Bestätigung und Zahlungsinformationen",
+            "empfangen": "2024-06-03T09:15:13Z",
+            "nachricht_id": "<KONTOR-4711-0009@mail.example.invalid>",
+            "postfach": "haushalt.eins@example.invalid",
+            "text": "Guten Tag Erika Mustermann,\n\nvielen Dank für Ihre Bestellung Nr. B-1003.\nArtikel: „Größenwahn & Übermut“ (Taschenbuch), Menge 1, Preis 12,99 €\nGesamtbetrag: 12,99 €\nZahlungsart: Lastschrift\n\nIhre Bücherstube (fiktiv)\n",
+            "uid": 17
+          }
+        ],
+        "uidvalidity": 1700000011
+      },
+      "[Gmail]/Alle Nachrichten": {
+        "nachrichten": [
+          {
+            "absender": "zahlung@bezahldienst.example.invalid",
+            "betreff": "Zahlungsbestätigung über 99,00 €",
+            "empfangen": "2024-03-01T18:40:00Z",
+            "nachricht_id": "<KONTOR-4711-0010@mail.example.invalid>",
+            "postfach": "haushalt.eins@example.invalid",
+            "text": "Zahlung erhalten Wir haben Ihre Zahlung über 99,00 € erhalten. Empfänger: Bezahldienst & Partner (fiktiv) Vorgangsnummer: ZD-101819",
+            "uid": 1
+          },
+          {
+            "absender": "bestellung@buecherstube.example.invalid",
+            "betreff": "Ihre Bestellung B-0999 bei der Bücherstube – Bestätigung und Zahlungsinformationen",
+            "empfangen": "2024-03-02T09:15:55Z",
+            "nachricht_id": "<KONTOR-4711-0011@mail.example.invalid>",
+            "postfach": "haushalt.eins@example.invalid",
+            "text": "Guten Tag Erika Mustermann,\n\nvielen Dank für Ihre Bestellung Nr. B-0999.\nArtikel: „Größenwahn & Übermut“ (Taschenbuch), Menge 1, Preis 12,99 €\nGesamtbetrag: 12,99 €\nZahlungsart: Lastschrift\n\nIhre Bücherstube (fiktiv)\n",
+            "uid": 3
+          }
+        ],
+        "uidvalidity": 1700000022
+      }
+    },
+    "haushalt.zwei@example.invalid": {
+      "Bestellungen/Bücher": {
+        "nachrichten": [
+          {
+            "absender": "bestellung@buecherstube.example.invalid",
+            "betreff": "Ihre Bestellung B-2002 bei der Bücherstube – Bestätigung und Zahlungsinformationen",
+            "empfangen": "2024-02-08T09:15:24Z",
+            "nachricht_id": "<KONTOR-4711-0016@mail.example.invalid>",
+            "postfach": "haushalt.zwei@example.invalid",
+            "text": "Guten Tag Erika Mustermann,\n\nvielen Dank für Ihre Bestellung Nr. B-2002.\nArtikel: „Größenwahn & Übermut“ (Taschenbuch), Menge 1, Preis 12,99 €\nGesamtbetrag: 12,99 €\nZahlungsart: Lastschrift\n\nIhre Bücherstube (fiktiv)\n",
+            "uid": 1
+          },
+          {
+            "absender": "zahlung@bezahldienst.example.invalid",
+            "betreff": "Zahlungsbestätigung über 18,00 €",
+            "empfangen": "2024-02-09T18:40:01Z",
+            "nachricht_id": "<KONTOR-4711-0017@mail.example.invalid>",
+            "postfach": "haushalt.zwei@example.invalid",
+            "text": "Zahlung erhalten Wir haben Ihre Zahlung über 18,00 € erhalten. Empfänger: Bezahldienst & Partner (fiktiv) Vorgangsnummer: ZD-688225",
+            "uid": 4
+          },
+          {
+            "absender": "rechnung@stadtwerke.example.invalid",
+            "betreff": "Ihre Rechnung",
+            "empfangen": "2024-04-01T12:00:09Z",
+            "nachricht_id": "<KONTOR-4711-0018@mail.example.invalid>",
+            "postfach": "haushalt.zwei@example.invalid",
+            "text": "Ihre Rechnung finden Sie im Anhang. Betrag: 42,00 €",
+            "uid": 5
+          },
+          {
+            "absender": "versand@paket.example.invalid",
+            "betreff": "Versandbestaetigung",
+            "empfangen": "2024-04-02T07:05:55Z",
+            "nachricht_id": "imap:1700000044:7",
+            "postfach": "haushalt.zwei@example.invalid",
+            "text": "Ihre Sendung ist unterwegs.\nSendungsnummer: SYNTH-00012345\n",
+            "uid": 7
+          },
+          {
+            "absender": "bestellung@buecherstube.example.invalid",
+            "betreff": "Ihre Bestellung B-2003 bei der Bücherstube – Bestätigung und Zahlungsinformationen",
+            "empfangen": "2024-06-20T09:15:39Z",
+            "nachricht_id": "<KONTOR-4711-0019@mail.example.invalid>",
+            "postfach": "haushalt.zwei@example.invalid",
+            "text": "Guten Tag Erika Mustermann,\n\nvielen Dank für Ihre Bestellung Nr. B-2003.\nArtikel: „Größenwahn & Übermut“ (Taschenbuch), Menge 1, Preis 12,99 €\nGesamtbetrag: 12,99 €\nZahlungsart: Lastschrift\n\nIhre Bücherstube (fiktiv)\n",
+            "uid": 10
+          }
+        ],
+        "uidvalidity": 1700000044
+      },
+      "INBOX": {
+        "nachrichten": [
+          {
+            "absender": "bestellung@buecherstube.example.invalid",
+            "betreff": "Ihre Bestellung B-2001 bei der Bücherstube – Bestätigung und Zahlungsinformationen",
+            "empfangen": "2024-01-20T09:15:45Z",
+            "nachricht_id": "<KONTOR-4711-0012@mail.example.invalid>",
+            "postfach": "haushalt.zwei@example.invalid",
+            "text": "Guten Tag Erika Mustermann,\n\nvielen Dank für Ihre Bestellung Nr. B-2001.\nArtikel: „Größenwahn & Übermut“ (Taschenbuch), Menge 1, Preis 12,99 €\nGesamtbetrag: 12,99 €\nZahlungsart: Lastschrift\n\nIhre Bücherstube (fiktiv)\n",
+            "uid": 1
+          },
+          {
+            "absender": "versand@paket.example.invalid",
+            "betreff": "Versandbestaetigung",
+            "empfangen": "2024-01-22T07:05:22Z",
+            "nachricht_id": "<KONTOR-4711-0013@mail.example.invalid>",
+            "postfach": "haushalt.zwei@example.invalid",
+            "text": "Ihre Sendung ist unterwegs.\nSendungsnummer: SYNTH-00012345\n",
+            "uid": 2
+          },
+          {
+            "absender": "newsletter@werbung.example.invalid",
+            "betreff": "Angebote der Woche",
+            "empfangen": "2024-03-15T06:30:43Z",
+            "nachricht_id": "<KONTOR-4711-0014@mail.example.invalid>",
+            "postfach": "haushalt.zwei@example.invalid",
+            "text": "Angebote der Woche: Kaffee für 3,99 € – nur heute!\n",
+            "uid": 4
+          },
+          {
+            "absender": "zahlung@bezahldienst.example.invalid",
+            "betreff": "Zahlungsbestätigung über 41,00 €",
+            "empfangen": "2024-05-05T18:40:34Z",
+            "nachricht_id": "<KONTOR-4711-0015@mail.example.invalid>",
+            "postfach": "haushalt.zwei@example.invalid",
+            "text": "Zahlung erhalten Wir haben Ihre Zahlung über 41,00 € erhalten. Empfänger: Bezahldienst & Partner (fiktiv) Vorgangsnummer: ZD-387891",
+            "uid": 5
+          }
+        ],
+        "uidvalidity": 1700000033
+      }
+    }
+  },
+  "startwert": 4711,
+  "vergleich_ordner": {
+    "haushalt.eins@example.invalid": "INBOX",
+    "haushalt.zwei@example.invalid": "Bestellungen/Bücher"
+  }
+}

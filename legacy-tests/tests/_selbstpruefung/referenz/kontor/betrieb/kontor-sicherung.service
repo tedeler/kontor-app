@@ -1,0 +1,34 @@
+[Unit]
+Description=Kontor – tägliche Sicherung
+
+[Service]
+Type=oneshot
+User=kontor
+Group=kontor
+EnvironmentFile=/etc/kontor/kontor.env
+ExecStart=/opt/kontor/venv/bin/python -m kontor.sicherung --verzeichnis /var/lib/kontor/sicherungen --behalten 14
+StateDirectory=kontor
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+ProcSubset=pid
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+RestrictNamespaces=yes
+LockPersonality=yes
+RemoveIPC=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6

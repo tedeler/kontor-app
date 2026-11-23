@@ -1,0 +1,9 @@
+{
+  "art": "gnucash",
+  "beschreibung": "zwei gnc:book in einer Datei",
+  "erfolgreich": false,
+  "fehler_code": "import_format_ungueltig",
+  "fixture": "gnc/zwei_buecher.gnucash",
+  "format": "gnc-xml-gzip",
+  "referenzen": []
+}

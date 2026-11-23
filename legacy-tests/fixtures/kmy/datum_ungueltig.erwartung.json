@@ -1,0 +1,8 @@
+{
+  "art": "kmymoney",
+  "beschreibung": "postdate 2023-02-30",
+  "erfolgreich": false,
+  "fehler_code": "import_inhalt_ungueltig",
+  "fixture": "kmy/datum_ungueltig.kmy",
+  "format": "kmy-gzip"
+}
