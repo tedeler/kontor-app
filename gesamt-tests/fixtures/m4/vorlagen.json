@@ -1,0 +1,176 @@
+{
+  "angepasst": {
+    "teile": [
+      {
+        "betrag": 650,
+        "kategorie": "Haftpflicht",
+        "memo": "Privathaftpflicht Nr. 0001"
+      },
+      {
+        "betrag": 1340,
+        "kategorie": "Hausrat",
+        "memo": "Hausrat Nr. 0002 (neuer Beitrag)"
+      },
+      {
+        "betrag": 1850,
+        "kategorie": "Unfall",
+        "memo": "Unfall Nr. 0003"
+      }
+    ],
+    "vorlage": "Versicherung monatlich"
+  },
+  "beschreibung": "Kategorien und Split-Vorlagen (vorlagen.md); kategorie = Name, konto_id-Wert {\"iban\": …} auf das Konto mit dieser IBAN abbilden",
+  "kategorien": [
+    {
+      "art": "aufwand",
+      "name": "Haftpflicht"
+    },
+    {
+      "art": "aufwand",
+      "name": "Hausrat"
+    },
+    {
+      "art": "aufwand",
+      "name": "Unfall"
+    },
+    {
+      "art": "aufwand",
+      "name": "KFZ"
+    },
+    {
+      "art": "aufwand",
+      "name": "Rechtsschutz"
+    },
+    {
+      "art": "aufwand",
+      "name": "Strom"
+    },
+    {
+      "art": "aufwand",
+      "name": "Gas"
+    },
+    {
+      "art": "aufwand",
+      "name": "Wasser"
+    },
+    {
+      "art": "aufwand",
+      "name": "Lebensmittel"
+    },
+    {
+      "art": "ertrag",
+      "name": "Gehalt"
+    },
+    {
+      "art": "ertrag",
+      "name": "Erstattungen"
+    },
+    {
+      "art": "aufwand",
+      "name": "Versicherungen"
+    }
+  ],
+  "vorlagen": [
+    {
+      "bedingungen": [
+        {
+          "feld": "empfaenger",
+          "operator": "gleich",
+          "wert": "Fiktiva Versicherung AG"
+        },
+        {
+          "feld": "verwendungszweck",
+          "operator": "enthaelt",
+          "wert": "Verträge 0001/0002/0003"
+        }
+      ],
+      "name": "Versicherung monatlich",
+      "prioritaet": 10,
+      "teile": [
+        {
+          "betrag": 650,
+          "kategorie": "Haftpflicht",
+          "memo": "Privathaftpflicht Nr. 0001"
+        },
+        {
+          "betrag": 1290,
+          "kategorie": "Hausrat",
+          "memo": "Hausrat Nr. 0002"
+        },
+        {
+          "betrag": 1850,
+          "kategorie": "Unfall",
+          "memo": "Unfall Nr. 0003"
+        }
+      ]
+    },
+    {
+      "bedingungen": [
+        {
+          "feld": "empfaenger",
+          "operator": "beginnt_mit",
+          "wert": "fiktiva versicherung"
+        },
+        {
+          "feld": "verwendungszweck",
+          "operator": "beginnt_mit",
+          "wert": "jahresbeitrag"
+        }
+      ],
+      "name": "Versicherung jährlich",
+      "prioritaet": 20,
+      "teile": [
+        {
+          "betrag": 41200,
+          "kategorie": "KFZ",
+          "memo": "KFZ Nr. 0004"
+        },
+        {
+          "betrag": 18900,
+          "kategorie": "Rechtsschutz",
+          "memo": "Rechtsschutz Nr. 0005"
+        }
+      ]
+    },
+    {
+      "bedingungen": [
+        {
+          "feld": "empfaenger",
+          "operator": "enthaelt",
+          "wert": "STADTWERKE"
+        },
+        {
+          "feld": "verwendungszweck",
+          "operator": "beginnt_mit",
+          "wert": "Abschlag"
+        },
+        {
+          "feld": "konto_id",
+          "operator": "gleich",
+          "wert": {
+            "iban": "DE49000000000000005101"
+          }
+        }
+      ],
+      "name": "Stadtwerke Abschlag",
+      "prioritaet": 30,
+      "teile": [
+        {
+          "betrag": 6500,
+          "kategorie": "Strom",
+          "memo": "Strom"
+        },
+        {
+          "betrag": 4200,
+          "kategorie": "Gas",
+          "memo": "Gas"
+        },
+        {
+          "betrag": 2100,
+          "kategorie": "Wasser",
+          "memo": "Wasser"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "art": "gnucash",
+  "beschreibung": "Buchungsdatum 2024-02-30",
+  "erfolgreich": false,
+  "fehler_code": "import_inhalt_ungueltig",
+  "fixture": "gnc/datum_ungueltig.gnucash",
+  "format": "gnc-xml-gzip",
+  "referenzen": [
+    "7db3ae74b8a035da72e2c2b792f53937"
+  ]
+}

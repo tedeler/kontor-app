@@ -1,0 +1,123 @@
+From MAILER-DAEMON Thu Feb 08 09:15:24 2024
+Message-ID: <KONTOR-4711-0016@mail.example.invalid>
+From: =?iso-8859-1?q?B=FCcherstube_=28fiktiv=29?= <bestellung@buecherstube.example.invalid>
+To: haushalt.zwei@example.invalid
+Subject: =?utf-8?q?Ihre_Bestellung_B=2D2002_bei_der_B=C3=BCcherstu?=
+ =?utf-8?q?be_=E2=80=93_Best=C3=A4tigung_und_Zahlungsinformationen?=
+Date: Thu, 08 Feb 2024 10:15:24 +0100
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="==grenze-B-2002=="
+
+Dies ist eine MIME-Nachricht.
+--==grenze-B-2002==
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+Guten Tag Erika Mustermann,
+
+vielen Dank f=C3=BCr Ihre Bestellung Nr. B-2002.
+Artikel: =E2=80=9EGr=C3=B6=C3=9Fenwahn & =C3=9Cbermut=E2=80=9C (Taschenbuch=
+), Menge 1, Preis 12,99 =E2=82=AC
+Gesamtbetrag: 12,99 =E2=82=AC
+Zahlungsart: Lastschrift
+
+Ihre B=C3=BCcherstube (fiktiv)
+
+--==grenze-B-2002==
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+<html><body><p>Guten Tag Erika Mustermann,</p><p>Bestellung <b>B-2002</b>: =
+&bdquo;Gr&ouml;&szlig;enwahn &amp; &Uuml;bermut&ldquo; &ndash; 12,99&nbsp;&=
+euro;</p></body></html>
+--==grenze-B-2002==--
+
+From MAILER-DAEMON Fri Feb 09 18:40:01 2024
+Message-ID: <KONTOR-4711-0017@mail.example.invalid>
+From: Bezahldienst <zahlung@bezahldienst.example.invalid>
+To: haushalt.zwei@example.invalid
+Subject: =?iso-8859-15?b?WmFobHVuZ3NiZXN05HRpZ3VuZyD8YmVyIDE4LDAwIKQ=?=
+Date: Fri, 09 Feb 2024 19:40:01 +0100
+MIME-Version: 1.0
+Content-Type: text/html; charset=iso-8859-15
+Content-Transfer-Encoding: base64
+
+PGh0bWw+PGhlYWQ+PHN0eWxlPnAgeyBjb2xvcjogIzMzMzsgfTwvc3R5bGU+PHNjcmlwdD52YXIg
+eCA9ICc8Yj5uaWNodCBhbnplaWdlbjwvYj4nOzwvc2NyaXB0PjwvaGVhZD48Ym9keT48aDE+WmFo
+bHVuZyBlcmhhbHRlbjwvaDE+PHA+V2lyIGhhYmVuIElocmUgWmFobHVuZyD8YmVyIDE4LDAwJm5i
+c3A7JmV1cm87IGVyaGFsdGVuLjwvcD48cD5FbXBm5G5nZXI6IEJlemFobGRpZW5zdCAmYW1wOyBQ
+YXJ0bmVyIChmaWt0aXYpPC9wPjxwPlZvcmdhbmdzbnVtbWVyOiYjMTYwO1pELTY4ODIyNTwvcD48
+L2JvZHk+PC9odG1sPg==
+
+From MAILER-DAEMON Mon Apr 01 12:00:09 2024
+Message-ID: <KONTOR-4711-0018@mail.example.invalid>
+From: rechnung@stadtwerke.example.invalid
+To: haushalt.zwei@example.invalid
+Subject: Ihre Rechnung
+Date: Mon, 01 Apr 2024 13:00:09 +0100
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="==rechnung=="
+
+--==rechnung==
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: attachment; filename="info.txt"
+
+Dieser Anhang ist kein Nachrichtentext.
+--==rechnung==
+Content-Type: text/html; charset=utf-8
+
+<p>Ihre Rechnung finden Sie im Anhang.<br>Betrag: 42,00 &euro;</p>
+--==rechnung==
+Content-Type: application/pdf
+Content-Disposition: attachment; filename="rechnung.pdf"
+Content-Transfer-Encoding: base64
+
+JVBERi0xLjQKJSBzeW50aGV0aXNjaGVyIFRlc3RhbmhhbmcKJSVFT0YK
+--==rechnung==--
+
+From MAILER-DAEMON Tue Apr 02 07:05:55 2024
+From: versand@paket.example.invalid
+To: haushalt.zwei@example.invalid
+Subject: Versandbestaetigung
+Date: Tue, 02 Apr 2024 08:05:55 +0100
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+
+Ihre Sendung ist unterwegs.
+Sendungsnummer: SYNTH-00012345
+
+From MAILER-DAEMON Thu Jun 20 09:15:39 2024
+Message-ID: <KONTOR-4711-0019@mail.example.invalid>
+From: =?iso-8859-1?q?B=FCcherstube_=28fiktiv=29?= <bestellung@buecherstube.example.invalid>
+To: haushalt.zwei@example.invalid
+Subject: =?utf-8?q?Ihre_Bestellung_B=2D2003_bei_der_B=C3=BCcherstu?=
+ =?utf-8?q?be_=E2=80=93_Best=C3=A4tigung_und_Zahlungsinformationen?=
+Date: Thu, 20 Jun 2024 10:15:39 +0100
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="==grenze-B-2003=="
+
+Dies ist eine MIME-Nachricht.
+--==grenze-B-2003==
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+Guten Tag Erika Mustermann,
+
+vielen Dank f=C3=BCr Ihre Bestellung Nr. B-2003.
+Artikel: =E2=80=9EGr=C3=B6=C3=9Fenwahn & =C3=9Cbermut=E2=80=9C (Taschenbuch=
+), Menge 1, Preis 12,99 =E2=82=AC
+Gesamtbetrag: 12,99 =E2=82=AC
+Zahlungsart: Lastschrift
+
+Ihre B=C3=BCcherstube (fiktiv)
+
+--==grenze-B-2003==
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+<html><body><p>Guten Tag Erika Mustermann,</p><p>Bestellung <b>B-2003</b>: =
+&bdquo;Gr&ouml;&szlig;enwahn &amp; &Uuml;bermut&ldquo; &ndash; 12,99&nbsp;&=
+euro;</p></body></html>
+--==grenze-B-2003==--
+

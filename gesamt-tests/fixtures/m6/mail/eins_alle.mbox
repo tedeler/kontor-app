@@ -1,0 +1,51 @@
+From MAILER-DAEMON Fri Mar 01 18:40:00 2024
+Message-ID: <KONTOR-4711-0010@mail.example.invalid>
+From: Bezahldienst <zahlung@bezahldienst.example.invalid>
+To: haushalt.eins@example.invalid
+Subject: =?iso-8859-15?b?WmFobHVuZ3NiZXN05HRpZ3VuZyD8YmVyIDk5LDAwIKQ=?=
+Date: Fri, 01 Mar 2024 19:40:00 +0100
+MIME-Version: 1.0
+Content-Type: text/html; charset=iso-8859-15
+Content-Transfer-Encoding: base64
+
+PGh0bWw+PGhlYWQ+PHN0eWxlPnAgeyBjb2xvcjogIzMzMzsgfTwvc3R5bGU+PHNjcmlwdD52YXIg
+eCA9ICc8Yj5uaWNodCBhbnplaWdlbjwvYj4nOzwvc2NyaXB0PjwvaGVhZD48Ym9keT48aDE+WmFo
+bHVuZyBlcmhhbHRlbjwvaDE+PHA+V2lyIGhhYmVuIElocmUgWmFobHVuZyD8YmVyIDk5LDAwJm5i
+c3A7JmV1cm87IGVyaGFsdGVuLjwvcD48cD5FbXBm5G5nZXI6IEJlemFobGRpZW5zdCAmYW1wOyBQ
+YXJ0bmVyIChmaWt0aXYpPC9wPjxwPlZvcmdhbmdzbnVtbWVyOiYjMTYwO1pELTEwMTgxOTwvcD48
+L2JvZHk+PC9odG1sPg==
+
+From MAILER-DAEMON Sat Mar 02 09:15:55 2024
+Message-ID: <KONTOR-4711-0011@mail.example.invalid>
+From: =?iso-8859-1?q?B=FCcherstube_=28fiktiv=29?= <bestellung@buecherstube.example.invalid>
+To: haushalt.eins@example.invalid
+Subject: =?utf-8?q?Ihre_Bestellung_B=2D0999_bei_der_B=C3=BCcherstu?=
+ =?utf-8?q?be_=E2=80=93_Best=C3=A4tigung_und_Zahlungsinformationen?=
+Date: Sat, 02 Mar 2024 10:15:55 +0100
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="==grenze-B-0999=="
+
+Dies ist eine MIME-Nachricht.
+--==grenze-B-0999==
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+Guten Tag Erika Mustermann,
+
+vielen Dank f=C3=BCr Ihre Bestellung Nr. B-0999.
+Artikel: =E2=80=9EGr=C3=B6=C3=9Fenwahn & =C3=9Cbermut=E2=80=9C (Taschenbuch=
+), Menge 1, Preis 12,99 =E2=82=AC
+Gesamtbetrag: 12,99 =E2=82=AC
+Zahlungsart: Lastschrift
+
+Ihre B=C3=BCcherstube (fiktiv)
+
+--==grenze-B-0999==
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+<html><body><p>Guten Tag Erika Mustermann,</p><p>Bestellung <b>B-0999</b>: =
+&bdquo;Gr&ouml;&szlig;enwahn &amp; &Uuml;bermut&ldquo; &ndash; 12,99&nbsp;&=
+euro;</p></body></html>
+--==grenze-B-0999==--
+

@@ -1,0 +1,8 @@
+{
+  "art": "kmymoney",
+  "beschreibung": "DTD mit Entitätsdeklarationen (Expansion, externe Entität)",
+  "erfolgreich": false,
+  "fehler_code": "import_format_ungueltig",
+  "fixture": "kmy/entitaeten.kmy",
+  "format": null
+}

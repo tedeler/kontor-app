@@ -1,0 +1,1128 @@
+{
+  "anzahl_gebucht": {
+    "DE37000000000000009003": 12,
+    "DE64000000000000009002": 15,
+    "DE91000000000000009001": 64
+  },
+  "auszuege": [
+    {
+      "iban": "DE91000000000000009001",
+      "neue_splits": 9,
+      "saldo": 158220,
+      "stichtag": "2024-01-31"
+    },
+    {
+      "iban": "DE91000000000000009001",
+      "neue_splits": 11,
+      "saldo": 279361,
+      "stichtag": "2024-02-29"
+    },
+    {
+      "iban": "DE91000000000000009001",
+      "neue_splits": 11,
+      "saldo": 405883,
+      "stichtag": "2024-03-31"
+    },
+    {
+      "iban": "DE91000000000000009001",
+      "neue_splits": 11,
+      "saldo": 537173,
+      "stichtag": "2024-04-30"
+    },
+    {
+      "iban": "DE91000000000000009001",
+      "neue_splits": 12,
+      "saldo": 666392,
+      "stichtag": "2024-05-31"
+    },
+    {
+      "iban": "DE91000000000000009001",
+      "neue_splits": 10,
+      "saldo": 851166,
+      "stichtag": "2024-06-30"
+    },
+    {
+      "iban": "DE64000000000000009002",
+      "neue_splits": 1,
+      "saldo": 25000,
+      "stichtag": "2024-01-31"
+    },
+    {
+      "iban": "DE64000000000000009002",
+      "neue_splits": 2,
+      "saldo": 70000,
+      "stichtag": "2024-02-29"
+    },
+    {
+      "iban": "DE64000000000000009002",
+      "neue_splits": 4,
+      "saldo": 119466,
+      "stichtag": "2024-03-31"
+    },
+    {
+      "iban": "DE64000000000000009002",
+      "neue_splits": 1,
+      "saldo": 144466,
+      "stichtag": "2024-04-30"
+    },
+    {
+      "iban": "DE64000000000000009002",
+      "neue_splits": 3,
+      "saldo": 187597,
+      "stichtag": "2024-05-31"
+    },
+    {
+      "iban": "DE64000000000000009002",
+      "neue_splits": 4,
+      "saldo": 224705,
+      "stichtag": "2024-06-30"
+    },
+    {
+      "iban": "DE37000000000000009003",
+      "neue_splits": 2,
+      "saldo": 31065,
+      "stichtag": "2024-01-31"
+    },
+    {
+      "iban": "DE37000000000000009003",
+      "neue_splits": 2,
+      "saldo": 59455,
+      "stichtag": "2024-02-29"
+    },
+    {
+      "iban": "DE37000000000000009003",
+      "neue_splits": 2,
+      "saldo": 103649,
+      "stichtag": "2024-03-31"
+    },
+    {
+      "iban": "DE37000000000000009003",
+      "neue_splits": 2,
+      "saldo": 146744,
+      "stichtag": "2024-04-30"
+    },
+    {
+      "iban": "DE37000000000000009003",
+      "neue_splits": 2,
+      "saldo": 188366,
+      "stichtag": "2024-05-31"
+    },
+    {
+      "iban": "DE37000000000000009003",
+      "neue_splits": 2,
+      "saldo": 185681,
+      "stichtag": "2024-06-30"
+    }
+  ],
+  "auszuege_falsch": [
+    {
+      "differenz": -1,
+      "iban": "DE91000000000000009001",
+      "saldo": 405882,
+      "stichtag": "2024-03-31"
+    },
+    {
+      "differenz": 250,
+      "iban": "DE37000000000000009003",
+      "saldo": 59705,
+      "stichtag": "2024-02-29"
+    }
+  ],
+  "fall": {
+    "M-00001": "umbuchung_gleicher_tag",
+    "M-00002": "umbuchung_gleicher_tag",
+    "M-00003": "miete",
+    "M-00004": "strom",
+    "M-00005": "baecker",
+    "M-00006": "cafe",
+    "M-00007": "umbuchung_kredit_ohne_iban",
+    "M-00008": "umbuchung_kredit_ohne_iban",
+    "M-00009": "super",
+    "M-00010": "super",
+    "M-00011": "gehalt",
+    "M-00012": "abo",
+    "M-00013": "umbuchung_gleicher_tag",
+    "M-00014": "umbuchung_gleicher_tag",
+    "M-00015": "miete",
+    "M-00016": "strom",
+    "M-00017": "baecker",
+    "M-00018": "cafe",
+    "M-00019": "umbuchung_kredit_ohne_iban",
+    "M-00020": "umbuchung_kredit_ohne_iban",
+    "M-00021": "super",
+    "M-00022": "super",
+    "M-00023": "gehalt",
+    "M-00024": "abo",
+    "M-00025": "umbuchung_gleicher_tag",
+    "M-00026": "umbuchung_gleicher_tag",
+    "M-00027": "miete",
+    "M-00028": "strom",
+    "M-00029": "baecker",
+    "M-00030": "cafe",
+    "M-00031": "umbuchung_kredit_ohne_iban",
+    "M-00032": "umbuchung_kredit_ohne_iban",
+    "M-00033": "super",
+    "M-00034": "super",
+    "M-00035": "gehalt",
+    "M-00036": "abo",
+    "M-00037": "umbuchung_gleicher_tag",
+    "M-00038": "umbuchung_gleicher_tag",
+    "M-00039": "miete",
+    "M-00040": "strom",
+    "M-00041": "baecker",
+    "M-00042": "cafe",
+    "M-00043": "umbuchung_kredit_ohne_iban",
+    "M-00044": "umbuchung_kredit_ohne_iban",
+    "M-00045": "super",
+    "M-00046": "super",
+    "M-00047": "gehalt",
+    "M-00048": "abo",
+    "M-00049": "umbuchung_gleicher_tag",
+    "M-00050": "umbuchung_gleicher_tag",
+    "M-00051": "miete",
+    "M-00052": "strom",
+    "M-00053": "baecker",
+    "M-00054": "cafe",
+    "M-00055": "umbuchung_kredit_ohne_iban",
+    "M-00056": "umbuchung_kredit_ohne_iban",
+    "M-00057": "super",
+    "M-00058": "super",
+    "M-00059": "gehalt",
+    "M-00060": "abo",
+    "M-00061": "umbuchung_gleicher_tag",
+    "M-00062": "umbuchung_gleicher_tag",
+    "M-00063": "miete",
+    "M-00064": "strom",
+    "M-00065": "baecker",
+    "M-00066": "cafe",
+    "M-00067": "super",
+    "M-00068": "super",
+    "M-00069": "gehalt",
+    "M-00070": "abo",
+    "M-00071": "umbuchung_3_tage",
+    "M-00072": "umbuchung_3_tage",
+    "M-00073": "umbuchung_4_tage",
+    "M-00074": "umbuchung_4_tage",
+    "M-00075": "umbuchung_stufengrenze",
+    "M-00076": "umbuchung_stufengrenze",
+    "M-00077": "umbuchung_neben_fremd",
+    "M-00078": "umbuchung_neben_fremd",
+    "M-00079": "fremde_iban",
+    "M-00080": "umbuchung_mehrdeutig",
+    "M-00081": "umbuchung_mehrdeutig",
+    "M-00082": "umbuchung_mehrdeutig",
+    "M-00083": "umbuchung_iban_widerspruch",
+    "M-00084": "umbuchung_iban_widerspruch",
+    "M-00085": "umbuchung_ohne_iban",
+    "M-00086": "umbuchung_ohne_iban",
+    "M-00087": "zinsen",
+    "M-00088": "zinsen",
+    "M-00089": "strasse",
+    "M-00090": "ligatur",
+    "M-00091": "strasse",
+    "M-00092": "vormerkung"
+  },
+  "fenster_tage": 3,
+  "fixture": "mock/m3_daten.json",
+  "iban_reihenfolge": [
+    "DE37000000000000009003",
+    "DE64000000000000009002",
+    "DE91000000000000009001"
+  ],
+  "ibans": {
+    "fremd": "DE14000000000000009999",
+    "giro": "DE91000000000000009001",
+    "kredit": "DE37000000000000009003",
+    "spar": "DE64000000000000009002"
+  },
+  "konto_namen": {
+    "DE37000000000000009003": "Kreditkarte",
+    "DE64000000000000009002": "Tagesgeld",
+    "DE91000000000000009001": "Girokonto"
+  },
+  "nfd_name": "Bäckerei Müller",
+  "saldo": {
+    "DE37000000000000009003": 185681,
+    "DE64000000000000009002": 224705,
+    "DE91000000000000009001": 851166
+  },
+  "stammdaten": {
+    "M-00001": {
+      "empfaenger": "Erika Mustermann (fiktiv)",
+      "kategorie": null,
+      "quelle": null,
+      "regel": null,
+      "stamm_empfaenger": null
+    },
+    "M-00002": {
+      "empfaenger": "Erika Mustermann (fiktiv)",
+      "kategorie": null,
+      "quelle": null,
+      "regel": null,
+      "stamm_empfaenger": null
+    },
+    "M-00003": {
+      "empfaenger": "Wohnbau Beispiel eG",
+      "kategorie": null,
+      "quelle": null,
+      "regel": null,
+      "stamm_empfaenger": null
+    },
+    "M-00004": {
+      "empfaenger": "Stadtwerke Musterstadt",
+      "kategorie": "Strom",
+      "quelle": "standardkategorie",
+      "regel": null,
+      "stamm_empfaenger": "Stadtwerke Musterstadt"
+    },
+    "M-00005": {
+      "empfaenger": "Bäckerei Müller",
+      "kategorie": "Lebensmittel",
+      "quelle": "standardkategorie",
+      "regel": null,
+      "stamm_empfaenger": "Bäckerei Müller"
+    },
+    "M-00006": {
+      "empfaenger": "Café Bohne",
+      "kategorie": "Café & Restaurant",
+      "quelle": "regel",
+      "regel": "Café",
+      "stamm_empfaenger": "Café Bohne"
+    },
+    "M-00007": {
+      "empfaenger": "Testbank Kartenservice (fiktiv)",
+      "kategorie": null,
+      "quelle": null,
+      "regel": null,
+      "stamm_empfaenger": null
+    },
+    "M-00008": {
+      "empfaenger": "Testbank Kartenservice (fiktiv)",
+      "kategorie": null,
+      "quelle": null,
+      "regel": null,
+      "stamm_empfaenger": null
+    },
+    "M-00009": {
+      "empfaenger": "Supermarkt Frischekorb",
+      "kategorie": "Lebensmittel",
+      "quelle": "standardkategorie",
+      "regel": null,
+      "stamm_empfaenger": "Supermarkt Frischekorb"
+    },
+    "M-00010": {
+      "empfaenger": "Supermarkt Frischekorb",
+      "kategorie": "Lebensmittel",
+      "quelle": "standardkategorie",
+      "regel": null,
+      "stamm_empfaenger": "Supermarkt Frischekorb"
+    },
+    "M-00011": {
+      "empfaenger": "Arbeitgeber Muster GmbH",
+      "kategorie": null,
+      "quelle": null,
+      "regel": null,
+      "stamm_empfaenger": null
+    },
+    "M-00012": {
+      "empfaenger": "Streamio",
+      "kategorie": "Abos",
+      "quelle": "regel",
+      "regel": "Streaming",
+      "stamm_empfaenger": null
+    },
+    "M-00013": {
+      "empfaenger": "Erika Mustermann (fiktiv)",
+      "kategorie": null,
+      "quelle": null,
+      "regel": null,
+      "stamm_empfaenger": null
+    },
+    "M-00014": {
+      "empfaenger": "Erika Mustermann (fiktiv)",
+      "kategorie": null,
+      "quelle": null,
+      "regel": null,
+      "stamm_empfaenger": null
+    },
+    "M-00015": {
+      "empfaenger": "Wohnbau Beispiel eG",
+      "kategorie": null,
+      "quelle": null,
+      "regel": null,
+      "stamm_empfaenger": null
+    },
+    "M-00016": {
+      "empfaenger": "Stadtwerke Musterstadt",
+      "kategorie": "Sonstiges",
+      "quelle": "regel",
+      "regel": "Nachzahlung",
+      "stamm_empfaenger": "Stadtwerke Musterstadt"
+    },
+    "M-00017": {
+      "empfaenger": "Bäckerei Müller",
+      "kategorie": "Lebensmittel",
+      "quelle": "standardkategorie",
+      "regel": null,
+      "stamm_empfaenger": "Bäckerei Müller"
+    },
+    "M-00018": {
+      "empfaenger": "Café Bohne",
+      "kategorie": "Café & Restaurant",
+      "quelle": "regel",
+      "regel": "Café",
+      "stamm_empfaenger": "Café Bohne"
+    },
+    "M-00019": {
+      "empfaenger": "Testbank Kartenservice (fiktiv)",
+      "kategorie": null,
+      "quelle": null,
+      "regel": null,
+      "stamm_empfaenger": null
+    },
+    "M-00020": {
+      "empfaenger": "Testbank Kartenservice (fiktiv)",
+      "kategorie": null,
+      "quelle": null,
+      "regel": null,
+      "stamm_empfaenger": null
+    },
+    "M-00021": {
+      "empfaenger": "Supermarkt Frischekorb",
+      "kategorie": "Lebensmittel",
+      "quelle": "standardkategorie",
+      "regel": null,
+      "stamm_empfaenger": "Supermarkt Frischekorb"
+    },
+    "M-00022": {
+      "empfaenger": "Supermarkt Frischekorb",
+      "kategorie": "Lebensmittel",
+      "quelle": "standardkategorie",
+      "regel": null,
+      "stamm_empfaenger": "Supermarkt Frischekorb"
+    },
+    "M-00023": {
+      "empfaenger": "Arbeitgeber Muster GmbH",
+      "kategorie": null,
+      "quelle": null,
+      "regel": null,
+      "stamm_empfaenger": null
+    },
+    "M-00024": {
+      "empfaenger": "Streamio",
+      "kategorie": "Abos",
+      "quelle": "regel",
+      "regel": "Streaming",
+      "stamm_empfaenger": null
+    },
+    "M-00025": {
+      "empfaenger": "Erika Mustermann (fiktiv)",
+      "kategorie": null,
+      "quelle": null,
+      "regel": null,
+      "stamm_empfaenger": null
+    },
+    "M-00026": {
+      "empfaenger": "Erika Mustermann (fiktiv)",
+      "kategorie": null,
+      "quelle": null,
+      "regel": null,
+      "stamm_empfaenger": null
+    },
+    "M-00027": {
+      "empfaenger": "Wohnbau Beispiel eG",
+      "kategorie": null,
+      "quelle": null,
+      "regel": null,
+      "stamm_empfaenger": null
+    },
+    "M-00028": {
+      "empfaenger": "Stadtwerke Musterstadt",
+      "kategorie": "Strom",
+      "quelle": "standardkategorie",
+      "regel": null,
+      "stamm_empfaenger": "Stadtwerke Musterstadt"
+    },
+    "M-00029": {
+      "empfaenger": "Bäckerei Müller",
+      "kategorie": null,
+      "quelle": null,
+      "regel": null,
+      "stamm_empfaenger": null
+    },
+    "M-00030": {
+      "empfaenger": "Café Bohne",
+      "kategorie": "Café & Restaurant",
+      "quelle": "regel",
+      "regel": "Café",
+      "stamm_empfaenger": "Café Bohne"
+    },
+    "M-00031": {
+      "empfaenger": "Testbank Kartenservice (fiktiv)",
+      "kategorie": null,
+      "quelle": null,
+      "regel": null,
+      "stamm_empfaenger": null
+    },
+    "M-00032": {
+      "empfaenger": "Testbank Kartenservice (fiktiv)",
+      "kategorie": null,
+      "quelle": null,
+      "regel": null,
+      "stamm_empfaenger": null
+    },
+    "M-00033": {
+      "empfaenger": "Supermarkt Frischekorb",
+      "kategorie": "Lebensmittel",
+      "quelle": "standardkategorie",
+      "regel": null,
+      "stamm_empfaenger": "Supermarkt Frischekorb"
+    },
+    "M-00034": {
+      "empfaenger": "Supermarkt Frischekorb",
+      "kategorie": "Lebensmittel",
+      "quelle": "standardkategorie",
+      "regel": null,
+      "stamm_empfaenger": "Supermarkt Frischekorb"
+    },
+    "M-00035": {
+      "empfaenger": "Arbeitgeber Muster GmbH",
+      "kategorie": null,
+      "quelle": null,
+      "regel": null,
+      "stamm_empfaenger": null
+    },
+    "M-00036": {
+      "empfaenger": "Streamio",
+      "kategorie": "Abos",
+      "quelle": "regel",
+      "regel": "Streaming",
+      "stamm_empfaenger": null
+    },
+    "M-00037": {
+      "empfaenger": "Erika Mustermann (fiktiv)",
+      "kategorie": null,
+      "quelle": null,
+      "regel": null,
+      "stamm_empfaenger": null
+    },
+    "M-00038": {
+      "empfaenger": "Erika Mustermann (fiktiv)",
+      "kategorie": null,
+      "quelle": null,
+      "regel": null,
+      "stamm_empfaenger": null
+    },
+    "M-00039": {
+      "empfaenger": "Wohnbau Beispiel eG",
+      "kategorie": null,
+      "quelle": null,
+      "regel": null,
+      "stamm_empfaenger": null
+    },
+    "M-00040": {
+      "empfaenger": "Stadtwerke Musterstadt",
+      "kategorie": "Strom",
+      "quelle": "standardkategorie",
+      "regel": null,
+      "stamm_empfaenger": "Stadtwerke Musterstadt"
+    },
+    "M-00041": {
+      "empfaenger": "Bäckerei Müller",
+      "kategorie": "Lebensmittel",
+      "quelle": "standardkategorie",
+      "regel": null,
+      "stamm_empfaenger": "Bäckerei Müller"
+    },
+    "M-00042": {
+      "empfaenger": "Café Bohne",
+      "kategorie": "Café & Restaurant",
+      "quelle": "regel",
+      "regel": "Café",
+      "stamm_empfaenger": "Café Bohne"
+    },
+    "M-00043": {
+      "empfaenger": "Testbank Kartenservice (fiktiv)",
+      "kategorie": null,
+      "quelle": null,
+      "regel": null,
+      "stamm_empfaenger": null
+    },
+    "M-00044": {
+      "empfaenger": "Testbank Kartenservice (fiktiv)",
+      "kategorie": null,
+      "quelle": null,
+      "regel": null,
+      "stamm_empfaenger": null
+    },
+    "M-00045": {
+      "empfaenger": "Supermarkt Frischekorb",
+      "kategorie": "Lebensmittel",
+      "quelle": "standardkategorie",
+      "regel": null,
+      "stamm_empfaenger": "Supermarkt Frischekorb"
+    },
+    "M-00046": {
+      "empfaenger": "Supermarkt Frischekorb",
+      "kategorie": "Lebensmittel",
+      "quelle": "standardkategorie",
+      "regel": null,
+      "stamm_empfaenger": "Supermarkt Frischekorb"
+    },
+    "M-00047": {
+      "empfaenger": "Arbeitgeber Muster GmbH",
+      "kategorie": null,
+      "quelle": null,
+      "regel": null,
+      "stamm_empfaenger": null
+    },
+    "M-00048": {
+      "empfaenger": "Streamio",
+      "kategorie": "Abos",
+      "quelle": "regel",
+      "regel": "Streaming",
+      "stamm_empfaenger": null
+    },
+    "M-00049": {
+      "empfaenger": "Erika Mustermann (fiktiv)",
+      "kategorie": null,
+      "quelle": null,
+      "regel": null,
+      "stamm_empfaenger": null
+    },
+    "M-00050": {
+      "empfaenger": "Erika Mustermann (fiktiv)",
+      "kategorie": null,
+      "quelle": null,
+      "regel": null,
+      "stamm_empfaenger": null
+    },
+    "M-00051": {
+      "empfaenger": "Wohnbau Beispiel eG",
+      "kategorie": null,
+      "quelle": null,
+      "regel": null,
+      "stamm_empfaenger": null
+    },
+    "M-00052": {
+      "empfaenger": "Stadtwerke Musterstadt",
+      "kategorie": "Strom",
+      "quelle": "standardkategorie",
+      "regel": null,
+      "stamm_empfaenger": "Stadtwerke Musterstadt"
+    },
+    "M-00053": {
+      "empfaenger": "Bäckerei Müller",
+      "kategorie": "Lebensmittel",
+      "quelle": "standardkategorie",
+      "regel": null,
+      "stamm_empfaenger": "Bäckerei Müller"
+    },
+    "M-00054": {
+      "empfaenger": "Café Bohne",
+      "kategorie": "Café & Restaurant",
+      "quelle": "regel",
+      "regel": "Café",
+      "stamm_empfaenger": "Café Bohne"
+    },
+    "M-00055": {
+      "empfaenger": "Testbank Kartenservice (fiktiv)",
+      "kategorie": null,
+      "quelle": null,
+      "regel": null,
+      "stamm_empfaenger": null
+    },
+    "M-00056": {
+      "empfaenger": "Testbank Kartenservice (fiktiv)",
+      "kategorie": null,
+      "quelle": null,
+      "regel": null,
+      "stamm_empfaenger": null
+    },
+    "M-00057": {
+      "empfaenger": "Supermarkt Frischekorb",
+      "kategorie": "Lebensmittel",
+      "quelle": "standardkategorie",
+      "regel": null,
+      "stamm_empfaenger": "Supermarkt Frischekorb"
+    },
+    "M-00058": {
+      "empfaenger": "Supermarkt Frischekorb",
+      "kategorie": "Lebensmittel",
+      "quelle": "standardkategorie",
+      "regel": null,
+      "stamm_empfaenger": "Supermarkt Frischekorb"
+    },
+    "M-00059": {
+      "empfaenger": "Arbeitgeber Muster GmbH",
+      "kategorie": null,
+      "quelle": null,
+      "regel": null,
+      "stamm_empfaenger": null
+    },
+    "M-00060": {
+      "empfaenger": "Streamio",
+      "kategorie": "Abos",
+      "quelle": "regel",
+      "regel": "Streaming",
+      "stamm_empfaenger": null
+    },
+    "M-00061": {
+      "empfaenger": "Erika Mustermann (fiktiv)",
+      "kategorie": null,
+      "quelle": null,
+      "regel": null,
+      "stamm_empfaenger": null
+    },
+    "M-00062": {
+      "empfaenger": "Erika Mustermann (fiktiv)",
+      "kategorie": null,
+      "quelle": null,
+      "regel": null,
+      "stamm_empfaenger": null
+    },
+    "M-00063": {
+      "empfaenger": "Wohnbau Beispiel eG",
+      "kategorie": null,
+      "quelle": null,
+      "regel": null,
+      "stamm_empfaenger": null
+    },
+    "M-00064": {
+      "empfaenger": "Stadtwerke Musterstadt",
+      "kategorie": "Strom",
+      "quelle": "standardkategorie",
+      "regel": null,
+      "stamm_empfaenger": "Stadtwerke Musterstadt"
+    },
+    "M-00065": {
+      "empfaenger": "Bäckerei Müller",
+      "kategorie": "Lebensmittel",
+      "quelle": "standardkategorie",
+      "regel": null,
+      "stamm_empfaenger": "Bäckerei Müller"
+    },
+    "M-00066": {
+      "empfaenger": "Café Bohne",
+      "kategorie": "Café & Restaurant",
+      "quelle": "regel",
+      "regel": "Café",
+      "stamm_empfaenger": "Café Bohne"
+    },
+    "M-00067": {
+      "empfaenger": "Supermarkt Frischekorb",
+      "kategorie": "Lebensmittel",
+      "quelle": "standardkategorie",
+      "regel": null,
+      "stamm_empfaenger": "Supermarkt Frischekorb"
+    },
+    "M-00068": {
+      "empfaenger": "Supermarkt Frischekorb",
+      "kategorie": "Lebensmittel",
+      "quelle": "standardkategorie",
+      "regel": null,
+      "stamm_empfaenger": "Supermarkt Frischekorb"
+    },
+    "M-00069": {
+      "empfaenger": "Arbeitgeber Muster GmbH",
+      "kategorie": null,
+      "quelle": null,
+      "regel": null,
+      "stamm_empfaenger": null
+    },
+    "M-00070": {
+      "empfaenger": "Streamio",
+      "kategorie": "Abos",
+      "quelle": "regel",
+      "regel": "Streaming",
+      "stamm_empfaenger": null
+    },
+    "M-00071": {
+      "empfaenger": "Erika Mustermann (fiktiv)",
+      "kategorie": null,
+      "quelle": null,
+      "regel": null,
+      "stamm_empfaenger": null
+    },
+    "M-00072": {
+      "empfaenger": "Erika Mustermann (fiktiv)",
+      "kategorie": null,
+      "quelle": null,
+      "regel": null,
+      "stamm_empfaenger": null
+    },
+    "M-00073": {
+      "empfaenger": "Erika Mustermann (fiktiv)",
+      "kategorie": null,
+      "quelle": null,
+      "regel": null,
+      "stamm_empfaenger": null
+    },
+    "M-00074": {
+      "empfaenger": "Erika Mustermann (fiktiv)",
+      "kategorie": null,
+      "quelle": null,
+      "regel": null,
+      "stamm_empfaenger": null
+    },
+    "M-00075": {
+      "empfaenger": "Erika Mustermann (fiktiv)",
+      "kategorie": null,
+      "quelle": null,
+      "regel": null,
+      "stamm_empfaenger": null
+    },
+    "M-00076": {
+      "empfaenger": "Erika Mustermann (fiktiv)",
+      "kategorie": null,
+      "quelle": null,
+      "regel": null,
+      "stamm_empfaenger": null
+    },
+    "M-00077": {
+      "empfaenger": "Erika Mustermann (fiktiv)",
+      "kategorie": null,
+      "quelle": null,
+      "regel": null,
+      "stamm_empfaenger": null
+    },
+    "M-00078": {
+      "empfaenger": "Erika Mustermann (fiktiv)",
+      "kategorie": null,
+      "quelle": null,
+      "regel": null,
+      "stamm_empfaenger": null
+    },
+    "M-00079": {
+      "empfaenger": "Fremde Person (fiktiv)",
+      "kategorie": null,
+      "quelle": null,
+      "regel": null,
+      "stamm_empfaenger": null
+    },
+    "M-00080": {
+      "empfaenger": "Erika Mustermann (fiktiv)",
+      "kategorie": null,
+      "quelle": null,
+      "regel": null,
+      "stamm_empfaenger": null
+    },
+    "M-00081": {
+      "empfaenger": "Erika Mustermann (fiktiv)",
+      "kategorie": null,
+      "quelle": null,
+      "regel": null,
+      "stamm_empfaenger": null
+    },
+    "M-00082": {
+      "empfaenger": "Erika Mustermann (fiktiv)",
+      "kategorie": null,
+      "quelle": null,
+      "regel": null,
+      "stamm_empfaenger": null
+    },
+    "M-00083": {
+      "empfaenger": "Erika Mustermann (fiktiv)",
+      "kategorie": null,
+      "quelle": null,
+      "regel": null,
+      "stamm_empfaenger": null
+    },
+    "M-00084": {
+      "empfaenger": "Erika Mustermann (fiktiv)",
+      "kategorie": null,
+      "quelle": null,
+      "regel": null,
+      "stamm_empfaenger": null
+    },
+    "M-00085": {
+      "empfaenger": "Erika Mustermann (fiktiv)",
+      "kategorie": null,
+      "quelle": null,
+      "regel": null,
+      "stamm_empfaenger": null
+    },
+    "M-00086": {
+      "empfaenger": "Erika Mustermann (fiktiv)",
+      "kategorie": null,
+      "quelle": null,
+      "regel": null,
+      "stamm_empfaenger": null
+    },
+    "M-00087": {
+      "empfaenger": "Testbank (fiktiv)",
+      "kategorie": null,
+      "quelle": null,
+      "regel": null,
+      "stamm_empfaenger": null
+    },
+    "M-00088": {
+      "empfaenger": "Testbank (fiktiv)",
+      "kategorie": null,
+      "quelle": null,
+      "regel": null,
+      "stamm_empfaenger": null
+    },
+    "M-00089": {
+      "empfaenger": "Möbelhaus Groß & Söhne",
+      "kategorie": null,
+      "quelle": null,
+      "regel": null,
+      "stamm_empfaenger": null
+    },
+    "M-00090": {
+      "empfaenger": "Kino am Markt",
+      "kategorie": null,
+      "quelle": null,
+      "regel": null,
+      "stamm_empfaenger": null
+    },
+    "M-00091": {
+      "empfaenger": "MUSIKSCHULE STRASSER",
+      "kategorie": null,
+      "quelle": null,
+      "regel": null,
+      "stamm_empfaenger": null
+    }
+  },
+  "startwert": 4711,
+  "stufen": [
+    "2024-02-29",
+    "2024-04-30",
+    "2024-06-30"
+  ],
+  "umbuchungen": {
+    "endstand": [
+      {
+        "behalten": "M-00008",
+        "entfernt": "M-00007"
+      },
+      {
+        "behalten": "M-00020",
+        "entfernt": "M-00019"
+      },
+      {
+        "behalten": "M-00002",
+        "entfernt": "M-00001"
+      },
+      {
+        "behalten": "M-00014",
+        "entfernt": "M-00013"
+      },
+      {
+        "behalten": "M-00078",
+        "entfernt": "M-00077"
+      },
+      {
+        "behalten": "M-00032",
+        "entfernt": "M-00031"
+      },
+      {
+        "behalten": "M-00044",
+        "entfernt": "M-00043"
+      },
+      {
+        "behalten": "M-00026",
+        "entfernt": "M-00025"
+      },
+      {
+        "behalten": "M-00072",
+        "entfernt": "M-00071"
+      },
+      {
+        "behalten": "M-00038",
+        "entfernt": "M-00037"
+      },
+      {
+        "behalten": "M-00075",
+        "entfernt": "M-00076"
+      },
+      {
+        "behalten": "M-00056",
+        "entfernt": "M-00055"
+      },
+      {
+        "behalten": "M-00050",
+        "entfernt": "M-00049"
+      },
+      {
+        "behalten": "M-00062",
+        "entfernt": "M-00061"
+      }
+    ],
+    "je_stufe": [
+      [
+        {
+          "behalten": "M-00008",
+          "entfernt": "M-00007"
+        },
+        {
+          "behalten": "M-00020",
+          "entfernt": "M-00019"
+        },
+        {
+          "behalten": "M-00002",
+          "entfernt": "M-00001"
+        },
+        {
+          "behalten": "M-00014",
+          "entfernt": "M-00013"
+        },
+        {
+          "behalten": "M-00078",
+          "entfernt": "M-00077"
+        }
+      ],
+      [
+        {
+          "behalten": "M-00032",
+          "entfernt": "M-00031"
+        },
+        {
+          "behalten": "M-00044",
+          "entfernt": "M-00043"
+        },
+        {
+          "behalten": "M-00026",
+          "entfernt": "M-00025"
+        },
+        {
+          "behalten": "M-00072",
+          "entfernt": "M-00071"
+        },
+        {
+          "behalten": "M-00038",
+          "entfernt": "M-00037"
+        }
+      ],
+      [
+        {
+          "behalten": "M-00075",
+          "entfernt": "M-00076"
+        },
+        {
+          "behalten": "M-00056",
+          "entfernt": "M-00055"
+        },
+        {
+          "behalten": "M-00050",
+          "entfernt": "M-00049"
+        },
+        {
+          "behalten": "M-00062",
+          "entfernt": "M-00061"
+        }
+      ]
+    ],
+    "nicht_zusammengefuehrt": {
+      "M-00073": "zeitfenster",
+      "M-00074": "zeitfenster",
+      "M-00079": "iban",
+      "M-00080": "mehrdeutig",
+      "M-00081": "mehrdeutig",
+      "M-00082": "mehrdeutig",
+      "M-00083": "iban",
+      "M-00084": "iban",
+      "M-00085": "iban",
+      "M-00086": "iban"
+    }
+  },
+  "von": "2024-01-01",
+  "vormerkungen": [
+    "M-00092"
+  ],
+  "wahre_kategorie": {
+    "M-00001": null,
+    "M-00002": null,
+    "M-00003": "Miete",
+    "M-00004": "Strom",
+    "M-00005": "Lebensmittel",
+    "M-00006": "Café & Restaurant",
+    "M-00007": null,
+    "M-00008": null,
+    "M-00009": "Lebensmittel",
+    "M-00010": "Lebensmittel",
+    "M-00011": "Gehalt",
+    "M-00012": "Abos",
+    "M-00013": null,
+    "M-00014": null,
+    "M-00015": "Miete",
+    "M-00016": "Sonstiges",
+    "M-00017": "Lebensmittel",
+    "M-00018": "Café & Restaurant",
+    "M-00019": null,
+    "M-00020": null,
+    "M-00021": "Lebensmittel",
+    "M-00022": "Lebensmittel",
+    "M-00023": "Gehalt",
+    "M-00024": "Abos",
+    "M-00025": null,
+    "M-00026": null,
+    "M-00027": "Miete",
+    "M-00028": "Strom",
+    "M-00029": "Lebensmittel",
+    "M-00030": "Café & Restaurant",
+    "M-00031": null,
+    "M-00032": null,
+    "M-00033": "Lebensmittel",
+    "M-00034": "Lebensmittel",
+    "M-00035": "Gehalt",
+    "M-00036": "Abos",
+    "M-00037": null,
+    "M-00038": null,
+    "M-00039": "Miete",
+    "M-00040": "Strom",
+    "M-00041": "Lebensmittel",
+    "M-00042": "Café & Restaurant",
+    "M-00043": null,
+    "M-00044": null,
+    "M-00045": "Lebensmittel",
+    "M-00046": "Lebensmittel",
+    "M-00047": "Gehalt",
+    "M-00048": "Abos",
+    "M-00049": null,
+    "M-00050": null,
+    "M-00051": "Miete",
+    "M-00052": "Strom",
+    "M-00053": "Lebensmittel",
+    "M-00054": "Café & Restaurant",
+    "M-00055": null,
+    "M-00056": null,
+    "M-00057": "Lebensmittel",
+    "M-00058": "Lebensmittel",
+    "M-00059": "Gehalt",
+    "M-00060": "Abos",
+    "M-00061": null,
+    "M-00062": null,
+    "M-00063": "Miete",
+    "M-00064": "Strom",
+    "M-00065": "Lebensmittel",
+    "M-00066": "Café & Restaurant",
+    "M-00067": "Lebensmittel",
+    "M-00068": "Lebensmittel",
+    "M-00069": "Gehalt",
+    "M-00070": "Abos",
+    "M-00071": null,
+    "M-00072": null,
+    "M-00073": null,
+    "M-00074": null,
+    "M-00075": null,
+    "M-00076": null,
+    "M-00077": null,
+    "M-00078": null,
+    "M-00079": "Sonstiges",
+    "M-00080": null,
+    "M-00081": null,
+    "M-00082": null,
+    "M-00083": null,
+    "M-00084": null,
+    "M-00085": null,
+    "M-00086": null,
+    "M-00087": "Zinsertrag",
+    "M-00088": "Zinsertrag",
+    "M-00089": "Sonstiges",
+    "M-00090": "Freizeit",
+    "M-00091": "Freizeit",
+    "M-00092": "Lebensmittel"
+  }
+}

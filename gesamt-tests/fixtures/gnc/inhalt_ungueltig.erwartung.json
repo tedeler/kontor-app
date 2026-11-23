@@ -1,0 +1,12 @@
+{
+  "art": "gnucash",
+  "beschreibung": "Split auf unbekanntes Konto, Transaktion ohne Split",
+  "erfolgreich": false,
+  "fehler_code": "import_inhalt_ungueltig",
+  "fixture": "gnc/inhalt_ungueltig.gnucash",
+  "format": "gnc-xml-gzip",
+  "referenzen": [
+    "7db3ae74b8a035da72e2c2b792f53937",
+    "8364aa716f8eb3cc6e78714836e7616c"
+  ]
+}

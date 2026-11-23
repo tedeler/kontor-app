@@ -1,0 +1,8 @@
+{
+  "art": "kmymoney",
+  "beschreibung": "gzip ok, XML nicht wohlgeformt",
+  "erfolgreich": false,
+  "fehler_code": "import_datei_beschaedigt",
+  "fixture": "kmy/kaputtes_xml.kmy",
+  "format": "kmy-gzip"
+}

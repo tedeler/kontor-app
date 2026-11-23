@@ -1,0 +1,1520 @@
+{
+  "anpassung_nach_stufe": 1,
+  "beitrag_ab": "2024-07",
+  "beitragsaenderung": {
+    "V-0001": {
+      "betrag": -3790,
+      "ergebnis": "gesplittet",
+      "splits": [
+        {
+          "betrag": 650,
+          "kategorie": "Haftpflicht",
+          "memo": "Privathaftpflicht Nr. 0001"
+        },
+        {
+          "betrag": 1290,
+          "kategorie": "Hausrat",
+          "memo": "Hausrat Nr. 0002"
+        },
+        {
+          "betrag": 1850,
+          "kategorie": "Unfall",
+          "memo": "Unfall Nr. 0003"
+        }
+      ],
+      "stufe": 0,
+      "vorlage": "Versicherung monatlich"
+    },
+    "V-0002": {
+      "betrag": -12800,
+      "ergebnis": "gesplittet",
+      "splits": [
+        {
+          "betrag": 6500,
+          "kategorie": "Strom",
+          "memo": "Strom"
+        },
+        {
+          "betrag": 4200,
+          "kategorie": "Gas",
+          "memo": "Gas"
+        },
+        {
+          "betrag": 2100,
+          "kategorie": "Wasser",
+          "memo": "Wasser"
+        }
+      ],
+      "stufe": 0,
+      "vorlage": "Stadtwerke Abschlag"
+    },
+    "V-0003": {
+      "betrag": 330000,
+      "ergebnis": "keine",
+      "stufe": 0
+    },
+    "V-0004": {
+      "betrag": -2733,
+      "ergebnis": "keine",
+      "stufe": 0
+    },
+    "V-0005": {
+      "betrag": -1464,
+      "ergebnis": "keine",
+      "stufe": 0
+    },
+    "V-0006": {
+      "betrag": -6571,
+      "ergebnis": "keine",
+      "stufe": 0
+    },
+    "V-0007": {
+      "betrag": -1943,
+      "ergebnis": "keine",
+      "stufe": 0
+    },
+    "V-0008": {
+      "betrag": -3790,
+      "ergebnis": "gesplittet",
+      "splits": [
+        {
+          "betrag": 650,
+          "kategorie": "Haftpflicht",
+          "memo": "Privathaftpflicht Nr. 0001"
+        },
+        {
+          "betrag": 1290,
+          "kategorie": "Hausrat",
+          "memo": "Hausrat Nr. 0002"
+        },
+        {
+          "betrag": 1850,
+          "kategorie": "Unfall",
+          "memo": "Unfall Nr. 0003"
+        }
+      ],
+      "stufe": 0,
+      "vorlage": "Versicherung monatlich"
+    },
+    "V-0009": {
+      "betrag": -12800,
+      "ergebnis": "gesplittet",
+      "splits": [
+        {
+          "betrag": 6500,
+          "kategorie": "Strom",
+          "memo": "Strom"
+        },
+        {
+          "betrag": 4200,
+          "kategorie": "Gas",
+          "memo": "Gas"
+        },
+        {
+          "betrag": 2100,
+          "kategorie": "Wasser",
+          "memo": "Wasser"
+        }
+      ],
+      "stufe": 0,
+      "vorlage": "Stadtwerke Abschlag"
+    },
+    "V-0010": {
+      "betrag": 330000,
+      "ergebnis": "keine",
+      "stufe": 0
+    },
+    "V-0011": {
+      "betrag": -1443,
+      "ergebnis": "keine",
+      "stufe": 0
+    },
+    "V-0012": {
+      "betrag": -4937,
+      "ergebnis": "keine",
+      "stufe": 0
+    },
+    "V-0013": {
+      "betrag": -6326,
+      "ergebnis": "keine",
+      "stufe": 0
+    },
+    "V-0014": {
+      "betrag": -7273,
+      "ergebnis": "keine",
+      "stufe": 0
+    },
+    "V-0015": {
+      "betrag": -3790,
+      "ergebnis": "gesplittet",
+      "splits": [
+        {
+          "betrag": 650,
+          "kategorie": "Haftpflicht",
+          "memo": "Privathaftpflicht Nr. 0001"
+        },
+        {
+          "betrag": 1290,
+          "kategorie": "Hausrat",
+          "memo": "Hausrat Nr. 0002"
+        },
+        {
+          "betrag": 1850,
+          "kategorie": "Unfall",
+          "memo": "Unfall Nr. 0003"
+        }
+      ],
+      "stufe": 0,
+      "vorlage": "Versicherung monatlich"
+    },
+    "V-0016": {
+      "betrag": -12800,
+      "ergebnis": "gesplittet",
+      "splits": [
+        {
+          "betrag": 6500,
+          "kategorie": "Strom",
+          "memo": "Strom"
+        },
+        {
+          "betrag": 4200,
+          "kategorie": "Gas",
+          "memo": "Gas"
+        },
+        {
+          "betrag": 2100,
+          "kategorie": "Wasser",
+          "memo": "Wasser"
+        }
+      ],
+      "stufe": 0,
+      "vorlage": "Stadtwerke Abschlag"
+    },
+    "V-0017": {
+      "betrag": 330000,
+      "ergebnis": "keine",
+      "stufe": 0
+    },
+    "V-0018": {
+      "betrag": -6796,
+      "ergebnis": "keine",
+      "stufe": 0
+    },
+    "V-0019": {
+      "betrag": -8130,
+      "ergebnis": "keine",
+      "stufe": 0
+    },
+    "V-0020": {
+      "betrag": -5875,
+      "ergebnis": "keine",
+      "stufe": 0
+    },
+    "V-0021": {
+      "betrag": -6205,
+      "ergebnis": "keine",
+      "stufe": 0
+    },
+    "V-0022": {
+      "betrag": -3790,
+      "ergebnis": "gesplittet",
+      "splits": [
+        {
+          "betrag": 650,
+          "kategorie": "Haftpflicht",
+          "memo": "Privathaftpflicht Nr. 0001"
+        },
+        {
+          "betrag": 1290,
+          "kategorie": "Hausrat",
+          "memo": "Hausrat Nr. 0002"
+        },
+        {
+          "betrag": 1850,
+          "kategorie": "Unfall",
+          "memo": "Unfall Nr. 0003"
+        }
+      ],
+      "stufe": 0,
+      "vorlage": "Versicherung monatlich"
+    },
+    "V-0023": {
+      "betrag": -12800,
+      "ergebnis": "gesplittet",
+      "splits": [
+        {
+          "betrag": 6500,
+          "kategorie": "Strom",
+          "memo": "Strom"
+        },
+        {
+          "betrag": 4200,
+          "kategorie": "Gas",
+          "memo": "Gas"
+        },
+        {
+          "betrag": 2100,
+          "kategorie": "Wasser",
+          "memo": "Wasser"
+        }
+      ],
+      "stufe": 0,
+      "vorlage": "Stadtwerke Abschlag"
+    },
+    "V-0024": {
+      "betrag": 330000,
+      "ergebnis": "keine",
+      "stufe": 0
+    },
+    "V-0025": {
+      "betrag": -1326,
+      "ergebnis": "keine",
+      "stufe": 0
+    },
+    "V-0026": {
+      "betrag": -4828,
+      "ergebnis": "keine",
+      "stufe": 0
+    },
+    "V-0027": {
+      "betrag": -3790,
+      "ergebnis": "gesplittet",
+      "splits": [
+        {
+          "betrag": 650,
+          "kategorie": "Haftpflicht",
+          "memo": "Privathaftpflicht Nr. 0001"
+        },
+        {
+          "betrag": 1290,
+          "kategorie": "Hausrat",
+          "memo": "Hausrat Nr. 0002"
+        },
+        {
+          "betrag": 1850,
+          "kategorie": "Unfall",
+          "memo": "Unfall Nr. 0003"
+        }
+      ],
+      "stufe": 0,
+      "vorlage": "Versicherung monatlich"
+    },
+    "V-0028": {
+      "betrag": -12800,
+      "ergebnis": "gesplittet",
+      "splits": [
+        {
+          "betrag": 6500,
+          "kategorie": "Strom",
+          "memo": "Strom"
+        },
+        {
+          "betrag": 4200,
+          "kategorie": "Gas",
+          "memo": "Gas"
+        },
+        {
+          "betrag": 2100,
+          "kategorie": "Wasser",
+          "memo": "Wasser"
+        }
+      ],
+      "stufe": 0,
+      "vorlage": "Stadtwerke Abschlag"
+    },
+    "V-0029": {
+      "betrag": 330000,
+      "ergebnis": "keine",
+      "stufe": 0
+    },
+    "V-0030": {
+      "betrag": -1946,
+      "ergebnis": "keine",
+      "stufe": 0
+    },
+    "V-0031": {
+      "betrag": -3191,
+      "ergebnis": "keine",
+      "stufe": 0
+    },
+    "V-0032": {
+      "betrag": -5902,
+      "ergebnis": "keine",
+      "stufe": 0
+    },
+    "V-0033": {
+      "betrag": -4414,
+      "ergebnis": "keine",
+      "stufe": 0
+    },
+    "V-0034": {
+      "betrag": -3790,
+      "ergebnis": "gesplittet",
+      "splits": [
+        {
+          "betrag": 650,
+          "kategorie": "Haftpflicht",
+          "memo": "Privathaftpflicht Nr. 0001"
+        },
+        {
+          "betrag": 1290,
+          "kategorie": "Hausrat",
+          "memo": "Hausrat Nr. 0002"
+        },
+        {
+          "betrag": 1850,
+          "kategorie": "Unfall",
+          "memo": "Unfall Nr. 0003"
+        }
+      ],
+      "stufe": 0,
+      "vorlage": "Versicherung monatlich"
+    },
+    "V-0035": {
+      "betrag": -12800,
+      "ergebnis": "gesplittet",
+      "splits": [
+        {
+          "betrag": 6500,
+          "kategorie": "Strom",
+          "memo": "Strom"
+        },
+        {
+          "betrag": 4200,
+          "kategorie": "Gas",
+          "memo": "Gas"
+        },
+        {
+          "betrag": 2100,
+          "kategorie": "Wasser",
+          "memo": "Wasser"
+        }
+      ],
+      "stufe": 0,
+      "vorlage": "Stadtwerke Abschlag"
+    },
+    "V-0036": {
+      "betrag": 330000,
+      "ergebnis": "keine",
+      "stufe": 0
+    },
+    "V-0037": {
+      "betrag": -8439,
+      "ergebnis": "keine",
+      "stufe": 0
+    },
+    "V-0038": {
+      "betrag": -7534,
+      "ergebnis": "keine",
+      "stufe": 0
+    },
+    "V-0039": {
+      "betrag": -8091,
+      "ergebnis": "keine",
+      "stufe": 0
+    },
+    "V-0040": {
+      "betrag": -1203,
+      "ergebnis": "keine",
+      "stufe": 0
+    },
+    "V-0041": {
+      "betrag": -3840,
+      "ergebnis": "abweichung",
+      "gesamtbetrag": -3790,
+      "stufe": 1,
+      "vorlage": "Versicherung monatlich"
+    },
+    "V-0042": {
+      "betrag": -12800,
+      "ergebnis": "gesplittet",
+      "splits": [
+        {
+          "betrag": 6500,
+          "kategorie": "Strom",
+          "memo": "Strom"
+        },
+        {
+          "betrag": 4200,
+          "kategorie": "Gas",
+          "memo": "Gas"
+        },
+        {
+          "betrag": 2100,
+          "kategorie": "Wasser",
+          "memo": "Wasser"
+        }
+      ],
+      "stufe": 1,
+      "vorlage": "Stadtwerke Abschlag"
+    },
+    "V-0043": {
+      "betrag": 330000,
+      "ergebnis": "keine",
+      "stufe": 1
+    },
+    "V-0044": {
+      "betrag": -7136,
+      "ergebnis": "keine",
+      "stufe": 1
+    },
+    "V-0045": {
+      "betrag": -6185,
+      "ergebnis": "keine",
+      "stufe": 1
+    },
+    "V-0046": {
+      "betrag": -6250,
+      "ergebnis": "keine",
+      "stufe": 1
+    },
+    "V-0047": {
+      "betrag": -3840,
+      "ergebnis": "abweichung",
+      "gesamtbetrag": -3790,
+      "stufe": 1,
+      "vorlage": "Versicherung monatlich"
+    },
+    "V-0048": {
+      "betrag": -12800,
+      "ergebnis": "gesplittet",
+      "splits": [
+        {
+          "betrag": 6500,
+          "kategorie": "Strom",
+          "memo": "Strom"
+        },
+        {
+          "betrag": 4200,
+          "kategorie": "Gas",
+          "memo": "Gas"
+        },
+        {
+          "betrag": 2100,
+          "kategorie": "Wasser",
+          "memo": "Wasser"
+        }
+      ],
+      "stufe": 1,
+      "vorlage": "Stadtwerke Abschlag"
+    },
+    "V-0049": {
+      "betrag": 330000,
+      "ergebnis": "keine",
+      "stufe": 1
+    },
+    "V-0050": {
+      "betrag": -4327,
+      "ergebnis": "keine",
+      "stufe": 1
+    },
+    "V-0051": {
+      "betrag": -4775,
+      "ergebnis": "keine",
+      "stufe": 1
+    },
+    "V-0052": {
+      "betrag": -7319,
+      "ergebnis": "keine",
+      "stufe": 1
+    },
+    "V-0053": {
+      "betrag": -3840,
+      "ergebnis": "abweichung",
+      "gesamtbetrag": -3790,
+      "stufe": 1,
+      "vorlage": "Versicherung monatlich"
+    },
+    "V-0054": {
+      "betrag": -12800,
+      "ergebnis": "gesplittet",
+      "splits": [
+        {
+          "betrag": 6500,
+          "kategorie": "Strom",
+          "memo": "Strom"
+        },
+        {
+          "betrag": 4200,
+          "kategorie": "Gas",
+          "memo": "Gas"
+        },
+        {
+          "betrag": 2100,
+          "kategorie": "Wasser",
+          "memo": "Wasser"
+        }
+      ],
+      "stufe": 1,
+      "vorlage": "Stadtwerke Abschlag"
+    },
+    "V-0055": {
+      "betrag": 330000,
+      "ergebnis": "keine",
+      "stufe": 1
+    },
+    "V-0056": {
+      "betrag": -2171,
+      "ergebnis": "keine",
+      "stufe": 1
+    },
+    "V-0057": {
+      "betrag": -5465,
+      "ergebnis": "keine",
+      "stufe": 1
+    },
+    "V-0058": {
+      "betrag": -3840,
+      "ergebnis": "gesplittet",
+      "splits": [
+        {
+          "betrag": 650,
+          "kategorie": "Haftpflicht",
+          "memo": "Privathaftpflicht Nr. 0001"
+        },
+        {
+          "betrag": 1340,
+          "kategorie": "Hausrat",
+          "memo": "Hausrat Nr. 0002 (neuer Beitrag)"
+        },
+        {
+          "betrag": 1850,
+          "kategorie": "Unfall",
+          "memo": "Unfall Nr. 0003"
+        }
+      ],
+      "stufe": 2,
+      "vorlage": "Versicherung monatlich"
+    },
+    "V-0059": {
+      "betrag": -12801,
+      "ergebnis": "abweichung",
+      "gesamtbetrag": -12800,
+      "stufe": 2,
+      "vorlage": "Stadtwerke Abschlag"
+    },
+    "V-0060": {
+      "betrag": 330000,
+      "ergebnis": "keine",
+      "stufe": 2
+    },
+    "V-0061": {
+      "betrag": -856,
+      "ergebnis": "keine",
+      "stufe": 2
+    },
+    "V-0062": {
+      "betrag": -8838,
+      "ergebnis": "keine",
+      "stufe": 2
+    },
+    "V-0063": {
+      "betrag": -8084,
+      "ergebnis": "keine",
+      "stufe": 2
+    },
+    "V-0064": {
+      "betrag": -6983,
+      "ergebnis": "keine",
+      "stufe": 2
+    },
+    "V-0065": {
+      "betrag": -3840,
+      "ergebnis": "gesplittet",
+      "splits": [
+        {
+          "betrag": 650,
+          "kategorie": "Haftpflicht",
+          "memo": "Privathaftpflicht Nr. 0001"
+        },
+        {
+          "betrag": 1340,
+          "kategorie": "Hausrat",
+          "memo": "Hausrat Nr. 0002 (neuer Beitrag)"
+        },
+        {
+          "betrag": 1850,
+          "kategorie": "Unfall",
+          "memo": "Unfall Nr. 0003"
+        }
+      ],
+      "stufe": 2,
+      "vorlage": "Versicherung monatlich"
+    },
+    "V-0066": {
+      "betrag": -12799,
+      "ergebnis": "abweichung",
+      "gesamtbetrag": -12800,
+      "stufe": 2,
+      "vorlage": "Stadtwerke Abschlag"
+    },
+    "V-0067": {
+      "betrag": 330000,
+      "ergebnis": "keine",
+      "stufe": 2
+    },
+    "V-0068": {
+      "betrag": -5888,
+      "ergebnis": "keine",
+      "stufe": 2
+    },
+    "V-0069": {
+      "betrag": -8971,
+      "ergebnis": "keine",
+      "stufe": 2
+    },
+    "V-0070": {
+      "betrag": -3840,
+      "ergebnis": "gesplittet",
+      "splits": [
+        {
+          "betrag": 650,
+          "kategorie": "Haftpflicht",
+          "memo": "Privathaftpflicht Nr. 0001"
+        },
+        {
+          "betrag": 1340,
+          "kategorie": "Hausrat",
+          "memo": "Hausrat Nr. 0002 (neuer Beitrag)"
+        },
+        {
+          "betrag": 1850,
+          "kategorie": "Unfall",
+          "memo": "Unfall Nr. 0003"
+        }
+      ],
+      "stufe": 2,
+      "vorlage": "Versicherung monatlich"
+    },
+    "V-0071": {
+      "betrag": -12800,
+      "ergebnis": "gesplittet",
+      "splits": [
+        {
+          "betrag": 6500,
+          "kategorie": "Strom",
+          "memo": "Strom"
+        },
+        {
+          "betrag": 4200,
+          "kategorie": "Gas",
+          "memo": "Gas"
+        },
+        {
+          "betrag": 2100,
+          "kategorie": "Wasser",
+          "memo": "Wasser"
+        }
+      ],
+      "stufe": 2,
+      "vorlage": "Stadtwerke Abschlag"
+    },
+    "V-0072": {
+      "betrag": 330000,
+      "ergebnis": "keine",
+      "stufe": 2
+    },
+    "V-0073": {
+      "betrag": -3166,
+      "ergebnis": "keine",
+      "stufe": 2
+    },
+    "V-0074": {
+      "betrag": -7654,
+      "ergebnis": "keine",
+      "stufe": 2
+    },
+    "V-0075": {
+      "betrag": -4779,
+      "ergebnis": "keine",
+      "stufe": 2
+    },
+    "V-0076": {
+      "betrag": -60100,
+      "ergebnis": "gesplittet",
+      "splits": [
+        {
+          "betrag": 41200,
+          "kategorie": "KFZ",
+          "memo": "KFZ Nr. 0004"
+        },
+        {
+          "betrag": 18900,
+          "kategorie": "Rechtsschutz",
+          "memo": "Rechtsschutz Nr. 0005"
+        }
+      ],
+      "stufe": 0,
+      "vorlage": "Versicherung jährlich"
+    },
+    "V-0077": {
+      "betrag": 12000,
+      "ergebnis": "keine",
+      "stufe": 0
+    },
+    "V-0078": {
+      "betrag": -4711,
+      "ergebnis": "keine",
+      "stufe": 1
+    }
+  },
+  "benachrichtigungen_beitragsaenderung": [
+    {
+      "betrag": -3840,
+      "vorlage": "Versicherung monatlich"
+    },
+    {
+      "betrag": -12801,
+      "vorlage": "Stadtwerke Abschlag"
+    },
+    {
+      "betrag": -12799,
+      "vorlage": "Stadtwerke Abschlag"
+    }
+  ],
+  "benachrichtigungen_normal": [
+    {
+      "betrag": -12801,
+      "vorlage": "Stadtwerke Abschlag"
+    },
+    {
+      "betrag": -12799,
+      "vorlage": "Stadtwerke Abschlag"
+    }
+  ],
+  "beschreibung": "Split-Vorlagen (vorlagen.md): Ergebnis je Umsatz in den Szenarien normal und beitragsaenderung. Ablauf beitragsaenderung: Abruf zu jeder Stufe (mock_heute), nach Stufe 2 wird die Vorlage auf m4/vorlagen.json 'angepasst' geändert.",
+  "iban": "DE49000000000000005101",
+  "normal": {
+    "V-0001": {
+      "betrag": -3790,
+      "ergebnis": "gesplittet",
+      "splits": [
+        {
+          "betrag": 650,
+          "kategorie": "Haftpflicht",
+          "memo": "Privathaftpflicht Nr. 0001"
+        },
+        {
+          "betrag": 1290,
+          "kategorie": "Hausrat",
+          "memo": "Hausrat Nr. 0002"
+        },
+        {
+          "betrag": 1850,
+          "kategorie": "Unfall",
+          "memo": "Unfall Nr. 0003"
+        }
+      ],
+      "vorlage": "Versicherung monatlich"
+    },
+    "V-0002": {
+      "betrag": -12800,
+      "ergebnis": "gesplittet",
+      "splits": [
+        {
+          "betrag": 6500,
+          "kategorie": "Strom",
+          "memo": "Strom"
+        },
+        {
+          "betrag": 4200,
+          "kategorie": "Gas",
+          "memo": "Gas"
+        },
+        {
+          "betrag": 2100,
+          "kategorie": "Wasser",
+          "memo": "Wasser"
+        }
+      ],
+      "vorlage": "Stadtwerke Abschlag"
+    },
+    "V-0003": {
+      "betrag": 330000,
+      "ergebnis": "keine"
+    },
+    "V-0004": {
+      "betrag": -2733,
+      "ergebnis": "keine"
+    },
+    "V-0005": {
+      "betrag": -1464,
+      "ergebnis": "keine"
+    },
+    "V-0006": {
+      "betrag": -6571,
+      "ergebnis": "keine"
+    },
+    "V-0007": {
+      "betrag": -1943,
+      "ergebnis": "keine"
+    },
+    "V-0008": {
+      "betrag": -3790,
+      "ergebnis": "gesplittet",
+      "splits": [
+        {
+          "betrag": 650,
+          "kategorie": "Haftpflicht",
+          "memo": "Privathaftpflicht Nr. 0001"
+        },
+        {
+          "betrag": 1290,
+          "kategorie": "Hausrat",
+          "memo": "Hausrat Nr. 0002"
+        },
+        {
+          "betrag": 1850,
+          "kategorie": "Unfall",
+          "memo": "Unfall Nr. 0003"
+        }
+      ],
+      "vorlage": "Versicherung monatlich"
+    },
+    "V-0009": {
+      "betrag": -12800,
+      "ergebnis": "gesplittet",
+      "splits": [
+        {
+          "betrag": 6500,
+          "kategorie": "Strom",
+          "memo": "Strom"
+        },
+        {
+          "betrag": 4200,
+          "kategorie": "Gas",
+          "memo": "Gas"
+        },
+        {
+          "betrag": 2100,
+          "kategorie": "Wasser",
+          "memo": "Wasser"
+        }
+      ],
+      "vorlage": "Stadtwerke Abschlag"
+    },
+    "V-0010": {
+      "betrag": 330000,
+      "ergebnis": "keine"
+    },
+    "V-0011": {
+      "betrag": -1443,
+      "ergebnis": "keine"
+    },
+    "V-0012": {
+      "betrag": -4937,
+      "ergebnis": "keine"
+    },
+    "V-0013": {
+      "betrag": -6326,
+      "ergebnis": "keine"
+    },
+    "V-0014": {
+      "betrag": -7273,
+      "ergebnis": "keine"
+    },
+    "V-0015": {
+      "betrag": -3790,
+      "ergebnis": "gesplittet",
+      "splits": [
+        {
+          "betrag": 650,
+          "kategorie": "Haftpflicht",
+          "memo": "Privathaftpflicht Nr. 0001"
+        },
+        {
+          "betrag": 1290,
+          "kategorie": "Hausrat",
+          "memo": "Hausrat Nr. 0002"
+        },
+        {
+          "betrag": 1850,
+          "kategorie": "Unfall",
+          "memo": "Unfall Nr. 0003"
+        }
+      ],
+      "vorlage": "Versicherung monatlich"
+    },
+    "V-0016": {
+      "betrag": -12800,
+      "ergebnis": "gesplittet",
+      "splits": [
+        {
+          "betrag": 6500,
+          "kategorie": "Strom",
+          "memo": "Strom"
+        },
+        {
+          "betrag": 4200,
+          "kategorie": "Gas",
+          "memo": "Gas"
+        },
+        {
+          "betrag": 2100,
+          "kategorie": "Wasser",
+          "memo": "Wasser"
+        }
+      ],
+      "vorlage": "Stadtwerke Abschlag"
+    },
+    "V-0017": {
+      "betrag": 330000,
+      "ergebnis": "keine"
+    },
+    "V-0018": {
+      "betrag": -6796,
+      "ergebnis": "keine"
+    },
+    "V-0019": {
+      "betrag": -8130,
+      "ergebnis": "keine"
+    },
+    "V-0020": {
+      "betrag": -5875,
+      "ergebnis": "keine"
+    },
+    "V-0021": {
+      "betrag": -6205,
+      "ergebnis": "keine"
+    },
+    "V-0022": {
+      "betrag": -3790,
+      "ergebnis": "gesplittet",
+      "splits": [
+        {
+          "betrag": 650,
+          "kategorie": "Haftpflicht",
+          "memo": "Privathaftpflicht Nr. 0001"
+        },
+        {
+          "betrag": 1290,
+          "kategorie": "Hausrat",
+          "memo": "Hausrat Nr. 0002"
+        },
+        {
+          "betrag": 1850,
+          "kategorie": "Unfall",
+          "memo": "Unfall Nr. 0003"
+        }
+      ],
+      "vorlage": "Versicherung monatlich"
+    },
+    "V-0023": {
+      "betrag": -12800,
+      "ergebnis": "gesplittet",
+      "splits": [
+        {
+          "betrag": 6500,
+          "kategorie": "Strom",
+          "memo": "Strom"
+        },
+        {
+          "betrag": 4200,
+          "kategorie": "Gas",
+          "memo": "Gas"
+        },
+        {
+          "betrag": 2100,
+          "kategorie": "Wasser",
+          "memo": "Wasser"
+        }
+      ],
+      "vorlage": "Stadtwerke Abschlag"
+    },
+    "V-0024": {
+      "betrag": 330000,
+      "ergebnis": "keine"
+    },
+    "V-0025": {
+      "betrag": -1326,
+      "ergebnis": "keine"
+    },
+    "V-0026": {
+      "betrag": -4828,
+      "ergebnis": "keine"
+    },
+    "V-0027": {
+      "betrag": -3790,
+      "ergebnis": "gesplittet",
+      "splits": [
+        {
+          "betrag": 650,
+          "kategorie": "Haftpflicht",
+          "memo": "Privathaftpflicht Nr. 0001"
+        },
+        {
+          "betrag": 1290,
+          "kategorie": "Hausrat",
+          "memo": "Hausrat Nr. 0002"
+        },
+        {
+          "betrag": 1850,
+          "kategorie": "Unfall",
+          "memo": "Unfall Nr. 0003"
+        }
+      ],
+      "vorlage": "Versicherung monatlich"
+    },
+    "V-0028": {
+      "betrag": -12800,
+      "ergebnis": "gesplittet",
+      "splits": [
+        {
+          "betrag": 6500,
+          "kategorie": "Strom",
+          "memo": "Strom"
+        },
+        {
+          "betrag": 4200,
+          "kategorie": "Gas",
+          "memo": "Gas"
+        },
+        {
+          "betrag": 2100,
+          "kategorie": "Wasser",
+          "memo": "Wasser"
+        }
+      ],
+      "vorlage": "Stadtwerke Abschlag"
+    },
+    "V-0029": {
+      "betrag": 330000,
+      "ergebnis": "keine"
+    },
+    "V-0030": {
+      "betrag": -1946,
+      "ergebnis": "keine"
+    },
+    "V-0031": {
+      "betrag": -3191,
+      "ergebnis": "keine"
+    },
+    "V-0032": {
+      "betrag": -5902,
+      "ergebnis": "keine"
+    },
+    "V-0033": {
+      "betrag": -4414,
+      "ergebnis": "keine"
+    },
+    "V-0034": {
+      "betrag": -3790,
+      "ergebnis": "gesplittet",
+      "splits": [
+        {
+          "betrag": 650,
+          "kategorie": "Haftpflicht",
+          "memo": "Privathaftpflicht Nr. 0001"
+        },
+        {
+          "betrag": 1290,
+          "kategorie": "Hausrat",
+          "memo": "Hausrat Nr. 0002"
+        },
+        {
+          "betrag": 1850,
+          "kategorie": "Unfall",
+          "memo": "Unfall Nr. 0003"
+        }
+      ],
+      "vorlage": "Versicherung monatlich"
+    },
+    "V-0035": {
+      "betrag": -12800,
+      "ergebnis": "gesplittet",
+      "splits": [
+        {
+          "betrag": 6500,
+          "kategorie": "Strom",
+          "memo": "Strom"
+        },
+        {
+          "betrag": 4200,
+          "kategorie": "Gas",
+          "memo": "Gas"
+        },
+        {
+          "betrag": 2100,
+          "kategorie": "Wasser",
+          "memo": "Wasser"
+        }
+      ],
+      "vorlage": "Stadtwerke Abschlag"
+    },
+    "V-0036": {
+      "betrag": 330000,
+      "ergebnis": "keine"
+    },
+    "V-0037": {
+      "betrag": -8439,
+      "ergebnis": "keine"
+    },
+    "V-0038": {
+      "betrag": -7534,
+      "ergebnis": "keine"
+    },
+    "V-0039": {
+      "betrag": -8091,
+      "ergebnis": "keine"
+    },
+    "V-0040": {
+      "betrag": -1203,
+      "ergebnis": "keine"
+    },
+    "V-0041": {
+      "betrag": -3790,
+      "ergebnis": "gesplittet",
+      "splits": [
+        {
+          "betrag": 650,
+          "kategorie": "Haftpflicht",
+          "memo": "Privathaftpflicht Nr. 0001"
+        },
+        {
+          "betrag": 1290,
+          "kategorie": "Hausrat",
+          "memo": "Hausrat Nr. 0002"
+        },
+        {
+          "betrag": 1850,
+          "kategorie": "Unfall",
+          "memo": "Unfall Nr. 0003"
+        }
+      ],
+      "vorlage": "Versicherung monatlich"
+    },
+    "V-0042": {
+      "betrag": -12800,
+      "ergebnis": "gesplittet",
+      "splits": [
+        {
+          "betrag": 6500,
+          "kategorie": "Strom",
+          "memo": "Strom"
+        },
+        {
+          "betrag": 4200,
+          "kategorie": "Gas",
+          "memo": "Gas"
+        },
+        {
+          "betrag": 2100,
+          "kategorie": "Wasser",
+          "memo": "Wasser"
+        }
+      ],
+      "vorlage": "Stadtwerke Abschlag"
+    },
+    "V-0043": {
+      "betrag": 330000,
+      "ergebnis": "keine"
+    },
+    "V-0044": {
+      "betrag": -7136,
+      "ergebnis": "keine"
+    },
+    "V-0045": {
+      "betrag": -6185,
+      "ergebnis": "keine"
+    },
+    "V-0046": {
+      "betrag": -6250,
+      "ergebnis": "keine"
+    },
+    "V-0047": {
+      "betrag": -3790,
+      "ergebnis": "gesplittet",
+      "splits": [
+        {
+          "betrag": 650,
+          "kategorie": "Haftpflicht",
+          "memo": "Privathaftpflicht Nr. 0001"
+        },
+        {
+          "betrag": 1290,
+          "kategorie": "Hausrat",
+          "memo": "Hausrat Nr. 0002"
+        },
+        {
+          "betrag": 1850,
+          "kategorie": "Unfall",
+          "memo": "Unfall Nr. 0003"
+        }
+      ],
+      "vorlage": "Versicherung monatlich"
+    },
+    "V-0048": {
+      "betrag": -12800,
+      "ergebnis": "gesplittet",
+      "splits": [
+        {
+          "betrag": 6500,
+          "kategorie": "Strom",
+          "memo": "Strom"
+        },
+        {
+          "betrag": 4200,
+          "kategorie": "Gas",
+          "memo": "Gas"
+        },
+        {
+          "betrag": 2100,
+          "kategorie": "Wasser",
+          "memo": "Wasser"
+        }
+      ],
+      "vorlage": "Stadtwerke Abschlag"
+    },
+    "V-0049": {
+      "betrag": 330000,
+      "ergebnis": "keine"
+    },
+    "V-0050": {
+      "betrag": -4327,
+      "ergebnis": "keine"
+    },
+    "V-0051": {
+      "betrag": -4775,
+      "ergebnis": "keine"
+    },
+    "V-0052": {
+      "betrag": -7319,
+      "ergebnis": "keine"
+    },
+    "V-0053": {
+      "betrag": -3790,
+      "ergebnis": "gesplittet",
+      "splits": [
+        {
+          "betrag": 650,
+          "kategorie": "Haftpflicht",
+          "memo": "Privathaftpflicht Nr. 0001"
+        },
+        {
+          "betrag": 1290,
+          "kategorie": "Hausrat",
+          "memo": "Hausrat Nr. 0002"
+        },
+        {
+          "betrag": 1850,
+          "kategorie": "Unfall",
+          "memo": "Unfall Nr. 0003"
+        }
+      ],
+      "vorlage": "Versicherung monatlich"
+    },
+    "V-0054": {
+      "betrag": -12800,
+      "ergebnis": "gesplittet",
+      "splits": [
+        {
+          "betrag": 6500,
+          "kategorie": "Strom",
+          "memo": "Strom"
+        },
+        {
+          "betrag": 4200,
+          "kategorie": "Gas",
+          "memo": "Gas"
+        },
+        {
+          "betrag": 2100,
+          "kategorie": "Wasser",
+          "memo": "Wasser"
+        }
+      ],
+      "vorlage": "Stadtwerke Abschlag"
+    },
+    "V-0055": {
+      "betrag": 330000,
+      "ergebnis": "keine"
+    },
+    "V-0056": {
+      "betrag": -2171,
+      "ergebnis": "keine"
+    },
+    "V-0057": {
+      "betrag": -5465,
+      "ergebnis": "keine"
+    },
+    "V-0058": {
+      "betrag": -3790,
+      "ergebnis": "gesplittet",
+      "splits": [
+        {
+          "betrag": 650,
+          "kategorie": "Haftpflicht",
+          "memo": "Privathaftpflicht Nr. 0001"
+        },
+        {
+          "betrag": 1290,
+          "kategorie": "Hausrat",
+          "memo": "Hausrat Nr. 0002"
+        },
+        {
+          "betrag": 1850,
+          "kategorie": "Unfall",
+          "memo": "Unfall Nr. 0003"
+        }
+      ],
+      "vorlage": "Versicherung monatlich"
+    },
+    "V-0059": {
+      "betrag": -12801,
+      "ergebnis": "abweichung",
+      "gesamtbetrag": -12800,
+      "vorlage": "Stadtwerke Abschlag"
+    },
+    "V-0060": {
+      "betrag": 330000,
+      "ergebnis": "keine"
+    },
+    "V-0061": {
+      "betrag": -856,
+      "ergebnis": "keine"
+    },
+    "V-0062": {
+      "betrag": -8838,
+      "ergebnis": "keine"
+    },
+    "V-0063": {
+      "betrag": -8084,
+      "ergebnis": "keine"
+    },
+    "V-0064": {
+      "betrag": -6983,
+      "ergebnis": "keine"
+    },
+    "V-0065": {
+      "betrag": -3790,
+      "ergebnis": "gesplittet",
+      "splits": [
+        {
+          "betrag": 650,
+          "kategorie": "Haftpflicht",
+          "memo": "Privathaftpflicht Nr. 0001"
+        },
+        {
+          "betrag": 1290,
+          "kategorie": "Hausrat",
+          "memo": "Hausrat Nr. 0002"
+        },
+        {
+          "betrag": 1850,
+          "kategorie": "Unfall",
+          "memo": "Unfall Nr. 0003"
+        }
+      ],
+      "vorlage": "Versicherung monatlich"
+    },
+    "V-0066": {
+      "betrag": -12799,
+      "ergebnis": "abweichung",
+      "gesamtbetrag": -12800,
+      "vorlage": "Stadtwerke Abschlag"
+    },
+    "V-0067": {
+      "betrag": 330000,
+      "ergebnis": "keine"
+    },
+    "V-0068": {
+      "betrag": -5888,
+      "ergebnis": "keine"
+    },
+    "V-0069": {
+      "betrag": -8971,
+      "ergebnis": "keine"
+    },
+    "V-0070": {
+      "betrag": -3790,
+      "ergebnis": "gesplittet",
+      "splits": [
+        {
+          "betrag": 650,
+          "kategorie": "Haftpflicht",
+          "memo": "Privathaftpflicht Nr. 0001"
+        },
+        {
+          "betrag": 1290,
+          "kategorie": "Hausrat",
+          "memo": "Hausrat Nr. 0002"
+        },
+        {
+          "betrag": 1850,
+          "kategorie": "Unfall",
+          "memo": "Unfall Nr. 0003"
+        }
+      ],
+      "vorlage": "Versicherung monatlich"
+    },
+    "V-0071": {
+      "betrag": -12800,
+      "ergebnis": "gesplittet",
+      "splits": [
+        {
+          "betrag": 6500,
+          "kategorie": "Strom",
+          "memo": "Strom"
+        },
+        {
+          "betrag": 4200,
+          "kategorie": "Gas",
+          "memo": "Gas"
+        },
+        {
+          "betrag": 2100,
+          "kategorie": "Wasser",
+          "memo": "Wasser"
+        }
+      ],
+      "vorlage": "Stadtwerke Abschlag"
+    },
+    "V-0072": {
+      "betrag": 330000,
+      "ergebnis": "keine"
+    },
+    "V-0073": {
+      "betrag": -3166,
+      "ergebnis": "keine"
+    },
+    "V-0074": {
+      "betrag": -7654,
+      "ergebnis": "keine"
+    },
+    "V-0075": {
+      "betrag": -4779,
+      "ergebnis": "keine"
+    },
+    "V-0076": {
+      "betrag": -60100,
+      "ergebnis": "gesplittet",
+      "splits": [
+        {
+          "betrag": 41200,
+          "kategorie": "KFZ",
+          "memo": "KFZ Nr. 0004"
+        },
+        {
+          "betrag": 18900,
+          "kategorie": "Rechtsschutz",
+          "memo": "Rechtsschutz Nr. 0005"
+        }
+      ],
+      "vorlage": "Versicherung jährlich"
+    },
+    "V-0077": {
+      "betrag": 12000,
+      "ergebnis": "keine"
+    },
+    "V-0078": {
+      "betrag": -4711,
+      "ergebnis": "keine"
+    }
+  },
+  "startwert": 4711,
+  "stufen": [
+    "2024-06-30",
+    "2024-09-30",
+    "2024-12-31"
+  ]
+}

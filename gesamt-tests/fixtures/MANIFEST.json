@@ -1,0 +1,658 @@
+{
+  "auf_abruf": {
+    "gross/gross.erwartung.json": {
+      "groesse": 1914,
+      "sha256": "572b4ff96c64470855e972f27544caf79fb6eab02ee9c08a8528180331a1d2f0"
+    },
+    "gross/gross.kmy": {
+      "groesse": 1851645,
+      "sha256": "1a4e765ca2d3df9427f808e726b1eaddf04fc3e66290de3adc73cc80116fb671",
+      "sha256_entpackt": "e80915201924bc4970b27c4f22f4acb709e16bfd8dbf50beb81ace82477963c7"
+    }
+  },
+  "dateien": {
+    "gnc/abgeschnitten.erwartung.json": {
+      "groesse": 239,
+      "sha256": "d4b89720b840d4f291fa0b360bad8e9a8c317a34d80772aca0f1cc798809df24"
+    },
+    "gnc/abgeschnitten.gnucash": {
+      "beschreibung": "gzip nach der Hälfte abgeschnitten",
+      "groesse": 558,
+      "sha256": "319e99e6c5d5d842bf3814e90a4f9d1925ada4bfc319ba2e960b1869066fa11d",
+      "sha256_entpackt": null
+    },
+    "gnc/betrag_ungueltig.erwartung.json": {
+      "groesse": 284,
+      "sha256": "bacdf76fa8a212da720f6449562e9efd8303f227e0e2f0275506f50c62a6d4d7"
+    },
+    "gnc/betrag_ungueltig.gnucash": {
+      "beschreibung": "Betrag 1/3 nicht in Cent darstellbar",
+      "groesse": 1118,
+      "sha256": "9bd05240f4c4f8e9163eb2377c6084f2e6d2590e3162f1ad36c6b1b0d7f374b4",
+      "sha256_entpackt": "f6da3f4fd8067e35ba3f64eb25fa77d7df54427537ac1c39feea238249b65566"
+    },
+    "gnc/datum_ungueltig.erwartung.json": {
+      "groesse": 271,
+      "sha256": "e83dfb6a3d100ce071b0009eadcc2e915a1cb1149e4e70bff34ee488c8d26963"
+    },
+    "gnc/datum_ungueltig.gnucash": {
+      "beschreibung": "Buchungsdatum 2024-02-30",
+      "groesse": 1116,
+      "sha256": "aaac7deb4e9dd1409b4ffae41767ba4bd6543cb919be5251134444100f09ac95",
+      "sha256_entpackt": "7d9e96f2aaa7de51cfc793ca1d6cd9837661631d56a2e35463e8813dc8eb7e47"
+    },
+    "gnc/eltern_unbekannt.erwartung.json": {
+      "groesse": 289,
+      "sha256": "4120243729c851e75e5e0742d8e80fcbafb8c1d6e6bd333bb5550d4adf639ec4"
+    },
+    "gnc/eltern_unbekannt.gnucash": {
+      "beschreibung": "act:parent verweist auf unbekanntes Konto",
+      "groesse": 1145,
+      "sha256": "465e97a768376e551b908d9238bb605a0e609097a7c9848e6621aa1e3092d033",
+      "sha256_entpackt": "bb3cd8a8789fb696915bed1866cf7bc982943a14421c502329e9267f7b0a8f80"
+    },
+    "gnc/entitaeten.erwartung.json": {
+      "groesse": 241,
+      "sha256": "ee7485e45ef499e19c200b72885836fb00961676dc4b849aed8b075018ae5477"
+    },
+    "gnc/entitaeten.gnucash": {
+      "beschreibung": "DTD mit Entitätsdeklarationen (unkomprimiert)",
+      "groesse": 5220,
+      "sha256": "1c1076704b0054438cab15f0077546bde43ccd77c452728168d971617a710e6b"
+    },
+    "gnc/inhalt_ungueltig.erwartung.json": {
+      "groesse": 339,
+      "sha256": "fb955db2ea73cf987a9b17da6d3413b47598856184256e428159f56d756ddfe5"
+    },
+    "gnc/inhalt_ungueltig.gnucash": {
+      "beschreibung": "Split auf unbekanntes Konto, Transaktion ohne Split",
+      "groesse": 1067,
+      "sha256": "626929fa104a2e97eb35e99118e86a579752dda6e84dffb7fc3702069460f0a7",
+      "sha256_entpackt": "b50bdd283407e7334c9db7b19b965d724ba8f1865546e239dc594da43d63ebdd"
+    },
+    "gnc/kaputtes_xml.erwartung.json": {
+      "groesse": 233,
+      "sha256": "9e18a94cd56283f3ba06dd670e84655ed0a29b49be0c9259b21655352c2d4277"
+    },
+    "gnc/kaputtes_xml.gnucash": {
+      "beschreibung": "gzip ok, XML nicht wohlgeformt",
+      "groesse": 1117,
+      "sha256": "a9962098c4faa1a6c5f39ec241fc58bde84bdb6e5211be77567215d4803ec2b5",
+      "sha256_entpackt": "ec9fb1b2e2e7812f8e502506a4d7d875cae398ac502928bc59b49ea601d3a976"
+    },
+    "gnc/kein_xml.erwartung.json": {
+      "groesse": 222,
+      "sha256": "9c170f3c675363f5101a7475d0dad7bda1db9f6288e33f3ac69792bea651ed77"
+    },
+    "gnc/kein_xml.gnucash": {
+      "beschreibung": "Klartext ohne gzip, SQLite und XML",
+      "groesse": 37,
+      "sha256": "15970e9e5e2eeb8856395bd22fdc1d2636927590cce07f846561a8dafc660c6e"
+    },
+    "gnc/kmy_datei.erwartung.json": {
+      "groesse": 236,
+      "sha256": "8598e4bf5e0bd853685c3cec210b32b1aa9689a16f45d7e3ca2505855ac2d80d"
+    },
+    "gnc/kmy_datei.gnucash": {
+      "beschreibung": "KMyMoney-Datei (Wurzel KMYMONEY-FILE)",
+      "groesse": 1270,
+      "sha256": "8b06e9f6b1814ce3c35328eb4a35873f0902f59dc0d74f032523cbd864d16caf",
+      "sha256_entpackt": "de7add49f6515abc1bd327fcb86ff3497db1bc568a9b43a4e26b7a45675ad88c"
+    },
+    "gnc/leer.erwartung.json": {
+      "groesse": 185,
+      "sha256": "57fa45a8f1d7e37505cdf21ca2323cfe2d8fc9b1c4196a9cc858e3b98aa7c411"
+    },
+    "gnc/leer.gnucash": {
+      "beschreibung": "0 Bytes",
+      "groesse": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "gnc/leer_gzip.erwartung.json": {
+      "groesse": 215,
+      "sha256": "3bc4adc8c960450219208d852c745f6a82c3fa5dc9c4be621ad16425053709e9"
+    },
+    "gnc/leer_gzip.gnucash": {
+      "beschreibung": "gzip mit leerem Inhalt",
+      "groesse": 20,
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "sha256_entpackt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "gnc/m4_lernen_training.gnucash": {
+      "beschreibung": "M4: Trainingsteil des Lerndatensatzes als GnuCash-XML (gleicher Inhalt wie kmy/m4_lernen_training.kmy; Erwartung dort)",
+      "groesse": 113956,
+      "sha256": "99cbcc81f5b4776bcad4e8d6ecf62b95a5c215903052f8f3e0f455587f1275a3",
+      "sha256_entpackt": "367c2621110b43210825f2b548d5669ee9e82864f6ca4d773b3cd393cae86367"
+    },
+    "gnc/minimal.erwartung.json": {
+      "groesse": 3683,
+      "sha256": "2e954adda40697d96d532c0c90ba1b08e1980c8149060ec442a3fc9f5c1a8ceb"
+    },
+    "gnc/minimal.gnucash": {
+      "beschreibung": "Kleinstes Buch (wie kmy/minimal.kmy) als GnuCash-XML, gzip",
+      "groesse": 1117,
+      "sha256": "937cb4ee9cc28400c10e421eff35c29786f6d0c982437fada3c9a11235bac45a",
+      "sha256_entpackt": "4130d22b46da21365303b6377f889dcd6b18558a3d08f7c74e83028bc96efce6"
+    },
+    "gnc/minimal.sqlite.erwartung.json": {
+      "groesse": 3688,
+      "sha256": "dc88542505eaaf8540e4a965e50838754e74020a611132c4d1bb6316eaf584b1"
+    },
+    "gnc/minimal.sqlite.gnucash": {
+      "beschreibung": "Wie minimal.gnucash, GnuCash-SQLite",
+      "groesse": 65536,
+      "sha256": "a66865b9e8775d9b459439b22cfa53176f0a57fac80a5f44925149b397d440b4",
+      "sqlite_inhalt": "257a4de4a67da11ee7924b02c56f9ca59b8745ad878cff530791e43b4878df77"
+    },
+    "gnc/minimal_unkomprimiert.erwartung.json": {
+      "groesse": 3692,
+      "sha256": "7c0416de0564490e3425b1d7585bce51036e86a40393d1983e045bad9e62b0b5"
+    },
+    "gnc/minimal_unkomprimiert.gnucash": {
+      "beschreibung": "Wie minimal.gnucash, unkomprimiertes XML",
+      "groesse": 5098,
+      "sha256": "4130d22b46da21365303b6377f889dcd6b18558a3d08f7c74e83028bc96efce6"
+    },
+    "gnc/pflichtfeld_fehlt.erwartung.json": {
+      "groesse": 271,
+      "sha256": "2bfe18e80b166b5548f67dbd1671e232a745c8aa5527ebeb0da968552cffbdf5"
+    },
+    "gnc/pflichtfeld_fehlt.gnucash": {
+      "beschreibung": "Split ohne split:value",
+      "groesse": 1115,
+      "sha256": "76992c12283c0f64898aaf870100d74efe4b4d32fdcd4e7810c8dff7597bc11e",
+      "sha256_entpackt": "a635f76f694f261a6e1d091a9a324990d63eed1794ce28a9cb1110aae23d6eee"
+    },
+    "gnc/sonderfaelle.erwartung.json": {
+      "groesse": 37593,
+      "sha256": "2889fef813efbd6ab95297c87bdfbfdc756266573fbfbf9a576f2b22808af99a"
+    },
+    "gnc/sonderfaelle.gnucash": {
+      "beschreibung": "Sonderfälle als unkomprimiertes XML: Umlaute, langer Verwendungszweck, ohne Beschreibung, tiefe Kategorien, 13 Splits, versteckt, Kontoarten, IBAN-Fälle, Brüche, Ausgleich, Überspringen, Vorlagen",
+      "groesse": 56941,
+      "sha256": "9cf8ae71a623beba55d0a760156cef8abb11ea6c62b583f326cce906b65d2435"
+    },
+    "gnc/sonderfaelle.sqlite.erwartung.json": {
+      "groesse": 37603,
+      "sha256": "cf35d1ef4fa2a1317c1b3e7992c30e4459cf11412f97b984919601de50a5cf51"
+    },
+    "gnc/sonderfaelle.sqlite.gnucash": {
+      "beschreibung": "Dieselben Sonderfälle als GnuCash-SQLite (inkl. Datum im 14-Ziffern-Format, Vorlagenbaum)",
+      "groesse": 86016,
+      "sha256": "bdf8c8991b58d739c4804d742fa5ceb7ff6e99e12933dbc65ae002207bd12a7b",
+      "sqlite_inhalt": "57578bcae2f21eaf5c989aeb9e14729204646c70276203438a3ef51b265db8bb"
+    },
+    "gnc/split_auf_wurzel.erwartung.json": {
+      "groesse": 286,
+      "sha256": "df13a9c8a752053d373cc3027b10ac40212d43e1046bc4829bdff546f6794cd8"
+    },
+    "gnc/split_auf_wurzel.gnucash": {
+      "beschreibung": "Split bucht auf das Wurzelkonto (ROOT)",
+      "groesse": 1116,
+      "sha256": "f4ddb6132c2dc7127633eca1aadf85553c7f43bb30e6186c260a7fa12a957bda",
+      "sha256_entpackt": "8d8f98d6ce2b6ccd234cc197e420f9b0f517e65d74100c99ee4b25d6994adfe6"
+    },
+    "gnc/sqlite_fremd.erwartung.json": {
+      "groesse": 234,
+      "sha256": "56b2a7dcd92936869174d445e30385efdf1116f1228ab919ead72d4127f93a88"
+    },
+    "gnc/sqlite_fremd.gnucash": {
+      "beschreibung": "SQLite-Datei ohne GnuCash-Tabellen",
+      "groesse": 8192,
+      "sha256": "8d3b938e6eaf7dfd5c849fc196d994a0d6d3403c0e80a53ec6375b9572d49ea2",
+      "sqlite_inhalt": "824c5dd3c08d2ec0e8cb4d8c4fbfc74a724e89e7dd4ff2b3949793044b15f994"
+    },
+    "gnc/sqlite_inhalt_ungueltig.erwartung.json": {
+      "groesse": 335,
+      "sha256": "de9319820c0ab345736744a7b53107285e784c568649a638059818f4033b41ab"
+    },
+    "gnc/sqlite_inhalt_ungueltig.gnucash": {
+      "beschreibung": "Split auf unbekanntes Konto, value_denom 0",
+      "groesse": 65536,
+      "sha256": "885bbf73178bd13ea94c48681fb3ecb76866a40ee2b88680b6e8325c5b88c996",
+      "sqlite_inhalt": "d01aba819ab8bc93a2ede0a805ee2eff60b5777cd544da6c8cfbc2d8e2b4bf24"
+    },
+    "gnc/sqlite_kaputt.erwartung.json": {
+      "groesse": 242,
+      "sha256": "a107defacb5a95e3053852a409ebc0e6d7e4ba23ffa27fa50bdf25c7f7613152"
+    },
+    "gnc/sqlite_kaputt.gnucash": {
+      "beschreibung": "SQLite-Kopf mit zerstörter erster Seite",
+      "groesse": 8192,
+      "sha256": "0fe1bd5a299a53e349866601b2a1dc106df7d5b1e2c16601fd7bf9de143569b7",
+      "sqlite_inhalt": null
+    },
+    "gnc/sqlite_zwei_buecher.erwartung.json": {
+      "groesse": 227,
+      "sha256": "5f060feeb0e017b928a82feb947032b30c0fd7e483d2f85c2fe482dd925cca34"
+    },
+    "gnc/sqlite_zwei_buecher.gnucash": {
+      "beschreibung": "zwei Zeilen in books",
+      "groesse": 65536,
+      "sha256": "e41db20f23900fd9fd30b111396a92d3cbb89511f24325fcf0a4b4b21dee8d96",
+      "sqlite_inhalt": "c5e5e61408781e788e2a7bee4fa50e3ca6d4c233c8a29103ab4345f550c4edb9"
+    },
+    "gnc/standard.erwartung.json": {
+      "groesse": 909540,
+      "sha256": "8133cf66590431ac610dd7baebaa61dcd460a7b43060fc11082be18e5f39369b"
+    },
+    "gnc/standard.gnucash": {
+      "beschreibung": "Standardbuch 2022–2024 (wie kmy/standard.kmy) als GnuCash-XML",
+      "groesse": 144434,
+      "sha256": "b677133d6887197b7f03807eab2fab1785d0d991338615159960a8aae99bc0ae",
+      "sha256_entpackt": "d3d8e4107e882912767b800cec196a11affcc37215949a07e215617512840cd4"
+    },
+    "gnc/ueberlappung.erwartung.json": {
+      "groesse": 603451,
+      "sha256": "79b3a36217dbebfb191db7779386675edd7eb662000194fd8d5b524fc0d4d183"
+    },
+    "gnc/ueberlappung.sqlite.gnucash": {
+      "beschreibung": "Standardbuch ab 01.03.2023 als SQLite; überschneidet sich mit kmy/standard_bis_2023.kmy (Erwartung nach_kmy)",
+      "groesse": 512000,
+      "sha256": "df547bbf30afb1640b0174642b28ca1f643b24be1599e8df31fb204bb836a3e9",
+      "sqlite_inhalt": "d219fc6756b03983b2aa3e27a3034e6093a96a69b0c0eac5d16c3634236fb164"
+    },
+    "gnc/zwei_buecher.erwartung.json": {
+      "groesse": 230,
+      "sha256": "ab32a9d87fa666464cd58fafcd16e522ef04c5f6784cc1e78bc61246835602f1"
+    },
+    "gnc/zwei_buecher.gnucash": {
+      "beschreibung": "zwei gnc:book in einer Datei",
+      "groesse": 1192,
+      "sha256": "8b2ad7dacf91870051178ee10b8d58f9a4524dede7420aa905af6b000bbbe74d",
+      "sha256_entpackt": "326a97c67e91b0cf4d86f5cc8863d6c23380e710b88429f9741fabb71e76a8c4"
+    },
+    "kmy/abgeschnitten.erwartung.json": {
+      "groesse": 212,
+      "sha256": "d4593e6f76e4f5a90de453d8cea4229703eebf0de48d4efc0b1c4cd0b2ff42e1"
+    },
+    "kmy/abgeschnitten.kmy": {
+      "beschreibung": "gzip nach der Hälfte abgeschnitten",
+      "groesse": 635,
+      "sha256": "ed5b2d0b005b8a77dd86baf8c057473ccba1bba3f2fc3661866a148fe6730081",
+      "sha256_entpackt": null
+    },
+    "kmy/betrag_ungueltig.erwartung.json": {
+      "groesse": 215,
+      "sha256": "b916e36ba74a4e588aba3a3b836609cf9ae1819e5fe41ded2ed9774e3ecee4ab"
+    },
+    "kmy/betrag_ungueltig.kmy": {
+      "beschreibung": "Betrag 1/3 nicht in Cent darstellbar",
+      "groesse": 1313,
+      "sha256": "a9fac9a81c99fb93d8fe1fbb4e2bf9f54d3b51ded2d5244465d064a0c125ccf1",
+      "sha256_entpackt": "185b2fae69a68be5138cd8afd5163457bb4825b88aab31720f9cd4ec63cfb42a"
+    },
+    "kmy/datum_ungueltig.erwartung.json": {
+      "groesse": 197,
+      "sha256": "a0353ffac583991e62e41c83321184445a666bf2a9021b43aa7e71e222e4d273"
+    },
+    "kmy/datum_ungueltig.kmy": {
+      "beschreibung": "postdate 2023-02-30",
+      "groesse": 1315,
+      "sha256": "00533534698c61ee1eb9001daf1dad7fcfbf0188c56d0532ab38beb67f02dd8a",
+      "sha256_entpackt": "b201a86c56377c2daeff94f5726e702b122eb95d6bf20ebf8741594b004825dd"
+    },
+    "kmy/dubletten.erwartung.json": {
+      "groesse": 13833,
+      "sha256": "56eba6263805bdd1e40d57cee7adb35df3c0d95e33fcc088d5f50cab53deb9e0"
+    },
+    "kmy/dubletten.kmy": {
+      "beschreibung": "Import gegen manuellen Vorbestand: eindeutige, mehrdeutige, ähnliche Dubletten",
+      "groesse": 1606,
+      "sha256": "ed72457d779b749ca22341bb014f5616fdc32740cef6db507f5b59d21d95a014",
+      "sha256_entpackt": "f9bc56008591ae7356372733d008e8e9523edcda949264557722a285b2338a48"
+    },
+    "kmy/entitaeten.erwartung.json": {
+      "groesse": 227,
+      "sha256": "58570a0fc4b6ad8f98f35fba34c2e5a03bef41b385678b296afcb3af9c4bee1c"
+    },
+    "kmy/entitaeten.kmy": {
+      "beschreibung": "DTD mit Entitätsdeklarationen (Expansion, externe Entität)",
+      "groesse": 1339,
+      "sha256": "c19345b7c02ed86b85570a981f8eb240ba78325e6b90925269ebc570e5e9df37",
+      "sha256_entpackt": "811f92a969da50c35253ed68b7a0ecb3d9eb742223bfaa1d529a39a6e97872cb"
+    },
+    "kmy/falsches_format.erwartung.json": {
+      "groesse": 228,
+      "sha256": "003544acaa30f89dc203a00da16731cab167864e98864e9db1a5c6107bee23e9"
+    },
+    "kmy/falsches_format.kmy": {
+      "beschreibung": "gzip mit wohlgeformtem XML, aber Wurzel gnc-v2 (GnuCash)",
+      "groesse": 154,
+      "sha256": "2c893ce534bb6068972e33859aa0e77f1a4b1f201cf75b6b3fd9827b0680f341",
+      "sha256_entpackt": "8b101f1d6b30b783b27060897180aa2cc3e81188bf46d7104b2d332e7210e6a5"
+    },
+    "kmy/fremdwaehrung.erwartung.json": {
+      "groesse": 5794,
+      "sha256": "7bb9fc1b2ebc211557a7a2b4eb1a11c25555ebc976e385bc0d3120de1018794e"
+    },
+    "kmy/fremdwaehrung.kmy": {
+      "beschreibung": "Fremdwährungskonto, Depot und Aktie (übersprungen) samt betroffener Buchungen",
+      "groesse": 1596,
+      "sha256": "ae747ed14d905f463eb6487c9dea80ec23049ec8301fddcbe8d1de6f9356eaed",
+      "sha256_entpackt": "a5df296685021d8d8c86ca1826fe9f1c77c795fd01a2e0f6b043995c47bdafc7"
+    },
+    "kmy/inhalt_ungueltig.erwartung.json": {
+      "groesse": 236,
+      "sha256": "24134efaa5cfb53b0044949465eba0a192582500682e878b548e4e215a31ddcf"
+    },
+    "kmy/inhalt_ungueltig.kmy": {
+      "beschreibung": "Letzte Transaktion verweist auf unbekanntes Konto A999999",
+      "groesse": 1321,
+      "sha256": "7f67749a7bbd917c1700c6e01f7d9c55c6cdeaa3050b3012282f29e91735b1f2",
+      "sha256_entpackt": "bb0bb1816200b1c2bb04dc88a13bb9945d10a840d47dcb9e6745276a01690774"
+    },
+    "kmy/kaputtes_xml.erwartung.json": {
+      "groesse": 206,
+      "sha256": "73d5634aea08d0db706cd6d8b12cf0780d20b117d1730a068990a639af0b7f72"
+    },
+    "kmy/kaputtes_xml.kmy": {
+      "beschreibung": "gzip ok, XML nicht wohlgeformt",
+      "groesse": 1272,
+      "sha256": "434f3073d8097641f3c2de1c7c5ff943fbaefdb89609c2eaa76d64420e710f3e",
+      "sha256_entpackt": "5702631e163e2f5d1c7c951799db75c1e722e23f4e893de1905dfe02c6fb2052"
+    },
+    "kmy/kein_xml.erwartung.json": {
+      "groesse": 196,
+      "sha256": "8d61b9ab2ba825eb74c834a75d8e6ef9c7b1048797eff00d2461371a0d43068a"
+    },
+    "kmy/kein_xml.kmy": {
+      "beschreibung": "Klartext ohne gzip und ohne XML",
+      "groesse": 38,
+      "sha256": "3a29a1182ce89cda4ba628eebbb048c9c97d5868b88ab6e315db952c7a955f46"
+    },
+    "kmy/leer.erwartung.json": {
+      "groesse": 162,
+      "sha256": "ddb657fb8014b5150f4fd39afe10553f0abe6860c0c7c126c04e95177f5dccef"
+    },
+    "kmy/leer.kmy": {
+      "beschreibung": "0 Bytes",
+      "groesse": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "kmy/leer_gzip.erwartung.json": {
+      "groesse": 188,
+      "sha256": "fe452047772c4a4cb1943e236326ef8927439b87c0e0495ab922d4d658245426"
+    },
+    "kmy/leer_gzip.kmy": {
+      "beschreibung": "gzip mit leerem Inhalt",
+      "groesse": 20,
+      "sha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64",
+      "sha256_entpackt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "kmy/m3_aliase.erwartung.json": {
+      "groesse": 6022,
+      "sha256": "13daa01b8a26e50369f434b8f7619ec99eb6403d15a3e7ba26b876ba72083f1d"
+    },
+    "kmy/m3_aliase.kmy": {
+      "beschreibung": "M3: kleines Buch, dessen Empfänger über Aliase der Stammdaten zugeordnet werden",
+      "groesse": 1404,
+      "sha256": "4d069b9f9dfcef03e65139904dd3bbd83d7fd619a2399b6549d97dff2d7a2226",
+      "sha256_entpackt": "470fc30c10f1d41dd35b7ded7016a2cdc917d45200287651229800d580ed237a"
+    },
+    "kmy/m4_lernen_training.erwartung.json": {
+      "groesse": 620763,
+      "sha256": "4ca2de7e8f75496bf2535476ea07df83c9ba3363c2137671ae8aaae7edf2cae6"
+    },
+    "kmy/m4_lernen_training.kmy": {
+      "beschreibung": "M4: nur die älteren 80 % des Lerndatensatzes (Training)",
+      "groesse": 28965,
+      "sha256": "1bcee78fc832b5d4fe49806f3bd4c4a845ff6922519219fd193df01fa1c31cba",
+      "sha256_entpackt": "99cf1cc7afd867860ff5bb806767056e7222572cbf942002a4d997318511d7c5"
+    },
+    "kmy/minimal.erwartung.json": {
+      "groesse": 3455,
+      "sha256": "59bd24b6fcc992afe6b16e457deea952e1b382811f45a700a7e274eaaf3fd628"
+    },
+    "kmy/minimal.kmy": {
+      "beschreibung": "Kleinstes Buch: ein Konto, zwei Kategorien, zwei Buchungen",
+      "groesse": 1270,
+      "sha256": "8b06e9f6b1814ce3c35328eb4a35873f0902f59dc0d74f032523cbd864d16caf",
+      "sha256_entpackt": "de7add49f6515abc1bd327fcb86ff3497db1bc568a9b43a4e26b7a45675ad88c"
+    },
+    "kmy/minimal_unkomprimiert.erwartung.json": {
+      "groesse": 3468,
+      "sha256": "0cd0da2ecc96cd701cd925c45bc0dc8f70eb41fe2b3dbacbf830264e578c5f06"
+    },
+    "kmy/minimal_unkomprimiert.kmy": {
+      "beschreibung": "Wie minimal.kmy, aber unkomprimiertes XML",
+      "groesse": 4616,
+      "sha256": "de7add49f6515abc1bd327fcb86ff3497db1bc568a9b43a4e26b7a45675ad88c"
+    },
+    "kmy/pflichtfeld_fehlt.erwartung.json": {
+      "groesse": 205,
+      "sha256": "12e4d4c10669e3bdf75b5d4e50a666b15dda9185851214c9f5f244f0be982303"
+    },
+    "kmy/pflichtfeld_fehlt.kmy": {
+      "beschreibung": "SPLIT ohne value-Attribut",
+      "groesse": 1312,
+      "sha256": "587f557e2d45ff1f35b5a87a11ddbaa83b593a81f3e06af00b7341334377a9d5",
+      "sha256_entpackt": "bd42a7cfa47bc6fd3d6da21fee2628acd86ec295d6c1f8837be27bec9a3bc2bb"
+    },
+    "kmy/sonderfaelle.erwartung.json": {
+      "groesse": 39311,
+      "sha256": "ccfa7645e867f4ab38932829c1c7c291781827a641b6c6690c46fe477c4d8887"
+    },
+    "kmy/sonderfaelle.kmy": {
+      "beschreibung": "Umlaute/Sonderzeichen, langer Verwendungszweck, ohne Empfänger, tiefe Kategorien, 13 Splits, geschlossenes Konto, Brüche, Ausgleich, Nullsplit, Warnfälle",
+      "groesse": 3362,
+      "sha256": "b239462a1c0805e88baa581a75711a5e8fdc0f6a599a2f886811e0d3150e5d86",
+      "sha256_entpackt": "b0627df77bb2e7f97e8ee7f55c2c29e407ac47d4e6f889b68c9a64c4ee031a53"
+    },
+    "kmy/standard.erwartung.json": {
+      "groesse": 747284,
+      "sha256": "2cceaab6e2f6482492526cbc8f3fce2520a34bf47e9ebe8df5b41d2e5144ea6f"
+    },
+    "kmy/standard.kmy": {
+      "beschreibung": "Drei Jahre Haushaltsbuch 2022–2024 mit Girokonto, Tagesgeld, Kreditkarte, zwei Darlehen",
+      "groesse": 35912,
+      "sha256": "597f80fe51c368a3c6029b7b7cfb3e5a562b3d1d36702499cd38d99d45a6aa9d",
+      "sha256_entpackt": "35a6e9ebe46bcad8a7e87e48095f382ee15deb4016b36d21476fda9e17f0476c"
+    },
+    "kmy/standard_bis_2023.erwartung.json": {
+      "groesse": 499353,
+      "sha256": "82060bd19e2a54a8874f2cc95b3542aaa7714618fce38784689cdc5d4fc8bf18"
+    },
+    "kmy/standard_bis_2023.kmy": {
+      "beschreibung": "Dasselbe Buch, nur Transaktionen bis 31.12.2023 (gleiche IDs) – für inkrementellen Import",
+      "groesse": 24722,
+      "sha256": "84ec1e1b99d8dd8a2865db1715918f323f0d2df7837bd57a56450ae695dc023a",
+      "sha256_entpackt": "cce1a450d35e36c2c8405aaf6683ea027385d3b3b525ac2a8028abc42cbde844"
+    },
+    "kmy/sync_altbestand.erwartung.json": {
+      "groesse": 32919,
+      "sha256": "2bd0193ffb26971d7e4ecf06f981d6c7c6d1ddb5257776a775108a1ed7e5118c"
+    },
+    "kmy/sync_altbestand.kmy": {
+      "beschreibung": "M2: KMyMoney-Altbestand bis 15.02.2024 mit denselben IBANs für den Abgleich beim Abruf",
+      "groesse": 2873,
+      "sha256": "c3d4cab1ae4b92f480ade24d6680c638d8b1813071e078aa47502495c9984cba",
+      "sha256_entpackt": "d168dc2046b55932f21254de34eeb8c410f5d354eb635144bbc137b8b0a093e1"
+    },
+    "m3/stammdaten.json": {
+      "beschreibung": "M3: Kategorien, Empfänger mit Aliasen und Standardkategorie, Regeln",
+      "groesse": 2227,
+      "sha256": "7a75f4826e9588540a0497493b74df89cf9b360cd5c0c2043ac6672e001d244d"
+    },
+    "m3/suche.json": {
+      "beschreibung": "M3: Suchanfragen mit erwarteten Treffern (Umlaute, ß, Akzente, NFD, Ligatur)",
+      "groesse": 3551,
+      "sha256": "d8f82f298518b6603b0534fdbc9999ab03187986d2b0d51f28a87d290d450b37"
+    },
+    "m4/lernen.erwartung.json": {
+      "beschreibung": "M4: bekannte Wahrheit des Lerndatensatzes (Kategorie, Teil, Fehler)",
+      "groesse": 401421,
+      "sha256": "720718d152334a285ec037471b4bad17e566268360df342c135d16017050cdf4"
+    },
+    "m4/vorlagen.json": {
+      "beschreibung": "M4: Kategorien, Split-Vorlagen und die angepasste Vorlage nach der Beitragsänderung",
+      "groesse": 3617,
+      "sha256": "c976d5ce69b089b46ec83824f59e414b157f5ed2024cae58e310052d37db41a6"
+    },
+    "m5/berichte.erwartung.json": {
+      "beschreibung": "M5: Kontostandsverlauf, Einnahmen/Ausgaben und Exportreihenfolge für kmy/standard.kmy",
+      "groesse": 20042,
+      "sha256": "46c3dd7fd9d0d5090e0a2ec0bc19b4dd55a3914486d19d7a87585fe8f93a8f23"
+    },
+    "m5/kredite.json": {
+      "beschreibung": "M5: Kreditfälle (30/360, act/360, act/365, Schaltjahr, Monatsende, gebrochene erste Periode, Sondertilgungen, Zins 0, zu kleine Rate) mit unabhängig berechnetem Plan",
+      "groesse": 329130,
+      "sha256": "27c29007802206739ef9fabae7039a637e26f75ca1174f0787fc0888aa23a621"
+    },
+    "m6/benachrichtigungen.erwartung.json": {
+      "beschreibung": "M6: Prioritäten, erwartete ntfy-Körper, Fälle der TAN-Erinnerungen (benachrichtigungen.md 3–5)",
+      "groesse": 7233,
+      "sha256": "44eb18c96a559b6950959aa6485fa2cec36b62e35f14d0893da292106e7b1f74"
+    },
+    "m6/fints_bank.erwartung.json": {
+      "beschreibung": "M6: erwartete BankKonto/BankUmsatz je Profil camt/mt940 (fints.md 3.4)",
+      "groesse": 123918,
+      "sha256": "69a865fd16ba0c546f062a1e45f72001e40aab9309480f0fd1b3c233eadcb902"
+    },
+    "m6/fints_bank.json": {
+      "beschreibung": "M6: Daten der FinTS-Attrappe (Konten mit Kontoart, Umsätze als MT940-Bruchstück und camt.052-Ntry, synthetische PIN/TAN, QR-PNG)",
+      "groesse": 148381,
+      "sha256": "968d114522af49e4eb5454ec0ea065dc5016c8de80b3964061865aba38201da9"
+    },
+    "m6/mail.erwartung.json": {
+      "beschreibung": "M6: erwartete MailNachricht je Postfach und Ordner (mail.md 3.3)",
+      "groesse": 11532,
+      "sha256": "826aed99dc5b85566d4a40085036bcbcf88250836f0fd4c234b660057a337883"
+    },
+    "m6/mail/eins_alle.mbox": {
+      "beschreibung": "M6: synthetisches Postfach im mbox-Format (INTERNALDATE in der From-Zeile, UTC)",
+      "groesse": 2003,
+      "sha256": "67b016c567d51d8bfba612b4c184e71f43a99adc722edd949498f8929021b437"
+    },
+    "m6/mail/eins_inbox.mbox": {
+      "beschreibung": "M6: synthetisches Postfach im mbox-Format (INTERNALDATE in der From-Zeile, UTC)",
+      "groesse": 8734,
+      "sha256": "5042be3352359e5c982304098910a404f3361cc349de633e4f2e46d75fa4a428"
+    },
+    "m6/mail/postfaecher.json": {
+      "beschreibung": "M6: Index der IMAP-Attrappe (Postfach → Ordner → mbox, UIDVALIDITY, UIDs)",
+      "groesse": 1227,
+      "sha256": "1613a6deaf4ad41dee91b2c9567b11f5629ed9f447e5643e06a6502aed5a4236"
+    },
+    "m6/mail/zwei_buecher.mbox": {
+      "beschreibung": "M6: synthetisches Postfach im mbox-Format (INTERNALDATE in der From-Zeile, UTC)",
+      "groesse": 4328,
+      "sha256": "8eb06d4440052ac8f052bf17965fc74377de0af215944329f7e8333e745e3747"
+    },
+    "m6/mail/zwei_inbox.mbox": {
+      "beschreibung": "M6: synthetisches Postfach im mbox-Format (INTERNALDATE in der From-Zeile, UTC)",
+      "groesse": 2798,
+      "sha256": "c6aa7873df2d4910759f3d04eac48545b433092382e20df82349a5dac5389069"
+    },
+    "m8/oberflaeche.erwartung.json": {
+      "beschreibung": "M8: bekannte Wahrheit, Kategorienpfade und Baumreihenfolge, Filterfälle mit erwarteten Buchungen",
+      "groesse": 73793,
+      "sha256": "7cd76f957842f97dcbbfbe8b3549d03173a56892e8df2880e0e4c28ff2ec29ac"
+    },
+    "m8/oberflaeche.kmy": {
+      "beschreibung": "M8: Haushaltsbuch 2024 für Oberflächentests (Kategorienbaum, Umlaute, HTML-artiger Text, Splitbuchung, Tags, geschlossenes Konto, Darlehen)",
+      "groesse": 4468,
+      "sha256": "1d640fca1ef9aa79424ceb420f21512b38ccc889ec7363bd67a4a1e7f5bd5a7a",
+      "sha256_entpackt": "d19e5a224306c534f674a62558db774303bfd45edc4406c415f34d9b7fcf9649"
+    },
+    "m8/viele.erwartung.json": {
+      "beschreibung": "M8: bekannte Wahrheit zu viele.kmy",
+      "groesse": 283214,
+      "sha256": "d557e1b55567a5e8068824c86fe9f3792c3238b6d61899d911d1ea87ef1f975e"
+    },
+    "m8/viele.kmy": {
+      "beschreibung": "M8: ein Konto mit 450 Buchungen (seitenweises Laden der Buchungsliste)",
+      "groesse": 12600,
+      "sha256": "a93019b1dfa91eb13502c1d41069bacf37e7ad9baff08df53be1df6c6fc6b64b",
+      "sha256_entpackt": "8d250909b9d9ae20fbf20a1b52c8da400c1f463498d61f3080cc5a48b7ec78ff"
+    },
+    "mock/m3_daten.erwartung.json": {
+      "beschreibung": "M3: Umbuchungspaare je Stufe, Gründe, Empfänger/Kategorie mit Stammdaten, Kontoauszüge für die Abstimmung",
+      "groesse": 28191,
+      "sha256": "c9254239c31a8ad7739eb15cdffc850eb89cd462f4fe24fd2e2d51bcf162098b"
+    },
+    "mock/m3_daten.json": {
+      "beschreibung": "M3: Bankumsätze Jan.–Juni 2024 mit Umbuchungen (gleicher Tag, 2/3/4 Tage, Stufengrenze, fremde/fehlende/widersprechende IBAN, mehrdeutig), Namensvarianten, NFD, ß, Ligatur",
+      "groesse": 38859,
+      "sha256": "be0c6592c4bdecd52d9916eac2d9a1fae6ffe00be18e594e7367e16a0ac8fa40"
+    },
+    "mock/m4_lernen.json": {
+      "beschreibung": "M4: Prüfbuchungen des Lerndatensatzes (neueste 20 %) als Bankumsätze",
+      "groesse": 96539,
+      "sha256": "834b79b968042536278c87fd8d822eb14c03f9e4afeb79b98c458b8a0f6f0834"
+    },
+    "mock/m4_vorlagen.erwartung.json": {
+      "beschreibung": "M4: Ergebnis je Umsatz (gesplittet, abweichung, keine) je Szenario",
+      "groesse": 31744,
+      "sha256": "fb0740dbe0cf9f62c40ccc3fb5ab6e09fded45233ddc4487a84c3eae9c59d2ca"
+    },
+    "mock/m4_vorlagen.json": {
+      "beschreibung": "M4: Sammelabbuchungen 2024 (Versicherung monatlich/jährlich, Stadtwerke) mit betrag_beitragsaenderung ab Juli und Abweichungen um 1 Cent",
+      "groesse": 32787,
+      "sha256": "c94aef9aad91e2a632eee5190b06296ecd2908b4ae23504253717633a179c93d"
+    },
+    "mock/m5_kredit.erwartung.json": {
+      "beschreibung": "M5: Aufteilung jeder Rate je Zinsmethode, Jahresauszüge 2024 mit Abweichungen und erwarteter Korrekturbuchung",
+      "groesse": 29639,
+      "sha256": "597bc466e190142be9702e2c3a6e57eb177a7da5d20e6e11dfff5e77bf9bd950"
+    },
+    "mock/m5_kredit.json": {
+      "beschreibung": "M5: Girokonto 2024 mit Darlehensraten (verschoben auf Werktage), Sondertilgung, gleich hoher Zahlung an Fremde, Gebühr, anderem Darlehen",
+      "groesse": 26542,
+      "sha256": "02db1cbef3b44479f76212f62d226411db5c3c154703b29c912a089c4875acd9"
+    },
+    "mock/m5_wiederkehrend.erwartung.json": {
+      "beschreibung": "M5: Serien je Stichtag und Benachrichtigungen im wöchentlichen Abruf (bekannte Wahrheit aus der Konstruktion)",
+      "groesse": 18794,
+      "sha256": "65f36f41a474f62419e013f0bc9c19a9bd7998419fb58c373fc32fbf8f0557f1"
+    },
+    "mock/m5_wiederkehrend.json": {
+      "beschreibung": "M5: Girokonto 2023–2024 mit Abos, Daueraufträgen, Lastschriften, Verschiebungen, Betragsänderungen, Lücke, ausbleibender Zahlung, neuen Empfängern",
+      "groesse": 84880,
+      "sha256": "936bfd412bfd0994cc9a77301ba27051ec57499233cf51a8afd7d95049eabc25"
+    },
+    "mock/m6_fints_vergleich.json": {
+      "beschreibung": "M6: Mock-Daten mit denselben Konten und Umsätzen (Profil camt) für T 21",
+      "groesse": 53159,
+      "sha256": "2404440aed9b6b6b1311e72eb80c3583cfab479cbf36427932c1bcee73e340c3"
+    },
+    "mock/m6_mail_vergleich.json": {
+      "beschreibung": "M6: dieselben Nachrichten der konfigurierten Ordner als Mock-Daten (T 21)",
+      "groesse": 7114,
+      "sha256": "c0609f76fcc1b07fc2fcf706c34f7dc24f85eff51becb162dd5a95d7e42c1f29"
+    },
+    "mock/mock_daten.erwartung.json": {
+      "groesse": 5846,
+      "sha256": "0098cb55b9401b0c354a21ae2c2907a1a502de6066138cfd6bf49bd511566268"
+    },
+    "mock/mock_daten.json": {
+      "beschreibung": "Mock-Datendatei für Bank- und Mail-Mock (Jahr 2024)",
+      "groesse": 81324,
+      "sha256": "3fbcb976ee52d58368a3df0b2900949a88202bc016d28c904d7e43d59ecb774f"
+    },
+    "mock/sync_daten.erwartung.json": {
+      "beschreibung": "M2: bekannte Wahrheit je Umsatz (Kategorie, Regelergebnis, Abgleich mit Altbestand), Stichtage",
+      "groesse": 25194,
+      "sha256": "cadb7b37536920ca748ae5cc2849e7246a82f73068983cd99b5820d785e7de41"
+    },
+    "mock/sync_daten.json": {
+      "beschreibung": "M2: Bankumsätze Jan.–Juni 2024 für Giro, Tagesgeld, Kreditkarte mit Störfällen; bank.tan für das TAN-Szenario",
+      "groesse": 58076,
+      "sha256": "f75b34658d344dd36eeeb1e6ee4df834c278d2ebd788c484bf3edfd73e554d9c"
+    },
+    "mock/sync_daten_pin.json": {
+      "beschreibung": "M2: wie sync_daten.json, zusätzlich bank.pin (synthetische Mock-PIN)",
+      "groesse": 58120,
+      "sha256": "43ad4242febfd1c401181aa491f049cb05156e83c3a5dc311c7ee942d52d35e2"
+    },
+    "sync/regeln.json": {
+      "beschreibung": "M2: Kategorien, Konten und Regelsatz (Priorität, Gleichstand, inaktiv)",
+      "groesse": 5759,
+      "sha256": "9cbf9f13f9831b153730d6f6ba61e886a02df385c79bff93d9f81885f2ff2bbf"
+    }
+  },
+  "generator_version": "8.0.0",
+  "sqlite_version": "3.53.1",
+  "startwert": 4711,
+  "zlib_version": "1.3.1.zlib-ng"
+}

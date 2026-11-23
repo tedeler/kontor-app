@@ -1,0 +1,12 @@
+{
+  "art": "gnucash",
+  "beschreibung": "Split auf unbekanntes Konto, value_denom 0",
+  "erfolgreich": false,
+  "fehler_code": "import_inhalt_ungueltig",
+  "fixture": "gnc/sqlite_inhalt_ungueltig.gnucash",
+  "format": "gnc-sqlite",
+  "referenzen": [
+    "7db3ae74b8a035da72e2c2b792f53937",
+    "8364aa716f8eb3cc6e78714836e7616c"
+  ]
+}

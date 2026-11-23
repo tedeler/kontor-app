@@ -1,0 +1,1128 @@
+{
+  "art": "kmymoney",
+  "buchungen": [
+    {
+      "datum": "2023-01-01",
+      "empfaenger": null,
+      "extern_id": "kmy:T000000000000000001",
+      "kategorie_extern_id": null,
+      "splits": [
+        {
+          "betrag": 100000,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Start"
+        },
+        {
+          "betrag": -100000,
+          "konto_extern_id": "kmy:A000007",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 100000,
+      "verwendungszweck": "Anfangsbestand",
+      "wahre_kategorie_extern_id": null
+    },
+    {
+      "datum": "2023-01-01",
+      "empfaenger": null,
+      "extern_id": "kmy:T000000000000000002",
+      "kategorie_extern_id": null,
+      "splits": [
+        {
+          "betrag": 5000,
+          "konto_extern_id": "kmy:A000003",
+          "memo": ""
+        },
+        {
+          "betrag": -5000,
+          "konto_extern_id": "kmy:A000007",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 5000,
+      "verwendungszweck": "Anfangsbestand Altkonto",
+      "wahre_kategorie_extern_id": null
+    },
+    {
+      "datum": "2023-01-01",
+      "empfaenger": null,
+      "extern_id": "kmy:T000000000000000003",
+      "kategorie_extern_id": null,
+      "splits": [
+        {
+          "betrag": 20000,
+          "konto_extern_id": "kmy:A000002",
+          "memo": ""
+        },
+        {
+          "betrag": -20000,
+          "konto_extern_id": "kmy:A000007",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 20000,
+      "verwendungszweck": "Anfangsbestand Bargeld",
+      "wahre_kategorie_extern_id": null
+    },
+    {
+      "datum": "2023-01-05",
+      "empfaenger": "Bäckerei Größenwahn – Inh. Jürgen Weiß",
+      "extern_id": "kmy:T000000000000000004",
+      "kategorie_extern_id": "kmy:A000013",
+      "splits": [
+        {
+          "betrag": -1234,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit"
+        },
+        {
+          "betrag": 1234,
+          "konto_extern_id": "kmy:A000013",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 1234,
+      "verwendungszweck": "Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit Umlauten äöü ÄÖÜ ß und Zeichen <>&\"' – Sehr langer Verwendungszweck mit",
+      "wahre_kategorie_extern_id": "kmy:A000013"
+    },
+    {
+      "datum": "2023-01-06",
+      "empfaenger": null,
+      "extern_id": "kmy:T000000000000000005",
+      "kategorie_extern_id": "kmy:A000014",
+      "splits": [
+        {
+          "betrag": -2000,
+          "konto_extern_id": "kmy:A000001",
+          "memo": ""
+        },
+        {
+          "betrag": 2000,
+          "konto_extern_id": "kmy:A000014",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 2000,
+      "verwendungszweck": "",
+      "wahre_kategorie_extern_id": "kmy:A000014"
+    },
+    {
+      "datum": "2023-02-01",
+      "empfaenger": "Ça va? Café „Zum Ölfass“ <&> 'Zitat' \"doppelt\"",
+      "extern_id": "kmy:T000000000000000006",
+      "kategorie_extern_id": null,
+      "splits": [
+        {
+          "betrag": -7878,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Sammelrechnung"
+        },
+        {
+          "betrag": 101,
+          "konto_extern_id": "kmy:A000020",
+          "memo": "Position 1 – Ä0"
+        },
+        {
+          "betrag": 202,
+          "konto_extern_id": "kmy:A000021",
+          "memo": "Position 2 – Ä1"
+        },
+        {
+          "betrag": 303,
+          "konto_extern_id": "kmy:A000022",
+          "memo": "Position 3 – Ä2"
+        },
+        {
+          "betrag": 404,
+          "konto_extern_id": "kmy:A000023",
+          "memo": "Position 4 – Ä3"
+        },
+        {
+          "betrag": 505,
+          "konto_extern_id": "kmy:A000024",
+          "memo": "Position 5 – Ä4"
+        },
+        {
+          "betrag": 606,
+          "konto_extern_id": "kmy:A000025",
+          "memo": "Position 6 – Ä5"
+        },
+        {
+          "betrag": 707,
+          "konto_extern_id": "kmy:A000026",
+          "memo": "Position 7 – Ä6"
+        },
+        {
+          "betrag": 808,
+          "konto_extern_id": "kmy:A000027",
+          "memo": "Position 8 – Ä7"
+        },
+        {
+          "betrag": 909,
+          "konto_extern_id": "kmy:A000028",
+          "memo": "Position 9 – Ä8"
+        },
+        {
+          "betrag": 1010,
+          "konto_extern_id": "kmy:A000029",
+          "memo": "Position 10 – Ä9"
+        },
+        {
+          "betrag": 1111,
+          "konto_extern_id": "kmy:A000030",
+          "memo": "Position 11 – Ä10"
+        },
+        {
+          "betrag": 1212,
+          "konto_extern_id": "kmy:A000031",
+          "memo": "Position 12 – Ä11"
+        }
+      ],
+      "status": "importiert",
+      "tags": [
+        "kmy:G000001",
+        "kmy:G000003"
+      ],
+      "umbuchung": false,
+      "umsatz": 7878,
+      "verwendungszweck": "Sammelrechnung mit zwölf Positionen",
+      "wahre_kategorie_extern_id": null
+    },
+    {
+      "datum": "2023-02-02",
+      "empfaenger": "Ärger GmbH",
+      "extern_id": "kmy:T000000000000000007",
+      "kategorie_extern_id": "kmy:A000014",
+      "splits": [
+        {
+          "betrag": -1234,
+          "konto_extern_id": "kmy:A000001",
+          "memo": ""
+        },
+        {
+          "betrag": 1234,
+          "konto_extern_id": "kmy:A000014",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 1234,
+      "verwendungszweck": "Gekürzter Bruch",
+      "wahre_kategorie_extern_id": "kmy:A000014"
+    },
+    {
+      "datum": "2023-02-03",
+      "empfaenger": "Ärger GmbH",
+      "extern_id": "kmy:T000000000000000008",
+      "kategorie_extern_id": "kmy:A000014",
+      "splits": [
+        {
+          "betrag": -1200,
+          "konto_extern_id": "kmy:A000001",
+          "memo": ""
+        },
+        {
+          "betrag": 1200,
+          "konto_extern_id": "kmy:A000014",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 1200,
+      "verwendungszweck": "Ganze Euro ohne Nenner",
+      "wahre_kategorie_extern_id": "kmy:A000014"
+    },
+    {
+      "datum": "2023-02-04",
+      "empfaenger": null,
+      "extern_id": "kmy:T000000000000000009",
+      "kategorie_extern_id": "kmy:A000015",
+      "splits": [
+        {
+          "betrag": -123,
+          "konto_extern_id": "kmy:A000001",
+          "memo": ""
+        },
+        {
+          "betrag": 123,
+          "konto_extern_id": "kmy:A000015",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 123,
+      "verwendungszweck": "Nenner 1000",
+      "wahre_kategorie_extern_id": "kmy:A000015"
+    },
+    {
+      "datum": "2023-03-01",
+      "empfaenger": "☕ Emoji-Kiosk 🙂",
+      "extern_id": "kmy:T000000000000000010",
+      "kategorie_extern_id": null,
+      "splits": [
+        {
+          "betrag": -999,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Ohne Kategorie"
+        },
+        {
+          "betrag": 999,
+          "konto_extern_id": "kontor:unausgeglichen",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 999,
+      "verwendungszweck": "Buchung ohne Gegenbuchung",
+      "wahre_kategorie_extern_id": null
+    },
+    {
+      "datum": "2023-03-02",
+      "empfaenger": null,
+      "extern_id": "kmy:T000000000000000011",
+      "kategorie_extern_id": null,
+      "splits": [
+        {
+          "betrag": -1000,
+          "konto_extern_id": "kmy:A000001",
+          "memo": ""
+        },
+        {
+          "betrag": 900,
+          "konto_extern_id": "kmy:A000015",
+          "memo": ""
+        },
+        {
+          "betrag": 100,
+          "konto_extern_id": "kontor:unausgeglichen",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 1000,
+      "verwendungszweck": "Unausgeglichen um 1 Euro",
+      "wahre_kategorie_extern_id": null
+    },
+    {
+      "datum": "2023-03-03",
+      "empfaenger": null,
+      "extern_id": "kmy:T000000000000000012",
+      "kategorie_extern_id": null,
+      "splits": [
+        {
+          "betrag": -500,
+          "konto_extern_id": "kmy:A000001",
+          "memo": ""
+        },
+        {
+          "betrag": 500,
+          "konto_extern_id": "kmy:A000014",
+          "memo": ""
+        },
+        {
+          "betrag": 0,
+          "konto_extern_id": "kmy:A000015",
+          "memo": "Nullsplit"
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 500,
+      "verwendungszweck": "Mit Nullsplit",
+      "wahre_kategorie_extern_id": null
+    },
+    {
+      "datum": "2023-03-04",
+      "empfaenger": null,
+      "extern_id": "kmy:T000000000000000013",
+      "kategorie_extern_id": null,
+      "splits": [
+        {
+          "betrag": -5000,
+          "konto_extern_id": "kmy:A000003",
+          "memo": "Auflösung Altkonto"
+        },
+        {
+          "betrag": 5000,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Auflösung Altkonto"
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": true,
+      "umsatz": 5000,
+      "verwendungszweck": "Auflösung Altkonto",
+      "wahre_kategorie_extern_id": null
+    },
+    {
+      "datum": "2023-03-05",
+      "empfaenger": "☕ Emoji-Kiosk 🙂",
+      "extern_id": "kmy:T000000000000000014",
+      "kategorie_extern_id": "kmy:A000014",
+      "splits": [
+        {
+          "betrag": -1500,
+          "konto_extern_id": "kmy:A000002",
+          "memo": "Barzahlung ☕🙂"
+        },
+        {
+          "betrag": 1500,
+          "konto_extern_id": "kmy:A000014",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 1500,
+      "verwendungszweck": "Barzahlung ☕🙂",
+      "wahre_kategorie_extern_id": "kmy:A000014"
+    },
+    {
+      "datum": "2023-03-06",
+      "empfaenger": null,
+      "extern_id": "kmy:T000000000000000015",
+      "kategorie_extern_id": "kmy:A000017",
+      "splits": [
+        {
+          "betrag": -800,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Falsch einsortiert"
+        },
+        {
+          "betrag": 800,
+          "konto_extern_id": "kmy:A000017",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 800,
+      "verwendungszweck": "Falsch einsortiert",
+      "wahre_kategorie_extern_id": "kmy:A000017"
+    },
+    {
+      "datum": "2023-06-01",
+      "empfaenger": "Ärger GmbH",
+      "extern_id": "kmy:T000000000000000016",
+      "kategorie_extern_id": "kmy:A000016",
+      "splits": [
+        {
+          "betrag": 4200,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Erstattung mit Zeitstempel"
+        },
+        {
+          "betrag": -4200,
+          "konto_extern_id": "kmy:A000016",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 4200,
+      "verwendungszweck": "Erstattung mit Zeitstempel",
+      "wahre_kategorie_extern_id": "kmy:A000016"
+    },
+    {
+      "datum": "2023-06-02",
+      "empfaenger": "Bäckerei Größenwahn – Inh. Jürgen Weiß",
+      "extern_id": "kmy:T000000000000000017",
+      "kategorie_extern_id": "kmy:A000014",
+      "splits": [
+        {
+          "betrag": -700,
+          "konto_extern_id": "kmy:A000001",
+          "memo": ""
+        },
+        {
+          "betrag": 700,
+          "konto_extern_id": "kmy:A000014",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 700,
+      "verwendungszweck": "Empfänger am zweiten Split",
+      "wahre_kategorie_extern_id": "kmy:A000014"
+    },
+    {
+      "datum": "2023-06-03",
+      "empfaenger": "Ça va? Café „Zum Ölfass“ <&> 'Zitat' \"doppelt\"",
+      "extern_id": "kmy:T000000000000000018",
+      "kategorie_extern_id": "kmy:A000014",
+      "splits": [
+        {
+          "betrag": -2599,
+          "konto_extern_id": "kmy:A000008",
+          "memo": "Kartenzahlung"
+        },
+        {
+          "betrag": 2599,
+          "konto_extern_id": "kmy:A000014",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 2599,
+      "verwendungszweck": "Kartenzahlung",
+      "wahre_kategorie_extern_id": "kmy:A000014"
+    },
+    {
+      "datum": "2023-06-04",
+      "empfaenger": "Ça va? Café „Zum Ölfass“ <&> 'Zitat' \"doppelt\"",
+      "extern_id": "kmy:T000000000000000019",
+      "kategorie_extern_id": "kmy:A000014",
+      "splits": [
+        {
+          "betrag": -330,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Kaffee"
+        },
+        {
+          "betrag": 330,
+          "konto_extern_id": "kmy:A000014",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 330,
+      "verwendungszweck": "Kaffee",
+      "wahre_kategorie_extern_id": "kmy:A000014"
+    },
+    {
+      "datum": "2023-06-04",
+      "empfaenger": "Ça va? Café „Zum Ölfass“ <&> 'Zitat' \"doppelt\"",
+      "extern_id": "kmy:T000000000000000020",
+      "kategorie_extern_id": "kmy:A000014",
+      "splits": [
+        {
+          "betrag": -330,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Kaffee"
+        },
+        {
+          "betrag": 330,
+          "konto_extern_id": "kmy:A000014",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 330,
+      "verwendungszweck": "Kaffee",
+      "wahre_kategorie_extern_id": "kmy:A000014"
+    },
+    {
+      "datum": "2023-06-05",
+      "empfaenger": "☕ Emoji-Kiosk 🙂",
+      "extern_id": "kmy:T000000000000000021",
+      "kategorie_extern_id": "kmy:A000015",
+      "splits": [
+        {
+          "betrag": -100,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Zeile 1\nZeile 2"
+        },
+        {
+          "betrag": 100,
+          "konto_extern_id": "kmy:A000015",
+          "memo": ""
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": false,
+      "umsatz": 100,
+      "verwendungszweck": "Zeile 1\nZeile 2",
+      "wahre_kategorie_extern_id": "kmy:A000015"
+    },
+    {
+      "datum": "2023-06-06",
+      "empfaenger": null,
+      "extern_id": "kmy:T000000000000000022",
+      "kategorie_extern_id": null,
+      "splits": [
+        {
+          "betrag": -10000,
+          "konto_extern_id": "kmy:A000001",
+          "memo": "Wertanlage (fiktiv)"
+        },
+        {
+          "betrag": 10000,
+          "konto_extern_id": "kmy:A000006",
+          "memo": "Wertanlage (fiktiv)"
+        }
+      ],
+      "status": "importiert",
+      "tags": [],
+      "umbuchung": true,
+      "umsatz": 10000,
+      "verwendungszweck": "Wertanlage (fiktiv)",
+      "wahre_kategorie_extern_id": null
+    }
+  ],
+  "empfaenger": [
+    {
+      "extern_id": "kmy:P000001",
+      "name": "Bäckerei Größenwahn – Inh. Jürgen Weiß"
+    },
+    {
+      "extern_id": "kmy:P000002",
+      "name": "Ça va? Café „Zum Ölfass“ <&> 'Zitat' \"doppelt\""
+    },
+    {
+      "extern_id": "kmy:P000003",
+      "name": "Ärger GmbH"
+    },
+    {
+      "extern_id": "kmy:P000005",
+      "name": "☕ Emoji-Kiosk 🙂"
+    }
+  ],
+  "erfolgreich": true,
+  "ergebnis": {
+    "buchungen_neu": 22,
+    "buchungen_uebersprungen": 0,
+    "buchungen_vorhanden": 0,
+    "buchungen_zur_pruefung": 0,
+    "buchungen_zusammengefuehrt": 0,
+    "empfaenger_neu": 4,
+    "empfaenger_vorhanden": 1,
+    "erfolgreich": true,
+    "format": "kmy-gzip",
+    "kategorien_neu": 21,
+    "kategorien_vorhanden": 0,
+    "konten_neu": 8,
+    "konten_vorhanden": 0,
+    "splits_neu": 57,
+    "tags_neu": 2,
+    "tags_vorhanden": 1
+  },
+  "fehler_code": null,
+  "fixture": "kmy/sonderfaelle.kmy",
+  "konten": [
+    {
+      "anzahl_buchungen": 18,
+      "art": "girokonto",
+      "eltern_extern_id": null,
+      "eroeffnet_am": null,
+      "extern_id": "kmy:A000001",
+      "geschlossen": false,
+      "iban": "DE38000000000000002001",
+      "ist_kategorie": false,
+      "name": "Girokonto Ünïcödé & <Test> \"Haupt\"",
+      "notiz": "",
+      "saldo": 80772,
+      "saldo_gesamt": 80772
+    },
+    {
+      "anzahl_buchungen": 2,
+      "art": "girokonto",
+      "eltern_extern_id": null,
+      "eroeffnet_am": null,
+      "extern_id": "kmy:A000002",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": false,
+      "name": "Bargeld",
+      "notiz": "",
+      "saldo": 18500,
+      "saldo_gesamt": 18500
+    },
+    {
+      "anzahl_buchungen": 2,
+      "art": "girokonto",
+      "eltern_extern_id": null,
+      "eroeffnet_am": null,
+      "extern_id": "kmy:A000003",
+      "geschlossen": true,
+      "iban": "DE81000000000000002003",
+      "ist_kategorie": false,
+      "name": "Altkonto (geschlossen)",
+      "notiz": "",
+      "saldo": 0,
+      "saldo_gesamt": 0
+    },
+    {
+      "anzahl_buchungen": 0,
+      "art": "sparkonto",
+      "eltern_extern_id": null,
+      "eroeffnet_am": null,
+      "extern_id": "kmy:A000004",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": false,
+      "name": "Konto mit falscher IBAN",
+      "notiz": "",
+      "saldo": 0,
+      "saldo_gesamt": 0
+    },
+    {
+      "anzahl_buchungen": 0,
+      "art": "sparkonto",
+      "eltern_extern_id": null,
+      "eroeffnet_am": null,
+      "extern_id": "kmy:A000005",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": false,
+      "name": "Zweitkonto gleiche IBAN",
+      "notiz": "",
+      "saldo": 0,
+      "saldo_gesamt": 0
+    },
+    {
+      "anzahl_buchungen": 1,
+      "art": "sparkonto",
+      "eltern_extern_id": null,
+      "eroeffnet_am": null,
+      "extern_id": "kmy:A000006",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": false,
+      "name": "Sonstiges Vermögen",
+      "notiz": "",
+      "saldo": 10000,
+      "saldo_gesamt": 10000
+    },
+    {
+      "anzahl_buchungen": 3,
+      "art": "eigenkapital",
+      "eltern_extern_id": null,
+      "eroeffnet_am": null,
+      "extern_id": "kmy:A000007",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": false,
+      "name": "Anfangsbestand",
+      "notiz": "",
+      "saldo": -125000,
+      "saldo_gesamt": -125000
+    },
+    {
+      "anzahl_buchungen": 1,
+      "art": "kreditkonto",
+      "eltern_extern_id": null,
+      "eroeffnet_am": null,
+      "extern_id": "kmy:A000008",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": false,
+      "name": "Kreditkarte",
+      "notiz": "",
+      "saldo": -2599,
+      "saldo_gesamt": -2599
+    },
+    {
+      "anzahl_buchungen": 0,
+      "art": "aufwand",
+      "eltern_extern_id": null,
+      "eroeffnet_am": null,
+      "extern_id": "kmy:A000010",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Haushalt",
+      "notiz": "",
+      "saldo": 0,
+      "saldo_gesamt": 1234
+    },
+    {
+      "anzahl_buchungen": 0,
+      "art": "aufwand",
+      "eltern_extern_id": "kmy:A000010",
+      "eroeffnet_am": null,
+      "extern_id": "kmy:A000011",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Küche",
+      "notiz": "",
+      "saldo": 0,
+      "saldo_gesamt": 1234
+    },
+    {
+      "anzahl_buchungen": 0,
+      "art": "aufwand",
+      "eltern_extern_id": "kmy:A000011",
+      "eroeffnet_am": null,
+      "extern_id": "kmy:A000012",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Geräte",
+      "notiz": "",
+      "saldo": 0,
+      "saldo_gesamt": 1234
+    },
+    {
+      "anzahl_buchungen": 1,
+      "art": "aufwand",
+      "eltern_extern_id": "kmy:A000012",
+      "eroeffnet_am": null,
+      "extern_id": "kmy:A000013",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Kleingeräte & Zubehör",
+      "notiz": "",
+      "saldo": 1234,
+      "saldo_gesamt": 1234
+    },
+    {
+      "anzahl_buchungen": 9,
+      "art": "aufwand",
+      "eltern_extern_id": null,
+      "eroeffnet_am": null,
+      "extern_id": "kmy:A000014",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Geschenke",
+      "notiz": "",
+      "saldo": 10393,
+      "saldo_gesamt": 10393
+    },
+    {
+      "anzahl_buchungen": 4,
+      "art": "aufwand",
+      "eltern_extern_id": null,
+      "eroeffnet_am": null,
+      "extern_id": "kmy:A000015",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Spenden",
+      "notiz": "",
+      "saldo": 1123,
+      "saldo_gesamt": 1123
+    },
+    {
+      "anzahl_buchungen": 1,
+      "art": "ertrag",
+      "eltern_extern_id": null,
+      "eroeffnet_am": null,
+      "extern_id": "kmy:A000016",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Erstattungen",
+      "notiz": "",
+      "saldo": -4200,
+      "saldo_gesamt": -4200
+    },
+    {
+      "anzahl_buchungen": 1,
+      "art": "aufwand",
+      "eltern_extern_id": null,
+      "eroeffnet_am": null,
+      "extern_id": "kmy:A000017",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Falsch einsortierte Ausgabe",
+      "notiz": "",
+      "saldo": 800,
+      "saldo_gesamt": 800
+    },
+    {
+      "anzahl_buchungen": 0,
+      "art": "aufwand",
+      "eltern_extern_id": null,
+      "eroeffnet_am": null,
+      "extern_id": "kmy:A000019",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Sammelposten",
+      "notiz": "",
+      "saldo": 0,
+      "saldo_gesamt": 7878
+    },
+    {
+      "anzahl_buchungen": 1,
+      "art": "aufwand",
+      "eltern_extern_id": "kmy:A000019",
+      "eroeffnet_am": null,
+      "extern_id": "kmy:A000020",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Teil 01",
+      "notiz": "",
+      "saldo": 101,
+      "saldo_gesamt": 101
+    },
+    {
+      "anzahl_buchungen": 1,
+      "art": "aufwand",
+      "eltern_extern_id": "kmy:A000019",
+      "eroeffnet_am": null,
+      "extern_id": "kmy:A000021",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Teil 02",
+      "notiz": "",
+      "saldo": 202,
+      "saldo_gesamt": 202
+    },
+    {
+      "anzahl_buchungen": 1,
+      "art": "aufwand",
+      "eltern_extern_id": "kmy:A000019",
+      "eroeffnet_am": null,
+      "extern_id": "kmy:A000022",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Teil 03",
+      "notiz": "",
+      "saldo": 303,
+      "saldo_gesamt": 303
+    },
+    {
+      "anzahl_buchungen": 1,
+      "art": "aufwand",
+      "eltern_extern_id": "kmy:A000019",
+      "eroeffnet_am": null,
+      "extern_id": "kmy:A000023",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Teil 04",
+      "notiz": "",
+      "saldo": 404,
+      "saldo_gesamt": 404
+    },
+    {
+      "anzahl_buchungen": 1,
+      "art": "aufwand",
+      "eltern_extern_id": "kmy:A000019",
+      "eroeffnet_am": null,
+      "extern_id": "kmy:A000024",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Teil 05",
+      "notiz": "",
+      "saldo": 505,
+      "saldo_gesamt": 505
+    },
+    {
+      "anzahl_buchungen": 1,
+      "art": "aufwand",
+      "eltern_extern_id": "kmy:A000019",
+      "eroeffnet_am": null,
+      "extern_id": "kmy:A000025",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Teil 06",
+      "notiz": "",
+      "saldo": 606,
+      "saldo_gesamt": 606
+    },
+    {
+      "anzahl_buchungen": 1,
+      "art": "aufwand",
+      "eltern_extern_id": "kmy:A000019",
+      "eroeffnet_am": null,
+      "extern_id": "kmy:A000026",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Teil 07",
+      "notiz": "",
+      "saldo": 707,
+      "saldo_gesamt": 707
+    },
+    {
+      "anzahl_buchungen": 1,
+      "art": "aufwand",
+      "eltern_extern_id": "kmy:A000019",
+      "eroeffnet_am": null,
+      "extern_id": "kmy:A000027",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Teil 08",
+      "notiz": "",
+      "saldo": 808,
+      "saldo_gesamt": 808
+    },
+    {
+      "anzahl_buchungen": 1,
+      "art": "aufwand",
+      "eltern_extern_id": "kmy:A000019",
+      "eroeffnet_am": null,
+      "extern_id": "kmy:A000028",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Teil 09",
+      "notiz": "",
+      "saldo": 909,
+      "saldo_gesamt": 909
+    },
+    {
+      "anzahl_buchungen": 1,
+      "art": "aufwand",
+      "eltern_extern_id": "kmy:A000019",
+      "eroeffnet_am": null,
+      "extern_id": "kmy:A000029",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Teil 10",
+      "notiz": "",
+      "saldo": 1010,
+      "saldo_gesamt": 1010
+    },
+    {
+      "anzahl_buchungen": 1,
+      "art": "aufwand",
+      "eltern_extern_id": "kmy:A000019",
+      "eroeffnet_am": null,
+      "extern_id": "kmy:A000030",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Teil 11",
+      "notiz": "",
+      "saldo": 1111,
+      "saldo_gesamt": 1111
+    },
+    {
+      "anzahl_buchungen": 1,
+      "art": "aufwand",
+      "eltern_extern_id": "kmy:A000019",
+      "eroeffnet_am": null,
+      "extern_id": "kmy:A000031",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": true,
+      "name": "Teil 12",
+      "notiz": "",
+      "saldo": 1212,
+      "saldo_gesamt": 1212
+    },
+    {
+      "anzahl_buchungen": 2,
+      "art": "eigenkapital",
+      "eltern_extern_id": null,
+      "eroeffnet_am": null,
+      "extern_id": "kontor:unausgeglichen",
+      "geschlossen": false,
+      "iban": null,
+      "ist_kategorie": false,
+      "name": "Unausgeglichen",
+      "notiz": "",
+      "saldo": 1099,
+      "saldo_gesamt": 1099
+    }
+  ],
+  "startwert": 4711,
+  "summen": {
+    "anzahl_buchungen": 22,
+    "anzahl_splits": 57,
+    "anzahl_transaktionen_in_datei": 22,
+    "summe_bestand": 106673,
+    "summe_gesamt": 0
+  },
+  "tags": [
+    {
+      "anzahl_buchungen": 1,
+      "extern_id": "kmy:G000001",
+      "name": "Urlaub"
+    },
+    {
+      "anzahl_buchungen": 1,
+      "extern_id": "kmy:G000003",
+      "name": "Steuer 2023 – §35a"
+    }
+  ],
+  "umbuchungen": [
+    "kmy:T000000000000000013",
+    "kmy:T000000000000000022"
+  ],
+  "warnungen": [
+    {
+      "code": "empfaenger_zusammengefasst",
+      "referenz": "P000004"
+    },
+    {
+      "code": "tag_zusammengefasst",
+      "referenz": "G000002"
+    },
+    {
+      "code": "kontoart_ersetzt",
+      "referenz": "A000002"
+    },
+    {
+      "code": "kontoart_ersetzt",
+      "referenz": "A000006"
+    },
+    {
+      "code": "iban_ungueltig",
+      "referenz": "A000004"
+    },
+    {
+      "code": "iban_doppelt",
+      "referenz": "A000005"
+    },
+    {
+      "code": "eroeffnungsdatum_ungueltig",
+      "referenz": "A000008"
+    },
+    {
+      "code": "hierarchie_angepasst",
+      "referenz": "A000017"
+    },
+    {
+      "code": "buchung_ausgeglichen",
+      "referenz": "T000000000000000010"
+    },
+    {
+      "code": "buchung_ausgeglichen",
+      "referenz": "T000000000000000011"
+    }
+  ]
+}

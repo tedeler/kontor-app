@@ -1,0 +1,276 @@
+{
+  "beschreibung": "Regelsatz für Meilenstein 2 (kategorisierung.md). Konten und Kategorien zuerst anlegen, dann die Regeln in Listenreihenfolge; konto_id-Werte {\"iban\": …} auf die ID des Kontos mit dieser IBAN abbilden, kategorie auf die ID der Kategorie mit diesem Namen.",
+  "kategorien": [
+    {
+      "art": "ertrag",
+      "name": "Gehalt"
+    },
+    {
+      "art": "ertrag",
+      "name": "Zinsertrag"
+    },
+    {
+      "art": "aufwand",
+      "name": "Miete"
+    },
+    {
+      "art": "aufwand",
+      "name": "Strom"
+    },
+    {
+      "art": "aufwand",
+      "name": "Lebensmittel"
+    },
+    {
+      "art": "aufwand",
+      "name": "Café & Restaurant"
+    },
+    {
+      "art": "aufwand",
+      "name": "Tanken"
+    },
+    {
+      "art": "aufwand",
+      "name": "Abos"
+    },
+    {
+      "art": "aufwand",
+      "name": "Sonstiges"
+    }
+  ],
+  "konten": [
+    {
+      "art": "girokonto",
+      "iban": "DE28000000000000008001",
+      "name": "Girokonto"
+    },
+    {
+      "art": "sparkonto",
+      "iban": "DE98000000000000008002",
+      "name": "Tagesgeld"
+    },
+    {
+      "art": "kreditkonto",
+      "iban": "DE71000000000000008003",
+      "name": "Kreditkarte"
+    }
+  ],
+  "regeln": [
+    {
+      "aktiv": false,
+      "bedingungen": [
+        {
+          "feld": "verwendungszweck",
+          "operator": "enthaelt",
+          "wert": "e"
+        }
+      ],
+      "kategorie": "Sonstiges",
+      "name": "Alles mit e (inaktiv)",
+      "prioritaet": 1
+    },
+    {
+      "aktiv": true,
+      "bedingungen": [
+        {
+          "feld": "empfaenger",
+          "operator": "enthaelt",
+          "wert": "Arbeitgeber"
+        },
+        {
+          "feld": "betrag",
+          "operator": "mindestens",
+          "wert": 100000
+        }
+      ],
+      "kategorie": "Gehalt",
+      "name": "Gehalt",
+      "prioritaet": 10
+    },
+    {
+      "aktiv": true,
+      "bedingungen": [
+        {
+          "feld": "verwendungszweck",
+          "operator": "beginnt_mit",
+          "wert": "MIETE"
+        }
+      ],
+      "kategorie": "Miete",
+      "name": "Miete",
+      "prioritaet": 20
+    },
+    {
+      "aktiv": true,
+      "bedingungen": [
+        {
+          "feld": "empfaenger",
+          "operator": "gleich",
+          "wert": "stadtwerke musterstadt"
+        }
+      ],
+      "kategorie": "Strom",
+      "name": "Strom",
+      "prioritaet": 20
+    },
+    {
+      "aktiv": true,
+      "bedingungen": [
+        {
+          "feld": "empfaenger",
+          "operator": "enthaelt",
+          "wert": "café"
+        }
+      ],
+      "kategorie": "Café & Restaurant",
+      "name": "Café",
+      "prioritaet": 30
+    },
+    {
+      "aktiv": true,
+      "bedingungen": [
+        {
+          "feld": "empfaenger",
+          "operator": "enthaelt",
+          "wert": "Bäckerei"
+        }
+      ],
+      "kategorie": "Lebensmittel",
+      "name": "Bäckerei",
+      "prioritaet": 35
+    },
+    {
+      "aktiv": true,
+      "bedingungen": [
+        {
+          "feld": "empfaenger",
+          "operator": "enthaelt",
+          "wert": "FRISCHEKORB"
+        }
+      ],
+      "kategorie": "Lebensmittel",
+      "name": "Supermarkt",
+      "prioritaet": 40
+    },
+    {
+      "aktiv": true,
+      "bedingungen": [
+        {
+          "feld": "empfaenger",
+          "operator": "enthaelt",
+          "wert": "kaufhaus"
+        },
+        {
+          "feld": "betrag",
+          "operator": "hoechstens",
+          "wert": -10000
+        }
+      ],
+      "kategorie": "Sonstiges",
+      "name": "Kaufhaus groß",
+      "prioritaet": 45
+    },
+    {
+      "aktiv": true,
+      "bedingungen": [
+        {
+          "feld": "verwendungszweck",
+          "operator": "enthaelt",
+          "wert": "kartenzahlung"
+        }
+      ],
+      "kategorie": "Sonstiges",
+      "name": "Kartenzahlung",
+      "prioritaet": 50
+    },
+    {
+      "aktiv": true,
+      "bedingungen": [
+        {
+          "feld": "empfaenger",
+          "operator": "beginnt_mit",
+          "wert": "tankstelle"
+        }
+      ],
+      "kategorie": "Tanken",
+      "name": "Tankstelle",
+      "prioritaet": 60
+    },
+    {
+      "aktiv": true,
+      "bedingungen": [
+        {
+          "feld": "empfaenger",
+          "operator": "enthaelt",
+          "wert": "blitz"
+        }
+      ],
+      "kategorie": "Sonstiges",
+      "name": "Blitz (Gleichstand, verliert)",
+      "prioritaet": 60
+    },
+    {
+      "aktiv": true,
+      "bedingungen": [
+        {
+          "feld": "konto_id",
+          "operator": "gleich",
+          "wert": {
+            "iban": "DE71000000000000008003"
+          }
+        },
+        {
+          "feld": "verwendungszweck",
+          "operator": "enthaelt",
+          "wert": "abo"
+        }
+      ],
+      "kategorie": "Abos",
+      "name": "Abo Kreditkarte",
+      "prioritaet": 70
+    },
+    {
+      "aktiv": true,
+      "bedingungen": [
+        {
+          "feld": "konto_id",
+          "operator": "gleich",
+          "wert": {
+            "iban": "DE98000000000000008002"
+          }
+        },
+        {
+          "feld": "betrag",
+          "operator": "mindestens",
+          "wert": 1
+        },
+        {
+          "feld": "verwendungszweck",
+          "operator": "enthaelt",
+          "wert": "zins"
+        }
+      ],
+      "kategorie": "Zinsertrag",
+      "name": "Zinsen Tagesgeld",
+      "prioritaet": 80
+    },
+    {
+      "aktiv": true,
+      "bedingungen": [
+        {
+          "feld": "verwendungszweck",
+          "operator": "enthaelt",
+          "wert": "streamingdienst"
+        },
+        {
+          "feld": "betrag",
+          "operator": "gleich",
+          "wert": -1299
+        }
+      ],
+      "kategorie": "Abos",
+      "name": "Streaming (spät angelegt, Vorrang)",
+      "prioritaet": 5
+    }
+  ]
+}
