@@ -8,8 +8,10 @@ Alle Zeiten auf 2 Kernen (`-n 2`); „Rechenzeit“ ist die Summe der Testdauern
 - kontor-tests wird aufgegeben. Spezifikation, Tests, Fixtures und Generator liegen in kontor-app.
 - Neue Features: zuerst Core-Tests (eigener Commit vor dem Feature-Code), dann TDD. Muss ein Core-Test in der
   Schleife angepasst werden, wird das in `tests/core/AENDERUNGEN.md` dokumentiert.
-- Zeitbudgets: Core-Tests unter 30 Sekunden; die Gesamttests laufen in zwei parallelen CI-Jobs (ohne Browser,
-  mit Browser), jeder unter 5 Minuten.
+- Zeitbudgets: Core-Tests unter 30 Sekunden; die Gesamttests laufen in parallelen CI-Jobs, jeder unter 5 Minuten.
+  Vereinbart waren zwei Jobs (ohne Browser, mit Browser). Es sind vier geworden (eigene Tests, Gesamtsuite in zwei
+  Teilen, Browser), weil die Runner von GitHub je Kern etwa halb so schnell sind wie die Messumgebung und der Job
+  ohne Browser dort 7:15 min brauchte.
 - Die Gesamttests laufen nur in der CI auf main, vor dem Release.
 
 ## Aufbau
@@ -31,6 +33,7 @@ python -m pytest -n auto -m browser tests                    # eigene Browsertes
 cd gesamt-tests && python -m pytest -n auto -m "not browser" # Gesamtsuite ohne Browser
 cd gesamt-tests && python -m pytest -n auto -m browser       # Gesamtsuite mit Browser
 cd gesamt-tests && python -m pytest -n auto --alle           # auch die abgewählten Tests
+cd gesamt-tests && python -m pytest -n auto --teil 1/2       # ein Teil von mehreren gleich großen (CI)
 ```
 
 ## Messung
@@ -42,8 +45,21 @@ cd gesamt-tests && python -m pytest -n auto --alle           # auch die abgewäh
 | **jetzt: Job ohne Browser** (Core 2, eigene 500, Gesamtsuite 2971) | 3473 | 6:35 min | etwa 790 s |
 | **jetzt: Job mit Browser** (eigene 89, Gesamtsuite 191) | 280 | 4:16 min | etwa 475 s |
 
-Die beiden Jobs laufen in der CI gleichzeitig und auf 4 Kernen. Die Dauer dort steht erst nach dem ersten Lauf auf
-main fest; erwartet sind je 3 bis 4 Minuten einschließlich Installation.
+Die Zeilen „jetzt“ sind lokal gemessen und fassen die Tests ohne Browser in einem Lauf zusammen. Die Zeiten der
+vier CI-Jobs stehen im Abschnitt „CI“.
+
+## CI
+
+`.github/workflows/release.yml`: bei jedem Push auf main vier parallele Jobs, danach (nur bei Grün) das Release.
+
+(Zeiten folgen nach dem ersten grünen Lauf.)
+
+- Im Browser-Job ist ein übersprungener Test ein Fehler (`KONTOR_TESTS_BROWSER_PFLICHT=1`), damit ein fehlender
+  Browser nicht unbemerkt bleibt.
+- 12 eigene Tests verlangen root und werden in der CI übersprungen (`test_https_skript_eigen.py`,
+  `test_testinstanz_skript_eigen.py`); das war schon vor dem Umbau so.
+- Wächst ein Job über 5 Minuten: zuerst kürzen oder abwählen; die Gesamtsuite lässt sich mit `--teil K/N` auch in
+  mehr Teile schneiden.
 
 ### Wohin die Zeit ging
 

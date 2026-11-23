@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import zlib
 from pathlib import Path
 
 import pytest
@@ -46,6 +47,12 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         help="App-Tests überspringen statt fehlschlagen lassen, wenn das Paket kontor fehlt",
     )
     parser.addoption(
+        "--teil",
+        default=None,
+        metavar="K/N",
+        help="nur den K-ten von N gleich großen Teilen ausführen (CI: parallele Jobs)",
+    )
+    parser.addoption(
         "--alle",
         action="store_true",
         default=False,
@@ -61,14 +68,30 @@ def _abgewaehlt() -> set[str]:
     return {z.strip() for z in zeilen if z.strip() and not z.startswith("#")}
 
 
+def _teil(config: pytest.Config) -> tuple[int, int] | None:
+    wert = config.getoption("teil")
+    if not wert:
+        return None
+    try:
+        k, n = (int(x) for x in wert.split("/"))
+    except ValueError:
+        raise pytest.UsageError("--teil erwartet K/N, z. B. 1/2") from None
+    if not 1 <= k <= n:
+        raise pytest.UsageError("--teil K/N: 1 <= K <= N")
+    return k, n
+
+
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
     _meilenstein_marker(items)
-    if config.getoption("alle") or any("::" in str(a) for a in config.args):
-        return  # ausdrücklich alles bzw. ausdrücklich genannte Tests
-    liste = _abgewaehlt()
+    teil = _teil(config)
+    alles = config.getoption("alle") or any("::" in str(a) for a in config.args)  # ausdrücklich genannte Tests
+    liste = set() if alles else _abgewaehlt()
     behalten, abgewaehlt = [], []
     for item in items:
-        weg = item.nodeid in liste or any(item.get_closest_marker(m) for m in OHNE_MARKER)
+        weg = not alles and (item.nodeid in liste or any(item.get_closest_marker(m) for m in OHNE_MARKER))
+        if not weg and teil is not None:
+            # gleichmäßig und unabhängig von der Reihenfolge: Prüfsumme der Knoten-ID
+            weg = zlib.crc32(item.nodeid.encode("utf-8")) % teil[1] != teil[0] - 1
         (abgewaehlt if weg else behalten).append(item)
     if abgewaehlt:
         config.hook.pytest_deselected(items=abgewaehlt)

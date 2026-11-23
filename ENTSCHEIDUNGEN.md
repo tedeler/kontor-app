@@ -3713,8 +3713,8 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   Abnahmetests dauerte über 25 Minuten.
 - **Entscheidung:** kontor-tests ist aufgegeben. `spec/` (Spezifikation), `legacy-tests/` (eingefrorene Referenz),
   `gesamt-tests/` (gekürzte Abnahmetests) und `tests/core/` (Core-Tests, vor dem Feature geschrieben, zusammen unter
-  30 Sekunden) liegen in kontor-app. Die Gesamttests laufen nur in der CI auf main, in zwei parallelen Jobs mit je
-  unter 5 Minuten, vor dem Release (ändert den Ablauf von D-105: das Release hängt an den Testjobs).
+  30 Sekunden) liegen in kontor-app. Die Gesamttests laufen nur in der CI auf main, in parallelen Jobs mit je
+  unter 5 Minuten (vereinbart zwei, wegen der langsameren Runner vier), vor dem Release (ändert den Ablauf von D-105: das Release hängt an den Testjobs).
 - **Ersetzt:** die Rollentrennung in `CLAUDE.md`; `WIDERSPRUECHE.md` und `ERGEBNIS.md` werden nicht fortgeführt
   (das Ergebnis steht im CI-Lauf). Entscheidungen der Spezifikation (`spec/api/entscheidungen.md`, `E-…`) bleiben
   als Bestand; neue Entscheidungen stehen hier.

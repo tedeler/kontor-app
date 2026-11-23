@@ -1,8 +1,8 @@
 # CI von Kontor: Gesamttests und Release (D-105, TESTUMBAU.md).
 #
-# Jeder Push auf main (also jeder Merge eines Feature-Branches) lässt zuerst die Gesamttests laufen, in zwei
-# parallelen Jobs (ohne Browser / mit Browser), jeder mit dem Ziel unter 5 Minuten. Nur wenn beide grün sind, folgt
-# das Release: Minor wird um 1 erhöht (0.07 → 0.08). Major wird nur auf Anweisung erhöht: Workflow „Release“ von
+# Jeder Push auf main (also jeder Merge eines Feature-Branches) lässt zuerst die Gesamttests laufen, in vier
+# parallelen Jobs (eigene Tests, Gesamtsuite in zwei Teilen, Browser), jeder mit dem Ziel unter 5 Minuten. Nur wenn
+# alle grün sind, folgt das Release: Minor wird um 1 erhöht (0.07 → 0.08). Major wird nur auf Anweisung erhöht: Workflow „Release“ von
 # Hand starten und „major“ ankreuzen (0.08 → 1.00). Die CI committet die neue VERSION auf main, setzt den Tag
 # vMAJOR.MINOR und legt ein GitHub-Release mit automatisch erzeugten Notizen sowie Wheel und Quellpaket an.
 #
@@ -35,7 +35,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        teil: [ohne-browser, browser]
+        # Vier parallele Jobs, jeder unter 5 Minuten (TESTUMBAU.md). Die Gesamtsuite ohne Browser ist in zwei
+        # gleich große Teile geteilt, weil sie auf den Runnern sonst rund 6 Minuten braucht.
+        teil: [eigene, gesamt-1, gesamt-2, browser]
     steps:
       - name: Quellstand holen
         uses: actions/checkout@v4
@@ -51,17 +53,22 @@ jobs:
         run: python -m pip install -e ".[test]"
 
       - name: Core-Tests (Zeitbudget 30 Sekunden)
-        if: matrix.teil == 'ohne-browser'
+        if: matrix.teil == 'eigene'
         run: python -m pytest -q -p no:cacheprovider tests/core
 
       - name: Eigene Tests ohne Browser
-        if: matrix.teil == 'ohne-browser'
+        if: matrix.teil == 'eigene'
         run: python -m pytest -q -p no:cacheprovider -n auto -m "not browser and not core" tests
 
-      - name: Gesamtsuite ohne Browser
-        if: matrix.teil == 'ohne-browser'
+      - name: Gesamtsuite ohne Browser, Teil 1 von 2
+        if: matrix.teil == 'gesamt-1'
         working-directory: gesamt-tests
-        run: python -m pytest -q -p no:cacheprovider -n auto -m "not browser"
+        run: python -m pytest -q -p no:cacheprovider -n auto -m "not browser" --teil 1/2
+
+      - name: Gesamtsuite ohne Browser, Teil 2 von 2
+        if: matrix.teil == 'gesamt-2'
+        working-directory: gesamt-tests
+        run: python -m pytest -q -p no:cacheprovider -n auto -m "not browser" --teil 2/2
 
       - name: Eigene Browsertests
         if: matrix.teil == 'browser'
