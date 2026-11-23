@@ -1,38 +1,36 @@
-# Regeln für Implementierungs-Threads in kontor-app
+# Regeln für die Arbeit in kontor-app
 
-Dieses Repository enthält die Implementierung von **Kontor** (Python,
-FastAPI, SQLite, Single-Page-Weboberfläche). Alle Dokumente, Kommentare und
-Commit-Nachrichten sind auf Deutsch.
+Dieses Repository enthält **Kontor** (Python, FastAPI, SQLite, Single-Page-Weboberfläche) samt Spezifikation
+und allen Tests. Alle Dokumente, Kommentare und Commit-Nachrichten sind auf Deutsch.
 
-## Rollentrennung (unbedingt einhalten)
+## Entwicklung und Tests (seit dem Testumbau, `TESTUMBAU.md`)
 
-- **Implementierungs-Threads** arbeiten hier. Spezifikation und Tests liegen
-  im Repository **kontor-tests**; es ist für Implementierungs-Threads **nur
-  lesbar**: nie ändern, nie committen, nie pushen.
-- Ein Verzeichnis von kontor-tests, das einem Test-Thread gehört (z. B.
-  `/home/claude/kontor-tests`), nicht betreten und nicht benutzen. Stattdessen
-  einen eigenen Lese-Klon anlegen und das Pushen sperren:
-  ```bash
-  git clone https://github.com/tedeler/kontor-tests /home/claude/impl/kontor-tests-ro
-  git -C /home/claude/impl/kontor-tests-ro remote set-url --push origin GESPERRT-nur-lesen
-  git -C /home/claude/impl/kontor-tests-ro pull     # nur so aktualisieren
-  ```
-- **Test-Threads** fügen sich kontor-app nie hinzu und lesen keinen
-  Anwendungscode.
-- **Maßgeblich ist die Spezifikation** (`kontor-tests/spec/konzept.md`,
-  `spec/api/datenmodell.md`, `python-api.md`, `openapi.yaml`, `plugins.md`,
-  `entscheidungen.md`). Tests dürfen gelesen werden, um Fehlschläge zu
-  verstehen.
-- **Widerspricht ein Test der Spezifikation:** Test nicht ändern, nicht
-  umgehen, keine Sonderfälle nur für Tests (kein Erkennen von
-  Testumgebungen, keine auf Fixtures zugeschnittenen Ausnahmen). Stattdessen
-  in `WIDERSPRUECHE.md` einen Eintrag `W-xxx` anlegen (Testdatei/Testname,
-  was der Test erwartet, was die Spezifikation sagt mit Fundstelle, warum das
-  widersprüchlich ist) – als Text, ohne Code aus kontor-app. Gelöst wird der
-  Widerspruch nur von einem Test-Thread.
-- Offene Entscheidungen selbst treffen und in `ENTSCHEIDUNGEN.md`
-  dokumentieren (fortlaufend `D-0xx`; bestehende Einträge nicht umschreiben,
-  sondern durch neue ersetzen/ergänzen).
+Das frühere Repository kontor-tests ist aufgegeben; die Trennung in Test- und Implementierungs-Threads gibt es
+nicht mehr. Ein Thread schreibt Tests und Code.
+
+- **Spezifikation:** `spec/` (`konzept.md`, `testkonzept.md`, `api/*`, `meilensteine.md`, `definitionen/`). Sie
+  wird mit dem Feature fortgeschrieben; Entscheidungen in `ENTSCHEIDUNGEN.md` (fortlaufend `D-0xx`; bestehende
+  Einträge nicht umschreiben, sondern durch neue ersetzen/ergänzen).
+- **Ablauf eines Features (TDD):**
+  1. Branch `feature/<kurzname>`.
+  2. **Core-Tests zuerst:** `tests/core/test_<feature>.py`, als eigener Commit vor dem Feature-Code. Regeln in
+     `tests/core/README.md`: Verhalten an der Schnittstelle, kein Browser, kein Netz, keine Wartezeiten; der ganze
+     Ordner bleibt unter 30 Sekunden (sonst schlägt der Lauf fehl).
+  3. Entwickeln gegen `python -m pytest tests/core` (bei Bedarf zusätzlich einzelne Dateien aus `tests/`).
+  4. **Core-Test in der Schleife geändert** (Test war falsch oder die Anforderung hat sich geändert): Eintrag in
+     `tests/core/AENDERUNGEN.md`. Nie einen Test abschwächen, nur damit er grün wird.
+  5. Was nicht in die Core-Tests passt (Browser, Zufallstests, große Daten), kommt nach `tests/`
+     (`test_browser_<feature>.py` bekommt automatisch den Marker `browser`).
+  6. Ändert das Feature bestehendes Verhalten, die betroffenen Tests in `tests/` und `gesamt-tests/` anpassen und
+     in `TESTUMBAU.md` („Geänderte Tests“) vermerken.
+  7. Merge auf main (kein Force-Push). Die CI lässt dort die Gesamttests laufen und veröffentlicht nur bei Grün.
+- **Gesamttests** laufen nur in der CI auf main, in zwei parallelen Jobs mit je unter 5 Minuten: ohne Browser
+  (`tests/core`, `tests`, `gesamt-tests`) und mit Browser. Lokal nur gezielt ausführen, nicht als Ganzes in der
+  Entwicklungsschleife. Aufrufe in `TESTUMBAU.md`. Wird ein Job langsamer als 5 Minuten, Tests kürzen oder
+  abwählen (`gesamt-tests/abgewaehlt.txt`), nicht das Budget anheben.
+- **`legacy-tests/`** ist der eingefrorene Stand von kontor-tests: nur lesen, nie ändern, nie in die CI.
+- Keine Sonderfälle nur für Tests im Anwendungscode (kein Erkennen von Testumgebungen, keine auf Fixtures
+  zugeschnittenen Ausnahmen). `WIDERSPRUECHE.md` ist abgeschlossen und wird nicht fortgeführt.
 
 ## Daten und Sicherheit
 
@@ -96,8 +94,12 @@ Commit-Nachrichten sind auf Deutsch.
 | `src/kontor/__main__.py` | M7: Startmodul `python -m kontor` (ohne Argumente, Logging nach stderr, uvicorn) |
 | `src/kontor/web/` | M8: Hülle `index.html`, Service Worker `sw.js`, Anmeldeseite `anmelden.html`; unter `oeffentlich/` Stile `app.css`, Symbole, Manifest und die ES-Module `app/` (`kern`, `ui`, `baum`, `konto`, `seiten`, `einstellungen`, `haupt`), ohne externe Ressourcen |
 | `src/kontor/VERSION`, `version.py`, `release.py` | Versionsnummer `MAJOR.MINOR`, Build-Angaben aus `build.json`, Kommandozeile der Release-CI (D-105) |
-| `.github/workflows/release.yml` | Release-CI: bei jedem Push auf main Minor + 1, Major nur von Hand (D-105) |
-| `tests/` | eigene Tests (ergänzend; ersetzen nicht die Tests aus kontor-tests) |
+| `.github/workflows/release.yml` | CI: bei jedem Push auf main Gesamttests in zwei Jobs, danach Release mit Minor + 1; Major nur von Hand (D-105) |
+| `tests/core/` | Core-Tests der Entwicklungsschleife (Marker `core`, zusammen unter 30 Sekunden) |
+| `tests/` | eigene Tests je Feature; `test_browser*.py` mit Marker `browser` |
+| `gesamt-tests/` | Gesamtsuite: gekürzte frühere Abnahmetests mit eigener `pytest.ini`, Fixtures und Generator |
+| `legacy-tests/` | eingefrorener Stand von kontor-tests (nur Referenz) |
+| `spec/` | Spezifikation |
 
 ## Hinweise ab Meilenstein 4
 
@@ -125,9 +127,6 @@ Commit-Nachrichten sind auf Deutsch.
   in `sicherung_zustand` vermerkt, damit Rückgängig/Wiederholen ihn herstellen
   (protokoll.md 10.2). Während des Einspielens hält `SyncDienst.ohne_lauf()`
   die Laufsperre.
-- Maßstab für „grün“: `python -m pytest` im Lese-Klon; Tests späterer
-  Meilensteine (Marker `m7`, `m8`) erst, wenn beauftragt
-  (`-m "not m7 and not m8"`).
 
 ## Hinweise ab Meilenstein 5
 
@@ -161,7 +160,6 @@ Commit-Nachrichten sind auf Deutsch.
   am Ende von `protokoll.protokolliert`. Sicherungsdatei Schemaversion 3 (`postfach`, nur bei Vorhandensein in
   `anzahl`).
 - Planer-Takt in der Reihenfolge von `synchronisation.md` 18.2 (`SyncDienst.takt`).
-- Maßstab: Tests mit Marker `m6` gehören dazu (ab M7 auch `m7`, siehe unten).
 
 ## Hinweise ab Meilenstein 7
 
@@ -176,7 +174,8 @@ Commit-Nachrichten sind auf Deutsch.
   Teilabfragen mit `+s.konto_id` den falschen Index vermeiden. Leistung prüfen mit
   `python -m pytest -m leistung` (eigene Messung: `/home/claude/impl/werkzeug/messen.py`, nicht im Repo).
 - Beenden: `SyncDienst.beenden` (Frist, `_schreib_sperre`/`_abbruch`), danach `db.checkpoint`.
-- Maßstab: alle Tests einschließlich `m7` und `leistung`; `m8` erst, wenn beauftragt.
+- Die Leistungstests (Marker `leistung`) laufen nicht in der CI; nach Änderungen an langen Lesezugriffen von Hand:
+  `cd gesamt-tests && python -m pytest --alle -m leistung`.
 
 ## Hinweise ab Meilenstein 8 (Oberfläche)
 
@@ -187,9 +186,7 @@ Commit-Nachrichten sind auf Deutsch.
   `danach: () => d.schliessen(true)` vor dem Neuladen schließen; Fehler in Dialogen über `imDialog`.
 - Neue Routen in `SPA_ROUTEN` (`app.py`) **und** in `ROUTEN` (`haupt.js`) eintragen; neue Moduldateien in
   `DATEIEN` von `sw.js` (eigener Test). Keine Sammelroute für GET (würde 405 der REST-Pfade verdecken).
-- Browsertests aus kontor-tests: `python -m pytest -m m8 -n 2` (Chrome über den Kanal `chrome`, ca. 2–3 min);
-  eigene Rauchtests `tests/test_browser*.py`. Debug-Hilfe außerhalb des Repos: `/home/claude/impl/werkzeug/sicht.py`.
-- Maßstab: alle Tests einschließlich `m8` und `leistung`.
+- Browsertests: eigene `tests/test_browser*.py`, dazu `cd gesamt-tests && python -m pytest -m browser -n 2`.
 
 ## Hinweise zum Bankabruf über FinTS/camt (Feature `fints-camt`, D-197 bis D-201)
 
@@ -214,7 +211,6 @@ Commit-Nachrichten sind auf Deutsch.
 - Buchungsliste: `unterkonten` bildet die Kontenmenge über `buch._listenkonten`; `buchungen_laden(konten=…)`.
 - Oberfläche: Kontoansicht kennt `istKategorie` (Spalte `konto`, Filter `filter-konto`), URL ohne
   Vorgabesortierung (D-104).
-- Maßstab: alle Tests einschließlich `m11` (Browsertests laufen, nicht übersprungen).
 
 ## Hinweise zum Sammelbranch `feature/sammel3` (D-218 bis D-226)
 
@@ -265,7 +261,7 @@ Commit-Nachrichten sind auf Deutsch.
   behalten aber DOM und Seitenobjekt. Seiten können `aktualisieren()` (Neuladen nach Änderung, auch für veraltete
   Tabs), `layoutGeaendert()`, `wiederAngefordert()` (Anfordern über Navigation) und `buchungZeigen(id)` anbieten.
 - Filter der Kontoansicht über `urlSchreiben` melden sich mit `oberflaeche.urlGeaendert()` beim Tab.
-- Browser-Speicher nur in `try` lesen/schreiben (M17 1.6). Maßstab: alle Tests einschließlich `m17`.
+- Browser-Speicher nur in `try` lesen/schreiben (M17 1.6).
 
 ## Codequalität vor jedem Meilenstein
 
@@ -278,28 +274,23 @@ Commit-Nachrichten sind auf Deutsch.
   mehr Funktionen mit radon D/E/F, echte SQL-Funde), die Ursache benennen und
   eine Maßnahme anlegen. Echte SQL-Funde und neue unbegründete breite
   `except` vor dem Meilenstein beheben.
-- Refactorings ändern kein Verhalten; Maßstab bleibt die Testsuite aus
-  kontor-tests. Neue Funktionen mit C901 ≤ 15, Überschreitungen begründen.
+- Refactorings ändern kein Verhalten; Maßstab sind die Gesamttests.
+  Neue Funktionen mit C901 ≤ 15, Überschreitungen begründen.
 
 ## Arbeitsablauf
 
-1. `pip install --break-system-packages -e /home/claude/impl/kontor-app`
-2. Tests nach `kontor-tests/TESTS_AUSFUEHREN.md` aus dem Lese-Klon heraus:
-   `cd /home/claude/impl/kontor-tests-ro && python -m pytest -p no:cacheprovider`
-3. Eigene Tests: `python -m pytest tests` in kontor-app (inkl. Playwright-Rauchtests
-   `tests/test_browser*.py`, die eigene Server auf freien lokalen Ports starten und
-   wieder beenden).
-4. Oberfläche prüfen: Server im Mock-Modus starten (siehe README), Seiten und
-   Assets abrufen; gestartete Server-Prozesse danach beenden.
-5. Am Ende vollständiger Testlauf nach `git pull` im Lese-Klon, Ergebnis in
-   `ERGEBNIS.md` (Zahlen, Fehlschläge mit Verweis auf W-Einträge, Stand-Commit
-   von kontor-tests, Einschränkungen).
+1. `pip install --break-system-packages -e ".[test]"` im Wurzelverzeichnis.
+2. Entwicklungsschleife: `python -m pytest tests/core` (siehe oben).
+3. Gezielte Läufe aus `tests/` und `gesamt-tests/` nach Bedarf; Browsertests starten eigene Server auf freien
+   lokalen Ports und beenden sie wieder.
+4. Oberfläche prüfen: Server im Mock-Modus starten (siehe README), Seiten und Assets abrufen; gestartete
+   Server-Prozesse danach beenden.
+5. Nach dem Merge den CI-Lauf auf main ansehen (`gh run list --branch main`); ist ein Job rot oder über
+   5 Minuten, sofort beheben.
 
 ## Git
 
 - `user.name` „Kontor Impl-Thread“; E-Mail und Signierung nicht ändern.
-- Direkt auf `main` committen und pushen, in kleinen Schritten. Keine
-  Branches, keine Pull Requests, kein Force-Push. Vor jedem Push
-  `git pull --rebase origin main`.
-- Im Projektchat nur posten, wenn alles fertig ist oder etwas wirklich
-  blockiert – auf Deutsch.
+- Auf dem Feature-Branch in kleinen Schritten committen und pushen; main nur per Merge. Keine Pull Requests,
+  kein Force-Push. Nach einem Merge `git pull` (die CI committet „Version x.yy veröffentlicht“ auf main).
+- Im Projektchat immer auf Deutsch.

@@ -1,3 +1,7 @@
+> **Eingefrorene Referenz.** Unveränderter Stand von kontor-tests (`b6f94f1`, 2026-11-22), übernommen beim
+> Testumbau (`../TESTUMBAU.md`). Läuft nicht in der CI und wird nicht weiterentwickelt; die gepflegte Fassung ist
+> `../gesamt-tests/`. Einzige Abweichungen: `spec` verweist auf `../spec`, `CLAUDE.md` heißt `REGELN-ALT.md`.
+
 # kontor-tests
 
 Konzept, Testkonzept, Schnittstellenspezifikation, Testdatengenerator und Tests

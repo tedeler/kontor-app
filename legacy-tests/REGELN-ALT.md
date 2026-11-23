@@ -1,4 +1,7 @@
-# Regeln für Arbeits-Threads in kontor-tests
+# Frühere Regeln für Arbeits-Threads in kontor-tests (außer Kraft)
+
+> Diese Regeln galten im aufgegebenen Repository kontor-tests und sind hier nur als Referenz erhalten.
+> Es gelten `../CLAUDE.md` und `../TESTUMBAU.md`.
 
 Dieses Repository enthält Konzept, Testkonzept, die verbindliche
 Schnittstellenspezifikation, den Testdatengenerator und die Tests für

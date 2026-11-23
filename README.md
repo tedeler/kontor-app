@@ -1,8 +1,8 @@
 # kontor-app
 
 Implementierung von **Kontor**, einer selbst gehosteten Finanz-Web-App
-(Python, FastAPI, SQLite, Single-Page-Weboberfläche). Die verbindliche Spezifikation und die Abnahmetests
-liegen im getrennten Repository **kontor-tests**.
+(Python, FastAPI, SQLite, Single-Page-Weboberfläche). Die Spezifikation liegt unter `spec/`, die Tests
+unter `tests/` und `gesamt-tests/` ([TESTUMBAU.md](TESTUMBAU.md)).
 
 ## Schnellzugriff
 
@@ -42,21 +42,19 @@ liegen im getrennten Repository **kontor-tests**.
 
 | Thema | Wo |
 | --- | --- |
-| Meilensteine (Übersicht und Stand) | [kontor-tests: spec/meilensteine.md](https://github.com/tedeler/kontor-tests/blob/main/spec/meilensteine.md) · [Funktionsumfang kurz](#funktionsumfang) |
-| Fachkonzept / Testkonzept | [spec/konzept.md](https://github.com/tedeler/kontor-tests/blob/main/spec/konzept.md) · [spec/testkonzept.md](https://github.com/tedeler/kontor-tests/blob/main/spec/testkonzept.md) |
-| Schnittstellen (REST, Oberfläche, Datenmodell …) | [kontor-tests: spec/api/](https://github.com/tedeler/kontor-tests/blob/main/spec/api) |
-| Abnahmetests ausführen | [kontor-tests: TESTS_AUSFUEHREN.md](https://github.com/tedeler/kontor-tests/blob/main/TESTS_AUSFUEHREN.md) · [Tests](#tests) |
-| Ergebnis des letzten Testlaufs | [ERGEBNIS.md](ERGEBNIS.md) |
+| Meilensteine (Übersicht und Stand) | [spec/meilensteine.md](spec/meilensteine.md) · [Funktionsumfang kurz](#funktionsumfang) |
+| Fachkonzept / Testkonzept | [spec/konzept.md](spec/konzept.md) · [spec/testkonzept.md](spec/testkonzept.md) |
+| Schnittstellen (REST, Oberfläche, Datenmodell …) | [spec/api/](spec/api) |
+| Tests (Core-Tests, Gesamttests, CI) | [TESTUMBAU.md](TESTUMBAU.md) · [Tests](#tests) |
+| Ergebnis des letzten Testlaufs | CI-Lauf auf main (GitHub Actions); früherer Stand: [ERGEBNIS.md](ERGEBNIS.md) |
 | Entscheidungen, Widersprüche | [ENTSCHEIDUNGEN.md](ENTSCHEIDUNGEN.md) · [WIDERSPRUECHE.md](WIDERSPRUECHE.md) |
 | Python-Schnittstelle | [Python-Schnittstelle (Auszug)](#python-schnittstelle-auszug) |
-| Regeln für Implementierungs-Threads | [CLAUDE.md](CLAUDE.md) |
-
-(Die Links nach kontor-tests funktionieren nur mit Zugriff auf das private Repository.)
+| Regeln für die Arbeit im Repository | [CLAUDE.md](CLAUDE.md) |
 
 ## Funktionsumfang
 
 Kurzüberblick über die ersten Meilensteine; der vollständige, aktuelle Stand steht in
-[spec/meilensteine.md](https://github.com/tedeler/kontor-tests/blob/main/spec/meilensteine.md).
+[spec/meilensteine.md](spec/meilensteine.md).
 
 <details>
 <summary>M1–M9 und FinTS/camt aufklappen</summary>
@@ -155,8 +153,8 @@ export KONTOR_MOCK_MODUS=ja                           # Mock-Modus: eigene Daten
 # 3. Server starten (127.0.0.1:8000; ändern über KONTOR_HOST/KONTOR_PORT)
 python -m kontor
 
-# 4. In einer zweiten Shell synthetische Testdaten importieren (Fixture aus kontor-tests)
-curl -F datei=@../kontor-tests/fixtures/kmy/standard.kmy http://127.0.0.1:8000/api/import/kmymoney
+# 4. In einer zweiten Shell synthetische Testdaten importieren (Fixture der Gesamtsuite)
+curl -F datei=@gesamt-tests/fixtures/kmy/standard.kmy http://127.0.0.1:8000/api/import/kmymoney
 ```
 
 Beenden mit Strg+C (bzw. `SIGTERM`): Kontor beendet einen laufenden Abruf
@@ -173,7 +171,7 @@ Umgebungsvariablen):
 uvicorn --factory kontor.app:create_app --host 127.0.0.1 --port 8000
 ```
 
-Weitere synthetische Dateien: `kontor-tests/fixtures/kmy/minimal.kmy`,
+Weitere synthetische Dateien: `gesamt-tests/fixtures/kmy/minimal.kmy`,
 `sonderfaelle.kmy`, `dubletten.kmy` usw. Eine `.kmy`-Datei lässt sich auch in
 der Oberfläche unter **Import** hochladen (bei eingeschalteter Anmeldung nur
 so oder mit Sitzungscookie und CSRF-Kopf). Ein zweiter Import derselben Datei
@@ -192,8 +190,8 @@ wird nie eine echte Bank angesprochen.
 export KONTOR_DATENBANK="$PWD/daten/kontor.sqlite3"
 export KONTOR_MOCK_MODUS=ja
 export KONTOR_MOCK_HEUTE=2024-06-30                # Startzeitpunkt der simulierten Uhr (12:00 UTC)
-# optional: Datendatei aus kontor-tests (3 Konten, Vormerkungen, Storno …)
-export KONTOR_MOCK_DATEN=../kontor-tests/fixtures/mock/sync_daten.json
+# optional: Datendatei der Gesamtsuite (3 Konten, Vormerkungen, Storno …)
+export KONTOR_MOCK_DATEN=gesamt-tests/fixtures/mock/sync_daten.json
 # optional: automatischer Abruf alle 60 Minuten (Planer-Thread im Server)
 export KONTOR_SYNC_INTERVALL_MINUTEN=60
 python -m kontor
@@ -219,7 +217,7 @@ python -m kontor
    (`/tan/<id>`) zeigt Anweisung und QR-Bild mit „QR-Code speichern“ und
    „Teilen“. Richtige TAN: `123456` (bzw. `bank.tan` der Datendatei); nach
    23:59:59 UTC des simulierten Tages läuft die Anforderung ab.
-6. **PIN**: mit `KONTOR_MOCK_DATEN=../kontor-tests/fixtures/mock/sync_daten_pin.json`
+6. **PIN**: mit `KONTOR_MOCK_DATEN=gesamt-tests/fixtures/mock/sync_daten_pin.json`
    verlangt die Mock-Bank eine PIN (steht synthetisch in der Datei unter
    `bank.pin`). Ohne PIN scheitert der Lauf mit `bank_pin_fehlt`; die Oberfläche
    fragt dann im PIN-Dialog danach (↻ im Kopf), die PIN liegt nur im Arbeitsspeicher und
@@ -263,7 +261,7 @@ bzw. `EnvironmentFile`) ausführen.
 | `KONTOR_BANK_PLUGIN` | `mock` oder `fints` (Vorgabe: `mock` im Mock-Modus, sonst `fints`; der frühere Wert `aqbanking` wird beim Start als `fints` gelesen) |
 | `KONTOR_MAIL_PLUGIN` | `mock` oder `imap` (Vorgabe entsprechend) |
 | `KONTOR_MOCK_SZENARIO` | `normal`, `bankfehler`, `zeitueberschreitung`, `tan_erforderlich`, `token_ablauf`, `beitragsaenderung` (M4: Umsätze mit `betrag_beitragsaenderung` in der Datendatei kommen mit diesem Betrag) |
-| `KONTOR_MOCK_DATEN` | JSON-Datei im Format `kontor-mock-daten` (z. B. `kontor-tests/fixtures/mock/mock_daten.json`); leer = eingebauter Datensatz |
+| `KONTOR_MOCK_DATEN` | JSON-Datei im Format `kontor-mock-daten` (z. B. `gesamt-tests/fixtures/mock/mock_daten.json`); leer = eingebauter Datensatz |
 | `KONTOR_MOCK_HEUTE` | simuliertes „heute“ (`YYYY-MM-DD`); im Mock-Modus startet die App-Uhr dann bei diesem Tag 12:00 UTC (stellbar über `PUT /api/mock/zeit` bzw. die Oberfläche) |
 | `KONTOR_SYNC_INTERVALL_MINUTEN` | Abstand automatischer Läufe; `0` (Vorgabe) = kein automatischer Abruf |
 | `KONTOR_SYNC_WIEDERHOLUNG_MINUTEN` | erneuter Versuch nach fehlgeschlagenem Lauf (Vorgabe 30) |
@@ -631,7 +629,7 @@ plan = tilgungsplan({"restschuld": 1_000_000, "stand_datum": "2024-01-15", "soll
 
 Single-Page-App ohne Build-Schritt, Framework und externe Ressourcen (ES-Module unter
 `src/kontor/web/oeffentlich/app/`, Stile `app.css`, Service Worker `src/kontor/web/sw.js`). Verbindlich ist
-`kontor-tests/spec/api/oberflaeche.md`; die Oberfläche nutzt ausschließlich die REST-Schnittstelle.
+`spec/api/oberflaeche.md`; die Oberfläche nutzt ausschließlich die REST-Schnittstelle.
 
 ### Aufbau
 
@@ -720,23 +718,22 @@ z. B. hinter einem Reverse-Proxy mit Zertifikat). Ohne Netz zeigt die installier
 ## Tests
 
 ```bash
-pip install -e . pytest httpx
-python -m pytest tests          # eigene Tests (Browser-Rauchtests nur mit Playwright + Chrome/Chromium)
+pip install -e ".[test]"
+python -m pytest tests/core     # Core-Tests der Entwicklungsschleife (unter 30 Sekunden)
 ```
 
-Die maßgeblichen Tests liegen in kontor-tests; Anleitung dort in
-`TESTS_AUSFUEHREN.md` (`python -m pytest` im Wurzelverzeichnis von
-kontor-tests gegen diese installierte App). Ergebnis des letzten Laufs:
-`ERGEBNIS.md`.
+Die Gesamttests (eigene Tests in `tests/`, frühere Abnahmetests in `gesamt-tests/`) laufen in der CI auf main.
+Aufbau, Aufrufe und Zeitbudgets: [TESTUMBAU.md](TESTUMBAU.md).
 
 ## Dokumente in diesem Repository
 
 | Datei | Inhalt |
 | --- | --- |
-| `CLAUDE.md` | Regeln für Implementierungs-Threads (Rollentrennung) |
+| `CLAUDE.md` | Regeln für die Arbeit im Repository (Ablauf, Tests, Git) |
+| `TESTUMBAU.md` | Aufbau der Tests, Zeitbudgets, Auswahl der Gesamtsuite |
 | `ENTSCHEIDUNGEN.md` | Entscheidungen der Implementierung |
-| `WIDERSPRUECHE.md` | Widersprüche zwischen Tests und Spezifikation |
-| `ERGEBNIS.md` | Ergebnis des letzten vollständigen Testlaufs |
+| `WIDERSPRUECHE.md` | frühere Widersprüche zwischen Tests und Spezifikation (abgeschlossen) |
+| `ERGEBNIS.md` | Ergebnis des letzten Testlaufs vor dem Testumbau (wird nicht fortgeführt) |
 | `HTTPS.md` | Betrieb nur über HTTPS mit Tailscale: Skript `kontor-https`, Testinstanz, Rücknahme, Fehlersuche (D-239) |
 | `INSTALLATION-VM.md` | Installation in einer VM mit Debian 13 und Tailscale (HTTPS) |
 | `TESTINSTANZ.md` | Testinstanz für Entwicklungsbranches: Skript `kontor-test`, Starten, Fehlersuche (D-213) |
