@@ -101,6 +101,9 @@ class _Beobachter:
             self.csp.append(text)
 
     def _anfrage(self, req) -> None:
+        # browserinterne Adressen (eingebauter PDF-Betrachter von Chrome) sind keine Anfragen ins Netz
+        if req.url.startswith(("chrome-extension://", "chrome://")):
+            return
         if not m8.gleiche_herkunft(req.url, self.herkunft):
             self.fremd.append(req.url)
 

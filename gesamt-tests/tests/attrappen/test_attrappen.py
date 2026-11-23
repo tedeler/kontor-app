@@ -384,7 +384,8 @@ def test_imap_mit_imaplib(mail):
         eindeutig.sort(key=lambda n: (n["empfangen"], n["nachricht_id"]))
         assert eindeutig == [{k: v for k, v in n.items() if k != "uid"} for n in soll]
         assert not a.verstoesse and not a.interne_fehler
-        assert a.alle_befehle[:2] == ["AUTHENTICATE XOAUTH2", "EXAMINE"]
+        # je nach Python-Version fragt imaplib vorab CAPABILITY ab
+        assert [b for b in a.alle_befehle if b != "CAPABILITY"][:2] == ["AUTHENTICATE XOAUTH2", "EXAMINE"]
 
 
 def test_imap_utf7_ordner_und_tls(mail, tmp_path):

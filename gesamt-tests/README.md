@@ -1,6 +1,6 @@
 # Gesamtsuite
 
-Gekürzte Fassung der früheren Abnahmetests aus kontor-tests. Sie läuft in der CI auf main (zwei Jobs, siehe
+Gekürzte Fassung der früheren Abnahmetests aus kontor-tests. Sie läuft in der CI auf main (drei der vier Jobs, siehe
 `.github/workflows/release.yml`). Herkunft, Messungen und Auswahlregel stehen in `../TESTUMBAU.md`.
 
 ```bash
