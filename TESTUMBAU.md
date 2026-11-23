@@ -52,7 +52,16 @@ vier CI-Jobs stehen im Abschnitt „CI“.
 
 `.github/workflows/release.yml`: bei jedem Push auf main vier parallele Jobs, danach (nur bei Grün) das Release.
 
-(Zeiten folgen nach dem ersten grünen Lauf.)
+Erster grüner Lauf (2026-11-23, Version 0.47), Dauer je Job einschließlich Einrichtung:
+
+| Job | Inhalt | Tests | Dauer |
+| --- | --- | --- | --- |
+| `eigene` | `tests/core`, eigene Tests ohne Browser | 502 | 1:18 min |
+| `gesamt-1` | Gesamtsuite ohne Browser, Teil 1 von 2 | 1516 | 3:15 min |
+| `gesamt-2` | Gesamtsuite ohne Browser, Teil 2 von 2 | 1459 | 3:44 min |
+| `browser` | eigene Browsertests, Gesamtsuite mit Browser | 280 | 3:51 min |
+
+Bis alle Tests fertig waren, vergingen 3:51 min; mit dem Release danach 4:36 min.
 
 - Im Browser-Job ist ein übersprungener Test ein Fehler (`KONTOR_TESTS_BROWSER_PFLICHT=1`), damit ein fehlender
   Browser nicht unbemerkt bleibt.
