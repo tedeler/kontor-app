@@ -1,9 +1,10 @@
-# Release-CI von Kontor (D-105).
+# CI von Kontor: Gesamttests und Release (D-105, TESTUMBAU.md).
 #
-# Jeder Push auf main (also jeder Merge eines Feature-Branches) ist ein Release: Minor wird um 1 erhöht
-# (0.07 → 0.08). Major wird nur auf Anweisung erhöht: Workflow „Release“ von Hand starten und „major“ ankreuzen
-# (0.08 → 1.00). Die CI committet die neue VERSION auf main, setzt den Tag vMAJOR.MINOR und legt ein
-# GitHub-Release mit automatisch erzeugten Notizen sowie Wheel und Quellpaket an.
+# Jeder Push auf main (also jeder Merge eines Feature-Branches) lässt zuerst die Gesamttests laufen, in zwei
+# parallelen Jobs (ohne Browser / mit Browser), jeder mit dem Ziel unter 5 Minuten. Nur wenn beide grün sind, folgt
+# das Release: Minor wird um 1 erhöht (0.07 → 0.08). Major wird nur auf Anweisung erhöht: Workflow „Release“ von
+# Hand starten und „major“ ankreuzen (0.08 → 1.00). Die CI committet die neue VERSION auf main, setzt den Tag
+# vMAJOR.MINOR und legt ein GitHub-Release mit automatisch erzeugten Notizen sowie Wheel und Quellpaket an.
 #
 # Die Commits der CI selbst lösen keinen weiteren Lauf aus (Pushes mit GITHUB_TOKEN starten keine Workflows).
 name: Release
@@ -26,7 +27,57 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  tests:
+    name: Gesamttests (${{ matrix.teil }})
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        teil: [ohne-browser, browser]
+    steps:
+      - name: Quellstand holen
+        uses: actions/checkout@v4
+
+      - name: Python einrichten
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Abhängigkeiten installieren
+        run: python -m pip install -e ".[test]"
+
+      - name: Core-Tests (Zeitbudget 30 Sekunden)
+        if: matrix.teil == 'ohne-browser'
+        run: python -m pytest -q -p no:cacheprovider tests/core
+
+      - name: Eigene Tests ohne Browser
+        if: matrix.teil == 'ohne-browser'
+        run: python -m pytest -q -p no:cacheprovider -n auto -m "not browser and not core" tests
+
+      - name: Gesamtsuite ohne Browser
+        if: matrix.teil == 'ohne-browser'
+        working-directory: gesamt-tests
+        run: python -m pytest -q -p no:cacheprovider -n auto -m "not browser"
+
+      - name: Eigene Browsertests
+        if: matrix.teil == 'browser'
+        env:
+          KONTOR_TESTS_BROWSER_PFLICHT: "1"
+        run: python -m pytest -q -p no:cacheprovider -n auto -m browser tests
+
+      - name: Gesamtsuite mit Browser
+        if: matrix.teil == 'browser'
+        working-directory: gesamt-tests
+        env:
+          KONTOR_TESTS_BROWSER_PFLICHT: "1"
+        run: python -m pytest -q -p no:cacheprovider -n auto -m browser
+
   release:
+    needs: tests
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     steps:
@@ -41,11 +92,7 @@ jobs:
           python-version: "3.12"
 
       - name: Abhängigkeiten installieren
-        run: python -m pip install -e ".[test]" build
-
-      - name: Eigene Tests
-        # Browsertests werden ohne Chrome übersprungen.
-        run: python -m pytest -q -p no:cacheprovider tests
+        run: python -m pip install -e . build
 
       - name: Version erhöhen
         id: version
