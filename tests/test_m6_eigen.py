@@ -1,4 +1,4 @@
-"""Eigene Tests zu Meilenstein 6 (ergänzend zu kontor-tests): Migration, ältere Sicherungen, Protokollschutz,
+"""Eigene Tests zu Meilenstein 6 (ergänzend zur Gesamtsuite in gesamt-tests): Migration, ältere Sicherungen, Protokollschutz,
 Abbildung von MT940/camt, Test-Benachrichtigung. Nur synthetische Daten, keine Verbindungen nach außen."""
 
 from __future__ import annotations

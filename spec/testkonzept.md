@@ -188,7 +188,8 @@ Echte Daten nutzt nur der Anwender selbst im Betrieb, etwa zur Kontrolle des Ler
 
 ## 22. Offene Punkte
 
-- Agententrennung mit Claude Code in der Cloud: zwei private Repositories. kontor-tests enthält Konzept, Testkonzept, Schnittstellenspezifikation, Testdatengenerator und Tests; kontor-app enthält die Implementierung. Die Sitzung des Testagenten bekommt nur kontor-tests zugeordnet; der GitHub-Proxy der Cloud-Sitzung verweigert jeden Zugriff auf nicht zugeordnete Repositories, die Trennung ist also technisch erzwungen. Die Sitzung des Implementierungsagenten bekommt beide Repositories, darf kontor-tests aber laut Auftrag nicht ändern; Verstöße sind in der Git-Historie sichtbar.
+- **Überholt seit 2026-11-23 (Testumbau, `../TESTUMBAU.md`, D-253):** Die im Folgenden beschriebene Agententrennung ist aufgegeben. Spezifikation, Tests und Implementierung liegen in kontor-app; Core-Tests entstehen vor dem Feature (TDD), die Gesamttests laufen in der CI auf main.
+- Früherer Stand – Agententrennung mit Claude Code in der Cloud: zwei private Repositories. kontor-tests enthält Konzept, Testkonzept, Schnittstellenspezifikation, Testdatengenerator und Tests; kontor-app enthält die Implementierung. Die Sitzung des Testagenten bekommt nur kontor-tests zugeordnet; der GitHub-Proxy der Cloud-Sitzung verweigert jeden Zugriff auf nicht zugeordnete Repositories, die Trennung ist also technisch erzwungen. Die Sitzung des Implementierungsagenten bekommt beide Repositories, darf kontor-tests aber laut Auftrag nicht ändern; Verstöße sind in der Git-Historie sichtbar.
 
 Entschieden: Rundung bei Krediten kaufmännisch auf den Cent für den Zinsanteil je Rate, Tilgung = Rate minus Zins. Mindestgenauigkeit Lernmodell 85 % auf synthetischen Daten.
 

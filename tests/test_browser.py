@@ -1,6 +1,6 @@
 """Browser-Rauchtests der Oberfläche (M8, Playwright mit Chrome headless). Werden übersprungen, wenn kein Browser
 verfügbar ist. Jeder Test startet einen echten Server im Mock-Modus auf einem freien Loopback-Port (synthetische
-Daten) und beendet ihn wieder. Ergänzen die Oberflächentests aus kontor-tests (tests/app/m8), ersetzen sie nicht.
+Daten) und beendet ihn wieder. Ergänzen die Oberflächentests der Gesamtsuite (gesamt-tests/tests/app/m8).
 """
 
 from __future__ import annotations

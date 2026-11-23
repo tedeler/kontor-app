@@ -1,6 +1,6 @@
 """Entwicklungstests für das Feature „tabs-gegenbuchung“ (Branch feature/tabs-gegenbuchung): Tabs der Ansichten
 und „Gehe zur Gegenbuchung“ im Kontextmenü. Playwright mit Chrome headless gegen einen echten Server im Mock-Modus
-(synthetische Daten). Ersetzen nicht die Abnahmetests aus kontor-tests.
+(synthetische Daten). Ergänzen die Gesamtsuite in gesamt-tests.
 """
 
 from __future__ import annotations

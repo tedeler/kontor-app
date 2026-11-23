@@ -149,7 +149,7 @@ strukturell an einigen Stellen über die Wartbarkeitsgrenze gewachsen.
 ## Maßnahmen
 
 Reihenfolge nach Nutzen. Jede Maßnahme als eigener kleiner Commit; nach
-jedem Schritt muss die Testsuite aus kontor-tests unverändert grün bleiben
+jedem Schritt müssen die Gesamttests (CI auf main) unverändert grün bleiben
 (Verhalten ändert sich nicht).
 
 - [ ] **R-01 Werkzeuge einrichten:** `[tool.ruff]` und `[tool.mypy]` in

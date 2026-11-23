@@ -68,9 +68,8 @@ bleiben Commit und Tag bestehen; das Release wird für diesen Tag nachgeholt,
 die Version steigt dabei nicht erneut. Der Versions-Commit des Releases löst
 kein weiteres Release aus. Releases laufen nie parallel.
 
-2.4 Die Abnahmetests aus kontor-tests laufen nicht im Release (kein Zugang zu
-kontor-tests ohne Secret); 2.1–2.3 werden nicht durch Tests in kontor-tests
-geprüft (E-176). Auch 1.2 und 1.3 sind über die Schnittstellen der App nicht
+2.4 Seit dem Testumbau (D-253) laufen vor jedem Release die Gesamttests (eigene Tests und `gesamt-tests/`);
+das Release folgt nur bei Grün. 2.1–2.3 selbst werden nicht durch Tests geprüft (E-176). Auch 1.2 und 1.3 sind über die Schnittstellen der App nicht
 beobachtbar (eine laufende App kennt nur ihre eigene Version) und werden
 nicht getestet; geprüft wird das Schema 1.1 und die Gleichheit 1.4.
 

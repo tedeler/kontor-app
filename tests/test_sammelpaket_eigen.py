@@ -1,5 +1,5 @@
 """Eigene Tests zum Sammelpaket (D-108 bis D-113): Rückgängig bis, Mehrfach löschen, Verschieben, Zuordnung
-unbekannter Bankkonten. Ergänzen die Abnahmetests aus kontor-tests, ersetzen sie nicht."""
+unbekannter Bankkonten. Ergänzen die Gesamtsuite in gesamt-tests."""
 
 from __future__ import annotations
 

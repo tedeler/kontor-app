@@ -1,4 +1,4 @@
-"""Eigene Tests zu Meilenstein 3 (ergänzend zu kontor-tests): Migration, Protokoll-Details, Entscheidungen."""
+"""Eigene Tests zu Meilenstein 3 (ergänzend zur Gesamtsuite in gesamt-tests): Migration, Protokoll-Details, Entscheidungen."""
 
 from __future__ import annotations
 

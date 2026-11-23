@@ -1,4 +1,4 @@
-"""Eigene Tests zu Meilenstein 11 (ergänzend zu kontor-tests): Abbildung des Saldos aus FinTS (HISAL) und
+"""Eigene Tests zu Meilenstein 11 (ergänzend zur Gesamtsuite in gesamt-tests): Abbildung des Saldos aus FinTS (HISAL) und
 Migration von Schemaversion 8. Ohne Netz; nur synthetische Daten (BLZ 00000000)."""
 
 from __future__ import annotations
