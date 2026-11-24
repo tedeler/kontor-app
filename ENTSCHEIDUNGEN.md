@@ -4012,3 +4012,16 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   nur den Status.
 - **Prüfung:** einmal im Browser durchgespielt (Kategorie setzen auf importierter, vorläufiger und bestätigter
   Buchung, ein Strg+Z). Splits speichern und Vorschlag annehmen nur gelesen.
+
+## D-273 Design steht vor dem ersten Zeichnen fest (Feature `status-farben`, 2026-11-24)
+
+- **Anlass:** Rückmeldung vom 2026-11-24: Beim Neuladen im Dunkelmodus blitzt die Seite kurz hell auf.
+- **Ursache:** Das Design (`data-thema` am Wurzelelement) setzte erst das Modul der Anwendung. Module laufen nach dem
+  Einlesen der Seite; bis dahin war sie mit dem hellen Design gezeichnet.
+- **Entscheidung:** Die Hülle lädt im Kopf, vor dem Stylesheet, das kleine blockierende Skript
+  `/oeffentlich/thema.js`. Es setzt `data-thema` nach derselben Regel wie die Anwendung (gespeicherte Wahl
+  `kontor.thema`, sonst das System). Kein Inline-Skript (CSP `script-src 'self'` bleibt). Die Datei steht in der
+  Liste des Service Workers; dessen Cache heißt jetzt `kontor-huelle-43`.
+- **Nicht geändert:** Die Anmeldeseite folgt weiterhin nur dem Design des Systems.
+- **Prüfung:** Core-Test `tests/core/test_thema_start.py`; im Browser bei blockierter Anwendung geprüft, dass
+  `data-thema` und Hintergrund für alle vier Fälle (System hell/dunkel, Wahl dunkel/hell/keine) stimmen.
