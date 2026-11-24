@@ -76,7 +76,9 @@ def test_split_bearbeiten(daten, neue_seite, geraet):
     d.get_by_test_id("split-speichern").click()
     expect(d).to_be_hidden()
     neu = m8.warte_bis(lambda: m8.aenderungen_seit(api, a0))
-    assert [a["aktion"] for a in neu] == ["splits_ersetzen"]
+    # D-272: Mit gewählter Person setzt das Speichern an einer unbestätigten Buchung zusätzlich deren Tag
+    # (eigene Änderungen `mehrfach_tags`, beim ersten Mal `tag_anlegen`); die Splits selbst sind genau eine Änderung.
+    assert [a["aktion"] for a in neu if a["aktion"] not in ("mehrfach_tags", "tag_anlegen")] == ["splits_ersetzen"]
     splits = [(s["konto_id"], s["betrag"], s["memo"]) for s in api.buchung_lesen(bid)["splits"]]
     erwartet = [(s["konto_id"], s["betrag"], s["memo"]) for s in b["splits"]]
     erwartet[i_gegen] = (gegen["konto_id"], gesamt - teil, gegen["memo"])
