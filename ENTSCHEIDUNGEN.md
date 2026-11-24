@@ -3719,3 +3719,16 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   (das Ergebnis steht im CI-Lauf). Entscheidungen der Spezifikation (`spec/api/entscheidungen.md`, `E-…`) bleiben
   als Bestand; neue Entscheidungen stehen hier.
 - **Einzelheiten, Messungen, Auswahlregel und geänderte Tests:** `TESTUMBAU.md`.
+
+## D-256 Testinstanz: Datenkopie mit Platzprüfung und ohne doppelten Platzbedarf (2026-11-24)
+
+- **Anlass:** `kontor-test start` scheiterte mit „Die Datenbank ließ sich nicht kopieren (OperationalError)“: Kopie,
+  `VACUUM` mit Rücksprungjournal und die noch vorhandene alte Kopie brauchten zusammen mehr als die 406 MB freien
+  Platzes (Datenbank 235 MB).
+- **Entscheidung** (`testinstanz.daten_kopieren`): vorher den freien Platz prüfen (die alte Kopie zählt als frei)
+  und mit einer verständlichen Meldung abbrechen; danach die alte Kopie entfernen (die Testinstanz ist gestoppt).
+  Geheimnisse mit `PRAGMA secure_delete` überschreiben und freie Seiten mit `incremental_vacuum` entfernen, wenn die
+  Datenbank `auto_vacuum = INCREMENTAL` hat (D-255); sonst wie bisher `VACUUM`. Bedarf damit etwa das 1,1-fache
+  (sonst 2,1-fache) der Datenbank. SQLite-Fehler werden mit ihrer Meldung ausgegeben (sie nennen nur Ursachen,
+  keine Inhalte).
+- **Tests:** `tests/core/test_testinstanz_platz.py`.

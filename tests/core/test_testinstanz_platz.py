@@ -27,7 +27,7 @@ def _haupt(tmp_path: pathlib.Path, auto_vacuum: bool) -> pathlib.Path:
                 (GEHEIM,))
     # Füllstoff, damit die Kopie nennenswert groß ist und freie Seiten entstehen können
     con.executemany("INSERT INTO empfaenger (name) VALUES (?)", [(f"Empfänger {i} (fiktiv)" + "x" * 200,)
-                                                                for i in range(300)])
+                                                                for i in range(1000)])
     con.commit()
     con.close()
     return haupt
@@ -40,7 +40,7 @@ def test_kopie_ohne_geheimnisse_und_ohne_freie_seiten(tmp_path, auto_vacuum):
     T.daten_kopieren(haupt, ziel)
     assert GEHEIM not in ziel.read_bytes()
     con = sqlite3.connect(ziel)
-    assert con.execute("SELECT count(*) FROM empfaenger").fetchone() == (300,)
+    assert con.execute("SELECT count(*) FROM empfaenger").fetchone() == (1000,)
     assert con.execute("PRAGMA freelist_count").fetchone() == (0,)
     con.close()
     assert not list(ziel.parent.glob("*.neu")) and not list(ziel.parent.glob("*-journal"))
@@ -69,7 +69,7 @@ def test_alte_kopie_zaehlt_als_frei(tmp_path, monkeypatch):
     monkeypatch.setattr(T.shutil, "disk_usage", lambda _p: platz(10 ** 9, 10 ** 9, groesse // 2 + 4096))
     T.daten_kopieren(haupt, ziel)
     con = sqlite3.connect(ziel)
-    assert con.execute("SELECT count(*) FROM empfaenger").fetchone() == (300,)
+    assert con.execute("SELECT count(*) FROM empfaenger").fetchone() == (1000,)
     con.close()
 
 
