@@ -53,7 +53,9 @@ def test_abruf_kategorisiert_nach_regeln(rapi, sd, netz_gesperrt):
             assert gs["konto_id"] == kat and b["kategorie_id"] == kat, u
             assert b["vorschlag"] == {"kategorie_id": kat, "regel_id": ids["regeln"][soll["regel"]]["id"],
                                       "quelle": "regel", "vorher_konto_id": unk["id"]}, u
-        assert b["status"] == "importiert" and gs["betrag"] == -u["betrag"] and gs["memo"] == ""
+        # D-261: mit Vorschlag vorläufig, ohne Zuordnung importiert
+        assert b["status"] == ("importiert" if soll is None else "vorlaeufig")
+        assert gs["betrag"] == -u["betrag"] and gs["memo"] == ""
 
 
 def test_zaehlung_kategorisiert(tmp_path, sd, netz_gesperrt):
@@ -90,7 +92,8 @@ def test_annehmen(rapi, netz_gesperrt):
     api, _ = rapi
     b = _eine_mit_vorschlag(api)
     neu = api.post(f"/api/buchungen/{b['id']}/vorschlag", json={"aktion": "annehmen"}, erwartet=200).daten
-    assert neu == {**b, "vorschlag": None}
+    assert b["status"] == "vorlaeufig"
+    assert neu == {**b, "vorschlag": None, "status": "bestaetigt"}   # D-261: Annehmen bestätigt
     assert api.buchung_lesen(b["id"]) == neu
     r = api.post(f"/api/buchungen/{b['id']}/vorschlag", json={"aktion": "annehmen"}, erwartet=409)
     assert fehlercode(r) == "kein_vorschlag"
@@ -104,7 +107,8 @@ def test_ablehnen(rapi, netz_gesperrt):
     neu = api.post(f"/api/buchungen/{b['id']}/vorschlag", json={"aktion": "ablehnen"}, erwartet=200).daten
     gs_alt, gs_neu = gegensplit(b, bestand), gegensplit(neu, bestand)
     assert gs_neu == {**gs_alt, "konto_id": b["vorschlag"]["vorher_konto_id"]}
-    assert neu["kategorie_id"] is None and neu["vorschlag"] is None and neu["status"] == b["status"]
+    assert neu["kategorie_id"] is None and neu["vorschlag"] is None
+    assert (b["status"], neu["status"]) == ("vorlaeufig", "importiert")   # D-261: Ablehnen nimmt die Zuordnung zurück
     assert [s for s in neu["splits"] if s["konto_id"] in bestand] == [s for s in b["splits"] if s["konto_id"] in bestand]
     assert fehlercode(api.post(f"/api/buchungen/{b['id']}/vorschlag", json={"aktion": "ablehnen"},
                                erwartet=409)) == "kein_vorschlag"
