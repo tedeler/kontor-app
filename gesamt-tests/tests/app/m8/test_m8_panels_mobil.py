@@ -88,23 +88,20 @@ def test_groesse_per_tastatur(daten, neue_seite):
     server, erw, ids = daten
     seite = neue_seite(server)
     _konto(seite, server, ids.konto[erw["m8"]["konten"]["giro"]])
-    g = tid(seite, "panel-groesse-kategorien")
+    # D-265: das Panel Kategorien gibt es nicht mehr; geprüft wird der Griff der Einzelheiten (rechts angedockt)
+    g = tid(seite, "panel-groesse-details")
     g.focus()
-    seite.keyboard.press("ArrowRight")
-    seite.keyboard.press("ArrowRight")
-    expect(g).to_have_attribute("aria-valuenow", "272")
     seite.keyboard.press("ArrowLeft")
-    expect(g).to_have_attribute("aria-valuenow", "256")
+    seite.keyboard.press("ArrowLeft")
+    expect(g).to_have_attribute("aria-valuenow", "352")
+    seite.keyboard.press("ArrowRight")
+    expect(g).to_have_attribute("aria-valuenow", "336")
     seite.keyboard.press("Home")
     expect(g).to_have_attribute("aria-valuenow", "160")
-    seite.keyboard.press("ArrowLeft")
+    seite.keyboard.press("ArrowRight")
     expect(g).to_have_attribute("aria-valuenow", "160")
     seite.keyboard.press("End")
     expect(g).to_have_attribute("aria-valuenow", "600")
-    rechts = tid(seite, "panel-groesse-details")
-    rechts.focus()
-    seite.keyboard.press("ArrowLeft")
-    expect(rechts).to_have_attribute("aria-valuenow", "336")
 
 
 def test_einklappen_und_speichern(daten, neue_seite):
@@ -177,11 +174,11 @@ def test_mobil_kein_andocken_layout_bleibt(daten, neue_seite):
     seite = neue_seite(server)
     giro = ids.konto[erw["m8"]["konten"]["giro"]]
     _konto(seite, server, giro)
-    tid(seite, "panel-verschieben-kategorien").click()
+    tid(seite, "panel-verschieben-details").click()   # D-265/D-266: Einzelheiten nach unten (kein Panel Kategorien)
     gespeichert = _layout(seite)
     seite.set_viewport_size({"width": 390, "height": 844})
     expect(tid(seite, "app")).to_have_attribute("data-layout", "mobil")
-    expect(tid(seite, "panel-kategorien")).to_be_hidden()
+    expect(tid(seite, "panel-details")).to_be_hidden()
     assert _layout(seite) == gespeichert
 
 

@@ -2505,15 +2505,13 @@ class Kontoansicht {
       else neu[k] = v;
     }
     this.filter = neu;
-    this.auswahl.clear();
-    this.anker = null;
     this.seiten = 1;
     this.urlSchreiben();
     const leiste = this.filterAufbauen();   // bleibt eingeklappt; die Zusammenfassung nennt den Filter (D-195)
     leiste.hidden = !this.filterSichtbar;
     this.filterLeiste.replaceWith(leiste);
     this.filterLeiste = leiste;
-    await this.laden();
+    await this.ladenMitAuswahl();   // D-271: auch hier bleibt die Auswahl
   }
 
   /** Offener Dublettenverdacht: eine Buchung wie bisher, oder genau das gewählte Paar. */
