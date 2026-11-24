@@ -3755,3 +3755,13 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - **Tests:** `tests/core/test_status_farben.py`; angepasste Tests in `TESTUMBAU.md` („Geänderte Tests“). Auf dem
   Branch liefen auftragsgemäß nur die Core-Tests und einmal die eigenen Tests ohne Browser; weitere Gesamttests,
   die eine importierte Buchung zuordnen und danach `importiert` erwarten, zeigt erst die CI auf main.
+
+## D-256 Bestätigen zeigt den Status sofort (Feature `status-farben`, 2026-11-24)
+
+- **Anlass:** Rückmeldung vom 2026-11-24: Nach „b“ ändert sich der Status erst nach etwa einer halben Sekunde.
+- **Ursache:** Die Aktion besteht aus fünf Anfragen nacheinander (höchste Änderung lesen, Tag setzen, Status setzen,
+  Änderungen für Rückgängig lesen, Liste neu laden); die Zeile wurde erst nach der letzten neu gezeichnet.
+- **Entscheidung:** Die Zeilen der betroffenen Buchungen (importiert oder vorläufig) zeigen `bestaetigt` (Text,
+  `data-status`, `data-markierung`) sofort beim Auslösen; die Anfragen laufen wie bisher danach. Schlägt die
+  Aktion fehl, wird die Anzeige zurückgenommen. Der Personen-Tag erscheint weiterhin erst mit dem Neuladen.
+- **Prüfung:** nur gelesen und auf Syntax geprüft; kein Browsertest gelaufen (auf dem Branch laufen nur Core-Tests).

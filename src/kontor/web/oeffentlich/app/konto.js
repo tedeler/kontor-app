@@ -2176,9 +2176,36 @@ class Kontoansicht {
         onclick: () => this.personMarkieren([b.id], !hat) }) : "Oben rechts wählen, wer du bist.");
   }
 
+  /** D-256: Status sofort in den Zeilen zeigen, noch bevor der Server geantwortet hat. Gibt die Rücknahme zurück
+   *  (für den Fehlerfall); der Stand des Servers folgt ohnehin mit dem Neuladen nach der Aktion. */
+  statusVorab(ids, status) {
+    const alt = [];
+    for (const id of ids) {
+      const z = this.zeilen.get(id);
+      const zelle = z && z.querySelector('[data-feld="status"]');
+      if (!zelle) continue;
+      alt.push([z, zelle, z.dataset.status, z.dataset.markierung, zelle.textContent]);
+      z.dataset.status = status;
+      z.dataset.markierung = status;
+      zelle.textContent = STATUS_TEXT[status] || status;
+    }
+    return () => {
+      for (const [z, zelle, st, mark, text] of alt) {
+        z.dataset.status = st;
+        if (mark === undefined) delete z.dataset.markierung; else z.dataset.markierung = mark;
+        zelle.textContent = text;
+      }
+    };
+  }
+
   async personMarkieren(ids, hinzu) {
     const name = personLesen();
     if (!name) { melde("hinweis", "Bitte oben rechts wählen, wer du bist."); return; }
+    const offenVorab = !hinzu ? [] : ids.filter((id) => {
+      const x = this.eintraege.find((e) => e.id === id);
+      return x && !x.abgestimmt && (x.status === "importiert" || x.status === "vorlaeufig");
+    });
+    const zurueck = this.statusVorab(offenVorab, "bestaetigt");
     try {
       await aktion(async () => {
         let t = stamm.tags.find((x) => x.name === personTag(name));
@@ -2196,7 +2223,7 @@ class Kontoansicht {
         }
         return true;
       }, { erfolg: hinzu ? `Als ${name} bestätigt.` : `Bestätigung von ${name} zurückgenommen.` });
-    } catch { /* gemeldet */ }
+    } catch { zurueck(); /* gemeldet */ }
   }
 
   // ---------------------------------------------------------------- Tastaturkürzel (D-167)
