@@ -214,3 +214,27 @@ def test_filter_verdaechtig(buch):
     # In Regeln gibt es das Feld nicht: der Verdacht hängt von anderen Buchungen ab.
     r = client.post("/api/regeln", json={"name": "x", "kategorie_id": k["lm"], "ausdruck": "verdächtig"})
     assert r.status_code == 422, r.text
+
+
+def test_position_einer_buchung_in_der_liste(buch):
+    """D-269: ``position_id`` nennt die Stelle (ab 0) einer Buchung in der gefilterten, sortierten Liste – damit die
+    Oberfläche nach einem Filterwechsel die Seite der gewählten Buchung laden kann. Ohne den Parameter fehlt das Feld."""
+    client, k, neu = buch
+    ids = []
+    for tag, betrag in ((1, -100), (2, -200), (3, -300), (4, -400)):
+        r = client.post("/api/buchungen", json={"datum": f"2024-03-{tag:02d}", "splits": [
+            {"konto_id": k["giro"], "betrag": betrag}, {"konto_id": k["lm"], "betrag": -betrag}]})
+        ids.append(r.json()["id"])
+
+    def pos(bid, **p):
+        r = client.get("/api/buchungen", params={"konto_id": k["giro"], "pro_seite": 1, "position_id": bid, **p})
+        assert r.status_code == 200, r.text
+        return r.json()["position"]
+
+    assert [pos(i) for i in ids] == [0, 1, 2, 3]
+    assert [pos(i, sortierung="-datum") for i in ids] == [3, 2, 1, 0]
+    assert pos(ids[2], filter="betrag >= 3") == 0 and pos(ids[3], filter="betrag >= 3") == 1
+    assert pos(ids[0], filter="betrag >= 3") is None          # nicht im Filter
+    assert pos(999999) is None
+    assert "position" not in client.get("/api/buchungen", params={"konto_id": k["giro"]}).json()
+    assert client.get("/api/buchungen", params={"position_id": 0}).status_code == 422
