@@ -120,7 +120,7 @@ def test_empfaenger_markieren_und_bestaetigen(starte_server, neue_seite):
     expect(k).to_have_text("Als Torsten bestätigen")
     k.click()
     warte_bis(lambda: [t["name"] for t in api.get(f"/api/empfaenger/{ids[3]}", erwartet=200).daten.get("tags", [])]
-              == ["B-Torsten"], text="Tag B-Torsten am Empfänger (M32, E-307)")
+              == ["Torsten-Bestätigt"], text="Tag Torsten-Bestätigt am Empfänger (M32, E-307)")
     expect(tid(seite, f"empfaenger-{ids[3]}")).to_have_attribute("data-bestaetigt", "Torsten")
     expect(tid(seite, f"empfaenger-bestaetigen-{ids[3]}")).to_have_text("Bestätigung von Torsten zurücknehmen")
     # Kopfknopf für die Auswahl (Anton, Cäsar)

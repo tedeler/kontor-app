@@ -3814,3 +3814,16 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   Synchronisation hat keinen Core-Test. **Offen vor dem Merge:** Tests in `tests/` und `gesamt-tests/`, die nach
   einem Vorschlag, einer Split-Vorlage oder einer Zuordnung von Hand den bisherigen Status erwarten, sind noch
   nicht angepasst (auf dem Branch laufen auftragsgemäß nur die Core-Tests).
+
+## D-260 Bestätigungs-Tag heißt „<Name>-Bestätigt“ und steht hinten (Feature `status-farben`, 2026-11-24)
+
+- **Anlass:** Auftrag vom 2026-11-24: Das Tag bleibt, heißt aber „<Benutzer>-Bestätigt“ und wird in der Oberfläche
+  immer nachrangig gezeigt, damit es andere Tags nicht verdrängt. (Die zuvor erwogene Anzeige eines Kürzels am
+  Status ist damit verworfen und nicht umgesetzt.)
+- **Entscheidung:** Ersetzt den Namen aus D-223 („B-<Name>“). Vorhandene Tags „B-Torsten“/„B-Tina“ werden beim
+  Start in einer Änderung umbenannt (wie in D-223: gibt es das neue Tag schon, wandern die Zuordnungen dorthin),
+  ebenso beim Einspielen einer Sicherung. In der Spalte Tags des Kontoblatts stehen Bestätigungs-Tags hinter
+  allen anderen. `data-bestaetigt` und `data-person` nennen weiter den Namen der Person.
+- **Folge:** Regeln, die das Tag vergeben, und Zuordnungen an Empfängern wandern mit. Gespeicherte Filter oder
+  Regelausdrücke, die den Tag-Namen „B-…“ als Text enthalten, werden nicht umgeschrieben.
+- **Tests:** Core-Test `test_bestaetigungs_tags_heissen_name_bestaetigt`; angepasste Tests in `TESTUMBAU.md`.

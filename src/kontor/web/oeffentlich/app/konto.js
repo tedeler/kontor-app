@@ -1732,7 +1732,8 @@ class Kontoansicht {
     kat,
     this.istKategorie ? kontoZelle(b) : null,
     h("div", { role: "gridcell", class: "zelle zelle-tags", "data-feld": "tags" },
-      b.tags.map((t) => {
+      // D-260: Bestätigungs-Tags stehen hinter allen anderen, damit sie diese bei wenig Platz nicht verdrängen
+      [...b.tags.filter((t) => !personVonTag(t.name)), ...b.tags.filter((t) => personVonTag(t.name))].map((t) => {
         const person = personVonTag(t.name);
         return h("span", { class: person ? "tag tag-person" : "tag", tid: "tag", "data-tag-id": String(t.id),
           "data-person": person, title: person ? `Bestätigt von ${person}` : t.name }, t.name);

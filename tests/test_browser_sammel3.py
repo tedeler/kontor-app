@@ -89,11 +89,11 @@ def test_spalten_ausblenden_und_bestaetigen(tmp_path, browser):
         expect(tid(page, "km-spalte-status")).to_contain_text("Status")
         tid(page, "km-spalte-status").click()
         expect(page.locator(".liste-kopf .zelle-status")).to_be_visible()
-        # Bestätigen setzt das Tag „B-Torsten“ (D-223)
+        # Bestätigen setzt das Tag „Torsten-Bestätigt“ (D-260)
         zeile = page.locator(".zeile").first
         zeile.click(button="right", position={"x": 20, "y": 8})
         tid(page, "km-bestaetigen").click()
-        expect(page.locator(".zeile[data-bestaetigt=Torsten] .tag-person").first).to_have_text("B-Torsten")
+        expect(page.locator(".zeile[data-bestaetigt=Torsten] .tag-person").first).to_have_text("Torsten-Bestätigt")
 
 
 def test_personentags_werden_umbenannt(tmp_path):
@@ -107,7 +107,7 @@ def test_personentags_werden_umbenannt(tmp_path):
     c.post("/api/tags", json={"name": "Tina"})
     c.post("/api/tags", json={"name": "B-Tina"})
     c = TestClient(create_app(config))
-    assert sorted(t["name"] for t in c.get("/api/tags").json()) == ["B-Tina", "B-Torsten"]
+    assert sorted(t["name"] for t in c.get("/api/tags").json()) == ["Tina-Bestätigt", "Torsten-Bestätigt"]
 
 
 def test_tags_seite_und_dubletten_sprung(tmp_path, browser):

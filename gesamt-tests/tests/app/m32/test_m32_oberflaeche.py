@@ -198,7 +198,7 @@ def test_bestaetigen_mit_b_tag(starte_server, neue_seite):
     warte_liste(seite, m8.rest_liste(api, g))
     zeile(seite, b["aus1"]).click(button="right")
     tid(seite, "km-bestaetigen").click()
-    warte_bis(lambda: [t["name"] for t in api.buchung_lesen(b["aus1"])["tags"]] == ["B-Torsten"], text="B-Torsten")
+    warte_bis(lambda: [t["name"] for t in api.buchung_lesen(b["aus1"])["tags"]] == ["Torsten-Bestätigt"], text="Torsten-Bestätigt")
     expect(zeile(seite, b["aus1"])).to_have_attribute("data-bestaetigt", "Torsten")
 
 

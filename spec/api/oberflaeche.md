@@ -3117,8 +3117,9 @@ unverändert.
 
 ### 41.4 Bestätigen (D-223, ändert 37.10)
 
-„Als <Person> bestätigen“ setzt das Tag „B-<Person>“ (z. B. „B-Torsten“);
-`data-bestaetigt` und `data-person` nennen weiter den Namen der Person.
+„Als <Person> bestätigen“ setzt das Tag „<Person>-Bestätigt“ (z. B. „Torsten-Bestätigt“; D-260, vorher
+„B-<Person>“); `data-bestaetigt` und `data-person` nennen weiter den Namen der Person. In der Spalte Tags des
+Kontoblatts stehen Bestätigungs-Tags immer hinter allen anderen Tags.
 
 ### 41.5 Kontoblatt: Spalten (D-224)
 

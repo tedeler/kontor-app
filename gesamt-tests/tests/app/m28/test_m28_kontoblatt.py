@@ -315,7 +315,7 @@ def test_bestaetigen_durch_person(starte_server, neue_seite):
     tid(seite, "km-bestaetigen").click()
     warte_bis(lambda: api.buchung_lesen(b["einfach"])["status"] == "bestaetigt", text="bestätigt")
     x = api.buchung_lesen(b["einfach"])
-    assert [t["name"] for t in x["tags"]] == ["B-Torsten"], "ab M32 Tag „B-<Name>“ (41.4, E-307)"
+    assert [t["name"] for t in x["tags"]] == ["Torsten-Bestätigt"], "ab M32 Tag „B-<Name>“ (41.4, E-307)"
     expect(zeile(seite, b["einfach"])).to_have_attribute("data-bestaetigt", "Torsten")
     expect(zeile(seite, b["einfach"]).locator('[data-person="Torsten"]')).to_have_count(1)
     expect(tid(seite, "buchung-bestaetigung")).to_contain_text("Bestätigt von Torsten")
@@ -339,7 +339,7 @@ def test_bestaetigen_vorlaeufig_bleibt_und_zuruecknehmen(starte_server, neue_sei
     zeile(seite, b["split"]).locator('[data-feld="betrag"]').click()
     expect(tid(seite, "buchung-bestaetigung")).to_contain_text("Noch von niemandem bestätigt.")
     tid(seite, "buchung-bestaetigen").click()
-    warte_bis(lambda: [t["name"] for t in api.buchung_lesen(b["split"])["tags"]] == ["B-Torsten"])   # M32: E-307
+    warte_bis(lambda: [t["name"] for t in api.buchung_lesen(b["split"])["tags"]] == ["Torsten-Bestätigt"])   # M32: E-307
     assert api.buchung_lesen(b["split"])["status"] == "bestaetigt"   # D-255: Bestätigen erfasst auch vorläufige
     expect(tid(seite, "buchung-bestaetigen")).to_have_text("Bestätigung von Torsten zurücknehmen")
     tid(seite, "buchung-bestaetigen").click()
