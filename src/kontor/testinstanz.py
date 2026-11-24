@@ -111,11 +111,22 @@ def bereinigen(con: sqlite3.Connection) -> None:
     con.commit()
 
 
+def _belegt(datenbank: pathlib.Path) -> int:
+    """Bytes der Datenbank samt WAL (die Kopie enthält auch, was noch im WAL steht)."""
+    return sum(d.stat().st_size for d in (datenbank, datenbank.with_name(datenbank.name + "-wal")) if d.exists())
+
+
+def _mb(n: float) -> str:
+    return f"{n / 1e6:.0f}"
+
+
 def daten_kopieren(quelle: pathlib.Path, ziel: pathlib.Path) -> None:
     """Konsistente Kopie der laufenden Datenbank; die Quelle wird nur lesend geöffnet.
 
-    Die Kopie entsteht neben dem Ziel, wird bereinigt und neu geschrieben (``VACUUM``, damit gelöschte Geheimnisse
-    auch nicht in freien Seiten stehen bleiben) und ersetzt erst dann eine frühere Kopie.
+    D-256: Vor dem Kopieren wird der freie Platz geprüft (die alte Kopie zählt als frei) und die alte Kopie entfernt
+    – die Testinstanz ist zu diesem Zeitpunkt gestoppt. Die Kopie entsteht neben dem Ziel und wird bereinigt; mit
+    ``secure_delete`` werden gelöschte Geheimnisse überschrieben, freie Seiten fallen weg (``incremental_vacuum``,
+    ohne ``auto_vacuum`` wie bisher ``VACUUM``, das vorübergehend noch einmal die Größe der Daten braucht).
     """
     if not quelle.is_file():
         raise TestinstanzFehler(f"Die Datenbank der Hauptinstanz ({quelle}) gibt es nicht.")
@@ -124,22 +135,38 @@ def daten_kopieren(quelle: pathlib.Path, ziel: pathlib.Path) -> None:
     ziel.parent.mkdir(parents=True, exist_ok=True)
     neu = ziel.with_name(ziel.name + ".neu")
     _weg(neu)
+    con_q = con_z = None
     try:
         con_q = sqlite3.connect(f"{quelle.resolve().as_uri()}?mode=ro", uri=True, timeout=30)
+        inkrementell = con_q.execute("PRAGMA auto_vacuum").fetchone()[0] == 2
+        noetig = int(_belegt(quelle) * (1.1 if inkrementell else 2.1)) + 64 * 1024
+        frei = shutil.disk_usage(ziel.parent).free + (_belegt(ziel) if ziel.exists() else 0)
+        if frei < noetig:
+            raise TestinstanzFehler(f"Zu wenig freier Platz für die Kopie der Datenbank in {ziel.parent}: frei "
+                                    f"{_mb(frei)} MB (einschließlich der alten Kopie), nötig etwa {_mb(noetig)} MB.")
+        _weg(ziel)   # Platz der alten Kopie freigeben, bevor die neue entsteht
         con_z = sqlite3.connect(neu, isolation_level=None)
-        try:
-            con_q.backup(con_z)
-            # WAL der Quelle übernimmt die Kopie als Vorgabe; für VACUUM und das Ersetzen braucht es eine Datei
-            con_z.execute("PRAGMA journal_mode = DELETE")
-            bereinigen(con_z)
+        con_q.backup(con_z)
+        # WAL der Quelle übernimmt die Kopie als Vorgabe; für das Ersetzen braucht es eine einzelne Datei
+        con_z.execute("PRAGMA journal_mode = DELETE")
+        con_z.execute("PRAGMA secure_delete = ON")
+        bereinigen(con_z)
+        if inkrementell:
+            con_z.execute("PRAGMA incremental_vacuum").fetchall()
+        else:
             con_z.execute("VACUUM")
-        finally:
-            con_z.close()
-            con_q.close()
     except sqlite3.Error as e:
+        for c in (con_z, con_q):
+            if c is not None:
+                c.close()
+        con_q = con_z = None
         _weg(neu)
-        raise TestinstanzFehler(f"Die Datenbank ließ sich nicht kopieren ({type(e).__name__}).") from None
-    _weg(ziel)
+        # SQLite-Meldungen nennen nur Ursachen (z. B. „database or disk is full“), keine Inhalte
+        raise TestinstanzFehler(f"Die Datenbank ließ sich nicht kopieren ({type(e).__name__}: {e}).") from None
+    finally:
+        for c in (con_z, con_q):
+            if c is not None:
+                c.close()
     os.replace(neu, ziel)
     os.chmod(ziel, 0o600)
 
