@@ -41,7 +41,7 @@ Diese Eigenschaften müssen nach jeder Operation gelten und werden eigenschaftsb
 - Buchung mit unausgeglichenen Splits wird abgelehnt.
 - Buchung mit nur einem Split wird abgelehnt.
 - Kategorien verhalten sich als Aufwands- und Ertragskonten.
-- Statusübergänge: importiert → bestätigt → abgeglichen; vorläufig → abgeglichen; unzulässige Übergänge werden abgelehnt.
+- Statusübergänge: importiert → bestätigt → abgeglichen; vorläufig → bestätigt; vorläufig → abgeglichen; unzulässige Übergänge werden abgelehnt.
 - Tags: mehrere je Buchung, Umbenennen eines Tags wirkt auf alle Buchungen, Löschen entfernt nur die Zuordnung.
 - Datenmodell enthält Belegfelder, die ohne Belegfunktion leer bleiben dürfen.
 - Konten und Kategorien löschen (`spec/api/loeschen.md`):

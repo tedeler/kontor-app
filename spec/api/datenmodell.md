@@ -138,10 +138,18 @@ Werte: `importiert`, `vorlaeufig`, `bestaetigt`, `abgeglichen`.
 - Beim manuellen Anlegen zulässig: `importiert`, `vorlaeufig`, `bestaetigt`
   (Vorgabe `bestaetigt`). `abgeglichen` ist beim Anlegen unzulässig (422).
 - Der Import aus KMyMoney setzt immer `importiert`.
-- Zulässige Übergänge: `importiert → bestaetigt`, `bestaetigt → abgeglichen`,
-  `vorlaeufig → abgeglichen`. Das Setzen des bereits aktuellen Status ist
+- Zulässige Übergänge: `importiert → bestaetigt`, `vorlaeufig → bestaetigt` (D-255),
+  `bestaetigt → abgeglichen`, `vorlaeufig → abgeglichen`. Das Setzen des bereits aktuellen Status ist
   zulässig und ändert nichts. Alle anderen Übergänge werden mit 409
   `status_uebergang_unzulaessig` abgelehnt.
+- **Zuordnung von Hand macht vorläufig (D-255):** Ordnet der Anwender eine Buchung im Status `importiert`
+  zu – `PUT /api/buchungen/{id}/kategorie` (Kategorie oder Bestandskonto), `POST /api/buchungen/mehrfach/kategorie`,
+  `PUT /api/buchungen/{id}/splits` oder das Annehmen eines Vorschlags (einzeln und mehrfach) –, wird sie in
+  derselben Änderung `vorlaeufig`, sofern danach kein Split auf „Unkategorisiert“ liegt. Andere Status bleiben.
+  Ein offener Vorschlag von Regel oder Lernmodell, Split-Vorlagen und Importe ändern den Status nicht; das
+  Ablehnen eines Vorschlags auch nicht. Der Status geht nie von selbst zurück; Rückgängig stellt Zuordnung und
+  Status zusammen wieder her. Wie bei der Kreditrate ist das eine Wirkung der Anwendung, kein Statuswechsel
+  nach den Übergängen.
 - Eine Buchung im Status `abgeglichen` ist gesperrt: Änderungen an `datum`,
   `empfaenger_id`, `verwendungszweck`, Splits und Kategorie sowie Löschen
   werden mit 409 `buchung_gesperrt` abgelehnt. Tags dürfen weiterhin geändert

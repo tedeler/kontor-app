@@ -35,7 +35,8 @@ BESTAND = {"giro", "spar", "kk"}
 KATEGORIE = {"geh", "wohn", "miete", "strom", "leb"}
 SCHLUESSEL = [r[0] for r in RAHMEN]
 STATUS_NEU = ["importiert", "vorlaeufig", "bestaetigt"]
-UEBERGAENGE = {("importiert", "bestaetigt"), ("bestaetigt", "abgeglichen"), ("vorlaeufig", "abgeglichen")}
+UEBERGAENGE = {("importiert", "bestaetigt"), ("vorlaeufig", "bestaetigt"), ("bestaetigt", "abgeglichen"),
+               ("vorlaeufig", "abgeglichen")}   # vorläufig → bestätigt seit D-255
 
 datum = st.dates(min_value=dt.date(2023, 12, 25), max_value=dt.date(2024, 1, 10)).map(dt.date.isoformat)
 betrag = st.one_of(st.integers(-10_000, 10_000), st.integers(-10**9, 10**9), st.sampled_from([0, 1, -1]))

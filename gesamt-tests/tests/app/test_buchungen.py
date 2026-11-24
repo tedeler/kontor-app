@@ -9,7 +9,8 @@ import pytest
 from tests.hilfen.api import fehlercode
 
 STATUS = ["importiert", "vorlaeufig", "bestaetigt", "abgeglichen"]
-UEBERGAENGE = {("importiert", "bestaetigt"), ("bestaetigt", "abgeglichen"), ("vorlaeufig", "abgeglichen")}
+UEBERGAENGE = {("importiert", "bestaetigt"), ("vorlaeufig", "bestaetigt"), ("bestaetigt", "abgeglichen"),
+               ("vorlaeufig", "abgeglichen")}   # vorläufig → bestätigt seit D-255
 
 
 @pytest.fixture

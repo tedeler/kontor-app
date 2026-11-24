@@ -3734,3 +3734,24 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - **Tests:** `tests/test_browser_spalten.py::test_markierung_der_zeilen` und
   `gesamt-tests/.../m22/test_m22_oberflaeche.py::test_markierung_rangfolge_und_darstellung` auf die neuen Werte
   umgestellt (`TESTUMBAU.md`, „Geänderte Tests“).
+
+## D-255 Zuordnung von Hand macht eine importierte Buchung vorläufig (Feature `status-farben`, 2026-11-24)
+
+- **Anlass:** Auftrag vom 2026-11-24: „Wird eine Buchung einer Kategorie zugeordnet, ist sie automatisch Vorläufig
+  bestätigt.“ Mit D-254 heißt das: Rot = noch nicht zugeordnet, Gelb = zugeordnet, ohne Farbe = bestätigt.
+- **Entscheidung:** Eine Buchung im Status `importiert` wird `vorlaeufig`, wenn der Anwender sie zuordnet:
+  Kategorie oder Bestandskonto setzen (einzeln, mehrfach), Splits ersetzen, Vorschlag annehmen (einzeln, mehrfach);
+  nur wenn danach kein Split auf „Unkategorisiert“ liegt. `vorlaeufig`, `bestaetigt` und `abgeglichen` bleiben.
+- **Nicht (Annahme, im Auftrag offen):** offene Vorschläge von Regel und Lernmodell, Split-Vorlagen und Importe –
+  ein Vorschlag ist noch keine Zuordnung, erst das Annehmen. Das Ablehnen ändert den Status nicht.
+- **Bestätigen (Annahme):** Der Übergang `vorlaeufig → bestaetigt` ist jetzt zulässig (ergänzt E-008); „Als
+  <Person> bestätigen“ setzt importierte und vorläufige Buchungen auf `bestaetigt` (ändert D-159). Das gilt
+  damit auch für vorläufige Kreditraten.
+- **Rücknahme (Annahme):** Der Status geht nie von selbst auf `importiert` zurück, auch nicht beim Zuordnen auf
+  „Unkategorisiert“; Rückgängig stellt Zuordnung und Status zusammen wieder her.
+- **Altbestand (Annahme):** Beim ersten Start mit dieser Fassung werden importierte Buchungen ohne Split auf
+  „Unkategorisiert“ und ohne offenen Vorschlag einmalig `vorlaeufig` (Merker `meta.status_vorlaeufig`, außerhalb
+  des Änderungsprotokolls). Sicherungen älterer Fassungen werden beim Einspielen nicht umgestellt.
+- **Tests:** `tests/core/test_status_farben.py`; angepasste Tests in `TESTUMBAU.md` („Geänderte Tests“). Auf dem
+  Branch liefen auftragsgemäß nur die Core-Tests und einmal die eigenen Tests ohne Browser; weitere Gesamttests,
+  die eine importierte Buchung zuordnen und danach `importiert` erwarten, zeigt erst die CI auf main.

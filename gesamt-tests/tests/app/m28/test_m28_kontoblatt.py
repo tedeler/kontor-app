@@ -340,11 +340,11 @@ def test_bestaetigen_vorlaeufig_bleibt_und_zuruecknehmen(starte_server, neue_sei
     expect(tid(seite, "buchung-bestaetigung")).to_contain_text("Noch von niemandem bestätigt.")
     tid(seite, "buchung-bestaetigen").click()
     warte_bis(lambda: [t["name"] for t in api.buchung_lesen(b["split"])["tags"]] == ["B-Torsten"])   # M32: E-307
-    assert api.buchung_lesen(b["split"])["status"] == "vorlaeufig"
+    assert api.buchung_lesen(b["split"])["status"] == "bestaetigt"   # D-255: Bestätigen erfasst auch vorläufige
     expect(tid(seite, "buchung-bestaetigen")).to_have_text("Bestätigung von Torsten zurücknehmen")
     tid(seite, "buchung-bestaetigen").click()
     warte_bis(lambda: api.buchung_lesen(b["split"])["tags"] == [], text="zurückgenommen")
-    assert api.buchung_lesen(b["split"])["status"] == "vorlaeufig"
+    assert api.buchung_lesen(b["split"])["status"] == "bestaetigt"   # D-255: Bestätigen erfasst auch vorläufige
 
 
 def test_label_verdaechtig(starte_server, neue_seite):

@@ -2542,7 +2542,7 @@ Reihenfolge der Einträge einer Buchungsauswahl (Desktop, ohne Alt):
   - Text: „Als <Person> bestätigen“; tragen alle Ziele schon den Namen der Person: „Bestätigung von
     <Person> zurücknehmen“.
   - Bestätigen setzt an alle Ziele den Tag mit dem Namen der Person (wird bei Bedarf angelegt) und setzt
-    Buchungen im Status `importiert` auf `bestaetigt`; andere Status bleiben (auch `vorlaeufig`).
+    Buchungen im Status `importiert` oder `vorlaeufig` auf `bestaetigt` (D-255); andere Status bleiben.
     Zurücknehmen entfernt nur den eigenen Namen, der Status bleibt. Beide Personen können dieselbe Buchung
     bestätigen. Ein Strg+Z nimmt Tag und Status zusammen zurück.
   - Darstellung: Personen-Tags in der Spalte Tags mit `data-person` = Name; die Zeile trägt
