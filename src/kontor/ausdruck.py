@@ -67,6 +67,7 @@ FELDER: dict[str, Feld] = {f.name: f for f in (
     Feld("kw", None, "int", "Kalenderwoche", nur_filter=True, bereich=(1, 53)),
     Feld("wochentag", None, "auswahl", "Wochentag", werte=WOCHENTAGE + tuple(WOCHENTAG_GRUPPEN)),
     Feld("letzter_tag", None, "bool", "Letzter Tag des Monats"),
+    Feld("verdächtig", None, "bool", "Verdächtig", nur_filter=True),   # D-261: berechnet (verdacht.py), nie gespeichert
 )}
 
 SCHLUESSELWOERTER = {"and", "or", "not", "in", "is", "none", "null", "true", "false"}
@@ -534,6 +535,9 @@ class _Pruefer:
         if k == "ident":
             fname = feld_name(n["name"])
             if fname and FELDER[fname].typ == "bool":
+                if FELDER[fname].nur_filter and self.kontext == "regel":
+                    self.melden(n, "nur_im_filter", f"„{fname}“ gibt es nur im Filter.")
+                    return {"t": "bool", "wert": False}
                 return {"t": "feld", "name": fname}
             if self.kontext == "filter" and fname is None and n["name"].lower() not in SCHLUESSELWOERTER:
                 return self.freitext(n, n["name"])
@@ -1410,6 +1414,7 @@ class Sicht:
     tag_ids: frozenset[int] = frozenset()
     tag_namen: tuple[str, ...] = ()
     umbuchung: bool = False
+    verdacht: bool = False   # D-261: nur gefüllt, wenn der Filter das Feld „verdächtig“ nutzt
 
     @property
     def betrag(self) -> int:
@@ -1505,6 +1510,8 @@ class Auswerter:
             return s.konten
         if name == "tags":
             return s.tag_ids
+        if name == "verdächtig":
+            return s.verdacht
         d = s.datum_d()
         if d is None:
             return None
@@ -1751,7 +1758,7 @@ def sicht_aus_buchung(b: dict, art_von: dict[int, str], konten: set[int] | None 
         iban=b.get("gegen_iban"), notiz=" ".join(x["memo"] for x in sp if x["memo"]),
         kategorie_id=b["kategorie_id"], status=b["status"],
         tag_ids=frozenset(t["id"] for t in b["tags"]), tag_namen=tuple(t["name"] for t in b["tags"]),
-        umbuchung=bool(b.get("ist_umbuchung")))
+        umbuchung=bool(b.get("ist_umbuchung")), verdacht=bool(b.get("verdacht")))
 
 
 def filtern(con, baum: dict, ids: Iterable[int], konten: set[int] | None, heute: dt.date,
@@ -1760,12 +1767,27 @@ def filtern(con, baum: dict, ids: Iterable[int], konten: set[int] | None, heute:
     from . import buch
     art_von = buch.kontoarten(con)
     aw = Auswerter(heute)
+    mit_verdacht = _nutzt_feld(baum, "verdächtig")
     aus: list[int] = []
     for teil in buch._stueckweise(list(ids)):
-        for b in laden(con, teil, art_von=art_von):
+        geladen = laden(con, teil, art_von=art_von)
+        if mit_verdacht:   # D-261: nur dann rechnen, wenn der Ausdruck danach fragt
+            from . import verdacht
+            verdacht.anreichern(con, geladen)
+        for b in geladen:
             if aw.wahr(baum, sicht_aus_buchung(b, art_von, konten)):
                 aus.append(b["id"])
     return aus
+
+
+def _nutzt_feld(n: Any, name: str) -> bool:
+    if isinstance(n, dict):
+        if n.get("t") == "feld" and n.get("name") == name:
+            return True
+        return any(_nutzt_feld(v, name) for v in n.values())
+    if isinstance(n, list):
+        return any(_nutzt_feld(v, name) for v in n)
+    return False
 
 
 def markierungen(baum: dict, s: Sicht, heute: dt.date) -> list[dict]:

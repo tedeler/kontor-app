@@ -3827,3 +3827,16 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - **Folge:** Regeln, die das Tag vergeben, und Zuordnungen an Empfängern wandern mit. Gespeicherte Filter oder
   Regelausdrücke, die den Tag-Namen „B-…“ als Text enthalten, werden nicht umgeschrieben.
 - **Tests:** Core-Test `test_bestaetigungs_tags_heissen_name_bestaetigt`; angepasste Tests in `TESTUMBAU.md`.
+
+## D-261 „Verdächtig“ als Feld des Filterausdrucks (Feature `status-farben`, 2026-11-24)
+
+- **Anlass:** Auftrag vom 2026-11-24: Nach „Verdächtig“ soll man filtern können. Erwogen war ein echtes Tag;
+  abgestimmt ist der Filter ohne Tag, weil der Verdacht von anderen Buchungen desselben Empfängers abhängt und ein
+  gespeichertes Tag nach jeder Änderung nachgeführt werden müsste (mit Einträgen im Änderungsprotokoll).
+- **Entscheidung:** Der Filterausdruck kennt das Wahrheitsfeld `verdächtig` (auch `verdaechtig`; `verdächtig`,
+  `not verdächtig`, `verdächtig == True`). Es trifft genau die Buchungen, die das Label „Verdächtig“ tragen (D-157),
+  und wird nur berechnet, wenn der Ausdruck es nennt. Das Label bleibt berechnet und wird nicht gespeichert.
+  In Regeln gibt es das Feld nicht (422 `nur_im_filter`). Es erscheint in `GET /api/ausdruck/sprache` (Kontext
+  `filter`) und damit in Vervollständigung und Baukasten.
+- **Nicht:** kein Tag „Verdächtig“ auf der Tag-Seite, kein Filter über `tag_id`.
+- **Prüfung:** Core-Test `test_filter_verdaechtig`; Vervollständigung und Baukasten nicht im Browser angesehen.
