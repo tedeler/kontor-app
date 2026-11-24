@@ -626,6 +626,7 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
         f["heute"] = dt.date.fromisoformat(stichtag) if stichtag else sync.heute()
         if seiten:
             f["seite"] = q.ganzzahl("seite", minimum=1)
+            f["position_id"] = q.ganzzahl("position_id", minimum=1)   # D-269: Stelle einer Buchung in der Liste
             f["pro_seite"] = q.ganzzahl("pro_seite", minimum=1, maximum=500)
         if f["von"] and f["bis"] and f["von"] > f["bis"]:
             q.fehler_melden("von", "von darf nicht nach bis liegen.")

@@ -600,11 +600,48 @@ class Kontoansicht {
     else neu[name] = wert;
     if (JSON.stringify(neu) === JSON.stringify(this.filter)) return;
     this.filter = neu;
-    this.auswahl.clear();           // ein Filterwechsel hebt die Auswahl auf (7.1)
-    this.anker = null;
     this.seiten = 1;
     this.urlSchreiben();
+    await this.ladenMitAuswahl();   // D-269: die Auswahl bleibt über den Filterwechsel erhalten
+  }
+
+  /** D-269: Nach einem Filterwechsel bleibt die gewählte Buchung gewählt (soweit sie noch zur Liste gehört), steht
+   *  möglichst in der Mitte, und die Liste hat den Fokus – außer es wird gerade in einem Eingabefeld getippt. */
+  async ladenMitAuswahl() {
+    const ids = [...this.auswahl];
+    const ziel = this.fokusId !== null && (ids.includes(this.fokusId) || !ids.length) ? this.fokusId : (ids.length ? ids[0] : null);
+    if (ziel !== null && !this.gruppierung) {
+      try {   // Seite der gewählten Buchung in der neuen Liste erfragen, damit sie geladen wird
+        const r = await api("GET", "/api/buchungen" + abfrage({ konto_id: this.konto.id, ...this.filter,
+          sortierung: this.sortierung, pro_seite: 1, position_id: ziel, gruppierung: undefined }));
+        if (Number.isInteger(r.position)) this.seiten = Math.floor(r.position / PRO_SEITE) + 1;
+      } catch (e) { /* dann bleibt es bei der ersten Seite */ }
+    }
     await this.laden();
+    const tippt = () => {
+      const a = document.activeElement;
+      return !!a && (a.tagName === "INPUT" || a.tagName === "TEXTAREA" || a.tagName === "SELECT" || a.isContentEditable);
+    };
+    const mitDom = !tippt();
+    const da = ziel !== null && this.eintraege.some((b) => b.id === ziel);
+    if (!da) {
+      const erste = this.eintraege[0];
+      if (erste && mitDom) this.fokussieren(erste.id);   // Fokus in die Liste, ohne etwas auszuwählen
+      return;
+    }
+    let geoeffnet = false;
+    for (const k of this.periodeKette(ziel)) if (this.zugeklappt.delete(k)) geoeffnet = true;
+    if (geoeffnet) this.listeZeichnen();
+    if (!this.auswahl.size) this.auswahl.add(ziel);
+    if (this.anker === null) this.anker = ziel;
+    if (this.virtual) this.slotZeigen(ziel, "center");
+    this.fokussieren(ziel, mitDom);
+    const z = this.zeilen.get(ziel);
+    if (z && !this.virtual) {
+      const links = this.listenSpalte ? this.listenSpalte.scrollLeft : 0;
+      z.scrollIntoView({ block: "center" });
+      if (this.listenSpalte) this.listenSpalte.scrollLeft = links;
+    }
   }
 
   // ---------------------------------------------------------------- Laden
@@ -761,8 +798,8 @@ class Kontoansicht {
       clearTimeout(uhr);
       const t = this.ausdruckEingabe.wert.trim();
       const e = this.ausdruckEingabe.ergebnis;
-      if (t && (!e || !e.gueltig)) return;   // bei Fehlern bleibt die letzte gültige Liste stehen
-      this.filterSetzen("filter", t);
+      if (t && (!e || !e.gueltig)) return undefined;   // bei Fehlern bleibt die letzte gültige Liste stehen
+      return this.filterSetzen("filter", t);
     };
     this.ausdruckEingabe = new AusdruckEingabe({ kontext: "filter", tid: "filter-ausdruck", wert: this.filter.filter || "",
       beschriftung: "Filter: Suchtext oder Ausdruck", platzhalter: "z. B.  rewe dt in letzter_monat and bet > 20",
@@ -772,9 +809,16 @@ class Kontoansicht {
         clearTimeout(uhr);
         uhr = setTimeout(anwenden, 400);
       },
-      beiEnter: anwenden });
+      // D-269: Eingabe schließt das Filtern ab – der Fokus geht in die Liste zur gewählten Buchung
+      beiEnter: async () => {
+        await anwenden();
+        const id = this.fokusId !== null ? this.fokusId : (this.eintraege[0] || {}).id;
+        if (id === undefined || id === null) return;
+        if (!this.auswahl.size) { this.auswahl.add(id); this.anker = id; }   // sonst wäre der Fokus unsichtbar (D-268)
+        this.fokussieren(id);
+      } });
     const leeren = h("button", { type: "button", class: "knopf-flach", tid: "filter-ausdruck-leeren", "aria-label": "Filterausdruck leeren",
-      onclick: () => { this.ausdruckEingabe.wert = ""; anwenden(); this.ausdruckEingabe.eingabe.focus(); } }, "✕");
+      onclick: () => { this.ausdruckEingabe.wert = ""; anwenden(); } }, "✕");   // D-269: der Fokus geht in die Liste
     const menue = h("button", { type: "button", class: "knopf-flach", tid: "filter-ausdruck-menue", "aria-haspopup": "menu",
       "aria-label": "Weitere Aktionen zum Filter" }, "⋯");
     menue.addEventListener("click", (e) => {
@@ -910,12 +954,10 @@ class Kontoansicht {
       this.filter = sort ? { sortierung: sort } : {};
       this.ausBaukasten = false;
       if (this.ausdruckEingabe) this.ausdruckEingabe.wert = "";
-      this.auswahl.clear();
-      this.anker = null;
       this.seiten = 1;
       this.urlSchreiben();
       this.filterLeisteNeu();
-      await this.laden();
+      await this.ladenMitAuswahl();   // D-269
     } });
     leiste.append(platz, this.bkHinweis,
       h("div", { class: "filter-optionen" },

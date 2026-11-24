@@ -940,7 +940,12 @@ def buchungsliste(con, f: dict) -> dict:
         if f.get("verdacht"):
             from . import verdacht
             verdacht.anreichern(con, eintraege)
-    return {"eintraege": eintraege, "gesamt": gesamt, "seite": seite, "pro_seite": pro_seite, "summe": summe}
+    aus = {"eintraege": eintraege, "gesamt": gesamt, "seite": seite, "pro_seite": pro_seite, "summe": summe}
+    if f.get("position_id") is not None:   # D-269: Stelle (ab 0) in der gefilterten, sortierten Liste oder None
+        r = con.execute(f"SELECT pos FROM (SELECT id, ROW_NUMBER() OVER (ORDER BY {order}) - 1 AS pos FROM ({basis}))"
+                        " WHERE id = ?", alle_par + [sichere_id(f["position_id"])]).fetchone()
+        aus["position"] = None if r is None else r["pos"]
+    return aus
 
 
 def _filter_par(par: list, konten: list[int] | None) -> list:

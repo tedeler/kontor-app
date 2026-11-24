@@ -3936,3 +3936,23 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   Abwählen mit Strg+Klick), ist nicht mehr eigens gekennzeichnet. Alle anderen Fokusanzeigen der Oberfläche
   bleiben.
 - **Prüfung:** im Browser angesehen (hell und dunkel, einzelne Zeile, drei Zeilen untereinander, nach Umschalt).
+
+## D-269 Filterwechsel behält die Auswahl, Fokus in der Liste (Feature `status-farben`, 2026-11-24)
+
+- **Anlass:** Auftrag vom 2026-11-24: Wird der Filter geändert oder aufgelöst, bleibt die gewählte Buchung gewählt,
+  das Kontoblatt hat den Fokus, und die Buchung steht nach Möglichkeit in der Mitte.
+- **Entscheidung (ändert `oberflaeche.md` 7.1 „ein Filterwechsel hebt die Auswahl auf“):** Bei jedem Filterwechsel
+  (Ausdruck, Zeitraum, Baukasten, Optionen, Zurücksetzen, auch Sortierung) bleiben die gewählten Buchungen gewählt,
+  soweit sie zur neuen Liste gehören. Die Buchung mit dem Fokus (sonst die erste gewählte) wird in die Mitte
+  gerollt und bekommt den Fokus; liegt sie auf einer späteren Seite, wird bis dorthin geladen. Gehört sie nicht
+  mehr zur Liste, geht der Fokus auf die erste Zeile, ohne sie auszuwählen.
+- **Beim Tippen:** Solange der Fokus in einem Eingabefeld steht (der Filter wirkt schon während des Tippens),
+  bleibt er dort; Auswahl und Lage werden trotzdem nachgeführt. Eingabe im Filterfeld schließt ab: der Fokus geht
+  in die Liste (ohne Auswahl wird die erste Zeile gewählt). „✕“ am Filterfeld gibt den Fokus ebenfalls an die
+  Liste statt zurück ins Feld.
+- **Schnittstelle:** `GET /api/buchungen` kennt `position_id` (≥ 1) und liefert dann zusätzlich `position`: die
+  Stelle der Buchung (ab 0) in der gefilterten, sortierten Liste oder `null`. Ohne den Parameter fehlt das Feld.
+- **Prüfung:** Core-Test `test_position_einer_buchung_in_der_liste`; im Browser mit 450 Buchungen durchgespielt
+  (filtern, wählen, Filter leeren: gewählt, Fokus, Mitte, zweite Seite nachgeladen). Nicht geprüft: gruppierte
+  Ansicht, Baukasten, Handy.
+- **Offen vor dem Merge:** Tests, die nach einem Filterwechsel eine leere Auswahl erwarten.

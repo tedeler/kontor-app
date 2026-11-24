@@ -210,7 +210,8 @@ erlaubt. Ein `data-testid` kommt auf einer Seite höchstens einmal vor
   genau den REST-Parameternamen in der URL (`replaceState`), z. B.
   `/konten/5?von=2024-03-01&bis=2024-03-31&status=bestaetigt`. Ein direkter
   Aufruf mit Abfrage setzt die Felder entsprechend. Ein Filterwechsel
-  hebt die Auswahl auf (7.4).
+  behält die Auswahl, soweit die Buchungen zur neuen Liste gehören (D-269, vorher: hebt sie auf); die Buchung mit
+  dem Fokus wird in die Mitte gerollt und bekommt den Fokus, außer der Fokus steht gerade in einem Eingabefeld.
 
 ### 7.2 Buchungsliste
 
