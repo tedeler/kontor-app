@@ -185,6 +185,7 @@ def vorschlag_setzen(con, buchung_id: int, split_id: int, vorher_konto_id: int, 
                 " kategorie_id = excluded.kategorie_id, regel_id = NULL, quelle = excluded.quelle,"
                 " vorher_konto_id = excluded.vorher_konto_id, sicherheit = excluded.sicherheit",
                 (buchung_id, v.kategorie_id, vorher_konto_id, v.sicherheit))
+    buch.automatisch_zugeordnet(con, [buchung_id])   # D-259
 
 
 def anwenden(con, buchung_ids: list[int] | None, trocken: bool) -> dict:

@@ -561,19 +561,36 @@ def buchung_anlegen(con, d: dict) -> dict:
     return buchung_lesen(con, bid)
 
 
-def von_hand_zugeordnet(con, ids: Iterable[int]) -> None:
-    """D-255: Eine von Hand zugeordnete Buchung ist vorläufig.
-
-    Aufzurufen nach jeder Zuordnung durch den Anwender (Kategorie oder Bestandskonto setzen, Splits ersetzen,
-    Vorschlag annehmen). Betrifft nur Buchungen im Status ``importiert``, bei denen danach kein Split mehr auf
-    „Unkategorisiert“ liegt; alle anderen Status bleiben.
-    """
+def _status_bei_zuordnung(con, ids: Iterable[int], von: tuple[str, ...], nach: str) -> None:
     for teil in _stueckweise(sorted(set(ids))):
         con.execute(
-            f"UPDATE buchung SET status = 'vorlaeufig' WHERE status = 'importiert'"
+            f"UPDATE buchung SET status = ? WHERE status IN ({_platzhalter(len(von))})"
             f" AND id IN ({_platzhalter(len(teil))}) AND id NOT IN (SELECT s.buchung_id FROM split s"
             " JOIN konto k ON k.id = s.konto_id WHERE k.extern_id = ?)",
-            [*(sichere_id(x) for x in teil), UNKATEGORISIERT])
+            [nach, *von, *(sichere_id(x) for x in teil), UNKATEGORISIERT])
+
+
+def von_hand_zugeordnet(con, ids: Iterable[int]) -> None:
+    """D-259: Eine von Hand zugeordnete Buchung ist bestätigt.
+
+    Aufzurufen nach jeder Zuordnung durch den Anwender (Kategorie oder Bestandskonto setzen, Splits ersetzen,
+    Vorschlag annehmen). Betrifft Buchungen im Status ``importiert`` oder ``vorlaeufig``, bei denen danach kein
+    Split auf „Unkategorisiert“ liegt.
+    """
+    _status_bei_zuordnung(con, ids, ("importiert", "vorlaeufig"), "bestaetigt")
+
+
+def automatisch_zugeordnet(con, ids: Iterable[int]) -> None:
+    """D-259: Eine automatisch zugeordnete Buchung (Vorschlag von Regel oder Lernmodell, Split-Vorlage) ist
+    vorläufig. Betrifft nur Buchungen im Status ``importiert`` ohne Split auf „Unkategorisiert“."""
+    _status_bei_zuordnung(con, ids, ("importiert",), "vorlaeufig")
+
+
+def vorschlag_abgelehnt(con, ids: Iterable[int]) -> None:
+    """D-259: Mit dem abgelehnten Vorschlag entfällt die automatische Zuordnung – vorläufig wird wieder importiert."""
+    for teil in _stueckweise(sorted(set(ids))):
+        con.execute(f"UPDATE buchung SET status = 'importiert' WHERE status = 'vorlaeufig'"
+                    f" AND id IN ({_platzhalter(len(teil))})", [sichere_id(x) for x in teil])
 
 
 def _gesperrt() -> ApiFehler:

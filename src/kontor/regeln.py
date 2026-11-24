@@ -449,6 +449,7 @@ def vorschlag_setzen(con, buchung_id: int, split_id: int, bisheriges_konto: int,
                 " kategorie_id = excluded.kategorie_id, regel_id = excluded.regel_id, quelle = excluded.quelle, sicherheit = NULL,"
                 " vorher_konto_id = excluded.vorher_konto_id",
                 (buchung_id, regel["kategorie_id"], regel["id"], vorher))
+    buch.automatisch_zugeordnet(con, [buchung_id])   # D-259
 
 
 def anwenden(con, buchung_ids: list[int] | None, regel_ids: list[int] | None, nur_unkategorisiert: bool,
@@ -517,7 +518,9 @@ def _entscheiden(con, b: dict, aktion: str, art_von: dict[int, str]) -> None:
             con.execute("UPDATE split SET konto_id = ? WHERE id = ?", (ziel, gegen["id"]))
     buch.vorschlag_entfernen(con, [b["id"]])
     if aktion == "annehmen":
-        buch.von_hand_zugeordnet(con, [b["id"]])   # D-255: erst das Annehmen ist die Zuordnung
+        buch.von_hand_zugeordnet(con, [b["id"]])   # D-259: Annehmen bestätigt
+    else:
+        buch.vorschlag_abgelehnt(con, [b["id"]])
 
 
 def vorschlag_entscheiden(con, bid: int, aktion: str) -> dict:

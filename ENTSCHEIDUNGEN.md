@@ -3788,3 +3788,29 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   Statusauswahl in der Zeile und „Mehrere ändern“ fragen nicht nach.
 - **Rückgängig:** Zuordnen und Bestätigen sind zwei Änderungen (zweimal Strg+Z).
 - **Prüfung:** nur gelesen und auf Syntax geprüft; kein Browsertest gelaufen.
+
+## D-259 Automatisch zugeordnet ist vorläufig, von Hand zugeordnet ist bestätigt (Feature `status-farben`, 2026-11-24)
+
+- **Anlass:** Präzisierung vom 2026-11-24: „Außer es gibt schon einen Vorschlag für die Kategorie. Dann wird diese
+  genommen. Wird händisch eine Kategorie vergeben, ist die Buchung automatisch bestätigt.“
+- **Ersetzt** die Regel aus D-255 (von Hand zugeordnet = vorläufig) und deren Annahmen zu Auslöser, Rücknahme und
+  Altbestand. Aus D-255 bleibt der zulässige Übergang `vorlaeufig → bestaetigt` und dass Bestätigen auch vorläufige
+  Buchungen erfasst.
+- **Entscheidung:** Rot (`importiert`) = noch nicht zugeordnet; Gelb (`vorlaeufig`) = automatisch zugeordnet;
+  ohne Farbe (`bestaetigt`) = von Hand zugeordnet oder bestätigt.
+  - Vorschlag von Regel oder Lernmodell und Split-Vorlage (bei der Synchronisation und beim Anwenden): `importiert`
+    wird `vorlaeufig` (Folgerung aus dem ersten Auftrag; sonst entstünde Gelb nur noch bei Kreditraten).
+  - Zuordnung von Hand (Kategorie oder Bestandskonto, einzeln und mehrfach, Splits ersetzen) und Vorschlag
+    annehmen: `importiert` und `vorlaeufig` werden `bestaetigt`. Das gilt auch für vorläufige Kreditraten.
+  - Vorschlag ablehnen: `vorlaeufig` wird wieder `importiert`.
+  - Bestätigen einer Buchung mit offenem Vorschlag übernimmt dessen Kategorie ohne Nachfrage (bestehendes
+    Verhalten); die Nachfrage aus D-258 kommt nur ohne Zuordnung.
+- **Personen-Tag (Annahme):** Die Zuordnung von Hand setzt nur den Status, nicht den Tag „B-<Name>“; den setzt
+  weiterhin nur „Als <Person> bestätigen“.
+- **Altbestand:** Einmalig (Merker `meta.status_farben`) werden importierte Buchungen ohne Split auf
+  „Unkategorisiert“ `vorlaeufig`, auch mit offenem Vorschlag. Bestätigt wird nichts von selbst, weil nicht mehr
+  erkennbar ist, ob eine alte Zuordnung von Hand kam.
+- **Tests:** `tests/core/test_status_farben.py` umgestellt (`tests/core/AENDERUNGEN.md`). Der Weg über die
+  Synchronisation hat keinen Core-Test. **Offen vor dem Merge:** Tests in `tests/` und `gesamt-tests/`, die nach
+  einem Vorschlag, einer Split-Vorlage oder einer Zuordnung von Hand den bisherigen Status erwarten, sind noch
+  nicht angepasst (auf dem Branch laufen auftragsgemäß nur die Core-Tests).
