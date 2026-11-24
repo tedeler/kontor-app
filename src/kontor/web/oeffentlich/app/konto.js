@@ -333,7 +333,9 @@ function erwartungText(e) {
 const LAYOUT_SCHLUESSEL = "kontor.layout";
 const VORGABE = () => ({ version: 1, panels: {
   kategorien: { bereich: "links", position: 0, breite: 240, eingeklappt: false },
-  details: { bereich: "rechts", position: 1, breite: 320, eingeklappt: false } } });
+  details: { bereich: "rechts", position: 1, breite: 320, eingeklappt: false, hoehe: 260 } } });
+const HOEHE_MIN = 120;
+const HOEHE_MAX = 600;
 const PANEL_TITEL = { kategorien: "Kategorien", details: "Einzelheiten" };
 const BREITE_MIN = 160;
 const BREITE_MAX = 600;
@@ -344,10 +346,14 @@ export function layoutLaden() {
     if (!l || l.version !== 1 || !l.panels) return VORGABE();
     for (const p of ["kategorien", "details"]) {
       const e = l.panels[p];
-      if (!e || !["links", "rechts"].includes(e.bereich) || !Number.isInteger(e.position) || !Number.isInteger(e.breite)
+      // D-264: die Einzelheiten docken auch unten an
+      if (!e || !(p === "details" ? ["links", "rechts", "unten"] : ["links", "rechts"]).includes(e.bereich)
+        || !Number.isInteger(e.position) || !Number.isInteger(e.breite)
         || e.breite < BREITE_MIN || e.breite > BREITE_MAX || typeof e.eingeklappt !== "boolean") return VORGABE();
     }
-    return { version: 1, panels: { kategorien: { ...l.panels.kategorien }, details: { ...l.panels.details } } };
+    const hoehe = l.panels.details.hoehe;
+    return { version: 1, panels: { kategorien: { ...l.panels.kategorien }, details: { ...l.panels.details,
+      hoehe: Number.isInteger(hoehe) && hoehe >= HOEHE_MIN && hoehe <= HOEHE_MAX ? hoehe : 260 } } };
   } catch (e) {
     return VORGABE();
   }
@@ -975,7 +981,11 @@ class Kontoansicht {
     this.baumEl = null;
     this.bereichLinks = bereich("links");
     this.bereichRechts = bereich("rechts");
-    this.arbeit.replaceChildren(this.bereichLinks, this.listenSpalte, this.bereichRechts);
+    if (this.layout.panels.details.bereich === "unten") {
+      // D-264: Einzelheiten unter der Liste, über deren ganze Breite
+      this.arbeit.replaceChildren(this.bereichLinks,
+        h("div", { class: "mitte-spalte" }, this.listenSpalte, bereich("unten")), this.bereichRechts);
+    } else this.arbeit.replaceChildren(this.bereichLinks, this.listenSpalte, this.bereichRechts);
     this.detailsZeichnen();
   }
 
@@ -985,18 +995,26 @@ class Kontoansicht {
     const einklappen = h("button", { type: "button", class: "knopf-flach", tid: `panel-einklappen-${p}`,
       "aria-expanded": String(!l.eingeklappt), "aria-label": `Panel ${PANEL_TITEL[p]} ${l.eingeklappt ? "aufklappen" : "einklappen"}`,
       onclick: () => { l.eingeklappt = !l.eingeklappt; this.layoutAnwenden(); } }, l.eingeklappt ? "▸" : "▾");
+    // D-264: die Einzelheiten wechseln zwischen rechts und unten (links gibt es seit D-263 kein Panel mehr)
+    const unten = l.bereich === "unten";
+    const ziel = p === "details" ? (l.bereich === "rechts" ? "unten" : "rechts") : (l.bereich === "links" ? "rechts" : "links");
+    const zielText = { links: "links andocken", rechts: "rechts andocken", unten: "unten andocken" }[ziel];
     const verschieben = h("button", { type: "button", class: "knopf-flach", tid: `panel-verschieben-${p}`,
-      "aria-label": `Panel ${PANEL_TITEL[p]} in den ${l.bereich === "links" ? "rechten" : "linken"} Bereich verschieben`,
-      onclick: () => this.panelVerschieben(p, l.bereich === "links" ? "rechts" : "links") }, "⇄");
+      "data-ziel": ziel, title: `${PANEL_TITEL[p]} ${zielText}`, "aria-label": `Panel ${PANEL_TITEL[p]} ${zielText}`,
+      onclick: () => this.panelVerschieben(p, ziel) }, ziel === "unten" ? "⬓" : ziel === "rechts" ? "◨" : "◧");
     const kopf = h("div", { class: "panel-kopf", tid: `panel-kopf-${p}` }, h("h2", { id: kopfId }, PANEL_TITEL[p]),
       verschieben, einklappen);
     const inhalt = h("div", { class: "panel-inhalt" });
-    const griff = h("div", { class: "panel-griff", tid: `panel-groesse-${p}`, role: "separator",
-      "aria-orientation": "vertical", "aria-valuenow": String(l.breite), "aria-valuemin": String(BREITE_MIN),
-      "aria-valuemax": String(BREITE_MAX), tabindex: "0", "aria-label": `Breite des Panels ${PANEL_TITEL[p]}` });
+    const griff = unten ? h("div", { class: "panel-griff", tid: `panel-groesse-${p}`, role: "separator",
+      "aria-orientation": "horizontal", "aria-valuenow": String(l.hoehe), "aria-valuemin": String(HOEHE_MIN),
+      "aria-valuemax": String(HOEHE_MAX), tabindex: "0", "aria-label": `Höhe des Panels ${PANEL_TITEL[p]}` })
+      : h("div", { class: "panel-griff", tid: `panel-groesse-${p}`, role: "separator",
+        "aria-orientation": "vertical", "aria-valuenow": String(l.breite), "aria-valuemin": String(BREITE_MIN),
+        "aria-valuemax": String(BREITE_MAX), tabindex: "0", "aria-label": `Breite des Panels ${PANEL_TITEL[p]}` });
     const el = h("section", { class: "panel", tid: `panel-${p}`, "aria-labelledby": kopfId, "data-bereich": l.bereich,
       "data-eingeklappt": l.eingeklappt ? "ja" : "nein" }, kopf, inhalt, griff);
-    el.style.width = (l.eingeklappt ? 40 : l.breite) + "px";
+    if (unten) { if (!l.eingeklappt) el.style.height = l.hoehe + "px"; }
+    else el.style.width = (l.eingeklappt ? 40 : l.breite) + "px";
     this.panelEls[p] = { el, inhalt, griff };
     this.griffBedienung(p, griff);
     this.panelZiehen(p, kopf);
@@ -1038,8 +1056,45 @@ class Kontoansicht {
     layoutSpeichern(this.layout);
   }
 
+  hoeheSetzen(p, hoehe) {
+    const l = this.layout.panels[p];
+    l.hoehe = Math.max(HOEHE_MIN, Math.min(HOEHE_MAX, Math.round(hoehe)));
+    const pe = this.panelEls[p];
+    if (pe) {
+      pe.griff.setAttribute("aria-valuenow", String(l.hoehe));
+      if (!l.eingeklappt) pe.el.style.height = l.hoehe + "px";
+    }
+    layoutSpeichern(this.layout);
+  }
+
   griffBedienung(p, griff) {
     const l = this.layout.panels[p];
+    if (l.bereich === "unten") {   // D-264: der Griff liegt oben und ändert die Höhe
+      griff.addEventListener("keydown", (e) => {
+        const schritt = { ArrowUp: 16, ArrowDown: -16 }[e.key];
+        if (schritt) { e.preventDefault(); this.hoeheSetzen(p, l.hoehe + schritt); }
+        else if (e.key === "Home") { e.preventDefault(); this.hoeheSetzen(p, HOEHE_MIN); }
+        else if (e.key === "End") { e.preventDefault(); this.hoeheSetzen(p, HOEHE_MAX); }
+      });
+      griff.addEventListener("pointerdown", (e) => {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const y0 = e.clientY;
+        const h0 = l.hoehe;
+        griff.setPointerCapture(e.pointerId);
+        const bewegen = (ev) => this.hoeheSetzen(p, h0 - (ev.clientY - y0));
+        const ende = () => {
+          griff.removeEventListener("pointermove", bewegen);
+          griff.removeEventListener("pointerup", ende);
+          griff.removeEventListener("pointercancel", ende);
+        };
+        griff.addEventListener("pointermove", bewegen);
+        griff.addEventListener("pointerup", ende);
+        griff.addEventListener("pointercancel", ende);
+      });
+      return;
+    }
     griff.addEventListener("keydown", (e) => {
       const links = l.bereich === "links";
       const schritt = { ArrowRight: links ? 16 : -16, ArrowLeft: links ? -16 : 16 }[e.key];

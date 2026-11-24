@@ -3867,3 +3867,16 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   die Navigation.
 - **Offen vor dem Merge:** Browsertests, die das Panel Kategorien bedienen (Layout, Ziehen und Ablegen), sind noch
   nicht angepasst und werden rot oder müssen entfallen.
+
+## D-264 Einzelheiten rechts oder unten angedockt (Feature `status-farben`, 2026-11-24)
+
+- **Anlass:** Auftrag vom 2026-11-24: Die Einzelheiten können als Dockfenster rechts oder unten angezeigt werden.
+- **Entscheidung:** Das Panel „Einzelheiten“ kennt den Bereich `unten` (`bereich-unten`): unter der Liste, über
+  deren ganze Breite. Der Knopf `panel-verschieben-details` im Panelkopf wechselt zwischen rechts und unten
+  (`data-ziel` nennt das Ziel). Unten ändert der Griff am oberen Rand die Höhe (120 bis 600 Pixel, Vorgabe 260,
+  Pfeil auf/ab, Pos1/Ende); eingeklappt bleibt nur die Kopfzeile. Ort, Breite und Höhe werden wie bisher im
+  Browser gemerkt (`kontor.layout`, neues Feld `hoehe`; ältere Stände bleiben gültig).
+- **Unverändert:** Am Handy öffnen die Einzelheiten als Dialog. Ein gespeicherter Ort „links“ bleibt gültig; der
+  Knopf führt von dort nach rechts.
+- **Prüfung:** einmal im Browser angesehen (rechts, unten, Wechsel über den Knopf); kein Browsertest geschrieben.
+  Dabei auch D-257 (Schriftfarbe in der Auswahl) und D-263 (kein Panel Kategorien) gesehen.

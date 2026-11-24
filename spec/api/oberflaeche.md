@@ -254,6 +254,9 @@ erlaubt. Ein `data-testid` kommt auf einer Seite höchstens einmal vor
 
 ### 7.3 Seitenpanels der Kontoansicht
 
+- **D-264:** `panel-details` dockt rechts (`bereich-rechts`) oder unten (`bereich-unten`, unter der Liste) an;
+  `panel-verschieben-details` wechselt (`data-ziel` = `unten` bzw. `rechts`). Unten ist `panel-groesse-details`
+  waagerecht (`aria-orientation="horizontal"`) und ändert die Höhe (120–600, Vorgabe 260).
 - **D-263:** Das Panel `panel-kategorien` wird im Kontoblatt nicht mehr gezeigt; der folgende Punkt und das
   Ziehen auf Einträge dieses Panels (weiter unten) gelten nicht mehr. `panel-details` bleibt.
 - `panel-kategorien`: Kategorienbaum (13.1) als Ablageziel für Drag and
