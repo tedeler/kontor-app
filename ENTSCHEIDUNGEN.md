@@ -3840,3 +3840,18 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   `filter`) und damit in Vervollständigung und Baukasten.
 - **Nicht:** kein Tag „Verdächtig“ auf der Tag-Seite, kein Filter über `tag_id`.
 - **Prüfung:** Core-Test `test_filter_verdaechtig`; Vervollständigung und Baukasten nicht im Browser angesehen.
+
+## D-262 Kategorieauswahl kann Kategorien anlegen (Feature `status-farben`, 2026-11-24)
+
+- **Anlass:** Auftrag vom 2026-11-24: Der Dialog „Kategorie setzen“ (Kürzel k) soll Kategorien anlegen können.
+- **Entscheidung:** Die Kategorieauswahl (`kategorie-auswahl`) hat unter der Liste den Knopf „Neue Kategorie
+  anlegen…“ (`kategorie-auswahl-neu`). Er zeigt statt der Liste ein Formular (`kategorie-neu`): Name
+  (`kategorie-neu-name`, vorbelegt mit dem Suchtext), Art (`kategorie-neu-art`: Ausgaben oder Einnahmen) und
+  übergeordnete Kategorie (`kategorie-neu-eltern`, Kategorien derselben Art oder oberste Ebene). „Anlegen und
+  wählen“ (`kategorie-neu-anlegen`) legt sie an und wählt sie; „Zurück zur Auswahl“ (`kategorie-neu-zurueck`)
+  kehrt zur Liste zurück. Eingabe im Suchfeld ohne Treffer öffnet das Formular direkt. Fehler (z. B. gleichnamige
+  Kategorie auf derselben Ebene) erscheinen im Dialog.
+- **Gilt überall, wo die Auswahl erscheint:** Kategorie setzen (einzeln, mehrfach) und die Nachfrage beim
+  Bestätigen (D-258). Bestandskonten lassen sich hier nicht anlegen.
+- **Rückgängig:** Anlegen und Zuordnen sind zwei Änderungen.
+- **Prüfung:** nur gelesen und auf Syntax geprüft; kein Browsertest gelaufen.

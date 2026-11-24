@@ -388,6 +388,12 @@ Dialog in `dialog-fehler` (`role="alert"`); der Dialog bleibt dann offen.
   Befehlspalette (12.3) über den Pfad.
 - Pfeil ab/auf markiert (`aria-selected`), Enter oder Klick übernimmt sofort
   und schließt; dann wirkt die auslösende Aktion.
+- **Neue Kategorie (D-262):** Knopf `kategorie-auswahl-neu` „Neue Kategorie anlegen…“ unter der Liste zeigt
+  statt Suche und Liste das Formular `kategorie-neu` mit `kategorie-neu-name` (vorbelegt mit dem Suchtext),
+  `kategorie-neu-art` (`aufwand`, `ertrag`), `kategorie-neu-eltern` (leer = oberste Ebene, sonst Kategorien
+  derselben Art), `kategorie-neu-anlegen` und `kategorie-neu-zurueck`. Anlegen sendet `POST /api/konten`,
+  schließt den Dialog und übernimmt die neue Kategorie wie eine gewählte. Enter im Suchfeld ohne Treffer und mit
+  Text öffnet das Formular. Fehler stehen in `dialog-fehler`.
 
 ### 9.2 Tag-Auswahl (`tag-auswahl`)
 

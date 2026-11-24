@@ -318,6 +318,7 @@ export function menuePosition(ev, el) {
  *  ``optionen.ohneKonto`` (das Konto des Blatts). */
 export function kategorieAuswahl(titel, ausloeser, optionen) {
   const o = optionen || {};
+  let angelegt = null;   // läuft das Anlegen einer neuen Kategorie (D-262), wartet das Ergebnis darauf
   const d = dialog("kategorie-auswahl", titel || "Kategorie wählen", (inhalt, dd) => {
     const listeId = neueId("kat-liste");
     const suche = h("input", { type: "text", tid: "kategorie-auswahl-suche", role: "combobox",
@@ -377,12 +378,51 @@ export function kategorieAuswahl(titel, ausloeser, optionen) {
         const s = sichtbar();
         const wahl = markiert >= 0 ? s[markiert] : (s.length === 1 ? s[0] : null);
         if (wahl) dd.schliessen(wahl.id);
+        else if (!s.length && suche.value.trim()) neuOeffnen();   // nichts gefunden: gleich anlegen (D-262)
       }
     });
     anhaengen(liste, alle.map((x) => x.el));
-    inhalt.append(suche, liste);
+    // D-262: neue Kategorie aus der Auswahl heraus anlegen; sie ist danach gewählt
+    const neuName = h("input", { type: "text", tid: "kategorie-neu-name", maxlength: "200" });
+    const neuArt = h("select", { tid: "kategorie-neu-art" },
+      ["aufwand", "ertrag"].map((a) => h("option", { value: a }, ART_NAMEN[a])));
+    const neuEltern = h("select", { tid: "kategorie-neu-eltern" });
+    const elternFuellen = () => {
+      neuEltern.replaceChildren(h("option", { value: "" }, "(keine – oberste Ebene)"),
+        ...kategorien().filter(({ konto }) => konto.art === neuArt.value)
+          .map(({ konto }) => h("option", { value: String(konto.id) }, kontoPfad(konto))));
+    };
+    neuArt.addEventListener("change", elternFuellen);
+    const anlegen = knopf("Anlegen und wählen", { tid: "kategorie-neu-anlegen", class: "knopf knopf-haupt" });
+    anlegen.addEventListener("click", () => imDialog(dd, anlegen, async () => {
+      const name = neuName.value.trim();
+      if (!name) { dd.fehler("Bitte einen Namen eingeben."); return; }
+      const body = { name, art: neuArt.value };
+      if (neuEltern.value) body.eltern_id = Number(neuEltern.value);
+      // Der Dialog schließt vor dem Neuladen; der Aufrufer bekommt die Wahl erst, wenn die Stammdaten da sind.
+      angelegt = aktion(() => api("POST", "/api/konten", body), { stillBeiFehler: true,
+        danach: (k) => dd.schliessen(k.id), erfolg: `Kategorie „${name}“ angelegt.` });
+      await angelegt;
+    }));
+    neuName.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); anlegen.click(); } });
+    const neuForm = h("div", { class: "kategorie-neu", tid: "kategorie-neu", hidden: true },
+      feld("Name", neuName), feld("Art", neuArt), feld("Übergeordnete Kategorie", neuEltern),
+      knopfLeiste(anlegen, knopf("Zurück zur Auswahl", { tid: "kategorie-neu-zurueck", onclick: () => {
+        neuForm.hidden = true; neuKnopf.hidden = false; liste.hidden = false; suche.hidden = false; suche.focus();
+      } })));
+    function neuOeffnen() {
+      neuName.value = suche.value.trim();
+      elternFuellen();
+      neuForm.hidden = false; neuKnopf.hidden = true; liste.hidden = true; suche.hidden = true;
+      neuName.focus();
+    }
+    const neuKnopf = knopf("Neue Kategorie anlegen…", { tid: "kategorie-auswahl-neu", onclick: neuOeffnen });
+    inhalt.append(suche, liste, neuKnopf, neuForm);
   }, { ausloeser, klasse: "dialog-auswahl" });
-  return d.ergebnis;
+  return d.ergebnis.then(async (wahl) => {
+    try { await angelegt; } catch (e) { /* im Dialog gemeldet */ }
+    return wahl;
+  });
 }
 
 // ------------------------------------------------------------------ Tag-Auswahl (9.2)
