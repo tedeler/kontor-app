@@ -318,7 +318,7 @@ export function menuePosition(ev, el) {
  *  ``optionen.ohneKonto`` (das Konto des Blatts). */
 export function kategorieAuswahl(titel, ausloeser, optionen) {
   const o = optionen || {};
-  let angelegt = null;   // läuft das Anlegen einer neuen Kategorie (D-262), wartet das Ergebnis darauf
+  let angelegt = null;   // läuft das Anlegen einer neuen Kategorie (D-264), wartet das Ergebnis darauf
   const d = dialog("kategorie-auswahl", titel || "Kategorie wählen", (inhalt, dd) => {
     const listeId = neueId("kat-liste");
     const suche = h("input", { type: "text", tid: "kategorie-auswahl-suche", role: "combobox",
@@ -378,11 +378,11 @@ export function kategorieAuswahl(titel, ausloeser, optionen) {
         const s = sichtbar();
         const wahl = markiert >= 0 ? s[markiert] : (s.length === 1 ? s[0] : null);
         if (wahl) dd.schliessen(wahl.id);
-        else if (!s.length && suche.value.trim()) neuOeffnen();   // nichts gefunden: gleich anlegen (D-262)
+        else if (!s.length && suche.value.trim()) neuOeffnen();   // nichts gefunden: gleich anlegen (D-264)
       }
     });
     anhaengen(liste, alle.map((x) => x.el));
-    // D-262: neue Kategorie aus der Auswahl heraus anlegen; sie ist danach gewählt
+    // D-264: neue Kategorie aus der Auswahl heraus anlegen; sie ist danach gewählt
     const neuName = h("input", { type: "text", tid: "kategorie-neu-name", maxlength: "200" });
     const neuArt = h("select", { tid: "kategorie-neu-art" },
       ["aufwand", "ertrag"].map((a) => h("option", { value: a }, ART_NAMEN[a])));
@@ -610,7 +610,7 @@ export function splitDialog(buchung, ausloeser) {
       await aktion(() => api("PUT", `/api/buchungen/${buchung.id}/splits`, { splits }),
         { stillBeiFehler: true, danach: () => d.schliessen(true), erfolg: "Splits gespeichert." });
     }));
-    // D-265: eine Split-Vorlage von Hand übernehmen – auch wenn ihr Betrag nicht zur Buchung passt
+    // D-267: eine Split-Vorlage von Hand übernehmen – auch wenn ihr Betrag nicht zur Buchung passt
     const vorlageWahl = h("select", { tid: "split-vorlage-wahl", "aria-label": "Split-Vorlage übernehmen", disabled: true },
       h("option", { value: "" }, "– Vorlage übernehmen –"));
     const vorlageHinweis = h("p", { class: "hinweis", tid: "split-vorlage-hinweis", hidden: true });

@@ -459,7 +459,7 @@ paths:
           schema: {type: string, enum: [ja, nein], default: nein}
         - name: position_id
           in: query
-          description: "D-269: Buchungs-ID; die Antwort trägt dann zusätzlich `position` (Stelle ab 0 in der gefilterten, sortierten Liste oder null). Ohne den Parameter fehlt das Feld."
+          description: "D-271: Buchungs-ID; die Antwort trägt dann zusätzlich `position` (Stelle ab 0 in der gefilterten, sortierten Liste oder null). Ohne den Parameter fehlt das Feld."
           schema: {type: integer, minimum: 1}
         - name: suche
           in: query

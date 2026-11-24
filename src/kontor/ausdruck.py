@@ -67,7 +67,7 @@ FELDER: dict[str, Feld] = {f.name: f for f in (
     Feld("kw", None, "int", "Kalenderwoche", nur_filter=True, bereich=(1, 53)),
     Feld("wochentag", None, "auswahl", "Wochentag", werte=WOCHENTAGE + tuple(WOCHENTAG_GRUPPEN)),
     Feld("letzter_tag", None, "bool", "Letzter Tag des Monats"),
-    Feld("verdächtig", None, "bool", "Verdächtig", nur_filter=True),   # D-261: berechnet (verdacht.py), nie gespeichert
+    Feld("verdächtig", None, "bool", "Verdächtig", nur_filter=True),   # D-263: berechnet (verdacht.py), nie gespeichert
 )}
 
 SCHLUESSELWOERTER = {"and", "or", "not", "in", "is", "none", "null", "true", "false"}
@@ -1414,7 +1414,7 @@ class Sicht:
     tag_ids: frozenset[int] = frozenset()
     tag_namen: tuple[str, ...] = ()
     umbuchung: bool = False
-    verdacht: bool = False   # D-261: nur gefüllt, wenn der Filter das Feld „verdächtig“ nutzt
+    verdacht: bool = False   # D-263: nur gefüllt, wenn der Filter das Feld „verdächtig“ nutzt
 
     @property
     def betrag(self) -> int:
@@ -1771,7 +1771,7 @@ def filtern(con, baum: dict, ids: Iterable[int], konten: set[int] | None, heute:
     aus: list[int] = []
     for teil in buch._stueckweise(list(ids)):
         geladen = laden(con, teil, art_von=art_von)
-        if mit_verdacht:   # D-261: nur dann rechnen, wenn der Ausdruck danach fragt
+        if mit_verdacht:   # D-263: nur dann rechnen, wenn der Ausdruck danach fragt
             from . import verdacht
             verdacht.anreichern(con, geladen)
         for b in geladen:

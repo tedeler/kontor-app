@@ -1,4 +1,4 @@
-"""Core-Tests zum Feature status-farben (D-259): Automatisch zugeordnet ist „Vorläufig“, von Hand „Bestätigt“."""
+"""Core-Tests zum Feature status-farben (D-261): Automatisch zugeordnet ist „Vorläufig“, von Hand „Bestätigt“."""
 
 from __future__ import annotations
 
@@ -147,7 +147,7 @@ def test_altbestand_wird_einmalig_umgestellt(buch, config):
                                                      "nur_unkategorisiert": False}).status_code == 200
     con = db.verbinde(config.datenbank)
     con.execute("DELETE FROM meta WHERE schluessel = 'status_farben'")
-    con.execute("UPDATE buchung SET status = 'importiert' WHERE id = ?", (mit_vorschlag,))   # Stand vor D-259
+    con.execute("UPDATE buchung SET status = 'importiert' WHERE id = ?", (mit_vorschlag,))   # Stand vor D-261
     con.close()
 
     db.schema_anlegen(config.datenbank)
@@ -160,7 +160,7 @@ def test_altbestand_wird_einmalig_umgestellt(buch, config):
 
 
 def test_bestaetigungs_tags_heissen_name_bestaetigt(buch, config):
-    """D-260: Das Tag der Bestätigung heißt „<Name>-Bestätigt“. Vorhandene „B-<Name>“ werden beim Start umbenannt
+    """D-262: Das Tag der Bestätigung heißt „<Name>-Bestätigt“. Vorhandene „B-<Name>“ werden beim Start umbenannt
     und behalten ihre Buchungen; gibt es das neue Tag schon, wandern die Zuordnungen dorthin."""
     from kontor import pflege
 
@@ -183,7 +183,7 @@ def test_bestaetigungs_tags_heissen_name_bestaetigt(buch, config):
 
 
 def test_filter_verdaechtig(buch):
-    """D-261: „verdächtig“ ist ein Feld des Filterausdrucks (kein gespeichertes Tag) und trifft genau die Buchungen,
+    """D-263: „verdächtig“ ist ein Feld des Filterausdrucks (kein gespeichertes Tag) und trifft genau die Buchungen,
     die das Label „Verdächtig“ tragen."""
     client, k, neu = buch
     fremd = client.post("/api/empfaenger", json={"name": "Unbekannter Laden (fiktiv)"}).json()["id"]
@@ -217,7 +217,7 @@ def test_filter_verdaechtig(buch):
 
 
 def test_position_einer_buchung_in_der_liste(buch):
-    """D-269: ``position_id`` nennt die Stelle (ab 0) einer Buchung in der gefilterten, sortierten Liste – damit die
+    """D-271: ``position_id`` nennt die Stelle (ab 0) einer Buchung in der gefilterten, sortierten Liste – damit die
     Oberfläche nach einem Filterwechsel die Seite der gewählten Buchung laden kann. Ohne den Parameter fehlt das Feld."""
     client, k, neu = buch
     ids = []

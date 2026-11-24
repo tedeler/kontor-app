@@ -3735,7 +3735,7 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   `gesamt-tests/.../m22/test_m22_oberflaeche.py::test_markierung_rangfolge_und_darstellung` auf die neuen Werte
   umgestellt (`TESTUMBAU.md`, „Geänderte Tests“).
 
-## D-255 Zuordnung von Hand macht eine importierte Buchung vorläufig (Feature `status-farben`, 2026-11-24)
+## D-257 Zuordnung von Hand macht eine importierte Buchung vorläufig (Feature `status-farben`, 2026-11-24)
 
 - **Anlass:** Auftrag vom 2026-11-24: „Wird eine Buchung einer Kategorie zugeordnet, ist sie automatisch Vorläufig
   bestätigt.“ Mit D-254 heißt das: Rot = noch nicht zugeordnet, Gelb = zugeordnet, ohne Farbe = bestätigt.
@@ -3756,7 +3756,7 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   Branch liefen auftragsgemäß nur die Core-Tests und einmal die eigenen Tests ohne Browser; weitere Gesamttests,
   die eine importierte Buchung zuordnen und danach `importiert` erwarten, zeigt erst die CI auf main.
 
-## D-256 Bestätigen zeigt den Status sofort (Feature `status-farben`, 2026-11-24)
+## D-258 Bestätigen zeigt den Status sofort (Feature `status-farben`, 2026-11-24)
 
 - **Anlass:** Rückmeldung vom 2026-11-24: Nach „b“ ändert sich der Status erst nach etwa einer halben Sekunde.
 - **Ursache:** Die Aktion besteht aus fünf Anfragen nacheinander (höchste Änderung lesen, Tag setzen, Status setzen,
@@ -3766,7 +3766,7 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   Aktion fehl, wird die Anzeige zurückgenommen. Der Personen-Tag erscheint weiterhin erst mit dem Neuladen.
 - **Prüfung:** nur gelesen und auf Syntax geprüft; kein Browsertest gelaufen (auf dem Branch laufen nur Core-Tests).
 
-## D-257 Ausgewählte Zeilen: Status an der Schriftfarbe erkennbar (Feature `status-farben`, 2026-11-24)
+## D-259 Ausgewählte Zeilen: Status an der Schriftfarbe erkennbar (Feature `status-farben`, 2026-11-24)
 
 - **Anlass:** Auftrag vom 2026-11-24: Importierte und vorläufige Buchungen sollen auch markiert anders aussehen,
   mit farbiger Schrift. Bisher überdeckte die Auswahlfarbe die Tönung aus D-254; nur der Streifen links blieb.
@@ -3775,7 +3775,7 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   bleiben wie in D-254 (Tönung, normale Schrift). Beträge behalten ihre eigene Farbe (negativ rot).
 - **Prüfung:** nicht im Browser angesehen; Kontrast nur gerechnet (jeweils etwa 4,7 bis 5,9 zu 1).
 
-## D-258 Bestätigen roter Buchungen verlangt eine Kategorie oder ein Konto (Feature `status-farben`, 2026-11-24)
+## D-260 Bestätigen roter Buchungen verlangt eine Kategorie oder ein Konto (Feature `status-farben`, 2026-11-24)
 
 - **Anlass:** Auftrag vom 2026-11-24: „Bestätigt man rote Buchungen, sollte immer eine Kategorie/Konto gefordert
   werden.“
@@ -3789,12 +3789,12 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - **Rückgängig:** Zuordnen und Bestätigen sind zwei Änderungen (zweimal Strg+Z).
 - **Prüfung:** nur gelesen und auf Syntax geprüft; kein Browsertest gelaufen.
 
-## D-259 Automatisch zugeordnet ist vorläufig, von Hand zugeordnet ist bestätigt (Feature `status-farben`, 2026-11-24)
+## D-261 Automatisch zugeordnet ist vorläufig, von Hand zugeordnet ist bestätigt (Feature `status-farben`, 2026-11-24)
 
 - **Anlass:** Präzisierung vom 2026-11-24: „Außer es gibt schon einen Vorschlag für die Kategorie. Dann wird diese
   genommen. Wird händisch eine Kategorie vergeben, ist die Buchung automatisch bestätigt.“
-- **Ersetzt** die Regel aus D-255 (von Hand zugeordnet = vorläufig) und deren Annahmen zu Auslöser, Rücknahme und
-  Altbestand. Aus D-255 bleibt der zulässige Übergang `vorlaeufig → bestaetigt` und dass Bestätigen auch vorläufige
+- **Ersetzt** die Regel aus D-257 (von Hand zugeordnet = vorläufig) und deren Annahmen zu Auslöser, Rücknahme und
+  Altbestand. Aus D-257 bleibt der zulässige Übergang `vorlaeufig → bestaetigt` und dass Bestätigen auch vorläufige
   Buchungen erfasst.
 - **Entscheidung:** Rot (`importiert`) = noch nicht zugeordnet; Gelb (`vorlaeufig`) = automatisch zugeordnet;
   ohne Farbe (`bestaetigt`) = von Hand zugeordnet oder bestätigt.
@@ -3804,7 +3804,7 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
     annehmen: `importiert` und `vorlaeufig` werden `bestaetigt`. Das gilt auch für vorläufige Kreditraten.
   - Vorschlag ablehnen: `vorlaeufig` wird wieder `importiert`.
   - Bestätigen einer Buchung mit offenem Vorschlag übernimmt dessen Kategorie ohne Nachfrage (bestehendes
-    Verhalten); die Nachfrage aus D-258 kommt nur ohne Zuordnung.
+    Verhalten); die Nachfrage aus D-260 kommt nur ohne Zuordnung.
 - **Personen-Tag (Annahme):** Die Zuordnung von Hand setzt nur den Status, nicht den Tag „B-<Name>“; den setzt
   weiterhin nur „Als <Person> bestätigen“.
 - **Altbestand:** Einmalig (Merker `meta.status_farben`) werden importierte Buchungen ohne Split auf
@@ -3815,7 +3815,7 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   einem Vorschlag, einer Split-Vorlage oder einer Zuordnung von Hand den bisherigen Status erwarten, sind noch
   nicht angepasst (auf dem Branch laufen auftragsgemäß nur die Core-Tests).
 
-## D-260 Bestätigungs-Tag heißt „<Name>-Bestätigt“ und steht hinten (Feature `status-farben`, 2026-11-24)
+## D-262 Bestätigungs-Tag heißt „<Name>-Bestätigt“ und steht hinten (Feature `status-farben`, 2026-11-24)
 
 - **Anlass:** Auftrag vom 2026-11-24: Das Tag bleibt, heißt aber „<Benutzer>-Bestätigt“ und wird in der Oberfläche
   immer nachrangig gezeigt, damit es andere Tags nicht verdrängt. (Die zuvor erwogene Anzeige eines Kürzels am
@@ -3828,7 +3828,7 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   Regelausdrücke, die den Tag-Namen „B-…“ als Text enthalten, werden nicht umgeschrieben.
 - **Tests:** Core-Test `test_bestaetigungs_tags_heissen_name_bestaetigt`; angepasste Tests in `TESTUMBAU.md`.
 
-## D-261 „Verdächtig“ als Feld des Filterausdrucks (Feature `status-farben`, 2026-11-24)
+## D-263 „Verdächtig“ als Feld des Filterausdrucks (Feature `status-farben`, 2026-11-24)
 
 - **Anlass:** Auftrag vom 2026-11-24: Nach „Verdächtig“ soll man filtern können. Erwogen war ein echtes Tag;
   abgestimmt ist der Filter ohne Tag, weil der Verdacht von anderen Buchungen desselben Empfängers abhängt und ein
@@ -3841,7 +3841,7 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - **Nicht:** kein Tag „Verdächtig“ auf der Tag-Seite, kein Filter über `tag_id`.
 - **Prüfung:** Core-Test `test_filter_verdaechtig`; Vervollständigung und Baukasten nicht im Browser angesehen.
 
-## D-262 Kategorieauswahl kann Kategorien anlegen (Feature `status-farben`, 2026-11-24)
+## D-264 Kategorieauswahl kann Kategorien anlegen (Feature `status-farben`, 2026-11-24)
 
 - **Anlass:** Auftrag vom 2026-11-24: Der Dialog „Kategorie setzen“ (Kürzel k) soll Kategorien anlegen können.
 - **Entscheidung:** Die Kategorieauswahl (`kategorie-auswahl`) hat unter der Liste den Knopf „Neue Kategorie
@@ -3852,11 +3852,11 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   kehrt zur Liste zurück. Eingabe im Suchfeld ohne Treffer öffnet das Formular direkt. Fehler (z. B. gleichnamige
   Kategorie auf derselben Ebene) erscheinen im Dialog.
 - **Gilt überall, wo die Auswahl erscheint:** Kategorie setzen (einzeln, mehrfach) und die Nachfrage beim
-  Bestätigen (D-258). Bestandskonten lassen sich hier nicht anlegen.
+  Bestätigen (D-260). Bestandskonten lassen sich hier nicht anlegen.
 - **Rückgängig:** Anlegen und Zuordnen sind zwei Änderungen.
 - **Prüfung:** nur gelesen und auf Syntax geprüft; kein Browsertest gelaufen.
 
-## D-263 Kontoblatt ohne Panel Kategorien (Feature `status-farben`, 2026-11-24)
+## D-265 Kontoblatt ohne Panel Kategorien (Feature `status-farben`, 2026-11-24)
 
 - **Anlass:** Auftrag vom 2026-11-24: Im Kontoblatt die Kategorienliste nicht anzeigen, das gibt mehr Platz.
 - **Entscheidung:** Das Panel „Kategorien“ (`panel-kategorien`) wird im Kontoblatt nicht mehr aufgebaut; die Liste
@@ -3868,7 +3868,7 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - **Offen vor dem Merge:** Browsertests, die das Panel Kategorien bedienen (Layout, Ziehen und Ablegen), sind noch
   nicht angepasst und werden rot oder müssen entfallen.
 
-## D-264 Einzelheiten rechts oder unten angedockt (Feature `status-farben`, 2026-11-24)
+## D-266 Einzelheiten rechts oder unten angedockt (Feature `status-farben`, 2026-11-24)
 
 - **Anlass:** Auftrag vom 2026-11-24: Die Einzelheiten können als Dockfenster rechts oder unten angezeigt werden.
 - **Entscheidung:** Das Panel „Einzelheiten“ kennt den Bereich `unten` (`bereich-unten`): unter der Liste, über
@@ -3879,9 +3879,9 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - **Unverändert:** Am Handy öffnen die Einzelheiten als Dialog. Ein gespeicherter Ort „links“ bleibt gültig; der
   Knopf führt von dort nach rechts.
 - **Prüfung:** einmal im Browser angesehen (rechts, unten, Wechsel über den Knopf); kein Browsertest geschrieben.
-  Dabei auch D-257 (Schriftfarbe in der Auswahl) und D-263 (kein Panel Kategorien) gesehen.
+  Dabei auch D-259 (Schriftfarbe in der Auswahl) und D-265 (kein Panel Kategorien) gesehen.
 
-## D-265 Split-Dialog: Vorlage von Hand übernehmen (Feature `status-farben`, 2026-11-24)
+## D-267 Split-Dialog: Vorlage von Hand übernehmen (Feature `status-farben`, 2026-11-24)
 
 - **Anlass:** Auftrag vom 2026-11-24: Bei „Buchung splitten“ lässt sich eine Vorlage auswählen, auch wenn der
   Betrag nicht passt.
@@ -3890,11 +3890,11 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   denen auf Bestandskonten durch die Teile der Vorlage (Kategorie, Betrag, Memo). Passt der Betrag nicht, bleiben
   die Teile wie in der Vorlage; `split-vorlage-hinweis` nennt den offenen Rest, und gespeichert wird wie bisher
   erst, wenn die Summe 0 ist (Teil ändern oder „Split Ausgleichen“). Es wird nicht anteilig umgerechnet.
-- **Status:** Das Speichern ist eine Zuordnung von Hand, die Buchung wird also bestätigt (D-259).
+- **Status:** Das Speichern ist eine Zuordnung von Hand, die Buchung wird also bestätigt (D-261).
 - **Prüfung:** einmal im Browser durchgespielt (Vorlage 10 € auf Buchung 12 €, Ausgleichen, Speichern); kein
   Browsertest geschrieben.
 
-## D-266 Einzelheiten unten: Abschnitte nebeneinander (Feature `status-farben`, 2026-11-24)
+## D-268 Einzelheiten unten: Abschnitte nebeneinander (Feature `status-farben`, 2026-11-24)
 
 - **Anlass:** Rückmeldung vom 2026-11-24 mit Bildschirmfoto: Unten angedockt standen die Abschnitte der
   Einzelheiten untereinander über die ganze Breite; viel Platz blieb leer.
@@ -3906,7 +3906,7 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - **Prüfung:** einmal im Browser bei 1900 Pixel Breite angesehen (helles Thema, Buchung ohne Vorschlag und ohne
   Dokumente).
 
-## D-267 Auswahl und Status auf getrennten Ebenen (Feature `status-farben`, 2026-11-24)
+## D-269 Auswahl und Status auf getrennten Ebenen (Feature `status-farben`, 2026-11-24)
 
 - **Anlass:** Rückmeldung vom 2026-11-24: Die blaue Unterlegung der gewählten Buchung hat dieselbe Struktur wie die
   rote und gelbe Statusfarbe; beim Wechsel zu einer anderen Buchung springen die Farben.
@@ -3915,29 +3915,29 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   dunkler, im dunklen Thema heller) und rahmt sie oben und unten mit einer Linie in der Akzentfarbe. Hover ist
   derselbe Schleier, schwächer und ohne Linien. Die Akzentfarbe steht damit nur noch für „ausgewählt“, Rot und
   Gelb nur für den Status.
-- **Ersetzt D-257:** Die farbige Schrift in ausgewählten Zeilen entfällt; sie war nötig, weil die Auswahl den
+- **Ersetzt D-259:** Die farbige Schrift in ausgewählten Zeilen entfällt; sie war nötig, weil die Auswahl den
   Statuston überdeckte.
 - **Technik:** `--toenung`, `--streifen`, `--schleier` je Zeile; die klebende Betragszelle nutzt dieselben Werte.
   `data-markierung`, `aria-selected` und alle Kennungen sind unverändert.
 - **Prüfung:** im Browser angesehen, hell und dunkel, Auswahl auf roten, gelben und weißen Zeilen sowie Hover.
   Nicht angesehen: Handy-Ansicht, Zeilen mit Vorschlagsknöpfen.
 
-## D-268 Auswahl mit kräftigem blauem Rahmen, kein gelber Fokusrahmen an Zeilen (Feature `status-farben`, 2026-11-24)
+## D-270 Auswahl mit kräftigem blauem Rahmen, kein gelber Fokusrahmen an Zeilen (Feature `status-farben`, 2026-11-24)
 
 - **Anlass:** Rückmeldung vom 2026-11-24: Beim Drücken von Umschalt erscheint an der gewählten Buchung plötzlich ein
   gelber Rahmen. Die Stärke gefällt, das Verhalten nicht; die Auswahl soll mit einer dickeren blauen Linie umrandet
   sein.
 - **Ursache:** Der gelbe Rahmen war die Tastatur-Fokusanzeige des Browsers (`:focus-visible`), die erst mit dem
   ersten Tastendruck erscheint.
-- **Entscheidung (ändert D-267):** Ausgewählte Zeilen tragen einen Rahmen von 3 Pixeln in der Akzentfarbe rundum
+- **Entscheidung (ändert D-269):** Ausgewählte Zeilen tragen einen Rahmen von 3 Pixeln in der Akzentfarbe rundum
   statt der feinen Linien oben und unten; direkt untereinander liegende ausgewählte Zeilen bilden einen gemeinsamen
-  Rahmen. Der Fokusrahmen an Zeilen des Kontoblatts entfällt. Schleier und Statuston bleiben wie in D-267.
+  Rahmen. Der Fokusrahmen an Zeilen des Kontoblatts entfällt. Schleier und Statuston bleiben wie in D-269.
 - **Folge für die Tastaturbedienung:** Eine Zeile, die den Fokus hat, aber nicht ausgewählt ist (etwa nach dem
   Abwählen mit Strg+Klick), ist nicht mehr eigens gekennzeichnet. Alle anderen Fokusanzeigen der Oberfläche
   bleiben.
 - **Prüfung:** im Browser angesehen (hell und dunkel, einzelne Zeile, drei Zeilen untereinander, nach Umschalt).
 
-## D-269 Filterwechsel behält die Auswahl, Fokus in der Liste (Feature `status-farben`, 2026-11-24)
+## D-271 Filterwechsel behält die Auswahl, Fokus in der Liste (Feature `status-farben`, 2026-11-24)
 
 - **Anlass:** Auftrag vom 2026-11-24: Wird der Filter geändert oder aufgelöst, bleibt die gewählte Buchung gewählt,
   das Kontoblatt hat den Fokus, und die Buchung steht nach Möglichkeit in der Mitte.

@@ -89,7 +89,7 @@ def test_spalten_ausblenden_und_bestaetigen(tmp_path, browser):
         expect(tid(page, "km-spalte-status")).to_contain_text("Status")
         tid(page, "km-spalte-status").click()
         expect(page.locator(".liste-kopf .zelle-status")).to_be_visible()
-        # Bestätigen setzt das Tag „Torsten-Bestätigt“ (D-260)
+        # Bestätigen setzt das Tag „Torsten-Bestätigt“ (D-262)
         zeile = page.locator(".zeile").first
         zeile.click(button="right", position={"x": 20, "y": 8})
         tid(page, "km-bestaetigen").click()

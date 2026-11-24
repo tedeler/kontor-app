@@ -148,7 +148,7 @@ def _eine(con, b: dict, ziel_id: int, art: str, art_von: dict[int, str], fenster
     else:
         con.execute("UPDATE split SET konto_id = ? WHERE id = ?", (ziel_id, s["id"]))
     buch.vorschlag_entfernen(con, [b["id"]])
-    buch.von_hand_zugeordnet(con, [b["id"]])   # D-255
+    buch.von_hand_zugeordnet(con, [b["id"]])   # D-257
 
 
 def zuordnen(con, bid: int, ziel_id: int, fenster: int, gegenbuchung=AUTOMATISCH,

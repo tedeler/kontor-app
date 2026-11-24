@@ -138,11 +138,11 @@ Werte: `importiert`, `vorlaeufig`, `bestaetigt`, `abgeglichen`.
 - Beim manuellen Anlegen zulässig: `importiert`, `vorlaeufig`, `bestaetigt`
   (Vorgabe `bestaetigt`). `abgeglichen` ist beim Anlegen unzulässig (422).
 - Der Import aus KMyMoney setzt immer `importiert`.
-- Zulässige Übergänge: `importiert → bestaetigt`, `vorlaeufig → bestaetigt` (D-255),
+- Zulässige Übergänge: `importiert → bestaetigt`, `vorlaeufig → bestaetigt` (D-257),
   `bestaetigt → abgeglichen`, `vorlaeufig → abgeglichen`. Das Setzen des bereits aktuellen Status ist
   zulässig und ändert nichts. Alle anderen Übergänge werden mit 409
   `status_uebergang_unzulaessig` abgelehnt.
-- **Status folgt der Zuordnung (D-259):** `importiert` heißt „noch nicht zugeordnet“, `vorlaeufig` „automatisch
+- **Status folgt der Zuordnung (D-261):** `importiert` heißt „noch nicht zugeordnet“, `vorlaeufig` „automatisch
   zugeordnet“, `bestaetigt` „von Hand zugeordnet oder bestätigt“.
   - *Automatisch:* Setzt eine Regel oder das Lernmodell einen Vorschlag (Synchronisation, „Regeln anwenden“,
     „Lernmodell anwenden“) oder teilt eine Split-Vorlage die Buchung auf, wird eine Buchung im Status `importiert`

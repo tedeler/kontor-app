@@ -54,7 +54,7 @@ Nicht im Umfang: Filter in der globalen Suche.
 | `kw` | – | Zahl 1–53 | ISO-Kalenderwoche | **nein** |
 | `wochentag` | – | Auswahl | `"mo"` … `"so"`, dazu `"werktag"` (Montag bis Freitag) und `"wochenende"` | ja |
 | `letzter_tag` | – | Wahrheitswert | letzter Tag des Monats | ja |
-| `verdächtig` | – | Wahrheitswert | Buchung trägt das Label „Verdächtig“ (berechnet, D-261) | nein (nur Filter) |
+| `verdächtig` | – | Wahrheitswert | Buchung trägt das Label „Verdächtig“ (berechnet, D-263) | nein (nur Filter) |
 
 - Statt `ä`, `ö`, `ü`, `ß` sind in Feldnamen und Auswahlwerten auch `ae`,
   `oe`, `ue`, `ss` erlaubt.

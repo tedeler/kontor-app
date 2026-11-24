@@ -71,12 +71,12 @@ PERSONEN = ("Torsten", "Tina")
 
 
 def personentag(name: str) -> str:
-    """Tag der Bestätigung durch eine Person (D-260)."""
+    """Tag der Bestätigung durch eine Person (D-262)."""
     return f"{name}-Bestätigt"
 
 
 def personentags_umbenennen(con, nur_namen: bool = True) -> None:
-    """D-260: Die Bestätigung trägt das Tag „<Name>-Bestätigt“. Frühere Formen werden umbenannt: „B-<Name>“ (D-223)
+    """D-262: Die Bestätigung trägt das Tag „<Name>-Bestätigt“. Frühere Formen werden umbenannt: „B-<Name>“ (D-223)
     immer, das bloße „<Name>“ (vor D-223) nur mit ``nur_namen``. Gibt es das neue Tag schon, wandern die
     Zuordnungen dorthin und das alte entfällt."""
     for name in PERSONEN:

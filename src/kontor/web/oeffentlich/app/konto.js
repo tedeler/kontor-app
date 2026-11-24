@@ -346,7 +346,7 @@ export function layoutLaden() {
     if (!l || l.version !== 1 || !l.panels) return VORGABE();
     for (const p of ["kategorien", "details"]) {
       const e = l.panels[p];
-      // D-264: die Einzelheiten docken auch unten an
+      // D-266: die Einzelheiten docken auch unten an
       if (!e || !(p === "details" ? ["links", "rechts", "unten"] : ["links", "rechts"]).includes(e.bereich)
         || !Number.isInteger(e.position) || !Number.isInteger(e.breite)
         || e.breite < BREITE_MIN || e.breite > BREITE_MAX || typeof e.eingeklappt !== "boolean") return VORGABE();
@@ -602,10 +602,10 @@ class Kontoansicht {
     this.filter = neu;
     this.seiten = 1;
     this.urlSchreiben();
-    await this.ladenMitAuswahl();   // D-269: die Auswahl bleibt über den Filterwechsel erhalten
+    await this.ladenMitAuswahl();   // D-271: die Auswahl bleibt über den Filterwechsel erhalten
   }
 
-  /** D-269: Nach einem Filterwechsel bleibt die gewählte Buchung gewählt (soweit sie noch zur Liste gehört), steht
+  /** D-271: Nach einem Filterwechsel bleibt die gewählte Buchung gewählt (soweit sie noch zur Liste gehört), steht
    *  möglichst in der Mitte, und die Liste hat den Fokus – außer es wird gerade in einem Eingabefeld getippt. */
   async ladenMitAuswahl() {
     const ids = [...this.auswahl];
@@ -809,16 +809,16 @@ class Kontoansicht {
         clearTimeout(uhr);
         uhr = setTimeout(anwenden, 400);
       },
-      // D-269: Eingabe schließt das Filtern ab – der Fokus geht in die Liste zur gewählten Buchung
+      // D-271: Eingabe schließt das Filtern ab – der Fokus geht in die Liste zur gewählten Buchung
       beiEnter: async () => {
         await anwenden();
         const id = this.fokusId !== null ? this.fokusId : (this.eintraege[0] || {}).id;
         if (id === undefined || id === null) return;
-        if (!this.auswahl.size) { this.auswahl.add(id); this.anker = id; }   // sonst wäre der Fokus unsichtbar (D-268)
+        if (!this.auswahl.size) { this.auswahl.add(id); this.anker = id; }   // sonst wäre der Fokus unsichtbar (D-270)
         this.fokussieren(id);
       } });
     const leeren = h("button", { type: "button", class: "knopf-flach", tid: "filter-ausdruck-leeren", "aria-label": "Filterausdruck leeren",
-      onclick: () => { this.ausdruckEingabe.wert = ""; anwenden(); } }, "✕");   // D-269: der Fokus geht in die Liste
+      onclick: () => { this.ausdruckEingabe.wert = ""; anwenden(); } }, "✕");   // D-271: der Fokus geht in die Liste
     const menue = h("button", { type: "button", class: "knopf-flach", tid: "filter-ausdruck-menue", "aria-haspopup": "menu",
       "aria-label": "Weitere Aktionen zum Filter" }, "⋯");
     menue.addEventListener("click", (e) => {
@@ -957,7 +957,7 @@ class Kontoansicht {
       this.seiten = 1;
       this.urlSchreiben();
       this.filterLeisteNeu();
-      await this.ladenMitAuswahl();   // D-269
+      await this.ladenMitAuswahl();   // D-271
     } });
     leiste.append(platz, this.bkHinweis,
       h("div", { class: "filter-optionen" },
@@ -1011,7 +1011,7 @@ class Kontoansicht {
     }
     const bereich = (name) => {
       const el = h("div", { class: `bereich bereich-${name}`, tid: `bereich-${name}` });
-      // D-263: das Panel Kategorien wird im Kontoblatt nicht mehr gezeigt (mehr Platz für die Liste)
+      // D-265: das Panel Kategorien wird im Kontoblatt nicht mehr gezeigt (mehr Platz für die Liste)
       const panels = Object.entries(this.layout.panels).filter(([n, p]) => n !== "kategorien" && p.bereich === name)
         .sort((a, b) => a[1].position - b[1].position);
       // von außen (Fensterrand) nach innen (Liste): links aufsteigend, rechts absteigend in der DOM-Reihenfolge
@@ -1024,7 +1024,7 @@ class Kontoansicht {
     this.bereichLinks = bereich("links");
     this.bereichRechts = bereich("rechts");
     if (this.layout.panels.details.bereich === "unten") {
-      // D-264: Einzelheiten unter der Liste, über deren ganze Breite
+      // D-266: Einzelheiten unter der Liste, über deren ganze Breite
       this.arbeit.replaceChildren(this.bereichLinks,
         h("div", { class: "mitte-spalte" }, this.listenSpalte, bereich("unten")), this.bereichRechts);
     } else this.arbeit.replaceChildren(this.bereichLinks, this.listenSpalte, this.bereichRechts);
@@ -1037,7 +1037,7 @@ class Kontoansicht {
     const einklappen = h("button", { type: "button", class: "knopf-flach", tid: `panel-einklappen-${p}`,
       "aria-expanded": String(!l.eingeklappt), "aria-label": `Panel ${PANEL_TITEL[p]} ${l.eingeklappt ? "aufklappen" : "einklappen"}`,
       onclick: () => { l.eingeklappt = !l.eingeklappt; this.layoutAnwenden(); } }, l.eingeklappt ? "▸" : "▾");
-    // D-264: die Einzelheiten wechseln zwischen rechts und unten (links gibt es seit D-263 kein Panel mehr)
+    // D-266: die Einzelheiten wechseln zwischen rechts und unten (links gibt es seit D-265 kein Panel mehr)
     const unten = l.bereich === "unten";
     const ziel = p === "details" ? (l.bereich === "rechts" ? "unten" : "rechts") : (l.bereich === "links" ? "rechts" : "links");
     const zielText = { links: "links andocken", rechts: "rechts andocken", unten: "unten andocken" }[ziel];
@@ -1111,7 +1111,7 @@ class Kontoansicht {
 
   griffBedienung(p, griff) {
     const l = this.layout.panels[p];
-    if (l.bereich === "unten") {   // D-264: der Griff liegt oben und ändert die Höhe
+    if (l.bereich === "unten") {   // D-266: der Griff liegt oben und ändert die Höhe
       griff.addEventListener("keydown", (e) => {
         const schritt = { ArrowUp: 16, ArrowDown: -16 }[e.key];
         if (schritt) { e.preventDefault(); this.hoeheSetzen(p, l.hoehe + schritt); }
@@ -1830,7 +1830,7 @@ class Kontoansicht {
     kat,
     this.istKategorie ? kontoZelle(b) : null,
     h("div", { role: "gridcell", class: "zelle zelle-tags", "data-feld": "tags" },
-      // D-260: Bestätigungs-Tags stehen hinter allen anderen, damit sie diese bei wenig Platz nicht verdrängen
+      // D-262: Bestätigungs-Tags stehen hinter allen anderen, damit sie diese bei wenig Platz nicht verdrängen
       [...b.tags.filter((t) => !personVonTag(t.name)), ...b.tags.filter((t) => personVonTag(t.name))].map((t) => {
         const person = personVonTag(t.name);
         return h("span", { class: person ? "tag tag-person" : "tag", tid: "tag", "data-tag-id": String(t.id),
@@ -2275,7 +2275,7 @@ class Kontoansicht {
         onclick: () => this.personMarkieren([b.id], !hat) }) : "Oben rechts wählen, wer du bist.");
   }
 
-  /** D-256: Status sofort in den Zeilen zeigen, noch bevor der Server geantwortet hat. Gibt die Rücknahme zurück
+  /** D-258: Status sofort in den Zeilen zeigen, noch bevor der Server geantwortet hat. Gibt die Rücknahme zurück
    *  (für den Fehlerfall); der Stand des Servers folgt ohnehin mit dem Neuladen nach der Aktion. */
   statusVorab(ids, status) {
     const alt = [];
@@ -2297,7 +2297,7 @@ class Kontoansicht {
     };
   }
 
-  /** D-258: Importierte Buchungen ohne Zuordnung (ein Split auf „Unkategorisiert“) lassen sich nicht bestätigen,
+  /** D-260: Importierte Buchungen ohne Zuordnung (ein Split auf „Unkategorisiert“) lassen sich nicht bestätigen,
    *  ohne dass eine Kategorie oder ein Konto gewählt wird. Ergebnis: darf bestätigt werden? */
   ohneZuordnung(ids) {
     const unk = stamm.konten.find((k) => k.extern_id === UNKATEGORISIERT);
@@ -2336,7 +2336,7 @@ class Kontoansicht {
         if (!t) return null;
         await api("POST", "/api/buchungen/mehrfach/tags", {
           buchung_ids: ids, hinzufuegen: hinzu ? [t.id] : [], entfernen: hinzu ? [] : [t.id] });
-        // Importiert und Vorläufig werden durch die Bestätigung der Person zu Bestätigt (D-159, D-255).
+        // Importiert und Vorläufig werden durch die Bestätigung der Person zu Bestätigt (D-159, D-257).
         if (hinzu) {
           const offen = ids.filter((id) => {
             const x = this.eintraege.find((e) => e.id === id);

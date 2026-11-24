@@ -156,7 +156,7 @@ export const STATUS_TEXT = { importiert: "Importiert", vorlaeufig: "Vorläufig",
   abgeglichen: "Abgeglichen" };
 /** Haushalt: ein Passwort, zwei Personen. Die Bestätigung einer Buchung trägt diesen Namen. */
 export const PERSONEN = ["Torsten", "Tina"];
-/** Tag der Bestätigung durch eine Person: „<Name>-Bestätigt“ (D-260, vorher „B-<Name>“). */
+/** Tag der Bestätigung durch eine Person: „<Name>-Bestätigt“ (D-262, vorher „B-<Name>“). */
 export const personTag = (name) => `${name}-Bestätigt`;
 /** Person zu einem Bestätigungs-Tag oder null. */
 export const personVonTag = (tagName) => PERSONEN.find((p) => personTag(p) === tagName) || null;

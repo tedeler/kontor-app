@@ -619,7 +619,7 @@ def _migrieren(con: sqlite3.Connection) -> None:
 
 
 def _zugeordnete_vorlaeufig(con: sqlite3.Connection) -> None:
-    """D-259, einmalig: Importierte Buchungen, die schon zugeordnet sind (kein Split auf „Unkategorisiert“), werden
+    """D-261, einmalig: Importierte Buchungen, die schon zugeordnet sind (kein Split auf „Unkategorisiert“), werden
     vorläufig – auch solche mit offenem Vorschlag. Ob die Zuordnung früher von Hand kam, ist nicht mehr zu
     erkennen; bestätigt wird deshalb nichts von selbst."""
     if con.execute("SELECT 1 FROM meta WHERE schluessel = 'status_farben'").fetchone() is not None:

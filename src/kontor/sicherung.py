@@ -788,7 +788,7 @@ def einspielen(con, s: Sicherung, zeitpunkt: str) -> dict:
                 elif neu != hier:
                     con.execute("UPDATE sqlite_sequence SET seq = ? WHERE name = ?", (neu, tabelle))
             pflege.standardkategorien_umwandeln(con)  # D-219: ältere Sicherungen können Standardkategorien enthalten
-            # D-223/D-249: das bloße „<Name>“ nur aus Sicherungen bis 0.34; „B-<Name>“ immer (D-260)
+            # D-223/D-249: das bloße „<Name>“ nur aus Sicherungen bis 0.34; „B-<Name>“ immer (D-262)
             pflege.personentags_umbenennen(con, nur_namen=_vor_version(s.manifest.get("app_version"), (0, 35)))
             kontonamen.bereinigen(con)  # D-218: ältere Sicherungen können gleichnamige Konten enthalten
     aid = k.aenderung_id if erg["geaendert"] else None

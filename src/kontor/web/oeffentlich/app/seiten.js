@@ -892,7 +892,7 @@ export async function protokoll(seite) {
 }
 
 // ------------------------------------------------------------------ Empfänger (13.10)
-/** Personen, die den Empfänger bestätigt haben (Tags „<Name>-Bestätigt“, D-260). */
+/** Personen, die den Empfänger bestätigt haben (Tags „<Name>-Bestätigt“, D-262). */
 function personTags(e) {
   return (e.tags || []).map((t) => personVonTag(t.name)).filter(Boolean).map((name) => ({ name }));
 }
