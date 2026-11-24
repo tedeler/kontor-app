@@ -2594,6 +2594,9 @@ class Kontoansicht {
     await nachladen();
     if (!da() && this.filterAnzahl() > 0) {
       this.filter = this.filter.sortierung ? { sortierung: this.filter.sortierung } : {};
+      // auch das Ausdrucksfeld leeren: sonst setzt dessen nächste Prüfung den alten Filter wieder (D-274)
+      this.ausBaukasten = false;
+      if (this.ausdruckEingabe) this.ausdruckEingabe.wert = "";
       this.seiten = 1;
       this.urlSchreiben();
       const leiste = this.filterAufbauen();

@@ -4025,3 +4025,14 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - **Nicht geändert:** Die Anmeldeseite folgt weiterhin nur dem Design des Systems.
 - **Prüfung:** Core-Test `tests/core/test_thema_start.py`; im Browser bei blockierter Anwendung geprüft, dass
   `data-thema` und Hintergrund für alle vier Fälle (System hell/dunkel, Wahl dunkel/hell/keine) stimmen.
+
+## D-274 Sprung zur Gegenbuchung leert auch das Ausdrucksfeld (Feature `status-farben`, 2026-11-24)
+
+- **Anlass:** CI-Lauf nach dem Merge von D-272/D-273: der Test
+  `test_browser_tabs.py::test_gegenbuchung_setzt_verdeckende_filter_zurueck` war rot – nach „Filter zurückgesetzt“ stand der alte Filter wieder in der Adresse.
+- **Ursache (vermutet, nicht nachgestellt):** Der Sprung setzte die Filter zurück, ließ aber den Text im
+  Ausdrucksfeld stehen. Lief danach dessen verzögerte Prüfung ab, wendete sie den alten Ausdruck erneut an. Ob das
+  den Fehler im CI-Lauf erklärt, zeigt erst der nächste Lauf; im Lauf davor war der Test grün.
+- **Entscheidung:** Der Sprung leert beim Zurücksetzen auch das Ausdrucksfeld, wie „Filter zurücksetzen“.
+- **Dazu:** `test_browser_ausdruck.py::test_tags_im_kontoblatt_bearbeiten` (in `TESTUMBAU.md` schon als gelegentlich
+  rot vermerkt) wartet jetzt, bis die Zeile das neue Tag zeigt, bevor der Tag-Dialog erneut geöffnet wird.
