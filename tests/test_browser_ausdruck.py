@@ -207,6 +207,8 @@ def test_tags_im_kontoblatt_bearbeiten(tmp_path, browser):  # noqa: F811
         tid(page, "tag-auswahl-name").fill("Urlaub")
         tid(page, "tag-auswahl-hinzufuegen").click()
         expect(tid(page, "tag-auswahl")).to_be_hidden()
+        # erst wenn die Liste neu geladen ist, kennt der Dialog die neuen Tags (sonst gelegentlich „Noch keine Tags.“)
+        expect(zeilen.nth(0).locator('[data-feld="tags"]')).to_contain_text("Urlaub")
         # eine der drei bekommt zusätzlich „Privat“
         zeilen.nth(0).locator('[data-feld="datum"]').click()
         page.keyboard.press("t")
