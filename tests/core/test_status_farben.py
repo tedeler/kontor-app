@@ -157,3 +157,26 @@ def test_altbestand_wird_einmalig_umgestellt(buch, config):
     spaeter = neu()
     db.schema_anlegen(config.datenbank)
     assert _status(client, spaeter) == "importiert"
+
+
+def test_bestaetigungs_tags_heissen_name_bestaetigt(buch, config):
+    """D-260: Das Tag der Bestätigung heißt „<Name>-Bestätigt“. Vorhandene „B-<Name>“ werden beim Start umbenannt
+    und behalten ihre Buchungen; gibt es das neue Tag schon, wandern die Zuordnungen dorthin."""
+    from kontor import pflege
+
+    client, k, neu = buch
+    alt = client.post("/api/tags", json={"name": "B-Torsten"}).json()["id"]
+    alt2 = client.post("/api/tags", json={"name": "B-Tina"}).json()["id"]
+    schon = client.post("/api/tags", json={"name": "Tina-Bestätigt"}).json()["id"]
+    frei = client.post("/api/tags", json={"name": "Urlaub"}).json()["id"]
+    a, b = neu("bestaetigt"), neu("bestaetigt")
+    assert client.post("/api/buchungen/mehrfach/tags", json={
+        "buchung_ids": [a], "hinzufuegen": [alt, alt2, frei], "entfernen": []}).status_code == 200
+    assert client.post("/api/buchungen/mehrfach/tags", json={
+        "buchung_ids": [b], "hinzufuegen": [schon], "entfernen": []}).status_code == 200
+
+    pflege.altbestand_umwandeln(config.datenbank)
+
+    assert sorted(t["name"] for t in client.get("/api/tags").json()) == ["Tina-Bestätigt", "Torsten-Bestätigt", "Urlaub"]
+    tags = lambda x: sorted(t["name"] for t in client.get(f"/api/buchungen/{x}").json()["tags"])  # noqa: E731
+    assert tags(a) == ["Tina-Bestätigt", "Torsten-Bestätigt", "Urlaub"] and tags(b) == ["Tina-Bestätigt"]
