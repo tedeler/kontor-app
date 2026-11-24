@@ -49,7 +49,7 @@ def _pruefe(api, umsaetze, soll: dict, giro, kats, vs, nur=None):
         if e["ergebnis"] == "gesplittet":
             assert _splits(b) == [(giro, e["betrag"], "")] + [(kats[s["kategorie"]], s["betrag"], s["memo"])
                                                               for s in e["splits"]], u["umsatz_id"]
-            assert b["kategorie_id"] is None and b["status"] == "importiert"
+            assert b["kategorie_id"] is None and b["status"] == "vorlaeufig"   # D-261: Split-Vorlage macht vorläufig
         else:
             assert _splits(b) == [(giro, e["betrag"], ""), (unk, -e["betrag"], "")], (u["umsatz_id"], e)
 

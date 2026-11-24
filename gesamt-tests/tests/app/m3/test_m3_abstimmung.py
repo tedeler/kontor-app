@@ -158,7 +158,7 @@ def gesperrt(api):
                                                                    KSplit("A000002", 500)])]
     api.post("/api/import/kmymoney", files={"datei": ("d.kmy", gzip_bytes(kb), "x")}, erwartet=200)
     b = api.buchung_lesen(b["id"])
-    assert b["abgestimmt"] and b["vorschlag"] and b["status"] == "importiert"
+    assert b["abgestimmt"] and b["vorschlag"] and b["status"] == "vorlaeufig"   # D-261: Vorschlag macht vorläufig
     return {"b": b, "frei": frei, "lm": lm, "t": t, "g": g, "neu": api.get("/api/dubletten", erwartet=200).daten}
 
 

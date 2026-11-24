@@ -165,16 +165,21 @@ def test_panels_und_layout(tmp_path, browser):
     with server(tmp_path) as (url, _), seite(browser, url, **DESKTOP) as page:
         page.goto(url + "/konten/1")
         bereit(page, "konto")
-        griff = tid(page, "panel-groesse-kategorien")
+        # D-265: kein Panel Kategorien mehr; D-266: die Einzelheiten docken rechts oder unten an
+        expect(tid(page, "panel-kategorien")).to_have_count(0)
+        griff = tid(page, "panel-groesse-details")
         griff.focus()
-        page.keyboard.press("ArrowRight")
-        expect(griff).to_have_attribute("aria-valuenow", "256")
+        page.keyboard.press("ArrowLeft")
+        expect(griff).to_have_attribute("aria-valuenow", "336")
         tid(page, "panel-verschieben-details").click()
-        expect(tid(page, "panel-details")).to_have_attribute("data-bereich", "links")
+        expect(tid(page, "panel-details")).to_have_attribute("data-bereich", "unten")
         page.reload()
         bereit(page, "konto")
-        expect(tid(page, "panel-details")).to_have_attribute("data-bereich", "links")
-        assert abs(tid(page, "panel-kategorien").bounding_box()["width"] - 256) <= 1
+        expect(tid(page, "panel-details")).to_have_attribute("data-bereich", "unten")
+        expect(tid(page, "panel-groesse-details")).to_have_attribute("aria-orientation", "horizontal")
+        tid(page, "panel-verschieben-details").click()
+        expect(tid(page, "panel-details")).to_have_attribute("data-bereich", "rechts")
+        assert abs(tid(page, "panel-details").bounding_box()["width"] - 336) <= 1
 
 
 def test_mobil(tmp_path, browser):

@@ -388,7 +388,7 @@ def test_m5_schemas(dok):
     for endung, art in (("csv", "text/csv"), ("pdf", "application/pdf")):
         op = dok["paths"][f"/api/export/buchungen.{endung}"]["get"]
         # E-251: „verdacht“ (M27) ist kein Filter und gehört nur zur Buchungsliste
-        assert {p["name"] for p in op["parameters"]} == liste - {"seite", "pro_seite", "verdacht"}
+        assert {p["name"] for p in op["parameters"]} == liste - {"seite", "pro_seite", "verdacht", "position_id"}   # D-271
         assert set(op["responses"]["200"]["content"]) == {art}
 
 

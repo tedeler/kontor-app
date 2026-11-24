@@ -161,6 +161,7 @@ def test_kategorie_setzen(api, k):
     erwartet = dict(b)
     erwartet["splits"] = [b["splits"][0], {**b["splits"][1], "konto_id": k["leb"]}]
     erwartet["kategorie_id"] = k["leb"]
+    erwartet["status"] = "bestaetigt"   # D-261: von Hand zugeordnet ist bestätigt
     assert r == erwartet
     assert api.buchung_lesen(b["id"]) == erwartet
     r = api.put(f"/api/buchungen/{b['id']}/kategorie", json={"kategorie_id": k["geh"]}, erwartet=200).daten

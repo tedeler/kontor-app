@@ -47,7 +47,9 @@ def test_kategorie_genau_die_markierten(welt):
         assert len(gegen) == 1
         erwartet_splits = [dict(s) for s in alt["splits"]]
         erwartet_splits[gegen[0]]["konto_id"] = k["cafe"]
-        assert neu == {**alt, "splits": erwartet_splits, "kategorie_id": k["cafe"]}
+        # D-261: von Hand zugeordnet ist bestätigt (importiert und vorläufig)
+        status = "bestaetigt" if alt["status"] in ("importiert", "vorlaeufig") else alt["status"]
+        assert neu == {**alt, "splits": erwartet_splits, "kategorie_id": k["cafe"], "status": status}
     s = api.salden()
     assert s[k["cafe"]]["saldo"] == 100 + 200 - 300 + 400 + 300
     assert s[k["ek"]]["saldo"] == 0 and s[k["geh"]]["saldo"] == 0

@@ -88,7 +88,8 @@ def test_abgeglichen_verlassen_braucht_entsperren(api, k, nach):
     neu = api.put(f"/api/buchungen/{b['id']}/splits", json={"splits": [
         {"konto_id": k["giro"], "betrag": -700, "memo": "Giro-Memo"},
         {"konto_id": k["cafe"], "betrag": 700, "memo": "Kat-Memo"}]}, erwartet=200).daten
-    assert (neu["status"], neu["datum"], neu["kategorie_id"]) == (nach, "2024-03-02", k["cafe"])
+    # D-261: Splits von Hand ersetzen bestätigt importierte und vorläufige Buchungen
+    assert (neu["status"], neu["datum"], neu["kategorie_id"]) == ("bestaetigt", "2024-03-02", k["cafe"])
 
 
 def test_abgeglichen_bleibt_abgeglichen_ohne_bestaetigung(api, k):
