@@ -3765,3 +3765,12 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   `data-status`, `data-markierung`) sofort beim Auslösen; die Anfragen laufen wie bisher danach. Schlägt die
   Aktion fehl, wird die Anzeige zurückgenommen. Der Personen-Tag erscheint weiterhin erst mit dem Neuladen.
 - **Prüfung:** nur gelesen und auf Syntax geprüft; kein Browsertest gelaufen (auf dem Branch laufen nur Core-Tests).
+
+## D-257 Ausgewählte Zeilen: Status an der Schriftfarbe erkennbar (Feature `status-farben`, 2026-11-24)
+
+- **Anlass:** Auftrag vom 2026-11-24: Importierte und vorläufige Buchungen sollen auch markiert anders aussehen,
+  mit farbiger Schrift. Bisher überdeckte die Auswahlfarbe die Tönung aus D-254; nur der Streifen links blieb.
+- **Entscheidung:** In ausgewählten Zeilen ist die Schrift bei `importiert` rot und bei `vorlaeufig` gelbbraun
+  (hell) bzw. gelb (dunkel), jeweils mit ausreichendem Kontrast auf der Auswahlfarbe. Nicht ausgewählte Zeilen
+  bleiben wie in D-254 (Tönung, normale Schrift). Beträge behalten ihre eigene Farbe (negativ rot).
+- **Prüfung:** nicht im Browser angesehen; Kontrast nur gerechnet (jeweils etwa 4,7 bis 5,9 zu 1).

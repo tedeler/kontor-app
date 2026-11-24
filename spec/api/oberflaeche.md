@@ -2097,6 +2097,9 @@ Statuswechsel oder Rückgängig zeigt die neu geladene Liste den neuen Wert). Fa
 nicht getestet, nur dass `importiert`, `vorlaeufig` und `bestaetigt` optisch unterscheidbar
 sind (verschiedene berechnete `background-image` bzw. `background-color` der Zeile).
 
+In ausgewählten Zeilen überdeckt die Auswahlfarbe die Tönung; dort tragen `importiert` rote und `vorlaeufig`
+gelbbraune (dunkles Thema: gelbe) Schrift (D-257). Die genauen Farbwerte sind nicht Teil des Vertrags.
+
 ### 32.3 Zusatzmarken vor dem Empfänger
 
 #### 32.3.1 Wiederkehrend

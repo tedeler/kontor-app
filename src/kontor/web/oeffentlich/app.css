@@ -682,6 +682,11 @@ html[data-thema="dunkel"] { --mark-rot: #e5534b; --mark-gelb: #e3b341; --mark-ro
   background-color: var(--mark-klar-hg); }
 .buchungsliste .zeile:hover { background-color: var(--hg-2); }
 .buchungsliste .zeile[aria-selected="true"] { background-color: var(--auswahl); }
+/* D-257: Die Auswahl überdeckt die Tönung – importierte und vorläufige Zeilen bleiben an der Schriftfarbe erkennbar. */
+:root { --mark-rot-text: #a31515; --mark-gelb-text: #7a5200; }
+html[data-thema="dunkel"] { --mark-rot-text: #ff9d94; --mark-gelb-text: #f0c85a; }
+.buchungsliste .zeile[data-markierung="importiert"][aria-selected="true"] { color: var(--mark-rot-text); }
+.buchungsliste .zeile[data-markierung="vorlaeufig"][aria-selected="true"] { color: var(--mark-gelb-text); }
 /* Zusatzmarken vor dem Empfänger: wiederkehrende Buchung ↻, durch Mail bestätigt ✉ (nur Gestaltung) */
 .zeile[data-wiederkehrend="ja"] .zelle-empfaenger::before, .zeile[data-mail="ja"] .zelle-empfaenger::before {
   color: var(--akzent); margin-right: .3em; font-weight: 600; flex: none; }
