@@ -610,9 +610,37 @@ export function splitDialog(buchung, ausloeser) {
       await aktion(() => api("PUT", `/api/buchungen/${buchung.id}/splits`, { splits }),
         { stillBeiFehler: true, danach: () => d.schliessen(true), erfolg: "Splits gespeichert." });
     }));
+    // D-265: eine Split-Vorlage von Hand übernehmen – auch wenn ihr Betrag nicht zur Buchung passt
+    const vorlageWahl = h("select", { tid: "split-vorlage-wahl", "aria-label": "Split-Vorlage übernehmen", disabled: true },
+      h("option", { value: "" }, "– Vorlage übernehmen –"));
+    const vorlageHinweis = h("p", { class: "hinweis", tid: "split-vorlage-hinweis", hidden: true });
+    let vorlagen = [];
+    api("GET", "/api/vorlagen").then((liste) => {
+      vorlagen = liste;
+      for (const v of liste) {
+        vorlageWahl.append(h("option", { value: String(v.id) }, `${v.name} (${betragText(Math.abs(v.gesamtbetrag))})`));
+      }
+      vorlageWahl.disabled = !liste.length;
+      if (!liste.length) vorlageWahl.firstChild.textContent = "– keine Split-Vorlagen vorhanden –";
+    }).catch(() => { /* Auswahl bleibt gesperrt */ });
+    vorlageWahl.addEventListener("change", () => {
+      const v = vorlagen.find((x) => String(x.id) === vorlageWahl.value);
+      vorlageWahl.value = "";
+      if (!v) return;
+      // die Seite der Bestandskonten bleibt, die Teile der Vorlage ersetzen die übrigen Zeilen
+      const bleibt = zeilen.filter((z) => { const k = z.konto_id ? kontoNach(z.konto_id) : null; return k && BESTAND.has(k.art); });
+      zeilen.length = 0;
+      zeilen.push(...bleibt, ...v.teile.map((t) => ({ konto_id: t.kategorie_id, betrag: betragEingabe(t.betrag), memo: t.memo || "" })));
+      zeichnen();
+      const summe = Number(rest.dataset.betrag);
+      vorlageHinweis.hidden = summe === 0;
+      vorlageHinweis.textContent = summe === 0 ? "" : `Die Vorlage „${v.name}“ lautet auf ${betragText(Math.abs(v.gesamtbetrag))} und passt `
+        + `nicht zum Betrag der Buchung. Es bleiben ${betragText(Math.abs(summe))} offen: einen Teil anpassen oder bei einem Teil `
+        + "„Split Ausgleichen“ wählen.";
+    });
     zeichnen();
     inhalt.append(h("p", null, `${datumText(buchung.datum)} · ${buchung.empfaenger ? buchung.empfaenger.name : ""} · `,
-      betragEl("span", buchung.betrag)), tabelle, hinzufuegen, rest,
+      betragEl("span", buchung.betrag)), feld("Split-Vorlage", vorlageWahl), vorlageHinweis, tabelle, hinzufuegen, rest,
     h("div", { class: "split-vorlage" }, feld("Name der Vorlage", vorlageName), vorlageKnopf),
     knopfLeiste(speichern, knopf("Abbrechen", { tid: "split-abbrechen", onclick: () => d.schliessen(null) })));
   }, { ausloeser, klasse: "dialog-breit" });

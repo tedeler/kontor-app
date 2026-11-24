@@ -2683,6 +2683,10 @@ Sortierspalte wechseln; `r` Sortierrichtung umkehren; `d`/`k` Panel Einzelheiten
   `vorlage-empfaenger-feld-<id>`, `vorlage-splitbetrag-feld-<id>`, `vorlage-regel-speichern-<id>`,
   `vorlage-loeschen-<id>` (mit Rückfrage). Speichern setzt die Bedingung Empfänger gleich und verteilt eine
   geänderte Summe in ganzen Cent auf einen Teil (kein Teil wird 0, Summe nicht 0; sonst Fehlermeldung).
+- **Vorlage übernehmen (D-265):** `split-vorlage-wahl` (`<select>`, erster Eintrag leer, danach je Split-Vorlage
+  Name und Gesamtbetrag; ohne Vorlagen gesperrt) ersetzt die Zeilen außer denen auf Bestandskonten durch die
+  Teile der gewählten Vorlage. Ist die Summe danach nicht 0, zeigt `split-vorlage-hinweis` den offenen Rest;
+  `split-speichern` bleibt gesperrt, bis die Summe 0 ist.
 
 #### 37.12.5 Dubletten (D-165)
 

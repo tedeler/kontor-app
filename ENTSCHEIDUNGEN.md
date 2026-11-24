@@ -3880,3 +3880,16 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   Knopf führt von dort nach rechts.
 - **Prüfung:** einmal im Browser angesehen (rechts, unten, Wechsel über den Knopf); kein Browsertest geschrieben.
   Dabei auch D-257 (Schriftfarbe in der Auswahl) und D-263 (kein Panel Kategorien) gesehen.
+
+## D-265 Split-Dialog: Vorlage von Hand übernehmen (Feature `status-farben`, 2026-11-24)
+
+- **Anlass:** Auftrag vom 2026-11-24: Bei „Buchung splitten“ lässt sich eine Vorlage auswählen, auch wenn der
+  Betrag nicht passt.
+- **Entscheidung:** Der Split-Dialog hat die Auswahl `split-vorlage-wahl` mit allen Split-Vorlagen (Name und
+  Gesamtbetrag, auch inaktive; Bedingungen der Vorlage spielen keine Rolle). Die Wahl ersetzt die Zeilen außer
+  denen auf Bestandskonten durch die Teile der Vorlage (Kategorie, Betrag, Memo). Passt der Betrag nicht, bleiben
+  die Teile wie in der Vorlage; `split-vorlage-hinweis` nennt den offenen Rest, und gespeichert wird wie bisher
+  erst, wenn die Summe 0 ist (Teil ändern oder „Split Ausgleichen“). Es wird nicht anteilig umgerechnet.
+- **Status:** Das Speichern ist eine Zuordnung von Hand, die Buchung wird also bestätigt (D-259).
+- **Prüfung:** einmal im Browser durchgespielt (Vorlage 10 € auf Buchung 12 €, Ausgleichen, Speichern); kein
+  Browsertest geschrieben.
