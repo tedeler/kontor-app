@@ -180,3 +180,37 @@ def test_bestaetigungs_tags_heissen_name_bestaetigt(buch, config):
     assert sorted(t["name"] for t in client.get("/api/tags").json()) == ["Tina-Bestätigt", "Torsten-Bestätigt", "Urlaub"]
     tags = lambda x: sorted(t["name"] for t in client.get(f"/api/buchungen/{x}").json()["tags"])  # noqa: E731
     assert tags(a) == ["Tina-Bestätigt", "Torsten-Bestätigt", "Urlaub"] and tags(b) == ["Tina-Bestätigt"]
+
+
+def test_filter_verdaechtig(buch):
+    """D-261: „verdächtig“ ist ein Feld des Filterausdrucks (kein gespeichertes Tag) und trifft genau die Buchungen,
+    die das Label „Verdächtig“ tragen."""
+    client, k, neu = buch
+    fremd = client.post("/api/empfaenger", json={"name": "Unbekannter Laden (fiktiv)"}).json()["id"]
+    bekannt = client.post("/api/empfaenger", json={"name": "Stammladen (fiktiv)"}).json()["id"]
+
+    def mit(empf: int, status: str) -> int:
+        r = client.post("/api/buchungen", json={"datum": "2024-03-01", "status": status, "empfaenger_id": empf,
+                                                "splits": [{"konto_id": k["giro"], "betrag": -500},
+                                                           {"konto_id": k["lm"], "betrag": 500}]})
+        assert r.status_code == 201, r.text
+        return r.json()["id"]
+
+    v = mit(fremd, "importiert")
+    ok1, ok2 = mit(bekannt, "bestaetigt"), mit(bekannt, "importiert")
+
+    def ids(ausdruck: str) -> set[int]:
+        r = client.get("/api/buchungen", params={"filter": ausdruck, "verdacht": "ja"})
+        assert r.status_code == 200, r.text
+        return {b["id"] for b in r.json()["eintraege"]}
+
+    alle = client.get("/api/buchungen", params={"verdacht": "ja"}).json()["eintraege"]
+    assert {b["id"] for b in alle if b.get("verdacht")} == {v}
+    assert ids("verdächtig") == {v}
+    assert ids("verdaechtig == True") == {v}
+    assert ids("not verdächtig") == {ok1, ok2}
+    assert ids('verdächtig and status == "importiert"') == {v}
+
+    # In Regeln gibt es das Feld nicht: der Verdacht hängt von anderen Buchungen ab.
+    r = client.post("/api/regeln", json={"name": "x", "kategorie_id": k["lm"], "ausdruck": "verdächtig"})
+    assert r.status_code == 422, r.text
