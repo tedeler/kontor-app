@@ -667,18 +667,19 @@ tr.ueberfaellig td { color: var(--gefahr); }
 .spalten-messer { position: absolute; left: 0; top: 0; visibility: hidden; pointer-events: none; height: 0; overflow: hidden; }
 .spalten-messer > .zelle { width: max-content; max-width: none; overflow: visible; }
 
-/* D-130: dezente Markierung des Bearbeitungsstands (Streifen links und leichte Tönung) */
-:root { --mark-gruen: #4a9e62; --mark-grau: #a3abb5; --mark-gruen-hg: rgba(74, 158, 98, .07);
-  --mark-grau-hg: rgba(120, 130, 142, .07); --mark-gruengrau-hg: rgba(98, 128, 106, .10); }
-html[data-thema="dunkel"] { --mark-gruen: #5fb878; --mark-grau: #6f7884; --mark-gruen-hg: rgba(95, 184, 120, .08);
-  --mark-grau-hg: rgba(160, 170, 182, .06); --mark-gruengrau-hg: rgba(130, 165, 140, .10); }
+/* D-130, D-254: Markierung nach Status. Bestätigt und abgeglichen liegen auf dem kontrastreichen Grund (hell weiß,
+   dunkel schwarz); importiert ist rot, vorläufig gelb hinterlegt (Streifen links und Tönung). */
+:root { --mark-rot: #c62828; --mark-gelb: #d9a21b; --mark-rot-hg: rgba(198, 40, 40, .13);
+  --mark-gelb-hg: rgba(217, 162, 27, .20); --mark-klar-hg: #ffffff; }
+html[data-thema="dunkel"] { --mark-rot: #e5534b; --mark-gelb: #e3b341; --mark-rot-hg: rgba(229, 83, 75, .24);
+  --mark-gelb-hg: rgba(227, 179, 65, .22); --mark-klar-hg: #000000; }
 .buchungsliste .zeile[data-markierung] { background-repeat: no-repeat; background-size: 4px 100%; }
-.buchungsliste .zeile[data-markierung="kategorisiert"] { background-color: var(--mark-gruen-hg);
-  background-image: linear-gradient(var(--mark-gruen), var(--mark-gruen)); }
-.buchungsliste .zeile[data-markierung="importiert"] { background-color: var(--mark-grau-hg);
-  background-image: linear-gradient(var(--mark-grau), var(--mark-grau)); }
-.buchungsliste .zeile[data-markierung="abgeglichen"] { background-color: var(--mark-gruengrau-hg);
-  background-image: linear-gradient(var(--mark-gruen) 50%, var(--mark-grau) 50%); }
+.buchungsliste .zeile[data-markierung="importiert"] { background-color: var(--mark-rot-hg);
+  background-image: linear-gradient(var(--mark-rot), var(--mark-rot)); }
+.buchungsliste .zeile[data-markierung="vorlaeufig"] { background-color: var(--mark-gelb-hg);
+  background-image: linear-gradient(var(--mark-gelb), var(--mark-gelb)); }
+.buchungsliste .zeile[data-markierung="bestaetigt"], .buchungsliste .zeile[data-markierung="abgeglichen"] {
+  background-color: var(--mark-klar-hg); }
 .buchungsliste .zeile:hover { background-color: var(--hg-2); }
 .buchungsliste .zeile[aria-selected="true"] { background-color: var(--auswahl); }
 /* Zusatzmarken vor dem Empfänger: wiederkehrende Buchung ↻, durch Mail bestätigt ✉ (nur Gestaltung) */
@@ -761,9 +762,10 @@ html[data-thema="dunkel"] { --mark-gruen: #5fb878; --mark-grau: #6f7884; --mark-
 /* kein „klebendes“ Hover nach dem Tippen auf Touch-Geräten (wirkte wie eine Markierung) */
 @media (hover: none) {
   [data-layout="mobil"] .buchungsliste .zeile:hover { background-color: transparent; }
-  [data-layout="mobil"] .buchungsliste .zeile[data-markierung="kategorisiert"]:hover { background-color: var(--mark-gruen-hg); }
-  [data-layout="mobil"] .buchungsliste .zeile[data-markierung="importiert"]:hover { background-color: var(--mark-grau-hg); }
-  [data-layout="mobil"] .buchungsliste .zeile[data-markierung="abgeglichen"]:hover { background-color: var(--mark-gruengrau-hg); }
+  [data-layout="mobil"] .buchungsliste .zeile[data-markierung="importiert"]:hover { background-color: var(--mark-rot-hg); }
+  [data-layout="mobil"] .buchungsliste .zeile[data-markierung="vorlaeufig"]:hover { background-color: var(--mark-gelb-hg); }
+  [data-layout="mobil"] .buchungsliste .zeile[data-markierung="bestaetigt"]:hover,
+  [data-layout="mobil"] .buchungsliste .zeile[data-markierung="abgeglichen"]:hover { background-color: var(--mark-klar-hg); }
   [data-layout="mobil"] .buchungsliste .zeile[aria-selected="true"]:hover { background-color: var(--auswahl); }
   [data-layout="mobil"] .tabelle tbody tr.klickbar:hover { background: none; }
 }
@@ -1578,9 +1580,10 @@ tr.ueberfaellig td.e-zustand, tr.ueberfaellig td.e-frist { color: var(--gefahr);
   background: var(--hg-2); }
 .tab-aufraeumen:hover, .tab-aufraeumen:focus-visible { color: var(--text); text-decoration: underline; }
 [data-layout="mobil"].tabs-offen .tab-aufraeumen { position: static; align-self: stretch; text-align: left; min-height: 44px; padding: .6rem 1rem; }
-.buchungsliste[data-kompakt="nein"] .zeile[data-markierung="kategorisiert"]:not(:hover):not([aria-selected="true"]) > .zelle-betrag { background-color: color-mix(in srgb, var(--mark-gruen) 7%, var(--hg)); }
-.buchungsliste[data-kompakt="nein"] .zeile[data-markierung="importiert"]:not(:hover):not([aria-selected="true"]) > .zelle-betrag { background-color: color-mix(in srgb, var(--mark-grau) 7%, var(--hg)); }
-.buchungsliste[data-kompakt="nein"] .zeile[data-markierung="abgeglichen"]:not(:hover):not([aria-selected="true"]) > .zelle-betrag { background-color: color-mix(in srgb, var(--mark-gruen) 10%, var(--hg)); }
+.buchungsliste[data-kompakt="nein"] .zeile[data-markierung="importiert"]:not(:hover):not([aria-selected="true"]) > .zelle-betrag { background-color: color-mix(in srgb, var(--mark-rot) 16%, var(--hg)); }
+.buchungsliste[data-kompakt="nein"] .zeile[data-markierung="vorlaeufig"]:not(:hover):not([aria-selected="true"]) > .zelle-betrag { background-color: color-mix(in srgb, var(--mark-gelb) 20%, var(--hg)); }
+.buchungsliste[data-kompakt="nein"] .zeile[data-markierung="bestaetigt"]:not(:hover):not([aria-selected="true"]) > .zelle-betrag,
+.buchungsliste[data-kompakt="nein"] .zeile[data-markierung="abgeglichen"]:not(:hover):not([aria-selected="true"]) > .zelle-betrag { background-color: var(--mark-klar-hg); }
 .gruppierung-zeile .knopf-klein { margin-left: 0; min-height: 28px; }
 /* Mail-Blatt am Handy: je Mail eine Karte (Betreff und Zeit oben, Zuordnung darunter), Filter in einer rollbaren Zeile */
 [data-layout="mobil"] .mail-liste .tabelle, [data-layout="mobil"] .mail-liste tbody { display: block; }

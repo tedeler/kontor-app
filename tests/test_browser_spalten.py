@@ -1,5 +1,5 @@
 """Browser-Rauchtest zu D-130: veränderbare Spaltenbreiten der Buchungsliste (Ziehen, Doppelklick passt an, merken,
-zurücksetzen) und dezente Markierung der Zeilen (Bearbeitungsstand, wiederkehrend). Synthetische Daten, eigener
+zurücksetzen) und Markierung der Zeilen (Status nach D-254, wiederkehrend). Synthetische Daten, eigener
 Server auf einem freien Loopback-Port."""
 
 from __future__ import annotations
@@ -58,9 +58,9 @@ def test_markierung_der_zeilen(tmp_path, browser):  # noqa: F811
         zeile = lambda i: tid(page, f"buchung-{i}")  # noqa: E731
         expect(zeile(ids["importiert"])).to_have_attribute("data-markierung", "importiert")
         expect(zeile(ids["abgeglichen"])).to_have_attribute("data-markierung", "abgeglichen")
-        assert zeile(ids["offen"]).get_attribute("data-markierung") is None
+        expect(zeile(ids["offen"])).to_have_attribute("data-markierung", "vorlaeufig")
         for i in ids["serie"]:
-            expect(zeile(i)).to_have_attribute("data-markierung", "kategorisiert")
+            expect(zeile(i)).to_have_attribute("data-markierung", "bestaetigt")
             assert zeile(i).get_attribute("data-wiederkehrend") is None  # D-146: keine Serienmarke mehr
         # durch Mail bestätigt: nur die zugeordnete Buchung
         expect(zeile(ids["serie"][-1])).to_have_attribute("data-mail", "ja")

@@ -3719,3 +3719,18 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   (das Ergebnis steht im CI-Lauf). Entscheidungen der Spezifikation (`spec/api/entscheidungen.md`, `E-…`) bleiben
   als Bestand; neue Entscheidungen stehen hier.
 - **Einzelheiten, Messungen, Auswahlregel und geänderte Tests:** `TESTUMBAU.md`.
+
+## D-254 Kontoblatt: Zeilenfarbe nach Status (Feature `status-farben`, 2026-11-24)
+
+- **Anlass:** Auftrag vom 2026-11-24: Bestätigte und abgeglichene Buchungen stehen auf dem kontrastreichen Grund
+  (im dunklen Thema schwarz), die übrigen Status sind farbig hinterlegt: Importiert rot, Vorläufig gelb.
+- **Entscheidung:** Ersetzt die Markierung des Bearbeitungsstands aus D-130 (grün „kategorisiert“, grau
+  „importiert“, grün-grau „abgeglichen“). `data-markierung` der Zeile folgt nur noch dem Status:
+  `abgeglichen` (Status „Abgeglichen“ oder abgestimmt), sonst der Status selbst (`importiert`, `vorlaeufig`,
+  `bestaetigt`). Ob die Buchung kategorisiert ist, spielt für die Farbe keine Rolle mehr.
+- **Darstellung:** `importiert` roter Streifen links und rote Tönung, `vorlaeufig` gelber Streifen und gelbe Tönung;
+  `bestaetigt` und `abgeglichen` ohne Streifen auf weißem (hell) bzw. schwarzem (dunkel) Grund. Hover und Auswahl
+  überdecken die Tönung wie bisher; abgeglichene Zeilen behalten das Schloss.
+- **Tests:** `tests/test_browser_spalten.py::test_markierung_der_zeilen` und
+  `gesamt-tests/.../m22/test_m22_oberflaeche.py::test_markierung_rangfolge_und_darstellung` auf die neuen Werte
+  umgestellt (`TESTUMBAU.md`, „Geänderte Tests“).

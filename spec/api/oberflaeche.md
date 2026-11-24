@@ -2079,25 +2079,23 @@ Kategorie (`oberflaeche.md` 7.2, 22.2).
 
 ### 32.2 Markierung des Bearbeitungsstands
 
+(Fassung nach D-254; die frühere Rangfolge mit `kategorisiert` entfällt.)
+
 Jede Zeile der Buchungsliste (Desktop und mobil) trägt das Attribut `data-markierung`
-nach dieser Rangfolge (erste zutreffende Regel gilt):
+nach dem Status der Buchung:
 
 1. `abgeglichen`: Status der Buchung ist `abgeglichen` **oder** die Buchung ist
    abgestimmt (`abgestimmt` wahr, Kontenabstimmung M3).
-2. `kategorisiert`: kein Split der Buchung liegt auf der Kategorie „Unkategorisiert“
-   (`extern_id = "kontor:unkategorisiert"`). Umbuchungen und Splitbuchungen zählen dazu;
-   der Status ist dabei gleichgültig (auch `importiert`).
-3. `importiert`: Status `importiert` (und mindestens ein Split auf „Unkategorisiert“).
-4. sonst **kein** Attribut `data-markierung` (z. B. `vorlaeufig` oder `bestaetigt` mit Split
-   auf „Unkategorisiert“).
+2. sonst der Status selbst: `importiert`, `vorlaeufig` oder `bestaetigt`.
 
-Darstellung: schmaler farbiger Streifen am linken Rand der Zeile und leichte Tönung
-(grün für `kategorisiert`, grau für `importiert`, grün-grau für `abgeglichen`), im hellen
-und dunklen Thema. Hover und Auswahl überdecken die Tönung, der Streifen bleibt. Die
-Markierung folgt Änderungen (nach Kategorisieren, Statuswechsel, Rückgängig zeigt die neu
-geladene Liste den neuen Wert). Farben werden nicht getestet, nur dass die drei Werte
-optisch unterscheidbar sind (verschiedene berechnete `background-image` bzw.
-`background-color` der Zeile).
+Darstellung: `bestaetigt` und `abgeglichen` stehen auf dem kontrastreichen Grund (helles
+Thema weiß, dunkles Thema schwarz), ohne Streifen. `importiert` ist rot, `vorlaeufig` gelb
+hinterlegt (schmaler farbiger Streifen am linken Rand und Tönung der Zeile), im hellen und
+dunklen Thema. Ob die Buchung kategorisiert ist, ändert die Farbe nicht. Hover und Auswahl
+überdecken die Tönung, der Streifen bleibt. Die Markierung folgt Änderungen (nach
+Statuswechsel oder Rückgängig zeigt die neu geladene Liste den neuen Wert). Farben werden
+nicht getestet, nur dass `importiert`, `vorlaeufig` und `bestaetigt` optisch unterscheidbar
+sind (verschiedene berechnete `background-image` bzw. `background-color` der Zeile).
 
 ### 32.3 Zusatzmarken vor dem Empfänger
 

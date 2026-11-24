@@ -121,5 +121,6 @@ Im Ausgangsstand schlugen 19 Tests der Abnahmesuite und 3 eigene fehl. Kein Anwe
 | `m30/test_m30_oberflaeche.py::test_regelliste` | Tastendruck auf einen Griff, den die Seite gerade neu aufbaut; schlug gelegentlich fehl | drückt erneut, solange die Reihenfolge unverändert ist |
 | `m15/test_m15_oberflaeche.py::test_details_vorschlag_und_kandidaten`, `m8/test_m8_kontextmenue.py::test_kategorie_setzen_umbuchung_meldet_ablehnung`, `m8/test_m8_kontoansicht.py::test_liste_gleich_rest_und_darstellung` (2) | schlagen fehl (die letzten drei wegen D-242, der erste nicht untersucht) | nicht angepasst; stehen in `abgewaehlt.txt` und schlagen mit `--alle` weiter fehl |
 | eigene `test_browser_ausdruck.py::test_tags_im_kontoblatt_bearbeiten` | schlug einmal in vier Läufen fehl, danach nicht mehr | unverändert; beobachten |
+| eigene `test_browser_spalten.py::test_markierung_der_zeilen`, `m22/test_m22_oberflaeche.py::test_markierung_rangfolge_und_darstellung` (abgewählt) | D-254: Zeilenfarbe folgt nur dem Status, `kategorisiert` entfällt | erwartet `vorlaeufig`/`bestaetigt`; Unterscheidbarkeit an importiert, vorläufig, bestätigt; „folgt Änderungen“ über Statuswechsel statt Kategorie |
 
 Stabilität: Nach den Änderungen lief der Browser-Teil der Gesamtsuite viermal hintereinander grün.

@@ -312,16 +312,14 @@ function spaltenAusSpeichern(variante, aus) {
 
 const spalteBegrenzen = (w) => Math.min(SPALTE_MAX, Math.max(SPALTE_MIN, Math.round(w)));
 
-// ------------------------------------------------------------------ Markierung der Zeilen (D-130)
+// ------------------------------------------------------------------ Markierung der Zeilen (D-130, D-254)
 const UNKATEGORISIERT = "kontor:unkategorisiert";
 
-/** Bearbeitungsstand einer Buchung: abgeglichen (grün-grau), Kategorie zugewiesen (grün), importiert (grau). */
+/** Bearbeitungsstand einer Buchung nach ihrem Status (D-254): importiert (rot), vorläufig (gelb), bestätigt und
+ *  abgeglichen ohne Tönung auf dem kontrastreichen Grund; abgestimmte Buchungen zählen als abgeglichen. */
 function markierung(b) {
   if (b.status === "abgeglichen" || b.abgestimmt) return "abgeglichen";
-  const unk = stamm.konten.find((k) => k.extern_id === UNKATEGORISIERT);
-  if (!b.splits.some((s) => unk && s.konto_id === unk.id)) return "kategorisiert";
-  if (b.status === "importiert") return "importiert";
-  return null;
+  return STATUS.includes(b.status) ? b.status : null;
 }
 
 const MAIL_GRUENDE = ["bestellung", "paypal", "rueckerstattung"];
