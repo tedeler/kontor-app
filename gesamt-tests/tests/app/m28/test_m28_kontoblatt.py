@@ -248,7 +248,7 @@ def test_filter_untermenue(starte_server, neue_seite, eintrag, param):
     warte_liste(seite, _liste(api, g, **{param: wert}))
     warte(seite, lambda: bool({"filter", param} & set(m28.abfrage(seite))), text="Filter in der Adresse")
     m8.filter_aktiv(seite)
-    assert ausgewaehlt(seite) == set()
+    assert ausgewaehlt(seite) == {ziel}   # D-271: ein Filterwechsel behält die Auswahl (vorher: hebt sie auf)
     m8.filter_zuruecksetzen(seite)
     warte_liste(seite, _liste(api, g))
 

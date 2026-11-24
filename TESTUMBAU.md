@@ -128,5 +128,6 @@ Im Ausgangsstand schlugen 19 Tests der Abnahmesuite und 3 eigene fehl. Kein Anwe
 | `test_buchungen.py::test_kategorie_setzen`, `test_mehrfach.py::test_kategorie_genau_die_markierten`, `m12/test_m12_rest.py::test_abgeglichen_verlassen_braucht_entsperren` | D-261: Zuordnung von Hand (Kategorie, Splits) macht `bestaetigt` | erwarteter Status angepasst |
 | `m30/test_m30_ausdruck.py::test_sprache_felder` (Hilfe `m30.FELDER`), `spec/test_openapi.py::test_m5_schemas` | D-263: Filterfeld `verdächtig`; D-271: `position_id` gehört nur zur Buchungsliste, nicht zum Export | Feld bzw. Ausnahme ergänzt |
 | eigene `test_browser.py::test_panels_und_layout` | D-265, D-266: kein Panel Kategorien; Einzelheiten rechts oder unten | prüft Breite und Andocken der Einzelheiten |
+| `m28/test_m28_kontoblatt.py::test_filter_untermenue`, `m8/test_m8_panels_mobil.py::test_groesse_per_tastatur`, `::test_mobil_kein_andocken_layout_bleibt` | D-271: Filterwechsel behält die Auswahl; D-265: kein Panel Kategorien | Auswahl = gewählte Buchung; Griff und Andocken der Einzelheiten statt des Panels Kategorien |
 
 Stabilität: Nach den Änderungen lief der Browser-Teil der Gesamtsuite viermal hintereinander grün.
