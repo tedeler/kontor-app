@@ -23,7 +23,7 @@ import urllib.parse
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from . import buch, db
+from . import buch, db, dokumente
 from .config import KontorConfig
 from .fehler import (KontorFehler, MailAnmeldungFehlt, MailOAuthFehler, MailTokenAbgelaufen, MailTokenWiderrufen)
 from .geheimnisse import Geheimnisspeicher, mail_name, passwort_name
@@ -786,9 +786,11 @@ class MailDienst:
                     roh = getattr(n, "roh", None)
                     if not isinstance(roh, bytes) or len(roh) > self.config.upload_max_mib * 1024 * 1024:
                         roh = None  # ohne Rohfassung wird die Mail beim Anhängen aus den Feldern gebaut (D-123)
+                    blob, verfahren = dokumente.spiegel_packen(roh)   # D-255: komprimiert
                     con.execute("INSERT INTO mail_nachricht (adresse_cf, nachricht_id, empfangen, absender, betreff,"
-                                " text, roh, ort) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                                (cf, n.nachricht_id, zeit_text(n.empfangen), n.absender, n.betreff, n.text, roh, ort))
+                                " text, roh, roh_verfahren, ort) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                                (cf, n.nachricht_id, zeit_text(n.empfangen), n.absender, n.betreff, n.text, blob,
+                                 verfahren, ort))
                     aus["nachrichten_neu"] += 1
                 for k in nachladen:   # D-243: Kopf-Mails, die eine (neue) Vorauswahl jetzt betrifft
                     voll = (inhalte or {}).get(k.nachricht_id)
@@ -846,7 +848,9 @@ class MailDienst:
                         (cf, n.nachricht_id)).fetchone()
         if r is None:
             return False
-        con.execute("UPDATE mail_nachricht SET text = ?, roh = ?, inhalt = 1 WHERE id = ?", (n.text, roh, r["id"]))
+        blob, verfahren = dokumente.spiegel_packen(roh)   # D-255: komprimiert
+        con.execute("UPDATE mail_nachricht SET text = ?, roh = ?, roh_verfahren = ?, roh_sha256 = NULL, inhalt = 1"
+                    " WHERE id = ?", (n.text, blob, verfahren, r["id"]))
         con.execute("DELETE FROM bestellmail_nummer WHERE spiegel_id = ?", (r["id"],))
         return True
 

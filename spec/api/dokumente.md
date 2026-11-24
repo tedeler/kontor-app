@@ -339,6 +339,13 @@ Neue Pfade 2.1–2.13, Schemas `Dokument`, `DokumentGeloest` (2.7), `MailAnsicht
 - Einspielen ersetzt Dokumente wie jeden Buchbestand; Rückgängig des Einspielens stellt
   sie wieder her.
 
+### 4.1 Speicherung (D-255)
+
+- In der Datenbank liegen E-Mails (`message/rfc822`) verlustfrei komprimiert; PDF und Bilder
+  unverändert. `sha256`, `groesse`, `…/inhalt` und die Sicherung beziehen sich immer auf die
+  Originalbytes. Die Sicherung enthält unkomprimierte Inhalte (ihr Format und ihre
+  `schemaversion` ändern sich dadurch nicht; die ZIP-Datei komprimiert ohnehin).
+
 ---
 
 ## 5. Oberfläche

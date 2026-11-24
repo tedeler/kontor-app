@@ -85,11 +85,12 @@ def _mails_je_nummer(con) -> dict[str, list]:
         con.execute("DELETE FROM bestellmail_nummer")
         con.execute("INSERT INTO meta (schluessel, wert) VALUES ('bestellmail_muster', ?)"
                     " ON CONFLICT(schluessel) DO UPDATE SET wert = excluded.wert", (stand,))
-    neu = con.execute("SELECT id, absender, betreff, text, roh FROM mail_nachricht WHERE id NOT IN"
+    neu = con.execute("SELECT id, absender, betreff, text, roh, roh_verfahren, roh_sha256 FROM mail_nachricht"
+                      " WHERE id NOT IN"
                       " (SELECT spiegel_id FROM bestellmail_nummer)").fetchall()
     for r in neu:
         con.executemany("INSERT INTO bestellmail_nummer (spiegel_id, nummer) VALUES (?, ?)",
-                        [(r["id"], n) for n in ["", *nummern_der_mail(r["betreff"], r["text"], r["roh"],
+                        [(r["id"], n) for n in ["", *nummern_der_mail(r["betreff"], r["text"], dokumente.spiegel_roh(con, r),
                                                                       r["absender"])]])
     aus: dict[str, list] = {}
     gesehen: set[tuple[str, str]] = set()
@@ -139,8 +140,9 @@ def _anhaengen(con, zeile, buchung_id: int, zeitpunkt: str) -> tuple[int, int]:
         return vorhanden[sha]
 
     voll = con.execute("SELECT * FROM mail_nachricht WHERE id = ?", (zeile["id"],)).fetchone()
-    roh = dokumente.mail_roh_aus_spiegel(voll)
+    roh = dokumente.mail_roh_aus_spiegel(con, voll)
     ids = [eins(roh, (voll["betreff"] or "E-Mail")[:dokumente.MAX_NAME - 4])]
+    dokumente.spiegel_verweisen(con, voll["id"], roh)   # D-255
     try:
         anhaenge = dokumente.mail_lesen(roh).get("anhaenge", [])
     except Exception:  # noqa: BLE001 - eine unlesbare Mail hängt nur als Ganzes an

@@ -9,13 +9,16 @@ from __future__ import annotations
 
 import contextlib
 import datetime as dt
+import logging
 import pathlib
 import sqlite3
 from collections.abc import Iterator
 
 from .text import norm
 
-SCHEMA_VERSION = 17
+_log = logging.getLogger("kontor.db")
+
+SCHEMA_VERSION = 18
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (
@@ -573,6 +576,10 @@ _NEUE_SPALTEN = (
     # Schema 17 (D-243): Spiegel nur mit Kopfzeilen (inhalt = 0, Text leer) und Fundstelle zum Nachladen
     ("mail_nachricht", "inhalt", "INTEGER NOT NULL DEFAULT 1 CHECK (inhalt IN (0, 1))"),
     ("mail_nachricht", "ort", "TEXT"),
+    # Schema 18 (D-255): Mails komprimiert, Spiegel verweist nach dem Anhängen auf den Inhalt des Dokuments
+    ("dokument_inhalt", "verfahren", "TEXT CHECK (verfahren IS NULL OR verfahren IN ('', 'zlib'))"),
+    ("mail_nachricht", "roh_verfahren", "TEXT CHECK (roh_verfahren IS NULL OR roh_verfahren IN ('', 'zlib'))"),
+    ("mail_nachricht", "roh_sha256", "TEXT"),
 )
 _NACH_MIGRATION = (
     "CREATE INDEX IF NOT EXISTS split_abstimmung ON split(abstimmung_id)",
@@ -685,6 +692,8 @@ def verbinde(pfad: pathlib.Path) -> sqlite3.Connection:
 def schema_anlegen(pfad: pathlib.Path) -> None:
     con = verbinde(pfad)
     try:
+        if con.execute("PRAGMA page_count").fetchone()[0] == 0:
+            con.execute("PRAGMA auto_vacuum = INCREMENTAL")   # D-255: neue Datenbank gibt freien Platz zurück
         con.execute("PRAGMA journal_mode = WAL")
         con.executescript(SCHEMA)
         con.execute("BEGIN IMMEDIATE")
@@ -697,8 +706,60 @@ def schema_anlegen(pfad: pathlib.Path) -> None:
         con.execute("INSERT INTO meta (schluessel, wert) VALUES ('schema_version', ?)"
                     " ON CONFLICT(schluessel) DO UPDATE SET wert = excluded.wert",
                     (str(SCHEMA_VERSION),))
+        mails_packen(con)
+        verkleinern(con)
     finally:
         con.close()
+
+
+_STUECK = 50   # Zeilen je Transaktion beim Umstellen (wenig Arbeitsspeicher, kurze Sperren)
+
+
+def mails_packen(con: sqlite3.Connection) -> int:
+    """D-255: Bestand aus der Zeit vor Schema 18 umstellen (``verfahren`` bzw. ``roh_verfahren`` NULL): Mail-Dokumente
+    und Rohfassungen im Spiegel komprimieren; liegt eine Rohfassung schon als Inhalt eines Dokuments vor, hält der
+    Spiegel nur den Verweis. Läuft bei jedem Start, hat danach aber nichts mehr zu tun. Gibt die Zahl der Zeilen."""
+    from . import dokumente, kompression
+    n = 0
+    shas = [r[0] for r in con.execute("SELECT sha256 FROM dokument_inhalt WHERE verfahren IS NULL")]
+    for i in range(0, len(shas), _STUECK):
+        with transaktion(con):
+            for sha in shas[i:i + _STUECK]:
+                roh = bytes(con.execute("SELECT inhalt FROM dokument_inhalt WHERE sha256 = ?", (sha,)).fetchone()[0])
+                blob, verfahren = kompression.packen(roh) if dokumente.typ_erkennen(roh) == dokumente.MAIL \
+                    else (roh, "")
+                con.execute("UPDATE dokument_inhalt SET inhalt = ?, verfahren = ? WHERE sha256 = ?",
+                            (blob, verfahren, sha))
+                n += 1
+    ids = [r[0] for r in con.execute("SELECT id FROM mail_nachricht WHERE roh IS NOT NULL AND roh_verfahren IS NULL")]
+    for i in range(0, len(ids), _STUECK):
+        with transaktion(con):
+            for sid in ids[i:i + _STUECK]:
+                roh = bytes(con.execute("SELECT roh FROM mail_nachricht WHERE id = ?", (sid,)).fetchone()[0])
+                blob, verfahren = kompression.packen(roh)
+                con.execute("UPDATE mail_nachricht SET roh = ?, roh_verfahren = ? WHERE id = ?", (blob, verfahren, sid))
+                dokumente.spiegel_verweisen(con, sid, roh)
+                n += 1
+    return n
+
+
+def verkleinern(con: sqlite3.Connection) -> None:
+    """D-255: Freien Platz an das Dateisystem zurückgeben. Eine Datenbank ohne ``auto_vacuum`` wird einmal mit
+    ``VACUUM`` umgestellt (braucht vorübergehend Platz in der Größe der belegten Daten); danach genügt
+    ``incremental_vacuum``, sobald mehr als ein Viertel der Seiten frei ist. Scheitert es (Platte voll, Datenbank
+    in Benutzung), bleibt alles, wie es ist; der nächste Start versucht es erneut."""
+    try:
+        if con.execute("PRAGMA auto_vacuum").fetchone()[0] != 2:
+            con.execute("PRAGMA auto_vacuum = INCREMENTAL")
+            con.execute("VACUUM")
+        else:
+            seiten = con.execute("PRAGMA page_count").fetchone()[0]
+            frei = con.execute("PRAGMA freelist_count").fetchone()[0]
+            if frei > seiten // 4:
+                con.execute("PRAGMA incremental_vacuum").fetchall()
+        con.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchall()
+    except sqlite3.Error as e:
+        _log.warning("Die Datenbank ließ sich nicht verkleinern (%s: %s).", type(e).__name__, e)
 
 
 @contextlib.contextmanager

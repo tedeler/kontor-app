@@ -5,6 +5,8 @@ SHA-256 seines Inhalts. Die Bytes liegen inhaltsadressiert in ``dokument_inhalt`
 Die Protokollform eines Dokuments enthält nur den Hash. Inhalte bleiben erhalten, solange ein Dokument oder das
 Änderungsprotokoll (für Rückgängig) sie braucht; sie werden nie durch eine Operation gelöscht.
 
+E-Mails liegen dort komprimiert (D-255, ``kompression``); gelesen und gesichert werden immer die Originalbytes.
+
 Die Verknüpfung Dokument ↔ Buchung (``dokument_buchung``) gehört zur Protokollform der Buchung (``dokument_ids``,
 nur wenn nicht leer). Ein Dokument ohne Buchung entfällt am Ende jeder protokollierten Operation
 (``verwaiste_entfernen``); Rückgängig stellt beides gemeinsam wieder her.
@@ -27,7 +29,7 @@ import re
 import unicodedata
 from email.message import EmailMessage, Message
 
-from . import buch
+from . import buch, kompression
 from .validierung import ApiFehler, Validierungsfehler, fehler_eintrag
 
 PDF, JPEG, PNG, WEBP, MAIL = "application/pdf", "image/jpeg", "image/png", "image/webp", "message/rfc822"
@@ -158,10 +160,25 @@ def dokument_lesen(con, did: int) -> dict:
 
 def inhalt_lesen(con, did: int) -> tuple[dict, bytes]:
     r = _zeile(con, did)
-    i = con.execute("SELECT inhalt FROM dokument_inhalt WHERE sha256 = ?", (r["sha256"],)).fetchone()
-    if i is None:  # pragma: no cover - Inhalte werden nie gelöscht
+    daten = inhalt_bytes(con, r["sha256"])
+    if daten is None:  # pragma: no cover - Inhalte werden nie gelöscht
         raise buch.nicht_gefunden("Der Inhalt des Dokuments")
-    return dokument_dict(r), bytes(i["inhalt"])
+    return dokument_dict(r), daten
+
+
+def inhalt_bytes(con, sha256: str) -> bytes | None:
+    """Originalbytes eines gespeicherten Inhalts (D-255: ggf. entpackt) oder None."""
+    i = con.execute("SELECT inhalt, verfahren FROM dokument_inhalt WHERE sha256 = ?", (sha256,)).fetchone()
+    return None if i is None else kompression.entpacken(i["inhalt"], i["verfahren"])
+
+
+def inhalt_speichern(con, roh: bytes) -> str:
+    """Inhalt inhaltsadressiert ablegen (gleiche Bytes nur einmal); E-Mails komprimiert (D-255). Gibt den Hash."""
+    sha = hashlib.sha256(roh).hexdigest()
+    blob, verfahren = kompression.packen(roh) if typ_erkennen(roh) == MAIL else (roh, "")
+    con.execute("INSERT OR IGNORE INTO dokument_inhalt (sha256, inhalt, verfahren) VALUES (?, ?, ?)",
+                (sha, blob, verfahren))
+    return sha
 
 
 def dokumente_liste(con, buchung_id: int) -> list[dict]:
@@ -199,8 +216,7 @@ def anlegen(con, roh: bytes, dateiname: str | None, buchung_ids: list[int], quel
                       "Nur PDF-Dateien, E-Mails (.eml) und Bilder (JPEG, PNG, WebP) können angehängt werden.")
     if typ == MAIL and not dateiname:
         dateiname = (_mail_betreff(roh) or "E-Mail")[:MAX_NAME - 4]
-    sha = hashlib.sha256(roh).hexdigest()
-    con.execute("INSERT OR IGNORE INTO dokument_inhalt (sha256, inhalt) VALUES (?, ?)", (sha, roh))
+    sha = inhalt_speichern(con, roh)
     did = con.execute("INSERT INTO dokument (dateiname, mime_typ, groesse, sha256, quelle, erstellt_am)"
                       " VALUES (?, ?, ?, ?, ?, ?)",
                       (dateiname_saeubern(dateiname, typ), typ, len(roh), sha, quelle, zeitpunkt)).lastrowid
@@ -264,10 +280,36 @@ BEZUG_SQL = (
 # ================================================================ E-Mail aus dem Postfach
 
 
-def mail_roh_aus_spiegel(r) -> bytes:
-    """Rohnachricht einer gespiegelten Mail; ohne gespeicherte Rohfassung (z. B. Mock) aus den Feldern gebaut."""
+def spiegel_roh(con, r) -> bytes | None:
+    """Gespeicherte Rohfassung einer gespiegelten Mail (Zeile mit ``roh``, ``roh_verfahren``, ``roh_sha256``) oder
+    None. D-255: komprimiert gespeichert oder – nach dem Anhängen – nur als Verweis auf den Inhalt des Dokuments."""
     if r["roh"] is not None:
-        return bytes(r["roh"])
+        return kompression.entpacken(r["roh"], r["roh_verfahren"])
+    if r["roh_sha256"] is not None:
+        return inhalt_bytes(con, r["roh_sha256"])
+    return None
+
+
+def spiegel_packen(roh: bytes | None) -> tuple[bytes | None, str | None]:
+    """Rohfassung für ``mail_nachricht`` (Spalten ``roh``, ``roh_verfahren``)."""
+    return (None, None) if roh is None else kompression.packen(roh)
+
+
+def spiegel_verweisen(con, spiegel_id: int, roh: bytes) -> None:
+    """D-255: Liegt die Rohfassung einer gespiegelten Mail als Inhalt eines Dokuments vor, hält der Spiegel nur noch
+    den Verweis darauf (keine zweite Kopie). Inhalte werden nie gelöscht, der Verweis bleibt also gültig."""
+    sha = hashlib.sha256(roh).hexdigest()
+    if con.execute("SELECT 1 FROM dokument_inhalt WHERE sha256 = ?", (sha,)).fetchone() is None:
+        return
+    con.execute("UPDATE mail_nachricht SET roh = NULL, roh_verfahren = NULL, roh_sha256 = ?"
+                " WHERE id = ? AND roh IS NOT NULL", (sha, spiegel_id))
+
+
+def mail_roh_aus_spiegel(con, r) -> bytes:
+    """Rohnachricht einer gespiegelten Mail; ohne gespeicherte Rohfassung (z. B. Mock) aus den Feldern gebaut."""
+    roh = spiegel_roh(con, r)
+    if roh is not None:
+        return roh
     m = EmailMessage()
     m["From"] = r["absender"] or "unbekannt@example.invalid"
     m["To"] = r["adresse_cf"]
@@ -287,8 +329,10 @@ def aus_mail(con, nachricht_id: int, buchung_ids: list[int], zeitpunkt: str) -> 
     r = con.execute("SELECT * FROM mail_nachricht WHERE id = ?", (buch.sichere_id(nachricht_id),)).fetchone()
     if r is None:
         raise buch.nicht_gefunden("Die E-Mail")
-    roh = mail_roh_aus_spiegel(r)
-    return anlegen(con, roh, (r["betreff"] or "E-Mail")[:MAX_NAME - 4], buchung_ids, "mail", zeitpunkt)
+    roh = mail_roh_aus_spiegel(con, r)
+    erg = anlegen(con, roh, (r["betreff"] or "E-Mail")[:MAX_NAME - 4], buchung_ids, "mail", zeitpunkt)
+    spiegel_verweisen(con, r["id"], roh)
+    return erg
 
 
 # ================================================================ E-Mail anzeigen

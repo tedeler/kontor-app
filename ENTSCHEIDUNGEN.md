@@ -3719,3 +3719,30 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   (das Ergebnis steht im CI-Lauf). Entscheidungen der Spezifikation (`spec/api/entscheidungen.md`, `E-…`) bleiben
   als Bestand; neue Entscheidungen stehen hier.
 - **Einzelheiten, Messungen, Auswahlregel und geänderte Tests:** `TESTUMBAU.md`.
+
+## D-255 Feature mail-schlank: Mails komprimiert, Spiegel ohne zweite Kopie, Datei gibt Platz zurück (2026-11-24)
+
+- **Anlass:** Auftrag vom 2026-11-24. Die Datenbank des Echtbetriebs war 235 MB groß und die Testinstanz ließ sich
+  nicht mehr einrichten (Platte voll beim Kopieren). Messung: 110 MB Rohfassungen im Mail-Spiegel (990 Mails mit
+  Inhalt von 6.543), 95 MB Mail-Dokumente (754), keine freien Seiten. zlib verkleinert die Mail-Dokumente des
+  Bestands von 95,2 auf 16,8 MB. (Nummer D-255, weil D-254 auf `feature/status-farben` vergeben ist.)
+- **Entscheidung:**
+  - `dokument_inhalt` speichert E-Mails komprimiert (Spalte `verfahren`: `zlib`, `''` unkomprimiert, `NULL`
+    Bestand vor Schema 18). PDF und Bilder bleiben unverändert. Prüfsumme, Größe, Auslieferung und Sicherung
+    beziehen sich auf die Originalbytes (`kompression.py`, `dokumente.inhalt_bytes`/`inhalt_speichern`).
+  - Die Rohfassung im Spiegel ist komprimiert (`mail_nachricht.roh_verfahren`). Wird die Mail als Dokument
+    angehängt (von Hand, Mail-Abgleich, Bestellnummer), entfällt die Rohfassung im Spiegel; `roh_sha256` verweist
+    auf den Inhalt des Dokuments (`dokumente.spiegel_verweisen`, gelesen über `spiegel_roh`). Inhalte werden nie
+    gelöscht, der Verweis bleibt also gültig.
+  - Das Format der Sicherung bleibt (unkomprimierte Inhalte, `SCHEMAVERSION` unverändert): die ZIP-Datei
+    komprimiert ohnehin, und ältere Kontor-Versionen können neue Sicherungen weiter lesen.
+  - Neue Datenbanken mit `auto_vacuum = INCREMENTAL`. Beim Start stellt `db.mails_packen` den Altbestand um
+    (stückweise, je 50 Zeilen eine Transaktion), `db.verkleinern` stellt eine Datenbank ohne `auto_vacuum` einmal
+    mit `VACUUM` um und gibt danach mit `incremental_vacuum` Platz zurück, sobald mehr als ein Viertel der Seiten
+    frei ist. Scheitert das (Platte voll, Datenbank belegt), startet Kontor trotzdem; der nächste Start versucht
+    es erneut.
+- **Verworfen:** Rohfassungen nach einer Frist löschen und bei Bedarf aus dem Postfach nachladen. Nach Kompression
+  und Verweis bleiben dafür nur wenige MB übrig; dagegen stünden ein zusätzlicher Zustand, wiederholtes Nachladen
+  und Mails, die im Postfach schon gelöscht sind.
+- **Schema 18.** Lasttest mit 990 synthetischen Mails (123 MB): Umstellung beim Start 1,3 s, danach 9,4 MB.
+- **Tests:** `tests/core/test_mail_schlank.py`.
