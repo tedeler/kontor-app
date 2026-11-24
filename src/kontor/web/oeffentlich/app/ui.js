@@ -1,7 +1,8 @@
 /* Kontor – Dialoge (oberflaeche.md 9) und Kontextmenüs (8). */
 import {
   ApiFehler, BESTAND, aktion, anhaengen, api, betragEingabe, betragEl, betragLesen, betragText, datumText, ebeneOeffnen,
-  ebeneSchliessen, fehlerText, h, kategorien, klasse, kontoNach, kontoPfad, baumFolge, melde, neueId, oberflaeche, passt, stamm, tid,
+  ebeneSchliessen, fehlerText, h, kategorien, klasse, kontoNach, kontoPfad, baumFolge, melde, neueId, oberflaeche, passt,
+  personBestaetigt, stamm, tid,
 } from "./kern.js";
 
 // ------------------------------------------------------------------ Dialog-Grundgerüst (9)
@@ -607,7 +608,16 @@ export function splitDialog(buchung, ausloeser) {
     }));
     speichern.addEventListener("click", () => imDialog(d, speichern, async () => {
       const splits = zeilen.map((z) => ({ konto_id: z.konto_id, betrag: betragLesen(z.betrag), memo: z.memo }));
-      await aktion(() => api("PUT", `/api/buchungen/${buchung.id}/splits`, { splits }),
+      // D-272: Splits von Hand bestätigen die Buchung, also auch das Tag der Person – außer es bleibt ein Teil
+      // auf „Unkategorisiert“
+      const unk = stamm.konten.find((k) => k.extern_id === "kontor:unkategorisiert");
+      const offen = (buchung.status === "importiert" || buchung.status === "vorlaeufig")
+        && !(unk && splits.some((sp) => sp.konto_id === unk.id)) ? [buchung.id] : [];
+      await aktion(async () => {
+        const r = await api("PUT", `/api/buchungen/${buchung.id}/splits`, { splits });
+        await personBestaetigt(offen);
+        return r;
+      },
         { stillBeiFehler: true, danach: () => d.schliessen(true), erfolg: "Splits gespeichert." });
     }));
     // D-267: eine Split-Vorlage von Hand übernehmen – auch wenn ihr Betrag nicht zur Buchung passt

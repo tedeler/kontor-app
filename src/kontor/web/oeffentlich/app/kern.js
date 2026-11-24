@@ -169,6 +169,16 @@ export function personLesen() {
   } catch { /* ohne Speicher */ }
   return personImSpeicher;
 }
+/** D-272: Wer von Hand zuordnet, bestätigt – das Tag der oben rechts gewählten Person kommt an die Buchungen.
+ *  Innerhalb von `aktion()` aufrufen (ein Rückgängig-Schritt mit der Zuordnung); ohne gewählte Person ohne Wirkung. */
+export async function personBestaetigt(ids) {
+  const name = personLesen();
+  if (!name || !ids || !ids.length) return;
+  let t = stamm.tags.find((x) => x.name === personTag(name));
+  if (!t) t = await api("POST", "/api/tags", { name: personTag(name) });
+  await api("POST", "/api/buchungen/mehrfach/tags", {
+    buchung_ids: ids.slice().sort((a, b) => a - b), hinzufuegen: [t.id], entfernen: [] });
+}
 export function personSchreiben(name) {
   if (!PERSONEN.includes(name)) return;
   personImSpeicher = name;
