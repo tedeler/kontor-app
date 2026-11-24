@@ -3905,3 +3905,19 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   neuen Kennungen.
 - **Prüfung:** einmal im Browser bei 1900 Pixel Breite angesehen (helles Thema, Buchung ohne Vorschlag und ohne
   Dokumente).
+
+## D-267 Auswahl und Status auf getrennten Ebenen (Feature `status-farben`, 2026-11-24)
+
+- **Anlass:** Rückmeldung vom 2026-11-24: Die blaue Unterlegung der gewählten Buchung hat dieselbe Struktur wie die
+  rote und gelbe Statusfarbe; beim Wechsel zu einer anderen Buchung springen die Farben.
+- **Entscheidung:** Der Status bestimmt Grundton und Streifen der Zeile und bleibt immer sichtbar. Die Auswahl
+  ersetzt den Grundton nicht mehr, sondern legt einen farbneutralen Schleier darüber (die Zeile wird eine Stufe
+  dunkler, im dunklen Thema heller) und rahmt sie oben und unten mit einer Linie in der Akzentfarbe. Hover ist
+  derselbe Schleier, schwächer und ohne Linien. Die Akzentfarbe steht damit nur noch für „ausgewählt“, Rot und
+  Gelb nur für den Status.
+- **Ersetzt D-257:** Die farbige Schrift in ausgewählten Zeilen entfällt; sie war nötig, weil die Auswahl den
+  Statuston überdeckte.
+- **Technik:** `--toenung`, `--streifen`, `--schleier` je Zeile; die klebende Betragszelle nutzt dieselben Werte.
+  `data-markierung`, `aria-selected` und alle Kennungen sind unverändert.
+- **Prüfung:** im Browser angesehen, hell und dunkel, Auswahl auf roten, gelben und weißen Zeilen sowie Hover.
+  Nicht angesehen: Handy-Ansicht, Zeilen mit Vorschlagsknöpfen.

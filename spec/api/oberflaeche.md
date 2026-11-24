@@ -2108,8 +2108,9 @@ Statuswechsel oder Rückgängig zeigt die neu geladene Liste den neuen Wert). Fa
 nicht getestet, nur dass `importiert`, `vorlaeufig` und `bestaetigt` optisch unterscheidbar
 sind (verschiedene berechnete `background-image` bzw. `background-color` der Zeile).
 
-In ausgewählten Zeilen überdeckt die Auswahlfarbe die Tönung; dort tragen `importiert` rote und `vorlaeufig`
-gelbbraune (dunkles Thema: gelbe) Schrift (D-257). Die genauen Farbwerte sind nicht Teil des Vertrags.
+Die Auswahl überdeckt die Tönung nicht (D-267, ersetzt D-257): Ausgewählte Zeilen behalten Ton und Streifen ihres
+Status, sind eine Stufe abgedunkelt (dunkles Thema: aufgehellt) und oben und unten mit einer Linie in der
+Akzentfarbe gerahmt. Die genauen Farbwerte sind nicht Teil des Vertrags.
 
 ### 32.3 Zusatzmarken vor dem Empfänger
 
