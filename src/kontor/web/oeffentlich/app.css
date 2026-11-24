@@ -1541,6 +1541,10 @@ html[data-thema="dunkel"] .mail-zuordnung[data-zustand="erfuellt"] .mail-marke {
 /* ---------------------------------------------------------------- UX-Durchgang (D-236) */
 /* Kontoblatt: Betrag bleibt beim seitlichen Rollen am rechten Rand stehen, Gruppenbalken so breit wie der sichtbare Teil */
 .listen-spalte { container-type: inline-size; }
+/* D-275: Die Liste zeichnet nur einen Ausschnitt und tauscht beim Rollen ihre Zeilen aus. Ohne diese Angabe hält der
+   Browser eine der ausgetauschten Zeilen als Anker fest und schiebt die Rollposition bei jedem Austausch nach – der
+   Schwung nach dem Loslassen bremst dann nicht mehr ab, sondern läuft bis ans Ende der Liste. */
+.buchungsliste { overflow-anchor: none; }
 .buchungsliste[data-kompakt="nein"] [role="row"] > .zelle-betrag { position: sticky; right: 0; z-index: 1; background-color: inherit; }
 .buchungsliste[data-kompakt="nein"] .liste-kopf > .zelle-betrag { background-color: var(--hg-2); }
 @container (max-width: 46rem) {

@@ -4036,3 +4036,20 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - **Entscheidung:** Der Sprung leert beim Zurücksetzen auch das Ausdrucksfeld, wie „Filter zurücksetzen“.
 - **Dazu:** `test_browser_ausdruck.py::test_tags_im_kontoblatt_bearbeiten` (in `TESTUMBAU.md` schon als gelegentlich
   rot vermerkt) wartet jetzt, bis die Zeile das neue Tag zeigt, bevor der Tag-Dialog erneut geöffnet wird.
+
+## D-275 Handy: Schwung beim Rollen der Buchungsliste bremst wieder ab (Feature `status-farben`, 2026-11-24)
+
+- **Anlass:** Fehlermeldung vom 2026-11-24: Am Handy rollt die Liste nach dem Loslassen des Fingers weiter, bremst
+  aber nicht ab, sondern läuft endlos.
+- **Nachgestellt:** Chrome in Handy-Größe (390 × 844, Touch), 700 synthetische Buchungen, schneller Wisch über
+  Touch-Ereignisse, Rollposition alle 0,25 s gemessen. Vor der Korrektur lief die Liste mit gleichbleibender
+  Geschwindigkeit (gruppiert etwa 1700 bzw. 7000 Pixel je Viertelsekunde, ohne Abbremsen) bis ans Ende; ohne
+  Gruppierung sprang sie beim zweiten Wisch ebenfalls ans Ende. Nach der Korrektur klingt jeder Wisch in etwa einer
+  Sekunde aus (z. B. 438, 275, 184, 39, 0 Pixel).
+- **Ursache:** Ab 100 Zeilen zeichnet die Liste nur einen Ausschnitt und tauscht beim Rollen ihre Zeilen aus. Der
+  Browser hielt eine der Zeilen als Scroll-Anker fest und schob die Rollposition bei jedem Austausch nach; das löste
+  den nächsten Austausch aus, und so fort.
+- **Entscheidung:** `.buchungsliste { overflow-anchor: none; }` – die Liste nimmt nicht am Scroll-Anker teil.
+- **Grenzen:** Gemessen nur in Chrome. Auf einem iPhone (Safari) nicht geprüft; ältere Safari-Versionen kennen
+  keinen Scroll-Anker, dort hätte der Fehler eine andere Ursache. Kein Browsertest dafür (der Browser-Job liegt
+  schon über dem Budget); der Core-Test `tests/core/test_liste_scrollanker.py` sichert nur, dass die Angabe bleibt.
