@@ -2186,11 +2186,11 @@ class Kontoansicht {
         if (!t) return null;
         await api("POST", "/api/buchungen/mehrfach/tags", {
           buchung_ids: ids, hinzufuegen: hinzu ? [t.id] : [], entfernen: hinzu ? [] : [t.id] });
-        // Importiert wird durch die Bestätigung der Person zu Bestätigt (D-159).
+        // Importiert und Vorläufig werden durch die Bestätigung der Person zu Bestätigt (D-159, D-255).
         if (hinzu) {
           const offen = ids.filter((id) => {
             const x = this.eintraege.find((e) => e.id === id);
-            return x && x.status === "importiert";
+            return x && (x.status === "importiert" || x.status === "vorlaeufig");
           }).sort((a, c) => a - c);
           if (offen.length) await api("POST", "/api/buchungen/mehrfach/aendern", { buchung_ids: offen, status: "bestaetigt" });
         }

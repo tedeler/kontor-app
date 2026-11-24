@@ -121,3 +121,27 @@ def test_vorlaeufig_laesst_sich_bestaetigen(buch):
     assert client.post("/api/buchungen/mehrfach/aendern",
                        json={"buchung_ids": [b], "status": "bestaetigt"}).status_code == 200
     assert _status(client, b) == "bestaetigt"
+
+
+def test_altbestand_wird_einmalig_umgestellt(buch, config):
+    """Datenbank aus einer früheren Fassung: importierte Buchungen mit Zuordnung werden beim Öffnen vorläufig,
+    solche mit offenem Vorschlag und bestätigte nicht; ein zweites Öffnen ändert nichts mehr."""
+    from kontor import db
+
+    client, k, neu = buch
+    zugeordnet, mit_vorschlag, bestaetigt = neu(), neu(), neu("bestaetigt")
+    assert client.post("/api/regeln", json={"name": "Alles", "kategorie_id": k["lm"],
+                                            "ausdruck": "betrag > 0"}).status_code == 201
+    assert client.post("/api/regeln/anwenden", json={"buchung_ids": [mit_vorschlag],
+                                                     "nur_unkategorisiert": False}).status_code == 200
+    con = db.verbinde(config.datenbank)
+    con.execute("DELETE FROM meta WHERE schluessel = 'status_vorlaeufig'")
+    con.close()
+
+    db.schema_anlegen(config.datenbank)
+    assert [_status(client, x) for x in (zugeordnet, mit_vorschlag, bestaetigt)] == [
+        "vorlaeufig", "importiert", "bestaetigt"]
+
+    spaeter = neu()
+    db.schema_anlegen(config.datenbank)
+    assert _status(client, spaeter) == "importiert"

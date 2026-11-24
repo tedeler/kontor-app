@@ -516,6 +516,8 @@ def _entscheiden(con, b: dict, aktion: str, art_von: dict[int, str]) -> None:
         if gegen is not None:
             con.execute("UPDATE split SET konto_id = ? WHERE id = ?", (ziel, gegen["id"]))
     buch.vorschlag_entfernen(con, [b["id"]])
+    if aktion == "annehmen":
+        buch.von_hand_zugeordnet(con, [b["id"]])   # D-255: erst das Annehmen ist die Zuordnung
 
 
 def vorschlag_entscheiden(con, bid: int, aktion: str) -> dict:

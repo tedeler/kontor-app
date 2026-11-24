@@ -19,7 +19,8 @@ BESTAND = ("girokonto", "sparkonto", "kreditkonto")
 KATEGORIEARTEN = ("aufwand", "ertrag")
 KLASSE = {"girokonto": "bestand", "sparkonto": "bestand", "kreditkonto": "bestand",
           "aufwand": "aufwand", "ertrag": "ertrag", "eigenkapital": "eigenkapital"}
-UEBERGAENGE = {("importiert", "bestaetigt"), ("bestaetigt", "abgeglichen"), ("vorlaeufig", "abgeglichen")}
+UEBERGAENGE = {("importiert", "bestaetigt"), ("vorlaeufig", "bestaetigt"),   # vorläufig → bestätigt seit D-255
+               ("bestaetigt", "abgeglichen"), ("vorlaeufig", "abgeglichen")}
 
 
 def nicht_gefunden(was: str) -> ApiFehler:
@@ -560,6 +561,21 @@ def buchung_anlegen(con, d: dict) -> dict:
     return buchung_lesen(con, bid)
 
 
+def von_hand_zugeordnet(con, ids: Iterable[int]) -> None:
+    """D-255: Eine von Hand zugeordnete Buchung ist vorläufig.
+
+    Aufzurufen nach jeder Zuordnung durch den Anwender (Kategorie oder Bestandskonto setzen, Splits ersetzen,
+    Vorschlag annehmen). Betrifft nur Buchungen im Status ``importiert``, bei denen danach kein Split mehr auf
+    „Unkategorisiert“ liegt; alle anderen Status bleiben.
+    """
+    for teil in _stueckweise(sorted(set(ids))):
+        con.execute(
+            f"UPDATE buchung SET status = 'vorlaeufig' WHERE status = 'importiert'"
+            f" AND id IN ({_platzhalter(len(teil))}) AND id NOT IN (SELECT s.buchung_id FROM split s"
+            " JOIN konto k ON k.id = s.konto_id WHERE k.extern_id = ?)",
+            [*(sichere_id(x) for x in teil), UNKATEGORISIERT])
+
+
 def _gesperrt() -> ApiFehler:
     return ApiFehler(409, "buchung_gesperrt",
                      "Die Buchung ist abgeglichen oder abgestimmt und gegen Änderungen gesperrt.")
@@ -606,6 +622,7 @@ def splits_ersetzen(con, bid: int, splits: list[dict]) -> dict:
     _splits_regeln(con, splits)
     splits_schreiben(con, bid, splits)
     vorschlag_entfernen(con, [bid])
+    von_hand_zugeordnet(con, [bid])
     return buchung_lesen(con, bid)
 
 
@@ -631,6 +648,7 @@ def kategorie_setzen(con, bid: int, kategorie_id: int) -> dict:
                         "Die Buchung hat nicht genau einen Gegensplit und lässt sich nicht kategorisieren.")
     con.execute("UPDATE split SET konto_id = ? WHERE id = ?", (kategorie_id, s["id"]))
     vorschlag_entfernen(con, [bid])
+    von_hand_zugeordnet(con, [bid])
     return buchung_lesen(con, bid)
 
 
@@ -680,6 +698,7 @@ def mehrfach_kategorie(con, ids: list[int], kategorie_id: int) -> dict:
     con.executemany("UPDATE split SET konto_id = ? WHERE id = ?",
                     [(kategorie_id, s["id"]) for s in gegen.values()])
     vorschlag_entfernen(con, ids)
+    von_hand_zugeordnet(con, ids)
     return {"geaendert": sorted(ids), "anzahl": len(ids)}
 
 
