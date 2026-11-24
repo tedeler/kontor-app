@@ -3893,3 +3893,15 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - **Status:** Das Speichern ist eine Zuordnung von Hand, die Buchung wird also bestätigt (D-259).
 - **Prüfung:** einmal im Browser durchgespielt (Vorlage 10 € auf Buchung 12 €, Ausgleichen, Speichern); kein
   Browsertest geschrieben.
+
+## D-266 Einzelheiten unten: Abschnitte nebeneinander (Feature `status-farben`, 2026-11-24)
+
+- **Anlass:** Rückmeldung vom 2026-11-24 mit Bildschirmfoto: Unten angedockt standen die Abschnitte der
+  Einzelheiten untereinander über die ganze Breite; viel Platz blieb leer.
+- **Entscheidung:** Unten angedockt stehen Kopf (Empfänger, Betrag, Datum, Status), Verwendungszweck,
+  Buchungssätze, Tags mit Bestätigung, Dokumente und weitere Abschnitte nebeneinander in Spalten von mindestens
+  19rem; reicht die Breite nicht, brechen sie in die nächste Zeile um. Die Herkunft steht über die ganze Breite
+  darunter. Rechts angedockt und am Handy bleibt die Darstellung untereinander. Nur Darstellung (CSS), keine
+  neuen Kennungen.
+- **Prüfung:** einmal im Browser bei 1900 Pixel Breite angesehen (helles Thema, Buchung ohne Vorschlag und ohne
+  Dokumente).
