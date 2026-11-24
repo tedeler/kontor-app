@@ -3,7 +3,8 @@
 import {
   BESTAND, STATUS_TEXT, abfrage, aktion, anhaengen, api, baumFolge, betragEingabe, betragEl, betragLesen, betragText, datumEl,
   datumText, h, kategorien, klasse,
-  kontoNach, kontoPfad, melde, nameAnzeige, neueId, oberflaeche, personLesen, personTag, personVonTag, pfadVon, stamm, tid,
+  kontoNach, kontoPfad, melde, nameAnzeige, neueId, oberflaeche, personBestaetigt, personLesen, personTag, personVonTag, pfadVon,
+  stamm, tid,
 } from "./kern.js";
 import {
   bestaetigen, dialog, dubletteDialog, erfassenDialog, feld, imDialog, kategorieAuswahl, kontextmenue, knopf, knopfLeiste,
@@ -2701,6 +2702,15 @@ class Kontoansicht {
     if (kat) await this.kategorieSetzen(ids, kat);
   }
 
+  /** Die Buchungen aus `ids`, die noch nicht bestätigt sind (importiert oder vorläufig) – sie werden durch eine
+   *  Zuordnung von Hand bestätigt (D-261) und bekommen dann das Tag der Person (D-272). */
+  unbestaetigte(ids) {
+    return ids.filter((id) => {
+      const x = this.eintraege.find((e) => e.id === id);
+      return x && (x.status === "importiert" || x.status === "vorlaeufig");
+    });
+  }
+
   /** Kategorie oder – D-242 – Bestandskonto als Gegenseite setzen; beim Konto wird die Buchung zur Umbuchung. */
   async kategorieSetzen(ids, kategorieId) {
     const sortiert = ids.slice().sort((a, b) => a - b);
@@ -2712,10 +2722,15 @@ class Kontoansicht {
       if (wahl === undefined) return;
       if (wahl !== "auto") einzeln.gegenbuchung_id = wahl;
     }
+    const offen = (kontoNach(kategorieId) || {}).extern_id === UNKATEGORISIERT ? [] : this.unbestaetigte(sortiert);
     try {
-      await aktion(() => (sortiert.length === 1
-        ? api("PUT", `/api/buchungen/${sortiert[0]}/kategorie`, einzeln)
-        : api("POST", "/api/buchungen/mehrfach/kategorie", { buchung_ids: sortiert, kategorie_id: kategorieId, ...sicht })),
+      await aktion(async () => {
+        const r = await (sortiert.length === 1
+          ? api("PUT", `/api/buchungen/${sortiert[0]}/kategorie`, einzeln)
+          : api("POST", "/api/buchungen/mehrfach/kategorie", { buchung_ids: sortiert, kategorie_id: kategorieId, ...sicht }));
+        await personBestaetigt(offen);   // D-272: die Zuordnung von Hand bestätigt, also auch das Tag der Person
+        return r;
+      },
       { erfolg: umbuchung ? `Umbuchung auf „${pfadVon(kategorieId)}“.` : `Kategorie „${pfadVon(kategorieId)}“ gesetzt.` });
     } catch (e) { /* gemeldet, Liste zeigt den Stand des Servers */ }
   }
@@ -2746,10 +2761,15 @@ class Kontoansicht {
     if (e) { e.stopPropagation(); }
     const mit = this.eintraege.filter((b) => ids.includes(b.id) && b.vorschlag).map((b) => b.id).sort((a, b) => a - b);
     if (!mit.length) return;
+    const offen = was === "annehmen" ? this.unbestaetigte(mit) : [];
     try {
-      await aktion(() => (mit.length === 1 && e
-        ? api("POST", `/api/buchungen/${mit[0]}/vorschlag`, { aktion: was })
-        : api("POST", "/api/buchungen/mehrfach/vorschlag", { buchung_ids: mit, aktion: was })),
+      await aktion(async () => {
+        const r = await (mit.length === 1 && e
+          ? api("POST", `/api/buchungen/${mit[0]}/vorschlag`, { aktion: was })
+          : api("POST", "/api/buchungen/mehrfach/vorschlag", { buchung_ids: mit, aktion: was }));
+        await personBestaetigt(offen);   // D-272
+        return r;
+      },
       { erfolg: was === "annehmen" ? "Vorschlag angenommen." : "Vorschlag abgelehnt." });
     } catch (f) { /* gemeldet */ }
   }

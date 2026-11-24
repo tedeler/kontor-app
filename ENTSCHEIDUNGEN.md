@@ -3996,3 +3996,32 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   (filtern, wählen, Filter leeren: gewählt, Fokus, Mitte, zweite Seite nachgeladen). Nicht geprüft: gruppierte
   Ansicht, Baukasten, Handy.
 - **Offen vor dem Merge:** Tests, die nach einem Filterwechsel eine leere Auswahl erwarten.
+
+## D-272 Zuordnung von Hand setzt auch das Tag der Person (Feature `status-farben`, 2026-11-24)
+
+- **Anlass:** Antwort vom 2026-11-24 auf die offene Frage aus D-261: Die Zuordnung von Hand soll auch das Tag
+  „<Name>-Bestätigt“ setzen.
+- **Entscheidung (ändert die Annahme „Personen-Tag“ in D-261):** Wird eine importierte oder vorläufige Buchung in
+  der Oberfläche von Hand zugeordnet (Kategorie oder Konto setzen, einzeln und mehrfach, auch durch Ziehen und in
+  der Zeile; Splits speichern; Vorschlag annehmen) und ist oben rechts eine Person gewählt, bekommt sie in
+  derselben Aktion deren Tag. Ein Strg+Z nimmt Zuordnung, Status und Tag zusammen zurück.
+- **Nicht:** ohne gewählte Person (dann nur der Status, ohne Nachfrage); bei schon bestätigten oder abgeglichenen
+  Buchungen (eine spätere Umkategorisierung ist keine neue Bestätigung); bei Zuordnung auf „Unkategorisiert“; beim
+  Ablehnen eines Vorschlags.
+- **Nur Oberfläche:** Der Server kennt die Person nicht; über die REST-Schnittstelle setzt die Zuordnung weiterhin
+  nur den Status.
+- **Prüfung:** einmal im Browser durchgespielt (Kategorie setzen auf importierter, vorläufiger und bestätigter
+  Buchung, ein Strg+Z). Splits speichern und Vorschlag annehmen nur gelesen.
+
+## D-273 Design steht vor dem ersten Zeichnen fest (Feature `status-farben`, 2026-11-24)
+
+- **Anlass:** Rückmeldung vom 2026-11-24: Beim Neuladen im Dunkelmodus blitzt die Seite kurz hell auf.
+- **Ursache:** Das Design (`data-thema` am Wurzelelement) setzte erst das Modul der Anwendung. Module laufen nach dem
+  Einlesen der Seite; bis dahin war sie mit dem hellen Design gezeichnet.
+- **Entscheidung:** Die Hülle lädt im Kopf, vor dem Stylesheet, das kleine blockierende Skript
+  `/oeffentlich/thema.js`. Es setzt `data-thema` nach derselben Regel wie die Anwendung (gespeicherte Wahl
+  `kontor.thema`, sonst das System). Kein Inline-Skript (CSP `script-src 'self'` bleibt). Die Datei steht in der
+  Liste des Service Workers; dessen Cache heißt jetzt `kontor-huelle-43`.
+- **Nicht geändert:** Die Anmeldeseite folgt weiterhin nur dem Design des Systems.
+- **Prüfung:** Core-Test `tests/core/test_thema_start.py`; im Browser bei blockierter Anwendung geprüft, dass
+  `data-thema` und Hintergrund für alle vier Fälle (System hell/dunkel, Wahl dunkel/hell/keine) stimmen.

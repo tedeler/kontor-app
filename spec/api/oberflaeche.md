@@ -2564,6 +2564,9 @@ Reihenfolge der Einträge einer Buchungsauswahl (Desktop, ohne Alt):
     alle diese Buchungen. Ohne Wahl wird nichts bestätigt (Hinweis). Zuordnen und Bestätigen sind zwei
     Änderungen (D-260). Trägt die Buchung einen offenen Vorschlag, wird ohne Nachfrage dessen Kategorie
     übernommen (D-261).
+  - **Zuordnung von Hand (D-272):** Kategorie oder Konto setzen, Splits speichern und Vorschlag annehmen setzen bei
+    Buchungen im Status `importiert` oder `vorlaeufig` in derselben Aktion auch das Tag der gewählten Person
+    (ohne gewählte Person nur den Status).
     Zurücknehmen entfernt nur den eigenen Namen, der Status bleibt. Beide Personen können dieselbe Buchung
     bestätigen. Ein Strg+Z nimmt Tag und Status zusammen zurück.
   - Darstellung: Personen-Tags in der Spalte Tags mit `data-person` = Name; die Zeile trägt
