@@ -34,7 +34,7 @@ import zipfile
 import zlib
 from typing import Any
 
-from . import __version__, buch, db, dokumente, erwartung, kontonamen, kredite, mail, pflege, protokoll, regeln, vorlagen
+from . import __version__, buch, db, dokumente, erwartung, kompression, kontonamen, kredite, mail, pflege, protokoll, regeln, vorlagen
 from .config import KontorConfig
 from .text import ekey
 from .validierung import ApiFehler, datum_gueltig
@@ -243,11 +243,15 @@ def _erstellen(pfad, modus: str, erstellt: dt.datetime) -> tuple[bytes, str]:
                     continue
                 namen = [s[0] for s in spalten]
                 ordnung = _ORDNUNG.get(tabelle, "id")
-                wo = (" WHERE sha256 IN (SELECT sha256 FROM dokument)" if tabelle == "dokument_inhalt" else "")
+                if tabelle == "dokument_inhalt":   # D-255: in der Sicherung immer die Originalbytes
+                    zeilen = ((r["sha256"], kompression.entpacken(r["inhalt"], r["verfahren"])) for r in con.execute(
+                        "SELECT sha256, inhalt, verfahren FROM dokument_inhalt WHERE sha256 IN"
+                        f" (SELECT sha256 FROM dokument) ORDER BY {ordnung}"))
+                else:
+                    zeilen = (tuple(r) for r in con.execute(
+                        f"SELECT {', '.join(namen)} FROM {tabelle} ORDER BY {ordnung}"))
                 ziel.executemany(
-                    f"INSERT INTO {tabelle} ({', '.join(namen)}) VALUES ({', '.join('?' * len(namen))})",
-                    (tuple(r) for r in con.execute(
-                        f"SELECT {', '.join(namen)} FROM {tabelle}{wo} ORDER BY {ordnung}")))
+                    f"INSERT INTO {tabelle} ({', '.join(namen)}) VALUES ({', '.join('?' * len(namen))})", zeilen)
             ziel.executemany("INSERT INTO id_zaehler (objekt, hoechste_id) VALUES (?, ?)",
                              sorted(_zaehler_lesen(con).items()))
             formen = alle_formen(con)
@@ -515,8 +519,11 @@ def laden(con, zeilen: dict[str, list[tuple]]) -> None:
         elif tabelle == "postfach":
             namen = namen + ["adresse_cf"]
             werte = [r + (r[1].casefold(),) for r in werte]
-        oder = " OR IGNORE" if tabelle == "dokument_inhalt" else ""  # Inhalte bleiben, gleicher Hash = gleiche Bytes
-        con.executemany(f"INSERT{oder} INTO {tabelle} ({', '.join(namen)}) VALUES ({', '.join('?' * len(namen))})",
+        if tabelle == "dokument_inhalt":   # Inhalte bleiben, gleicher Hash = gleiche Bytes; D-255: gepackt ablegen
+            for _sha, inhalt in werte:
+                dokumente.inhalt_speichern(con, inhalt)
+            continue
+        con.executemany(f"INSERT INTO {tabelle} ({', '.join(namen)}) VALUES ({', '.join('?' * len(namen))})",
                         werte)
 
 

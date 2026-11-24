@@ -405,6 +405,11 @@ entfallen mit ihrem Postfach. Beim Einspielen einer Sicherung bleiben
 Spiegel, Betriebszustand und Tokens jedes Postfachs erhalten, dessen
 `adresse` (`casefold`) danach noch existiert; die übrigen entfallen.
 
+Speicherung (D-255): Die Rohfassung einer gespiegelten Mail liegt verlustfrei komprimiert vor.
+Ist die Mail als Dokument angehängt, hält der Spiegel statt einer zweiten Kopie nur einen
+Verweis auf den Inhalt des Dokuments; erneutes Anhängen liefert dieselben Bytes. Die
+Datenbank gibt frei gewordenen Platz an das Dateisystem zurück (`auto_vacuum`).
+
 ### 6.6 Meilenstein 27: Mail-Liste mit Stand und Zuordnung (D-147, D-153; E-249)
 
 `GET /api/mail/nachrichten` (mail.md 6.1) bleibt im Standard **unverändert in Reihenfolge und Seitenverhalten**:

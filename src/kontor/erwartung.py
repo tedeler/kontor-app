@@ -484,9 +484,10 @@ def _dokumente_anhaengen(con, z, buchung_id: int, zeitpunkt: str) -> list[int]:
         if r is None:
             continue  # Spiegel inzwischen entfernt (Postfach gelöscht): nichts anzuhängen
         gesehen.add(m["nachricht_id"])
-        roh = dokumente.mail_roh_aus_spiegel(r)
+        roh = dokumente.mail_roh_aus_spiegel(con, r)
         ids.append(dokumente.anlegen(con, roh, (r["betreff"] or "E-Mail")[:dokumente.MAX_NAME - 4], [buchung_id],
                                      "mail", zeitpunkt)["id"])
+        dokumente.spiegel_verweisen(con, r["id"], roh)   # D-255
         try:
             anhaenge = dokumente.mail_lesen(roh).get("anhaenge", [])
         except Exception:  # noqa: BLE001 - eine unlesbare Mail hängt nur als Ganzes an

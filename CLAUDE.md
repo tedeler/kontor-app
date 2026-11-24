@@ -79,7 +79,8 @@ nicht mehr. Ein Thread schreibt Tests und Code.
 | `src/kontor/anbieter/` | D-230: Anbieter-Beschreibungen für den Mail-Abgleich (`amazon.toml`, `paypal.toml`, Zusatzdateien aus `anbieter_verzeichnis`); `__init__.py` liest, prüft und wertet sie aus; Format in `ANBIETER.md`. Änderungen an den mitgelieferten Dateien gegen `tests/test_anbieter_eigen.py` prüfen (Vergleich mit `tests/referenz_mailerkennung.py`) |
 | `src/kontor/kontonamen.py` | Sammelbranch sammel3 (D-218): Kontonamen je Ebene eindeutig – `pruefen` (409 `konto_existiert`, aufgerufen am Ende von `protokoll.protokolliert`), `bereinigen` (Altbestand, Importe, Sicherung), `freier_name` |
 | `src/kontor/umbuchung.py` | Sammelbranch sammel4 (D-242): Zuordnung von Hand auf Kategorie oder Bestandskonto (`zuordnen`, `mehrfach`, `gegenbuchungen`) hinter `PUT /api/buchungen/{id}/kategorie`; beim Bestandskonto Umbuchung, passende Gegenseite des Zielkontos wird zusammengeführt |
-| `src/kontor/db.py` | SQLite-Schema (Version 16), WAL, Migration früherer Versionen ohne Datenverlust, Verbindungen, `checkpoint` |
+| `src/kontor/kompression.py` | D-255: zlib für Mail-Dokumente und Rohfassungen im Mail-Spiegel (`packen`, `entpacken`; Verfahren `zlib`, `''`, `NULL` = Altbestand) |
+| `src/kontor/db.py` | SQLite-Schema (Version 18; `mails_packen` und `verkleinern` beim Start, D-255), WAL, Migration früherer Versionen ohne Datenverlust, Verbindungen, `checkpoint` |
 | `src/kontor/geheimnisse.py` | M6: verschlüsselter Geheimnisspeicher (AES-256-GCM, Schlüssel aus systemd-creds oder Schlüsseldatei), `verwaiste_entfernen` |
 | `src/kontor/mail.py` | M6: Postfächer (Buchbestand), Betriebszustand, OAuth2 mit PKCE, `zugang` (Token-Erneuerung, Ablauf, Widerruf), paralleler Abruf, Spiegel |
 | `src/kontor/zustellung.py` | M6: Zustellung der Benachrichtigungen über das Benachrichtigungs-Plugin (erster Versuch, Wiederholung, Status) |
@@ -241,6 +242,13 @@ nicht mehr. Ein Thread schreibt Tests und Code.
   `MailDienst.inhalt_laden` nach (Netz, nie in einer offenen Transaktion).
 - Jede Anbieter-Beschreibung braucht eine Vorauswahl (`absender` und/oder `betreff`); `Anbieter.gehoert` immer mit
   Absender **und** Betreff aufrufen.
+
+## Hinweise zur Speicherung von Mails (Feature `mail-schlank`, D-255)
+
+- `dokument_inhalt.inhalt` und `mail_nachricht.roh` nie direkt lesen: `dokumente.inhalt_bytes(con, sha)` bzw.
+  `dokumente.spiegel_roh(con, zeile)` (Zeile mit `roh`, `roh_verfahren`, `roh_sha256`) liefern die Originalbytes.
+  Schreiben nur über `dokumente.inhalt_speichern` bzw. `dokumente.spiegel_packen`.
+- Wer eine gespiegelte Mail als Dokument anlegt, ruft danach `dokumente.spiegel_verweisen` auf (keine zweite Kopie).
 
 ## Hinweise zu den Einstellungen (Feature `einstellungen`, D-207)
 
