@@ -3921,3 +3921,18 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   `data-markierung`, `aria-selected` und alle Kennungen sind unverändert.
 - **Prüfung:** im Browser angesehen, hell und dunkel, Auswahl auf roten, gelben und weißen Zeilen sowie Hover.
   Nicht angesehen: Handy-Ansicht, Zeilen mit Vorschlagsknöpfen.
+
+## D-268 Auswahl mit kräftigem blauem Rahmen, kein gelber Fokusrahmen an Zeilen (Feature `status-farben`, 2026-11-24)
+
+- **Anlass:** Rückmeldung vom 2026-11-24: Beim Drücken von Umschalt erscheint an der gewählten Buchung plötzlich ein
+  gelber Rahmen. Die Stärke gefällt, das Verhalten nicht; die Auswahl soll mit einer dickeren blauen Linie umrandet
+  sein.
+- **Ursache:** Der gelbe Rahmen war die Tastatur-Fokusanzeige des Browsers (`:focus-visible`), die erst mit dem
+  ersten Tastendruck erscheint.
+- **Entscheidung (ändert D-267):** Ausgewählte Zeilen tragen einen Rahmen von 3 Pixeln in der Akzentfarbe rundum
+  statt der feinen Linien oben und unten; direkt untereinander liegende ausgewählte Zeilen bilden einen gemeinsamen
+  Rahmen. Der Fokusrahmen an Zeilen des Kontoblatts entfällt. Schleier und Statuston bleiben wie in D-267.
+- **Folge für die Tastaturbedienung:** Eine Zeile, die den Fokus hat, aber nicht ausgewählt ist (etwa nach dem
+  Abwählen mit Strg+Klick), ist nicht mehr eigens gekennzeichnet. Alle anderen Fokusanzeigen der Oberfläche
+  bleiben.
+- **Prüfung:** im Browser angesehen (hell und dunkel, einzelne Zeile, drei Zeilen untereinander, nach Umschalt).
