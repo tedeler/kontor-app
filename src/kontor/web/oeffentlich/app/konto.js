@@ -232,7 +232,6 @@ const KUERZEL = [
   ["v", "o", "Sortierspalte wechseln", (s) => s.sortierungWechseln(false)],
   ["v", "r", "Sortierrichtung umkehren", (s) => s.sortierungWechseln(true)],
   ["v", "d", "Panel Einzelheiten ein-/ausklappen", (s) => s.panelUmschalten("details")],
-  ["v", "k", "Panel Kategorien ein-/ausklappen", (s) => s.panelUmschalten("kategorien")],
   ["v", "a", "Spaltenbreiten an den Inhalt anpassen", (s) => s.spalteAnpassen(s.spalten.map(([f]) => f))],
   ["v", "0", "Spaltenbreiten zurücksetzen", (s) => s.spaltenZuruecksetzen()],
   ["v", ",", "Konto-Einstellungen…", (s) => kontoEinstellungen(s.konto, tid("konto-einstellungen-oeffnen", s.seite))],
@@ -312,16 +311,14 @@ function spaltenAusSpeichern(variante, aus) {
 
 const spalteBegrenzen = (w) => Math.min(SPALTE_MAX, Math.max(SPALTE_MIN, Math.round(w)));
 
-// ------------------------------------------------------------------ Markierung der Zeilen (D-130)
+// ------------------------------------------------------------------ Markierung der Zeilen (D-130, D-254)
 const UNKATEGORISIERT = "kontor:unkategorisiert";
 
-/** Bearbeitungsstand einer Buchung: abgeglichen (grün-grau), Kategorie zugewiesen (grün), importiert (grau). */
+/** Bearbeitungsstand einer Buchung nach ihrem Status (D-254): importiert (rot), vorläufig (gelb), bestätigt und
+ *  abgeglichen ohne Tönung auf dem kontrastreichen Grund; abgestimmte Buchungen zählen als abgeglichen. */
 function markierung(b) {
   if (b.status === "abgeglichen" || b.abgestimmt) return "abgeglichen";
-  const unk = stamm.konten.find((k) => k.extern_id === UNKATEGORISIERT);
-  if (!b.splits.some((s) => unk && s.konto_id === unk.id)) return "kategorisiert";
-  if (b.status === "importiert") return "importiert";
-  return null;
+  return STATUS.includes(b.status) ? b.status : null;
 }
 
 const MAIL_GRUENDE = ["bestellung", "paypal", "rueckerstattung"];
@@ -336,7 +333,9 @@ function erwartungText(e) {
 const LAYOUT_SCHLUESSEL = "kontor.layout";
 const VORGABE = () => ({ version: 1, panels: {
   kategorien: { bereich: "links", position: 0, breite: 240, eingeklappt: false },
-  details: { bereich: "rechts", position: 1, breite: 320, eingeklappt: false } } });
+  details: { bereich: "rechts", position: 1, breite: 320, eingeklappt: false, hoehe: 260 } } });
+const HOEHE_MIN = 120;
+const HOEHE_MAX = 600;
 const PANEL_TITEL = { kategorien: "Kategorien", details: "Einzelheiten" };
 const BREITE_MIN = 160;
 const BREITE_MAX = 600;
@@ -347,10 +346,14 @@ export function layoutLaden() {
     if (!l || l.version !== 1 || !l.panels) return VORGABE();
     for (const p of ["kategorien", "details"]) {
       const e = l.panels[p];
-      if (!e || !["links", "rechts"].includes(e.bereich) || !Number.isInteger(e.position) || !Number.isInteger(e.breite)
+      // D-266: die Einzelheiten docken auch unten an
+      if (!e || !(p === "details" ? ["links", "rechts", "unten"] : ["links", "rechts"]).includes(e.bereich)
+        || !Number.isInteger(e.position) || !Number.isInteger(e.breite)
         || e.breite < BREITE_MIN || e.breite > BREITE_MAX || typeof e.eingeklappt !== "boolean") return VORGABE();
     }
-    return { version: 1, panels: { kategorien: { ...l.panels.kategorien }, details: { ...l.panels.details } } };
+    const hoehe = l.panels.details.hoehe;
+    return { version: 1, panels: { kategorien: { ...l.panels.kategorien }, details: { ...l.panels.details,
+      hoehe: Number.isInteger(hoehe) && hoehe >= HOEHE_MIN && hoehe <= HOEHE_MAX ? hoehe : 260 } } };
   } catch (e) {
     return VORGABE();
   }
@@ -597,11 +600,48 @@ class Kontoansicht {
     else neu[name] = wert;
     if (JSON.stringify(neu) === JSON.stringify(this.filter)) return;
     this.filter = neu;
-    this.auswahl.clear();           // ein Filterwechsel hebt die Auswahl auf (7.1)
-    this.anker = null;
     this.seiten = 1;
     this.urlSchreiben();
+    await this.ladenMitAuswahl();   // D-271: die Auswahl bleibt über den Filterwechsel erhalten
+  }
+
+  /** D-271: Nach einem Filterwechsel bleibt die gewählte Buchung gewählt (soweit sie noch zur Liste gehört), steht
+   *  möglichst in der Mitte, und die Liste hat den Fokus – außer es wird gerade in einem Eingabefeld getippt. */
+  async ladenMitAuswahl() {
+    const ids = [...this.auswahl];
+    const ziel = this.fokusId !== null && (ids.includes(this.fokusId) || !ids.length) ? this.fokusId : (ids.length ? ids[0] : null);
+    if (ziel !== null && !this.gruppierung) {
+      try {   // Seite der gewählten Buchung in der neuen Liste erfragen, damit sie geladen wird
+        const r = await api("GET", "/api/buchungen" + abfrage({ konto_id: this.konto.id, ...this.filter,
+          sortierung: this.sortierung, pro_seite: 1, position_id: ziel, gruppierung: undefined }));
+        if (Number.isInteger(r.position)) this.seiten = Math.floor(r.position / PRO_SEITE) + 1;
+      } catch (e) { /* dann bleibt es bei der ersten Seite */ }
+    }
     await this.laden();
+    const tippt = () => {
+      const a = document.activeElement;
+      return !!a && (a.tagName === "INPUT" || a.tagName === "TEXTAREA" || a.tagName === "SELECT" || a.isContentEditable);
+    };
+    const mitDom = !tippt();
+    const da = ziel !== null && this.eintraege.some((b) => b.id === ziel);
+    if (!da) {
+      const erste = this.eintraege[0];
+      if (erste && mitDom) this.fokussieren(erste.id);   // Fokus in die Liste, ohne etwas auszuwählen
+      return;
+    }
+    let geoeffnet = false;
+    for (const k of this.periodeKette(ziel)) if (this.zugeklappt.delete(k)) geoeffnet = true;
+    if (geoeffnet) this.listeZeichnen();
+    if (!this.auswahl.size) this.auswahl.add(ziel);
+    if (this.anker === null) this.anker = ziel;
+    if (this.virtual) this.slotZeigen(ziel, "center");
+    this.fokussieren(ziel, mitDom);
+    const z = this.zeilen.get(ziel);
+    if (z && !this.virtual) {
+      const links = this.listenSpalte ? this.listenSpalte.scrollLeft : 0;
+      z.scrollIntoView({ block: "center" });
+      if (this.listenSpalte) this.listenSpalte.scrollLeft = links;
+    }
   }
 
   // ---------------------------------------------------------------- Laden
@@ -758,8 +798,8 @@ class Kontoansicht {
       clearTimeout(uhr);
       const t = this.ausdruckEingabe.wert.trim();
       const e = this.ausdruckEingabe.ergebnis;
-      if (t && (!e || !e.gueltig)) return;   // bei Fehlern bleibt die letzte gültige Liste stehen
-      this.filterSetzen("filter", t);
+      if (t && (!e || !e.gueltig)) return undefined;   // bei Fehlern bleibt die letzte gültige Liste stehen
+      return this.filterSetzen("filter", t);
     };
     this.ausdruckEingabe = new AusdruckEingabe({ kontext: "filter", tid: "filter-ausdruck", wert: this.filter.filter || "",
       beschriftung: "Filter: Suchtext oder Ausdruck", platzhalter: "z. B.  rewe dt in letzter_monat and bet > 20",
@@ -769,9 +809,16 @@ class Kontoansicht {
         clearTimeout(uhr);
         uhr = setTimeout(anwenden, 400);
       },
-      beiEnter: anwenden });
+      // D-271: Eingabe schließt das Filtern ab – der Fokus geht in die Liste zur gewählten Buchung
+      beiEnter: async () => {
+        await anwenden();
+        const id = this.fokusId !== null ? this.fokusId : (this.eintraege[0] || {}).id;
+        if (id === undefined || id === null) return;
+        if (!this.auswahl.size) { this.auswahl.add(id); this.anker = id; }   // sonst wäre der Fokus unsichtbar (D-270)
+        this.fokussieren(id);
+      } });
     const leeren = h("button", { type: "button", class: "knopf-flach", tid: "filter-ausdruck-leeren", "aria-label": "Filterausdruck leeren",
-      onclick: () => { this.ausdruckEingabe.wert = ""; anwenden(); this.ausdruckEingabe.eingabe.focus(); } }, "✕");
+      onclick: () => { this.ausdruckEingabe.wert = ""; anwenden(); } }, "✕");   // D-271: der Fokus geht in die Liste
     const menue = h("button", { type: "button", class: "knopf-flach", tid: "filter-ausdruck-menue", "aria-haspopup": "menu",
       "aria-label": "Weitere Aktionen zum Filter" }, "⋯");
     menue.addEventListener("click", (e) => {
@@ -907,12 +954,10 @@ class Kontoansicht {
       this.filter = sort ? { sortierung: sort } : {};
       this.ausBaukasten = false;
       if (this.ausdruckEingabe) this.ausdruckEingabe.wert = "";
-      this.auswahl.clear();
-      this.anker = null;
       this.seiten = 1;
       this.urlSchreiben();
       this.filterLeisteNeu();
-      await this.laden();
+      await this.ladenMitAuswahl();   // D-271
     } });
     leiste.append(platz, this.bkHinweis,
       h("div", { class: "filter-optionen" },
@@ -966,7 +1011,8 @@ class Kontoansicht {
     }
     const bereich = (name) => {
       const el = h("div", { class: `bereich bereich-${name}`, tid: `bereich-${name}` });
-      const panels = Object.entries(this.layout.panels).filter(([, p]) => p.bereich === name)
+      // D-265: das Panel Kategorien wird im Kontoblatt nicht mehr gezeigt (mehr Platz für die Liste)
+      const panels = Object.entries(this.layout.panels).filter(([n, p]) => n !== "kategorien" && p.bereich === name)
         .sort((a, b) => a[1].position - b[1].position);
       // von außen (Fensterrand) nach innen (Liste): links aufsteigend, rechts absteigend in der DOM-Reihenfolge
       if (name === "rechts") panels.reverse();
@@ -974,9 +1020,14 @@ class Kontoansicht {
       el.append(h("div", { class: "ablage", tid: `ablage-${name}`, hidden: true, "aria-hidden": "true" }));
       return el;
     };
+    this.baumEl = null;
     this.bereichLinks = bereich("links");
     this.bereichRechts = bereich("rechts");
-    this.arbeit.replaceChildren(this.bereichLinks, this.listenSpalte, this.bereichRechts);
+    if (this.layout.panels.details.bereich === "unten") {
+      // D-266: Einzelheiten unter der Liste, über deren ganze Breite
+      this.arbeit.replaceChildren(this.bereichLinks,
+        h("div", { class: "mitte-spalte" }, this.listenSpalte, bereich("unten")), this.bereichRechts);
+    } else this.arbeit.replaceChildren(this.bereichLinks, this.listenSpalte, this.bereichRechts);
     this.detailsZeichnen();
   }
 
@@ -986,18 +1037,26 @@ class Kontoansicht {
     const einklappen = h("button", { type: "button", class: "knopf-flach", tid: `panel-einklappen-${p}`,
       "aria-expanded": String(!l.eingeklappt), "aria-label": `Panel ${PANEL_TITEL[p]} ${l.eingeklappt ? "aufklappen" : "einklappen"}`,
       onclick: () => { l.eingeklappt = !l.eingeklappt; this.layoutAnwenden(); } }, l.eingeklappt ? "▸" : "▾");
+    // D-266: die Einzelheiten wechseln zwischen rechts und unten (links gibt es seit D-265 kein Panel mehr)
+    const unten = l.bereich === "unten";
+    const ziel = p === "details" ? (l.bereich === "rechts" ? "unten" : "rechts") : (l.bereich === "links" ? "rechts" : "links");
+    const zielText = { links: "links andocken", rechts: "rechts andocken", unten: "unten andocken" }[ziel];
     const verschieben = h("button", { type: "button", class: "knopf-flach", tid: `panel-verschieben-${p}`,
-      "aria-label": `Panel ${PANEL_TITEL[p]} in den ${l.bereich === "links" ? "rechten" : "linken"} Bereich verschieben`,
-      onclick: () => this.panelVerschieben(p, l.bereich === "links" ? "rechts" : "links") }, "⇄");
+      "data-ziel": ziel, title: `${PANEL_TITEL[p]} ${zielText}`, "aria-label": `Panel ${PANEL_TITEL[p]} ${zielText}`,
+      onclick: () => this.panelVerschieben(p, ziel) }, ziel === "unten" ? "⬓" : ziel === "rechts" ? "◨" : "◧");
     const kopf = h("div", { class: "panel-kopf", tid: `panel-kopf-${p}` }, h("h2", { id: kopfId }, PANEL_TITEL[p]),
       verschieben, einklappen);
     const inhalt = h("div", { class: "panel-inhalt" });
-    const griff = h("div", { class: "panel-griff", tid: `panel-groesse-${p}`, role: "separator",
-      "aria-orientation": "vertical", "aria-valuenow": String(l.breite), "aria-valuemin": String(BREITE_MIN),
-      "aria-valuemax": String(BREITE_MAX), tabindex: "0", "aria-label": `Breite des Panels ${PANEL_TITEL[p]}` });
+    const griff = unten ? h("div", { class: "panel-griff", tid: `panel-groesse-${p}`, role: "separator",
+      "aria-orientation": "horizontal", "aria-valuenow": String(l.hoehe), "aria-valuemin": String(HOEHE_MIN),
+      "aria-valuemax": String(HOEHE_MAX), tabindex: "0", "aria-label": `Höhe des Panels ${PANEL_TITEL[p]}` })
+      : h("div", { class: "panel-griff", tid: `panel-groesse-${p}`, role: "separator",
+        "aria-orientation": "vertical", "aria-valuenow": String(l.breite), "aria-valuemin": String(BREITE_MIN),
+        "aria-valuemax": String(BREITE_MAX), tabindex: "0", "aria-label": `Breite des Panels ${PANEL_TITEL[p]}` });
     const el = h("section", { class: "panel", tid: `panel-${p}`, "aria-labelledby": kopfId, "data-bereich": l.bereich,
       "data-eingeklappt": l.eingeklappt ? "ja" : "nein" }, kopf, inhalt, griff);
-    el.style.width = (l.eingeklappt ? 40 : l.breite) + "px";
+    if (unten) { if (!l.eingeklappt) el.style.height = l.hoehe + "px"; }
+    else el.style.width = (l.eingeklappt ? 40 : l.breite) + "px";
     this.panelEls[p] = { el, inhalt, griff };
     this.griffBedienung(p, griff);
     this.panelZiehen(p, kopf);
@@ -1039,8 +1098,45 @@ class Kontoansicht {
     layoutSpeichern(this.layout);
   }
 
+  hoeheSetzen(p, hoehe) {
+    const l = this.layout.panels[p];
+    l.hoehe = Math.max(HOEHE_MIN, Math.min(HOEHE_MAX, Math.round(hoehe)));
+    const pe = this.panelEls[p];
+    if (pe) {
+      pe.griff.setAttribute("aria-valuenow", String(l.hoehe));
+      if (!l.eingeklappt) pe.el.style.height = l.hoehe + "px";
+    }
+    layoutSpeichern(this.layout);
+  }
+
   griffBedienung(p, griff) {
     const l = this.layout.panels[p];
+    if (l.bereich === "unten") {   // D-266: der Griff liegt oben und ändert die Höhe
+      griff.addEventListener("keydown", (e) => {
+        const schritt = { ArrowUp: 16, ArrowDown: -16 }[e.key];
+        if (schritt) { e.preventDefault(); this.hoeheSetzen(p, l.hoehe + schritt); }
+        else if (e.key === "Home") { e.preventDefault(); this.hoeheSetzen(p, HOEHE_MIN); }
+        else if (e.key === "End") { e.preventDefault(); this.hoeheSetzen(p, HOEHE_MAX); }
+      });
+      griff.addEventListener("pointerdown", (e) => {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const y0 = e.clientY;
+        const h0 = l.hoehe;
+        griff.setPointerCapture(e.pointerId);
+        const bewegen = (ev) => this.hoeheSetzen(p, h0 - (ev.clientY - y0));
+        const ende = () => {
+          griff.removeEventListener("pointermove", bewegen);
+          griff.removeEventListener("pointerup", ende);
+          griff.removeEventListener("pointercancel", ende);
+        };
+        griff.addEventListener("pointermove", bewegen);
+        griff.addEventListener("pointerup", ende);
+        griff.addEventListener("pointercancel", ende);
+      });
+      return;
+    }
     griff.addEventListener("keydown", (e) => {
       const links = l.bereich === "links";
       const schritt = { ArrowRight: links ? 16 : -16, ArrowLeft: links ? -16 : 16 }[e.key];
@@ -1734,7 +1830,8 @@ class Kontoansicht {
     kat,
     this.istKategorie ? kontoZelle(b) : null,
     h("div", { role: "gridcell", class: "zelle zelle-tags", "data-feld": "tags" },
-      b.tags.map((t) => {
+      // D-262: Bestätigungs-Tags stehen hinter allen anderen, damit sie diese bei wenig Platz nicht verdrängen
+      [...b.tags.filter((t) => !personVonTag(t.name)), ...b.tags.filter((t) => personVonTag(t.name))].map((t) => {
         const person = personVonTag(t.name);
         return h("span", { class: person ? "tag tag-person" : "tag", tid: "tag", "data-tag-id": String(t.id),
           "data-person": person, title: person ? `Bestätigt von ${person}` : t.name }, t.name);
@@ -2178,9 +2275,60 @@ class Kontoansicht {
         onclick: () => this.personMarkieren([b.id], !hat) }) : "Oben rechts wählen, wer du bist.");
   }
 
+  /** D-258: Status sofort in den Zeilen zeigen, noch bevor der Server geantwortet hat. Gibt die Rücknahme zurück
+   *  (für den Fehlerfall); der Stand des Servers folgt ohnehin mit dem Neuladen nach der Aktion. */
+  statusVorab(ids, status) {
+    const alt = [];
+    for (const id of ids) {
+      const z = this.zeilen.get(id);
+      const zelle = z && z.querySelector('[data-feld="status"]');
+      if (!zelle) continue;
+      alt.push([z, zelle, z.dataset.status, z.dataset.markierung, zelle.textContent]);
+      z.dataset.status = status;
+      z.dataset.markierung = status;
+      zelle.textContent = STATUS_TEXT[status] || status;
+    }
+    return () => {
+      for (const [z, zelle, st, mark, text] of alt) {
+        z.dataset.status = st;
+        if (mark === undefined) delete z.dataset.markierung; else z.dataset.markierung = mark;
+        zelle.textContent = text;
+      }
+    };
+  }
+
+  /** D-260: Importierte Buchungen ohne Zuordnung (ein Split auf „Unkategorisiert“) lassen sich nicht bestätigen,
+   *  ohne dass eine Kategorie oder ein Konto gewählt wird. Ergebnis: darf bestätigt werden? */
+  ohneZuordnung(ids) {
+    const unk = stamm.konten.find((k) => k.extern_id === UNKATEGORISIERT);
+    if (!unk) return [];
+    return ids.filter((id) => {
+      const x = this.eintraege.find((e) => e.id === id);
+      return x && x.status === "importiert" && x.splits.some((sp) => sp.konto_id === unk.id);
+    });
+  }
+
+  async zuordnungFordern(ids) {
+    const offen = this.ohneZuordnung(ids);
+    if (!offen.length) return true;
+    const kat = await kategorieAuswahl(offen.length === 1 ? "Zum Bestätigen: Kategorie oder Konto wählen"
+      : `Zum Bestätigen: Kategorie oder Konto für ${offen.length} Buchungen wählen`,
+    null, { konten: true, ohneKonto: this.istKategorie ? null : this.konto.id });
+    if (!kat) { melde("hinweis", "Nicht bestätigt: Es fehlt eine Kategorie oder ein Konto."); return false; }
+    await this.kategorieSetzen(offen, kat);
+    if (this.ohneZuordnung(ids).length) return false;   // Zuordnung abgebrochen oder abgelehnt (gemeldet)
+    return true;
+  }
+
   async personMarkieren(ids, hinzu) {
     const name = personLesen();
     if (!name) { melde("hinweis", "Bitte oben rechts wählen, wer du bist."); return; }
+    if (hinzu && !(await this.zuordnungFordern(ids))) return;
+    const offenVorab = !hinzu ? [] : ids.filter((id) => {
+      const x = this.eintraege.find((e) => e.id === id);
+      return x && !x.abgestimmt && (x.status === "importiert" || x.status === "vorlaeufig");
+    });
+    const zurueck = this.statusVorab(offenVorab, "bestaetigt");
     try {
       await aktion(async () => {
         let t = stamm.tags.find((x) => x.name === personTag(name));
@@ -2188,17 +2336,17 @@ class Kontoansicht {
         if (!t) return null;
         await api("POST", "/api/buchungen/mehrfach/tags", {
           buchung_ids: ids, hinzufuegen: hinzu ? [t.id] : [], entfernen: hinzu ? [] : [t.id] });
-        // Importiert wird durch die Bestätigung der Person zu Bestätigt (D-159).
+        // Importiert und Vorläufig werden durch die Bestätigung der Person zu Bestätigt (D-159, D-257).
         if (hinzu) {
           const offen = ids.filter((id) => {
             const x = this.eintraege.find((e) => e.id === id);
-            return x && x.status === "importiert";
+            return x && (x.status === "importiert" || x.status === "vorlaeufig");
           }).sort((a, c) => a - c);
           if (offen.length) await api("POST", "/api/buchungen/mehrfach/aendern", { buchung_ids: offen, status: "bestaetigt" });
         }
         return true;
       }, { erfolg: hinzu ? `Als ${name} bestätigt.` : `Bestätigung von ${name} zurückgenommen.` });
-    } catch { /* gemeldet */ }
+    } catch { zurueck(); /* gemeldet */ }
   }
 
   // ---------------------------------------------------------------- Tastaturkürzel (D-167)

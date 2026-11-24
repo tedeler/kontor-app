@@ -457,6 +457,10 @@ paths:
           in: query
           description: "M27 (sammel.md 1.1): ja = Feld `verdacht` an den Buchungen bilden; Vorgabe nein (Antwort unverändert)"
           schema: {type: string, enum: [ja, nein], default: nein}
+        - name: position_id
+          in: query
+          description: "D-271: Buchungs-ID; die Antwort trägt dann zusätzlich `position` (Stelle ab 0 in der gefilterten, sortierten Liste oder null). Ohne den Parameter fehlt das Feld."
+          schema: {type: integer, minimum: 1}
         - name: suche
           in: query
           description: Freitext. Treffer, wenn norm(Wert) in norm(x) enthalten ist für mindestens ein x aus Empfängername, Verwendungszweck, Split-Memos, Tag-Namen der Buchung.

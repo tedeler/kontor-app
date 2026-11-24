@@ -271,15 +271,16 @@ def test_markierung_rangfolge_und_darstellung(starte_server, neue_seite, tmp_pat
     kasse = api.konto("Kasse (fiktiv)", "sparkonto")["id"]
     abst = api.buchung("2024-06-01", [(kasse, 500), (leb, -500)], status="bestaetigt")["id"]
     api.post("/api/abstimmungen", json={"konto_id": kasse, "stichtag": "2024-06-01", "saldo": 500}, erwartet=200)
-    soll = {imp: "importiert", vorl: None, best: None, abgl: "abgeglichen", kat_imp: "kategorisiert",
-            umb: "kategorisiert", split: None}
+    # D-254: Markierung nach Status; die Kategorie spielt keine Rolle mehr
+    soll = {imp: "importiert", vorl: "vorlaeufig", best: "bestaetigt", abgl: "abgeglichen", kat_imp: "importiert",
+            umb: "bestaetigt", split: "bestaetigt"}
     seite = neue_seite(server)
     oeffnen(seite, server, f"/konten/{g}", seitenname="konto")
     warte_liste(seite, m8.rest_liste(api, g))
     for bid, wert in soll.items():
         assert zeile(seite, bid).get_attribute("data-markierung") == wert, (bid, wert)
     hintergrund = {}
-    for bid in (imp, abgl, kat_imp):
+    for bid in (imp, vorl, best):
         hintergrund[soll[bid]] = zeile(seite, bid).evaluate(
             "e => { const s = getComputedStyle(e); return s.backgroundImage + '|' + s.backgroundColor; }")
     assert len(set(hintergrund.values())) == 3, f"drei Werte optisch unterscheidbar: {hintergrund}"
@@ -287,10 +288,10 @@ def test_markierung_rangfolge_und_darstellung(starte_server, neue_seite, tmp_pat
     warte_liste(seite, m8.rest_liste(api, kasse))
     assert zeile(seite, abst).get_attribute("data-markierung") == "abgeglichen", "abgestimmt zählt als abgeglichen"
     # Markierung folgt Änderungen (neu geladene Liste)
-    api.put(f"/api/buchungen/{imp}/kategorie", json={"kategorie_id": leb}, erwartet=200)
+    api.post("/api/buchungen/mehrfach/aendern", json={"buchung_ids": [imp], "status": "bestaetigt"}, erwartet=200)
     oeffnen(seite, server, f"/konten/{g}", seitenname="konto")
     warte_liste(seite, m8.rest_liste(api, g))
-    expect(zeile(seite, imp)).to_have_attribute("data-markierung", "kategorisiert")
+    expect(zeile(seite, imp)).to_have_attribute("data-markierung", "bestaetigt")
     mobil = neue_seite(server, "handy")
     oeffnen(mobil, server, f"/konten/{g}", seitenname="konto")
     expect(zeile(mobil, abgl)).to_have_attribute("data-markierung", "abgeglichen")

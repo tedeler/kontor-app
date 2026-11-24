@@ -243,6 +243,20 @@ fieldset { border: 1px solid var(--rand); border-radius: var(--radius); padding:
 .bereich-links .panel-griff { right: 0; }
 .bereich-rechts .panel-griff { left: 0; }
 .panel-griff:hover, .panel-griff:focus-visible { background: var(--akzent-hell); }
+/* D-266: Einzelheiten unten angedockt – unter der Liste, über deren Breite; der Griff oben ändert die Höhe */
+.mitte-spalte { flex: 1 1 auto; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.mitte-spalte > .listen-spalte { flex: 1 1 0; min-height: 0; }
+.bereich-unten { display: block; flex: none; }
+.bereich-unten .panel { margin-top: 6px; }
+.bereich-unten .panel-griff { top: 0; bottom: auto; left: 0; right: 0; width: auto; height: 6px; cursor: row-resize; }
+.bereich-unten .panel[data-eingeklappt="ja"] .panel-kopf { flex-direction: row; border-bottom: none; }
+.bereich-unten .panel[data-eingeklappt="ja"] h2 { display: block; }
+/* D-268: unten nutzen die Einzelheiten die Breite – die Abschnitte stehen nebeneinander statt untereinander */
+.bereich-unten .panel-inhalt { display: grid; grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr));
+  gap: .6rem 1.4rem; align-items: start; align-content: start; }
+.bereich-unten .panel-inhalt > * { min-width: 0; margin-top: 0; margin-bottom: 0; }
+.bereich-unten .panel-inhalt > :not(.dk-kopf) { border-top: 0; padding-top: 0; padding-bottom: 0; }
+.bereich-unten .panel-inhalt > .dk-herkunft, .bereich-unten .panel-inhalt > .leer { grid-column: 1 / -1; }
 .details-feld { display: flex; align-items: flex-start; gap: .35rem; padding: .15rem 0; }
 .details-name { flex: 0 0 8.2rem; color: var(--text-2); }
 .details-wert { flex: 1; min-width: 0; }
@@ -667,20 +681,48 @@ tr.ueberfaellig td { color: var(--gefahr); }
 .spalten-messer { position: absolute; left: 0; top: 0; visibility: hidden; pointer-events: none; height: 0; overflow: hidden; }
 .spalten-messer > .zelle { width: max-content; max-width: none; overflow: visible; }
 
-/* D-130: dezente Markierung des Bearbeitungsstands (Streifen links und leichte Tönung) */
-:root { --mark-gruen: #4a9e62; --mark-grau: #a3abb5; --mark-gruen-hg: rgba(74, 158, 98, .07);
-  --mark-grau-hg: rgba(120, 130, 142, .07); --mark-gruengrau-hg: rgba(98, 128, 106, .10); }
-html[data-thema="dunkel"] { --mark-gruen: #5fb878; --mark-grau: #6f7884; --mark-gruen-hg: rgba(95, 184, 120, .08);
-  --mark-grau-hg: rgba(160, 170, 182, .06); --mark-gruengrau-hg: rgba(130, 165, 140, .10); }
-.buchungsliste .zeile[data-markierung] { background-repeat: no-repeat; background-size: 4px 100%; }
-.buchungsliste .zeile[data-markierung="kategorisiert"] { background-color: var(--mark-gruen-hg);
-  background-image: linear-gradient(var(--mark-gruen), var(--mark-gruen)); }
-.buchungsliste .zeile[data-markierung="importiert"] { background-color: var(--mark-grau-hg);
-  background-image: linear-gradient(var(--mark-grau), var(--mark-grau)); }
-.buchungsliste .zeile[data-markierung="abgeglichen"] { background-color: var(--mark-gruengrau-hg);
-  background-image: linear-gradient(var(--mark-gruen) 50%, var(--mark-grau) 50%); }
-.buchungsliste .zeile:hover { background-color: var(--hg-2); }
-.buchungsliste .zeile[aria-selected="true"] { background-color: var(--auswahl); }
+/* D-130, D-254: Markierung nach Status. Bestätigt und abgeglichen liegen auf dem kontrastreichen Grund (hell weiß,
+   dunkel schwarz); importiert ist rot, vorläufig gelb hinterlegt (Streifen links und Tönung). */
+:root { --mark-rot: #c62828; --mark-gelb: #d9a21b; --mark-rot-hg: color-mix(in srgb, #c62828 13%, #ffffff);
+  --mark-gelb-hg: color-mix(in srgb, #d9a21b 20%, #ffffff); --mark-klar-hg: #ffffff; }
+html[data-thema="dunkel"] { --mark-rot: #e5534b; --mark-gelb: #e3b341; --mark-rot-hg: color-mix(in srgb, #e5534b 24%, #15181c);
+  --mark-gelb-hg: color-mix(in srgb, #e3b341 22%, #15181c); --mark-klar-hg: #000000; }
+/* D-269: Status und Auswahl liegen auf getrennten Ebenen. Der Status bestimmt Grundton und Streifen der Zeile und
+   bleibt immer sichtbar; Hover und Auswahl legen nur einen durchscheinenden Schleier darüber, die Auswahl dazu
+   feine Linien in der Akzentfarbe. So wechselt beim Weitergehen nie die Grundfarbe einer Zeile. */
+/* Der Schleier der Auswahl ist farbneutral (dunkelt bzw. hellt nur ab), damit Rot, Gelb und Weiß ihren Farbton
+   behalten; die Akzentfarbe steckt nur in den Linien. */
+:root { --wahl-schleier: color-mix(in srgb, var(--text) 10%, transparent);
+  --wahl-schleier-hover: color-mix(in srgb, var(--text) 14%, transparent); --wahl-linie: var(--akzent); }
+html[data-thema="dunkel"] { --wahl-schleier: color-mix(in srgb, var(--text) 16%, transparent);
+  --wahl-schleier-hover: color-mix(in srgb, var(--text) 21%, transparent); }
+.buchungsliste .zeile { --toenung: var(--hg); --streifen: transparent; --schleier: transparent;
+  background-color: var(--toenung);
+  background-image: linear-gradient(var(--streifen), var(--streifen)), linear-gradient(var(--schleier), var(--schleier));
+  background-size: 4px 100%, 100% 100%; background-repeat: no-repeat; }
+.buchungsliste .zeile[data-markierung="importiert"] { --toenung: var(--mark-rot-hg);
+  --streifen: var(--mark-rot); }
+.buchungsliste .zeile[data-markierung="vorlaeufig"] { --toenung: var(--mark-gelb-hg);
+  --streifen: var(--mark-gelb); }
+.buchungsliste .zeile[data-markierung="bestaetigt"], .buchungsliste .zeile[data-markierung="abgeglichen"] {
+  --toenung: var(--mark-klar-hg); }
+.buchungsliste .zeile:hover { background-color: var(--toenung); --schleier: color-mix(in srgb, var(--text) 5%, transparent); }
+.buchungsliste .zeile[aria-selected="true"] { background-color: var(--toenung);
+  --schleier: var(--wahl-schleier);
+  position: relative; background-position: 3px 0, 0 0; }
+/* D-270: Rahmen der Auswahl, 3px in der Akzentfarbe, über allen Zellen (auch der klebenden Betragszelle). Liegen
+   ausgewählte Zeilen direkt untereinander, bilden sie einen gemeinsamen Rahmen. Der gelbe Fokusrahmen der Zeilen
+   entfällt – er erschien erst beim ersten Tastendruck und wirkte wie ein zweiter Auswahlzustand. */
+.buchungsliste .zeile[aria-selected="true"]::after { content: ""; position: absolute; inset: 0; z-index: 2;
+  pointer-events: none; box-sizing: border-box; border: 3px solid var(--wahl-linie); }
+.buchungsliste .zeile[aria-selected="true"] + .zeile[aria-selected="true"]::after { border-top-width: 0; }
+.buchungsliste .zeile[aria-selected="true"]:has(+ .zeile[aria-selected="true"])::after { border-bottom-width: 0; }
+.buchungsliste .zeile:focus-visible { outline: none; }
+/* ist die Zeile breiter als die Liste, schließt die klebende Betragszelle den Rahmen rechts */
+.buchungsliste[data-kompakt="nein"] .zeile[aria-selected="true"] > .zelle-betrag { box-shadow: inset -3px 0 0 var(--wahl-linie); }
+.buchungsliste .zeile[aria-selected="true"]:hover { --schleier: var(--wahl-schleier-hover); }
+.buchungsliste .zeile[aria-selected="true"] .vorschlag-knoepfe, .buchungsliste .zeile:hover .vorschlag-knoepfe,
+.buchungsliste .zeile:focus-within .vorschlag-knoepfe { background: var(--toenung); }
 /* Zusatzmarken vor dem Empfänger: wiederkehrende Buchung ↻, durch Mail bestätigt ✉ (nur Gestaltung) */
 .zeile[data-wiederkehrend="ja"] .zelle-empfaenger::before, .zeile[data-mail="ja"] .zelle-empfaenger::before {
   color: var(--akzent); margin-right: .3em; font-weight: 600; flex: none; }
@@ -760,11 +802,8 @@ html[data-thema="dunkel"] { --mark-gruen: #5fb878; --mark-grau: #6f7884; --mark-
   border-color: var(--akzent); color: var(--akzent-text); }
 /* kein „klebendes“ Hover nach dem Tippen auf Touch-Geräten (wirkte wie eine Markierung) */
 @media (hover: none) {
-  [data-layout="mobil"] .buchungsliste .zeile:hover { background-color: transparent; }
-  [data-layout="mobil"] .buchungsliste .zeile[data-markierung="kategorisiert"]:hover { background-color: var(--mark-gruen-hg); }
-  [data-layout="mobil"] .buchungsliste .zeile[data-markierung="importiert"]:hover { background-color: var(--mark-grau-hg); }
-  [data-layout="mobil"] .buchungsliste .zeile[data-markierung="abgeglichen"]:hover { background-color: var(--mark-gruengrau-hg); }
-  [data-layout="mobil"] .buchungsliste .zeile[aria-selected="true"]:hover { background-color: var(--auswahl); }
+  [data-layout="mobil"] .buchungsliste .zeile:hover { --schleier: transparent; }
+  [data-layout="mobil"] .buchungsliste .zeile[aria-selected="true"]:hover { --schleier: var(--wahl-schleier); }
   [data-layout="mobil"] .tabelle tbody tr.klickbar:hover { background: none; }
 }
 [data-layout="mobil"] .buchungsliste .zeile:focus-visible { outline: none; }
@@ -1502,7 +1541,6 @@ html[data-thema="dunkel"] .mail-zuordnung[data-zustand="erfuellt"] .mail-marke {
 /* ---------------------------------------------------------------- UX-Durchgang (D-236) */
 /* Kontoblatt: Betrag bleibt beim seitlichen Rollen am rechten Rand stehen, Gruppenbalken so breit wie der sichtbare Teil */
 .listen-spalte { container-type: inline-size; }
-.buchungsliste .zeile { background-color: var(--hg); }
 .buchungsliste[data-kompakt="nein"] [role="row"] > .zelle-betrag { position: sticky; right: 0; z-index: 1; background-color: inherit; }
 .buchungsliste[data-kompakt="nein"] .liste-kopf > .zelle-betrag { background-color: var(--hg-2); }
 @container (max-width: 46rem) {
@@ -1578,9 +1616,8 @@ tr.ueberfaellig td.e-zustand, tr.ueberfaellig td.e-frist { color: var(--gefahr);
   background: var(--hg-2); }
 .tab-aufraeumen:hover, .tab-aufraeumen:focus-visible { color: var(--text); text-decoration: underline; }
 [data-layout="mobil"].tabs-offen .tab-aufraeumen { position: static; align-self: stretch; text-align: left; min-height: 44px; padding: .6rem 1rem; }
-.buchungsliste[data-kompakt="nein"] .zeile[data-markierung="kategorisiert"]:not(:hover):not([aria-selected="true"]) > .zelle-betrag { background-color: color-mix(in srgb, var(--mark-gruen) 7%, var(--hg)); }
-.buchungsliste[data-kompakt="nein"] .zeile[data-markierung="importiert"]:not(:hover):not([aria-selected="true"]) > .zelle-betrag { background-color: color-mix(in srgb, var(--mark-grau) 7%, var(--hg)); }
-.buchungsliste[data-kompakt="nein"] .zeile[data-markierung="abgeglichen"]:not(:hover):not([aria-selected="true"]) > .zelle-betrag { background-color: color-mix(in srgb, var(--mark-gruen) 10%, var(--hg)); }
+.buchungsliste[data-kompakt="nein"] .zeile > .zelle-betrag { background-color: var(--toenung);
+  background-image: linear-gradient(var(--schleier), var(--schleier)); }   /* D-269: wie die Zeile, deckend */
 .gruppierung-zeile .knopf-klein { margin-left: 0; min-height: 28px; }
 /* Mail-Blatt am Handy: je Mail eine Karte (Betreff und Zeit oben, Zuordnung darunter), Filter in einer rollbaren Zeile */
 [data-layout="mobil"] .mail-liste .tabelle, [data-layout="mobil"] .mail-liste tbody { display: block; }

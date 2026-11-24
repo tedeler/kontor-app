@@ -1055,6 +1055,8 @@ class SyncDienst:
                         gegen = vorschlag[0]
                 splits = [{"konto_id": kid, "betrag": u.betrag, "memo": ""},
                           {"konto_id": gegen, "betrag": -u.betrag, "memo": ""}]
+            if vorschlag is not None or erkennung.art == "treffer":
+                status = "vorlaeufig"   # D-261: automatisch zugeordnet (Vorschlag oder Split-Vorlage)
             bid = buch.buchung_einfuegen(con, u.buchungstag.isoformat(), empf_id, u.verwendungszweck, status,
                                          splits, (), [kennung], gegen_iban=gegen_iban)
             neue.add(bid)

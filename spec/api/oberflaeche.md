@@ -210,7 +210,8 @@ erlaubt. Ein `data-testid` kommt auf einer Seite höchstens einmal vor
   genau den REST-Parameternamen in der URL (`replaceState`), z. B.
   `/konten/5?von=2024-03-01&bis=2024-03-31&status=bestaetigt`. Ein direkter
   Aufruf mit Abfrage setzt die Felder entsprechend. Ein Filterwechsel
-  hebt die Auswahl auf (7.4).
+  behält die Auswahl, soweit die Buchungen zur neuen Liste gehören (D-271, vorher: hebt sie auf); die Buchung mit
+  dem Fokus wird in die Mitte gerollt und bekommt den Fokus, außer der Fokus steht gerade in einem Eingabefeld.
 
 ### 7.2 Buchungsliste
 
@@ -254,6 +255,11 @@ erlaubt. Ein `data-testid` kommt auf einer Seite höchstens einmal vor
 
 ### 7.3 Seitenpanels der Kontoansicht
 
+- **D-266:** `panel-details` dockt rechts (`bereich-rechts`) oder unten (`bereich-unten`, unter der Liste) an;
+  `panel-verschieben-details` wechselt (`data-ziel` = `unten` bzw. `rechts`). Unten ist `panel-groesse-details`
+  waagerecht (`aria-orientation="horizontal"`) und ändert die Höhe (120–600, Vorgabe 260).
+- **D-265:** Das Panel `panel-kategorien` wird im Kontoblatt nicht mehr gezeigt; der folgende Punkt und das
+  Ziehen auf Einträge dieses Panels (weiter unten) gelten nicht mehr. `panel-details` bleibt.
 - `panel-kategorien`: Kategorienbaum (13.1) als Ablageziel für Drag and
   Drop (10).
 - `panel-details`: Einzelheiten der fokussierten Buchung (7.4): alle
@@ -388,6 +394,12 @@ Dialog in `dialog-fehler` (`role="alert"`); der Dialog bleibt dann offen.
   Befehlspalette (12.3) über den Pfad.
 - Pfeil ab/auf markiert (`aria-selected`), Enter oder Klick übernimmt sofort
   und schließt; dann wirkt die auslösende Aktion.
+- **Neue Kategorie (D-264):** Knopf `kategorie-auswahl-neu` „Neue Kategorie anlegen…“ unter der Liste zeigt
+  statt Suche und Liste das Formular `kategorie-neu` mit `kategorie-neu-name` (vorbelegt mit dem Suchtext),
+  `kategorie-neu-art` (`aufwand`, `ertrag`), `kategorie-neu-eltern` (leer = oberste Ebene, sonst Kategorien
+  derselben Art), `kategorie-neu-anlegen` und `kategorie-neu-zurueck`. Anlegen sendet `POST /api/konten`,
+  schließt den Dialog und übernimmt die neue Kategorie wie eine gewählte. Enter im Suchfeld ohne Treffer und mit
+  Text öffnet das Formular. Fehler stehen in `dialog-fehler`.
 
 ### 9.2 Tag-Auswahl (`tag-auswahl`)
 
@@ -2079,25 +2091,27 @@ Kategorie (`oberflaeche.md` 7.2, 22.2).
 
 ### 32.2 Markierung des Bearbeitungsstands
 
+(Fassung nach D-254; die frühere Rangfolge mit `kategorisiert` entfällt.)
+
 Jede Zeile der Buchungsliste (Desktop und mobil) trägt das Attribut `data-markierung`
-nach dieser Rangfolge (erste zutreffende Regel gilt):
+nach dem Status der Buchung:
 
 1. `abgeglichen`: Status der Buchung ist `abgeglichen` **oder** die Buchung ist
    abgestimmt (`abgestimmt` wahr, Kontenabstimmung M3).
-2. `kategorisiert`: kein Split der Buchung liegt auf der Kategorie „Unkategorisiert“
-   (`extern_id = "kontor:unkategorisiert"`). Umbuchungen und Splitbuchungen zählen dazu;
-   der Status ist dabei gleichgültig (auch `importiert`).
-3. `importiert`: Status `importiert` (und mindestens ein Split auf „Unkategorisiert“).
-4. sonst **kein** Attribut `data-markierung` (z. B. `vorlaeufig` oder `bestaetigt` mit Split
-   auf „Unkategorisiert“).
+2. sonst der Status selbst: `importiert`, `vorlaeufig` oder `bestaetigt`.
 
-Darstellung: schmaler farbiger Streifen am linken Rand der Zeile und leichte Tönung
-(grün für `kategorisiert`, grau für `importiert`, grün-grau für `abgeglichen`), im hellen
-und dunklen Thema. Hover und Auswahl überdecken die Tönung, der Streifen bleibt. Die
-Markierung folgt Änderungen (nach Kategorisieren, Statuswechsel, Rückgängig zeigt die neu
-geladene Liste den neuen Wert). Farben werden nicht getestet, nur dass die drei Werte
-optisch unterscheidbar sind (verschiedene berechnete `background-image` bzw.
-`background-color` der Zeile).
+Darstellung: `bestaetigt` und `abgeglichen` stehen auf dem kontrastreichen Grund (helles
+Thema weiß, dunkles Thema schwarz), ohne Streifen. `importiert` ist rot, `vorlaeufig` gelb
+hinterlegt (schmaler farbiger Streifen am linken Rand und Tönung der Zeile), im hellen und
+dunklen Thema. Ob die Buchung kategorisiert ist, ändert die Farbe nicht. Hover und Auswahl
+überdecken die Tönung, der Streifen bleibt. Die Markierung folgt Änderungen (nach
+Statuswechsel oder Rückgängig zeigt die neu geladene Liste den neuen Wert). Farben werden
+nicht getestet, nur dass `importiert`, `vorlaeufig` und `bestaetigt` optisch unterscheidbar
+sind (verschiedene berechnete `background-image` bzw. `background-color` der Zeile).
+
+Die Auswahl überdeckt die Tönung nicht (D-269, ersetzt D-259): Ausgewählte Zeilen behalten Ton und Streifen ihres
+Status, sind eine Stufe abgedunkelt (dunkles Thema: aufgehellt) und oben und unten mit einer Linie in der
+Akzentfarbe gerahmt. Die genauen Farbwerte sind nicht Teil des Vertrags.
 
 ### 32.3 Zusatzmarken vor dem Empfänger
 
@@ -2544,7 +2558,12 @@ Reihenfolge der Einträge einer Buchungsauswahl (Desktop, ohne Alt):
   - Text: „Als <Person> bestätigen“; tragen alle Ziele schon den Namen der Person: „Bestätigung von
     <Person> zurücknehmen“.
   - Bestätigen setzt an alle Ziele den Tag mit dem Namen der Person (wird bei Bedarf angelegt) und setzt
-    Buchungen im Status `importiert` auf `bestaetigt`; andere Status bleiben (auch `vorlaeufig`).
+    Buchungen im Status `importiert` oder `vorlaeufig` auf `bestaetigt` (D-257); andere Status bleiben.
+    Ist unter den Zielen eine importierte Buchung, bei der ein Split auf „Unkategorisiert“ liegt, öffnet sich
+    vorher die Kategorieauswahl (`kategorie-auswahl`, mit Bestandskonten für die Umbuchung); die Wahl gilt für
+    alle diese Buchungen. Ohne Wahl wird nichts bestätigt (Hinweis). Zuordnen und Bestätigen sind zwei
+    Änderungen (D-260). Trägt die Buchung einen offenen Vorschlag, wird ohne Nachfrage dessen Kategorie
+    übernommen (D-261).
     Zurücknehmen entfernt nur den eigenen Namen, der Status bleibt. Beide Personen können dieselbe Buchung
     bestätigen. Ein Strg+Z nimmt Tag und Status zusammen zurück.
   - Darstellung: Personen-Tags in der Spalte Tags mit `data-person` = Name; die Zeile trägt
@@ -2666,6 +2685,10 @@ Sortierspalte wechseln; `r` Sortierrichtung umkehren; `d`/`k` Panel Einzelheiten
   `vorlage-empfaenger-feld-<id>`, `vorlage-splitbetrag-feld-<id>`, `vorlage-regel-speichern-<id>`,
   `vorlage-loeschen-<id>` (mit Rückfrage). Speichern setzt die Bedingung Empfänger gleich und verteilt eine
   geänderte Summe in ganzen Cent auf einen Teil (kein Teil wird 0, Summe nicht 0; sonst Fehlermeldung).
+- **Vorlage übernehmen (D-267):** `split-vorlage-wahl` (`<select>`, erster Eintrag leer, danach je Split-Vorlage
+  Name und Gesamtbetrag; ohne Vorlagen gesperrt) ersetzt die Zeilen außer denen auf Bestandskonten durch die
+  Teile der gewählten Vorlage. Ist die Summe danach nicht 0, zeigt `split-vorlage-hinweis` den offenen Rest;
+  `split-speichern` bleibt gesperrt, bis die Summe 0 ist.
 
 #### 37.12.5 Dubletten (D-165)
 
@@ -3111,8 +3134,9 @@ unverändert.
 
 ### 41.4 Bestätigen (D-223, ändert 37.10)
 
-„Als <Person> bestätigen“ setzt das Tag „B-<Person>“ (z. B. „B-Torsten“);
-`data-bestaetigt` und `data-person` nennen weiter den Namen der Person.
+„Als <Person> bestätigen“ setzt das Tag „<Person>-Bestätigt“ (z. B. „Torsten-Bestätigt“; D-262, vorher
+„B-<Person>“); `data-bestaetigt` und `data-person` nennen weiter den Namen der Person. In der Spalte Tags des
+Kontoblatts stehen Bestätigungs-Tags immer hinter allen anderen Tags.
 
 ### 41.5 Kontoblatt: Spalten (D-224)
 

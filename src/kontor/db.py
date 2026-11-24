@@ -620,8 +620,21 @@ def _migrieren(con: sqlite3.Connection) -> None:
         con.execute("CREATE INDEX IF NOT EXISTS vorschlag_regel ON vorschlag(regel_id)")
     _regel_kategorie_optional(con)
     _erwartung_anbieter_frei(con)
+    _zugeordnete_vorlaeufig(con)
     for sql in _NACH_MIGRATION:
         con.execute(sql)
+
+
+def _zugeordnete_vorlaeufig(con: sqlite3.Connection) -> None:
+    """D-261, einmalig: Importierte Buchungen, die schon zugeordnet sind (kein Split auf „Unkategorisiert“), werden
+    vorläufig – auch solche mit offenem Vorschlag. Ob die Zuordnung früher von Hand kam, ist nicht mehr zu
+    erkennen; bestätigt wird deshalb nichts von selbst."""
+    if con.execute("SELECT 1 FROM meta WHERE schluessel = 'status_farben'").fetchone() is not None:
+        return
+    con.execute("UPDATE buchung SET status = 'vorlaeufig' WHERE status = 'importiert'"
+                " AND id NOT IN (SELECT s.buchung_id FROM split s JOIN konto k ON k.id = s.konto_id"
+                " WHERE k.extern_id = 'kontor:unkategorisiert')")
+    con.execute("INSERT INTO meta (schluessel, wert) VALUES ('status_farben', '1')")
 
 
 def _regel_kategorie_optional(con: sqlite3.Connection) -> None:

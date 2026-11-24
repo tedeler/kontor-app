@@ -308,6 +308,7 @@ def _aufteilen(con, bid: int, s: dict, v: dict) -> None:
     con.executemany("INSERT INTO split (buchung_id, position, konto_id, betrag, memo) VALUES (?, ?, ?, ?, ?)",
                     [(bid, i + 1, t["konto_id"], t["betrag"], t["memo"]) for i, t in enumerate(teile_splits(v))])
     buch.vorschlag_entfernen(con, [bid])
+    buch.automatisch_zugeordnet(con, [bid])   # D-261
 
 
 __all__ = ["vorlage_koerper", "vorlagen_liste", "vorlage_lesen", "vorlage_anlegen", "vorlage_aendern",

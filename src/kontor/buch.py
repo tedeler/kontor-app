@@ -19,7 +19,8 @@ BESTAND = ("girokonto", "sparkonto", "kreditkonto")
 KATEGORIEARTEN = ("aufwand", "ertrag")
 KLASSE = {"girokonto": "bestand", "sparkonto": "bestand", "kreditkonto": "bestand",
           "aufwand": "aufwand", "ertrag": "ertrag", "eigenkapital": "eigenkapital"}
-UEBERGAENGE = {("importiert", "bestaetigt"), ("bestaetigt", "abgeglichen"), ("vorlaeufig", "abgeglichen")}
+UEBERGAENGE = {("importiert", "bestaetigt"), ("vorlaeufig", "bestaetigt"),   # vorläufig → bestätigt seit D-257
+               ("bestaetigt", "abgeglichen"), ("vorlaeufig", "abgeglichen")}
 
 
 def nicht_gefunden(was: str) -> ApiFehler:
@@ -560,6 +561,38 @@ def buchung_anlegen(con, d: dict) -> dict:
     return buchung_lesen(con, bid)
 
 
+def _status_bei_zuordnung(con, ids: Iterable[int], von: tuple[str, ...], nach: str) -> None:
+    for teil in _stueckweise(sorted(set(ids))):
+        con.execute(
+            f"UPDATE buchung SET status = ? WHERE status IN ({_platzhalter(len(von))})"
+            f" AND id IN ({_platzhalter(len(teil))}) AND id NOT IN (SELECT s.buchung_id FROM split s"
+            " JOIN konto k ON k.id = s.konto_id WHERE k.extern_id = ?)",
+            [nach, *von, *(sichere_id(x) for x in teil), UNKATEGORISIERT])
+
+
+def von_hand_zugeordnet(con, ids: Iterable[int]) -> None:
+    """D-261: Eine von Hand zugeordnete Buchung ist bestätigt.
+
+    Aufzurufen nach jeder Zuordnung durch den Anwender (Kategorie oder Bestandskonto setzen, Splits ersetzen,
+    Vorschlag annehmen). Betrifft Buchungen im Status ``importiert`` oder ``vorlaeufig``, bei denen danach kein
+    Split auf „Unkategorisiert“ liegt.
+    """
+    _status_bei_zuordnung(con, ids, ("importiert", "vorlaeufig"), "bestaetigt")
+
+
+def automatisch_zugeordnet(con, ids: Iterable[int]) -> None:
+    """D-261: Eine automatisch zugeordnete Buchung (Vorschlag von Regel oder Lernmodell, Split-Vorlage) ist
+    vorläufig. Betrifft nur Buchungen im Status ``importiert`` ohne Split auf „Unkategorisiert“."""
+    _status_bei_zuordnung(con, ids, ("importiert",), "vorlaeufig")
+
+
+def vorschlag_abgelehnt(con, ids: Iterable[int]) -> None:
+    """D-261: Mit dem abgelehnten Vorschlag entfällt die automatische Zuordnung – vorläufig wird wieder importiert."""
+    for teil in _stueckweise(sorted(set(ids))):
+        con.execute(f"UPDATE buchung SET status = 'importiert' WHERE status = 'vorlaeufig'"
+                    f" AND id IN ({_platzhalter(len(teil))})", [sichere_id(x) for x in teil])
+
+
 def _gesperrt() -> ApiFehler:
     return ApiFehler(409, "buchung_gesperrt",
                      "Die Buchung ist abgeglichen oder abgestimmt und gegen Änderungen gesperrt.")
@@ -606,6 +639,7 @@ def splits_ersetzen(con, bid: int, splits: list[dict]) -> dict:
     _splits_regeln(con, splits)
     splits_schreiben(con, bid, splits)
     vorschlag_entfernen(con, [bid])
+    von_hand_zugeordnet(con, [bid])
     return buchung_lesen(con, bid)
 
 
@@ -631,6 +665,7 @@ def kategorie_setzen(con, bid: int, kategorie_id: int) -> dict:
                         "Die Buchung hat nicht genau einen Gegensplit und lässt sich nicht kategorisieren.")
     con.execute("UPDATE split SET konto_id = ? WHERE id = ?", (kategorie_id, s["id"]))
     vorschlag_entfernen(con, [bid])
+    von_hand_zugeordnet(con, [bid])
     return buchung_lesen(con, bid)
 
 
@@ -680,6 +715,7 @@ def mehrfach_kategorie(con, ids: list[int], kategorie_id: int) -> dict:
     con.executemany("UPDATE split SET konto_id = ? WHERE id = ?",
                     [(kategorie_id, s["id"]) for s in gegen.values()])
     vorschlag_entfernen(con, ids)
+    von_hand_zugeordnet(con, ids)
     return {"geaendert": sorted(ids), "anzahl": len(ids)}
 
 
@@ -904,7 +940,12 @@ def buchungsliste(con, f: dict) -> dict:
         if f.get("verdacht"):
             from . import verdacht
             verdacht.anreichern(con, eintraege)
-    return {"eintraege": eintraege, "gesamt": gesamt, "seite": seite, "pro_seite": pro_seite, "summe": summe}
+    aus = {"eintraege": eintraege, "gesamt": gesamt, "seite": seite, "pro_seite": pro_seite, "summe": summe}
+    if f.get("position_id") is not None:   # D-271: Stelle (ab 0) in der gefilterten, sortierten Liste oder None
+        r = con.execute(f"SELECT pos FROM (SELECT id, ROW_NUMBER() OVER (ORDER BY {order}) - 1 AS pos FROM ({basis}))"
+                        " WHERE id = ?", alle_par + [sichere_id(f["position_id"])]).fetchone()
+        aus["position"] = None if r is None else r["pos"]
+    return aus
 
 
 def _filter_par(par: list, konten: list[int] | None) -> list:

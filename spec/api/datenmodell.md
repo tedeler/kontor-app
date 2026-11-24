@@ -138,10 +138,22 @@ Werte: `importiert`, `vorlaeufig`, `bestaetigt`, `abgeglichen`.
 - Beim manuellen Anlegen zulässig: `importiert`, `vorlaeufig`, `bestaetigt`
   (Vorgabe `bestaetigt`). `abgeglichen` ist beim Anlegen unzulässig (422).
 - Der Import aus KMyMoney setzt immer `importiert`.
-- Zulässige Übergänge: `importiert → bestaetigt`, `bestaetigt → abgeglichen`,
-  `vorlaeufig → abgeglichen`. Das Setzen des bereits aktuellen Status ist
+- Zulässige Übergänge: `importiert → bestaetigt`, `vorlaeufig → bestaetigt` (D-257),
+  `bestaetigt → abgeglichen`, `vorlaeufig → abgeglichen`. Das Setzen des bereits aktuellen Status ist
   zulässig und ändert nichts. Alle anderen Übergänge werden mit 409
   `status_uebergang_unzulaessig` abgelehnt.
+- **Status folgt der Zuordnung (D-261):** `importiert` heißt „noch nicht zugeordnet“, `vorlaeufig` „automatisch
+  zugeordnet“, `bestaetigt` „von Hand zugeordnet oder bestätigt“.
+  - *Automatisch:* Setzt eine Regel oder das Lernmodell einen Vorschlag (Synchronisation, „Regeln anwenden“,
+    „Lernmodell anwenden“) oder teilt eine Split-Vorlage die Buchung auf, wird eine Buchung im Status `importiert`
+    in derselben Änderung `vorlaeufig`.
+  - *Von Hand:* `PUT /api/buchungen/{id}/kategorie` (Kategorie oder Bestandskonto),
+    `POST /api/buchungen/mehrfach/kategorie`, `PUT /api/buchungen/{id}/splits` und das Annehmen eines Vorschlags
+    (einzeln und mehrfach) setzen eine Buchung im Status `importiert` oder `vorlaeufig` auf `bestaetigt`.
+  - Beides nur, wenn danach kein Split auf „Unkategorisiert“ liegt. Das Ablehnen eines Vorschlags setzt
+    `vorlaeufig` wieder auf `importiert`. Importe aus Dateien und das Erfassen ändern den Status nicht.
+  - Wie bei der Kreditrate sind das Wirkungen der Anwendung, keine Statuswechsel nach den Übergängen; Rückgängig
+    stellt Zuordnung und Status zusammen wieder her.
 - Eine Buchung im Status `abgeglichen` ist gesperrt: Änderungen an `datum`,
   `empfaenger_id`, `verwendungszweck`, Splits und Kategorie sowie Löschen
   werden mit 409 `buchung_gesperrt` abgelehnt. Tags dürfen weiterhin geändert
