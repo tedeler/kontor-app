@@ -3774,3 +3774,17 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   (hell) bzw. gelb (dunkel), jeweils mit ausreichendem Kontrast auf der Auswahlfarbe. Nicht ausgewählte Zeilen
   bleiben wie in D-254 (Tönung, normale Schrift). Beträge behalten ihre eigene Farbe (negativ rot).
 - **Prüfung:** nicht im Browser angesehen; Kontrast nur gerechnet (jeweils etwa 4,7 bis 5,9 zu 1).
+
+## D-258 Bestätigen roter Buchungen verlangt eine Kategorie oder ein Konto (Feature `status-farben`, 2026-11-24)
+
+- **Anlass:** Auftrag vom 2026-11-24: „Bestätigt man rote Buchungen, sollte immer eine Kategorie/Konto gefordert
+  werden.“
+- **Entscheidung (Lesart):** Gefordert wird die Zuordnung, wo sie fehlt: Bei importierten Buchungen mit einem
+  Split auf „Unkategorisiert“ öffnet „Als <Person> bestätigen“ (Kürzel b, Kontextmenü, Einzelheiten) zuerst die
+  Kategorieauswahl mit Bestandskonten. Die Wahl gilt für alle solchen Buchungen der Auswahl; danach wird
+  bestätigt. Ohne Wahl wird keine der gewählten Buchungen bestätigt. Rote Buchungen, die schon eine Kategorie
+  tragen (offener Vorschlag, Split-Vorlage, Import), werden wie bisher ohne Nachfrage bestätigt.
+- **Nur Oberfläche:** Die REST-Schnittstelle lehnt das Setzen von `bestaetigt` weiterhin nicht ab; auch die
+  Statusauswahl in der Zeile und „Mehrere ändern“ fragen nicht nach.
+- **Rückgängig:** Zuordnen und Bestätigen sind zwei Änderungen (zweimal Strg+Z).
+- **Prüfung:** nur gelesen und auf Syntax geprüft; kein Browsertest gelaufen.

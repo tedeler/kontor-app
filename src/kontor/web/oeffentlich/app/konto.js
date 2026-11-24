@@ -2198,9 +2198,33 @@ class Kontoansicht {
     };
   }
 
+  /** D-258: Importierte Buchungen ohne Zuordnung (ein Split auf „Unkategorisiert“) lassen sich nicht bestätigen,
+   *  ohne dass eine Kategorie oder ein Konto gewählt wird. Ergebnis: darf bestätigt werden? */
+  ohneZuordnung(ids) {
+    const unk = stamm.konten.find((k) => k.extern_id === UNKATEGORISIERT);
+    if (!unk) return [];
+    return ids.filter((id) => {
+      const x = this.eintraege.find((e) => e.id === id);
+      return x && x.status === "importiert" && x.splits.some((sp) => sp.konto_id === unk.id);
+    });
+  }
+
+  async zuordnungFordern(ids) {
+    const offen = this.ohneZuordnung(ids);
+    if (!offen.length) return true;
+    const kat = await kategorieAuswahl(offen.length === 1 ? "Zum Bestätigen: Kategorie oder Konto wählen"
+      : `Zum Bestätigen: Kategorie oder Konto für ${offen.length} Buchungen wählen`,
+    null, { konten: true, ohneKonto: this.istKategorie ? null : this.konto.id });
+    if (!kat) { melde("hinweis", "Nicht bestätigt: Es fehlt eine Kategorie oder ein Konto."); return false; }
+    await this.kategorieSetzen(offen, kat);
+    if (this.ohneZuordnung(ids).length) return false;   // Zuordnung abgebrochen oder abgelehnt (gemeldet)
+    return true;
+  }
+
   async personMarkieren(ids, hinzu) {
     const name = personLesen();
     if (!name) { melde("hinweis", "Bitte oben rechts wählen, wer du bist."); return; }
+    if (hinzu && !(await this.zuordnungFordern(ids))) return;
     const offenVorab = !hinzu ? [] : ids.filter((id) => {
       const x = this.eintraege.find((e) => e.id === id);
       return x && !x.abgestimmt && (x.status === "importiert" || x.status === "vorlaeufig");

@@ -2546,6 +2546,10 @@ Reihenfolge der Einträge einer Buchungsauswahl (Desktop, ohne Alt):
     <Person> zurücknehmen“.
   - Bestätigen setzt an alle Ziele den Tag mit dem Namen der Person (wird bei Bedarf angelegt) und setzt
     Buchungen im Status `importiert` oder `vorlaeufig` auf `bestaetigt` (D-255); andere Status bleiben.
+    Ist unter den Zielen eine importierte Buchung, bei der ein Split auf „Unkategorisiert“ liegt, öffnet sich
+    vorher die Kategorieauswahl (`kategorie-auswahl`, mit Bestandskonten für die Umbuchung); die Wahl gilt für
+    alle diese Buchungen. Ohne Wahl wird nichts bestätigt (Hinweis). Zuordnen und Bestätigen sind zwei
+    Änderungen (D-258).
     Zurücknehmen entfernt nur den eigenen Namen, der Status bleibt. Beide Personen können dieselbe Buchung
     bestätigen. Ein Strg+Z nimmt Tag und Status zusammen zurück.
   - Darstellung: Personen-Tags in der Spalte Tags mit `data-person` = Name; die Zeile trägt
