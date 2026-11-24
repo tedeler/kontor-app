@@ -232,7 +232,6 @@ const KUERZEL = [
   ["v", "o", "Sortierspalte wechseln", (s) => s.sortierungWechseln(false)],
   ["v", "r", "Sortierrichtung umkehren", (s) => s.sortierungWechseln(true)],
   ["v", "d", "Panel Einzelheiten ein-/ausklappen", (s) => s.panelUmschalten("details")],
-  ["v", "k", "Panel Kategorien ein-/ausklappen", (s) => s.panelUmschalten("kategorien")],
   ["v", "a", "Spaltenbreiten an den Inhalt anpassen", (s) => s.spalteAnpassen(s.spalten.map(([f]) => f))],
   ["v", "0", "Spaltenbreiten zurücksetzen", (s) => s.spaltenZuruecksetzen()],
   ["v", ",", "Konto-Einstellungen…", (s) => kontoEinstellungen(s.konto, tid("konto-einstellungen-oeffnen", s.seite))],
@@ -964,7 +963,8 @@ class Kontoansicht {
     }
     const bereich = (name) => {
       const el = h("div", { class: `bereich bereich-${name}`, tid: `bereich-${name}` });
-      const panels = Object.entries(this.layout.panels).filter(([, p]) => p.bereich === name)
+      // D-263: das Panel Kategorien wird im Kontoblatt nicht mehr gezeigt (mehr Platz für die Liste)
+      const panels = Object.entries(this.layout.panels).filter(([n, p]) => n !== "kategorien" && p.bereich === name)
         .sort((a, b) => a[1].position - b[1].position);
       // von außen (Fensterrand) nach innen (Liste): links aufsteigend, rechts absteigend in der DOM-Reihenfolge
       if (name === "rechts") panels.reverse();
@@ -972,6 +972,7 @@ class Kontoansicht {
       el.append(h("div", { class: "ablage", tid: `ablage-${name}`, hidden: true, "aria-hidden": "true" }));
       return el;
     };
+    this.baumEl = null;
     this.bereichLinks = bereich("links");
     this.bereichRechts = bereich("rechts");
     this.arbeit.replaceChildren(this.bereichLinks, this.listenSpalte, this.bereichRechts);

@@ -254,6 +254,8 @@ erlaubt. Ein `data-testid` kommt auf einer Seite höchstens einmal vor
 
 ### 7.3 Seitenpanels der Kontoansicht
 
+- **D-263:** Das Panel `panel-kategorien` wird im Kontoblatt nicht mehr gezeigt; der folgende Punkt und das
+  Ziehen auf Einträge dieses Panels (weiter unten) gelten nicht mehr. `panel-details` bleibt.
 - `panel-kategorien`: Kategorienbaum (13.1) als Ablageziel für Drag and
   Drop (10).
 - `panel-details`: Einzelheiten der fokussierten Buchung (7.4): alle

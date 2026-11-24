@@ -3855,3 +3855,15 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   Bestätigen (D-258). Bestandskonten lassen sich hier nicht anlegen.
 - **Rückgängig:** Anlegen und Zuordnen sind zwei Änderungen.
 - **Prüfung:** nur gelesen und auf Syntax geprüft; kein Browsertest gelaufen.
+
+## D-263 Kontoblatt ohne Panel Kategorien (Feature `status-farben`, 2026-11-24)
+
+- **Anlass:** Auftrag vom 2026-11-24: Im Kontoblatt die Kategorienliste nicht anzeigen, das gibt mehr Platz.
+- **Entscheidung:** Das Panel „Kategorien“ (`panel-kategorien`) wird im Kontoblatt nicht mehr aufgebaut; die Liste
+  bekommt seine Breite. Das Kürzel „v k“ entfällt. Das Panel „Einzelheiten“ bleibt mit Einklappen, Verschieben
+  und Breite. Der gespeicherte Layoutstand im Browser behält sein Format.
+- **Entfällt damit:** das Ziehen von Buchungen auf eine Kategorie des Panels und der Sprung in eine Kategorie aus
+  dem Panel. Zuordnen geht über „k“, das Kontextmenü, die Zelle und die Einzelheiten; Kategorien erreicht man über
+  die Navigation.
+- **Offen vor dem Merge:** Browsertests, die das Panel Kategorien bedienen (Layout, Ziehen und Ablegen), sind noch
+  nicht angepasst und werden rot oder müssen entfallen.
