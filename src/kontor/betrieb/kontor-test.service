@@ -4,7 +4,7 @@
 # sieht das Datenverzeichnis der Hauptinstanz nicht. Eingerichtet und gestartet wird sie mit
 # „python -m kontor.testinstanz einrichten <Branch>“; sie startet nicht von selbst beim Hochfahren.
 [Unit]
-Description=Kontor – Testinstanz für einen Entwicklungsbranch (Mock-Modus, Kopie der Daten)
+Description=Kontor – Testinstanz für einen Entwicklungsbranch (Mock-Modus, Kopie der Daten oder Demodaten)
 Documentation=file:///opt/kontor/README.md
 After=network-online.target
 Wants=network-online.target
@@ -14,6 +14,8 @@ Type=exec
 User=kontor
 Group=kontor
 EnvironmentFile=/etc/kontor/kontor-test.env
+# Nur bei einer Vorführung mit Demodaten vorhanden („… testinstanz demo“): ohne Anmeldung, eigene Mock-Bank
+EnvironmentFile=-/etc/kontor/kontor-test-demo.env
 ExecStart=/opt/kontor-test/venv/bin/python -m kontor
 StateDirectory=kontor-test
 StateDirectoryMode=0700

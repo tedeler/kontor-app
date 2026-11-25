@@ -11,9 +11,12 @@
 #
 # Aufruf als root auf dem Server:
 #   kontor-test start <branch>     Branch einrichten, Daten kopieren, starten
-#   kontor-test neu                dasselbe mit dem zuletzt benutzten Branch
+#   kontor-test demo [branch]      Branch (Vorgabe main) mit Demodaten starten:
+#                                  erfundener Haushalt zum Vorfuehren, ohne
+#                                  Anmeldung; die echten Daten werden nicht gelesen
+#   kontor-test neu                dasselbe wie zuletzt (start oder demo) noch einmal
 #   kontor-test stop               Testinstanz anhalten (Datenkopie bleibt)
-#   kontor-test loeschen           anhalten und Datenkopie loeschen
+#   kontor-test loeschen           anhalten und Daten (Kopie oder Demodaten) loeschen
 #   kontor-test status             Zustand, Branch und Adresse anzeigen
 #   kontor-test log                Protokoll mitlesen (Strg+C beendet)
 #
@@ -118,18 +121,43 @@ warte_auf_port() {
     return 1
 }
 
+# Zuletzt Eingerichtetes aus der Merkdatei: "<branch>" (Datenkopie) oder "demo <branch>"
+gemerkte_art() {
+    local erstes rest
+    read -r erstes rest < "$MERKDATEI" || true
+    if [ "$erstes" = "demo" ] && [ -n "$rest" ]; then echo "demo"; else echo "kopie"; fi
+}
+
+gemerkter_branch() {
+    local erstes rest
+    read -r erstes rest < "$MERKDATEI" || true
+    if [ "$erstes" = "demo" ] && [ -n "$rest" ]; then echo "$rest"; else echo "$erstes"; fi
+}
+
+# einrichten <kopie|demo> <branch>
 einrichten() {
-    local branch="$1"
-    echo "==> Richte Testinstanz ein: ${branch}"
-    echo "    (Branch holen, installieren, Daten kopieren, starten)"
-    "$PYTHON" -m kontor.testinstanz einrichten "$branch"
-    echo "$branch" > "$MERKDATEI"
+    local art="$1" branch="$2"
+    if [ "$art" = "demo" ]; then
+        echo "==> Richte Testinstanz mit Demodaten ein: ${branch}"
+        echo "    (Branch holen, installieren, erfundenen Haushalt aufbauen, starten)"
+        "$PYTHON" -m kontor.testinstanz demo "$branch"
+        echo "demo $branch" > "$MERKDATEI"
+    else
+        echo "==> Richte Testinstanz ein: ${branch}"
+        echo "    (Branch holen, installieren, Daten kopieren, starten)"
+        "$PYTHON" -m kontor.testinstanz einrichten "$branch"
+        echo "$branch" > "$MERKDATEI"
+    fi
 
     echo "==> Warte auf Port $(port) ..."
     if warte_auf_port; then
         freigabe_ein
         echo "==> Testinstanz laeuft: $(adresse)"
-        echo "    Anmeldung mit dem Haushaltspasswort."
+        if [ "$art" = "demo" ]; then
+            echo "    Demodaten (erfundener Haushalt), ohne Anmeldung."
+        else
+            echo "    Anmeldung mit dem Haushaltspasswort."
+        fi
     else
         echo "Die Testinstanz antwortet nach ${WARTEZEIT} s nicht auf Port $(port)." >&2
         echo "Letzte Protokollzeilen:" >&2
@@ -143,24 +171,28 @@ case "$befehl" in
     start)
         pruefe_umgebung
         [ $# -ge 2 ] || fehler "Branch fehlt. Beispiel: $0 start monatsbericht"
-        einrichten "$(branch_name "$2")"
+        einrichten kopie "$(branch_name "$2")"
+        ;;
+    demo)
+        pruefe_umgebung
+        einrichten demo "$(branch_name "${2:-main}")"
         ;;
     neu)
         pruefe_umgebung
-        [ -s "$MERKDATEI" ] || fehler "Noch kein Branch gemerkt. Zuerst: $0 start <branch>"
-        einrichten "$(cat "$MERKDATEI")"
+        [ -s "$MERKDATEI" ] || fehler "Noch kein Branch gemerkt. Zuerst: $0 start <branch> oder $0 demo"
+        einrichten "$(gemerkte_art)" "$(gemerkter_branch)"
         ;;
     stop)
         pruefe_umgebung
         freigabe_aus
         "$PYTHON" -m kontor.testinstanz stoppen
-        echo "==> Testinstanz angehalten. Die Datenkopie bleibt erhalten."
+        echo "==> Testinstanz angehalten. Die Daten bleiben erhalten."
         ;;
     loeschen)
         pruefe_umgebung
         freigabe_aus
         "$PYTHON" -m kontor.testinstanz stoppen --loeschen
-        echo "==> Testinstanz angehalten, Datenkopie geloescht."
+        echo "==> Testinstanz angehalten, Daten geloescht."
         ;;
     status)
         if systemctl is-active --quiet "$DIENST"; then
@@ -170,7 +202,12 @@ case "$befehl" in
             echo "Zustand: angehalten"
         fi
         if [ -s "$MERKDATEI" ]; then
-            echo "Branch:  $(cat "$MERKDATEI") (zuletzt mit diesem Skript eingerichtet)"
+            echo "Branch:  $(gemerkter_branch) (zuletzt mit diesem Skript eingerichtet)"
+            if [ "$(gemerkte_art)" = "demo" ]; then
+                echo "Daten:   Demodaten (erfundener Haushalt), ohne Anmeldung"
+            else
+                echo "Daten:   Kopie der Hauptinstanz"
+            fi
         fi
         ;;
     log)

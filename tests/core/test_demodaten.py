@@ -13,11 +13,12 @@ import pytest
 from fastapi.testclient import TestClient
 
 from kontor import demodaten as D
+from kontor import demowelt
 from kontor import testinstanz as T
 from kontor.app import create_app
 from kontor.plugins import mock_daten
 
-HEUTE = dt.date(2026, 11, 25)
+HEUTE = dt.date(2026, 3, 10)    # vier Monate zurück liegt ein Jahreswechsel: Jahresabgleich und Abstimmung
 MONATE = 4
 
 
@@ -84,9 +85,21 @@ def test_buchbestand_zeigt_die_funktionen(demo):
 
 def test_kontostaende_passen_zur_mock_bank(demo):
     c = demo["client"]
-    lauf = c.get("/api/sync/laeufe").json()[0]
+    lauf = c.get("/api/sync/laeufe").json()[-1]
     assert lauf["status"] == "erfolgreich"
-    assert [k["saldo_abgleich"]["status"] for k in lauf["konten"]] == ["stimmt", "stimmt"]
+    nach_iban = {k["iban"]: k for k in lauf["konten"]}
+    giro, sparbuch = nach_iban[demowelt.GIRO], nach_iban[demowelt.SPARBUCH]
+    assert sparbuch["saldo_abgleich"]["status"] == "stimmt"
+    # Im Girokonto steht eine von Hand notierte Ausgabe, die die Bank noch einmal geliefert hat (Dublettenverdacht):
+    # Genau um diesen Betrag hat der Abruf den Kontostand an die Bank angeglichen.
+    verdacht = c.get("/api/dubletten").json()
+    assert len(verdacht) == 1 and verdacht[0]["status"] == "offen"
+    doppelt = c.get(f"/api/buchungen/{verdacht[0]['buchung_id']}").json()
+    assert giro["saldo_abgleich"]["status"] == "ausgeglichen"
+    assert giro["saldo_abgleich"]["differenz"] == abs(doppelt["betrag"]) > 0
+    stand = {k["name"]: k["saldo"] for k in c.get("/api/kontenuebersicht").json()["konten"]}
+    assert stand["Girokonto"] == giro["saldo_abgleich"]["bank_saldo"]
+    assert stand["Sparbuch"] == sparbuch["saldo_abgleich"]["bank_saldo"]
 
 
 def test_abruf_in_der_vorfuehrung_bringt_neues(demo):
