@@ -4123,3 +4123,30 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   unter 359 px mobil nicht mehr.
 - **Prüfung:** Messung vor und nach der Änderung; `tests/test_browser_gesten.py` (eine Zeile bei 390 px),
   `m26/test_m26_oberflaeche.py::test_kopfzeile_eine_zeile_reihenfolge_und_groesse` prüft „eine Zeile“ jetzt wieder.
+## D-280 Ausgleichsbuchungen, die sich aufheben, aufräumen (Feature `ausgleich-aufraeumen`, 2026-11-25)
+
+- **Anlass:** Arbeitsanweisung vom 2026-11-25: Mehrfach entstand bei der Synchronisation eine Ausgleichsbuchung und
+  einen Tag später die umgekehrte.
+- **Bestand:** `sync._saldo_abgleichen` vergleicht nach jedem erfolgreich verarbeiteten Bankkonto den Saldo der Bank
+  mit dem des Kontos und bucht die Differenz gegen „Korrekturen“ (Kennung `saldo:<iban>:<stichtag>`, Zweck
+  „Saldoausgleich Bank“, eigene Änderung `sync_saldoausgleich`). E-161 schloss ein Zusammenfassen bewusst aus.
+- **Ursache der Paare:** nicht an echten Daten untersucht. Nach `kontostand.md` 3 entstehen sie, wenn eine Buchung
+  vor dem Bankumsatz im Buch steht; ebenso denkbar ist, dass die Bank den neuen Saldo vor dem Umsatz meldet. Das
+  Aufräumen behandelt die Folge, nicht die Ursache.
+- **Entscheidung** (`kontostand.md` 5, ersetzt E-161 in diesem Punkt), jeweils für unveränderte Ausgleichsbuchungen
+  desselben Kontos mit höchstens sieben Tagen Abstand:
+  - Summe 0: ohne Nachfrage weg. Beim Abruf wird statt der zweiten Buchung die erste gelöscht; der Altbestand wird
+    beim ersten Start einmalig aufgeräumt.
+  - Summe ungleich 0 (auch gleichgerichtete Beträge): Die Oberfläche fragt in einem Fenster, ob beide zu einer
+    Buchung mit der Summe werden; „Getrennt lassen“ wird gemerkt, „Später“ gilt bis zum nächsten Laden.
+- **Protokoll:** Das Entfernen beim Abruf ist die Änderung `sync_saldoausgleich` des Laufs (Eintrag „Buchung
+  gelöscht“), der Altbestand eine Änderung `saldoausgleich_aufraeumen`, das Zusammenführen
+  `saldoausgleich_zusammenfuehren`. Alle drei lassen sich rückgängig machen.
+- **Einzelheiten:** Neues Modul `ausgleich.py`. Kein neuer fachlicher Zustand: „getrennt lassen“ und der Vermerk
+  zum Altbestand liegen in `meta` (nach dem Einspielen einer Sicherung fragt Kontor über getrennte Paare erneut).
+  `SaldoAbgleich` bekommt das optionale Feld `aufgehoben_buchung_id`. Abgestimmte, abgeglichene, umgebuchte oder
+  gesplittete Ausgleichsbuchungen bleiben unberührt.
+- **Grenzen:** Das Fenster erscheint in der Oberfläche (nach dem Laden, nach einer dort gestarteten
+  Synchronisation, minütlich), nicht als Benachrichtigung aufs Handy. Paare werden nur aufeinanderfolgend gebildet.
+- **Prüfung:** Core-Tests `tests/core/test_ausgleich_aufraeumen.py`; Browsertest `tests/test_browser_ausgleich.py`.
+  Nicht an echten Bankdaten geprüft.
