@@ -51,7 +51,8 @@ def test_hintergrund_mit_fortschritt(tmp_path):
     c, cfg = app(tmp_path, mail_nur_koepfe=True)
     p = Langsam(MAILS)
     c.app.state.sync.mail._mock_plugin = p
-    assert c.get("/api/mail/abruf/stand").json() == {"laeuft": False, "nur_koepfe": True}
+    assert c.get("/api/mail/abruf/stand").json() == {"laeuft": False, "nur_koepfe": True,
+                                                       "automatisch": False, "intervall_minuten": 0}
     r = c.post("/api/mail/abruf", params={"hintergrund": "ja"})
     assert r.status_code == 200 and r.json()["laeuft"] is True, r.text
     for _ in range(100):

@@ -425,7 +425,54 @@ function behandeln(e) {
   fehlerMelden(e);
 }
 
-oberflaeche.neuLaden = () => zeigen({ behalten: true });
+oberflaeche.neuLaden = async () => { await zeigen({ behalten: true }); await bestandMerken(); };
+
+// ------------------------------------------------------------------ D-284: Stand des Buchbestands
+// Ändert sich der Buchbestand ohne eigenes Zutun (Planer: Kontoabruf, Mail-Abruf; anderes Gerät), laden die offenen
+// Ansichten neu: die übrigen Tabs beim nächsten Zeigen, die sichtbare Ansicht, sobald niemand darin arbeitet.
+let bestandStand = null;
+let sichtbareVeraltet = false;
+
+async function bestandLesen() {
+  try { return (await api("GET", "/api/bestand/stand")).stand; } catch (e) { return null; }
+}
+
+/** Nach einem eigenen Neuladen: der jetzige Stand ist der gezeigte. */
+async function bestandMerken() {
+  const st = await bestandLesen();
+  if (st !== null) bestandStand = st;
+}
+
+/** Niemand tippt, kein Fenster und kein Menü ist offen. */
+function ruhig() {
+  if (document.querySelector(".dialog-huelle, .kontextmenue")) return false;
+  const a = document.activeElement;
+  return !(a && (a.matches("input, textarea, select") || a.isContentEditable));
+}
+
+async function bestandPruefen() {
+  if (offline || document.visibilityState === "hidden") return;
+  const st = await bestandLesen();
+  if (st === null) return;
+  if (bestandStand !== null && st !== bestandStand) {
+    tabs.andereVeraltet(aktuell);
+    sichtbareVeraltet = true;
+  }
+  bestandStand = st;
+  if (!sichtbareVeraltet || !ruhig()) return;   // sonst beim nächsten Anlass
+  sichtbareVeraltet = false;
+  const t = aktuell;
+  if (t && t.seite && t.seite.aktualisieren && t.el && t.el.isConnected) {
+    try { await stammLaden(); await t.seite.aktualisieren(); } catch (e) { behandeln(e); }
+  }
+}
+
+/** Nach einem Vorgang aus der Oberfläche, der den Buchbestand im Hintergrund geändert haben kann (Mail-Abruf). */
+oberflaeche.bestandGeaendert = async () => {
+  tabs.andereVeraltet(aktuell);
+  await bestandMerken();
+};
+document.addEventListener("visibilitychange", bestandPruefen);
 /** Einstellung ohne Neuzeichnen der aktuellen Seite geändert: andere Tabs beim nächsten Zeigen neu laden (D-143). */
 oberflaeche.andereVeraltet = () => tabs.andereVeraltet(aktuell);
 
@@ -1072,7 +1119,8 @@ async function start() {
   app.dataset.bereit = "ja";
   benachrichtigungenZaehlen();
   ausgleichPaarePruefen();
-  setInterval(() => { benachrichtigungenZaehlen(); sperrStatusPruefen(); ausgleichPaarePruefen(); }, 60000);
+  bestandMerken();
+  setInterval(() => { benachrichtigungenZaehlen(); sperrStatusPruefen(); ausgleichPaarePruefen(); bestandPruefen(); }, 60000);
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => { /* ohne Service Worker weiter */ });
   }

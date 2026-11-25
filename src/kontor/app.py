@@ -526,6 +526,12 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
                         "mail": {"name": config.mail_plugin, "mock": config.mail_plugin == "mock"}},
         }
 
+    @endpunkt("GET", "/api/bestand/stand")
+    async def bestand_stand(request: Request):
+        """D-284: Kennung der jüngsten Änderung am Buchbestand. Die Oberfläche fragt sie regelmäßig ab und lädt
+        offene Ansichten neu, wenn sie sich ohne eigenes Zutun ändert (Planer, Mail-Abruf, anderes Gerät)."""
+        return await lesen(lambda con: {"stand": con.execute("SELECT COALESCE(MAX(id), 0) FROM aenderung").fetchone()[0]})
+
     @endpunkt("GET", "/api/version")
     async def version(request: Request):
         """About-Fenster (D-105): Version, Build, Laufzeit und Schemaversionen."""

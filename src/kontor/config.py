@@ -439,6 +439,9 @@ class KontorConfig:
                                            variable="KONTOR_UMBUCHUNG_FENSTER_TAGE")
             ganz["umbuchung_fenster_tage"] = int(text)
         m6 = _m6_aus_umgebung(wert)
+        # D-284: ohne eigene Angabe läuft der Mail-Abruf im Takt der Kontosynchronisation (0 schaltet ihn ab)
+        if not wert("KONTOR_MAIL_INTERVALL_MINUTEN") and "sync_intervall_minuten" in ganz:
+            m6["mail_intervall_minuten"] = ganz["sync_intervall_minuten"]
         m7 = _m7_aus_umgebung(wert)
         m10 = _m10_aus_umgebung(wert)
         upd = _update_aus_umgebung(wert)
