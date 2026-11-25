@@ -4,7 +4,7 @@ import {
   BESTAND, STATUS_TEXT, abfrage, aktion, anhaengen, api, baumFolge, betragEingabe, betragEl, betragLesen, betragText, datumEl,
   datumText, h, kategorien, klasse,
   kontoNach, kontoPfad, melde, nameAnzeige, neueId, oberflaeche, personBestaetigt, personLesen, personTag, personVonTag, pfadVon,
-  rueckgaengig, stamm, stapelStand, tid,
+  rueckgaengig, stamm, stapelStand, tagHolen, tid,
 } from "./kern.js";
 import {
   bestaetigen, dialog, dubletteDialog, erfassenDialog, feld, imDialog, kategorieAuswahl, kontextmenue, knopf, knopfLeiste,
@@ -548,9 +548,10 @@ class Kontoansicht {
     this.tiefe = this.tiefeAusUrl(suche);
     this.zugeklappt = new Set();
     this.eintraege = [];
-    this.vorweg = new Map();              // D-289: vorweggenommene Entscheidungen über Vorschläge je Buchung
-    this.vorschlagKette = Promise.resolve();
-    this.vorschlagWartend = 0;
+    this.vorweg = [];                     // D-289: vorweggenommene, vom Server noch nicht bestätigte Änderungen
+    this.kette = Promise.resolve();       // die Anfragen dazu, nacheinander
+    this.wartend = 0;                     // eingereihte, noch nicht begonnene Anfragen
+    this.seite.dataset.ausstehend = "0";
     this.gesamt = 0;
     this.summe = 0;
     this.seiten = 1;
@@ -690,7 +691,7 @@ class Kontoansicht {
     this.sprungMarkieren(id);
   }
 
-  async laden() {
+  async laden(o) {
     const nr = (this.ladeNr = (this.ladeNr || 0) + 1);   // nur die jüngste Antwort zählt
     this.seite.dataset.geladen = "nein";
     const proSeite = this.gruppierung ? GRUPPE_SEITE : PRO_SEITE;
@@ -732,13 +733,16 @@ class Kontoansicht {
     for (const id of [...this.auswahl]) if (!ids.has(id)) this.auswahl.delete(id);
     if (!ids.has(this.anker)) this.anker = null;
     if (!ids.has(this.fokusId)) this.fokusId = null;
-    this.listeZeichnen();
+    // D-290: Zeigt das Blatt schon genau diesen Stand (die Wirkung war vorweggenommen), bleiben die Zeilen stehen:
+    // kein Flackern, und wer gerade tippt, wischt oder zieht, verliert seine Zeile nicht
+    this.vorwegAnwenden();
+    if (!(o && o.nurBeiAenderung && this.bild && this.bild === this.bildVon())) this.listeZeichnen();
     this.zusammenfassungZeichnen();
     this.seite.dataset.geladen = "ja";
   }
 
   async aktualisieren() {
-    await this.laden();
+    await this.laden({ nurBeiAenderung: true });
     this.baumNeu();       // Kategorien können sich geändert haben (Umbenennen, Verschieben, Anlegen, Löschen)
   }
 
@@ -1800,6 +1804,7 @@ class Kontoansicht {
     this.auswahlZeigen();
     if (fokusImGrid && this.fokusId) this.zeilen.get(this.fokusId)?.focus({ preventScroll: true });
     this.detailsZeichnen();
+    this.bild = this.bildVon();
   }
 
   /** D-242: „Umbuchung → Tagesgeld“ (Geld geht dorthin) bzw. „Umbuchung ← Giro“ im Blatt eines Bestandskontos. */
@@ -2286,7 +2291,9 @@ class Kontoansicht {
 
   /** Tags der gewählten Buchungen bearbeiten; die geladenen Zeilen liefern die vorhandenen Tags (D-216). */
   tagsDialog(ids, ausloeser) {
-    tagAuswahl(ids, ausloeser, (id) => { const b = this.eintraege.find((x) => x.id === id); return b ? b.tags : null; });
+    // D-290: Hinzufügen und Entfernen aus dem Fenster wirken sofort im Blatt
+    tagAuswahl(ids, ausloeser, (id) => { const b = this.eintraege.find((x) => x.id === id); return b ? b.tags : null; },
+      (patch, ausfuehren, optionen) => this.sofort(ids, patch, ausfuehren, optionen));
   }
 
   // ---------------------------------------------------------------- Rückmeldung beim Wischen (D-141)
@@ -2417,28 +2424,6 @@ class Kontoansicht {
         onclick: () => this.personMarkieren([b.id], !hat) }) : "Oben rechts wählen, wer du bist.");
   }
 
-  /** D-258: Status sofort in den Zeilen zeigen, noch bevor der Server geantwortet hat. Gibt die Rücknahme zurück
-   *  (für den Fehlerfall); der Stand des Servers folgt ohnehin mit dem Neuladen nach der Aktion. */
-  statusVorab(ids, status) {
-    const alt = [];
-    for (const id of ids) {
-      const z = this.zeilen.get(id);
-      const zelle = z && z.querySelector('[data-feld="status"]');
-      if (!zelle) continue;
-      alt.push([z, zelle, z.dataset.status, z.dataset.markierung, zelle.textContent]);
-      z.dataset.status = status;
-      z.dataset.markierung = status;
-      zelle.textContent = STATUS_TEXT[status] || status;
-    }
-    return () => {
-      for (const [z, zelle, st, mark, text] of alt) {
-        z.dataset.status = st;
-        if (mark === undefined) delete z.dataset.markierung; else z.dataset.markierung = mark;
-        zelle.textContent = text;
-      }
-    };
-  }
-
   /** D-260: Importierte Buchungen ohne Zuordnung (ein Split auf „Unkategorisiert“) lassen sich nicht bestätigen,
    *  ohne dass eine Kategorie oder ein Konto gewählt wird. Ergebnis: darf bestätigt werden? */
   ohneZuordnung(ids) {
@@ -2466,30 +2451,22 @@ class Kontoansicht {
     const name = personLesen();
     if (!name) { melde("hinweis", "Bitte oben rechts wählen, wer du bist."); return false; }
     if (hinzu && !(await this.zuordnungFordern(ids))) return false;
-    const offenVorab = !hinzu ? [] : ids.filter((id) => {
-      const x = this.eintraege.find((e) => e.id === id);
-      return x && !x.abgestimmt && (x.status === "importiert" || x.status === "vorlaeufig");
-    });
-    const zurueck = this.statusVorab(offenVorab, "bestaetigt");
-    try {
-      await aktion(async () => {
-        let t = stamm.tags.find((x) => x.name === personTag(name));
-        if (!t && hinzu) t = await api("POST", "/api/tags", { name: personTag(name) });
-        if (!t) return null;
-        await api("POST", "/api/buchungen/mehrfach/tags", {
-          buchung_ids: ids, hinzufuegen: hinzu ? [t.id] : [], entfernen: hinzu ? [] : [t.id] });
-        // Importiert und Vorläufig werden durch die Bestätigung der Person zu Bestätigt (D-159, D-257).
-        if (hinzu) {
-          const offen = ids.filter((id) => {
-            const x = this.eintraege.find((e) => e.id === id);
-            return x && (x.status === "importiert" || x.status === "vorlaeufig");
-          }).sort((a, c) => a - c);
-          if (offen.length) await api("POST", "/api/buchungen/mehrfach/aendern", { buchung_ids: offen, status: "bestaetigt" });
-        }
-        return true;
-      }, { erfolg: hinzu ? `Als ${name} bestätigt.` : `Bestätigung von ${name} zurückgenommen.` });
+    // vor dem Vorwegnehmen bestimmt: Importiert und Vorläufig werden durch die Bestätigung zu Bestätigt (D-159, D-257)
+    const offen = !hinzu ? [] : this.unbestaetigte(ids).sort((a, c) => a - c);
+    const tagName = personTag(name);
+    // D-290: Tag und Status sofort zeigen (löst das Vorab-Zeigen nur des Status aus D-258 ab)
+    return this.sofort(ids, (b) => {
+      if (!hinzu) { b.tags = b.tags.filter((t) => t.name !== tagName); return; }
+      this.personTagVorweg(b);
+      if (offen.includes(b.id)) { b.status = "bestaetigt"; b.vorschlag = null; }
+    }, async () => {
+      const t = hinzu ? await tagHolen(tagName) : stamm.tags.find((x) => x.name === tagName);
+      if (!t) return null;
+      await api("POST", "/api/buchungen/mehrfach/tags", {
+        buchung_ids: ids, hinzufuegen: hinzu ? [t.id] : [], entfernen: hinzu ? [] : [t.id] });
+      if (offen.length) await api("POST", "/api/buchungen/mehrfach/aendern", { buchung_ids: offen, status: "bestaetigt" });
       return true;
-    } catch { zurueck(); /* gemeldet */ return false; }
+    }, { erfolg: hinzu ? `Als ${name} bestätigt.` : `Bestätigung von ${name} zurückgenommen.` });
   }
 
   // ---------------------------------------------------------------- Tastaturkürzel (D-167)
@@ -2900,16 +2877,25 @@ class Kontoansicht {
       if (wahl !== "auto") einzeln.gegenbuchung_id = wahl;
     }
     const offen = (kontoNach(kategorieId) || {}).extern_id === UNKATEGORISIERT ? [] : this.unbestaetigte(sortiert);
-    try {
-      await aktion(async () => {
-        const r = await (sortiert.length === 1
-          ? api("PUT", `/api/buchungen/${sortiert[0]}/kategorie`, einzeln)
-          : api("POST", "/api/buchungen/mehrfach/kategorie", { buchung_ids: sortiert, kategorie_id: kategorieId, ...sicht }));
-        await personBestaetigt(offen);   // D-272: die Zuordnung von Hand bestätigt, also auch das Tag der Person
-        return r;
-      },
-      { erfolg: umbuchung ? `Umbuchung auf „${pfadVon(kategorieId)}“.` : `Kategorie „${pfadVon(kategorieId)}“ gesetzt.` });
-    } catch (e) { /* gemeldet, Liste zeigt den Stand des Servers */ }
+    // D-290: sofort zeigen, wenn die Wirkung feststeht: Kategorie als Ziel, jede Buchung mit genau einer Gegenseite.
+    // Umbuchungen (Zusammenführen auf dem Zielkonto) und gesplittete Buchungen zeigt erst die Antwort des Servers.
+    const betroffen = this.eintraege.filter((b) => sortiert.includes(b.id));
+    const einfach = !umbuchung && betroffen.length === sortiert.length && betroffen.every((b) => gegensplits(b).length === 1);
+    const patch = !einfach ? () => {} : (b) => {
+      const gegen = gegensplits(b);
+      if (gegen.length !== 1) return;
+      gegen[0].konto_id = kategorieId;
+      b.kategorie_id = kategorieId;
+      b.vorschlag = null;
+      if (offen.includes(b.id)) { b.status = "bestaetigt"; this.personTagVorweg(b); }
+    };
+    await this.sofort(sortiert, patch, async () => {
+      const r = await (sortiert.length === 1
+        ? api("PUT", `/api/buchungen/${sortiert[0]}/kategorie`, einzeln)
+        : api("POST", "/api/buchungen/mehrfach/kategorie", { buchung_ids: sortiert, kategorie_id: kategorieId, ...sicht }));
+      await personBestaetigt(offen);   // D-272: die Zuordnung von Hand bestätigt, also auch das Tag der Person
+      return r;
+    }, { erfolg: umbuchung ? `Umbuchung auf „${pfadVon(kategorieId)}“.` : `Kategorie „${pfadVon(kategorieId)}“ gesetzt.` });
   }
 
   /** Passen auf dem Zielkonto mehrere Bankumsätze als Gegenseite, fragt ein Fenster, welcher gemeint ist.
@@ -2934,53 +2920,110 @@ class Kontoansicht {
     return typeof w === "number" || w === null ? w : undefined;
   }
 
-  /** D-289: Annehmen und Ablehnen wirken sofort im Blatt; die Anfragen folgen nacheinander im Hintergrund.
-   *  Erst nach der letzten eingereihten Entscheidung wird mit dem Stand des Servers neu geladen. */
+  /** D-289: Annehmen und Ablehnen wirken sofort im Blatt; die Anfrage folgt im Hintergrund (`sofort`). */
   vorschlag(e, ids, was) {
     if (e) { e.stopPropagation(); }
     const mit = this.eintraege.filter((b) => ids.includes(b.id) && b.vorschlag).map((b) => b.id).sort((a, b) => a - b);
-    if (!mit.length) return Promise.resolve();
+    if (!mit.length) return Promise.resolve(false);
     const offen = was === "annehmen" ? this.unbestaetigte(mit) : [];
     const einzeln = mit.length === 1 && !!e;
-    for (const id of mit) this.vorweg.set(id, { was, tag: offen.includes(id) });
-    this.listeZeichnen();   // nimmt die Wirkung vorweg (vorwegAnwenden)
-    const o = { erfolg: was === "annehmen" ? "Vorschlag angenommen." : "Vorschlag abgelehnt." };
-    // erst am Ende der Anfrage gelesen: kam inzwischen eine weitere Entscheidung dazu, lädt erst diese neu
-    Object.defineProperty(o, "ohneNeuLaden", { get: () => this.vorschlagWartend > 0 });
-    this.vorschlagWartend += 1;
-    const lauf = this.vorschlagKette.then(async () => {
-      this.vorschlagWartend -= 1;
+    return this.sofort(mit, (b) => { if (b.vorschlag) this.vorschlagVorweg(b, was, offen.includes(b.id)); }, async () => {
+      const r = await (einzeln
+        ? api("POST", `/api/buchungen/${mit[0]}/vorschlag`, { aktion: was })
+        : api("POST", "/api/buchungen/mehrfach/vorschlag", { buchung_ids: mit, aktion: was }));
+      await personBestaetigt(offen);   // D-272
+      return r;
+    }, { erfolg: was === "annehmen" ? "Vorschlag angenommen." : "Vorschlag abgelehnt." });
+  }
+
+  // ---------------------------------------------------------------- Sofortige Wirkung (D-289, D-290)
+  /** Eine Änderung an Buchungen wirkt sofort im Blatt; der Server folgt im Hintergrund.
+   *  `patch(b)` ändert eine geladene Buchung so, wie es der Server tun wird; `ausfuehren()` schickt die Anfragen
+   *  (läuft in `aktion`, ein Rückgängig-Schritt). Mehrere Änderungen laufen nacheinander; neu geladen wird erst
+   *  nach der letzten eingereihten. Ergebnis: Promise, das nach der Antwort des Servers `true` oder `false` liefert. */
+  sofort(ids, patch, ausfuehren, optionen) {
+    const eintrag = { ids: new Set(ids), patch, erledigt: new WeakSet() };
+    this.vorweg.push(eintrag);
+    this.listeZeichnen();   // wendet die offenen Einträge an (vorwegAnwenden)
+    const fertig = () => {  // ab hier gilt für diese Änderung wieder der Stand des Servers
+      const i = this.vorweg.indexOf(eintrag);
+      if (i >= 0) this.vorweg.splice(i, 1);
+      return i >= 0;
+    };
+    const o = { ...(optionen || {}) };
+    // erst am Ende der Anfrage gelesen: kam inzwischen eine weitere Änderung dazu, lädt erst diese neu
+    Object.defineProperty(o, "ohneNeuLaden", { get: () => this.wartend > 0 });
+    this.wartend += 1;
+    this.ausstehendZeigen(1);
+    const lauf = this.kette.then(async () => {
+      this.wartend -= 1;
       try {
         await aktion(async () => {
-          let r;
           try {
-            r = await (einzeln
-              ? api("POST", `/api/buchungen/${mit[0]}/vorschlag`, { aktion: was })
-              : api("POST", "/api/buchungen/mehrfach/vorschlag", { buchung_ids: mit, aktion: was }));
-            await personBestaetigt(offen);   // D-272
-          } finally {
-            for (const id of mit) this.vorweg.delete(id);   // ab hier gilt wieder der Stand des Servers
-          }
-          return r;
+            const r = await ausfuehren();
+            this.tagIdsNachtragen();
+            return r;
+          } finally { fertig(); }
         }, o);
+        return true;
       } catch (f) {
         // gemeldet. Kam die Anfrage gar nicht zustande oder stehen weitere an, hat noch niemand neu geladen:
         // die vorweggenommene Wirkung zurücknehmen und den Stand des Servers zeigen
-        const nochVorweg = mit.filter((id) => this.vorweg.delete(id)).length > 0;
-        if (nochVorweg || this.vorschlagWartend > 0) await oberflaeche.neuLaden().catch(() => { /* bleibt bis zum nächsten Laden */ });
-      }
+        if (fertig() || this.wartend > 0) await oberflaeche.neuLaden().catch(() => { /* bleibt bis zum nächsten Laden */ });
+        return false;
+      } finally { this.ausstehendZeigen(-1); }
     });
-    this.vorschlagKette = lauf;
+    this.kette = lauf;
     return lauf;
   }
 
-  /** Die noch nicht vom Server bestätigten Entscheidungen auf die geladenen Buchungen anwenden (D-289). */
+  /** `data-ausstehend` an der Seite: Zahl der Änderungen, deren Anfrage samt Neuladen noch nicht abgeschlossen ist. */
+  ausstehendZeigen(schritt) {
+    this.ausstehend = (this.ausstehend || 0) + schritt;
+    this.seite.dataset.ausstehend = String(this.ausstehend);
+  }
+
+  /** Die noch nicht vom Server bestätigten Änderungen auf die geladenen Buchungen anwenden, jede Buchung einmal. */
   vorwegAnwenden() {
-    if (!this.vorweg.size) return;
-    for (const b of this.eintraege) {
-      const v = this.vorweg.get(b.id);
-      if (v && b.vorschlag) this.vorschlagVorweg(b, v.was, v.tag);
+    for (const v of this.vorweg) {
+      for (const b of this.eintraege) {
+        if (!v.ids.has(b.id) || v.erledigt.has(b)) continue;
+        v.erledigt.add(b);
+        v.patch(b);
+      }
     }
+  }
+
+  /** Vorweg gezeigte Tags ohne ID bekommen sie, sobald der Tag angelegt ist – in den Daten und in den gezeichneten
+   *  Zeilen, damit das Neuladen danach nichts mehr zu ändern findet. */
+  tagIdsNachtragen() {
+    for (const b of this.eintraege) {
+      for (const t of b.tags) {
+        if (t.id) continue;
+        const echt = stamm.tags.find((x) => x.name === t.name);
+        if (!echt) continue;
+        t.id = echt.id;
+        const z = this.zeilen.get(b.id);
+        for (const el of z ? z.querySelectorAll('[data-testid="tag"][data-tag-id="0"]') : []) {
+          if (el.textContent === t.name) el.dataset.tagId = String(echt.id);
+        }
+      }
+    }
+    this.bild = this.bildVon();
+  }
+
+  /** Alles, wovon das Bild der Liste abhängt, als Text: Ein Neuladen ohne Unterschied zeichnet nicht neu (D-290). */
+  bildVon() {
+    return JSON.stringify([this.eintraege, this.gesamt, this.summe, this.verdachte, [...this.mailBestaetigt],
+      [...(this.regelNamen || [])], stamm.konten]);
+  }
+
+  /** Das Bestätigungs-Tag der gewählten Person an der geladenen Buchung (D-272); die ID folgt mit dem Neuladen. */
+  personTagVorweg(b) {
+    const name = personLesen();
+    if (!name || b.tags.some((t) => t.name === personTag(name))) return;
+    const t = stamm.tags.find((x) => x.name === personTag(name));
+    b.tags = [...b.tags, { id: t ? t.id : 0, name: personTag(name) }];
   }
 
   /** Was der Server mit der Buchung tun wird (regeln._entscheiden, D-261, D-272). */
@@ -2991,11 +3034,7 @@ class Kontoansicht {
     if (was === "annehmen") {
       const unkategorisiert = unk && b.splits.some((s) => s.konto_id === unk.id);
       if (!unkategorisiert && (b.status === "importiert" || b.status === "vorlaeufig")) b.status = "bestaetigt";
-      const name = personLesen();
-      if (tag && name && !b.tags.some((t) => t.name === personTag(name))) {
-        const t = stamm.tags.find((x) => x.name === personTag(name));
-        b.tags = [...b.tags, { id: t ? t.id : 0, name: personTag(name) }];
-      }
+      if (tag) this.personTagVorweg(b);
       return;
     }
     const ziel = kontoNach(v.vorher_konto_id) ? v.vorher_konto_id : (unk ? unk.id : null);
@@ -3032,10 +3071,12 @@ class Kontoansicht {
       if (!ok) return;
       koerper.entsperren = true;
     }
-    try {
-      await aktion(() => api("POST", "/api/buchungen/mehrfach/aendern", koerper),
-        { erfolg: `Status „${STATUS_TEXT[status]}“ gesetzt.` });
-    } catch (e) { /* gemeldet; atomar, nichts geändert */ }
+    // D-290: sofort zeigen; Bestätigt und Abgeglichen erledigen einen offenen Vorschlag (kategorisierung.md 5)
+    await this.sofort(sortiert, (b) => {
+      if (b.status === status) return;
+      b.status = status;
+      if (status === "bestaetigt" || status === "abgeglichen") b.vorschlag = null;
+    }, () => api("POST", "/api/buchungen/mehrfach/aendern", koerper), { erfolg: `Status „${STATUS_TEXT[status]}“ gesetzt.` });
   }
 
   mehrfachDialog(ids, ausloeser) {

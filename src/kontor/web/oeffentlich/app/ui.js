@@ -2,7 +2,7 @@
 import {
   ApiFehler, BESTAND, aktion, anhaengen, api, betragEingabe, betragEl, betragLesen, betragText, datumText, ebeneOeffnen,
   ebeneSchliessen, fehlerText, h, kategorien, klasse, kontoNach, kontoPfad, baumFolge, melde, neueId, oberflaeche, passt,
-  personBestaetigt, stamm, tid,
+  personBestaetigt, stamm, tagHolen, tid,
 } from "./kern.js";
 
 // ------------------------------------------------------------------ Dialog-Grundgerüst (9)
@@ -429,16 +429,19 @@ export function kategorieAuswahl(titel, ausloeser, optionen) {
 // ------------------------------------------------------------------ Tag-Auswahl (9.2)
 /** Führt das Hinzufügen/Entfernen für `ids` selbst aus (in `aktion`, ein Rückgängig-Eintrag). `tagsVon(id)` liefert,
  *  soweit bekannt, die Tags einer Buchung; damit zeigt der Dialog die vorhandenen Tags zum Entfernen (D-216). */
-export function tagAuswahl(ids, ausloeser, tagsVon) {
+/** `sofort(patch, ausfuehren, optionen)` (optional, D-290): Hinzufügen und Entfernen schließen das Fenster gleich und
+ *  wirken sofort im Blatt; ein Fehler des Servers erscheint dann als Meldung statt im Fenster. */
+export function tagAuswahl(ids, ausloeser, tagsVon, sofort) {
   dialog("tag-auswahl", ids.length === 1 ? "Tags der Buchung" : `Tags für ${ids.length} Buchungen`, (inhalt, d) => {
     // Vorhandene Tags der Auswahl: je Tag ein Chip mit ×; bei mehreren Buchungen mit der Zahl der Buchungen.
     const vorhanden = h("div", { class: "tag-auswahl-vorhanden", tid: "tag-auswahl-vorhanden", role: "list",
       "aria-label": "Vorhandene Tags", "data-geladen": "nein" });
     const stand = new Map();   // Buchung → [{id, name}]
     const zeichnen = () => {
+      // nach Namen gezählt: ein eben erst hinzugefügter Tag hat noch keine ID (D-290)
       const zahl = new Map();
-      for (const tags of stand.values()) for (const t of tags) zahl.set(t.id, { name: t.name, n: (zahl.get(t.id) || { n: 0 }).n + 1 });
-      const chips = [...zahl.entries()].sort((a, b) => a[1].name.localeCompare(b[1].name, "de")).map(([id, t]) =>
+      for (const tags of stand.values()) for (const t of tags) zahl.set(t.name, { id: t.id, name: t.name, n: (zahl.get(t.name) || { n: 0 }).n + 1 });
+      const chips = [...zahl.values()].sort((a, b) => a.name.localeCompare(b.name, "de")).map((t) => [t.id, t]).map(([id, t]) =>
         h("span", { class: "tag regel-tag", role: "listitem", "data-tag": String(id) }, t.name,
           ids.length > 1 ? h("small", null, t.n === ids.length ? " (alle)" : ` (${t.n} von ${ids.length})`) : null,
           h("button", { type: "button", class: "regel-tag-weg", tid: `tag-auswahl-weg-${id}`,
@@ -451,9 +454,17 @@ export function tagAuswahl(ids, ausloeser, tagsVon) {
     };
     const entfernen = (id, tagname, knopfEl) => imDialog(d, knopfEl, async () => {
       // Der Dialog bleibt offen, damit sich mehrere Tags nacheinander entfernen lassen.
-      await aktion(() => api("POST", "/api/buchungen/mehrfach/tags", { buchung_ids: ids, hinzufuegen: [], entfernen: [id] }),
-        { stillBeiFehler: true, erfolg: `Tag „${tagname}“ entfernt.` });
-      for (const [b, tags] of stand) stand.set(b, tags.filter((t) => t.id !== id));
+      const anfrage = () => {
+        // ein eben erst hinzugefügter Tag bekommt seine ID, sobald die eingereihte Anfrage ihn angelegt hat
+        const echt = id || (stamm.tags.find((t) => t.name === tagname) || {}).id;
+        if (!echt) throw new Error(`Der Tag „${tagname}“ ist noch nicht gespeichert.`);
+        return api("POST", "/api/buchungen/mehrfach/tags", { buchung_ids: ids, hinzufuegen: [], entfernen: [echt] });
+      };
+      if (sofort) {
+        const ok = await sofort((b) => { b.tags = b.tags.filter((x) => x.name !== tagname); }, anfrage, { erfolg: `Tag „${tagname}“ entfernt.` });
+        if (!ok) return;
+      } else await aktion(anfrage, { stillBeiFehler: true, erfolg: `Tag „${tagname}“ entfernt.` });
+      for (const [b, tags] of stand) stand.set(b, tags.filter((t) => t.name !== tagname));
       zeichnen();
       if (d.offen) name.focus();
     });
@@ -480,6 +491,17 @@ export function tagAuswahl(ids, ausloeser, tagsVon) {
       const n = name.value.trim();
       if (!n) { d.fehler("Bitte einen Tag-Namen eingeben."); return; }
       let fehler = null;
+      if (sofort) {
+        const bekannt = finden(n);
+        const zeigen = bekannt ? bekannt.name : n;
+        d.schliessen(true);
+        sofort((b) => { if (!b.tags.some((t) => t.name === zeigen)) b.tags = [...b.tags, { id: bekannt ? bekannt.id : 0, name: zeigen }]; },
+          async () => {
+            const t = await tagHolen(n, finden);
+            return api("POST", "/api/buchungen/mehrfach/tags", { buchung_ids: ids, hinzufuegen: [t.id], entfernen: [] });
+          }, { erfolg: `Tag „${n}“ hinzugefügt.` });
+        return;
+      }
       try {
         await aktion(async () => {
           let t = finden(n);
@@ -494,6 +516,13 @@ export function tagAuswahl(ids, ausloeser, tagsVon) {
       const n = name.value.trim();
       const t = n ? finden(n) : null;
       if (!t) { d.fehler(n ? `Den Tag „${n}“ gibt es nicht.` : "Bitte einen Tag-Namen eingeben."); return; }
+      if (sofort) {
+        d.schliessen(true);
+        sofort((b) => { b.tags = b.tags.filter((x) => x.id !== t.id); },
+          () => api("POST", "/api/buchungen/mehrfach/tags", { buchung_ids: ids, hinzufuegen: [], entfernen: [t.id] }),
+          { erfolg: `Tag „${t.name}“ entfernt.` });
+        return;
+      }
       await aktion(() => api("POST", "/api/buchungen/mehrfach/tags",
         { buchung_ids: ids, hinzufuegen: [], entfernen: [t.id] }), { stillBeiFehler: true, danach: () => d.schliessen(true), erfolg: `Tag „${t.name}“ entfernt.` });
     }));

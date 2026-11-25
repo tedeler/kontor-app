@@ -1,6 +1,6 @@
 """Entwicklungstests für D-289: Vorschlag annehmen und ablehnen wirken im Kontoblatt sofort, auch wenn der Server
-langsam antwortet. Playwright mit Chrome headless gegen einen echten Server im Mock-Modus; die Antworten der
-REST-Schnittstelle werden im Browser verzögert.
+noch gar nicht geantwortet hat. Playwright mit Chrome headless gegen einen echten Server im Mock-Modus; schreibende
+Anfragen werden im Browser angehalten, bis der Test sie freigibt.
 """
 
 from __future__ import annotations
@@ -13,8 +13,27 @@ import pytest
 from .test_browser import DESKTOP, bereit, browser, expect, seite, server, tid  # noqa: F401
 from .test_browser_tabs import _daten, _get
 
-VERZOEGERUNG = 0.6     # Sekunden je REST-Anfrage
-SOFORT = 400           # Millisekunden: deutlich weniger als eine einzige Anfrage
+class Schranke:
+    """Hält alle schreibenden REST-Anfragen des Browsers an, bis der Test sie freigibt. Solange kann sich das Blatt
+    nur aus eigener Kraft geändert haben: Der Server kennt die Änderung nachweislich noch nicht."""
+
+    def __init__(self, page):
+        self.page = page
+        self.gehalten = []
+        self.offen = False
+        page.route("**/api/**", self._anfrage)
+
+    def _anfrage(self, route):
+        if self.offen or route.request.method == "GET":
+            route.continue_()
+        else:
+            self.gehalten.append(route)
+
+    def freigeben(self):
+        self.offen = True
+        for route in self.gehalten:
+            route.continue_()
+        self.gehalten = []
 
 
 @pytest.fixture
@@ -34,12 +53,7 @@ def blatt(tmp_path, browser):  # noqa: F811
         page.goto(f"{url}/konten/{konten['Giro']}")
         bereit(page, "konto")
 
-        def langsam(route):
-            time.sleep(VERZOEGERUNG)
-            route.continue_()
-
-        page.route("**/api/**", langsam)
-        yield url, page, konten, mit
+        yield url, page, konten, mit, Schranke(page)
 
 
 def _lesen(url, bid):
@@ -47,20 +61,22 @@ def _lesen(url, bid):
 
 
 def test_annehmen_und_ablehnen_wirken_sofort(blatt):
-    url, page, konten, mit = blatt
+    url, page, konten, mit, schranke = blatt
     a, b = mit[0], mit[1]
     za, zb = tid(page, f"buchung-{a['id']}"), tid(page, f"buchung-{b['id']}")
     expect(za).to_have_attribute("data-vorschlag", "ja")
     tid(page, f"vorschlag-annehmen-{a['id']}").click()
-    expect(za).to_have_attribute("data-vorschlag", "nein", timeout=SOFORT)
-    expect(za).to_have_attribute("data-status", "bestaetigt", timeout=SOFORT)
+    expect(za).to_have_attribute("data-vorschlag", "nein")
+    expect(za).to_have_attribute("data-status", "bestaetigt")
     expect(za.locator('[data-feld="kategorie"]')).to_have_attribute("data-kategorie-id", str(konten["Drogerie"]))
-    assert _lesen(url, a["id"])["vorschlag"] is not None, "der Server war schneller als gedacht: Test prüft nichts"
+    assert _lesen(url, a["id"])["vorschlag"] is not None, "der Server kennt die Entscheidung schon"
     tid(page, f"vorschlag-ablehnen-{b['id']}").click()
-    expect(zb).to_have_attribute("data-vorschlag", "nein", timeout=SOFORT)
+    expect(zb).to_have_attribute("data-vorschlag", "nein")
     expect(zb.locator('[data-feld="kategorie"]')).to_have_attribute(
-        "data-kategorie-id", str(b["vorschlag"]["vorher_konto_id"]), timeout=SOFORT)
+        "data-kategorie-id", str(b["vorschlag"]["vorher_konto_id"]))
+    assert _lesen(url, b["id"])["vorschlag"] is not None, "der Server kennt die Entscheidung schon"
     # der Server zieht nach; danach zeigt das Blatt weiter dasselbe
+    schranke.freigeben()
     for _ in range(100):
         if _lesen(url, a["id"])["vorschlag"] is None and _lesen(url, b["id"])["vorschlag"] is None:
             break
@@ -68,7 +84,7 @@ def test_annehmen_und_ablehnen_wirken_sofort(blatt):
     sa, sb = _lesen(url, a["id"]), _lesen(url, b["id"])
     assert (sa["vorschlag"], sa["kategorie_id"], sa["status"]) == (None, konten["Drogerie"], "bestaetigt")
     assert (sb["vorschlag"], sb["kategorie_id"]) == (None, b["vorschlag"]["vorher_konto_id"])
-    expect(tid(page, "rueckgaengig-knopf")).to_be_enabled(timeout=20_000)
+    expect(tid(page, "seite-konto")).to_have_attribute("data-ausstehend", "0", timeout=30_000)
     expect(za).to_have_attribute("data-vorschlag", "nein")
     expect(zb).to_have_attribute("data-vorschlag", "nein")
     expect(tid(page, f"buchung-{mit[2]['id']}")).to_have_attribute("data-vorschlag", "ja")
@@ -77,32 +93,34 @@ def test_annehmen_und_ablehnen_wirken_sofort(blatt):
 def test_schnell_hintereinander_ohne_zurueckspringen(blatt):
     """Vier Entscheidungen in Folge: Keine Zeile zeigt zwischendurch wieder ihren Vorschlag, und Rückgängig nimmt
     sie einzeln zurück."""
-    url, page, konten, mit = blatt
+    url, page, konten, mit, schranke = blatt
     ids = [b["id"] for b in mit[:4]]
     for i in ids:
         tid(page, f"vorschlag-annehmen-{i}").click()
     for i in ids:
-        expect(tid(page, f"buchung-{i}")).to_have_attribute("data-vorschlag", "nein", timeout=SOFORT)
+        expect(tid(page, f"buchung-{i}")).to_have_attribute("data-vorschlag", "nein")
+    assert all(_lesen(url, i)["vorschlag"] for i in ids), "der Server kennt die Entscheidungen schon"
+    schranke.freigeben()
     ende = time.time() + 30
     while time.time() < ende and any(_lesen(url, i)["vorschlag"] for i in ids):
         for i in ids:   # währenddessen springt nichts zurück
             assert tid(page, f"buchung-{i}").get_attribute("data-vorschlag") == "nein"
         time.sleep(0.1)
     assert not any(_lesen(url, i)["vorschlag"] for i in ids)
-    page.unroute("**/api/**")
+    expect(tid(page, "seite-konto")).to_have_attribute("data-ausstehend", "0", timeout=30_000)
     for i in ids:
         expect(tid(page, f"buchung-{i}")).to_have_attribute("data-vorschlag", "nein")
     # vier Schritte auf dem Rückgängig-Stapel: der letzte zuerst
     expect(tid(page, "rueckgaengig-knopf")).to_be_enabled()
-    page.wait_for_timeout(1500)
     tid(page, "rueckgaengig-knopf").click()
     expect(tid(page, f"buchung-{ids[3]}")).to_have_attribute("data-vorschlag", "ja")
     expect(tid(page, f"buchung-{ids[2]}")).to_have_attribute("data-vorschlag", "nein")
 
 
 def test_fehler_des_servers_stellt_die_zeile_wieder_her(blatt):
-    url, page, konten, mit = blatt
+    url, page, konten, mit, schranke = blatt
     a = mit[0]
+    schranke.freigeben()
     page.unroute("**/api/**")
     page.route("**/api/buchungen/*/vorschlag", lambda route: route.fulfill(
         status=409, content_type="application/json",

@@ -3335,3 +3335,28 @@ Desktop-Layout (auch mit Touch) ändert sich nichts. Löst 36.3.1, 36.3.2 und 36
 - `ausgleich-zusammenfuehren` führt zusammen (über `aktion()`, mit Rückgängig); `ausgleich-getrennt` merkt die
   Entscheidung auf dem Server; `ausgleich-spaeter`, Esc oder das Schließen lassen alles stehen – dann fragt die
   Oberfläche erst nach dem nächsten Laden der Anwendung wieder. Der Fokus liegt anfangs auf `ausgleich-spaeter`.
+
+## 45. Kontoblatt: Änderungen wirken sofort (D-289, D-290)
+
+Im Kontoblatt zeigt die Liste die Wirkung der folgenden Aktionen, noch bevor der Server geantwortet hat:
+
+| Aktion | sofort sichtbar |
+| --- | --- |
+| Vorschlag annehmen (Zeile, `a`, Kontextmenü, Einzelheiten, Mehrfachleiste) | `data-vorschlag="nein"`, Status Bestätigt (aus Importiert/Vorläufig), Tag der gewählten Person |
+| Vorschlag ablehnen | `data-vorschlag="nein"`, vorherige Kategorie, Vorläufig wird Importiert |
+| Kategorie setzen (`k`, Zelle, Kontextmenü, Mehrfachleiste, Einzelheiten, Ziehen, Wischen) | Kategorie, Vorschlag weg, Status Bestätigt, Tag der Person – nur bei einer Kategorie als Ziel und Buchungen mit genau einer Gegenseite |
+| Status setzen (`s`, Mehrfachleiste) | Status; Bestätigt und Abgeglichen entfernen den Vorschlag |
+| Als Person bestätigen / zurücknehmen (`b`, Kontextmenü, Einzelheiten, Wischen) | Tag der Person, Status Bestätigt |
+| Tag hinzufügen / entfernen im Fenster `tag-auswahl` aus dem Kontoblatt | Tag in der Zeile; das Fenster schließt beim Hinzufügen und Entfernen über die Knöpfe sofort |
+
+- Die Anfragen laufen im Hintergrund nacheinander in der Reihenfolge der Aktionen; jede bleibt ein eigener
+  Rückgängig-Schritt. Neu geladen wird nach der letzten eingereihten Aktion.
+- Die Seite `seite-konto` trägt `data-ausstehend`: Zahl der Aktionen, deren Anfrage samt Neuladen noch nicht
+  abgeschlossen ist (`0` = das Blatt zeigt den Stand des Servers).
+- Entspricht der Stand des Servers nach dem Neuladen genau dem gezeigten, werden die Zeilen nicht neu gezeichnet.
+  Weicht er ab (z. B. weil ein Verdacht an anderen Buchungen entfällt), wird neu gezeichnet.
+- Lehnt der Server ab, erscheint die Fehlermeldung als Meldung, und das Blatt zeigt wieder den Stand des Servers.
+- Ein vorweg gezeigter neuer Tag trägt bis zur Antwort `data-tag-id="0"`.
+- Nicht vorweggenommen: Umbuchung auf ein Bestandskonto, gesplittete Buchungen, Löschen, Splitten,
+  Inline-Bearbeitung, „Bearbeiten…“ mit mehreren Feldern, Summen im Kopf des Blatts, die Erfolgsmeldung.
+

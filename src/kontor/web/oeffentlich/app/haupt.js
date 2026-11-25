@@ -953,17 +953,23 @@ function tabLeisteFokus() {
   if (ziel) ziel.focus(); else melde("hinweis", "Es ist kein Tab geöffnet.");
 }
 
+// Zähler der Bereichswechsel: Lädt ein Tab noch und der Anwender ist schon weitergegangen, holt ihn der Fokus
+// nicht mehr ins Blatt zurück.
+let bereichNr = 0;
+
 async function tabWechsel(t) {
   if (!t) { melde("hinweis", "Diesen Tab gibt es nicht."); return; }
+  const nr = bereichNr;
   if (t !== tabs.aktiv) await tabs.beiWahl(t);
-  bereichGehe("b");
+  if (nr === bereichNr) bereichGehe("b");
 }
 
 async function tabSchliessen() {
   if (!tabs.aktiv) return;
+  const nr = bereichNr;
   tabs.schliessen(tabs.aktiv);
   await tabsNavigation;
-  bereichGehe("b");
+  if (nr === bereichNr) bereichGehe("b");
 }
 
 function bereichStarten() {
@@ -999,6 +1005,7 @@ function bereichTaste(e) {
   }
   if (["Shift", "CapsLock"].includes(e.key)) return true;   // Umschalt allein bricht nicht ab
   bereichBeenden();
+  bereichNr += 1;
   const nr = /^(Digit|Numpad)[1-9]$/.test(e.code) ? Number(e.code.slice(-1)) : 0;
   const z = nr ? { tun: () => tabWechsel(tabs.nummer(nr)) } : bereichZiele().find((x) => x.taste === e.key);
   if (z) Promise.resolve().then(() => z.tun()).catch(behandeln);
@@ -1013,6 +1020,7 @@ function bereichFolge() {
 
 /** F6 / Umschalt+F6: nächster bzw. vorheriger Bereich; ohne Fokus in einem Bereich das Blatt. */
 function bereichReihum(schritt) {
+  bereichNr += 1;
   const folge = bereichFolge();
   const a = document.activeElement;
   // von hinten: die Bereiche der Seite liegen im Hauptbereich und stehen hinter dem allgemeinen Blatt
