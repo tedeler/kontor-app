@@ -42,3 +42,11 @@ def test_doppeltipp_nur_bei_ruhender_liste_und_auswahl_nur_ausdruecklich(client)
     sprung = js[js.index("  sprungMarkieren(id) {"):]
     sprung = sprung[:sprung.index("\n  }\n")]
     assert "istMobil()" in sprung, "der Sprung zu einer Buchung wählt mobil weiter aus"
+
+
+def test_lange_beruehrung_nur_bei_ruhender_liste(client):
+    """D-282: Wer die rollende Liste mit dem Finger anhält und liegen lässt, öffnet kein Kontextmenü."""
+    js = client.get("/oeffentlich/app/konto.js").text
+    lang = js[js.index("langeBeruehrung(this.liste"):]
+    lang = lang[:lang.index("this.menue(")]
+    assert "letztesRollen" in lang, "die lange Berührung beachtet das Rollen nicht"
