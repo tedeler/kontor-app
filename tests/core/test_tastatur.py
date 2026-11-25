@@ -51,3 +51,13 @@ def test_hilfe_und_hinweis_zeigen_die_bereiche(client):
 def test_aktiver_bereich_ist_sichtbar(client):
     css = client.get("/oeffentlich/app.css").text
     assert re.search(r"\.bereich-aktiv\b", css), "der aktive Bereich ist nicht hervorgehoben"
+
+
+def test_fokuszeile_haelt_unter_dem_klebenden_spaltenkopf(client):
+    """D-288: Beim Nachführen der Liste zählt die Höhe des Spaltenkopfs mit (kurze Liste und Fenstertechnik)."""
+    js = _js(client, "konto")
+    assert "kopfUeberstand()" in js
+    slot = js[js.index("  slotZeigen(slotId"):]
+    assert "kopfUeberstand" in slot[:slot.index("\n  }\n")], "die Fenstertechnik beachtet den Spaltenkopf nicht"
+    fokus = js[js.index("  fokussieren(id, mitDom"):]
+    assert "scrollPaddingTop" in fokus[:fokus.index("\n  }\n")], "die kurze Liste beachtet den Spaltenkopf nicht"

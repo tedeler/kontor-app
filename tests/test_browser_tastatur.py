@@ -6,6 +6,8 @@ from __future__ import annotations
 
 import re
 
+import pytest
+
 from .test_browser import DESKTOP, bereit, browser, expect, seite, server, tid  # noqa: F401
 from .test_browser_tabs import _get, _tab, _tabs
 
@@ -151,3 +153,56 @@ def test_hilfe_und_befehlspalette_nennen_die_bereiche(tmp_path, browser):  # noq
         tid(page, "befehlspalette-eingabe").fill("Bereich: Einzel")
         page.keyboard.press("Enter")
         _im(page, '[data-testid="panel-details"]')
+
+
+def _viele(basis, anzahl):
+    import datetime as dt
+
+    from kontor.config import KontorConfig
+    from kontor.importer.kmymoney import importiere_kmy
+
+    from .conftest import GIRO, kmy, transaktion
+
+    start = dt.date(2023, 1, 1)
+    t = "".join(transaktion(f"T{i}", (start + dt.timedelta(days=i)).isoformat(), ("A1", f"-{i + 1}00/100"),
+                            ("A2", f"{i + 1}00/100"), memo=f"Einkauf {i}") for i in range(anzahl))
+    config = KontorConfig(datenbank=basis / "kontor.sqlite3", mock_modus=True, mock_heute=dt.date(2024, 6, 30))
+    assert importiere_kmy(config, kmy(GIRO, transaktionen=t)).erfolgreich
+
+
+def _erste_sichtbar(page):
+    """Die fokussierte Zeile liegt ganz unter dem klebenden Spaltenkopf und im sichtbaren Teil der Liste."""
+    page.wait_for_timeout(150)
+    zeile = page.locator('[data-testid="buchungsliste"] [role="row"]:focus').bounding_box()
+    kopf = page.locator('[data-testid="buchungsliste"] .liste-kopf').bounding_box()
+    spalte = page.locator(".listen-spalte").bounding_box()
+    assert zeile["y"] >= kopf["y"] + kopf["height"] - 1, (zeile, kopf)
+    assert zeile["y"] + zeile["height"] <= spalte["y"] + spalte["height"] + 1, (zeile, spalte)
+
+
+@pytest.mark.parametrize("anzahl", [40, 700])
+def test_pfeil_nach_oben_zeigt_die_erste_buchung_unter_dem_spaltenkopf(tmp_path, browser, anzahl):  # noqa: F811
+    """Mit den Pfeiltasten bis zur ersten Buchung: sie verschwindet nicht hinter dem Spaltenkopf (kurze Liste und
+    Liste mit Fenstertechnik)."""
+    _viele(tmp_path, anzahl)
+    with server(tmp_path, daten=False) as (url, _), seite(browser, url, viewport={"width": 1280, "height": 600}) as page:
+        giro = next(k["id"] for k in _get(url + "/api/konten") if k["name"] == "Giro")
+        page.goto(f"{url}/konten/{giro}")
+        bereit(page, "konto")
+        zeilen = page.locator('[data-testid="buchungsliste"] [role="row"][data-testid^="buchung-"]')
+        zeilen.nth(1).locator('[data-feld="datum"]').click()
+        for _i in range(25):
+            page.keyboard.press("ArrowDown")
+        for _i in range(26):
+            page.keyboard.press("ArrowUp")
+            if _i % 5 == 0:
+                _erste_sichtbar(page)
+        _erste_sichtbar(page)
+        expect(zeilen.first).to_be_focused()
+        # auch mit Bild↑ und Pos1
+        page.keyboard.press("End")
+        page.keyboard.press("PageUp")
+        _erste_sichtbar(page)
+        page.keyboard.press("Home")
+        _erste_sichtbar(page)
+        expect(zeilen.first).to_be_focused()

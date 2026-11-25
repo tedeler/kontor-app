@@ -4304,3 +4304,17 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - **Grenzen:** Mobil öffnet `w n` das Menü und `w e` die Einzelheiten als Dialog; nur am Desktop geprüft.
 - **Tests:** `tests/core/test_tastatur.py`, `tests/test_browser_tastatur.py`. Der Service-Worker-Cache heißt
   `kontor-huelle-44`.
+
+## D-288 Fokuszeile verschwindet nicht hinter dem Spaltenkopf (Feature `tastatur`, 2026-11-25)
+
+- **Anlass:** Meldung vom 2026-11-25: Geht man im Kontoblatt mit den Pfeiltasten viele Buchungen nach oben, wird
+  die erste Buchung nicht sichtbar.
+- **Ursache:** Der Spaltenkopf klebt am oberen Rand der rollenden Liste. Das Nachführen der Fokuszeile rechnete
+  ohne ihn: Die Zeile galt als sichtbar, sobald sie im Ausschnitt lag, auch wenn der Kopf sie verdeckte. Betroffen
+  war jede Zeile, die beim Hochgehen an den oberen Rand kam, nicht nur die erste; in der kurzen Liste
+  (`scrollIntoView`) ebenso wie in der Liste mit Fenstertechnik (`slotZeigen`).
+- **Entscheidung:** Beide Wege ziehen die Höhe des klebenden Kopfs ab (`kopfUeberstand`). Die kurze Liste setzt sie
+  als `scroll-padding-top` am rollenden Behälter, die Fenstertechnik rechnet sie in das Ziel ein. Gilt für
+  Pfeiltasten, Bild↑, Pos1 und jeden anderen Sprung auf eine Zeile.
+- **Tests:** `tests/test_browser_tastatur.py::test_pfeil_nach_oben_zeigt_die_erste_buchung_unter_dem_spaltenkopf`
+  (40 und 700 Buchungen), `tests/core/test_tastatur.py`.

@@ -1713,6 +1713,12 @@ class Kontoansicht {
     this.slotIndex = new Map(slots.map((s, i) => [s.slotId, i]));
   }
 
+  /** Höhe des klebenden Spaltenkopfs: so viel verdeckt er am oberen Rand der rollenden Liste (D-288). */
+  kopfUeberstand() {
+    const kopf = this.liste.querySelector(".liste-kopf");
+    return kopf && getComputedStyle(kopf).position === "sticky" ? kopf.offsetHeight : 0;
+  }
+
   slotZeigen(slotId, block = "nearest") {
     if (!this.virtual || !this.fenster) return false;
     const i = this.slotIndex.get(slotId);
@@ -1723,9 +1729,10 @@ class Kontoansicht {
     const sicht = scroller.getBoundingClientRect();
     const fensterTop = fenster.top - sicht.top + scroller.scrollTop;
     const pos = fensterTop + s.top;
+    const oben = this.kopfUeberstand();   // D-288: der klebende Spaltenkopf verdeckt den oberen Rand
     let ziel = scroller.scrollTop;
     if (block === "center") ziel = pos - (scroller.clientHeight - s.hoehe) / 2;
-    else if (pos < scroller.scrollTop + 8) ziel = pos - 8;
+    else if (pos < scroller.scrollTop + oben + 8) ziel = pos - oben - 8;
     else if (pos + s.hoehe > scroller.scrollTop + scroller.clientHeight - 8) {
       ziel = pos - scroller.clientHeight + s.hoehe + 8;
     }
@@ -2057,7 +2064,11 @@ class Kontoansicht {
       // nur senkrecht nachführen: eine Zeile ist breiter als die Liste, waagerecht bleibt die Lage (23.2)
       const links = this.listenSpalte ? this.listenSpalte.scrollLeft : 0;
       z.focus({ preventScroll: true });
-      if (!this.virtual) z.scrollIntoView({ block: "nearest" });
+      if (!this.virtual) {
+        // D-288: unter dem klebenden Spaltenkopf anhalten, sonst liegt die oberste Buchung dahinter
+        this.scrollBehaelter().style.scrollPaddingTop = this.kopfUeberstand() + "px";
+        z.scrollIntoView({ block: "nearest" });
+      }
       if (this.listenSpalte) this.listenSpalte.scrollLeft = links;
     }
     this.detailsZeichnen();
