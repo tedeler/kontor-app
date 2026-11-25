@@ -37,9 +37,10 @@ from . import aktualisierung
 from . import abgleich, anbieter, ausgleich, bankzugang, bestellmail, config_anzeige, dokumente, erwartung, kontonamen
 from . import umbuchung
 from . import anmeldung as anm
+from . import passkeys
 from . import version as versionsinfo
 from .geheimnisse import REST_NAMEN
-from .schutz import Schutz, cookie_token, ist_https
+from .schutz import Schutz, _ursprung, cookie_token, eigener_ursprung, ist_https
 from .sync import SyncDienst
 from .config import KontorConfig
 from .importer.kmymoney import importiere_bytes
@@ -1988,10 +1989,15 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     def _status(con, sitzung: tuple[float, float] | None, token: str | None) -> dict:
         jetzt = time.time()
         angemeldet = config.anmeldung and sitzung is not None and token is not None
+        sekunden = getattr(sitzung, "sperre_sekunden", None) if angemeldet else None
         return {"aktiv": config.anmeldung, "eingerichtet": anmeldedienst.eingerichtet(con),
                 "angemeldet": bool(angemeldet), "csrf_token": anm.csrf_token(token) if angemeldet else None,
                 "sitzung_ablauf": _zeit(anmeldedienst.ablauf(*sitzung)) if angemeldet else None,
-                "gesperrt_bis": _zeit(anmeldedienst.gesperrt_bis(con, jetzt))}
+                "gesperrt_bis": _zeit(anmeldedienst.gesperrt_bis(con, jetzt)),
+                # D-284: ob Passkeys eingerichtet sind; Bildschirmsperre dieser Sitzung (Minuten: null = aus, 0 = sofort)
+                "passkeys": bool(config.anmeldung) and passkeys.vorhanden(con),
+                "bildschirmsperre": {"minuten": None if sekunden is None else sekunden // 60,
+                                     "gesperrt": bool(angemeldet and getattr(sitzung, "gesperrt", False))}}
 
     def _abgeschaltet():
         if not config.anmeldung:
@@ -2138,6 +2144,165 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
             return await lesen(f)
         except _Antwort as a:
             return a.antwort
+
+    # ------------------------------------------------ D-284: Passkeys und Bildschirmsperre (sicherheit.md 13)
+    aufgaben = passkeys.Aufgaben()
+    B64 = S("str", pflicht=True, min_len=1, max_len=16384)
+    PASSKEY_ANTWORT = {"kennung": S("str", pflicht=True, min_len=1, max_len=2048), "client_daten": B64,
+                       "auth_daten": B64, "signatur": B64}
+    PASSKEY_NEU = {"name": S("str", pflicht=True, strip=True, min_len=1, max_len=60),
+                   "kennung": S("str", pflicht=True, min_len=1, max_len=2048), "client_daten": B64, "auth_daten": B64,
+                   "schluessel": B64, "alg": S("int", pflicht=True)}
+
+    def _urspruenge(request: Request) -> set[str]:
+        """Ursprünge, unter denen diese Instanz erreichbar ist (wie die Herkunftsprüfung in schutz.py)."""
+        oeffentlich = _ursprung(config.oeffentliche_url) if config.oeffentliche_url else None
+        return {u for u in (eigener_ursprung(request.scope), oeffentlich) if u}
+
+    def _seiten_ursprung(request: Request) -> str:
+        """Ursprung der aufrufenden Seite: der gesendete, wenn er zu dieser Instanz gehört, sonst der eigene."""
+        erlaubt = _urspruenge(request)
+        gesendet = _ursprung((request.headers.get("origin") or "").strip())
+        if gesendet in erlaubt:
+            return gesendet
+        return eigener_ursprung(request.scope) or next(iter(erlaubt), "")
+
+    def _sitzung(request: Request) -> tuple[str, object]:
+        st = request.scope["state"]
+        return st["kontor_sitzung"], st["kontor_sitzung_zeiten"]
+
+    def _passkey_pruefen(con, d: dict, art: str, bezug: str, request: Request, jetzt: float, status: int = 401) -> None:
+        try:
+            with db.transaktion(con):
+                passkeys.pruefen(con, d, aufgaben, art, bezug, _urspruenge(request), jetzt)
+        except passkeys.Ungueltig:
+            log.warning("Passkey-Prüfung (%s) von %s abgelehnt", art, _client(request))
+            raise ApiFehler(status, "passkey_ungueltig", "Der Passkey wurde nicht anerkannt.") from None
+
+    @endpunkt("GET", "/api/passkeys")
+    async def passkeys_liste(request: Request):
+        _abgeschaltet()
+        return await lesen(lambda con: [dict(e, angelegt=_zeit(e["angelegt"]), benutzt=_zeit(e["benutzt"]))
+                                        for e in passkeys.liste(con)])
+
+    @endpunkt("POST", "/api/passkeys/optionen")
+    async def passkeys_optionen(request: Request):
+        _abgeschaltet()
+        token, _ = _sitzung(request)
+
+        def ausfuehren(con):
+            with db.transaktion(con):
+                return passkeys.optionen_anlegen(con, aufgaben, _seiten_ursprung(request), anm.token_hash(token),
+                                                 time.time())
+        return await lesen(ausfuehren)
+
+    @endpunkt("POST", "/api/passkeys", 201)
+    async def passkeys_anlegen(request: Request):
+        _abgeschaltet()
+        d = await koerper(request, PASSKEY_NEU)
+        token, _ = _sitzung(request)
+
+        def ausfuehren(con):
+            try:
+                with db.transaktion(con):
+                    e = passkeys.anlegen(con, d, aufgaben, anm.token_hash(token), _urspruenge(request), time.time())
+            except passkeys.Ungueltig:
+                raise ApiFehler(400, "passkey_ungueltig", "Der Passkey konnte nicht eingerichtet werden.") from None
+            return dict(e, angelegt=_zeit(e["angelegt"]), benutzt=_zeit(e["benutzt"]))
+        return JSONResponse(await lesen(ausfuehren), status_code=201)
+
+    @endpunkt("DELETE", "/api/passkeys/{passkey_id:int}", 204)
+    async def passkeys_loeschen(request: Request):
+        _abgeschaltet()
+
+        def ausfuehren(con):
+            with db.transaktion(con):
+                passkeys.loeschen(con, pid(request, "passkey_id"))
+        await lesen(ausfuehren)
+        return Response(status_code=204)
+
+    @endpunkt("POST", "/api/anmeldung/passkey/optionen")
+    async def anmelden_passkey_optionen(request: Request):
+        _abgeschaltet()
+        return await lesen(lambda con: passkeys.optionen_pruefen(con, aufgaben, "anmelden", _seiten_ursprung(request),
+                                                                 "", time.time()))
+
+    @endpunkt("POST", "/api/anmeldung/passkey")
+    async def anmelden_passkey(request: Request):
+        _abgeschaltet()
+        d = await koerper(request, PASSKEY_ANTWORT)
+
+        def ausfuehren(con):
+            jetzt = time.time()
+            _passkey_pruefen(con, d, "anmelden", "", request, jetzt)
+            with db.transaktion(con):
+                return _neue_sitzung(con, jetzt)
+        token, st = await lesen(ausfuehren)
+        return JSONResponse(st, headers={"Set-Cookie": _cookie(request, token)})
+
+    @endpunkt("PUT", "/api/anmeldung/bildschirmsperre")
+    async def bildschirmsperre_setzen(request: Request):
+        _abgeschaltet()
+        d = await koerper(request, {"minuten": S("int", pflicht=True, nullbar=True)})
+        minuten = d["minuten"]
+        if minuten is not None and not 0 <= minuten <= 1440:
+            raise Validierungsfehler([fehler_eintrag(["body", "minuten"], "Erlaubt sind 0 bis 1440 Minuten oder null.")])
+        token, _ = _sitzung(request)
+
+        def ausfuehren(con):
+            with db.transaktion(con):
+                anmeldedienst.sperre_setzen(con, token, None if minuten is None else minuten * 60)
+            return _status(con, anmeldedienst.sitzung_pruefen(token), token)
+        return await lesen(ausfuehren)
+
+    @endpunkt("POST", "/api/anmeldung/sperren", 204)
+    async def bildschirm_sperren(request: Request):
+        _abgeschaltet()
+        token, _ = _sitzung(request)
+
+        def ausfuehren(con):
+            with db.transaktion(con):
+                if not anmeldedienst.sperren(con, token):
+                    raise ApiFehler(409, "keine_bildschirmsperre", "Für diese Sitzung ist keine Bildschirmsperre eingerichtet.")
+        await lesen(ausfuehren)
+        return Response(status_code=204)
+
+    @endpunkt("POST", "/api/anmeldung/entsperren/optionen")
+    async def entsperren_optionen(request: Request):
+        _abgeschaltet()
+        token, _ = _sitzung(request)
+        return await lesen(lambda con: passkeys.optionen_pruefen(con, aufgaben, "entsperren", _seiten_ursprung(request),
+                                                                 anm.token_hash(token), time.time()))
+
+    @endpunkt("POST", "/api/anmeldung/entsperren")
+    async def entsperren(request: Request):
+        """Bildschirmsperre aufheben: mit Passkey oder – als Rückfallweg – mit dem Haushaltspasswort."""
+        _abgeschaltet()
+        roh = await request.body()
+        mit_passwort = b'"passwort"' in roh
+        d = pruefe_koerper(roh, {"passwort": PW} if mit_passwort else PASSKEY_ANTWORT)
+        token, _ = _sitzung(request)
+
+        def ausfuehren(con):
+            jetzt = time.time()
+            if mit_passwort:
+                _gesperrt(con, jetzt)
+                ok = anm.passwort_pruefen(d["passwort"], anmeldedienst.passwort_hash_lesen(con) or "")
+                with db.transaktion(con):
+                    if not ok:
+                        anmeldedienst.fehlversuch(con, jetzt, _client(request))
+                        return None
+                    anmeldedienst.erfolg(con)
+            else:
+                _passkey_pruefen(con, d, "entsperren", anm.token_hash(token), request, jetzt)
+            with db.transaktion(con):
+                anmeldedienst.entsperren(con, token, jetzt)
+            return _status(con, anmeldedienst.sitzung_pruefen(token), token)
+
+        ergebnis = await _mit_antwort(ausfuehren)
+        if ergebnis is None:
+            return fehler_antwort(401, "anmeldung_fehlgeschlagen", "Das Passwort ist falsch.", {})
+        return ergebnis
 
     # ------------------------------------------------ M7: Gesundheitsprüfung (betrieb.md 6)
     @endpunkt("GET", "/api/gesundheit")

@@ -81,7 +81,7 @@ nicht mehr. Ein Thread schreibt Tests und Code.
 | `src/kontor/umbuchung.py` | Sammelbranch sammel4 (D-242): Zuordnung von Hand auf Kategorie oder Bestandskonto (`zuordnen`, `mehrfach`, `gegenbuchungen`) hinter `PUT /api/buchungen/{id}/kategorie`; beim Bestandskonto Umbuchung, passende Gegenseite des Zielkontos wird zusammengeführt |
 | `src/kontor/ausgleich.py` | Feature ausgleich-aufraeumen (D-280, kontostand.md 5): Ausgleichsbuchungen des Saldoabgleichs, die sich innerhalb von sieben Tagen aufheben – `gegenstueck` (beim Abruf), `aufraeumen`/`altbestand_aufraeumen`, `paare`, `zusammenfuehren`, `getrennt_lassen` (Betriebszustand in `meta`); Fenster `ausgleichDialog` in `app/haupt.js` |
 | `src/kontor/kompression.py` | D-255: zlib für Mail-Dokumente und Rohfassungen im Mail-Spiegel (`packen`, `entpacken`; Verfahren `zlib`, `''`, `NULL` = Altbestand) |
-| `src/kontor/db.py` | SQLite-Schema (Version 18; `mails_packen` und `verkleinern` beim Start, D-255), WAL, Migration früherer Versionen ohne Datenverlust, Verbindungen, `checkpoint` |
+| `src/kontor/db.py` | SQLite-Schema (Version 19; `mails_packen` und `verkleinern` beim Start, D-255), WAL, Migration früherer Versionen ohne Datenverlust, Verbindungen, `checkpoint` |
 | `src/kontor/geheimnisse.py` | M6: verschlüsselter Geheimnisspeicher (AES-256-GCM, Schlüssel aus systemd-creds oder Schlüsseldatei), `verwaiste_entfernen` |
 | `src/kontor/mail.py` | M6: Postfächer (Buchbestand), Betriebszustand, OAuth2 mit PKCE, `zugang` (Token-Erneuerung, Ablauf, Widerruf), paralleler Abruf, Spiegel |
 | `src/kontor/zustellung.py` | M6: Zustellung der Benachrichtigungen über das Benachrichtigungs-Plugin (erster Versuch, Wiederholung, Status) |
@@ -89,6 +89,7 @@ nicht mehr. Ein Thread schreibt Tests und Code.
 | `src/kontor/importer/` | KMyMoney- und GnuCash-Import (`gnucash.py`: XML und SQLite, SQLite nur als Kopie im Arbeitsspeicher geöffnet) und `ImportErgebnis` |
 | `src/kontor/plugins/` | Bank-/Mail-/Benachrichtigungs-Schnittstellen, Mock-Plugins, FinTS (python-fints, camt), IMAP (imaplib, XOAUTH2), ntfy |
 | `src/kontor/anmeldung.py` | M7: Haushaltskonto (scrypt), Sitzungen (nur SHA-256 des Tokens gespeichert, CSRF-Token per HMAC abgeleitet), Bremse, Einrichtungscode, Kommandozeile `passwort-setzen` |
+| `src/kontor/passkeys.py` | Feature passkeys (D-284, sicherheit.md 13): WebAuthn ohne Zusatzbibliothek – Aufgaben im Arbeitsspeicher (`Aufgaben`), `anlegen`, `pruefen` (Ursprung, `rpIdHash`, Nutzerprüfung, Signatur), Tabelle `passkey` (Betriebszustand); Bildschirmsperre je Sitzung in `anmeldung.py` (`Zeiten.gesperrt`) und `schutz.py` (423, `BEI_SPERRE`); Oberfläche `app/sperre.js` |
 | `src/kontor/schutz.py` | M7: äußerste ASGI-Hülle: Netz → Sitzung → Herkunft → CSRF → Größe; Sicherheitsköpfe an jeder Antwort |
 | `src/kontor/betrieb/` | M7: ausgelieferte systemd-Units, sysusers, `kontor.env`, Drop-in (Paketdaten) |
 | `src/kontor/testinstanz.py`, `betrieb/kontor-test.*` | Feature testinstanz (D-205): zweite Instanz für einen Entwicklungsbranch (Mock-Modus, bereinigte Datenkopie); Kommandozeile `python -m kontor.testinstanz`; Bedienskript `betrieb/kontor-test.sh` und Anleitung `TESTINSTANZ.md` (D-213) |

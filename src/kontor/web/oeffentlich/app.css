@@ -1687,3 +1687,20 @@ button.option { width: 100%; border: 0; background: none; color: inherit; font: 
 [data-testid="postfaecher"]:empty::before { content: "Noch kein Postfach eingerichtet."; color: var(--text-2); font-size: .9em; }
 /* D-280: Paar von Ausgleichsbuchungen im Fenster „zusammenführen?“ */
 .ausgleich-paar { margin: .3rem 0 .6rem; padding-left: 1.2rem; }
+/* D-284: Sperrblatt der Bildschirmsperre (deckt alles, auch Dialoge) und Passkey-Liste der Einstellungen */
+.bildschirmsperre { position: fixed; inset: 0; z-index: 9000; background: var(--hg); color: var(--text); display: flex;
+  align-items: center; justify-content: center; padding: 1rem; }
+.sperre-karte { width: min(22rem, 100%); display: flex; flex-direction: column; align-items: stretch; gap: .7rem; text-align: center; }
+.sperre-karte img { align-self: center; }
+.sperre-karte h2 { margin: 0 0 .5rem; font-size: 1.3rem; }
+.sperre-karte .knopf { min-height: 48px; }
+.sperre-passwort { display: flex; flex-direction: column; gap: .5rem; }
+.sperre-passwort[hidden] { display: none; }
+.sperre-passwort input { min-height: 44px; padding: 0 .6rem; font: inherit; }
+.sperre-fehler { margin: 0; color: var(--gefahr); }
+.sperre-abmelden { margin-top: 1.5rem; border-color: transparent; background: none; color: var(--text-2); }
+.passkey-liste { list-style: none; margin: .5rem 0; padding: 0; }
+.passkey-liste li { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem .8rem; padding: .35rem 0; border-bottom: 1px solid var(--linie); }
+.passkey-liste .passkey-name { font-weight: 600; }
+.passkey-liste .knopf { margin-left: auto; }
+

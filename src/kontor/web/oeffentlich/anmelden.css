@@ -21,6 +21,8 @@ input { font: inherit; padding: .65rem .7rem; border: 1px solid var(--linie); bo
 button { font: inherit; margin-top: .8rem; padding: .7rem; border: 0; border-radius: 6px; background: var(--akzent);
   color: var(--akzent-text); font-weight: 600; cursor: pointer; }
 button[disabled] { opacity: .6; cursor: wait; }
+button.zweit { margin-top: .4rem; background: none; color: var(--akzent); border: 1px solid var(--akzent); }
+button[hidden] { display: none; }
 .meldung { min-height: 1.4em; margin: .3rem 0 0; color: var(--negativ); }
 .meldung.sperre { font-weight: 600; }
 .hilfe, .fuss { font-size: .85rem; color: var(--leise); }

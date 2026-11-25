@@ -1,4 +1,4 @@
-"""Core-Tests zum Feature passkeys (D-284, sicherheit.md 12): Anmeldung mit Passkey (WebAuthn) und Bildschirmsperre.
+"""Core-Tests zum Feature passkeys (D-284, sicherheit.md 13): Anmeldung mit Passkey (WebAuthn) und Bildschirmsperre.
 
 Der Authentikator des Handys ist hier nachgebildet: ein P-256-Schlüssel, der die Aufgabe des Servers so signiert,
 wie es der Browser nach der Nutzerprüfung (Fingerabdruck) liefert. Kein Browser, kein Netz.

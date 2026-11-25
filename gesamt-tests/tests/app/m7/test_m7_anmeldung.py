@@ -64,7 +64,9 @@ def test_oeffentliche_pfade(tmp_path):
     api = m7_api(tmp_path)
     s = api.get("/api/anmeldung", erwartet=200).daten
     assert s == {"aktiv": True, "eingerichtet": True, "angemeldet": False, "csrf_token": None,
-                 "sitzung_ablauf": None, "gesperrt_bis": None}
+                 "sitzung_ablauf": None, "gesperrt_bis": None,
+                 # D-284: Passkeys und Bildschirmsperre (sicherheit.md 13)
+                 "passkeys": False, "bildschirmsperre": {"minuten": None, "gesperrt": False}}
     g = api.get("/api/gesundheit", erwartet=200).daten
     assert g["status"] == "ok" and g["version"]
     r = api.get("/anmelden")

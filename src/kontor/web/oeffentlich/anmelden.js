@@ -46,8 +46,41 @@
       const d = await r.json();
       if (d.angemeldet) window.location.replace(ziel());
       else if (d.gesperrt_bis) sperreAnzeigen(d.gesperrt_bis);
+      // D-284: Anmeldung mit Passkey anbieten, wenn einer eingerichtet ist und der Browser es kann
+      if (passkeyKnopf && !einrichten && d.passkeys && window.isSecureContext && window.PublicKeyCredential) passkeyKnopf.hidden = false;
     } catch (e) { /* Status ist nur ein Hinweis */ }
   }
+
+  // ------------------------------------------------------------ Passkey (D-284, sicherheit.md 13)
+  const passkeyKnopf = document.getElementById("anmeldung-passkey");
+  const b64 = (p) => btoa(String.fromCharCode.apply(null, new Uint8Array(p))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  const roh = (t) => Uint8Array.from(atob(t.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0));
+  async function senden(pfad, koerper) {
+    const r = await fetch(pfad, { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(koerper || {}), credentials: "same-origin" });
+    let d = null;
+    try { d = await r.json(); } catch (e) { d = null; }
+    return { ok: r.ok, daten: d };
+  }
+  if (passkeyKnopf) passkeyKnopf.addEventListener("click", async function () {
+    meldung.className = "meldung";
+    zeige("");
+    passkeyKnopf.disabled = true;
+    try {
+      const o = await senden("/api/anmeldung/passkey/optionen");
+      if (!o.ok) throw new Error("optionen");
+      const cred = await navigator.credentials.get({ publicKey: Object.assign({}, o.daten, { challenge: roh(o.daten.challenge),
+        allowCredentials: o.daten.allowCredentials.map((c) => ({ type: c.type, id: roh(c.id) })) }) });
+      const a = cred.response;
+      const r = await senden("/api/anmeldung/passkey", { kennung: b64(cred.rawId), client_daten: b64(a.clientDataJSON),
+        auth_daten: b64(a.authenticatorData), signatur: b64(a.signature) });
+      if (r.ok) { window.location.replace(ziel()); return; }
+      zeige("Der Passkey wurde nicht anerkannt. Bitte mit dem Passwort anmelden.");
+    } catch (e) {
+      if (!(e && (e.name === "NotAllowedError" || e.name === "AbortError"))) zeige("Die Anmeldung mit Passkey ist fehlgeschlagen.");
+    }
+    passkeyKnopf.disabled = false;
+  });
 
   formular.addEventListener("submit", async function (ev) {
     ev.preventDefault();

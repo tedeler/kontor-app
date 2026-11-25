@@ -480,3 +480,80 @@ im Einzelfall auftreten, legt dieses Dokument fest.
   demselben Host davor und `sitzung_cookie_secure = True` (`betrieb.md` 2).
 - Schutz vor CSV-Formelinjektion im Export: der CSV-Export bleibt
   verlustfrei (`berichte.md` 4, E-130).
+
+## 13. Passkeys und Bildschirmsperre (D-284)
+
+Zusatz zur Anmeldung mit dem Haushaltspasswort (4), nur bei `anmeldung = true`. Das Passwort bleibt gültig und
+ist der Rückfallweg.
+
+### 13.1 Grundsätze
+
+- Ein **Passkey** ist ein Schlüsselpaar im Authentikator eines Geräts (WebAuthn). Der Browser gibt ihn nur nach
+  der Nutzerprüfung des Geräts frei (Fingerabdruck, Gesicht oder Gerätesperre). Der Server speichert je Passkey
+  Kennung, öffentlichen Schlüssel (SubjectPublicKeyInfo), Verfahren, Zähler, Namen und die Gegenstelle (Hostname).
+  Biometrische Daten sieht er nie.
+- Passkeys sind Betriebszustand (Tabelle `passkey`) wie die Sitzungen: nicht im Änderungsprotokoll, nicht in der
+  Sicherung. Kennung und Schlüssel erscheinen in keiner Antwort, keinem Log und keiner Fehlermeldung.
+- Passkeys brauchen einen sicheren Kontext (HTTPS oder `localhost`) und einen Hostnamen (keine IP-Adresse). Sie
+  gelten für den Hostnamen, unter dem sie angelegt wurden.
+- **Aufgaben** (Challenges): 32 zufällige Bytes, 5 Minuten gültig, einmal verwendbar, gebunden an ihre Art
+  (`anlegen`, `anmelden`, `entsperren`) und – außer bei `anmelden` – an die Sitzung. Sie liegen nur im
+  Arbeitsspeicher.
+- **Prüfung jeder Antwort** des Authentikators: `clientDataJSON` hat den erwarteten Typ, die Aufgabe ist offen
+  und wird eingelöst, der Ursprung ist einer dieser Instanz (wie 4.6: Ursprung der Anfrage oder
+  `oeffentliche_url`), `crossOrigin` ist nicht wahr; `rpIdHash` ist der SHA-256 des Hostnamens dieses Ursprungs;
+  Anwesenheit (`UP`) **und** Nutzerprüfung (`UV`) sind gesetzt. Beim Anmelden und Entsperren zusätzlich: Kennung
+  bekannt und für diese Gegenstelle angelegt, Signatur über `authenticatorData || SHA-256(clientDataJSON)` gültig
+  (ES256, RS256 ab 2048 Bit, EdDSA), Zähler nicht rückläufig. Jede Abweichung ergibt denselben Fehler
+  `passkey_ungueltig` ohne Einzelheiten.
+- Eine Beglaubigung des Authentikators (Attestation) wird nicht verlangt (`attestation: "none"`) und nicht
+  ausgewertet; der öffentliche Schlüssel kommt aus `getPublicKey()` des Browsers. Anlegen darf nur eine
+  angemeldete Sitzung (mit CSRF-Token).
+
+### 13.2 Passkeys verwalten (geschützt)
+
+- `GET /api/passkeys` → Liste `{id, name, angelegt, benutzt}`.
+- `POST /api/passkeys/optionen` → Angaben für `navigator.credentials.create` (`challenge`, `rp`, `user`,
+  `pubKeyCredParams`, `authenticatorSelection.userVerification = "required"`, `excludeCredentials`). Die Kennung
+  des Haushalts beim Authentikator ist zufällig je Datenbank.
+- `POST /api/passkeys` `{name, kennung, client_daten, auth_daten, schluessel, alg}` (Binärfelder base64url) →
+  201 mit dem Eintrag; 400 `passkey_ungueltig`; 409 `passkey_existiert` (Kennung schon eingetragen) oder
+  `passkey_grenze` (höchstens 20).
+- `DELETE /api/passkeys/{id}` → 204; 404.
+
+### 13.3 Anmeldung mit Passkey (öffentlich wie `POST /api/anmeldung`)
+
+- `POST /api/anmeldung/passkey/optionen` → Angaben für `navigator.credentials.get` (`challenge`, `rpId`,
+  `allowCredentials`, `userVerification = "required"`).
+- `POST /api/anmeldung/passkey` `{kennung, client_daten, auth_daten, signatur}` → 200 `AnmeldeStatus` und das
+  Sitzungs-Cookie wie in 4.2; sonst 401 `passkey_ungueltig`. Die Bremse (4.5) zählt hier nicht und sperrt die
+  Anmeldung mit Passkey nicht.
+- `GET /api/anmeldung` nennt mit `passkeys`, ob ein Passkey eingerichtet ist (auch ohne Sitzung).
+- Die Anmeldung mit Passkey entsperrt die geschützten Geheimnisse **nicht** (4.9, D-129): dafür braucht es
+  einmal nach jedem Neustart das Passwort.
+
+### 13.4 Bildschirmsperre (je Sitzung, also je Gerät)
+
+- `PUT /api/anmeldung/bildschirmsperre` `{minuten}`: `null` = aus, `0` = sofort beim Verlassen, sonst 1 bis 1440.
+  Antwort `AnmeldeStatus`; dessen Feld `bildschirmsperre` nennt `minuten` und `gesperrt`.
+- **Sperren:** Liegt die letzte Anfrage der Sitzung länger zurück als eingestellt (bei „sofort“: länger als
+  90 s, als Rückhalt), ist die Sitzung ab der nächsten Anfrage gesperrt. `POST /api/anmeldung/sperren` → 204
+  sperrt sofort (409 `keine_bildschirmsperre`, wenn keine eingestellt ist).
+- **Gesperrt** antwortet jeder Pfad unter `/api` mit 423 `bildschirm_gesperrt`, ausgenommen
+  `GET /api/anmeldung`, `POST /api/anmeldung/entsperren/optionen`, `POST /api/anmeldung/entsperren`,
+  `POST /api/anmeldung/abmelden` und die öffentlichen Pfade. Die Hülle der Oberfläche und statische Dateien
+  bleiben abrufbar (sie enthalten keine Daten).
+- **Entsperren:** `POST /api/anmeldung/entsperren` mit der Antwort des Authentikators (Aufgabe aus
+  `…/entsperren/optionen`, Art `entsperren`, an die Sitzung gebunden) oder mit `{passwort}` (Bremse wie 4.5; 401
+  `anmeldung_fehlgeschlagen`). 200 `AnmeldeStatus`.
+- Gezählt wird die Zeit ohne Anfrage. Solange die Oberfläche sichtbar offen ist, fragt sie minütlich ab und
+  bleibt damit entsperrt; die Sperre greift für Zeit im Hintergrund oder mit geschlossenem Browser.
+
+### 13.5 Fehlercodes
+
+| Status | Code | Wann |
+| --- | --- | --- |
+| 400 / 401 | `passkey_ungueltig` | Antwort des Authentikators besteht die Prüfung nicht (400 beim Anlegen) |
+| 409 | `passkey_existiert`, `passkey_grenze` | Kennung schon eingetragen; mehr als 20 Passkeys |
+| 409 | `keine_bildschirmsperre` | Sperren ohne eingestellte Bildschirmsperre |
+| 423 | `bildschirm_gesperrt` | Sitzung gesperrt |

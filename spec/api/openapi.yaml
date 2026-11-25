@@ -3970,6 +3970,245 @@ paths:
         "422": {$ref: "#/components/responses/Validierung"}
         "429": {$ref: "#/components/responses/Gesperrt"}
 
+  /api/passkeys:
+    get:
+      tags: [anmeldung]
+      operationId: passkeysListe
+      summary: "D-284: Passkeys des Haushalts (sicherheit.md 13.2)"
+      responses:
+        "200":
+          description: Passkeys nach Anlagezeit
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: "#/components/schemas/Passkey"}
+        "401":
+          description: "`nicht_angemeldet`"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Fehler"}
+        "409":
+          description: "`anmeldung_abgeschaltet`"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Fehler"}
+    post:
+      tags: [anmeldung]
+      operationId: passkeyAnlegen
+      summary: "D-284: Passkey eintragen, den der Browser gerade angelegt hat (sicherheit.md 13.2)"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/PasskeyNeu"}
+      responses:
+        "201":
+          description: Eingetragen
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Passkey"}
+        "400":
+          description: "`passkey_ungueltig`"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Fehler"}
+        "409":
+          description: "`passkey_existiert`, `passkey_grenze`, `anmeldung_abgeschaltet`"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Fehler"}
+        "422": {$ref: "#/components/responses/Validierung"}
+
+  /api/passkeys/optionen:
+    post:
+      tags: [anmeldung]
+      operationId: passkeyOptionen
+      summary: "D-284: Aufgabe und Angaben für navigator.credentials.create (sicherheit.md 13.2)"
+      responses:
+        "200":
+          description: Ergebnis
+          content:
+            application/json:
+              schema: {type: object}
+        "401":
+          description: "`nicht_angemeldet`"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Fehler"}
+        "409":
+          description: "`anmeldung_abgeschaltet`"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Fehler"}
+
+  /api/passkeys/{passkey_id}:
+    delete:
+      tags: [anmeldung]
+      operationId: passkeyLoeschen
+      summary: "D-284: Passkey löschen (sicherheit.md 13.2)"
+      parameters:
+        - {name: passkey_id, in: path, required: true, schema: {$ref: "#/components/schemas/Id"}}
+      responses:
+        "204":
+          description: Gelöscht
+        "404": {$ref: "#/components/responses/NichtGefunden"}
+
+  /api/anmeldung/passkey/optionen:
+    post:
+      tags: [anmeldung]
+      operationId: anmeldenPasskeyOptionen
+      summary: "D-284: öffentlich – Aufgabe für die Anmeldung mit Passkey (sicherheit.md 13.3)"
+      responses:
+        "200":
+          description: Ergebnis
+          content:
+            application/json:
+              schema: {type: object}
+        "409":
+          description: "`anmeldung_abgeschaltet`"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Fehler"}
+
+  /api/anmeldung/passkey:
+    post:
+      tags: [anmeldung]
+      operationId: anmeldenPasskey
+      summary: "D-284: öffentlich – Anmeldung mit Passkey; setzt das Sitzungs-Cookie (sicherheit.md 13.3)"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/PasskeyAntwort"}
+      responses:
+        "422": {$ref: "#/components/responses/Validierung"}
+        "200":
+          description: Ergebnis
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/AnmeldeStatus"}
+        "401":
+          description: "`passkey_ungueltig`"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Fehler"}
+        "409":
+          description: "`anmeldung_abgeschaltet`"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Fehler"}
+
+  /api/anmeldung/bildschirmsperre:
+    put:
+      tags: [anmeldung]
+      operationId: bildschirmsperreSetzen
+      summary: "D-284: Bildschirmsperre dieser Sitzung einstellen (sicherheit.md 13.4)"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: 
+              type: object
+              additionalProperties: false
+              required: [minuten]
+              properties:
+                minuten: {type: [integer, "null"], minimum: 0, maximum: 1440}
+      responses:
+        "422": {$ref: "#/components/responses/Validierung"}
+        "200":
+          description: Ergebnis
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/AnmeldeStatus"}
+        "401":
+          description: "`nicht_angemeldet`"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Fehler"}
+        "409":
+          description: "`anmeldung_abgeschaltet`"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Fehler"}
+        "423":
+          description: "`bildschirm_gesperrt`"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Fehler"}
+
+  /api/anmeldung/sperren:
+    post:
+      tags: [anmeldung]
+      operationId: bildschirmSperren
+      summary: "D-284: diese Sitzung jetzt sperren (sicherheit.md 13.4)"
+      responses:
+        "204":
+          description: Erledigt
+        "401":
+          description: "`nicht_angemeldet`"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Fehler"}
+        "409":
+          description: "`keine_bildschirmsperre`, `anmeldung_abgeschaltet`"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Fehler"}
+
+  /api/anmeldung/entsperren/optionen:
+    post:
+      tags: [anmeldung]
+      operationId: entsperrenOptionen
+      summary: "D-284: Aufgabe für das Entsperren mit Passkey; auch gesperrt erreichbar (sicherheit.md 13.4)"
+      responses:
+        "200":
+          description: Ergebnis
+          content:
+            application/json:
+              schema: {type: object}
+        "401":
+          description: "`nicht_angemeldet`"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Fehler"}
+        "409":
+          description: "`anmeldung_abgeschaltet`"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Fehler"}
+
+  /api/anmeldung/entsperren:
+    post:
+      tags: [anmeldung]
+      operationId: entsperren
+      summary: "D-284: Bildschirmsperre aufheben, mit Passkey oder Passwort; auch gesperrt erreichbar (sicherheit.md 13.4)"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: 
+              oneOf:
+                - {$ref: "#/components/schemas/PasskeyAntwort"}
+                - {$ref: "#/components/schemas/AnmeldeEingabe"}
+      responses:
+        "422": {$ref: "#/components/responses/Validierung"}
+        "200":
+          description: Ergebnis
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/AnmeldeStatus"}
+        "401":
+          description: "`passkey_ungueltig`, `anmeldung_fehlgeschlagen`, `nicht_angemeldet`"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Fehler"}
+        "409":
+          description: "`anmeldung_abgeschaltet`"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Fehler"}
+
   /api/version:
     get:
       tags: [status]
@@ -7890,7 +8129,7 @@ components:
     AnmeldeStatus:
       type: object
       additionalProperties: false
-      required: [aktiv, eingerichtet, angemeldet, csrf_token, sitzung_ablauf, gesperrt_bis]
+      required: [aktiv, eingerichtet, angemeldet, csrf_token, sitzung_ablauf, gesperrt_bis, passkeys, bildschirmsperre]
       properties:
         aktiv: {type: boolean}
         eingerichtet: {type: boolean}
@@ -7908,6 +8147,54 @@ components:
           oneOf:
             - {$ref: "#/components/schemas/Zeitstempel"}
             - {type: "null"}
+        passkeys:
+          description: "D-284: ob mindestens ein Passkey eingerichtet ist"
+          type: boolean
+        bildschirmsperre:
+          description: "D-284: Bildschirmsperre dieser Sitzung (minuten: null = aus, 0 = sofort beim Verlassen)"
+          type: object
+          additionalProperties: false
+          required: [minuten, gesperrt]
+          properties:
+            minuten: {type: [integer, "null"], minimum: 0, maximum: 1440}
+            gesperrt: {type: boolean}
+
+    Passkey:
+      type: object
+      additionalProperties: false
+      required: [id, name, angelegt, benutzt]
+      properties:
+        id: {$ref: "#/components/schemas/Id"}
+        name: {type: string, minLength: 1, maxLength: 60}
+        angelegt: {$ref: "#/components/schemas/Zeitstempel"}
+        benutzt:
+          oneOf:
+            - {$ref: "#/components/schemas/Zeitstempel"}
+            - {type: "null"}
+
+    PasskeyAntwort:
+      description: "Antwort des Authentikators (navigator.credentials.get), alle Felder base64url ohne Füllzeichen"
+      type: object
+      additionalProperties: false
+      required: [kennung, client_daten, auth_daten, signatur]
+      properties:
+        kennung: {type: string, minLength: 1, maxLength: 2048}
+        client_daten: {type: string, minLength: 1, maxLength: 16384}
+        auth_daten: {type: string, minLength: 1, maxLength: 16384}
+        signatur: {type: string, minLength: 1, maxLength: 16384}
+
+    PasskeyNeu:
+      description: "Neuer Passkey (navigator.credentials.create): Schlüssel aus getPublicKey() als SubjectPublicKeyInfo"
+      type: object
+      additionalProperties: false
+      required: [name, kennung, client_daten, auth_daten, schluessel, alg]
+      properties:
+        name: {type: string, minLength: 1, maxLength: 60}
+        kennung: {type: string, minLength: 1, maxLength: 2048}
+        client_daten: {type: string, minLength: 1, maxLength: 16384}
+        auth_daten: {type: string, minLength: 1, maxLength: 16384}
+        schluessel: {type: string, minLength: 1, maxLength: 16384}
+        alg: {type: integer}
 
     AnmeldeEingabe:
       type: object

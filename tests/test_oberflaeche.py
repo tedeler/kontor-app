@@ -33,6 +33,7 @@ REST = ["/api/status", "/api/ausdruck",  # D-185
         "/api/mock/lerndaten",  # Mock-Lerndaten: D-184
         "/api/erwartungen",  # Mail-Abgleich: D-128
         "/api/saldoausgleich/paare",  # Ausgleichsbuchungen aufräumen: D-280
+        "/api/passkeys",  # Passkeys und Bildschirmsperre: D-284
         "/api/konfiguration",  # Konfiguration zum Nachsehen: D-235, noch nicht im OpenAPI-Vertrag
         "/api/empfaenger/anzahlen",  # Buchungszahl je Empfänger: D-236, noch nicht im OpenAPI-Vertrag
         "/api/berichte/monat",  # Monatsbericht: D-206, noch nicht im OpenAPI-Vertrag

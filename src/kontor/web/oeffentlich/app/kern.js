@@ -224,7 +224,7 @@ export class OfflineFehler extends Error {
   constructor() { super("Keine Verbindung zum Server (offline)."); this.offline = true; }
 }
 
-export const anmeldung = { aktiv: false, csrf: null, geladen: false };
+export const anmeldung = { aktiv: false, csrf: null, geladen: false, passkeys: false, bildschirmsperre: null };
 const offlineBeobachter = [];
 export const beiOffline = (f) => offlineBeobachter.push(f);
 
@@ -234,7 +234,10 @@ export async function anmeldungLaden() {
   anmeldung.aktiv = !!d.aktiv;
   anmeldung.csrf = d.csrf_token || null;
   anmeldung.geladen = true;
+  anmeldung.passkeys = !!d.passkeys;
+  anmeldung.bildschirmsperre = d.bildschirmsperre || null;
   if (d.aktiv && !d.angemeldet) zurAnmeldung();
+  else if (d.bildschirmsperre && d.bildschirmsperre.gesperrt) window.dispatchEvent(new Event("kontor-bildschirmsperre"));   // D-284
   return d;
 }
 
@@ -281,6 +284,9 @@ export async function api(methode, pfad, koerper, optionen) {
     if (r.status === 403 && daten && daten.fehler && daten.fehler.code === "csrf_ungueltig" && versuch === 0) {
       await anmeldungLaden();          // 19: Status einmal neu lesen, Anfrage einmal wiederholen
       continue;
+    }
+    if (r.status === 423 && daten && daten.fehler && daten.fehler.code === "bildschirm_gesperrt") {
+      window.dispatchEvent(new Event("kontor-bildschirmsperre"));       // D-284: das Sperrblatt übernimmt
     }
     if (!r.ok) throw new ApiFehler(r.status, daten && daten.fehler);
     return daten;
@@ -425,6 +431,7 @@ export function melde(art, text, extra) {
 export function fehlerMelden(e) {
   if (e && e.offline) return;           // der Offline-Hinweis genügt (18)
   if (e && e.status === 401) return;    // Weiterleitung zur Anmeldung läuft
+  if (e && e.code === "bildschirm_gesperrt") return;   // das Sperrblatt steht (D-284)
   melde("fehler", fehlerText(e));
 }
 

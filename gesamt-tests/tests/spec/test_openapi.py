@@ -90,6 +90,11 @@ OPERATIONEN_M6 = {
 OPERATIONEN_M7 = {
     ("get", "/api/anmeldung"), ("post", "/api/anmeldung"), ("post", "/api/anmeldung/einrichten"),
     ("post", "/api/anmeldung/abmelden"), ("put", "/api/anmeldung/passwort"), ("get", "/api/gesundheit"),
+    # D-284: Passkeys und Bildschirmsperre (sicherheit.md 12)
+    ("get", "/api/passkeys"), ("post", "/api/passkeys"), ("post", "/api/passkeys/optionen"),
+    ("delete", "/api/passkeys/{passkey_id}"), ("post", "/api/anmeldung/passkey/optionen"),
+    ("post", "/api/anmeldung/passkey"), ("put", "/api/anmeldung/bildschirmsperre"), ("post", "/api/anmeldung/sperren"),
+    ("post", "/api/anmeldung/entsperren/optionen"), ("post", "/api/anmeldung/entsperren"),
 }
 
 # M8 (E-138): einzige neue Operation; die Oberfläche nutzt sonst nur bestehende Endpunkte (oberflaeche.md 1)
@@ -471,7 +476,8 @@ def test_m7_schemas(dok):
     assert "Retry-After" in dok["components"]["responses"]["Gesperrt"]["headers"]
     st = s["AnmeldeStatus"]
     assert set(st["required"]) == set(st["properties"]) == {"aktiv", "eingerichtet", "angemeldet", "csrf_token",
-                                                             "sitzung_ablauf", "gesperrt_bis"}
+                                                             "sitzung_ablauf", "gesperrt_bis",
+                                                             "passkeys", "bildschirmsperre"}   # D-284
     for name in ("AnmeldeStatus", "Gesundheit", "Status", "SyncStatus"):
         assert not set(s[name]["properties"]) & {"passwort", "passwort_hash", "hash", "sitzung", "token",
                                                   "einrichtungscode"}, name

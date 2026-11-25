@@ -7,6 +7,7 @@ import {
   personLesen, personLoeschen, personSchreiben, rueckgaengig, stamm,
   stammLaden, stapelAnzeigen, tid, wiederholen,
 } from "./kern.js";
+import { entsperrt, sperreEinrichten } from "./sperre.js";
 import { bestaetigen, dialog, feld, fokusFalle, imDialog, knopf, knopfLeiste, zuordnungDialog } from "./ui.js";
 import { kontoKuerzel, kontoSeite, layoutZuruecksetzen } from "./konto.js";
 import * as S from "./seiten.js";
@@ -1065,6 +1066,16 @@ async function start() {
   stapelAnzeigen();
   if (!navigator.onLine) offlineSetzen(true);
   try { await anmeldungLaden(); } catch (e) { behandeln(e); }
+  // D-284: Bildschirmsperre – ist die Sitzung gesperrt, erscheint zuerst nur das Sperrblatt; geladen wird danach
+  let gestartet = false;
+  await sperreEinrichten(async () => {
+    if (!gestartet) return;
+    try { await anmeldungLaden(); } catch (e) { behandeln(e); return; }
+    await zeigen(aktuell && aktuell.geladen ? { behalten: true } : undefined);
+    benachrichtigungenZaehlen();
+  });
+  await entsperrt();
+  gestartet = true;
   await zeigen();
   personEinrichten();
   sperrStatusPruefen();

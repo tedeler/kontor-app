@@ -10,6 +10,7 @@ import { abfrage, aktion, anmeldung, api, erfolgsmeldung, h, melde, nachName, ob
 import { bestaetigen, dialog, feld, imDialog, knopf, knopfLeiste } from "./ui.js";
 import { layoutZuruecksetzen } from "./konto.js";
 import { bankzugangAbschnitt } from "./bankzugang.js";
+import { SPERRE_WAHL, passkeyAnlegen, passkeyFehlerText, passkeysMoeglich, sperreMinuten, sperreWaehlen } from "./sperre.js";
 
 export const BEREICHE = [
   ["allgemein", "Allgemein"],
@@ -41,6 +42,8 @@ const VERZEICHNIS = [
   ["benachrichtigungen", "ntfy", "ntfy-Token", "token zugang geheimnis push"],
   ["sicherheit", "passwort", "Passwort ändern", "login kennwort anmeldung"],
   ["sicherheit", "abmelden", "Abmelden", "logout ausloggen sitzung"],
+  ["sicherheit", "passkeys", "Passkeys (Fingerabdruck, Gesicht)", "passkey biometrie biometrisch fingerabdruck face id touch id webauthn fido anmelden ohne passwort"],
+  ["sicherheit", "bildschirmsperre", "Bildschirmsperre", "sperre sperren app-sperre entsperren hintergrund biometrie fingerabdruck handy"],
   ["sicherheit", "schutz", "Schutz der Geheimnisse", "verschluesselung sperren entsperren gemerkte pin login-passwort"],
   ["daten", "sicherung", "Sicherung herunterladen", "backup datensicherung export download"],
   ["daten", "einspielen", "Sicherung einspielen", "backup wiederherstellen restore zuruecksichern datensicherung"],
@@ -343,6 +346,55 @@ function benachrichtigungen(zust, geheim) {
 }
 
 // ------------------------------------------------------------------ Sicherheit
+/* D-284: Passkeys des Haushalts (anlegen auf diesem Gerät, löschen) und die Bildschirmsperre dieses Geräts. */
+function passkeyAbschnitt() {
+  const liste = h("ul", { class: "passkey-liste", tid: "passkey-liste" });
+  const laden = async () => {
+    let eintraege = [];
+    try { eintraege = await api("GET", "/api/passkeys"); } catch (e) { melde("fehler", e.message); }
+    liste.replaceChildren(...eintraege.map((p) => h("li", { tid: `passkey-${p.id}` },
+      h("span", { class: "passkey-name" }, p.name),
+      h("span", { class: "klein" }, `angelegt ${zeitText(p.angelegt)}` + (p.benutzt ? ` · zuletzt benutzt ${zeitText(p.benutzt)}` : " · noch nicht benutzt")),
+      knopf("Löschen", { tid: `passkey-loeschen-${p.id}`, onclick: async (e) => {
+        if (!(await bestaetigen(`Passkey „${p.name}“ löschen? Das Gerät kann sich damit nicht mehr anmelden.`, { ausloeser: e.currentTarget }))) return;
+        try { await api("DELETE", `/api/passkeys/${p.id}`); anmeldung.passkeys = eintraege.length > 1; melde("erfolg", "Passkey gelöscht."); }
+        catch (f) { melde("fehler", f.message); }
+        laden();
+      } }))));
+    if (!eintraege.length) liste.append(h("li", { class: "leer" }, "Noch kein Passkey eingerichtet."));
+  };
+  laden();
+  const moeglich = passkeysMoeglich();
+  const name = h("input", { type: "text", maxlength: "60", tid: "passkey-name", value: /Mobi|Android|iPhone|iPad/.test(navigator.userAgent) ? "Handy" : "Rechner" });
+  const anlegen = knopf("Passkey auf diesem Gerät einrichten", { tid: "passkey-anlegen", disabled: !moeglich, onclick: async () => {
+    anlegen.disabled = true;
+    try {
+      await passkeyAnlegen(name.value.trim() || "Gerät");
+      anmeldung.passkeys = true;
+      melde("erfolg", "Passkey eingerichtet. Dieses Gerät kann sich jetzt ohne Passwort anmelden.");
+    } catch (e) { const text = passkeyFehlerText(e); if (text) melde("fehler", text); }
+    anlegen.disabled = false;
+    laden();
+  } });
+  const wahl = h("select", { tid: "bildschirmsperre-wahl" },
+    SPERRE_WAHL.map(([wert, text]) => h("option", { value: wert === null ? "aus" : String(wert), selected: wert === sperreMinuten() }, text)));
+  wahl.addEventListener("change", async () => {
+    const minuten = wahl.value === "aus" ? null : Number(wahl.value);
+    try { await sperreWaehlen(minuten); melde("erfolg", minuten === null ? "Bildschirmsperre aus." : "Bildschirmsperre eingestellt."); }
+    catch (e) { melde("fehler", e.message); wahl.value = sperreMinuten() === null ? "aus" : String(sperreMinuten()); }
+  });
+  return abschnitt("Passkeys und Bildschirmsperre",
+    h("div", { "data-einstellung": "passkeys" },
+      h("p", { class: "klein" }, "Mit einem Passkey meldet sich ein Gerät per Fingerabdruck, Gesicht oder Gerätesperre an. " +
+        "Das Passwort bleibt als zweiter Weg; nach einem Neustart des Servers gibt nur das Passwort die gemerkten Geheimnisse (Bank-PIN) wieder frei."),
+      moeglich ? null : h("p", { class: "klein hinweis", tid: "passkey-nicht-moeglich" },
+        "Hier nicht möglich: Passkeys brauchen HTTPS (oder localhost) und einen Browser mit WebAuthn."),
+      liste, h("div", { class: "formular-zeile" }, feld("Name des Geräts", name), anlegen)),
+    h("div", { class: "formular-zeile", "data-einstellung": "bildschirmsperre" },
+      feld("Bildschirmsperre auf diesem Gerät", wahl,
+        "Sperrt Kontor, wenn es so lange im Hintergrund oder geschlossen war. Entsperrt wird mit Passkey oder Passwort.")));
+}
+
 function sicherheit(schutz, kontext) {
   const teile = [];
   if (anmeldung.aktiv) {
@@ -355,6 +407,7 @@ function sicherheit(schutz, kontext) {
           catch (e) { melde("fehler", e.message); } finally { alt.value = ""; neu.value = ""; }
         } })),
       h("div", { class: "knopf-leiste", "data-einstellung": "abmelden" }, knopf("Abmelden", { tid: "abmelden", onclick: () => kontext.abmelden() }))));
+    teile.push(passkeyAbschnitt());
   } else {
     teile.push(abschnitt("Anmeldung", h("p", null, "Diese Instanz läuft ohne Anmeldung.")));
   }

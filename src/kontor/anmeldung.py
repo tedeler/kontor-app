@@ -185,6 +185,16 @@ def csrf_token(token: str) -> str:
     return base64.urlsafe_b64encode(roh).decode("ascii").rstrip("=")
 
 
+SOFORT_SEKUNDEN = 90      # „sofort“: Rückhalt, falls die Oberfläche das Verlassen nicht melden konnte (D-284)
+
+
+class Zeiten(tuple):
+    """(erstellt, aktivitaet) einer gültigen Sitzung, dazu der Stand der Bildschirmsperre (D-284)."""
+
+    sperre_sekunden: int | None = None
+    gesperrt: bool = False
+
+
 class Anmeldedienst:
     """Anmeldung einer App (eine Datenbank). Gültigkeit wird bei jeder Anfrage in der Datenbank geprüft."""
 
@@ -246,15 +256,18 @@ class Anmeldedienst:
         return bool(soll) and hmac.compare_digest(code.encode("utf-8"), soll.encode("utf-8"))
 
     # ---------------------------------------------------------- Sitzungen
-    def sitzung_pruefen(self, token: str | None, jetzt: float | None = None) -> tuple[float, float] | None:
-        """Gültige Sitzung → (erstellt, aktivitaet) nach Zählung dieser Anfrage als Aktivität; sonst None."""
+    def sitzung_pruefen(self, token: str | None, jetzt: float | None = None) -> Zeiten | None:
+        """Gültige Sitzung → (erstellt, aktivitaet) nach Zählung dieser Anfrage als Aktivität; sonst None.
+        Liegt die letzte Anfrage länger zurück als die Bildschirmsperre der Sitzung erlaubt, ist sie ab jetzt
+        gesperrt (D-284) – das Ergebnis trägt den Stand in ``gesperrt``."""
         if not token or len(token) > 256:
             return None
         jetzt = time.time() if jetzt is None else jetzt
         h = token_hash(token)
         con = self._con()
         try:
-            r = con.execute("SELECT erstellt, aktivitaet FROM sitzung WHERE token_hash = ?", (h,)).fetchone()
+            r = con.execute("SELECT erstellt, aktivitaet, sperre_sekunden, gesperrt FROM sitzung WHERE token_hash = ?",
+                            (h,)).fetchone()
             if r is None:
                 return None
             if (jetzt - r["aktivitaet"] > self.config.sitzung_leerlauf_sekunden
@@ -264,12 +277,18 @@ class Anmeldedienst:
                 except sqlite3.OperationalError:
                     pass
                 return None
+            sperre = r["sperre_sekunden"]
+            gesperrt = bool(r["gesperrt"]) or (sperre is not None
+                                               and jetzt - r["aktivitaet"] > max(sperre, SOFORT_SEKUNDEN if sperre == 0 else 0))
             try:
                 con.execute("PRAGMA busy_timeout = 2000")
-                con.execute("UPDATE sitzung SET aktivitaet = MAX(aktivitaet, ?) WHERE token_hash = ?", (jetzt, h))
+                con.execute("UPDATE sitzung SET aktivitaet = MAX(aktivitaet, ?), gesperrt = ? WHERE token_hash = ?",
+                            (jetzt, int(gesperrt), h))
             except sqlite3.OperationalError:  # Datenbank gerade gesperrt: Aktivität beim nächsten Mal
                 pass
-            return r["erstellt"], max(r["aktivitaet"], jetzt)
+            zeiten = Zeiten((r["erstellt"], max(r["aktivitaet"], jetzt)))
+            zeiten.sperre_sekunden, zeiten.gesperrt = sperre, gesperrt
+            return zeiten
         finally:
             con.close()
 
@@ -285,6 +304,22 @@ class Anmeldedienst:
         con.execute("DELETE FROM sitzung WHERE aktivitaet < ? OR erstellt < ?",
                     (jetzt - self.config.sitzung_leerlauf_sekunden, jetzt - self.config.sitzung_hoechstdauer_sekunden))
         return token
+
+    # ------------------------------------------------- Bildschirmsperre (D-284)
+    @staticmethod
+    def sperre_setzen(con, token: str, sekunden: int | None) -> None:
+        con.execute("UPDATE sitzung SET sperre_sekunden = ? WHERE token_hash = ?", (sekunden, token_hash(token)))
+
+    @staticmethod
+    def sperren(con, token: str) -> bool:
+        """Sitzung jetzt sperren; False, wenn für sie keine Bildschirmsperre eingerichtet ist."""
+        return con.execute("UPDATE sitzung SET gesperrt = 1 WHERE token_hash = ? AND sperre_sekunden IS NOT NULL",
+                           (token_hash(token),)).rowcount == 1
+
+    @staticmethod
+    def entsperren(con, token: str, jetzt: float) -> None:
+        con.execute("UPDATE sitzung SET gesperrt = 0, aktivitaet = MAX(aktivitaet, ?) WHERE token_hash = ?",
+                    (jetzt, token_hash(token)))
 
     def abmelden(self, token: str) -> None:
         con = self._con()

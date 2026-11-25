@@ -18,7 +18,7 @@ from .text import norm
 
 _log = logging.getLogger("kontor.db")
 
-SCHEMA_VERSION = 18
+SCHEMA_VERSION = 19
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (
@@ -541,12 +541,30 @@ CREATE TABLE IF NOT EXISTS anmeldung_konto (
 CREATE TABLE IF NOT EXISTS sitzung (
     token_hash TEXT PRIMARY KEY,
     erstellt REAL NOT NULL,
-    aktivitaet REAL NOT NULL
+    aktivitaet REAL NOT NULL,
+    -- D-284 Bildschirmsperre je Sitzung: NULL = aus, 0 = sofort beim Verlassen, sonst Sekunden ohne Anfrage
+    sperre_sekunden INTEGER,
+    gesperrt INTEGER NOT NULL DEFAULT 0
+);
+-- D-284 Passkeys (WebAuthn): Kennung und öffentlicher Schlüssel; Betriebszustand wie die Sitzungen.
+CREATE TABLE IF NOT EXISTS passkey (
+    id INTEGER PRIMARY KEY,
+    kennung TEXT NOT NULL UNIQUE,
+    schluessel BLOB NOT NULL,
+    alg INTEGER NOT NULL,
+    zaehler INTEGER NOT NULL DEFAULT 0,
+    name TEXT NOT NULL,
+    rp_id TEXT NOT NULL,
+    angelegt REAL NOT NULL,
+    benutzt REAL
 );
 """
 
 # Spalten, die frühere Schemaversionen noch nicht haben (Migration ohne Datenverlust).
 _NEUE_SPALTEN = (
+    # D-284: Bildschirmsperre je Sitzung (Schemaversion 19)
+    ("sitzung", "sperre_sekunden", "INTEGER"),
+    ("sitzung", "gesperrt", "INTEGER NOT NULL DEFAULT 0"),
     ("empfaenger", "standardkategorie_id", "INTEGER REFERENCES konto(id)"),
     ("buchung", "gegen_iban", "TEXT"),
     ("split", "abstimmung_id", "INTEGER REFERENCES abstimmung(id)"),

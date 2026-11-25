@@ -28,7 +28,12 @@ KOEPFE = [(b"x-content-type-options", b"nosniff"), (b"x-frame-options", b"DENY")
           (b"referrer-policy", b"no-referrer"), (b"content-security-policy", CSP.encode("ascii")),
           (b"cross-origin-opener-policy", b"same-origin")]
 OEFFENTLICH = {("GET", "/api/anmeldung"), ("POST", "/api/anmeldung"), ("POST", "/api/anmeldung/einrichten"),
+               ("POST", "/api/anmeldung/passkey/optionen"), ("POST", "/api/anmeldung/passkey"),   # D-284
                ("GET", "/api/gesundheit"), ("GET", "/anmelden")}
+# D-284: Bei gesperrtem Bildschirm antwortet die Schnittstelle nur noch hier (Entsperren, Abmelden); die Hülle der
+# Oberfläche (kein /api) lädt weiter, sie enthält keine Daten.
+BEI_SPERRE = {("POST", "/api/anmeldung/entsperren/optionen"), ("POST", "/api/anmeldung/entsperren"),
+              ("POST", "/api/anmeldung/abmelden")}
 UPLOADS = {"/api/import/kmymoney", "/api/import/gnucash", "/api/import/alfbanco", "/api/sicherung/einspielen",
            "/api/dokumente"}
 # Antworten mit diesem Kopf (nur Dokumentinhalte, D-123) behalten ihre eigene, strengere Inhaltsrichtlinie und
@@ -226,6 +231,9 @@ class Schutz:
                                               b"Weiterleitung zur Anmeldung.")
                 state["kontor_sitzung"] = token
                 state["kontor_sitzung_zeiten"] = sitzung
+                if getattr(sitzung, "gesperrt", False) and ist_api(pfad) and (methode, pfad) not in BEI_SPERRE:
+                    return await self._fehler(send, scope, 423, "bildschirm_gesperrt",
+                                              "Kontor ist gesperrt. Bitte entsperren.", {})
             if methode in SCHREIBEND:
                 # 3. Herkunft (4.6 Punkt 1), auch für öffentliche POST-Pfade
                 if not self._herkunft_ok(scope):

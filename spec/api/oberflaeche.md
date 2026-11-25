@@ -3294,3 +3294,17 @@ Desktop-Layout (auch mit Touch) ändert sich nichts. Löst 36.3.1, 36.3.2 und 36
 - `ausgleich-zusammenfuehren` führt zusammen (über `aktion()`, mit Rückgängig); `ausgleich-getrennt` merkt die
   Entscheidung auf dem Server; `ausgleich-spaeter`, Esc oder das Schließen lassen alles stehen – dann fragt die
   Oberfläche erst nach dem nächsten Laden der Anwendung wieder. Der Fokus liegt anfangs auf `ausgleich-spaeter`.
+
+## 45. Passkeys und Bildschirmsperre (D-284, `sicherheit.md` 13)
+
+- **Anmeldeseite:** `anmeldung-passkey` („Mit Passkey anmelden“) ist nur sichtbar, wenn ein Passkey eingerichtet
+  ist und der Browser Passkeys kann; nicht bei der Ersteinrichtung.
+- **Einstellungen, Bereich Sicherheit:** Abschnitt „Passkeys und Bildschirmsperre“ mit `passkey-liste` (je Eintrag
+  `passkey-<id>`, `passkey-loeschen-<id>`), `passkey-name`, `passkey-anlegen` (ohne sicheren Kontext gesperrt, mit
+  Hinweis `passkey-nicht-moeglich`) und `bildschirmsperre-wahl` (Aus, Sofort beim Verlassen, 1, 5, 15, 60 Minuten).
+  Die Wahl gilt für dieses Gerät: Sie wird im Browser gemerkt und nach einer neuen Anmeldung wieder gesetzt.
+- **Sperrblatt** `bildschirmsperre` (deckend über allem, `role="dialog"`, alles darunter `inert`): erscheint, wenn
+  der Server die Sitzung gesperrt meldet (Status oder 423), sofort beim Zurückholen, wenn die Seite länger als
+  eingestellt verborgen war, und bei „sofort“ schon beim Verlassen. Inhalt: `sperre-entsperren` (Passkey; wird bei
+  sichtbarer Seite gleich angeboten), `sperre-passwort-zeigen`, `sperre-passwort` mit `sperre-passwort-knopf`,
+  `sperre-fehler`, `sperre-abmelden`. Nach dem Entsperren lädt die aktuelle Ansicht neu.

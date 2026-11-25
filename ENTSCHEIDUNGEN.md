@@ -4198,3 +4198,26 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - **Prüfung:** Core-Test in `tests/core/test_mobil_gesten.py`; `tests/test_browser_gesten.py::
   test_wischen_in_langer_liste_bleibt_an_der_zeile` (130 Buchungen, gerollt: Hinweis, „Rückgängig“ und Zeile an
   derselben Stelle). Ob (2) am Handy damit behoben ist, zeigt erst der Versuch dort.
+
+## D-284 Passkeys und Bildschirmsperre (Feature `passkeys`, 2026-11-25)
+
+- **Anlass:** Frage vom 2026-11-25, ob sich die Seite am Handy biometrisch schützen lässt. Auftrag: auf einem
+  Branch zum Ausprobieren, noch nicht auf main.
+- **Entscheidung** (`sicherheit.md` 13, `oberflaeche.md` 45): beides zusammen –
+  1. Anmeldung mit Passkey (WebAuthn) neben dem Passwort; Passkeys werden in den Einstellungen je Gerät angelegt.
+  2. Bildschirmsperre je Gerät: Nach der gewählten Zeit ohne Anfrage sperrt der **Server** die Sitzung (423), bis
+     sie mit Passkey oder Passwort entsperrt ist; die Oberfläche legt ein Sperrblatt über alles.
+- **Warum serverseitig:** Eine Sperre nur in der Oberfläche ließe die Sitzung offen; so liefert die Schnittstelle
+  gesperrt keine Daten.
+- **Ohne neue Abhängigkeit:** Die Prüfung nutzt `cryptography` (schon vorhanden). Der öffentliche Schlüssel kommt
+  aus `getPublicKey()` des Browsers, damit entfällt das Lesen der CBOR-Beglaubigung; eine Attestation wird nicht
+  ausgewertet. Vertretbar, weil nur eine angemeldete Sitzung Passkeys anlegen darf.
+- **Grenzen:** Ob das Handy Fingerabdruck, Gesicht oder die Geräte-PIN verlangt, entscheidet das Gerät. Passkeys
+  gelten für den Hostnamen, unter dem sie angelegt wurden. Nach einem Neustart des Servers gibt nur das Passwort
+  die gemerkten Geheimnisse frei (D-129). Bei sichtbar offener Seite greift die Sperre nicht (minütliche Abfragen).
+  Das Zurücksetzen des Passworts über die Kommandozeile lässt Passkeys bestehen.
+- **Schema:** Version 19 – Tabelle `passkey`, Spalten `sitzung.sperre_sekunden` und `sitzung.gesperrt`.
+- **Prüfung:** Core-Tests `tests/core/test_passkeys.py` (nachgebildeter Authentikator: Anlegen, Anmelden, sieben
+  Ablehnungsfälle, Sperren und Entsperren); Browsertest `tests/test_browser_passkeys.py` mit dem virtuellen
+  Authentikator von Chromium unter `localhost`. Nicht geprüft: echtes Handy, Safari/iOS, Firefox, Betrieb hinter
+  Tailscale Serve.

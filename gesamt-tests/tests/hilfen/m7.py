@@ -23,6 +23,8 @@ NEUES_PASSWORT = "Neues-Testpasswort-4711!"
 CSRF = "X-Kontor-CSRF"
 COOKIE = "kontor_sitzung"
 OEFFENTLICH = {("get", "/api/anmeldung"), ("post", "/api/anmeldung"), ("post", "/api/anmeldung/einrichten"),
+               # D-284: Anmeldung mit Passkey (sicherheit.md 13.3)
+               ("post", "/api/anmeldung/passkey/optionen"), ("post", "/api/anmeldung/passkey"),
                ("get", "/api/gesundheit")}
 HASH_MUSTER = re.compile(r"^scrypt\$([1-9][0-9]*)\$([1-9][0-9]*)\$([1-9][0-9]*)\$([A-Za-z0-9+/=]+)\$([A-Za-z0-9+/=]+)$")
 
