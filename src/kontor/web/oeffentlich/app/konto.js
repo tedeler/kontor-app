@@ -251,6 +251,7 @@ const KUERZEL = [
   ["v", ",", "Konto-Einstellungen…", (s) => kontoEinstellungen(s.konto, tid("konto-einstellungen-oeffnen", s.seite))],
 ];
 const VORTASTEN = { f: "Filter", v: "Ansicht" };
+const FOKUSSIERBAR = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 /** Kürzel des Kontoblatts für Hilfe und Befehlspalette: [Tastenfolge, Gruppe, Text]. */
 export function kontoKuerzel() {
@@ -2154,6 +2155,9 @@ class Kontoansicht {
 
   escape() {
     if (this.vortaste) { this.vortasteBeenden(); return true; }
+    // D-287: Esc in den Einzelheiten führt zurück ins Buchungsblatt
+    const pe = this.panelEls && this.panelEls.details;
+    if (pe && pe.el.contains(document.activeElement)) { this.listeFokussieren(); return true; }
     if (!this.auswahl.size) return false;
     this.auswahl.clear();
     this.auswahlZeigen();
@@ -2495,6 +2499,33 @@ class Kontoansicht {
   kuerzelAusfuehren(i) {
     const k = KUERZEL[i];
     if (k) Promise.resolve().then(() => k[3](this)).catch(() => { /* gemeldet */ });
+  }
+
+  // ---------------------------------------------------------------- Bereiche (D-287)
+  /** Ziele der Vortaste w und von F6, in der Reihenfolge von F6: Taste, Text, Wirkung, Element des Bereichs. */
+  bereiche() {
+    return [
+      { taste: "f", text: "Filter", tun: () => this.filterBereichFokus(), el: () => this.ausdruckFilterEl },
+      { taste: "b", text: "Buchungsblatt", tun: () => this.listeFokussieren(), el: () => this.listenSpalte },
+      { taste: "e", text: "Einzelheiten", tun: () => this.detailsFokussieren(), el: () => (this.panelEls && this.panelEls.details || {}).el },
+    ];
+  }
+
+  filterBereichFokus() {
+    if (this.ausdruckEingabe) this.ausdruckEingabe.eingabe.focus();
+    else this.filterFokus("bk-0-feld");
+  }
+
+  /** Fokus in die Einzelheiten: erstes Bedienelement, sonst der Inhalt selbst; klappt das Panel auf. */
+  detailsFokussieren() {
+    if (oberflaeche.istMobil()) { this.detailsOeffnen(); return; }
+    const l = this.layout.panels.details;
+    if (l.eingeklappt) { l.eingeklappt = false; this.layoutAnwenden(); }
+    const pe = this.panelEls.details;
+    if (!pe) return;
+    const ziel = [...pe.inhalt.querySelectorAll(FOKUSSIERBAR)].find((el) => el.getClientRects().length);
+    if (ziel) ziel.focus();
+    else { pe.inhalt.tabIndex = -1; pe.inhalt.focus(); }
   }
 
   vortasteStarten(vor) {

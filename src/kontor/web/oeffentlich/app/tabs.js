@@ -23,6 +23,7 @@ export class Tabs {
     this.beiSchliessen = beiSchliessen;
     this.liste = [];
     this.aktiv = null;
+    this.vorher = null;         // zuvor aktiver Tab (Kürzel „w z“, D-287)
     this.laden();
     this.zeichnen();
     langeBeruehrung(this.leiste, (ziel) => ziel.closest("[role=tab]"), (el, x, y) => {
@@ -85,10 +86,24 @@ export class Tabs {
   }
 
   aktivieren(t) {
+    if (this.aktiv && this.aktiv !== t) this.vorher = this.aktiv;
     this.aktiv = t;
     this.zeichnen();
     this.speichern();
   }
+
+  /** Tab neben dem aktiven, reihum (schritt +1 oder -1); null bei weniger als zwei Tabs. */
+  nachbar(schritt) {
+    const n = this.liste.length;
+    const i = this.liste.indexOf(this.aktiv);
+    return n > 1 && i >= 0 ? this.liste[(i + schritt + n) % n] : null;
+  }
+
+  /** n-ter Tab der Leiste (ab 1) oder null. */
+  nummer(n) { return this.liste[n - 1] || null; }
+
+  /** Der zuvor aktive Tab, solange er noch offen ist. */
+  zuletzt() { return this.vorher && this.vorher !== this.aktiv && this.liste.includes(this.vorher) ? this.vorher : null; }
 
   /** Abfrageteil des aktiven Tabs nachführen (Filter der Kontoansicht über history.replaceState). */
   urlGeaendert() {

@@ -289,6 +289,13 @@ nicht mehr. Ein Thread schreibt Tests und Code.
 - Filter der Kontoansicht über `urlSchreiben` melden sich mit `oberflaeche.urlGeaendert()` beim Tab.
 - Browser-Speicher nur in `try` lesen/schreiben (M17 1.6).
 
+## Hinweise zur Tastaturbedienung (Feature `tastatur`, D-287)
+
+- Bereichswechsel mit der Vortaste `w` und F6 liegt in `app/haupt.js` (`BEREICH_ZIELE`, `bereichTaste`). Eine Seite
+  mit eigenen Bereichen bietet `bereiche()` an: Liste aus `{ taste, text, tun, el }` in der Reihenfolge von F6
+  (Vorbild `konto.js`). Hinweis, Hilfe und Befehlspalette lesen dieselbe Liste.
+- `w` darf auf keiner Seite ein Kürzel ohne Vortaste werden.
+
 ## Codequalität vor jedem Meilenstein
 
 - **Vor Beginn jedes neuen Meilensteins** die Codequalitätsanalyse nach

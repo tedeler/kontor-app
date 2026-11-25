@@ -4284,3 +4284,23 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - **Tests:** `tests/core/test_testinstanz_logo.py`. Angepasst: `gesamt-tests/tests/app/m8/test_m8_auslieferung.py::
   test_manifest` (Name im Mock-Modus), in `TESTUMBAU.md` vermerkt.
 
+## D-287 Bereich wechseln mit der Vortaste „w“ und F6 (Feature `tastatur`, 2026-11-25)
+
+- **Anlass:** Auftrag vom 2026-11-25: bessere Tastaturbedienung, möglichst ganz ohne Maus. Erster Schritt: mit
+  einer Tastenfolge den aktiven Bereich wechseln; „b“ führt im Kontoblatt immer ins Buchungsblatt.
+- **Entscheidung:** Die Vortaste ist `w` (`v` ist im Kontoblatt die Ansicht, D-167). Sie gilt auf jeder Seite und
+  liegt deshalb in `haupt.js`, nicht im Kontoblatt. Ziele: `b` Blatt der Seite, `n` Navigation, `t` Tab-Leiste,
+  `s` Suche, `1`–`9` Tab mit dieser Nummer, `←`/`→` Nachbartab, `z` zuletzt aktiver Tab, `x` Tab schließen. Eine
+  Seite meldet eigene Bereiche über `bereiche()`; das Kontoblatt `b` Buchungsblatt, `e` Einzelheiten, `f` Filter.
+  Vertrag: `oberflaeche.md` 12.1a.
+- **F6 / Umschalt+F6** wechseln die Bereiche reihum und wirken auch aus Textfeldern (dort tippt `w` ein w).
+- **Esc** führt aus Navigation, Tab-Leiste und Einzelheiten zurück ins Blatt.
+- **Sichtbar:** Der Bereich mit dem Fokus hat einen Rahmen (`bereich-aktiv`); er erscheint auch nach einem
+  Mausklick in den Bereich.
+- **Unverändert:** alle Kürzel aus D-167 (`v d` klappt die Einzelheiten weiter nur ein und aus, `f w` bleibt der
+  Zeitraum der letzten sieben Tage), Alt+1 … Alt+7, `/`.
+- **Nicht enthalten:** ein Ziel für den Kategorienbaum (das Panel gibt es im Kontoblatt seit D-265 nicht mehr),
+  Pfeiltasten innerhalb der Einzelheiten (dort Tab), Zeilennavigation auf den übrigen Listenseiten.
+- **Grenzen:** Mobil öffnet `w n` das Menü und `w e` die Einzelheiten als Dialog; nur am Desktop geprüft.
+- **Tests:** `tests/core/test_tastatur.py`, `tests/test_browser_tastatur.py`. Der Service-Worker-Cache heißt
+  `kontor-huelle-44`.
