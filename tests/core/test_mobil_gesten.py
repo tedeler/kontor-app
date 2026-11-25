@@ -42,3 +42,23 @@ def test_doppeltipp_nur_bei_ruhender_liste_und_auswahl_nur_ausdruecklich(client)
     sprung = js[js.index("  sprungMarkieren(id) {"):]
     sprung = sprung[:sprung.index("\n  }\n")]
     assert "istMobil()" in sprung, "der Sprung zu einer Buchung wählt mobil weiter aus"
+
+
+def test_lange_beruehrung_nur_bei_ruhender_liste(client):
+    """D-282: Wer die rollende Liste mit dem Finger anhält und liegen lässt, öffnet kein Kontextmenü."""
+    js = client.get("/oeffentlich/app/konto.js").text
+    lang = js[js.index("langeBeruehrung(this.liste"):]
+    lang = lang[:lang.index("this.menue(")]
+    assert "letztesRollen" in lang, "die lange Berührung beachtet das Rollen nicht"
+
+
+def test_wischhinweis_liegt_ueber_der_zeile_und_erfassen_fehlt_mobil(client):
+    """D-283: Hinweis und „Rückgängig“ richten sich nach der sichtbaren Lage der Zeile (auch in langen Listen), der
+    Hinweis liegt als Overlay über ihr; die Ansicht bleibt nach dem Bestätigen stehen; „Buchung erfassen“ entfällt
+    mobil."""
+    js = client.get("/oeffentlich/app/konto.js").text
+    assert "zeilenLage" in js and "ansichtHalten" in js
+    wisch = js[js.index("  wischZeigen(z, dx, dy) {"):js.index("  wischEnde(z) {")]
+    assert "offsetTop" not in wisch, "der Hinweis rechnet weiter mit offsetTop (falsch in langen Listen)"
+    css = client.get("/oeffentlich/app.css").text
+    assert re.search(r'\[data-layout="mobil"\] \[data-testid="buchung-erfassen"\]\s*\{\s*display:\s*none', css)

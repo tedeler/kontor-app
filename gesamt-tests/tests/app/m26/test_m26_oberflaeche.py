@@ -320,13 +320,10 @@ def test_mehrfach_leiste_und_mehr_wie_rechtsklick(starte_server, neue_seite):
 
 def test_erfassen_schwebend_und_titelzeile(starte_server, neue_seite):
     server, api, seite, k, b = _start(starte_server, neue_seite)
+    # D-283: mobil gibt es den Knopf nicht mehr (vorher: schwebend unten rechts, 36.3.6)
     knopf = tid(seite, "buchung-erfassen")
-    expect(knopf).to_be_visible()
-    pos = knopf.evaluate("e => getComputedStyle(e).position")
-    assert pos in ("fixed", "sticky", "absolute"), f"schwebend, nicht im Seitenfluss ({pos})"
-    bx, vp = box(knopf), seite.viewport_size
-    assert bx["x"] + bx["width"] / 2 > vp["width"] / 2 and bx["y"] + bx["height"] / 2 > vp["height"] / 2, \
-        "unten rechts"
+    expect(knopf).to_be_attached()
+    expect(knopf).to_be_hidden()
     # ab M30 ohne die Zeile mit `filter-umschalten` (oberflaeche.md 39.8, E-271)
 
 # ------------------------------------------------------------------ 36.1.2 Desktop unverändert

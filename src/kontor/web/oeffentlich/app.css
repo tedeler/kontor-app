@@ -774,11 +774,8 @@ html[data-thema="dunkel"] { --wahl-schleier: color-mix(in srgb, var(--text) 16%,
 [data-layout="mobil"] :is([data-testid="konto-einstellungen-oeffnen"], [data-testid="konto-verschieben"])::before { font-size: 1.2rem; }
 [data-layout="mobil"] [data-testid="konto-einstellungen-oeffnen"]::before { content: "⚙"; }
 [data-layout="mobil"] [data-testid="konto-verschieben"]::before { content: "⇄"; }
-[data-layout="mobil"] [data-testid="buchung-erfassen"] { position: fixed; z-index: 390; right: 1rem; bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
-  width: 56px; height: 56px; padding: 0; border-radius: 16px; font-size: 0; background: var(--akzent); color: var(--akzent-text);
-  border: 0; box-shadow: var(--schatten); }
-[data-layout="mobil"] [data-testid="buchung-erfassen"]::before { content: "+"; font-size: 2rem; line-height: 1; font-weight: 300; }
-[data-layout="mobil"] .seite-konto:has(> .mehrfach-leiste:not([hidden])) [data-testid="buchung-erfassen"] { display: none; }
+/* D-283: „Buchung erfassen“ entfällt mobil (vorher schwebender Knopf unten rechts) */
+[data-layout="mobil"] [data-testid="buchung-erfassen"] { display: none; }
 [data-layout="mobil"] .seite-konto .listen-info { font-size: .82rem; }
 [data-layout="mobil"] .seite-konto :is(.auswahl-anzahl, .auswahl-trenner) { display: none; }
 
@@ -861,7 +858,7 @@ html[data-thema="dunkel"] { --wahl-schleier: color-mix(in srgb, var(--text) 16%,
 /* Wischgesten mobil: die Zeile folgt dem Finger, darunter erscheint die Wirkung */
 [data-layout="mobil"] .listen-spalte { position: relative; }
 .zeile.wischt { position: relative; z-index: 1; background-color: var(--hg) !important; box-shadow: 0 1px 6px rgba(0, 0, 0, .2); }
-.wisch-hinweis { position: absolute; left: 0; right: 0; z-index: 0; display: flex; align-items: center; justify-content: space-between;
+.wisch-hinweis { position: absolute; left: 0; right: 0; z-index: 2; opacity: .94; display: flex; align-items: center; justify-content: space-between;
   padding: 0 1rem; font-weight: 600; font-size: .95rem; pointer-events: none; color: var(--text-2); background: var(--hg-3); }
 .wisch-hinweis[hidden] { display: none; }
 .wisch-hinweis[data-richtung="rechts"] .wisch-rechts, .wisch-hinweis[data-richtung="links"] .wisch-links { visibility: hidden; }

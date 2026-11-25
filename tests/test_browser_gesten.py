@@ -30,6 +30,7 @@ def test_gesten_im_kontoblatt(tmp_path, browser):
         page.goto(url + "/konten/1")
         bereit(page, "konto")
         liste = tid(page, "buchungsliste")
+        expect(tid(page, "buchung-erfassen")).to_be_hidden()          # D-283: mobil kein Knopf zum Erfassen
         erste, zweite = page.locator(ZEILEN).nth(1), page.locator(ZEILEN).nth(2)
         cdp = page.context.new_cdp_session(page)
 
@@ -70,8 +71,16 @@ def test_gesten_im_kontoblatt(tmp_path, browser):
         expect(tid(page, "panel-details")).to_have_count(0)
         page.wait_for_timeout(450)
 
-        # Lang tippen: Kontextmenü als Blatt – Einzelheiten, Mehrfachauswahl, dann die Einträge des Desktops
+        # D-282: lange Berührung auf der eben noch rollenden Liste (mit dem Finger angehalten) öffnet kein Menü
         x, y = _mitte(zweite)
+        page.evaluate("() => document.dispatchEvent(new Event('scroll'))")
+        cdp.send("Input.dispatchTouchEvent", {"type": "touchStart", "touchPoints": [{"x": x, "y": y}]})
+        page.wait_for_timeout(700)
+        cdp.send("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []})
+        expect(tid(page, "kontextmenue")).to_have_count(0)
+        page.wait_for_timeout(400)
+
+        # Lang tippen: Kontextmenü als Blatt – Einzelheiten, Mehrfachauswahl, dann die Einträge des Desktops
         cdp.send("Input.dispatchTouchEvent", {"type": "touchStart", "touchPoints": [{"x": x, "y": y}]})
         expect(tid(page, "kontextmenue")).to_be_visible()
         cdp.send("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []})
@@ -90,6 +99,7 @@ def test_gesten_im_kontoblatt(tmp_path, browser):
         rueck = tid(page, "wisch-rueckgaengig")
         expect(rueck).to_be_visible()
         expect(rueck).to_contain_text("Rückgängig")
+        assert abs(rueck.bounding_box()["y"] - erste.bounding_box()["y"]) <= 1, "Rückgängig liegt über der Zeile"
         expect(erste).to_have_attribute("data-bestaetigt", "Torsten")
         expect(erste).to_have_attribute("data-status", "bestaetigt")
         rueck.click()
@@ -110,3 +120,43 @@ def test_gesten_im_kontoblatt(tmp_path, browser):
         expect(tid(page, "kategorie-auswahl")).to_be_visible()
         expect(tid(page, "kategorie-auswahl-suche")).to_be_visible()
         expect(tid(page, "kategorie-auswahl").get_by_text("Neue Kategorie")).to_be_visible()
+
+
+def test_wischen_in_langer_liste_bleibt_an_der_zeile(tmp_path, browser):
+    """D-283: In einer langen Liste (nur der sichtbare Ausschnitt ist gezeichnet) liegen Hinweis und „Rückgängig“
+    über der gewischten Zeile, und die Ansicht steht nach dem Bestätigen an derselben Stelle."""
+    import datetime as dt
+
+    import httpx
+
+    with server(tmp_path) as (url, _), seite(browser, url, **HANDY) as page:
+        with httpx.Client(base_url=url, timeout=60) as c:
+            for i in range(110):
+                tag = dt.date(2024, 3, 1) + dt.timedelta(days=i % 28)
+                r = c.post("/api/buchungen", json={"datum": tag.isoformat(), "verwendungszweck": f"Massen {i}",
+                                                   "status": "importiert", "splits": [
+                                                       {"konto_id": 1, "betrag": -(i + 1)}, {"konto_id": 2, "betrag": i + 1}]})
+                assert r.status_code in (200, 201), r.text
+        page.goto(url + "/konten/1")
+        bereit(page, "konto")
+        page.evaluate("() => { document.querySelector('.hauptbereich').scrollTop = 3000; }")
+        page.wait_for_timeout(300)
+        bid = page.evaluate("() => document.elementFromPoint(190, 450).closest('[role=row][data-id]').dataset.id")
+        zeile = tid(page, f"buchung-{bid}")
+        oben = zeile.bounding_box()["y"]
+        cdp = page.context.new_cdp_session(page)
+        x, y = _mitte(zeile)
+        cdp.send("Input.dispatchTouchEvent", {"type": "touchStart", "touchPoints": [{"x": x, "y": y}]})
+        for i in range(1, 9):
+            cdp.send("Input.dispatchTouchEvent", {"type": "touchMove", "touchPoints": [{"x": x + 20 * i, "y": y}]})
+        hinweis = page.locator(".wisch-hinweis")
+        expect(hinweis).to_be_visible()
+        expect(hinweis).to_contain_text("Bestätigen")
+        assert abs(hinweis.bounding_box()["y"] - oben) <= 1, "der Hinweis liegt über der gewischten Zeile"
+        cdp.send("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []})
+        rueck = tid(page, "wisch-rueckgaengig")
+        expect(rueck).to_be_visible()
+        assert abs(rueck.bounding_box()["y"] - oben) <= 1, "Rückgängig liegt über der Zeile"
+        expect(zeile).to_have_attribute("data-status", "bestaetigt")
+        assert abs(zeile.bounding_box()["y"] - oben) <= 1, "die Ansicht ist nicht gesprungen"
+        assert page.evaluate("document.querySelector('.hauptbereich').scrollTop") == 3000
