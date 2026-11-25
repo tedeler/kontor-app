@@ -71,6 +71,30 @@ def test_start_neu_stop_loeschen(umgebung):
 
 
 @pytest.mark.skipif(os.geteuid() != 0, reason="das Skript verlangt root")
+def test_demo_und_neu_merken_die_art(umgebung):
+    """Feature demodaten: ``demo [branch]`` baut Demodaten statt einer Kopie; ``neu`` wiederholt, was zuletzt lief."""
+    umg, aufrufe, _ = umgebung
+    e = _lauf(umg, "demo")
+    assert e.returncode == 0, e.stderr
+    assert "ohne Anmeldung" in e.stdout and "Haushaltspasswort" not in e.stdout
+    assert _lauf(umg, "neu").returncode == 0
+    status = _lauf(umg, "status").stdout
+    assert "main" in status and "Demodaten" in status
+    assert _lauf(umg, "demo", "berichte").returncode == 0
+    e = _lauf(umg, "start", "berichte")
+    assert e.returncode == 0 and "Haushaltspasswort" in e.stdout
+    assert _lauf(umg, "neu").returncode == 0
+    assert "Kopie" in _lauf(umg, "status").stdout
+    assert aufrufe.read_text(encoding="utf-8").splitlines() == [
+        "-m kontor.testinstanz demo main",
+        "-m kontor.testinstanz demo main",
+        "-m kontor.testinstanz demo feature/berichte",
+        "-m kontor.testinstanz einrichten feature/berichte",
+        "-m kontor.testinstanz einrichten feature/berichte",
+    ]
+
+
+@pytest.mark.skipif(os.geteuid() != 0, reason="das Skript verlangt root")
 def test_fehlerfaelle(umgebung, tmp_path):
     umg, aufrufe, _ = umgebung
     assert _lauf(umg, "start").returncode == 1          # Branch fehlt

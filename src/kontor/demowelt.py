@@ -367,7 +367,7 @@ class _Monat:
         if rng.random() < 0.5:
             d = self.zufallstag()
             self.mail(1, _zeit(d, 5, 45), "neuigkeiten@fahrradladen-kettenblatt.example.invalid",
-                      "Frühjahrsinspektion: jetzt Termin sichern",
+                      "Inspektion fürs Rad: jetzt Termin sichern",
                       "Hallo Max,\n\nIhr Rad freut sich auf die Inspektion.\n\nFahrradladen Kettenblatt (Demodaten)\n")
 
     def zahlung(self, d: dt.date) -> None:

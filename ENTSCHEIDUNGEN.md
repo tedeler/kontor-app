@@ -4225,3 +4225,41 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - **Tests:** `tests/core/test_mail_aktuell.py`, `tests/test_browser_mail_aktuell.py` (Abruf im Mail-Blatt bei
   offenem Kontoblatt; Zuordnung im Hintergrund bei sichtbarem Kontoblatt, Auswahl bleibt). Angepasst:
   `tests/test_mail_fortschritt_eigen.py` (Stand mit zwei neuen Feldern), `tests/test_oberflaeche.py` (neuer Pfad).
+
+## D-285 Testinstanz mit Demodaten zum Vorführen (Feature `demodaten`, 2026-11-25)
+
+- **Anlass:** Die Anwendung soll sich Freunden zeigen lassen, ohne dass echte Bankbewegungen sichtbar werden:
+  ein Girokonto, ein Sparbuch, rund zehn teils hierarchische Kategorien, Kredite, mindestens 2000 Buchungen und
+  100 Mails; alle Funktionen sollen sich zeigen lassen.
+- **Mit dem Auftraggeber abgestimmt:** eigener Befehl `kontor-test demo [branch]` (ohne Angabe `main`); die
+  Demo läuft **ohne Anmeldung**; Mails und Buchungen sind vorab geladen, und die Abrufe in der Vorführung
+  bringen Neues.
+- **Entscheidung, Daten:** Ein Generator (`demowelt.py`) erfindet, was Bank und Postfächer wüssten; daraus wird
+  die Mock-Datendatei. Den Buchbestand baut `demodaten.py` ausschließlich über die REST-Schnittstelle im selben
+  Prozess (ASGI, kein Server), mit der simulierten Uhr: so, wie ein Anwender über drei Jahre gearbeitet hätte.
+  Dadurch sind Protokoll, Abrufe, Vorschläge, Kreditraten, Umbuchungen und Dokumente echt entstanden und passen
+  zu jeder künftigen Fassung des Datenmodells; es gibt keine eingecheckte Datenbank und kein zweites Schema.
+- **Entscheidung, Testinstanz:** Den Generator führt das Python der Testinstanz aus (der Stand des Branches
+  baut seine eigenen Daten). Die Demo-Einstellungen (ohne Anmeldung, Mock-Datendatei) stehen in einer
+  Zusatz-Umgebungsdatei, die ein Drop-in der Unit nach `kontor-test.env` lesen lässt. Die ausgelieferte Unit
+  und `kontor-test.env` bleiben unverändert (`betrieb.md` 9); eigene Anpassungen der Umgebungsdatei bleiben
+  erhalten. `einrichten` nimmt die Demo-Einstellungen zurück. Vor dem Aufbau wird eine vorhandene Datenkopie
+  gelöscht, damit nie echte Daten ohne Anmeldung erreichbar sind, auch wenn der Aufbau scheitert.
+- **Selbst entschieden:** 14 Kategorien (acht oberste, sechs Unterkategorien) statt genau zehn, damit Berichte
+  und Lernmodell Stoff haben; zwei Kredite (Wohnungsdarlehen mit Sondertilgung und Korrektur im Jahresabgleich,
+  Autokredit ohne Korrektur); der Bestand ist auf den Tag des Aufbaus bezogen und endet drei Tage davor, die
+  letzten drei Wochen bleiben unbearbeitet; für 60 Tage danach liegen Umsätze und Mails bereit. Ein
+  Dublettenverdacht ist eingebaut; der zugehörige Saldoausgleich folgt zwingend und zeigt D-280. Mail-Abgleich
+  bleibt wie in der Hauptinstanz aus (D-208); PayPal-Mails sind deshalb zur Hälfte von Hand zugeordnet.
+  Bestätigungen tragen die Tags der fest eingebauten Personen (D-262).
+- **Verworfen:** eine eingecheckte fertige Datenbank (veraltet mit jeder Schemaänderung, Daten nicht auf „heute“
+  bezogen); Schreiben mit SQL am Protokoll vorbei; ein Knopf in der Oberfläche (nicht bestellt); eine zweite
+  `EnvironmentFile`-Zeile in der Unit (`betrieb.md` 9 legt genau eine fest).
+- **Grenzen:** Ohne Anmeldung ist die Demo für jeden im erlaubten Netz offen und änderbar. Der Befehl `demo`
+  steht erst zur Verfügung, wenn die Hauptinstanz eine Version mit diesem Feature hat. Nicht auf dem Server
+  unter systemd geprüft (Drop-in, Rechte des Benutzers `kontor` an den vom Generator als root angelegten
+  Dateien).
+- **Tests:** `tests/core/test_demodaten.py` (kleiner Zeitraum, Befehl `demo` mit untergeschobenen Befehlen),
+  `tests/test_demodaten_eigen.py` (voller Umfang, Kalenderränder, Umgebung der Instanz),
+  `tests/test_testinstanz_skript_eigen.py` (`demo`, `neu`, `status`).
+

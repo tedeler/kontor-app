@@ -37,7 +37,13 @@ from . import version as versionsinfo
 DIENST = "kontor-test.service"
 DATENBANK = "kontor-test.sqlite3"
 DEMO_MOCKDATEN = "demo-mockdaten.json"
-# Zusatz zur Umgebungsdatei, solange die Testinstanz Demodaten zeigt; die Unit liest ihn nach der Umgebungsdatei
+# Zusatz zur Umgebungsdatei, solange die Testinstanz Demodaten zeigt. Ein Drop-in der Unit lässt ihn nach der
+# gewöhnlichen Umgebungsdatei lesen (spätere Angaben gelten); die ausgelieferte Unit bleibt unverändert.
+DEMO_DROPIN = """# Kontor – Testinstanz mit Demodaten: Zusatz-Umgebungsdatei nach kontor-test.env lesen.
+# Geschrieben von „python -m kontor.testinstanz demo“, entfernt von „… einrichten“.
+[Service]
+EnvironmentFile=-{env}
+"""
 DEMO_ENV = """# Kontor – Testinstanz mit Demodaten (erfundener Haushalt zum Vorführen).
 # Geschrieben von „python -m kontor.testinstanz demo“, entfernt von „… einrichten“. Nicht von Hand ändern;
 # eigene Einstellungen gehören in kontor-test.env.
@@ -87,6 +93,10 @@ class Orte:
     @property
     def demo_env(self) -> pathlib.Path:
         return self.env.with_name(self.env.stem + "-demo" + self.env.suffix)
+
+    @property
+    def demo_dropin(self) -> pathlib.Path:
+        return self.unit.with_name(self.unit.name + ".d") / "demo.conf"
 
 
 Befehl = Callable[[list[str]], None]
@@ -223,6 +233,15 @@ def betriebsdateien(orte: Orte) -> None:
                 shutil.chown(orte.env, user="root", group=orte.benutzer)
 
 
+def _demo_entfernen(orte: Orte) -> None:
+    for datei in (orte.demo_dropin, orte.demo_env, orte.demo_mockdaten,
+                  orte.demo_mockdaten.with_name(DEMO_MOCKDATEN + ".neu")):
+        with contextlib.suppress(FileNotFoundError):
+            datei.unlink()
+    with contextlib.suppress(OSError):
+        orte.demo_dropin.parent.rmdir()
+
+
 def _programm_einrichten(branch: str, orte: Orte, befehl: Befehl, repository: str) -> None:
     """Branch in ein neues Verzeichnis klonen (scheitert das, bleibt eine laufende Testinstanz unberührt) →
     Testinstanz stoppen → Quellbaum ersetzen und in die eigene Umgebung installieren."""
@@ -235,6 +254,9 @@ def _programm_einrichten(branch: str, orte: Orte, befehl: Befehl, repository: st
     except TestinstanzFehler:
         shutil.rmtree(neu, ignore_errors=True)
         raise
+    # Einstellungen einer früheren Vorführung mit Demodaten zurücknehmen (wieder Anmeldung, eingebaute Mock-Bank);
+    # ``demo`` schreibt sie nach dem Aufbau neu
+    _demo_entfernen(orte)
     betriebsdateien(orte)
     befehl(["systemctl", "daemon-reload"])
     befehl(["systemctl", "stop", DIENST])
@@ -247,12 +269,6 @@ def _programm_einrichten(branch: str, orte: Orte, befehl: Befehl, repository: st
             str(orte.quelle)])
     orte.daten.mkdir(parents=True, exist_ok=True)
     os.chmod(orte.daten, 0o700)
-
-
-def _demo_entfernen(orte: Orte) -> None:
-    for datei in (orte.demo_env, orte.demo_mockdaten, orte.demo_mockdaten.with_name(DEMO_MOCKDATEN + ".neu")):
-        with contextlib.suppress(FileNotFoundError):
-            datei.unlink()
 
 
 def einrichten(branch: str, orte: Orte | None = None, befehl: Befehl | None = None,
@@ -269,7 +285,6 @@ def einrichten(branch: str, orte: Orte | None = None, befehl: Befehl | None = No
     if not quelle_db.is_file():
         raise TestinstanzFehler(f"Die Datenbank der Hauptinstanz ({quelle_db}) gibt es nicht.")
     _programm_einrichten(branch, orte, befehl, repository)
-    _demo_entfernen(orte)    # nach einer Vorführung mit Demodaten: wieder Anmeldung, eingebaute Mock-Bank
     daten_kopieren(quelle_db, orte.datenbank)
     _besitz(orte.daten, orte.benutzer)
     _besitz(orte.datenbank, orte.benutzer)
@@ -289,14 +304,17 @@ def demo(branch: str = "main", orte: Orte | None = None, befehl: Befehl | None =
     befehl = befehl or _ausfuehren
     branch_pruefen(branch)
     _programm_einrichten(branch, orte, befehl, repository)
-    _demo_entfernen(orte)
     _weg(orte.datenbank)     # nie eine Kopie echter Daten liegen lassen, auch wenn der Aufbau scheitert
     _weg(orte.datenbank.with_name(orte.datenbank.name + ".neu"))
     befehl([str(orte.venv / "bin" / "python"), "-m", "kontor.demodaten", str(orte.datenbank),
             str(orte.demo_mockdaten)])
     orte.demo_env.parent.mkdir(parents=True, exist_ok=True)
     orte.demo_env.write_text(DEMO_ENV.format(mockdaten=orte.demo_mockdaten), encoding="utf-8")
-    os.chmod(orte.demo_env, 0o644)
+    orte.demo_dropin.parent.mkdir(parents=True, exist_ok=True)
+    orte.demo_dropin.write_text(DEMO_DROPIN.format(env=orte.demo_env), encoding="utf-8")
+    for datei in (orte.demo_env, orte.demo_dropin):
+        os.chmod(datei, 0o644)
+    befehl(["systemctl", "daemon-reload"])
     _besitz(orte.daten, orte.benutzer)
     for datei in (orte.datenbank, orte.demo_mockdaten):
         if datei.exists():

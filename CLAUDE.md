@@ -92,6 +92,7 @@ nicht mehr. Ein Thread schreibt Tests und Code.
 | `src/kontor/schutz.py` | M7: äußerste ASGI-Hülle: Netz → Sitzung → Herkunft → CSRF → Größe; Sicherheitsköpfe an jeder Antwort |
 | `src/kontor/betrieb/` | M7: ausgelieferte systemd-Units, sysusers, `kontor.env`, Drop-in (Paketdaten) |
 | `src/kontor/testinstanz.py`, `betrieb/kontor-test.*` | Feature testinstanz (D-205): zweite Instanz für einen Entwicklungsbranch (Mock-Modus, bereinigte Datenkopie); Kommandozeile `python -m kontor.testinstanz`; Bedienskript `betrieb/kontor-test.sh` und Anleitung `TESTINSTANZ.md` (D-213) |
+| `src/kontor/demowelt.py`, `demodaten.py` | Feature demodaten (D-285): erfundener Haushalt für die Testinstanz – `demowelt` erzeugt Umsätze und Mails samt Wahrheit (rein, reproduzierbar) und die Mock-Datendatei; `demodaten.aufbauen` baut die Mock-Datenbank nur über die REST-Schnittstelle (ASGI im selben Prozess, simulierte Uhr); Kommandozeile `python -m kontor.demodaten`, aufgerufen von `python -m kontor.testinstanz demo` (`kontor-test demo`, ohne Anmeldung, Zusatz-Umgebungsdatei über ein Drop-in) |
 | `src/kontor/betrieb/kontor-https.sh`, `HTTPS.md` | D-239: Betrieb nur über HTTPS mit Tailscale Serve – `kontor-https einrichten/status/zurueck` stellt Haupt- und Testinstanz um (drei Variablen der Umgebungsdateien, Sicherung `*.vor-https`); `kontor-test.sh` schaltet die Freigabe der Testinstanz ein und aus. Tests mit Attrappen: `tests/test_https_skript_eigen.py` |
 | `src/kontor/__main__.py` | M7: Startmodul `python -m kontor` (ohne Argumente, Logging nach stderr, uvicorn) |
 | `src/kontor/web/` | M8: Hülle `index.html`, Service Worker `sw.js`, Anmeldeseite `anmelden.html`; unter `oeffentlich/` Stile `app.css`, Symbole, Manifest und die ES-Module `app/` (`kern`, `ui`, `baum`, `konto`, `seiten`, `einstellungen`, `haupt`), ohne externe Ressourcen |
@@ -257,6 +258,15 @@ nicht mehr. Ein Thread schreibt Tests und Code.
   `VERZEICHNIS`. Eine neue Einstellung bekommt `data-einstellung="<schlüssel>"` und einen Eintrag im Verzeichnis
   (Titel, Synonyme); Seltenes gehört in `erweitert(…)`. Stand des Bereichs in `staende()` nachführen.
 - Bisherige `data-testid` der Einstellungen nicht umbenennen. Eigener Rauchtest: `tests/test_browser_einstellungen.py`.
+
+## Hinweise zu den Demodaten (Feature `demodaten`, D-285)
+
+- Der Aufbau benutzt nur REST. Ändert ein Feature Anfragen oder Antworten, die `demodaten.py` verwendet, schlägt
+  `tests/core/test_demodaten.py` fehl; dann den Aufbau nachziehen. Neue Funktionen, die sich zeigen lassen
+  sollen, bekommen Stoff in `demowelt.py` (Umsätze, Mails) und einen Schritt in `demodaten.py`.
+- Nur erfundene Angaben (Test-IBANs, `example.invalid`); nie aus einer Datenbank oder Datei lesen.
+- Die ausgelieferte `kontor-test.service` nicht für die Demo ändern (`betrieb.md` 9); Demo-Einstellungen gehören
+  in `testinstanz.DEMO_ENV`.
 
 ## Hinweise zur Versionierung (D-105)
 

@@ -331,3 +331,58 @@ Zusätzlich ausgeliefert im Paket `kontor.betrieb`: `kontor-https.sh`
 `KONTOR_HOST=0.0.0.0`. Geprüft werden nur Vorhandensein, Unterbefehle und
 dass kein Skript `tailscale funnel` aufruft; Ausführen braucht root, systemd
 und Tailscale und wird nicht geprüft.
+
+## 11. Testinstanz mit Demodaten (Feature `demodaten`, D-285)
+
+Für Vorführungen lässt sich die Testinstanz (9) statt mit einer Kopie der Daten mit einem erfundenen Haushalt
+füllen.
+
+### 11.1 Kommandozeile und Bedienskript
+
+- `python -m kontor.testinstanz demo [<Branch>]` (Vorgabe `main`): Branch holen und installieren wie
+  `einrichten`; eine frühere Datenkopie entfernen; mit dem Python der Testinstanz
+  `python -m kontor.demodaten <Mock-Datenbank> <Mock-Datendatei>` ausführen; Zusatz-Umgebungsdatei und Drop-in
+  schreiben; `systemctl daemon-reload`; starten. Die Umgebungsdatei und die Datenbank der Hauptinstanz werden
+  nicht gelesen; es muss sie nicht geben.
+- Zusatz-Umgebungsdatei `/etc/kontor/kontor-test-demo.env`: `KONTOR_ANMELDUNG=0`,
+  `KONTOR_MOCK_DATEN=/var/lib/kontor-test/demo-mockdaten.json`. Drop-in
+  `/etc/systemd/system/kontor-test.service.d/demo.conf` mit `EnvironmentFile=-` auf diese Datei; sie wird nach
+  `kontor-test.env` gelesen, ihre Angaben gelten. Die ausgelieferte Unit bleibt wie in 9.
+- `einrichten` und `stoppen --loeschen` entfernen Zusatz-Umgebungsdatei, Drop-in und Mock-Datendatei.
+- `kontor-test demo [branch]` ruft `demo` auf (Kurzname wie bei `start`, ohne Angabe `main`) und nennt, dass es
+  keine Anmeldung gibt. `kontor-test neu` wiederholt, was zuletzt lief (`start` oder `demo`); `status` nennt die
+  Art der Daten.
+
+### 11.2 Generator `python -m kontor.demodaten`
+
+`python -m kontor.demodaten <Mock-Datenbank> <Mock-Datendatei> [--heute JJJJ-MM-TT] [--monate N]`
+(Vorgaben: heute, 36). Rückgabecode 0 und eine Zeile mit dem Umfang, sonst 1 und eine Meldung auf der
+Fehlerausgabe. Python: `kontor.demodaten.aufbauen(datenbank, mock_datei, heute=None, monate=36) -> dict`,
+`konfiguration(datenbank, mock_datei, **mehr) -> KontorConfig`, `welt(heute, monate=36) -> Welt`.
+
+- Die **Welt** ist eine Funktion von Bezugstag, Zeitraum und festem Startwert (reproduzierbar). Sie reicht von
+  `monate` Monaten vor dem Monat des Bezugstags bis 60 Tage danach. Nur erfundene Angaben: IBANs mit
+  Bankleitzahl 00000000, Mailadressen unter `example.invalid`, keine PIN, keine TAN.
+- Die **Mock-Datendatei** (`plugins.md` 7, Version 1) enthält zwei Bankkonten (Girokonto, Sparbuch) mit
+  Anfangssalden, alle Umsätze und zwei Postfächer mit allen Mails der Welt.
+- Die **Mock-Datenbank** entsteht neu (eine vorhandene Datei wird ersetzt) und nur über die REST-Schnittstelle
+  der Anwendung, mit der simulierten Uhr des Mock-Modus: Stammdaten zum ersten Tag; danach Arbeitsgänge im
+  Abstand von 90 Tagen (Konten abrufen, Mails abrufen, zuordnen, Tags, Belege, bestätigen, Benachrichtigungen
+  lesen), nach jedem Jahreswechsel Jahresabgleich der Kredite, Abstimmung beider Konten zum 31.12. und Status
+  `abgeglichen`; ein letzter voller Arbeitsgang 21 Tage, ein letzter Abruf ohne Nacharbeit 3 Tage vor dem
+  Bezugstag.
+- Mit dem vollen Zeitraum enthält der Bestand: ein Girokonto, ein Sparbuch, zwei Kreditkonten mit je einem
+  Kredit; 14 Kategorien (acht oberste, sechs Unterkategorien); mindestens 2000 Buchungen; mindestens 100
+  gespiegelte Mails in zwei Postfächern, ein Teil als Dokument an Buchungen; Belege als PDF; acht Regeln von
+  Hand und automatisch angelegte; eine Split-Vorlage, zu der die letzten Abschläge nicht mehr passen; Tags;
+  vier geplante Zahlungen, eine überfällig; genau einen offenen Dublettenverdacht (von Hand erfasste Ausgabe,
+  die die Bank noch einmal liefert) und deshalb beim letzten Abruf einen Saldoausgleich im Girokonto; sonst
+  stimmen die Kontostände mit den Salden der Mock-Bank.
+- Offen (`importiert` oder `vorlaeufig`) sind nur Buchungen der letzten Wochen vor dem Bezugstag. Ein Abruf am
+  Bezugstag liefert neue Buchungen und neue Mails.
+- Die Konfiguration des Aufbaus entspricht der ausgelieferten `kontor-test.env` (Umbuchungen, Lernmodell,
+  automatische Regeln, wiederkehrende Buchungen, Bestellnummern, nur Kopfzeilen; kein Mail-Abgleich).
+
+Geprüft: `tests/core/test_demodaten.py`, `tests/test_demodaten_eigen.py`,
+`tests/test_testinstanz_skript_eigen.py`. Nicht prüfbar: der Lauf unter systemd auf dem Server.
+

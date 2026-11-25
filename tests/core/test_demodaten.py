@@ -149,10 +149,13 @@ def test_testinstanz_demo_baut_demodaten_statt_einer_kopie(tmp_path):
         < reihenfolge.index(f"systemctl start {T.DIENST}")
     zusatz = orte.demo_env.read_text(encoding="utf-8")
     assert "KONTOR_ANMELDUNG=0" in zusatz and f"KONTOR_MOCK_DATEN={orte.demo_mockdaten}" in zusatz
-    # Die Unit liest die Zusatzdatei nach der gewöhnlichen Umgebungsdatei (spätere Angaben gelten)
-    unit = orte.unit.read_text(encoding="utf-8")
-    assert unit.index("EnvironmentFile=/etc/kontor/kontor-test.env") < unit.index(
-        "EnvironmentFile=-/etc/kontor/kontor-test-demo.env")
+    # Ein Drop-in lässt die Unit die Zusatzdatei nach der gewöhnlichen Umgebungsdatei lesen (spätere Angaben
+    # gelten); die ausgelieferte Unit selbst bleibt, wie betrieb.md 9 sie festlegt.
+    assert orte.demo_dropin.parent == orte.unit.with_name(T.DIENST + ".d")
+    assert f"EnvironmentFile=-{orte.demo_env}" in orte.demo_dropin.read_text(encoding="utf-8")
+    assert "demo" not in orte.unit.read_text(encoding="utf-8")
+    assert reihenfolge.index("systemctl daemon-reload", befehle.liste.index(aufruf)) \
+        < reihenfolge.index(f"systemctl start {T.DIENST}"), "systemd liest das Drop-in vor dem Start"
 
 
 def test_einrichten_mit_datenkopie_nimmt_die_demo_einstellungen_zurueck(tmp_path):
@@ -164,7 +167,7 @@ def test_einrichten_mit_datenkopie_nimmt_die_demo_einstellungen_zurueck(tmp_path
     db.schema_anlegen(haupt)
     orte.haupt_env.write_text(f"KONTOR_DATENBANK={haupt}\n", encoding="utf-8")
     T.einrichten("feature/x", orte, _Befehle())
-    assert not orte.demo_env.exists() and not orte.demo_mockdaten.exists()
+    assert not orte.demo_env.exists() and not orte.demo_mockdaten.exists() and not orte.demo_dropin.exists()
 
 
 def test_stoppen_mit_loeschen_entfernt_auch_die_demodaten(tmp_path):

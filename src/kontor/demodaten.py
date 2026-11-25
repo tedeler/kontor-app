@@ -27,7 +27,6 @@ import json
 import os
 import pathlib
 import sys
-import urllib.parse
 
 from . import demowelt as W
 from .config import KontorConfig
@@ -154,6 +153,7 @@ class _Aufbau:
         self.mail_von_paypal = {(m.haendler, m.betrag): m.nr for m in w.mails if m.haendler}
         self.erledigte_jahre: set[int] = set()
         self.belege = 0
+        self._mails: dict[str, int] | None = None
 
     # ---------------------------------------------------------------------------------------- Uhr
     def uhr(self, tag: dt.date, stunde: int = 18) -> None:
@@ -265,36 +265,18 @@ class _Aufbau:
 
     def nacharbeiten(self) -> None:
         """Was ein Anwender nach einem Abruf tut: zuordnen, Tags vergeben, Belege anhängen, bestätigen."""
-        r, k = self.r, self.konto
+        r = self.r
         nach_kategorie: dict[int, list[int]] = {}
         nach_tag: dict[int, list[int]] = {}
         fertig: list[int] = []
-        mails = None
+        self._mails = None
         for b, u in self.offene():
-            bid = b["id"]
             if u.merkmal == "abschlag" and len(b["splits"]) < 3:
                 continue      # der Abschlag passt nicht mehr zur Vorlage: bleibt zum Vorführen liegen
-            if u.merkmal == "sondertilgung":
-                r("PUT", f"/api/buchungen/{bid}/kategorie", {"kategorie_id": k["wohnung"], "konto_id": k["giro"]})
-            elif u.kategorie is not None and b["kategorie_id"] != k[u.kategorie]:
-                nach_kategorie.setdefault(k[u.kategorie], []).append(bid)
-            vorhanden = {t["name"] for t in b["tags"]}
-            for name in u.tags:
-                if name not in vorhanden:
-                    nach_tag.setdefault(self.tag_id(name), []).append(bid)
-            if u.merkmal == "beleg":
-                r.hochladen(f"/api/dokumente?buchung_id={bid}", f"Beleg {u.name} {u.datum.isoformat()}.pdf", _beleg(u))
-                self.belege += 1
-            if u.merkmal == "paypal" and bid % 2 == 0:
-                if mails is None:
-                    mails = {m["nachricht_id"]: m["id"] for m in r.seiten("/api/mail/nachrichten")}
-                haendler = u.zweck.rpartition("Ihr Einkauf bei ")[2]
-                nid = mails.get(self.mail_von_paypal.get((haendler, -u.betrag)))
-                if nid is not None:
-                    r("POST", f"/api/mail/nachrichten/{nid}/buchung", {"buchung_id": bid})
-            fertig.append(bid)
-            person = W_PERSONEN[bid % 3 == 0]
-            nach_tag.setdefault(self.tag_id(person), []).append(bid)
+            self._zuordnen(b, u, nach_kategorie, nach_tag)
+            self._anhaengen(b["id"], u)
+            fertig.append(b["id"])
+            nach_tag.setdefault(self.tag_id(PERSONENTAGS[b["id"] % 3 == 0]), []).append(b["id"])
         for kategorie_id, ids in nach_kategorie.items():
             r("POST", "/api/buchungen/mehrfach/kategorie", {"buchung_ids": ids, "kategorie_id": kategorie_id})
         for tag_id, ids in nach_tag.items():
@@ -302,8 +284,33 @@ class _Aufbau:
         if fertig:
             r("POST", "/api/buchungen/mehrfach/aendern", {"buchung_ids": fertig, "status": "bestaetigt"})
         for n in r("GET", "/api/benachrichtigungen"):
-            if not n.get("gelesen_am") and not n.get("gelesen"):
+            if not n.get("gelesen"):
                 r("POST", f"/api/benachrichtigungen/{n['id']}/gelesen")
+
+    def _zuordnen(self, b: dict, u: W.Umsatz, nach_kategorie: dict, nach_tag: dict) -> None:
+        k = self.konto
+        if u.merkmal == "sondertilgung":      # Umbuchung auf das Darlehenskonto
+            self.r("PUT", f"/api/buchungen/{b['id']}/kategorie", {"kategorie_id": k["wohnung"], "konto_id": k["giro"]})
+        elif u.kategorie is not None and b["kategorie_id"] != k[u.kategorie]:
+            nach_kategorie.setdefault(k[u.kategorie], []).append(b["id"])
+        vorhanden = {t["name"] for t in b["tags"]}
+        for name in u.tags:
+            if name not in vorhanden:
+                nach_tag.setdefault(self.tag_id(name), []).append(b["id"])
+
+    def _anhaengen(self, bid: int, u: W.Umsatz) -> None:
+        """Belege als PDF; jede zweite PayPal-Mail von Hand an ihre Buchung (die übrigen bleiben zum Vorführen)."""
+        r = self.r
+        if u.merkmal == "beleg":
+            r.hochladen(f"/api/dokumente?buchung_id={bid}", f"Beleg {u.name} {u.datum.isoformat()}.pdf", _beleg(u))
+            self.belege += 1
+        if u.merkmal == "paypal" and bid % 2 == 0:
+            if self._mails is None:
+                self._mails = {m["nachricht_id"]: m["id"] for m in r.seiten("/api/mail/nachrichten")}
+            haendler = u.zweck.rpartition("Ihr Einkauf bei ")[2]
+            nid = self._mails.get(self.mail_von_paypal.get((haendler, -u.betrag)))
+            if nid is not None:
+                r("POST", f"/api/mail/nachrichten/{nid}/buchung", {"buchung_id": bid})
 
     def jahresabschluss(self, tag: dt.date) -> None:
         """Im neuen Jahr: Jahresabgleich der Kredite und Abstimmung der Konten zum 31.12. des Vorjahres."""
@@ -391,7 +398,7 @@ def _personen() -> tuple[str, str]:
     return personentag(PERSONEN[0]), personentag(PERSONEN[1])
 
 
-W_PERSONEN = _personen()
+PERSONENTAGS = _personen()
 
 
 def _weg(datenbank: pathlib.Path) -> None:
