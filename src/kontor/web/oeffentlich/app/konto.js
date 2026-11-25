@@ -548,6 +548,9 @@ class Kontoansicht {
     this.tiefe = this.tiefeAusUrl(suche);
     this.zugeklappt = new Set();
     this.eintraege = [];
+    this.vorweg = new Map();              // D-289: vorweggenommene Entscheidungen über Vorschläge je Buchung
+    this.vorschlagKette = Promise.resolve();
+    this.vorschlagWartend = 0;
     this.gesamt = 0;
     this.summe = 0;
     this.seiten = 1;
@@ -1744,6 +1747,7 @@ class Kontoansicht {
 
   // ---------------------------------------------------------------- Liste (7.2)
   listeZeichnen() {
+    this.vorwegAnwenden();   // D-289
     const kompakt = oberflaeche.istMobil();
     const sort = this.sortierung;
     const kopf = h("div", { role: "row", class: "liste-kopf" }, this.spalten.map(([feld, text, sortierbar]) => {
@@ -2930,21 +2934,77 @@ class Kontoansicht {
     return typeof w === "number" || w === null ? w : undefined;
   }
 
-  async vorschlag(e, ids, was) {
+  /** D-289: Annehmen und Ablehnen wirken sofort im Blatt; die Anfragen folgen nacheinander im Hintergrund.
+   *  Erst nach der letzten eingereihten Entscheidung wird mit dem Stand des Servers neu geladen. */
+  vorschlag(e, ids, was) {
     if (e) { e.stopPropagation(); }
     const mit = this.eintraege.filter((b) => ids.includes(b.id) && b.vorschlag).map((b) => b.id).sort((a, b) => a - b);
-    if (!mit.length) return;
+    if (!mit.length) return Promise.resolve();
     const offen = was === "annehmen" ? this.unbestaetigte(mit) : [];
-    try {
-      await aktion(async () => {
-        const r = await (mit.length === 1 && e
-          ? api("POST", `/api/buchungen/${mit[0]}/vorschlag`, { aktion: was })
-          : api("POST", "/api/buchungen/mehrfach/vorschlag", { buchung_ids: mit, aktion: was }));
-        await personBestaetigt(offen);   // D-272
-        return r;
-      },
-      { erfolg: was === "annehmen" ? "Vorschlag angenommen." : "Vorschlag abgelehnt." });
-    } catch (f) { /* gemeldet */ }
+    const einzeln = mit.length === 1 && !!e;
+    for (const id of mit) this.vorweg.set(id, { was, tag: offen.includes(id) });
+    this.listeZeichnen();   // nimmt die Wirkung vorweg (vorwegAnwenden)
+    const o = { erfolg: was === "annehmen" ? "Vorschlag angenommen." : "Vorschlag abgelehnt." };
+    // erst am Ende der Anfrage gelesen: kam inzwischen eine weitere Entscheidung dazu, lädt erst diese neu
+    Object.defineProperty(o, "ohneNeuLaden", { get: () => this.vorschlagWartend > 0 });
+    this.vorschlagWartend += 1;
+    const lauf = this.vorschlagKette.then(async () => {
+      this.vorschlagWartend -= 1;
+      try {
+        await aktion(async () => {
+          let r;
+          try {
+            r = await (einzeln
+              ? api("POST", `/api/buchungen/${mit[0]}/vorschlag`, { aktion: was })
+              : api("POST", "/api/buchungen/mehrfach/vorschlag", { buchung_ids: mit, aktion: was }));
+            await personBestaetigt(offen);   // D-272
+          } finally {
+            for (const id of mit) this.vorweg.delete(id);   // ab hier gilt wieder der Stand des Servers
+          }
+          return r;
+        }, o);
+      } catch (f) {
+        // gemeldet. Kam die Anfrage gar nicht zustande oder stehen weitere an, hat noch niemand neu geladen:
+        // die vorweggenommene Wirkung zurücknehmen und den Stand des Servers zeigen
+        const nochVorweg = mit.filter((id) => this.vorweg.delete(id)).length > 0;
+        if (nochVorweg || this.vorschlagWartend > 0) await oberflaeche.neuLaden().catch(() => { /* bleibt bis zum nächsten Laden */ });
+      }
+    });
+    this.vorschlagKette = lauf;
+    return lauf;
+  }
+
+  /** Die noch nicht vom Server bestätigten Entscheidungen auf die geladenen Buchungen anwenden (D-289). */
+  vorwegAnwenden() {
+    if (!this.vorweg.size) return;
+    for (const b of this.eintraege) {
+      const v = this.vorweg.get(b.id);
+      if (v && b.vorschlag) this.vorschlagVorweg(b, v.was, v.tag);
+    }
+  }
+
+  /** Was der Server mit der Buchung tun wird (regeln._entscheiden, D-261, D-272). */
+  vorschlagVorweg(b, was, tag) {
+    const v = b.vorschlag;
+    b.vorschlag = null;
+    const unk = stamm.konten.find((k) => k.extern_id === UNKATEGORISIERT);
+    if (was === "annehmen") {
+      const unkategorisiert = unk && b.splits.some((s) => s.konto_id === unk.id);
+      if (!unkategorisiert && (b.status === "importiert" || b.status === "vorlaeufig")) b.status = "bestaetigt";
+      const name = personLesen();
+      if (tag && name && !b.tags.some((t) => t.name === personTag(name))) {
+        const t = stamm.tags.find((x) => x.name === personTag(name));
+        b.tags = [...b.tags, { id: t ? t.id : 0, name: personTag(name) }];
+      }
+      return;
+    }
+    const ziel = kontoNach(v.vorher_konto_id) ? v.vorher_konto_id : (unk ? unk.id : null);
+    const gegen = gegensplits(b);
+    if (ziel !== null && gegen.length === 1) {
+      gegen[0].konto_id = ziel;
+      if (b.kategorie_id) b.kategorie_id = ziel;
+    }
+    if (b.status === "vorlaeufig") b.status = "importiert";
   }
 
   // ---------------------------------------------------------------- Status und Bearbeiten-Dialog (23.3 bis 23.5)

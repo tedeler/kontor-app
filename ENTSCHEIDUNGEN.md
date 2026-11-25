@@ -4318,3 +4318,25 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   Pfeiltasten, Bild↑, Pos1 und jeden anderen Sprung auf eine Zeile.
 - **Tests:** `tests/test_browser_tastatur.py::test_pfeil_nach_oben_zeigt_die_erste_buchung_unter_dem_spaltenkopf`
   (40 und 700 Buchungen), `tests/core/test_tastatur.py`.
+
+## D-289 Vorschlag annehmen und ablehnen wirken sofort (Feature `tastatur`, 2026-11-25)
+
+- **Anlass:** Meldung vom 2026-11-25: Das Bestätigen einer Kategorieempfehlung mit dem Haken und das Ablehnen
+  dauern zu lange; die Oberfläche muss sofort reagieren.
+- **Ursache:** Je Entscheidung liefen nacheinander: Stand des Änderungsprotokolls lesen, Vorschlag entscheiden,
+  Bestätigungs-Tag setzen, neue Änderungen lesen, Stammdaten und Liste neu laden. Erst danach änderte sich die
+  Zeile.
+- **Entscheidung:** Das Kontoblatt nimmt die Wirkung vorweg und zeichnet sofort: Vorschlag weg; beim Annehmen
+  Status bestätigt und das Tag der gewählten Person, beim Ablehnen die vorherige Kategorie und `vorlaeufig` wieder
+  `importiert` (dieselben Regeln wie `regeln._entscheiden`, D-261, D-272). Die Anfragen laufen danach im
+  Hintergrund, eine Entscheidung nach der anderen, damit jede ihr eigener Rückgängig-Schritt bleibt. Neu geladen
+  wird erst nach der letzten eingereihten Entscheidung; ein Neuladen dazwischen (etwa durch den Planer) behält die
+  noch offenen Entscheidungen bei. Gilt für Haken und Kreuz in der Zeile, `a`/`A`, Kontextmenü, Einzelheiten und
+  die Mehrfachleiste.
+- **Fehler:** Lehnt der Server ab, erscheint die Meldung wie bisher und die Zeile zeigt wieder den Stand des
+  Servers.
+- **Grenzen:** Summen im Kopf und die Erfolgsmeldung mit „Rückgängig“ folgen erst mit der Antwort des Servers.
+  Strg+Z unmittelbar nach dem Klick nimmt die Entscheidung erst zurück, wenn sie beim Server angekommen ist
+  (bestehende Reihung, D-122). Andere Aktionen (Kategorie setzen, Status, Tags) warten weiter auf den Server.
+- **Tests:** `tests/core/test_vorschlag_sofort.py`, `tests/test_browser_vorschlag_sofort.py` (Server je Anfrage um
+  0,6 Sekunden verzögert; die Zeile ändert sich in unter 0,4 Sekunden).
