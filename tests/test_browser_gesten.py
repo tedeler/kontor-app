@@ -70,8 +70,16 @@ def test_gesten_im_kontoblatt(tmp_path, browser):
         expect(tid(page, "panel-details")).to_have_count(0)
         page.wait_for_timeout(450)
 
-        # Lang tippen: Kontextmenü als Blatt – Einzelheiten, Mehrfachauswahl, dann die Einträge des Desktops
+        # D-282: lange Berührung auf der eben noch rollenden Liste (mit dem Finger angehalten) öffnet kein Menü
         x, y = _mitte(zweite)
+        page.evaluate("() => document.dispatchEvent(new Event('scroll'))")
+        cdp.send("Input.dispatchTouchEvent", {"type": "touchStart", "touchPoints": [{"x": x, "y": y}]})
+        page.wait_for_timeout(700)
+        cdp.send("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []})
+        expect(tid(page, "kontextmenue")).to_have_count(0)
+        page.wait_for_timeout(400)
+
+        # Lang tippen: Kontextmenü als Blatt – Einzelheiten, Mehrfachauswahl, dann die Einträge des Desktops
         cdp.send("Input.dispatchTouchEvent", {"type": "touchStart", "touchPoints": [{"x": x, "y": y}]})
         expect(tid(page, "kontextmenue")).to_be_visible()
         cdp.send("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []})

@@ -3260,7 +3260,7 @@ Desktop-Layout (auch mit Touch) ändert sich nichts. Löst 36.3.1, 36.3.2 und 36
 | --- | --- |
 | kurz tippen | Markiert genau diese Zeile: sie trägt `data-markiert` (sichtbar hervorgehoben), jede andere verliert es. `aria-selected` bleibt `false`, es öffnet sich nichts, `data-auswahlmodus` wird nicht `ja`. |
 | Doppeltipp | Zweiter Tipp auf dieselbe Zeile innerhalb von 400 ms: öffnet die Einzelheiten (`panel-details`, 16.3). Der erste Tipp markiert sofort. Seit D-281 zählt ein Tipp dafür nur, wenn in den 500 ms davor nichts gerollt wurde, und beide Tipps liegen höchstens 24 px auseinander – schnelles Rollen mit wiederholtem Ansetzen öffnet nichts. |
-| lang tippen (≥ 500 ms) | Kontextmenü als Blatt (36.5) für genau diese Zeile; es entsteht keine Auswahl. Einträge: `km-details` („Einzelheiten“), `km-auswahl` („Mehrfachauswahl“), danach die Einträge des Desktop-Kontextmenüs (8.2) in gleicher Reihenfolge. `km-auswahl` beginnt den Auswahlmodus (36.3.3) mit dieser Zeile. |
+| lang tippen (≥ 500 ms) | Kontextmenü als Blatt (36.5) für genau diese Zeile; es entsteht keine Auswahl. Einträge: `km-details` („Einzelheiten“), `km-auswahl` („Mehrfachauswahl“), danach die Einträge des Desktop-Kontextmenüs (8.2) in gleicher Reihenfolge. `km-auswahl` beginnt den Auswahlmodus (36.3.3) mit dieser Zeile. Seit D-282 nur, wenn in den 500 ms vor der Berührung und während ihr nichts gerollt wurde – wer die rollende Liste mit dem Finger anhält, öffnet kein Menü. |
 | nach rechts wischen | Bestätigt die Buchung als die gewählte Person (wie `km-bestaetigen`), ohne Nachfrage. |
 | nach links wischen | Kategorie-Auswahl (9.1) mit Suche und „Neue Kategorie“ (unverändert). |
 

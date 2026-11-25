@@ -148,6 +148,7 @@ const WISCH_WEG = 80;     // Mindestweg einer Wischgeste (16.4)
 const WISCH_QUER = 40;    // höchstens so weit senkrecht
 const DOPPELTIPP_MS = 400;        // zweiter Tipp auf dieselbe Zeile in dieser Zeit öffnet die Einzelheiten (D-278)
 const TIPP_RUHE_MS = 500;         // so lange nach dem letzten Rollen zählt ein Tipp nicht für den Doppeltipp (D-281)
+const LANG_MS = 500;              // Dauer der langen Berührung (`langeBeruehrung` in baum.js)
 const TIPP_ABSTAND = 24;          // höchstens so weit (px) liegen die beiden Tipps eines Doppeltipps auseinander
 const WISCH_RUECK_MS = 3000;      // so lange bietet die Zeile nach dem Bestätigen „Rückgängig“ an (D-278)
 const STATUS = ["importiert", "vorlaeufig", "bestaetigt", "abgeglichen"];
@@ -2203,6 +2204,9 @@ class Kontoansicht {
     langeBeruehrung(this.liste, (t) => zeileVon(t), (z, x, y) => {
       const id = Number(z.dataset.id);
       if (oberflaeche.istMobil()) {
+        // D-282: nicht, wenn die Liste kurz vor oder während der Berührung gerollt ist (rollende Liste mit dem
+        // Finger angehalten oder langsam geschoben) – sonst öffnete Rollen das Menü
+        if (performance.now() - letztesRollen < LANG_MS + TIPP_RUHE_MS) return;
         // D-278: Kontextmenü als Blatt. Ohne Auswahlmodus gilt es nur dieser Zeile (es entsteht keine Auswahl);
         // im Auswahlmodus der Auswahl, zu der die Zeile dann gehört.
         try { if (navigator.vibrate) navigator.vibrate(12); } catch (e) { /* ohne Vibration */ }
