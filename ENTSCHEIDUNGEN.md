@@ -4053,3 +4053,39 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - **Grenzen:** Gemessen nur in Chrome. Auf einem iPhone (Safari) nicht geprüft; ältere Safari-Versionen kennen
   keinen Scroll-Anker, dort hätte der Fehler eine andere Ursache. Kein Browsertest dafür (der Browser-Job liegt
   schon über dem Budget); der Core-Test `tests/core/test_liste_scrollanker.py` sichert nur, dass die Angabe bleibt.
+
+## D-276 Offline-Hinweis verschwindet von selbst, auch ohne `online`-Ereignis (Feature `offline-rueckkehr`, 2026-11-25)
+
+- **Anlass:** Fehlermeldung vom 2026-11-25: Am Handy steht nach jeder Rückkehr des Browsers aus dem Hintergrund
+  „Keine Verbindung zum Server – Kontor ist offline“ über einer leeren Seite; erst Neuladen von Hand hilft.
+- **Ursache:** Jede gescheiterte Anfrage setzt den Offline-Zustand (auch die minütliche Abfrage der
+  Benachrichtigungen). Aufgehoben wurde er nur durch das Ereignis `online`. Das kommt nicht, wenn das Gerät selbst
+  nie offline war. Warum die Anfrage beim Zurückholen scheitert, ist auf dem Handy nicht nachgestellt (vermutet:
+  eingefrorene Seite, abgebaute Verbindung).
+- **Entscheidung:** Im Offline-Zustand prüft die Oberfläche die Verbindung selbst (`verbindungPruefen` in
+  `app/haupt.js`, `GET /api/anmeldung`): nach 1 s, dann in verdoppelten Abständen bis höchstens 30 s, nur bei
+  sichtbarer Seite; sofort bei `visibilitychange` (sichtbar), `pageshow` und `online`. Bei Erfolg wie bisher nach
+  `online`: Hinweis weg, Seite und Benachrichtigungen laden. Jeder Fehler der Prüfung (auch eine Antwort des
+  Proxys ohne JSON) gilt als „weiter offline“.
+- **Nicht geändert:** Im Offline-Zustand zeigt die Seite weiter keine Daten (`oberflaeche.md` 18); nach einer
+  einzelnen gescheiterten Anfrage ist sie also kurz leer, bevor sie neu lädt.
+- **Prüfung:** Core-Test `tests/core/test_offline_rueckkehr.py`; Browsertest `tests/test_browser_offline.py`
+  (Anfragen an `/api/` scheitern bei `navigator.onLine = true`; vor der Korrektur rot). Auf einem echten Handy
+  nicht geprüft.
+
+## D-277 Offline bleibt die geladene Seite stehen (Feature `offline-rueckkehr`, 2026-11-25)
+
+- **Anlass:** Wunsch vom 2026-11-25 zu D-276: Die Seite soll im Offline-Zustand nicht mehr geleert werden. Am
+  Handy genügt eine gescheiterte Anfrage nach der Rückkehr aus dem Hintergrund, und die Seite war leer.
+- **Entscheidung:** Ersetzt in D-276 den Punkt „Nicht geändert“ und in `oberflaeche.md` 18 / 27.1.4 „keine
+  veralteten Daten“. Der Offline-Zustand leert weder die aktive Seite noch die offenen Tabs (`Tabs.alleVerwerfen`
+  entfällt). Der Hinweis lautet jetzt „… Angezeigte Daten können veraltet sein; sie werden neu geladen, sobald die
+  Verbindung zurück ist.“ Geladene Tabs lassen sich offline zeigen. Nach der Rückkehr lädt die aktive Seite wie
+  nach einer Änderung neu (`zeigen({ behalten: true })`: Auswahl und Rollposition bleiben), die anderen Tabs beim
+  nächsten Zeigen.
+- **Grenzen:** Eine Seite, die offline erst angefordert wird (neuer Tab, anderer Abfrageteil, Neuladen des
+  Browsers), zeigt weiter nur ihre Überschrift. Schreibende Aktionen scheitern offline wie bisher ohne eigene
+  Meldung (der Hinweis genügt).
+- **Prüfung:** Core-Test `tests/core/test_offline_rueckkehr.py`; Browsertest `tests/test_browser_offline.py`
+  (Seite unverändert während des Hinweises, danach neue Anfrage an `/api/konten`). Der abgewählte Gesamttest
+  `m8/test_m8_thema_pwa.py::test_offline_huelle_und_keine_daten` ruft die Seite offline neu auf und gilt weiter.

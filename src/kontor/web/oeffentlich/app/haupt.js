@@ -315,7 +315,7 @@ async function tabZeigen(t, route, o) {
   if (t.layout !== app.dataset.layout && t.seite && t.seite.layoutGeaendert) t.seite.layoutGeaendert();
   t.layout = app.dataset.layout;
   if (o.inApp && !o.vonTab && t.seite && t.seite.wiederAngefordert) t.seite.wiederAngefordert();
-  if (t.veraltet) {
+  if (t.veraltet && !offline) {   // offline bleibt der Tab stehen; die Rückkehr lädt ihn neu (D-277)
     t.veraltet = false;
     if (t.seite && t.seite.aktualisieren) {
       try { await stammLaden(); await t.seite.aktualisieren(); } catch (e) { behandeln(e); }
@@ -357,7 +357,7 @@ async function zeigen(optionen) {
   if (o.behalten) tabs.andereVeraltet(aktuell);
   if (aktuell !== offen || !o.behalten) tabs.verlassen();
   // Wechsel zu einem offenen Tab: Zustand bleibt, solange der Abfrageteil passt
-  if (!o.behalten && !o.erneut && offen && offen !== aktuell && offen.geladen && offen.el && offen.suche === suche && !offline) {
+  if (!o.behalten && !o.erneut && offen && offen !== aktuell && offen.geladen && offen.el && offen.suche === suche) {
     if (await tabZeigen(offen, route, o)) return;
   }
   const tab = tabs.holen(pfad, suche);
@@ -932,25 +932,51 @@ function offlineSetzen(ja) {
   if (ja === offline) return;
   offline = ja;
   offlineHinweis.hidden = !ja;
+  clearTimeout(pruefTimer);
   if (ja) {
-    // keine veralteten Daten zeigen
-    if (aktuell && aktuell.el) {
-      const leer = h("section", { class: `seite seite-${aktuell.name}`, tid: `seite-${aktuell.name}`, "data-geladen": "nein" },
-        h("h1", null, titelVon(aktuell.name)));
-      haupt.replaceChildren(leer);
-      tabs.alleVerwerfen();
-      Object.assign(aktuell, { el: leer, seite: null, geladen: false });
-    }
+    // D-277: Geladene Seiten und Tabs bleiben stehen (der Hinweis nennt sie veraltet); nach der Rückkehr laden sie neu.
+    pruefWartezeit = 1000;
+    pruefungPlanen();
   }
 }
+
+// Rückkehr (D-276): Der Hinweis erscheint auch, wenn nur eine Anfrage scheitert (Handy: Seite war im Hintergrund
+// eingefroren). Das Ereignis „online“ kommt dann nie; deshalb prüft die Oberfläche die Verbindung selbst – in
+// wachsenden Abständen und sofort, wenn die Seite wieder sichtbar wird.
+const PRUEF_HOECHSTENS = 30000;
+let pruefTimer = null;
+let pruefWartezeit = 1000;
+let pruefung = null;
+
+function pruefungPlanen() {
+  clearTimeout(pruefTimer);
+  if (!offline || document.visibilityState === "hidden") return;   // verborgen: „visibilitychange“ prüft
+  pruefTimer = setTimeout(verbindungPruefen, pruefWartezeit);
+  pruefWartezeit = Math.min(pruefWartezeit * 2, PRUEF_HOECHSTENS);
+}
+
+function verbindungPruefen() {
+  if (!offline) return Promise.resolve();
+  if (!pruefung) {
+    clearTimeout(pruefTimer);
+    pruefung = (async () => {
+      try { await anmeldungLaden(); } catch (e) { pruefungPlanen(); return; }   // weiter offline (auch 502 des Proxys)
+      offlineSetzen(false);
+      // geladene Seite: mit dem Stand des Servers neu laden, Auswahl und Rollposition bleiben; andere Tabs veralten
+      await zeigen(aktuell && aktuell.geladen ? { behalten: true } : undefined);
+      await benachrichtigungenZaehlen();
+      sperrStatusPruefen();
+    })().finally(() => { pruefung = null; });
+  }
+  return pruefung;
+}
+const sofortPruefen = () => { if (offline && document.visibilityState !== "hidden") verbindungPruefen(); };
+
 beiOffline(() => offlineSetzen(true));
 window.addEventListener("offline", () => offlineSetzen(true));
-window.addEventListener("online", async () => {
-  offlineSetzen(false);
-  try { if (!anmeldung.geladen) await anmeldungLaden(); } catch (e) { behandeln(e); return; }
-  await zeigen();
-  await benachrichtigungenZaehlen();
-});
+window.addEventListener("online", sofortPruefen);
+window.addEventListener("pageshow", sofortPruefen);
+document.addEventListener("visibilitychange", sofortPruefen);
 
 // ------------------------------------------------------------------ Start
 // ------------------------------------------------------------------ D-129: gesperrte Geheimnisse

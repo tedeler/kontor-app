@@ -899,9 +899,20 @@ Wechsel geschieht ohne Neuladen.
   in Caches mit dem Namenspräfix `kontor-` ab. Navigationen: zuerst Netz,
   bei Netzfehler die zwischengespeicherte Hülle. Ohne Netz zeigt die
   Oberfläche `offline-hinweis` (`role="status"`, Text enthält „offline“
-  ohne Beachtung der Groß-/Kleinschreibung) und keine veralteten Daten;
-  kommt das Netz zurück, verschwindet der Hinweis und die Seite lädt ihre
-  Daten.
+  ohne Beachtung der Groß-/Kleinschreibung). Eine bereits geladene Seite
+  bleibt dabei stehen; der Hinweis sagt, dass die angezeigten Daten veraltet
+  sein können (D-277, vorher: keine veralteten Daten, die Seite wurde
+  geleert). Eine Seite, die offline erst angefordert wird, zeigt nur ihre
+  Überschrift. Kommt das Netz zurück, verschwindet der Hinweis und die Seite
+  lädt ihre Daten neu; Auswahl und Rollposition bleiben wie bei 7.4.
+- **Rückkehr ohne `online` (D-276):** Der Hinweis erscheint auch, wenn nur
+  eine Anfrage an den Server scheitert, das Gerät aber online bleibt (Handy:
+  Seite war im Hintergrund eingefroren; Server kurz nicht erreichbar). Die
+  Oberfläche prüft dann die Verbindung selbst mit `GET /api/anmeldung`: in
+  wachsenden Abständen (ab 1 s, höchstens 30 s, nur bei sichtbarer Seite) und
+  sofort bei `visibilitychange` (sichtbar), `pageshow` und `online`. Gelingt
+  die Prüfung, verschwindet der Hinweis und die Seite lädt ihre Daten, ohne
+  Neuladen von Hand.
 - **Keine Daten im Browser:** Antworten unter `/api/` werden nie in
   Caches abgelegt. `localStorage`/`sessionStorage` enthalten nur Schlüssel
   mit dem Präfix `kontor.` ohne Texte aus dem Buchbestand; IndexedDB wird
@@ -1612,8 +1623,9 @@ Sicherung. Tests: `tests/app/m17/`.
   geladener anderer Tab zeigt dann den Stand des Servers (Zahlen, Beträge,
   Zeilen) und behält Filter, Sortierung und – soweit die Buchungen noch
   vorhanden sind – die Auswahl.
-- Offline (18) werden in inaktiven Tabs keine veralteten Daten gezeigt;
-  nach der Rückkehr laden sie beim Zeigen neu.
+- Offline (18) behalten geladene Tabs ihren Stand und lassen sich zeigen
+  (D-277, vorher: verworfen); nach der Rückkehr lädt der aktive Tab sofort
+  neu, die anderen beim nächsten Zeigen.
 
 #### 27.1.5 Schließen und Wiederöffnen
 
