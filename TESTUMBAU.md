@@ -112,6 +112,7 @@ Im Ausgangsstand schlugen 19 Tests der Abnahmesuite und 3 eigene fehl. Kein Anwe
 | Test | Ursache | Änderung |
 | --- | --- | --- |
 | `m13/test_m13_oberflaeche` (2), `m8/test_m8_auslieferung` (1), `m8/test_m8_grundgeruest` (2), eigene `test_browser.py::test_ueber_fenster`, `test_versionierung_eigen.py::test_huelle_zeigt_version_in_der_navigation` | Auf einem Feature-Branch zeigt die App den Branch statt der Version; die Tests liefen nur auf main grün | Beide Suiten setzen den Branch für Tests außer Kraft (`_ohne_branch` bzw. `tests/conftest.py`) |
+| `m8/test_m8_panels_mobil.py::test_wischen_links_setzt_kategorie_und_rueckgaengig` | D-290: Die Zeile zeigt die Kategorie sofort; das Attribut der Zeile ist kein Zeichen mehr dafür, dass neu geladen ist | wartet zusätzlich auf `data-ausstehend="0"` an `seite-konto`, bevor es mit den Zeilen weiterarbeitet |
 | `test_buchungen.py::test_kategorie_setzen_fehler` | D-242: Bestandskonto ist als Ziel zulässig | erwartet `konto_ungueltig` für das eigene Konto, `kategorie_ungueltig` nur noch für Eigenkapital |
 | `test_mehrfach.py::test_kategorie_ziel_ungueltig` (2 Varianten), `test_kategorie_pruefreihenfolge`, `test_mehrfach_kategorie_gegen_modell` | D-242 | Bestandskonten als ungültiges Ziel entfernt bzw. durch Eigenkapital ersetzt |
 | `test_plugins.py::test_nur_lesende_oeffentliche_methoden` (2), `m6/test_m6_paket.py::test_oeffentliche_methoden` | D-243: Mail-Plugin hat `koepfe` und `inhalte` | erwartete Methodenmenge ergänzt |

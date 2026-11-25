@@ -289,6 +289,24 @@ nicht mehr. Ein Thread schreibt Tests und Code.
 - Filter der Kontoansicht über `urlSchreiben` melden sich mit `oberflaeche.urlGeaendert()` beim Tab.
 - Browser-Speicher nur in `try` lesen/schreiben (M17 1.6).
 
+## Hinweise zur Tastaturbedienung (Feature `tastatur`, D-287)
+
+- Bereichswechsel mit der Vortaste `w` und F6 liegt in `app/haupt.js` (`BEREICH_ZIELE`, `bereichTaste`). Eine Seite
+  mit eigenen Bereichen bietet `bereiche()` an: Liste aus `{ taste, text, tun, el }` in der Reihenfolge von F6
+  (Vorbild `konto.js`). Hinweis, Hilfe und Befehlspalette lesen dieselbe Liste.
+- `w` darf auf keiner Seite ein Kürzel ohne Vortaste werden.
+
+## Hinweise zur sofortigen Wirkung im Kontoblatt (D-289, D-290)
+
+- Aktionen auf Buchungen im Kontoblatt laufen über `Kontoansicht.sofort(ids, patch, ausfuehren, optionen)` statt
+  direkt über `aktion()`: `patch(b)` ändert die geladene Buchung so, wie es der Server tun wird (Regeln dort
+  nachlesen und in `tests/core/test_aktionen_sofort.py` gegen die REST-Schnittstelle absichern), `ausfuehren()`
+  schickt die Anfragen. Steht die Wirkung nicht fest, ein leerer `patch`.
+- Werte für die Anfrage (z. B. „welche Buchungen sind noch unbestätigt“) vor dem Aufruf von `sofort` bestimmen;
+  danach sind die geladenen Buchungen schon geändert.
+- Neue Tags über `tagHolen` (`kern.js`) anlegen. Browsertests warten nach solchen Aktionen auf
+  `data-ausstehend="0"` an `seite-konto`, bevor sie mit Zeilen weiterarbeiten.
+
 ## Codequalität vor jedem Meilenstein
 
 - **Vor Beginn jedes neuen Meilensteins** die Codequalitätsanalyse nach

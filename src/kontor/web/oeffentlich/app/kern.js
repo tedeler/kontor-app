@@ -169,13 +169,24 @@ export function personLesen() {
   } catch { /* ohne Speicher */ }
   return personImSpeicher;
 }
+/** Tag mit diesem Namen: aus dem Stamm (`finden` wählt ihn, sonst der gleiche Name) oder neu angelegt. Ein neuer Tag
+ *  steht sofort im Stamm, damit die nächste eingereihte Aktion ihn kennt, bevor neu geladen ist (D-290). */
+export async function tagHolen(name, finden) {
+  const suchen = finden || ((n) => stamm.tags.find((x) => x.name === n));
+  let t = suchen(name);
+  if (!t) {
+    t = await api("POST", "/api/tags", { name });
+    if (!stamm.tags.some((x) => x.id === t.id)) stamm.tags.push(t);
+  }
+  return t;
+}
+
 /** D-272: Wer von Hand zuordnet, bestätigt – das Tag der oben rechts gewählten Person kommt an die Buchungen.
  *  Innerhalb von `aktion()` aufrufen (ein Rückgängig-Schritt mit der Zuordnung); ohne gewählte Person ohne Wirkung. */
 export async function personBestaetigt(ids) {
   const name = personLesen();
   if (!name || !ids || !ids.length) return;
-  let t = stamm.tags.find((x) => x.name === personTag(name));
-  if (!t) t = await api("POST", "/api/tags", { name: personTag(name) });
+  const t = await tagHolen(personTag(name));
   await api("POST", "/api/buchungen/mehrfach/tags", {
     buchung_ids: ids.slice().sort((a, b) => a - b), hinzufuegen: [t.id], entfernen: [] });
 }

@@ -565,6 +565,39 @@ Fokus in einer Texteingabe, einem Auswahlfeld oder einem Editor liegt.
 | Alt+1 … Alt+8 | die ersten acht Navigationsziele (3) in dieser Reihenfolge |
 | Esc | oberste Ebene schließen (Menü, Dialog, Palette, mobiles Menü); sonst Auswahl leeren |
 
+### 12.1a Bereich wechseln: Vortaste `w` und F6 (D-287)
+
+`w` und danach eine zweite Taste setzen den Fokus in einen Bereich der Oberfläche oder wechseln den Tab. Die
+Vortaste wirkt auf jeder Seite, aber wie die übrigen einbuchstabigen Kürzel nicht in Texteingaben, Auswahlfeldern,
+Dialogen und Menüs. Ist im Kontoblatt eine Vortaste `f` oder `v` offen, gehört die nächste Taste zu ihr (`f w`).
+
+| Folge | Wirkung |
+| --- | --- |
+| `w b` | Blatt der Seite: im Kontoblatt das Buchungsblatt (zuletzt fokussierte Buchung, sonst die erste), sonst das erste Bedienelement der Seite |
+| `w e` | nur Kontoblatt: Einzelheiten (`panel-details`); ein eingeklapptes Panel klappt auf; Fokus auf dem ersten Bedienelement, sonst auf dem Inhalt |
+| `w f` | nur Kontoblatt: Filterausdruck (`ausdruck-filter`) |
+| `w n` | Navigation: Fokus auf dem Eintrag der aktuellen Seite, sonst dem ersten; Pfeil auf/ab, Pos1, Ende bewegen den Fokus, Enter öffnet |
+| `w t` | Tab-Leiste: Fokus auf dem aktiven Tab (Pfeile, Enter, Entf wie M17) |
+| `w s` | Suche (`suche-feld`) |
+| `w 1` … `w 9` | Tab mit dieser Nummer in der Leiste |
+| `w ←` / `w →` | vorheriger / nächster Tab (reihum) |
+| `w z` | zuletzt aktiver Tab |
+| `w x` | aktuellen Tab schließen |
+
+- Nach `w` erscheint `kuerzel-hinweis` (`data-vortaste="w"`) mit den Zielen der aktuellen Seite. Esc bricht ab,
+  Umschalt allein bricht nicht ab, eine unbelegte zweite Taste wird gemeldet („„w q“ ist nicht belegt.“).
+- Nach einem Tabwechsel über `w` liegt der Fokus im Blatt der gezeigten Seite. Gibt es den Tab nicht, erscheint
+  ein Hinweis.
+- **F6** / **Umschalt+F6** setzen den Fokus in den nächsten bzw. vorherigen Bereich, auch aus einer Texteingabe:
+  Navigation → Tab-Leiste → Bereiche der Seite (Kontoblatt: Filter → Buchungsblatt → Einzelheiten) → Navigation.
+  Bei offenem Dialog oder Menü ohne Wirkung.
+- **Esc** in Navigation oder Tab-Leiste führt ins Blatt der Seite, in den Einzelheiten des Kontoblatts ins
+  Buchungsblatt.
+- Der Bereich mit dem Fokus trägt die Klasse `bereich-aktiv` (Navigation, Tab-Leiste, Filter, Buchungsblatt,
+  Einzelheiten) und ist sichtbar hervorgehoben.
+- Die Tastaturhilfe zeigt die Tabelle `tastatur-hilfe-bereiche`; die Befehlspalette hat je Ziel einen Eintrag
+  „Bereich: <Text> [w <Taste>]“.
+
 ### 12.2 Kürzel der Buchungsliste (Fokus in der Liste)
 
 Pfeiltasten, Pos1, Ende, Leertaste, Strg+A und Umschalt-Varianten nach 7.4;
@@ -3302,3 +3335,28 @@ Desktop-Layout (auch mit Touch) ändert sich nichts. Löst 36.3.1, 36.3.2 und 36
 - `ausgleich-zusammenfuehren` führt zusammen (über `aktion()`, mit Rückgängig); `ausgleich-getrennt` merkt die
   Entscheidung auf dem Server; `ausgleich-spaeter`, Esc oder das Schließen lassen alles stehen – dann fragt die
   Oberfläche erst nach dem nächsten Laden der Anwendung wieder. Der Fokus liegt anfangs auf `ausgleich-spaeter`.
+
+## 45. Kontoblatt: Änderungen wirken sofort (D-289, D-290)
+
+Im Kontoblatt zeigt die Liste die Wirkung der folgenden Aktionen, noch bevor der Server geantwortet hat:
+
+| Aktion | sofort sichtbar |
+| --- | --- |
+| Vorschlag annehmen (Zeile, `a`, Kontextmenü, Einzelheiten, Mehrfachleiste) | `data-vorschlag="nein"`, Status Bestätigt (aus Importiert/Vorläufig), Tag der gewählten Person |
+| Vorschlag ablehnen | `data-vorschlag="nein"`, vorherige Kategorie, Vorläufig wird Importiert |
+| Kategorie setzen (`k`, Zelle, Kontextmenü, Mehrfachleiste, Einzelheiten, Ziehen, Wischen) | Kategorie, Vorschlag weg, Status Bestätigt, Tag der Person – nur bei einer Kategorie als Ziel und Buchungen mit genau einer Gegenseite |
+| Status setzen (`s`, Mehrfachleiste) | Status; Bestätigt und Abgeglichen entfernen den Vorschlag |
+| Als Person bestätigen / zurücknehmen (`b`, Kontextmenü, Einzelheiten, Wischen) | Tag der Person, Status Bestätigt |
+| Tag hinzufügen / entfernen im Fenster `tag-auswahl` aus dem Kontoblatt | Tag in der Zeile; das Fenster schließt beim Hinzufügen und Entfernen über die Knöpfe sofort |
+
+- Die Anfragen laufen im Hintergrund nacheinander in der Reihenfolge der Aktionen; jede bleibt ein eigener
+  Rückgängig-Schritt. Neu geladen wird nach der letzten eingereihten Aktion.
+- Die Seite `seite-konto` trägt `data-ausstehend`: Zahl der Aktionen, deren Anfrage samt Neuladen noch nicht
+  abgeschlossen ist (`0` = das Blatt zeigt den Stand des Servers).
+- Entspricht der Stand des Servers nach dem Neuladen genau dem gezeigten, werden die Zeilen nicht neu gezeichnet.
+  Weicht er ab (z. B. weil ein Verdacht an anderen Buchungen entfällt), wird neu gezeichnet.
+- Lehnt der Server ab, erscheint die Fehlermeldung als Meldung, und das Blatt zeigt wieder den Stand des Servers.
+- Ein vorweg gezeigter neuer Tag trägt bis zur Antwort `data-tag-id="0"`.
+- Nicht vorweggenommen: Umbuchung auf ein Bestandskonto, gesplittete Buchungen, Löschen, Splitten,
+  Inline-Bearbeitung, „Bearbeiten…“ mit mehreren Feldern, Summen im Kopf des Blatts, die Erfolgsmeldung.
+

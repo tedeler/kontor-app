@@ -294,11 +294,11 @@ class NichtGefunden extends Error {}
 // Jede Ansicht ist ein Tab (Schlüssel: Pfad ohne Abfrageteil). Ein offener Tab behält DOM und Seitenobjekt; beim
 // Wechsel wird nur das DOM getauscht. Eine Änderung am Buchbestand markiert die übrigen Tabs als veraltet; sie laden
 // beim nächsten Zeigen mit dem Stand des Servers neu.
+let tabsNavigation = Promise.resolve();   // Navigation nach dem Schließen des aktiven Tabs (D-287)
 const tabs = new Tabs(tid("tab-leiste"), haupt, {
   beiWahl: (t) => gehe(t.pfad + t.suche, false, { vonTab: true }),
   beiSchliessen: (t, naechster) => {
-    if (naechster) gehe(naechster.pfad + naechster.suche, true);
-    else gehe("/", true);
+    tabsNavigation = naechster ? gehe(naechster.pfad + naechster.suche, true) : gehe("/", true);
   },
 });
 oberflaeche.urlGeaendert = () => tabs.urlGeaendert();
@@ -903,6 +903,155 @@ const BEFEHLE = [
   ["abmelden", "Abmelden", () => abmelden(), () => anmeldung.aktiv],
 ];
 
+// ------------------------------------------------------------------ Bereichswechsel: Vortaste w und F6 (D-287)
+// „w“ und danach eine Taste setzen den Fokus in einen Bereich der Oberfläche oder wechseln den Tab. Die Seite
+// kann eigene Bereiche melden (`seite.bereiche()`: Taste, Text, Wirkung, Element); sie gehen den allgemeinen vor.
+const BEREICH_VORTASTE = "w";
+const FOKUSSIERBAR = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+const BEREICH_ZIELE = [
+  ["n", "Navigation", () => navFokus(), () => navigation],
+  ["t", "Tab-Leiste (Pfeile wechseln, Enter zeigt, Entf schließt)", () => tabLeisteFokus(), () => tabs.leiste],
+  ["b", "Blatt der Seite", () => blattFokus(), () => haupt],
+  ["s", "Suche", () => tid("suche-feld").focus()],
+  ["ArrowLeft", "vorheriger Tab", () => tabWechsel(tabs.nachbar(-1))],
+  ["ArrowRight", "nächster Tab", () => tabWechsel(tabs.nachbar(1))],
+  ["z", "zuletzt aktiver Tab", () => tabWechsel(tabs.zuletzt())],
+  ["x", "aktuellen Tab schließen", () => tabSchliessen()],
+];
+const TASTEN_TEXT = { ArrowLeft: "←", ArrowRight: "→" };
+let bereichOffen = false;
+let bereichHinweis = null;
+
+const sichtbar = (el) => !!(el && el.isConnected && el.getClientRects().length);
+
+/** Alle Ziele der aktuellen Ansicht: die der Seite, dann die allgemeinen (ohne von der Seite belegte Tasten). */
+function bereichZiele() {
+  const s = aktuell && aktuell.el && aktuell.el.isConnected && aktuell.seite && aktuell.seite.bereiche ? aktuell.seite.bereiche() : [];
+  const allgemein = BEREICH_ZIELE.map(([taste, text, tun, el]) => ({ taste, text, tun, el }));
+  return [...allgemein.filter((a) => !s.some((x) => x.taste === a.taste)), ...s];
+}
+
+function bereichGehe(taste) {
+  const z = bereichZiele().find((x) => x.taste === taste);
+  return z ? z.tun() : undefined;
+}
+
+function blattFokus() {
+  const ziel = aktuell && aktuell.el && aktuell.el.isConnected ? [...aktuell.el.querySelectorAll(FOKUSSIERBAR)].find(sichtbar) : null;
+  if (ziel) ziel.focus(); else haupt.focus();
+}
+
+function navFokus() {
+  if (istMobil()) { menueOeffnen(); return; }
+  const ziel = navigation.querySelector('a[aria-current="page"]') || navigation.querySelector("a");
+  if (ziel) ziel.focus();
+}
+
+function tabLeisteFokus() {
+  if (!sichtbar(tabs.leiste)) tabsKnopf.click();   // mobil: Liste der Tabs einblenden
+  const ziel = tabs.leiste.querySelector("[aria-selected='true'] a") || tabs.leiste.querySelector(".tab-titel");
+  if (ziel) ziel.focus(); else melde("hinweis", "Es ist kein Tab geöffnet.");
+}
+
+// Zähler der Bereichswechsel: Lädt ein Tab noch und der Anwender ist schon weitergegangen, holt ihn der Fokus
+// nicht mehr ins Blatt zurück.
+let bereichNr = 0;
+
+async function tabWechsel(t) {
+  if (!t) { melde("hinweis", "Diesen Tab gibt es nicht."); return; }
+  const nr = bereichNr;
+  if (t !== tabs.aktiv) await tabs.beiWahl(t);
+  if (nr === bereichNr) bereichGehe("b");
+}
+
+async function tabSchliessen() {
+  if (!tabs.aktiv) return;
+  const nr = bereichNr;
+  tabs.schliessen(tabs.aktiv);
+  await tabsNavigation;
+  if (nr === bereichNr) bereichGehe("b");
+}
+
+function bereichStarten() {
+  bereichOffen = true;
+  if (!bereichHinweis) bereichHinweis = h("div", { class: "kuerzel-hinweis", tid: "kuerzel-hinweis", role: "status", "aria-live": "polite" });
+  bereichHinweis.dataset.vortaste = BEREICH_VORTASTE;
+  bereichHinweis.replaceChildren(h("strong", null, `Bereich (${BEREICH_VORTASTE}) – weiter mit:`),
+    h("ul", null, bereichTexte().map(([taste, text]) => h("li", null, h("kbd", null, taste), " ", text))),
+    h("span", { class: "klein" }, "Esc bricht ab · F6 wechselt reihum"));
+  document.body.append(bereichHinweis);
+}
+
+function bereichBeenden() {
+  bereichOffen = false;
+  if (bereichHinweis) bereichHinweis.remove();
+}
+
+/** [zweite Taste, Text] für Hinweis, Hilfe und Befehlspalette. */
+function bereichTexte() {
+  const z = bereichZiele();
+  const rang = (x) => (x.el ? 0 : 1);
+  return [...z].sort((a, b) => rang(a) - rang(b)).map((x) => [TASTEN_TEXT[x.taste] || x.taste, x.text])
+    .concat([["1 … 9", "Tab mit dieser Nummer"]]);
+}
+
+/** Taste außerhalb von Textfeldern und Ebenen; true, wenn sie zum Bereichswechsel gehörte. */
+function bereichTaste(e) {
+  if (!bereichOffen) {
+    // eine offene Vortaste der Seite (Kontoblatt: f, v) hat Vorrang, dort ist „f w“ belegt
+    if (e.key !== BEREICH_VORTASTE || (aktuell && aktuell.seite && aktuell.seite.vortaste)) return false;
+    bereichStarten();
+    return true;
+  }
+  if (["Shift", "CapsLock"].includes(e.key)) return true;   // Umschalt allein bricht nicht ab
+  bereichBeenden();
+  bereichNr += 1;
+  const nr = /^(Digit|Numpad)[1-9]$/.test(e.code) ? Number(e.code.slice(-1)) : 0;
+  const z = nr ? { tun: () => tabWechsel(tabs.nummer(nr)) } : bereichZiele().find((x) => x.taste === e.key);
+  if (z) Promise.resolve().then(() => z.tun()).catch(behandeln);
+  else melde("hinweis", `„${BEREICH_VORTASTE} ${e.key}“ ist nicht belegt.`);
+  return true;
+}
+
+/** Bereiche mit eigenem Element, in der Reihenfolge von F6. */
+function bereichFolge() {
+  return bereichZiele().filter((x) => x.el && sichtbar(x.el()));
+}
+
+/** F6 / Umschalt+F6: nächster bzw. vorheriger Bereich; ohne Fokus in einem Bereich das Blatt. */
+function bereichReihum(schritt) {
+  bereichNr += 1;
+  const folge = bereichFolge();
+  const a = document.activeElement;
+  // von hinten: die Bereiche der Seite liegen im Hauptbereich und stehen hinter dem allgemeinen Blatt
+  let i = -1;
+  folge.forEach((x, j) => { if (x.el().contains(a)) i = j; });
+  if (i < 0) { bereichGehe("b"); return; }
+  const z = folge[(i + schritt + folge.length) % folge.length];
+  Promise.resolve().then(() => z.tun()).catch(behandeln);
+}
+
+/** Der Bereich mit dem Fokus ist sichtbar hervorgehoben (nicht der Hauptbereich als Ganzes). */
+function bereichMarkieren() {
+  const a = document.activeElement;
+  let ziel = null;
+  for (const x of bereichFolge()) if (x.el() !== haupt && x.el().contains(a)) ziel = x.el();
+  for (const el of document.querySelectorAll(".bereich-aktiv")) if (el !== ziel) el.classList.remove("bereich-aktiv");
+  if (ziel) ziel.classList.add("bereich-aktiv");
+}
+document.addEventListener("focusin", bereichMarkieren);
+document.addEventListener("pointerdown", () => { if (bereichOffen) bereichBeenden(); });
+// Pfeiltasten in der Navigation
+navigation.addEventListener("keydown", (e) => {
+  if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(e.key) || e.ctrlKey || e.metaKey || e.altKey) return;
+  const links = [...navigation.querySelectorAll("a")].filter(sichtbar);
+  const i = links.indexOf(document.activeElement);
+  if (i < 0) return;
+  e.preventDefault();
+  const j = { ArrowDown: Math.min(i + 1, links.length - 1), ArrowUp: Math.max(i - 1, 0), Home: 0, End: links.length - 1 }[e.key];
+  links[j].focus();
+});
+
 function palette(ausloeser) {
   if (tid("befehlspalette")) return;
   // im Kontoblatt dessen Kürzel als Befehle (D-167), mit der Tastenfolge im Text
@@ -912,7 +1061,9 @@ function palette(ausloeser) {
   const eintraege = BEFEHLE.filter((b) => !b[3] || b[3]()).map(([id, text, tun]) => ({ id, text, tun }))
     .concat(stamm.konten.filter((k) => BESTAND.has(k.art) && !k.geschlossen).sort(nachName)
       .map((k) => ({ id: `konto-${k.id}`, text: `Konto öffnen: ${k.name}`, tun: () => gehe(`/konten/${k.id}`) })))
-    .concat(konto);
+    .concat(konto)
+    .concat(bereichTexte().slice(0, -1).map(([taste, text], i) => ({ id: `bereich-${i}`,
+      text: `Bereich: ${text} [${BEREICH_VORTASTE} ${taste}]`, tun: () => bereichGehe(Object.keys(TASTEN_TEXT).find((k) => TASTEN_TEXT[k] === taste) || taste) })));
   dialog("befehlspalette", "Befehlspalette", (inhalt, d) => {
     const listeId = neueId("befehle");
     const eingabe = h("input", { type: "text", tid: "befehlspalette-eingabe", role: "combobox", "aria-expanded": "true",
@@ -958,7 +1109,8 @@ function tastaturHilfe() {
   if (tid("tastatur-hilfe")) return;
   const K = [["Strg+K, ⌘+K, Strg+Umschalt+P", "Befehlspalette"], ["/", "Suche"], ["?", "diese Hilfe"],
     ["Strg+Z", "Rückgängig"], ["Strg+Umschalt+Z, Strg+Y", "Wiederholen"], ["Alt+1 … Alt+7", "Finanzübersicht … Einstellungen"],
-    ["Esc", "Menü/Dialog schließen, sonst Auswahl leeren"], ["Pfeiltasten, Pos1, Ende, Bild↑, Bild↓", "Buchung wählen"],
+    ["Esc", "Menü/Dialog schließen, sonst Auswahl leeren; aus Navigation, Tab-Leiste und Einzelheiten zurück ins Blatt"],
+    ["F6, Umschalt+F6", "nächster / vorheriger Bereich (auch aus Textfeldern)"], ["Pfeiltasten, Pos1, Ende, Bild↑, Bild↓", "Buchung wählen"],
     ["Umschalt+Pfeil", "Bereich auswählen"], ["Strg+Pfeil", "nur den Fokus bewegen"], ["Leertaste", "Buchung zur Auswahl hinzu/weg"],
     ["Strg+A", "alle Buchungen auswählen"], ["F2", "Verwendungszweck bearbeiten"], ["Entf", "Auswahl löschen (mit Rückfrage)"],
     ["Enter", "Einzelheiten zeigen"], ["Umschalt+F10, Kontextmenü-Taste", "Kontextmenü"]];
@@ -969,6 +1121,9 @@ function tastaturHilfe() {
   if (imKonto) for (const [k, g, w] of kontoKuerzel()) { if (!gruppen.has(g)) gruppen.set(g, []); gruppen.get(g).push([k, w]); }
   dialog("tastatur-hilfe", "Tastaturkürzel", (inhalt, d) => {
     inhalt.append(h("table", { class: "tabelle" }, h("tbody", null, K.map(zeile))),
+      h("h3", null, "Bereich wechseln"),
+      h("table", { class: "tabelle", tid: "tastatur-hilfe-bereiche" },
+        h("tbody", null, bereichTexte().map(([k, w]) => zeile([`${BEREICH_VORTASTE} ${k}`, w])))),
       ...[...gruppen].map(([g, liste]) => [h("h3", null, `Kontoblatt – ${g}`),
         h("table", { class: "tabelle", tid: `tastatur-hilfe-${g === "Filter" ? "filter" : g === "Ansicht" ? "ansicht" : "aktionen"}` },
           h("tbody", null, liste.map(zeile)))]).flat(),
@@ -985,7 +1140,19 @@ document.addEventListener("keydown", (e) => {
   const imText = istTexteingabe(document.activeElement);
   if (e.key === "Escape") {
     if (ebene) { e.preventDefault(); ebene.escape(); return; }
+    if (bereichOffen) { e.preventDefault(); bereichBeenden(); return; }
+    // D-287: Esc in Navigation oder Tab-Leiste führt zurück ins Blatt
+    if (!imText && (navigation.contains(document.activeElement) || tabs.leiste.contains(document.activeElement))) {
+      e.preventDefault();
+      bereichGehe("b");
+      return;
+    }
     if (aktuell && aktuell.seite && aktuell.seite.escape) aktuell.seite.escape();
+    return;
+  }
+  if (e.key === "F6" && !strg && !e.altKey) {
+    e.preventDefault();
+    if (!ebene) { bereichBeenden(); bereichReihum(e.shiftKey ? -1 : 1); }
     return;
   }
   if (e.key === "Tab" && ebene && ebene.tab) { ebene.tab(e); return; }
@@ -1002,6 +1169,7 @@ document.addEventListener("keydown", (e) => {
     return;
   }
   if (imText || ebene) return;
+  if (!strg && !e.altKey && bereichTaste(e)) { e.preventDefault(); return; }
   // Kürzel der aktuellen Seite (Kontoblatt, D-167) vor den globalen Ein-Tasten-Kürzeln
   if (aktuell && aktuell.seite && aktuell.seite.kuerzel && aktuell.el && aktuell.el.isConnected && aktuell.seite.kuerzel(e)) {
     e.preventDefault();

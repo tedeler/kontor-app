@@ -245,6 +245,9 @@ def test_wischen_links_setzt_kategorie_und_rueckgaengig(daten, neue_seite):
     m8.warte_bis(lambda: api.buchung_lesen(einzeln)["kategorie_id"] == mobil)
     expect(zeile(seite, einzeln).locator('[data-feld="kategorie"]')).to_have_attribute("data-kategorie-id",
                                                                                         str(mobil))
+    # D-290: die Zeile zeigt die Kategorie sofort; erst wenn Anfrage und Neuladen abgeschlossen sind, stehen die
+    # Zeilen still (das Neuladen kann sie neu zeichnen, hier fällt ein Verdacht an anderen Buchungen weg)
+    expect(tid(seite, "seite-konto")).to_have_attribute("data-ausstehend", "0")
     # Auswahlmodus (D-278: über das Kontextmenü, weitere Zeilen durch Tippen), dann Wischen nach links auf eine
     # ausgewählte Zeile: wirkt auf die Auswahl
     m8.auswahl_starten_mobil(seite, zeile(seite, paar[0]))

@@ -4284,3 +4284,96 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - **Tests:** `tests/core/test_testinstanz_logo.py`. Angepasst: `gesamt-tests/tests/app/m8/test_m8_auslieferung.py::
   test_manifest` (Name im Mock-Modus), in `TESTUMBAU.md` vermerkt.
 
+## D-287 Bereich wechseln mit der Vortaste „w“ und F6 (Feature `tastatur`, 2026-11-25)
+
+- **Anlass:** Auftrag vom 2026-11-25: bessere Tastaturbedienung, möglichst ganz ohne Maus. Erster Schritt: mit
+  einer Tastenfolge den aktiven Bereich wechseln; „b“ führt im Kontoblatt immer ins Buchungsblatt.
+- **Entscheidung:** Die Vortaste ist `w` (`v` ist im Kontoblatt die Ansicht, D-167). Sie gilt auf jeder Seite und
+  liegt deshalb in `haupt.js`, nicht im Kontoblatt. Ziele: `b` Blatt der Seite, `n` Navigation, `t` Tab-Leiste,
+  `s` Suche, `1`–`9` Tab mit dieser Nummer, `←`/`→` Nachbartab, `z` zuletzt aktiver Tab, `x` Tab schließen. Eine
+  Seite meldet eigene Bereiche über `bereiche()`; das Kontoblatt `b` Buchungsblatt, `e` Einzelheiten, `f` Filter.
+  Vertrag: `oberflaeche.md` 12.1a.
+- **F6 / Umschalt+F6** wechseln die Bereiche reihum und wirken auch aus Textfeldern (dort tippt `w` ein w).
+- **Esc** führt aus Navigation, Tab-Leiste und Einzelheiten zurück ins Blatt.
+- **Sichtbar:** Der Bereich mit dem Fokus hat einen Rahmen (`bereich-aktiv`); er erscheint auch nach einem
+  Mausklick in den Bereich.
+- **Unverändert:** alle Kürzel aus D-167 (`v d` klappt die Einzelheiten weiter nur ein und aus, `f w` bleibt der
+  Zeitraum der letzten sieben Tage), Alt+1 … Alt+7, `/`.
+- **Nicht enthalten:** ein Ziel für den Kategorienbaum (das Panel gibt es im Kontoblatt seit D-265 nicht mehr),
+  Pfeiltasten innerhalb der Einzelheiten (dort Tab), Zeilennavigation auf den übrigen Listenseiten.
+- **Grenzen:** Mobil öffnet `w n` das Menü und `w e` die Einzelheiten als Dialog; nur am Desktop geprüft.
+- **Tests:** `tests/core/test_tastatur.py`, `tests/test_browser_tastatur.py`. Der Service-Worker-Cache heißt
+  `kontor-huelle-44`.
+
+## D-288 Fokuszeile verschwindet nicht hinter dem Spaltenkopf (Feature `tastatur`, 2026-11-25)
+
+- **Anlass:** Meldung vom 2026-11-25: Geht man im Kontoblatt mit den Pfeiltasten viele Buchungen nach oben, wird
+  die erste Buchung nicht sichtbar.
+- **Ursache:** Der Spaltenkopf klebt am oberen Rand der rollenden Liste. Das Nachführen der Fokuszeile rechnete
+  ohne ihn: Die Zeile galt als sichtbar, sobald sie im Ausschnitt lag, auch wenn der Kopf sie verdeckte. Betroffen
+  war jede Zeile, die beim Hochgehen an den oberen Rand kam, nicht nur die erste; in der kurzen Liste
+  (`scrollIntoView`) ebenso wie in der Liste mit Fenstertechnik (`slotZeigen`).
+- **Entscheidung:** Beide Wege ziehen die Höhe des klebenden Kopfs ab (`kopfUeberstand`). Die kurze Liste setzt sie
+  als `scroll-padding-top` am rollenden Behälter, die Fenstertechnik rechnet sie in das Ziel ein. Gilt für
+  Pfeiltasten, Bild↑, Pos1 und jeden anderen Sprung auf eine Zeile.
+- **Tests:** `tests/test_browser_tastatur.py::test_pfeil_nach_oben_zeigt_die_erste_buchung_unter_dem_spaltenkopf`
+  (40 und 700 Buchungen), `tests/core/test_tastatur.py`.
+
+## D-289 Vorschlag annehmen und ablehnen wirken sofort (Feature `tastatur`, 2026-11-25)
+
+- **Anlass:** Meldung vom 2026-11-25: Das Bestätigen einer Kategorieempfehlung mit dem Haken und das Ablehnen
+  dauern zu lange; die Oberfläche muss sofort reagieren.
+- **Ursache:** Je Entscheidung liefen nacheinander: Stand des Änderungsprotokolls lesen, Vorschlag entscheiden,
+  Bestätigungs-Tag setzen, neue Änderungen lesen, Stammdaten und Liste neu laden. Erst danach änderte sich die
+  Zeile.
+- **Entscheidung:** Das Kontoblatt nimmt die Wirkung vorweg und zeichnet sofort: Vorschlag weg; beim Annehmen
+  Status bestätigt und das Tag der gewählten Person, beim Ablehnen die vorherige Kategorie und `vorlaeufig` wieder
+  `importiert` (dieselben Regeln wie `regeln._entscheiden`, D-261, D-272). Die Anfragen laufen danach im
+  Hintergrund, eine Entscheidung nach der anderen, damit jede ihr eigener Rückgängig-Schritt bleibt. Neu geladen
+  wird erst nach der letzten eingereihten Entscheidung; ein Neuladen dazwischen (etwa durch den Planer) behält die
+  noch offenen Entscheidungen bei. Gilt für Haken und Kreuz in der Zeile, `a`/`A`, Kontextmenü, Einzelheiten und
+  die Mehrfachleiste.
+- **Fehler:** Lehnt der Server ab, erscheint die Meldung wie bisher und die Zeile zeigt wieder den Stand des
+  Servers.
+- **Grenzen:** Summen im Kopf und die Erfolgsmeldung mit „Rückgängig“ folgen erst mit der Antwort des Servers.
+  Strg+Z unmittelbar nach dem Klick nimmt die Entscheidung erst zurück, wenn sie beim Server angekommen ist
+  (bestehende Reihung, D-122). Andere Aktionen (Kategorie setzen, Status, Tags) warten weiter auf den Server.
+- **Tests:** `tests/core/test_vorschlag_sofort.py`, `tests/test_browser_vorschlag_sofort.py` (Server je Anfrage um
+  0,6 Sekunden verzögert; die Zeile ändert sich in unter 0,4 Sekunden).
+
+## D-290 Kategorie, Status, Bestätigen und Tags wirken sofort (Feature `tastatur`, 2026-11-25)
+
+- **Anlass:** Antwort vom 2026-11-25 auf die Frage aus D-289 („ja“) und die Meldung, dass auch das Zuweisen von
+  Kategorien zu lange dauert.
+- **Entscheidung:** Der Weg aus D-289 ist verallgemeinert (`Kontoansicht.sofort`): Eine Aktion beschreibt, wie sie
+  eine geladene Buchung ändert, und welche Anfragen sie schickt. Das Blatt zeichnet sofort; die Anfragen laufen
+  nacheinander im Hintergrund; neu geladen wird nach der letzten. Umgestellt sind Kategorie setzen, Status setzen,
+  Bestätigen und Zurücknehmen der Person sowie Hinzufügen und Entfernen von Tags aus dem Kontoblatt. Vertrag:
+  `oberflaeche.md` 45.
+- **Kategorie nur im einfachen Fall vorweg:** Ziel ist eine Kategorie und jede Buchung hat genau eine Gegenseite.
+  Bei einer Umbuchung auf ein Bestandskonto entscheidet der Server über das Zusammenführen; sie und gesplittete
+  Buchungen zeigen sich weiter erst mit der Antwort (aber in derselben Reihung).
+- **Kein unnötiges Neuzeichnen:** Gleicht der Stand des Servers dem gezeigten, bleiben die Zeilen stehen
+  (`bildVon`). Vorher zeichnete jedes Neuladen alle Zeilen neu.
+- **Neue Tags:** Ein neu angelegter Tag steht sofort im Stamm (`tagHolen`), damit die nächste eingereihte Aktion
+  ihn nicht ein zweites Mal anlegt. Das Fenster der Tags zählt nach Namen, weil ein vorweg gezeigter Tag noch
+  keine ID hat.
+- **Ersetzt** das Vorab-Zeigen nur des Status beim Bestätigen (D-258, `statusVorab` entfällt) und in D-289 die
+  Grenze „andere Aktionen warten weiter auf den Server“.
+- **Für Tests:** `data-ausstehend` an `seite-konto` (0 = Anfragen und Neuladen abgeschlossen). Wer nach einer
+  solchen Aktion mit Zeilen weiterarbeitet, wartet darauf; das Attribut der Zeile allein genügt nicht mehr als
+  Zeichen, dass neu geladen ist.
+- **Grenzen:** Aktionen außerhalb dieses Wegs (Löschen, Splitten, Inline-Bearbeitung, „Bearbeiten…“) reihen sich
+  nicht ein; unmittelbar nach einer vorweggenommenen Aktion ausgelöst, können sie sich mit ihr überschneiden
+  (wie schon bisher bei zwei schnellen Aktionen). Fehler beim Hinzufügen eines Tags erscheinen als Meldung, nicht
+  mehr im Fenster. Mobil nur über die Gesamttests geprüft.
+- **Außerdem (zu D-287):** Lädt ein mit `w` gewählter Tab noch und der Anwender hat inzwischen den Bereich
+  gewechselt, holt ihn der Fokus nicht mehr ins Blatt zurück.
+- **Tests:** `tests/core/test_aktionen_sofort.py`, `tests/test_browser_aktionen_sofort.py` und
+  `tests/test_browser_vorschlag_sofort.py` (schreibende Anfragen im Browser angehalten, bis der Test sie freigibt).
+  Angepasst: `gesamt-tests/tests/app/m8/test_m8_panels_mobil.py::test_wischen_links_setzt_kategorie_und_rueckgaengig`
+  (wartet auf `data-ausstehend="0"`), in `TESTUMBAU.md` vermerkt.
+- **Beobachtet, nicht behoben:** `tests/test_browser_mail_aktuell.py::test_abruf_im_hintergrund_…` und der
+  Doppeltipp in `tests/test_browser.py` schlagen bei stark paralleler Ausführung gelegentlich fehl, auch auf dem
+  Stand von main vor diesem Branch (mail_aktuell dort nachgestellt).
+
