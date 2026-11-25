@@ -3259,7 +3259,7 @@ Desktop-Layout (auch mit Touch) ändert sich nichts. Löst 36.3.1, 36.3.2 und 36
 | Geste | Wirkung |
 | --- | --- |
 | kurz tippen | Markiert genau diese Zeile: sie trägt `data-markiert` (sichtbar hervorgehoben), jede andere verliert es. `aria-selected` bleibt `false`, es öffnet sich nichts, `data-auswahlmodus` wird nicht `ja`. |
-| Doppeltipp | Zweiter Tipp auf dieselbe Zeile innerhalb von 400 ms: öffnet die Einzelheiten (`panel-details`, 16.3). Der erste Tipp markiert sofort. |
+| Doppeltipp | Zweiter Tipp auf dieselbe Zeile innerhalb von 400 ms: öffnet die Einzelheiten (`panel-details`, 16.3). Der erste Tipp markiert sofort. Seit D-281 zählt ein Tipp dafür nur, wenn in den 500 ms davor nichts gerollt wurde, und beide Tipps liegen höchstens 24 px auseinander – schnelles Rollen mit wiederholtem Ansetzen öffnet nichts. |
 | lang tippen (≥ 500 ms) | Kontextmenü als Blatt (36.5) für genau diese Zeile; es entsteht keine Auswahl. Einträge: `km-details` („Einzelheiten“), `km-auswahl` („Mehrfachauswahl“), danach die Einträge des Desktop-Kontextmenüs (8.2) in gleicher Reihenfolge. `km-auswahl` beginnt den Auswahlmodus (36.3.3) mit dieser Zeile. |
 | nach rechts wischen | Bestätigt die Buchung als die gewählte Person (wie `km-bestaetigen`), ohne Nachfrage. |
 | nach links wischen | Kategorie-Auswahl (9.1) mit Suche und „Neue Kategorie“ (unverändert). |
@@ -3277,6 +3277,10 @@ Desktop-Layout (auch mit Touch) ändert sich nichts. Löst 36.3.1, 36.3.2 und 36
 5. `wisch-hinweis` (36.4.3): Text rechts „✓ Bestätigen“ bzw. „Schon bestätigt“, links „Kategorie …“.
 6. Der Browser zoomt beim Doppeltipp nicht und zeigt bei langer Berührung weder Textauswahl noch eigenes Menü
    (`touch-action: pan-y`, `user-select: none` an der Zeile); senkrechtes Rollen bleibt (D-275).
+7. **Auswahlmodus nur ausdrücklich (D-281):** Mobil beginnt er allein über `km-auswahl`. Sprünge zu einer Buchung
+   (Gegenbuchung, Berichte, Suche, 27.2, 21) und das Abschließen des Filterausdrucks markieren das Ziel
+   (`data-markiert`, Fokus), wählen es aber nicht aus (`aria-selected="false"`, kein `data-auswahlmodus="ja"`).
+
 ## 44. Ausgleichsbuchungen zusammenführen (D-280)
 
 - Nach dem Laden der Anwendung, nach einer in der Oberfläche gestarteten Synchronisation und danach minütlich

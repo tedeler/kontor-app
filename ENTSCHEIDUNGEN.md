@@ -4150,3 +4150,21 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   Synchronisation, minütlich), nicht als Benachrichtigung aufs Handy. Paare werden nur aufeinanderfolgend gebildet.
 - **Prüfung:** Core-Tests `tests/core/test_ausgleich_aufraeumen.py`; Browsertest `tests/test_browser_ausgleich.py`.
   Nicht an echten Bankdaten geprüft.
+
+## D-281 Mobil: Doppeltipp nur bei ruhender Liste, Auswahlmodus nur ausdrücklich (Feature `mobil-gesten-2`, 2026-11-25)
+
+- **Anlass:** Rückmeldung vom Handy nach Version 0.53: (1) Schnelles Rollen mit wiederholtem Ansetzen wurde als
+  Doppeltipp erkannt und öffnete die Einzelheiten. (2) Die Ansicht landete oft im Auswahlmodus, z. B. beim Wechsel
+  zur Gegenbuchung.
+- **Ursache:** (1) Der Doppeltipp prüfte nur dieselbe Zeile und 400 ms. Auf dem Handy nicht nachgestellt; vermutlich
+  meldet der Browser das Anhalten der rollenden Liste als Tippen. (2) Der Sprung zu einer Buchung
+  (`sprungMarkieren`), das Wiederfinden nach dem Laden und Enter im Filterausdruck setzten die Auswahl auf die
+  Zielbuchung – mobil ist jede Auswahl der Auswahlmodus.
+- **Entscheidung:** (1) Ein Tipp zählt für den Doppeltipp nur, wenn 500 ms davor nichts gerollt wurde (Rollen durch
+  das Markieren selbst ausgenommen), und beide Tipps liegen höchstens 24 px auseinander. (2) Mobil setzen diese drei
+  Stellen keine Auswahl mehr; das Ziel ist markiert und fokussiert (`oberflaeche.md` 43 Nr. 7). Desktop unverändert.
+- **Nicht geändert:** Maus und Tastatur im schmalen Fenster (Rechtsklick, Kürzel) wählen weiter aus.
+- **Prüfung:** Core-Test in `tests/core/test_mobil_gesten.py`; `tests/test_browser_gesten.py` (Tippen direkt nach
+  einem Rollereignis und an zwei Stellen der Zeile öffnet nichts). Angepasst: `test_browser.py::
+  test_bericht_sprung_mobil_mit_nachladen_nicht_verdeckt`, `m26::test_suchtreffer_kompakt_und_tippen_springt`.
+  Das Rollen am echten Handy ist nur über ein nachgestelltes Rollereignis geprüft.

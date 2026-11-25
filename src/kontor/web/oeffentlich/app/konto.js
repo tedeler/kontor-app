@@ -23,6 +23,14 @@ const FENSTER_GRENZE = 100;        // darüber zeichnet das Blatt nur den sichtb
 const FENSTER_PUFFER = 12;
 const MONATE = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
 
+// D-281: Zeitpunkt des letzten Rollens irgendeines Bereichs – wer mit wiederholtem Ansetzen schnell rollt, tippt nicht
+let letztesRollen = -Infinity;
+let rollenEigenBis = -Infinity;   // bis dahin stammt Rollen vom Markieren selbst (Zeile in den sichtbaren Bereich)
+document.addEventListener("scroll", () => {
+  const jetzt = performance.now();
+  if (jetzt > rollenEigenBis) letztesRollen = jetzt;
+}, { capture: true, passive: true });
+
 function periodeText(schluessel) {
   if (/^\d{4}$/.test(schluessel)) return schluessel;
   if (/^\d{4}-\d{2}$/.test(schluessel)) {
@@ -139,6 +147,8 @@ function periodenBilanz(buchungen) {
 const WISCH_WEG = 80;     // Mindestweg einer Wischgeste (16.4)
 const WISCH_QUER = 40;    // höchstens so weit senkrecht
 const DOPPELTIPP_MS = 400;        // zweiter Tipp auf dieselbe Zeile in dieser Zeit öffnet die Einzelheiten (D-278)
+const TIPP_RUHE_MS = 500;         // so lange nach dem letzten Rollen zählt ein Tipp nicht für den Doppeltipp (D-281)
+const TIPP_ABSTAND = 24;          // höchstens so weit (px) liegen die beiden Tipps eines Doppeltipps auseinander
 const WISCH_RUECK_MS = 3000;      // so lange bietet die Zeile nach dem Bestätigen „Rückgängig“ an (D-278)
 const STATUS = ["importiert", "vorlaeufig", "bestaetigt", "abgeglichen"];
 const PARAMETER = ["von", "bis", "betrag_min", "betrag_max", "empfaenger_id", "ohne_empfaenger", "verwendungszweck",
@@ -635,7 +645,7 @@ class Kontoansicht {
     let geoeffnet = false;
     for (const k of this.periodeKette(ziel)) if (this.zugeklappt.delete(k)) geoeffnet = true;
     if (geoeffnet) this.listeZeichnen();
-    if (!this.auswahl.size) this.auswahl.add(ziel);
+    if (!this.auswahl.size && !oberflaeche.istMobil()) this.auswahl.add(ziel);   // mobil nur markiert (D-281)
     if (this.anker === null) this.anker = ziel;
     if (this.virtual) this.slotZeigen(ziel, "center");
     this.fokussieren(ziel, mitDom);
@@ -817,7 +827,8 @@ class Kontoansicht {
         await anwenden();
         const id = this.fokusId !== null ? this.fokusId : (this.eintraege[0] || {}).id;
         if (id === undefined || id === null) return;
-        if (!this.auswahl.size) { this.auswahl.add(id); this.anker = id; }   // sonst wäre der Fokus unsichtbar (D-270)
+        // sonst wäre der Fokus unsichtbar (D-270); mobil zeigt ihn die Markierung, ohne Auswahl (D-281)
+        if (!this.auswahl.size && !oberflaeche.istMobil()) { this.auswahl.add(id); this.anker = id; }
         this.fokussieren(id);
       } });
     const leeren = h("button", { type: "button", class: "knopf-flach", tid: "filter-ausdruck-leeren", "aria-label": "Filterausdruck leeren",
@@ -2055,15 +2066,21 @@ class Kontoansicht {
     if (oberflaeche.istMobil() && !strg && !e.shiftKey) {
       // D-278: Tippen markiert nur diese Zeile (keine Auswahl, kein Fenster); der zweite Tipp kurz danach öffnet
       // die Einzelheiten. Im Auswahlmodus schaltet Tippen wie bisher die Auswahl der Zeile um.
+      // D-281: nur ein Tipp auf ruhender Liste zählt; der zweite muss an derselben Stelle liegen. Sonst öffnete
+      // schnelles Rollen mit wiederholtem Ansetzen die Einzelheiten.
       const jetzt = performance.now();
-      const doppelt = !!this.letzterTipp && this.letzterTipp.id === id && jetzt - this.letzterTipp.t < DOPPELTIPP_MS;
-      this.letzterTipp = doppelt ? null : { id, t: jetzt };
+      const ruhig = jetzt - letztesRollen > TIPP_RUHE_MS;
+      const t = this.letzterTipp;
+      const doppelt = ruhig && !!t && t.id === id && jetzt - t.t < DOPPELTIPP_MS
+        && Math.hypot(e.clientX - t.x, e.clientY - t.y) <= TIPP_ABSTAND;
+      this.letzterTipp = doppelt || !ruhig ? null : { id, t: jetzt, x: e.clientX, y: e.clientY };
       if (this.auswahl.size > 0) {
         if (this.auswahl.has(id)) this.auswahl.delete(id); else this.auswahl.add(id);
         this.anker = id;
         this.fokussieren(id);
         return;
       }
+      rollenEigenBis = jetzt + 150;
       this.fokussieren(id);
       if (doppelt) this.detailsOeffnen();
       return;
@@ -2695,7 +2712,8 @@ class Kontoansicht {
    * statt „nearest“, weil am Rand sonst die Mehrfachleiste (mobil unten fest) die Zeile verdecken kann (D-129).
    */
   sprungMarkieren(id) {
-    this.auswahl = new Set([id]);
+    // D-281: mobil beginnt der Auswahlmodus nur über „Mehrfachauswahl“ im Kontextmenü; das Ziel wird dort markiert
+    if (!oberflaeche.istMobil()) this.auswahl = new Set([id]);
     this.anker = id;
     if (this.virtual) this.slotZeigen(id, "center");
     this.fokussieren(id);
