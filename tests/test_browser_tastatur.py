@@ -209,3 +209,27 @@ def test_pfeil_nach_oben_zeigt_die_erste_buchung_unter_dem_spaltenkopf(tmp_path,
         page.keyboard.press("Home")
         _erste_sichtbar(page)
         expect(zeilen.first).to_be_focused()
+
+
+def test_rollen_in_der_befehlspalette_sperrt_die_lange_beruehrung_nicht(tmp_path, browser):  # noqa: F811
+    """D-291: Wer ein Konto über die Befehlspalette öffnet (deren Trefferliste rollt) und gleich danach lange auf
+    eine Buchung drückt, bekommt das Kontextmenü."""
+    from .test_browser import HANDY
+
+    with server(tmp_path) as (url, _), seite(browser, url, **HANDY) as page:
+        giro = next(k["id"] for k in _get(url + "/api/konten") if k["name"] == "Giro")
+        page.goto(f"{url}/konten/{giro}")
+        bereit(page, "konto")
+        tid(page, "befehlspalette-knopf").click()
+        for _i in range(18):
+            page.keyboard.press("ArrowDown")           # die Trefferliste rollt
+        page.keyboard.press("Escape")
+        expect(tid(page, "befehlspalette")).to_have_count(0)
+        zeile = page.locator('[data-testid="buchungsliste"] [role="row"][data-id]').nth(1)
+        box = zeile.bounding_box()
+        cdp = page.context.new_cdp_session(page)
+        cdp.send("Input.dispatchTouchEvent", {"type": "touchStart", "touchPoints": [
+            {"x": box["x"] + 60, "y": box["y"] + box["height"] / 2}]})
+        page.wait_for_timeout(700)
+        cdp.send("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []})
+        expect(tid(page, "km-auswahl")).to_be_visible()
