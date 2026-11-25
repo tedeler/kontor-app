@@ -534,7 +534,9 @@ def test_suchtreffer_kompakt_und_tippen_springt(starte_server, neue_seite):
     assert kein_waagerechtes_scrollen(seite)
     m8.tippen(seite, t)
     m17.warte_konto(seite, k["giro"])
-    warte(seite, lambda: ausgewaehlt(seite) == {b["einfach"]}, text="Buchung ausgewählt")
+    # D-281: mobil ist das Sprungziel markiert, nicht ausgewählt (Auswahlmodus nur über das Kontextmenü)
+    expect(zeile(seite, b["einfach"])).to_have_attribute("data-markiert", "")
+    assert ausgewaehlt(seite) == set(), "kein Auswahlmodus nach dem Sprung"
     assert m17.fokuszeile(seite) == b["einfach"], "Buchung fokussiert"
 
 

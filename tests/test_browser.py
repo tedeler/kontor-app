@@ -542,8 +542,11 @@ def test_bericht_sprung_mobil_mit_nachladen_nicht_verdeckt(tmp_path, browser):
         bid = ziel.get_attribute("data-id")
         ziel.locator('a[data-testid$="-konto-1"]').click()
         bereit(page, "konto")
-        markiert = tid(page, "buchungsliste").locator('[role="row"][aria-selected="true"]')
+        # D-281: mobil ist das Sprungziel markiert, nicht ausgewählt (kein Auswahlmodus)
+        markiert = tid(page, "buchungsliste").locator('[role="row"][data-markiert]')
         expect(markiert).to_have_attribute("data-id", bid)
+        expect(markiert).to_have_attribute("aria-selected", "false")
+        expect(tid(page, "buchungsliste")).not_to_have_attribute("data-auswahlmodus", "ja")
         expect(markiert).to_be_focused()
         page.wait_for_timeout(300)
         assert markiert.evaluate("""(r) => {

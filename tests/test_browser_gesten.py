@@ -58,6 +58,18 @@ def test_gesten_im_kontoblatt(tmp_path, browser):
         expect(tid(page, "panel-details")).to_be_visible()
         tid(page, "details-schliessen").click()
 
+        # D-281: kein Doppeltipp, solange die Liste gerade gerollt wurde (schnelles Rollen mit wiederholtem Ansetzen)
+        # und keiner bei zwei Tipps an verschiedenen Stellen der Zeile
+        page.wait_for_timeout(450)
+        page.evaluate("() => document.dispatchEvent(new Event('scroll'))")
+        erste.tap()
+        erste.tap()
+        page.wait_for_timeout(450)
+        erste.tap(position={"x": 30, "y": 10})
+        erste.tap(position={"x": 200, "y": 30})
+        expect(tid(page, "panel-details")).to_have_count(0)
+        page.wait_for_timeout(450)
+
         # Lang tippen: Kontextmenü als Blatt – Einzelheiten, Mehrfachauswahl, dann die Einträge des Desktops
         x, y = _mitte(zweite)
         cdp.send("Input.dispatchTouchEvent", {"type": "touchStart", "touchPoints": [{"x": x, "y": y}]})
