@@ -4,7 +4,7 @@ import {
   BESTAND, STATUS_TEXT, abfrage, aktion, anhaengen, api, baumFolge, betragEingabe, betragEl, betragLesen, betragText, datumEl,
   datumText, h, kategorien, klasse,
   kontoNach, kontoPfad, melde, nameAnzeige, neueId, oberflaeche, personBestaetigt, personLesen, personTag, personVonTag, pfadVon,
-  stamm, tid,
+  rueckgaengig, stamm, stapelStand, tid,
 } from "./kern.js";
 import {
   bestaetigen, dialog, dubletteDialog, erfassenDialog, feld, imDialog, kategorieAuswahl, kontextmenue, knopf, knopfLeiste,
@@ -138,6 +138,8 @@ function periodenBilanz(buchungen) {
 
 const WISCH_WEG = 80;     // Mindestweg einer Wischgeste (16.4)
 const WISCH_QUER = 40;    // höchstens so weit senkrecht
+const DOPPELTIPP_MS = 400;        // zweiter Tipp auf dieselbe Zeile in dieser Zeit öffnet die Einzelheiten (D-278)
+const WISCH_RUECK_MS = 3000;      // so lange bietet die Zeile nach dem Bestätigen „Rückgängig“ an (D-278)
 const STATUS = ["importiert", "vorlaeufig", "bestaetigt", "abgeglichen"];
 const PARAMETER = ["von", "bis", "betrag_min", "betrag_max", "empfaenger_id", "ohne_empfaenger", "verwendungszweck",
   "zweck_gleich", "zweck_aehnlich", "zweck_leer", "empfaenger_aehnlich",
@@ -1983,6 +1985,7 @@ class Kontoansicht {
     for (const [id, z] of this.zeilen) {
       z.setAttribute("aria-selected", this.auswahl.has(id) ? "true" : "false");
       z.tabIndex = id === this.fokusId ? 0 : -1;
+      z.toggleAttribute("data-markiert", id === this.fokusId);   // mobil sichtbar: die getippte Zeile (D-278)
     }
     if (!this.fokusId && this.zeilen.size) [...this.zeilen.values()][0].tabIndex = 0;
     const n = this.auswahl.size;
@@ -2050,10 +2053,19 @@ class Kontoansicht {
   klick(id, e) {
     const strg = e.ctrlKey || e.metaKey;
     if (oberflaeche.istMobil() && !strg && !e.shiftKey) {
-      if (this.auswahl.size === 0) { this.fokussieren(id); this.detailsOeffnen(); return; }
-      if (this.auswahl.has(id)) this.auswahl.delete(id); else this.auswahl.add(id);
-      this.anker = id;
+      // D-278: Tippen markiert nur diese Zeile (keine Auswahl, kein Fenster); der zweite Tipp kurz danach öffnet
+      // die Einzelheiten. Im Auswahlmodus schaltet Tippen wie bisher die Auswahl der Zeile um.
+      const jetzt = performance.now();
+      const doppelt = !!this.letzterTipp && this.letzterTipp.id === id && jetzt - this.letzterTipp.t < DOPPELTIPP_MS;
+      this.letzterTipp = doppelt ? null : { id, t: jetzt };
+      if (this.auswahl.size > 0) {
+        if (this.auswahl.has(id)) this.auswahl.delete(id); else this.auswahl.add(id);
+        this.anker = id;
+        this.fokussieren(id);
+        return;
+      }
       this.fokussieren(id);
+      if (doppelt) this.detailsOeffnen();
       return;
     }
     if (strg && e.shiftKey) {
@@ -2173,7 +2185,16 @@ class Kontoansicht {
     // Gesten (16.4)
     langeBeruehrung(this.liste, (t) => zeileVon(t), (z, x, y) => {
       const id = Number(z.dataset.id);
-      if (oberflaeche.istMobil()) { this.auswahlStarten(id); return; }
+      if (oberflaeche.istMobil()) {
+        // D-278: Kontextmenü als Blatt. Ohne Auswahlmodus gilt es nur dieser Zeile (es entsteht keine Auswahl);
+        // im Auswahlmodus der Auswahl, zu der die Zeile dann gehört.
+        try { if (navigator.vibrate) navigator.vibrate(12); } catch (e) { /* ohne Vibration */ }
+        this.letzterTipp = null;
+        if (this.auswahl.size > 0) { this.auswahl.add(id); this.anker = id; }
+        this.fokussieren(id, false);
+        this.menue(x, y, z, false, this.auswahl.size > 0 ? null : [id]);
+        return;
+      }
       if (!this.auswahl.has(id)) { this.auswahl = new Set([id]); this.anker = id; }
       this.fokussieren(id, false);
       this.menue(x, y, z);
@@ -2210,7 +2231,9 @@ class Kontoansicht {
       // mobil zeigt die Zeile den Zustand an: dort zählt nur der Weg, nicht die Dauer (D-141)
       if (Math.abs(dx) < WISCH_WEG || dy > WISCH_QUER || (dt > 1000 && !oberflaeche.istMobil())) return;
       const id = Number(z.dataset.id);
-      if (dx > 0) {
+      if (dx > 0 && oberflaeche.istMobil()) {
+        this.wischBestaetigen(id);                 // D-278: nach rechts bestätigt
+      } else if (dx > 0) {
         if (this.auswahl.has(id)) this.auswahl.delete(id); else this.auswahl.add(id);
         this.anker = id;
         this.fokussieren(id, false);
@@ -2236,11 +2259,13 @@ class Kontoansicht {
     const hw = this.wischHinweis;
     if (hw.parentNode !== this.listenSpalte) this.listenSpalte.append(hw);
     const id = Number(z.dataset.id);
-    hw.firstChild.textContent = this.auswahl.has(id) ? "✕ Abwählen" : "✓ Auswählen";
+    const offen = this.wischZiele(id).length > 0;
+    hw.firstChild.textContent = offen || !personLesen() ? "✓ Bestätigen" : "Schon bestätigt";
+    hw.dataset.wirkung = offen ? "bestaetigen" : "keine";
     hw.style.top = z.offsetTop + "px";
     hw.style.height = z.offsetHeight + "px";
     hw.dataset.richtung = dx > 0 ? "rechts" : "links";
-    hw.dataset.bereit = Math.abs(dx) >= WISCH_WEG ? "ja" : "nein";
+    hw.dataset.bereit = Math.abs(dx) >= WISCH_WEG && (dx < 0 || offen) ? "ja" : "nein";
     hw.hidden = false;
     z.classList.add("wischt");
     const weg = Math.sign(dx) * Math.min(Math.abs(dx), 160);
@@ -2252,6 +2277,55 @@ class Kontoansicht {
     if (!z || !z.classList.contains("wischt")) return;
     z.classList.remove("wischt");
     z.style.transform = "";
+  }
+
+  // ---------------------------------------------------------------- Bestätigen durch Wischen (mobil, D-278)
+  /** Buchungen, die ein Wisch nach rechts auf dieser Zeile bestätigt: die Zeile bzw. die Auswahl, wenn sie darin
+   *  liegt – jeweils ohne die, die für diese Person schon fertig bestätigt sind. */
+  wischZiele(id) {
+    const name = personLesen();
+    if (!name) return [];
+    const ids = this.auswahl.has(id) ? this.auswahlIds() : [id];
+    return ids.filter((x) => {
+      const b = this.eintraege.find((e) => e.id === x);
+      return b && !(this.bestaetigt(b, name) && b.status !== "importiert" && b.status !== "vorlaeufig");
+    });
+  }
+
+  async wischBestaetigen(id) {
+    this.wischRueckEnde();
+    if (!personLesen()) { melde("hinweis", "Bitte oben rechts wählen, wer du bist."); return; }
+    const ids = this.wischZiele(id);
+    if (!ids.length) return;                       // schon bestätigt: die Zeile federt nur zurück
+    const vorher = stapelStand();
+    if (!(await this.personMarkieren(ids, true))) return;
+    const nachher = stapelStand();
+    if (nachher.hoehe > vorher.hoehe) this.wischRueckZeigen(id, nachher, nachher.hoehe - vorher.hoehe);
+  }
+
+  /** Über der Zeile für kurze Zeit „Bestätigt – Rückgängig“; ein Tipp nimmt genau diese Bestätigung zurück. */
+  wischRueckZeigen(id, stand, schritte) {
+    const z = this.zeilen.get(id);
+    if (!z || !z.isConnected) return;
+    const el = h("button", { type: "button", class: "wisch-rueck", tid: "wisch-rueckgaengig" },
+      h("span", null, "✓ Bestätigt"), h("span", { class: "wisch-rueck-knopf" }, "Rückgängig"));
+    el.style.top = z.offsetTop + "px";
+    el.style.height = z.offsetHeight + "px";
+    el.addEventListener("click", async () => {
+      this.wischRueckEnde();
+      // nur, wenn seither nichts anderes geändert wurde; sonst bleibt der Rückgängig-Knopf der Werkzeugleiste
+      if (stapelStand().oben !== stand.oben) return;
+      for (let i = 0; i < schritte; i++) await rueckgaengig();
+    });
+    this.listenSpalte.append(el);
+    this.wischRueck = { el, timer: setTimeout(() => this.wischRueckEnde(), WISCH_RUECK_MS) };
+  }
+
+  wischRueckEnde() {
+    if (!this.wischRueck) return;
+    clearTimeout(this.wischRueck.timer);
+    this.wischRueck.el.remove();
+    this.wischRueck = null;
   }
 
   // ---------------------------------------------------------------- Bestätigung durch Torsten oder Tina (D-155)
@@ -2323,8 +2397,8 @@ class Kontoansicht {
 
   async personMarkieren(ids, hinzu) {
     const name = personLesen();
-    if (!name) { melde("hinweis", "Bitte oben rechts wählen, wer du bist."); return; }
-    if (hinzu && !(await this.zuordnungFordern(ids))) return;
+    if (!name) { melde("hinweis", "Bitte oben rechts wählen, wer du bist."); return false; }
+    if (hinzu && !(await this.zuordnungFordern(ids))) return false;
     const offenVorab = !hinzu ? [] : ids.filter((id) => {
       const x = this.eintraege.find((e) => e.id === id);
       return x && !x.abgestimmt && (x.status === "importiert" || x.status === "vorlaeufig");
@@ -2347,7 +2421,8 @@ class Kontoansicht {
         }
         return true;
       }, { erfolg: hinzu ? `Als ${name} bestätigt.` : `Bestätigung von ${name} zurückgenommen.` });
-    } catch { zurueck(); /* gemeldet */ }
+      return true;
+    } catch { zurueck(); /* gemeldet */ return false; }
   }
 
   // ---------------------------------------------------------------- Tastaturkürzel (D-167)
@@ -2530,13 +2605,18 @@ class Kontoansicht {
     return null;
   }
 
-  menue(x, y, ausloeser, alt = false) {
-    const ids = this.auswahlIds();
+  /** Kontextmenü der Auswahl. Mit `nurIds` (mobil ohne Auswahlmodus, D-278) gilt es genau diesen Buchungen, ohne
+   *  dass eine Auswahl entsteht; dann stehen „Einzelheiten“ und „Mehrfachauswahl“ vor den übrigen Einträgen. */
+  menue(x, y, ausloeser, alt = false, nurIds = null) {
+    const ids = nurIds || this.auswahlIds();
     const eine = ids.length === 1;
-    const mitVorschlag = this.eintraege.some((b) => this.auswahl.has(b.id) && b.vorschlag);
+    const mitVorschlag = this.eintraege.some((b) => ids.includes(b.id) && b.vorschlag);
+    const mobil = oberflaeche.istMobil();
     const dublette = this.dubletteFuer(ids);
     const b = eine ? this.eintraege.find((x2) => x2.id === ids[0]) : null;
     kontextmenue(x, y, [
+      mobil && eine ? { tid: "km-details", text: "Einzelheiten", tun: () => { this.fokussieren(ids[0], false); this.detailsOeffnen(); } } : null,
+      mobil && nurIds ? { tid: "km-auswahl", text: "Mehrfachauswahl", tun: () => this.auswahlStarten(ids[0]) } : null,
       { tid: "km-kategorie", kuerzel: "k", text: "Kategorie setzen…", tun: () => this.kategorieWaehlen(ids, ausloeser) },
       { tid: "km-tags", kuerzel: "t", text: "Tags…", tun: () => this.tagsDialog(ids, ausloeser) },
       { tid: "km-splitten", kuerzel: "x", text: "Splitten…", aktiv: eine, tun: () => splitDialog(b, ausloeser) },
@@ -2559,7 +2639,7 @@ class Kontoansicht {
       // Verschieben nur mit gehaltener Alt-Taste, auf dem Handy im Menü (D-160)
       ...(!this.istKategorie && (alt || oberflaeche.istMobil()) ? [{ tid: "km-verschieben",
         text: "Auf anderes Konto verschieben…", tun: () => this.verschiebenDialog(ids, ausloeser) }] : []),
-      { tid: "km-loeschen", kuerzel: "Entf", text: "Löschen…", tun: () => this.loeschen(ausloeser) },
+      { tid: "km-loeschen", kuerzel: "Entf", text: "Löschen…", tun: () => this.loeschen(ausloeser, ids) },
     ].filter(Boolean), ausloeser);
   }
 
@@ -2660,11 +2740,10 @@ class Kontoansicht {
         onclick: () => { this.auswahl = new Set(this.ids()); this.auswahlZeigen(); } }));
   }
 
-  /** Lange Berührung (mobil): Auswahlmodus mit dieser Zeile beginnen bzw. die Zeile hinzunehmen. */
+  /** Auswahlmodus (mobil) mit dieser Zeile beginnen; Einstieg ist „Mehrfachauswahl“ im Kontextmenü (D-278). */
   auswahlStarten(id) {
     this.auswahl.add(id);
     this.anker = id;
-    try { if (navigator.vibrate) navigator.vibrate(12); } catch (e) { /* ohne Vibration */ }
     this.fokussieren(id, false);
   }
 
@@ -2906,8 +2985,8 @@ class Kontoansicht {
     }, { ausloeser });
   }
 
-  async loeschen(ausloeser) {
-    const ids = this.auswahlIds().sort((a, b) => a - b);
+  async loeschen(ausloeser, nurIds = null) {
+    const ids = (nurIds || this.auswahlIds()).slice().sort((a, b) => a - b);
     if (!ids.length) return;
     const ok = await bestaetigen(ids.length === 1 ? "1 Buchung löschen?" : `${ids.length} Buchungen löschen?`,
       { ja: "Löschen", ausloeser });

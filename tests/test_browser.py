@@ -189,7 +189,8 @@ def test_mobil(tmp_path, browser):
         expect(tid(page, "app")).to_have_attribute("data-layout", "mobil")
         expect(tid(page, "buchungsliste")).to_have_attribute("data-kompakt", "ja")
         assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
-        # D-141: lange Berührung startet den Auswahlmodus (kein Kontextmenü), sichtbar mit Häkchen und Kopfleiste
+        # D-278 (vorher D-141: lange Berührung wählt aus): lange Berührung öffnet das Kontextmenü, „Mehrfachauswahl“
+        # darin startet den Auswahlmodus, sichtbar mit Häkchen und Kopfleiste
         zeile = page.locator('[data-testid="buchungsliste"] [role="row"][data-id]').nth(1)
         box = zeile.bounding_box()
         cdp = page.context.new_cdp_session(page)
@@ -197,6 +198,8 @@ def test_mobil(tmp_path, browser):
         cdp.send("Input.dispatchTouchEvent", {"type": "touchStart", "touchPoints": [{"x": x, "y": y}]})
         page.wait_for_timeout(700)
         cdp.send("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []})
+        expect(zeile).to_have_attribute("aria-selected", "false")
+        tid(page, "km-auswahl").click()
         expect(zeile).to_have_attribute("aria-selected", "true")
         expect(tid(page, "kontextmenue")).to_have_count(0)
         expect(tid(page, "panel-details")).to_have_count(0)
@@ -206,14 +209,9 @@ def test_mobil(tmp_path, browser):
         # Rückgängig bleibt im Auswahlmodus erreichbar (Kopfleiste liegt darunter)
         kopf = tid(page, "app-kopf").bounding_box()
         assert tid(page, "auswahl-kopf").bounding_box()["y"] >= kopf["y"] + kopf["height"] - 1
-        # Wischen nach rechts schaltet die Auswahl einer weiteren Zeile um
+        # im Auswahlmodus schaltet Tippen die Auswahl einer weiteren Zeile um (D-278: Wischen nach rechts bestätigt)
         zeile = page.locator('[data-testid="buchungsliste"] [role="row"][data-id]').nth(3)
-        box = zeile.bounding_box()
-        y = box["y"] + box["height"] / 2
-        cdp.send("Input.dispatchTouchEvent", {"type": "touchStart", "touchPoints": [{"x": 20, "y": y}]})
-        for i in range(1, 9):
-            cdp.send("Input.dispatchTouchEvent", {"type": "touchMove", "touchPoints": [{"x": 20 + 20 * i, "y": y}]})
-        cdp.send("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []})
+        zeile.tap()
         expect(zeile).to_have_attribute("aria-selected", "true")
         expect(tid(page, "auswahl-anzahl")).to_have_attribute("data-anzahl", "2")
         expect(tid(page, "mehrfach-leiste")).to_be_visible()
@@ -234,8 +232,11 @@ def test_mobil(tmp_path, browser):
         expect(tid(page, "auswahl-anzahl")).to_have_attribute("data-anzahl", "0")
         expect(tid(page, "buchungsliste")).to_have_attribute("data-auswahlmodus", "nein")
         assert page.url.endswith("/konten/1")
-        # ohne Auswahl öffnet Tippen die Einzelheiten
-        page.locator('[data-testid="buchungsliste"] [role="row"][data-id]').nth(2).tap()
+        # ohne Auswahl markiert Tippen nur; der Doppeltipp öffnet die Einzelheiten (D-278)
+        zeile = page.locator('[data-testid="buchungsliste"] [role="row"][data-id]').nth(2)
+        zeile.tap()
+        expect(tid(page, "panel-details")).to_have_count(0)
+        zeile.tap()
         expect(tid(page, "panel-details")).to_be_visible()
         tid(page, "details-schliessen").click()
         # Suche als Lupe

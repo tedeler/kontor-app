@@ -414,7 +414,7 @@ def test_mobil_marke_und_kamera(starte_server, neue_seite):
     expect(marke).to_be_visible()
     assert zeile(seite, b2).locator('[data-feld="empfaenger"]').get_by_test_id(f"beleg-marke-{b2}").count() == 1, (
         "mobil am Ende der Empfängerzelle")
-    m8.tippen(seite, zeile(seite, b1))
+    m8.doppeltipp(seite, zeile(seite, b1))             # D-278: Einzelheiten mobil per Doppeltipp
     foto = tid(seite, "dokument-foto")
     expect(foto).to_be_visible()
     expect(foto).to_have_text(re.compile("Foto aufnehmen"))

@@ -742,13 +742,18 @@ html[data-thema="dunkel"] { --wahl-schleier: color-mix(in srgb, var(--text) 16%,
   .mock-hinweis:not(.ganz) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: .8rem; padding: .2rem .5rem;
     cursor: pointer; }
 }
-[data-layout="mobil"] .kopf { gap: .2rem; padding: .3rem .35rem; }
-[data-layout="mobil"] .kopf-knoepfe { margin-left: auto; gap: .15rem; }
+/* D-279: ohne Abstände passen acht Knöpfe mit 44 px ab 360 px in eine Zeile, neun ab 403 px; darunter entfällt
+   „Wiederholen“ (weiter über die Befehlspalette), unter 359 px auch der Knopf der Befehlspalette. */
+[data-layout="mobil"] .kopf { gap: 0; padding: .3rem .2rem; }
+[data-layout="mobil"]:not(.suche-offen) .kopf { flex-wrap: nowrap; }
+[data-layout="mobil"] .kopf-knoepfe { margin-left: auto; gap: 0; }
+[data-layout="mobil"] .kopf-knopf { flex: none; padding: 0; }
 [data-layout="mobil"]:not(.suche-offen) .suche-kopf { display: none; }
 [data-layout="mobil"].suche-offen .suche-kopf { order: 5; flex-basis: 100%; }
 [data-layout="mobil"] .kopf-knopf { border-color: transparent; background: none; }
 [data-layout="mobil"] .kopf-knopf[aria-expanded="true"] { background: var(--akzent-hell); }
-@media (max-width: 389.98px) { [data-layout="mobil"] #wiederholen-knopf { display: none; } }
+@media (max-width: 402.98px) { [data-layout="mobil"] #wiederholen-knopf { display: none; } }
+@media (max-width: 358.98px) { [data-layout="mobil"] #befehlspalette-knopf { display: none; } }
 .tabs-zahl { display: inline-flex; align-items: center; justify-content: center; min-width: 1.45rem; height: 1.45rem; padding: 0 .2rem;
   border: 2px solid currentColor; border-radius: 5px; font-size: .78rem; font-weight: 700; line-height: 1; }
 [data-layout="mobil"] .tab-leiste { display: none; }
@@ -860,9 +865,17 @@ html[data-thema="dunkel"] { --wahl-schleier: color-mix(in srgb, var(--text) 16%,
   padding: 0 1rem; font-weight: 600; font-size: .95rem; pointer-events: none; color: var(--text-2); background: var(--hg-3); }
 .wisch-hinweis[hidden] { display: none; }
 .wisch-hinweis[data-richtung="rechts"] .wisch-rechts, .wisch-hinweis[data-richtung="links"] .wisch-links { visibility: hidden; }
-.wisch-hinweis[data-bereit="ja"][data-richtung="rechts"] { background: var(--akzent); color: var(--akzent-text); }
-.wisch-hinweis[data-bereit="ja"][data-richtung="links"] { background: var(--erfolg); color: #fff; }
-html[data-thema="dunkel"] .wisch-hinweis[data-bereit="ja"][data-richtung="links"] { color: #15181c; }
+.wisch-hinweis[data-bereit="ja"][data-richtung="rechts"] { background: var(--erfolg); color: #fff; }
+.wisch-hinweis[data-bereit="ja"][data-richtung="links"] { background: var(--akzent); color: var(--akzent-text); }
+html[data-thema="dunkel"] .wisch-hinweis[data-bereit="ja"][data-richtung="rechts"] { color: #15181c; }
+/* D-278: getippte Zeile (Markierung ohne Auswahl) und „Bestätigt – Rückgängig“ über der Zeile nach dem Wisch */
+[data-layout="mobil"] .buchungsliste:not([data-auswahlmodus="ja"]) .zeile[data-markiert] { box-shadow: inset 4px 0 0 var(--akzent);
+  background-color: var(--auswahl); }
+.wisch-rueck { position: absolute; left: 0; right: 0; z-index: 3; display: flex; align-items: center; justify-content: space-between;
+  gap: 1rem; padding: 0 1rem; border: 0; font: inherit; font-weight: 600; text-align: left; cursor: pointer;
+  background: var(--erfolg); color: #fff; }
+html[data-thema="dunkel"] .wisch-rueck { color: #15181c; }
+.wisch-rueck-knopf { text-decoration: underline; }
 @media (prefers-reduced-motion: no-preference) { [data-layout="mobil"] .zeile { transition: transform .15s ease-out, background-color .12s; }
   [data-layout="mobil"] .zeile.wischt { transition: none; } }
 .app[data-layout="mobil"] ~ .kontextmenue .menue-eintrag[aria-disabled="true"] { display: none; }
