@@ -16,10 +16,12 @@ def _vorschlag(js):
 def test_blatt_nimmt_die_wirkung_vorweg_und_reiht_die_anfragen(client):
     js = client.get("/oeffentlich/app/konto.js").text
     teil = _vorschlag(js)
-    assert "this.vorweg.set(" in teil and "vorschlagVorweg" in js, "die Zeile wird nicht vor der Anfrage geändert"
-    assert teil.index("listeZeichnen()") < teil.index("aktion("), "gezeichnet wird erst nach der Anfrage"
-    assert "vorschlagKette" in teil, "mehrere Entscheidungen laufen nicht nacheinander"
-    assert "ohneNeuLaden" in teil, "zwischen eingereihten Entscheidungen wird neu geladen"
+    assert "this.sofort(" in teil and "vorschlagVorweg" in teil, "die Zeile wird nicht vor der Anfrage geändert"
+    sofort = js[js.index("  sofort(ids, patch, ausfuehren, optionen) {"):]
+    sofort = sofort[:sofort.index("\n  }\n")]
+    assert sofort.index("listeZeichnen()") < sofort.index("aktion("), "gezeichnet wird erst nach der Anfrage"
+    assert "this.kette" in sofort, "mehrere Entscheidungen laufen nicht nacheinander"
+    assert "ohneNeuLaden" in sofort, "zwischen eingereihten Entscheidungen wird neu geladen"
 
 
 def test_vorweggenommene_wirkung_stimmt_mit_dem_server(mock_client):
