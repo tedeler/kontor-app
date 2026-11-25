@@ -2,7 +2,7 @@
  * mobiles Menü, Synchronisation mit PIN-Dialog, Service Worker und Offline-Hinweis (oberflaeche.md 1–4, 11, 12,
  * 15.4, 16–19). */
 import {
-  ApiFehler, BESTAND, anmeldung, anmeldungLaden, api, beiOffline, dialogOffen, ebeneOeffnen, ebeneSchliessen, ebenen,
+  ApiFehler, BESTAND, aktion, anmeldung, anmeldungLaden, api, beiOffline, betragEl, datumText, dialogOffen, ebeneOeffnen, ebeneSchliessen, ebenen,
   fehlerMelden, h, istTexteingabe, kontoNach, melde, nachName, neueId, oberflaeche, obersteEbene, passt, PERSONEN,
   personLesen, personLoeschen, personSchreiben, rueckgaengig, stamm,
   stammLaden, stapelAnzeigen, tid, wiederholen,
@@ -574,6 +574,52 @@ async function synchronisieren() {
     await benachrichtigungenZaehlen();
   }
   if (lauf) await zuordnenNachLauf(lauf);
+  await ausgleichPaarePruefen();
+}
+
+// ------------------------------------------------------------------ Ausgleichsbuchungen zusammenführen (D-280)
+// Zwei Ausgleichsbuchungen eines Kontos innerhalb einer Woche mit unterschiedlichem Betrag: Kontor fragt in einem
+// Fenster, ob sie zu einer Buchung mit der Summe werden sollen. „Später“ gilt bis zum nächsten Laden der Anwendung.
+const paareSpaeter = new Set();
+let paareLaeuft = false;
+
+function ausgleichDialog(p) {
+  const [a, b] = p.buchungen;
+  const d = dialog("ausgleich-dialog", "Ausgleichsbuchungen zusammenführen?", (inhalt, dd) => {
+    inhalt.append(
+      h("p", null, "Auf „", p.konto_name, "“ stehen zwei Ausgleichsbuchungen kurz nacheinander:"),
+      h("ul", { class: "ausgleich-paar" }, [a, b].map((x) => h("li", { tid: `ausgleich-buchung-${x.id}` },
+        datumText(x.datum), " · ", betragEl("span", x.betrag)))),
+      h("p", null, "Zusammengeführt bleibt eine Buchung über ", betragEl("strong", p.summe, { tid: "ausgleich-summe" }),
+        ` am ${datumText(b.datum)}; die frühere entfällt.`),
+      knopfLeiste(
+        knopf("Zusammenführen", { tid: "ausgleich-zusammenfuehren", class: "knopf knopf-haupt", onclick: () => dd.schliessen("zusammen") }),
+        knopf("Getrennt lassen", { tid: "ausgleich-getrennt", onclick: () => dd.schliessen("getrennt") }),
+        knopf("Später", { tid: "ausgleich-spaeter", onclick: () => dd.schliessen(null) })));
+  }, { fokus: (box) => tid("ausgleich-spaeter", box) });
+  return d.ergebnis;
+}
+
+async function ausgleichPaarePruefen() {
+  if (offline || paareLaeuft || dialogOffen()) return;
+  paareLaeuft = true;
+  try {
+    const liste = await api("GET", "/api/saldoausgleich/paare");
+    for (const p of liste) {
+      const ids = p.buchungen.map((x) => x.id);
+      const schluessel = ids.join(":");
+      if (paareSpaeter.has(schluessel) || dialogOffen()) continue;
+      const wahl = await ausgleichDialog(p);
+      if (wahl === "zusammen") {
+        await aktion(() => api("POST", "/api/saldoausgleich/paare/zusammenfuehren", { buchung_ids: ids }),
+          { erfolg: "Ausgleichsbuchungen zusammengeführt." }).catch(() => { /* gemeldet */ });
+      } else if (wahl === "getrennt") {
+        await api("POST", "/api/saldoausgleich/paare/getrennt", { buchung_ids: ids });
+      } else paareSpaeter.add(schluessel);
+    }
+  } catch (e) {
+    if (!(e && e.offline)) fehlerMelden(e);
+  } finally { paareLaeuft = false; }
 }
 
 const LAUF = { erfolgreich: "Synchronisation erfolgreich.", fehlgeschlagen: "Synchronisation fehlgeschlagen.",
@@ -1025,7 +1071,8 @@ async function start() {
   window.addEventListener("kontor-sperre", sperrStatusPruefen);
   app.dataset.bereit = "ja";
   benachrichtigungenZaehlen();
-  setInterval(() => { benachrichtigungenZaehlen(); sperrStatusPruefen(); }, 60000);
+  ausgleichPaarePruefen();
+  setInterval(() => { benachrichtigungenZaehlen(); sperrStatusPruefen(); ausgleichPaarePruefen(); }, 60000);
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => { /* ohne Service Worker weiter */ });
   }

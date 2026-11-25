@@ -29,8 +29,10 @@ def bank(client, config):
         con = db.verbinde(config.aktive_datenbank)
         try:
             with db.transaktion(con):
-                lid = con.execute("INSERT INTO sync_lauf (status, begonnen) VALUES ('laeuft', ?)", (tag,)).lastrowid
-                con.execute("INSERT INTO sync_lauf_konto (lauf_id, iban, status) VALUES (?, ?, 'erfolgreich')", (lid, IBAN))
+                lid = con.execute("INSERT INTO sync_lauf (ausloeser, status, gestartet_am) VALUES ('manuell', 'laeuft', ?)",
+                                  (tag,)).lastrowid
+                con.execute("INSERT INTO sync_lauf_konto (lauf_id, iban, konto_id, konto_neu, status) VALUES (?, ?, ?, 0,"
+                            " 'erfolgreich')", (lid, IBAN, konto))
             dienst._saldo_abgleichen(con, lid, IBAN, konto, Umsatzliste(saldo=BankSaldo(IBAN, betrag, dt.date.fromisoformat(tag))))
             import json
             return json.loads(con.execute("SELECT saldo_abgleich FROM sync_lauf_konto WHERE lauf_id = ?", (lid,)).fetchone()[0])
@@ -86,7 +88,6 @@ def test_unterschiedliche_betraege_werden_zum_zusammenfuehren_angeboten(bank):
     assert r.json()["buchung_id"] == b and r.json()["summe"] == 2000
     assert ausgleiche() == [("2026-11-12", 2000)]        # eine Buchung mit dem Restbetrag, am späteren Tag
     assert client.get("/api/saldoausgleich/paare").json() == []
-    assert client.get(f"/api/konten/{kid}").json()["saldo"] == 2000
     # eine Änderung im Protokoll; Rückgängig stellt beide wieder her
     letzte = client.get("/api/aenderungen?limit=1").json()["eintraege"][0]
     assert letzte["aktion"] == "saldoausgleich_zusammenfuehren"

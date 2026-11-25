@@ -44,6 +44,9 @@ OPERATIONEN_M3 = {
     ("post", "/api/empfaenger/{empfaenger_id}/zusammenfuehren"),
     ("post", "/api/buchungen/erfassen"),
     ("post", "/api/umbuchungen/erkennen"), ("post", "/api/umbuchungen/zusammenfuehren"),
+    # D-280: Ausgleichsbuchungen aufräumen (kontostand.md 5)
+    ("get", "/api/saldoausgleich/paare"), ("post", "/api/saldoausgleich/paare/zusammenfuehren"),
+    ("post", "/api/saldoausgleich/paare/getrennt"),
     ("get", "/api/abstimmungen"), ("post", "/api/abstimmungen"),
     ("get", "/api/abstimmungen/{abstimmung_id}"), ("delete", "/api/abstimmungen/{abstimmung_id}"),
     ("get", "/api/suche"),

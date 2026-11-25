@@ -131,5 +131,6 @@ Im Ausgangsstand schlugen 19 Tests der Abnahmesuite und 3 eigene fehl. Kein Anwe
 | `m28/test_m28_kontoblatt.py::test_filter_untermenue`, `m8/test_m8_panels_mobil.py::test_groesse_per_tastatur`, `::test_mobil_kein_andocken_layout_bleibt` | D-271: Filterwechsel behält die Auswahl; D-265: kein Panel Kategorien | Auswahl = gewählte Buchung; Griff und Andocken der Einzelheiten statt des Panels Kategorien |
 | eigene `test_browser_ausdruck.py::test_tags_im_kontoblatt_bearbeiten` | öffnete den Tag-Dialog, bevor die Liste neu geladen war; erneut rot im CI-Lauf vom 2026-11-24 | wartet, bis die Zeile das neue Tag zeigt (D-274) |
 | `m8/test_m8_split_dnd.py::test_split_bearbeiten` | D-272: Splits speichern setzt bei gewählter Person auch deren Tag (weitere Änderungen im Protokoll) | zählt nur die Änderung der Splits; die Tag-Änderungen sind zugelassen |
+| `spec/test_openapi.py::test_alle_operationen_vorhanden`, eigene `test_oberflaeche.py::test_oberflaeche_nutzt_nur_spezifizierte_api` | D-280: drei neue Operationen unter `/api/saldoausgleich/paare` | erwartete Operationen bzw. Pfade ergänzt |
 
 Stabilität: Nach den Änderungen lief der Browser-Teil der Gesamtsuite viermal hintereinander grün.

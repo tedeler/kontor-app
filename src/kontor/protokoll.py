@@ -106,6 +106,8 @@ BESCHREIBUNG = {
     "erwartung_aendern": "Erwartete Zahlung geändert", "erwartung_zustand": "Erwartete Zahlung geschlossen/geöffnet",
     "erwartung_loeschen": "Erwartete Zahlung gelöscht",
     "bestellmail_anhaengen": "E-Mails über die Bestellnummer angehängt",
+    "saldoausgleich_zusammenfuehren": "Ausgleichsbuchungen zusammengeführt",
+    "saldoausgleich_aufraeumen": "Ausgleichsbuchungen aufgehoben",
 }
 
 

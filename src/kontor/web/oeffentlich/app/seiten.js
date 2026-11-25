@@ -1424,7 +1424,9 @@ function saldoAbgleich(k, laeufe) {
       betragEl("span", sa.differenz));
   }
   if (sa.status === "ausgeglichen") {
-    el.append(" ", h("a", { href: `/konten/${sa.konto_id}`, tid: `bankkonto-ausgleich-${k.iban}` }, "Ausgleichsbuchung prüfen"));
+    // D-280: ohne neue Buchung hat der Abgleich eine frühere Ausgleichsbuchung aufgehoben
+    el.append(" ", h("a", { href: `/konten/${sa.konto_id}`, tid: `bankkonto-ausgleich-${k.iban}` },
+      sa.buchung_id === null && sa.aufgehoben_buchung_id ? "frühere Ausgleichsbuchung aufgehoben" : "Ausgleichsbuchung prüfen"));
   }
   return el;
 }

@@ -19,7 +19,7 @@ from dataclasses import dataclass
 import json
 
 from .plugins.fints_diagnose import Diagnose
-from . import abgleich, bankzugang, buch, db, kontonamen, kredite, lernmodell, pflege, protokoll, regeln, vorlagen, wiederkehrend
+from . import abgleich, ausgleich, bankzugang, buch, db, kontonamen, kredite, lernmodell, pflege, protokoll, regeln, vorlagen, wiederkehrend
 from .buch import BESTAND, ApiFehler
 from .config import KontorConfig
 from .fehler import (BankPinFalsch, BankZugangGesperrt, KontorFehler, TanAbgelaufen, TanErforderlich, TanUngueltig)
@@ -942,16 +942,25 @@ class SyncDienst:
             erg.update(status="stimmt" if differenz == 0 else "ausgeglichen", bank_saldo=s.betrag,
                        stichtag=stichtag, kontor_saldo=kontor, differenz=differenz)
             if differenz != 0:
-                erg["buchung_id"] = self._saldo_ausgleich_buchen(con, lid, iban, kid, stichtag, s.betrag, kontor)
+                bid, aufgehoben = self._saldo_ausgleich_buchen(con, lid, iban, kid, stichtag, s.betrag, kontor)
+                erg["buchung_id"] = bid
+                if aufgehoben is not None:      # D-280: frühere Ausgleichsbuchung entfernt statt eine zweite gebucht
+                    erg["aufgehoben_buchung_id"] = aufgehoben
         with db.transaktion(con):
             con.execute("UPDATE sync_lauf_konto SET saldo_abgleich = ? WHERE lauf_id = ? AND iban = ?",
                         (json.dumps(erg, ensure_ascii=False), lid, iban))
 
     def _saldo_ausgleich_buchen(self, con, lid: int, iban: str, kid: int, stichtag: str, bank: int,
-                                kontor: int) -> int:
-        """kontostand.md 2 Schritt 5, 2.2, 2.3: Ausgleichsbuchung gegen „Korrekturen“ als eigene Änderung."""
+                                kontor: int) -> tuple[int | None, int | None]:
+        """kontostand.md 2 Schritt 5, 2.2, 2.3: Ausgleichsbuchung gegen „Korrekturen“ als eigene Änderung.
+        Hebt die Differenz eine Ausgleichsbuchung der letzten Tage genau auf, wird stattdessen diese gelöscht
+        (kontostand.md 5, D-280). Ergebnis: (neue Buchung, entfernte Buchung) – genau eine davon ist gesetzt."""
         differenz = bank - kontor
         with protokoll.protokolliert(con, "sync", "sync_saldoausgleich", self.jetzt_text(), f"sync:{lid}"):
+            alt = ausgleich.gegenstueck(con, kid, stichtag, differenz)
+            if alt is not None:
+                buch.buchung_loeschen(con, alt)
+                return None, alt
             korrektur = pflege.korrektur_id(con)
             basis = f"saldo:{iban}:{stichtag}"
             kennung, n = basis, 1
@@ -968,7 +977,7 @@ class SyncDienst:
                 f"Der Kontostand von „{name}“ weicht von dem der Bank ab: Bank {euro(bank)}, Kontor "
                 f"{euro(kontor)} (Stichtag {stichtag}). Die Differenz von {euro(differenz)} wurde gegen "
                 "„Korrekturen“ gebucht und kann in der Buchungsliste geprüft werden.", link=f"/konten/{kid}")
-        return bid
+        return bid, None
 
     def _abgleichen_und_buchen(self, con, kid: int, iban: str, offen: list, z: dict) -> set[int]:
         """4.4: erst alle Umsätze bewerten, dann anwenden; danach 4.2 (Anlegen). Ergebnis: neue Buchungen."""

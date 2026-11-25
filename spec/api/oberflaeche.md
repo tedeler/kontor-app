@@ -1072,7 +1072,9 @@ Ansicht (16). Abweichungen:
   Konto erfolgreich verarbeitet wurde (leer, wenn es keinen gibt), und bei
   `stimmt`/`ausgeglichen` Bank-Saldo, Stichtag und Differenz; bei
   `ausgeglichen` ein Link `bankkonto-ausgleich-<iban>` auf
-  `/konten/<konto_id>` (`kontostand.md` 2).
+  `/konten/<konto_id>` (`kontostand.md` 2); wurde dabei eine frühere
+  Ausgleichsbuchung aufgehoben (`kontostand.md` 5.2), lautet sein Text
+  „frühere Ausgleichsbuchung aufgehoben“.
 
 ## 23. Meilenstein 12: Bearbeiten, Massenänderungen, Filterleiste
 
@@ -3243,3 +3245,14 @@ Seite `/konfiguration` (`seite-konfiguration`), nur lesend, aus
 
 D-236/2, 3, 12, 13 (klebende Betragsspalte, Gruppenbalken, rote Frist,
 Kachel) sind Darstellung und werden nicht geprüft.
+
+## 44. Ausgleichsbuchungen zusammenführen (D-280)
+
+- Nach dem Laden der Anwendung, nach einer in der Oberfläche gestarteten Synchronisation und danach minütlich
+  fragt die Oberfläche `GET /api/saldoausgleich/paare` ab (`kontostand.md` 5.3). Ist kein anderer Dialog offen,
+  erscheint je Paar ein modaler Dialog `ausgleich-dialog` (Titel „Ausgleichsbuchungen zusammenführen?“) mit dem
+  Kontonamen, beiden Buchungen (`ausgleich-buchung-<id>`: Datum und Betrag) und der Summe (`ausgleich-summe`,
+  `data-betrag`).
+- `ausgleich-zusammenfuehren` führt zusammen (über `aktion()`, mit Rückgängig); `ausgleich-getrennt` merkt die
+  Entscheidung auf dem Server; `ausgleich-spaeter`, Esc oder das Schließen lassen alles stehen – dann fragt die
+  Oberfläche erst nach dem nächsten Laden der Anwendung wieder. Der Fokus liegt anfangs auf `ausgleich-spaeter`.

@@ -116,7 +116,9 @@ Dublettenerkennung werden auf sie nicht angewendet.
 
 Danach gilt nach dem nächsten Lauf `kontor_saldo = s.betrag`, solange sich
 weder Bank noch Kontor ändern. Jeder Lauf gleicht nur seine eigene Differenz
-aus; es gibt keine Zusammenfassung früherer Ausgleichsbuchungen (E-161).
+aus. Ausnahme seit D-280 (Abschnitt 5, ersetzt hier E-161): Hebt die Differenz
+eine Ausgleichsbuchung der letzten sieben Tage genau auf, wird statt einer
+neuen Buchung die frühere gelöscht.
 
 ### 2.1 Ergebnis (`SyncKonto.saldo_abgleich`)
 
@@ -175,3 +177,51 @@ Keine neuen Endpunkte. Erweitert: `SyncKonto.saldo_abgleich`
 (`openapi.yaml`, Schema `SaldoAbgleich`), Benachrichtigungsart
 `saldo_ausgeglichen`. Die Sicherung (`sicherung.md`) enthält Ausgleichsbuchungen
 als gewöhnliche Buchungen; neuer fachlicher Zustand entsteht nicht.
+
+## 5. Ausgleichsbuchungen aufräumen (D-280)
+
+Arbeitsanweisung vom 2026-11-25. Meldet die Bank den neuen Kontostand vor dem
+Umsatz (oder steht eine eigene Buchung vor der Bank im Buch, Abschnitt 3),
+entstehen kurz nacheinander zwei Ausgleichsbuchungen, die sich ganz oder
+teilweise aufheben.
+
+### 5.1 Begriffe
+
+- **Ausgleichsbuchung** im Sinn dieses Abschnitts: Buchung mit einer Kennung
+  `saldo:…`, genau zwei Splits (das Konto und „Korrekturen“, gegengleich),
+  nicht `abgeglichen` und nicht abgestimmt. Wer sie umbucht oder splittet,
+  nimmt sie aus dem Aufräumen heraus.
+- **Frist:** höchstens 7 Tage zwischen den Buchungsdaten.
+
+### 5.2 Summe 0: ohne Nachfrage
+
+- **Beim Abruf:** Hat das Konto innerhalb der Frist um den Stichtag eine
+  Ausgleichsbuchung mit genau `−differenz`, wird in Schritt 5 (Abschnitt 2)
+  keine neue Buchung angelegt, sondern diese gelöscht (bei mehreren die
+  jüngste). `status` bleibt `ausgeglichen`, `buchung_id` ist null, zusätzlich
+  steht `aufgehoben_buchung_id`. Dieselbe Änderung `sync_saldoausgleich` in der
+  Lauf-Gruppe (Eintrag: Buchung gelöscht); Rückgängig stellt sie wieder her.
+  Keine Benachrichtigung.
+- **Altbestand:** Beim ersten Start nach D-280 werden alle Paare mit Summe 0
+  innerhalb der Frist gelöscht (älteste zuerst, jede Buchung höchstens einmal),
+  als eine Änderung `saldoausgleich_aufraeumen` (`quelle = "manuell"`). Der
+  Vermerk dazu ist Betriebszustand (`meta`).
+
+### 5.3 Summe ungleich 0: Nachfrage
+
+- `GET /api/saldoausgleich/paare`: aufeinanderfolgende Ausgleichsbuchungen
+  eines Kontos (nach Datum, Nummer) innerhalb der Frist mit Summe ≠ 0, über die
+  noch nicht entschieden ist – je Paar `konto_id`, `konto_name`, `summe` und
+  `buchungen` (zwei Einträge mit `id`, `datum`, `betrag` des Kontosplits). Gilt
+  auch für den Altbestand.
+- `POST /api/saldoausgleich/paare/zusammenfuehren` `{buchung_ids: [a, b]}`:
+  Die spätere Buchung bleibt mit der Summe (Datum, Status, Kennung
+  unverändert), die frühere wird gelöscht; ist die Summe 0, beide. Danach
+  entfallen Paare, die sich nun genau aufheben (5.2). Eine Änderung
+  `saldoausgleich_zusammenfuehren`. Antwort `{buchung_id, summe, konto_id}`
+  (`buchung_id` null, wenn nichts übrig bleibt). Kein Paar nach 5.1 → 409
+  `kein_ausgleichspaar`.
+- `POST /api/saldoausgleich/paare/getrennt` `{buchung_ids: [a, b]}` → 204:
+  merkt, dass über dieses Paar nicht mehr gefragt wird (Betriebszustand in
+  `meta`, nicht im Protokoll, nicht in der Sicherung).
+- Oberfläche: `oberflaeche.md` 44.

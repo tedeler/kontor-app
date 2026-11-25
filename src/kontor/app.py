@@ -34,7 +34,7 @@ from starlette.staticfiles import StaticFiles
 from . import (__version__, ausdruck, auswertungen, berichte, buch, db, export, kredite, lernerklaerung, lernmodell, lernregeln, mock_lerndaten, mail, monatsbericht, pflege, protokoll, regeln,
                sicherung, verschieben, vorlagen, wiederkehrend)
 from . import aktualisierung
-from . import abgleich, anbieter, bankzugang, bestellmail, config_anzeige, dokumente, erwartung, kontonamen
+from . import abgleich, anbieter, ausgleich, bankzugang, bestellmail, config_anzeige, dokumente, erwartung, kontonamen
 from . import umbuchung
 from . import anmeldung as anm
 from . import version as versionsinfo
@@ -174,6 +174,7 @@ BUCHUNG_ERFASSEN = {
 }
 UMBUCHUNGEN_ERKENNEN = {"trocken": S("bool")}
 UMBUCHUNG_ZUSAMMEN = {"buchung_ids": S("int_liste", pflicht=True, min_items=2, max_items=2, eindeutig=True)}
+AUSGLEICH_PAAR = {"buchung_ids": S("int_liste", pflicht=True, min_items=2, max_items=2, eindeutig=True)}
 ABSTIMMUNG_EINGABE = {"konto_id": S("int", pflicht=True), "stichtag": S("datum", pflicht=True),
                       "saldo": S("betrag", pflicht=True), "trocken": S("bool")}
 KONTO_LOESCHEN = {
@@ -361,6 +362,7 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     anbieter.einrichten(config.anbieter_verzeichnis)  # D-230: zugeladene Anbieter-Beschreibungen
     pflege.altbestand_umwandeln(pfad)  # D-219: Standardkategorien früherer Versionen werden Regeln
     kontonamen.altbestand_bereinigen(pfad)  # D-218: gleichnamige Konten früherer Versionen
+    ausgleich.altbestand_aufraeumen(pfad)  # D-280: Ausgleichsbuchungen, die sich genau aufheben (einmalig)
     modus = "mock" if config.mock_modus else "echt"
     if config.anmeldung:
         anm.Anmeldedienst(config).einrichtung_vorbereiten()  # sicherheit.md 5 Weg 2
@@ -1301,6 +1303,21 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     async def umbuchung_zusammenfuehren(request: Request):
         d = await koerper(request, UMBUCHUNG_ZUSAMMEN)
         return await aendern("umbuchung_zusammenfuehren", pflege.umbuchung_von_hand, d["buchung_ids"])
+
+    # ------------------------------------------------------------ Ausgleichsbuchungen aufräumen (D-280)
+    @endpunkt("GET", "/api/saldoausgleich/paare")
+    async def ausgleich_paare(request: Request):
+        return await lesen(ausgleich.paare)
+
+    @endpunkt("POST", "/api/saldoausgleich/paare/zusammenfuehren")
+    async def ausgleich_zusammenfuehren(request: Request):
+        d = await koerper(request, AUSGLEICH_PAAR)
+        return await aendern("saldoausgleich_zusammenfuehren", ausgleich.zusammenfuehren, d["buchung_ids"])
+
+    @endpunkt("POST", "/api/saldoausgleich/paare/getrennt", 204)
+    async def ausgleich_getrennt(request: Request):
+        d = await koerper(request, AUSGLEICH_PAAR)
+        return await schreiben(ausgleich.getrennt_lassen, d["buchung_ids"])
 
     @endpunkt("GET", "/api/abstimmungen")
     async def abstimmungen_liste(request: Request):

@@ -2044,6 +2044,81 @@ paths:
             application/json:
               schema: {$ref: "#/components/schemas/Fehler"}
 
+  /api/saldoausgleich/paare:
+    get:
+      tags: [umbuchungen]
+      operationId: saldoausgleichPaare
+      summary: "D-280: Offene Paare von Ausgleichsbuchungen mit Summe ungleich 0 (kontostand.md 5)"
+      responses:
+        "200":
+          description: Paare, nach Konto und Datum
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: "#/components/schemas/AusgleichPaar"}
+
+  /api/saldoausgleich/paare/zusammenfuehren:
+    post:
+      tags: [umbuchungen]
+      operationId: saldoausgleichZusammenfuehren
+      summary: "D-280: Zwei Ausgleichsbuchungen zu einer mit der Summe zusammenführen (kontostand.md 5.3)"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/UmbuchungZusammenfuehren"}
+      responses:
+        "200":
+          description: Ergebnis
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [buchung_id, summe, konto_id]
+                properties:
+                  buchung_id:
+                    oneOf:
+                      - {$ref: "#/components/schemas/Id"}
+                      - {type: "null"}
+                  summe: {type: integer}
+                  konto_id: {$ref: "#/components/schemas/Id"}
+        "409":
+          description: "`kein_ausgleichspaar`"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Fehler"}
+        "422":
+          description: "`validierung`"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Fehler"}
+
+  /api/saldoausgleich/paare/getrennt:
+    post:
+      tags: [umbuchungen]
+      operationId: saldoausgleichGetrennt
+      summary: "D-280: Über dieses Paar nicht mehr fragen (Betriebszustand, kontostand.md 5.3)"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/UmbuchungZusammenfuehren"}
+      responses:
+        "204":
+          description: Gemerkt
+        "409":
+          description: "`kein_ausgleichspaar`"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Fehler"}
+        "422":
+          description: "`validierung`"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Fehler"}
+
   /api/abstimmungen:
     get:
       tags: [abstimmungen]
@@ -6031,6 +6106,30 @@ components:
           oneOf:
             - {$ref: "#/components/schemas/Id"}
             - {type: "null"}
+        aufgehoben_buchung_id:
+          description: "D-280: nur vorhanden, wenn statt einer neuen Buchung eine frühere Ausgleichsbuchung entfernt wurde (dann ist buchung_id null)"
+          $ref: "#/components/schemas/Id"
+
+    AusgleichPaar:
+      type: object
+      additionalProperties: false
+      required: [konto_id, konto_name, summe, buchungen]
+      properties:
+        konto_id: {$ref: "#/components/schemas/Id"}
+        konto_name: {type: string}
+        summe: {type: integer}
+        buchungen:
+          type: array
+          minItems: 2
+          maxItems: 2
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, datum, betrag]
+            properties:
+              id: {$ref: "#/components/schemas/Id"}
+              datum: {$ref: "#/components/schemas/Datum"}
+              betrag: {type: integer}
 
     SyncLauf:
       type: object
