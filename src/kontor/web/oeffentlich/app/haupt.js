@@ -932,6 +932,7 @@ function offlineSetzen(ja) {
   if (ja === offline) return;
   offline = ja;
   offlineHinweis.hidden = !ja;
+  clearTimeout(pruefTimer);
   if (ja) {
     // keine veralteten Daten zeigen
     if (aktuell && aktuell.el) {
@@ -941,16 +942,47 @@ function offlineSetzen(ja) {
       tabs.alleVerwerfen();
       Object.assign(aktuell, { el: leer, seite: null, geladen: false });
     }
+    pruefWartezeit = 1000;
+    pruefungPlanen();
   }
 }
+
+// Rückkehr (D-276): Der Hinweis erscheint auch, wenn nur eine Anfrage scheitert (Handy: Seite war im Hintergrund
+// eingefroren). Das Ereignis „online“ kommt dann nie; deshalb prüft die Oberfläche die Verbindung selbst – in
+// wachsenden Abständen und sofort, wenn die Seite wieder sichtbar wird.
+const PRUEF_HOECHSTENS = 30000;
+let pruefTimer = null;
+let pruefWartezeit = 1000;
+let pruefung = null;
+
+function pruefungPlanen() {
+  clearTimeout(pruefTimer);
+  if (!offline || document.visibilityState === "hidden") return;   // verborgen: „visibilitychange“ prüft
+  pruefTimer = setTimeout(verbindungPruefen, pruefWartezeit);
+  pruefWartezeit = Math.min(pruefWartezeit * 2, PRUEF_HOECHSTENS);
+}
+
+function verbindungPruefen() {
+  if (!offline) return Promise.resolve();
+  if (!pruefung) {
+    clearTimeout(pruefTimer);
+    pruefung = (async () => {
+      try { await anmeldungLaden(); } catch (e) { pruefungPlanen(); return; }   // weiter offline (auch 502 des Proxys)
+      offlineSetzen(false);
+      await zeigen();
+      await benachrichtigungenZaehlen();
+      sperrStatusPruefen();
+    })().finally(() => { pruefung = null; });
+  }
+  return pruefung;
+}
+const sofortPruefen = () => { if (offline && document.visibilityState !== "hidden") verbindungPruefen(); };
+
 beiOffline(() => offlineSetzen(true));
 window.addEventListener("offline", () => offlineSetzen(true));
-window.addEventListener("online", async () => {
-  offlineSetzen(false);
-  try { if (!anmeldung.geladen) await anmeldungLaden(); } catch (e) { behandeln(e); return; }
-  await zeigen();
-  await benachrichtigungenZaehlen();
-});
+window.addEventListener("online", sofortPruefen);
+window.addEventListener("pageshow", sofortPruefen);
+document.addEventListener("visibilitychange", sofortPruefen);
 
 // ------------------------------------------------------------------ Start
 // ------------------------------------------------------------------ D-129: gesperrte Geheimnisse

@@ -902,6 +902,14 @@ Wechsel geschieht ohne Neuladen.
   ohne Beachtung der Groß-/Kleinschreibung) und keine veralteten Daten;
   kommt das Netz zurück, verschwindet der Hinweis und die Seite lädt ihre
   Daten.
+- **Rückkehr ohne `online` (D-276):** Der Hinweis erscheint auch, wenn nur
+  eine Anfrage an den Server scheitert, das Gerät aber online bleibt (Handy:
+  Seite war im Hintergrund eingefroren; Server kurz nicht erreichbar). Die
+  Oberfläche prüft dann die Verbindung selbst mit `GET /api/anmeldung`: in
+  wachsenden Abständen (ab 1 s, höchstens 30 s, nur bei sichtbarer Seite) und
+  sofort bei `visibilitychange` (sichtbar), `pageshow` und `online`. Gelingt
+  die Prüfung, verschwindet der Hinweis und die Seite lädt ihre Daten, ohne
+  Neuladen von Hand.
 - **Keine Daten im Browser:** Antworten unter `/api/` werden nie in
   Caches abgelegt. `localStorage`/`sessionStorage` enthalten nur Schlüssel
   mit dem Präfix `kontor.` ohne Texte aus dem Buchbestand; IndexedDB wird
