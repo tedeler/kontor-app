@@ -268,6 +268,13 @@ nicht mehr. Ein Thread schreibt Tests und Code.
 - Die ausgelieferte `kontor-test.service` nicht für die Demo ändern (`betrieb.md` 9); Demo-Einstellungen gehören
   in `testinstanz.DEMO_ENV`.
 
+## Hinweise zum Logo der Testinstanz (Feature `testinstanz-logo`, D-286)
+
+- Im Mock-Modus liefert `app.py` unter den Adressen der Symbole die Dateien `web/oeffentlich/testinstanz-icon*`
+  und ändert Namen und Farbe in Manifest, Hülle und Anmeldeseite (`TEST_NAME`, `TEST_FARBE`, `_als_testinstanz`).
+  Ein neues Symbol im Manifest braucht deshalb auch eine Fassung für die Testinstanz und einen Eintrag in
+  `TEST_SYMBOLE`.
+
 ## Hinweise zur Versionierung (D-105)
 
 - Die Version nie von Hand in `VERSION` ändern; das macht nur die Release-CI beim Push auf main. Nach einem

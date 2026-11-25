@@ -4263,3 +4263,24 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   `tests/test_demodaten_eigen.py` (voller Umfang, Kalenderränder, Umgebung der Instanz),
   `tests/test_testinstanz_skript_eigen.py` (`demo`, `neu`, `status`).
 
+## D-286 Eigenes Logo der Testinstanz, auch als installierte Anwendung (Feature `testinstanz-logo`, 2026-11-25)
+
+- **Anlass:** Haupt- und Testinstanz sehen in der Tab-Leiste und auf dem Startbildschirm des Handys gleich aus.
+- **Entscheidung:** Im Mock-Modus heißt die Anwendung „Kontor Test“ und trägt ein eigenes Symbol: das K auf
+  orangem Grund (`#c2570b`) mit dunklem Band „TEST“. Betroffen sind Manifest (`name`, `short_name`,
+  `theme_color`), die vier Symbole (SVG, PNG 192 und 512, `maskable` 512), `theme-color`, Seitentitel und
+  `apple-mobile-web-app-title` von Hülle und Anmeldeseite. Die Adressen bleiben dieselben; Hülle, Service Worker
+  und Manifest-Verweise ändern sich nicht. Die Dateien liegen als `testinstanz-icon*` neben den bisherigen.
+- **Warum der Mock-Modus und keine eigene Einstellung:** Die Testinstanz ist genau die Instanz im Mock-Modus.
+  Eine neue Variable käme nicht an: Eine vorhandene `kontor-test.env` bleibt beim Einrichten erhalten, und die
+  Unit schreibt das Programm der Hauptinstanz, die den neuen Stand noch nicht hat. So wirkt das Logo sofort mit
+  jedem Branch, der es enthält.
+- **Nicht geändert:** die Titel der Ansichten („… – Kontor“), der Schriftzug in der Kopfzeile, der Hinweisbalken
+  „Mock-Modus“.
+- **Grenzen:** Eine schon installierte Anwendung behält ihr altes Symbol; Android aktualisiert es frühestens nach
+  einiger Zeit, iOS gar nicht. Sicher ist: entfernen und neu zum Startbildschirm hinzufügen. Die Symbole sind mit
+  einem Skript außerhalb des Repositories erzeugt (Polygon des K aus `icon.svg`, Buchstaben aus Rechtecken, ohne
+  Schriftdatei).
+- **Tests:** `tests/core/test_testinstanz_logo.py`. Angepasst: `gesamt-tests/tests/app/m8/test_m8_auslieferung.py::
+  test_manifest` (Name im Mock-Modus), in `TESTUMBAU.md` vermerkt.
+

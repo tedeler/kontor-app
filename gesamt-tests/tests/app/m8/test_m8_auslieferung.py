@@ -134,8 +134,10 @@ def test_manifest(m8_api, tmp_path):
         assert r.status_code == 200, "Manifest ist öffentlich (sicherheit.md 3.1)"
         assert r.headers["content-type"].split(";")[0].strip() == "application/manifest+json"
         m = json.loads(r.content)
+        # D-286 (oberflaeche.md 18): Beide Instanzen laufen im Mock-Modus; dort heißt die Anwendung „Kontor Test“
+        name = "Kontor Test"
         assert (m["id"], m["name"], m["short_name"], m["lang"], m["start_url"], m["scope"], m["display"]) == (
-            "/", "Kontor", "Kontor", "de", "/", "/", "standalone")
+            "/", name, name, "de", "/", "/", "standalone")
         for feld in ("background_color", "theme_color"):
             assert re.fullmatch(r"#[0-9a-fA-F]{6}", m[feld]), feld
         groessen_any, maskable = set(), False
