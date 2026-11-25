@@ -4198,3 +4198,30 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - **Prüfung:** Core-Test in `tests/core/test_mobil_gesten.py`; `tests/test_browser_gesten.py::
   test_wischen_in_langer_liste_bleibt_an_der_zeile` (130 Buchungen, gerollt: Hinweis, „Rückgängig“ und Zeile an
   derselben Stelle). Ob (2) am Handy damit behoben ist, zeigt erst der Versuch dort.
+
+## D-284 Offene Ansichten folgen dem Buchbestand; Mail-Abruf im Takt der Kontosynchronisation (Feature `mail-aktuell`, 2026-11-25)
+
+- **Anlass:** Fehlermeldung vom 2026-11-25: Bei offenem Kontoblatt ordnet ein Mail-Abruf Mails zu, das Kontoblatt
+  zeigt sie aber erst nach Schließen und Öffnen. Dazu der Auftrag: Mail-Abruf periodisch wie die Kontosynchronisation.
+- **Ursache, nachgestellt:** Nach „Mails abrufen“ lud nur das Mail-Blatt neu. Die übrigen Tabs wurden nicht als
+  veraltet markiert (das geschieht sonst nur nach einer eigenen Aktion über `aktion()`), also zeigte der Tab des
+  Kontoblatts beim Zurückwechseln den alten Stand. Dasselbe galt für jede Änderung im Hintergrund: Abrufe des
+  Planers (Konto und Mail) und Änderungen von einem anderen Gerät.
+- **Entscheidung (Ansichten):** Neuer Endpunkt `GET /api/bestand/stand` (höchste Kennung im Änderungsprotokoll). Die
+  Oberfläche fragt ihn jede Minute und bei der Rückkehr ins Fenster ab; nach jedem eigenen Neuladen merkt sie sich
+  den Stand. Weicht er ab, gelten die übrigen Tabs als veraltet, und die sichtbare Ansicht lädt neu, sobald niemand
+  darin arbeitet (kein Feld im Fokus, kein Fenster, kein Menü). Nach „Mails abrufen“ im Mail-Blatt und in den
+  Einstellungen gelten die übrigen Tabs sofort als veraltet.
+- **Entscheidung (periodisch):** Den Planer-Abruf gab es schon (`KONTOR_MAIL_INTERVALL_MINUTEN`, Vorgabe aus, in
+  der ausgelieferten `kontor.env` auskommentiert). Neu: Ist die Variable nicht gesetzt, gilt
+  `KONTOR_SYNC_INTERVALL_MINUTEN`. Eine installierte Umgebungsdatei mit Kontoabruf alle 240 Minuten ruft damit
+  ohne Handgriff auch Mails alle 240 Minuten ab; `0` schaltet ab, eine eigene Zahl gilt wie bisher. Die
+  Testinstanz setzt `0`. `GET /api/mail/abruf/stand` nennt `automatisch` und `intervall_minuten`, das Mail-Blatt
+  zeigt den Abstand.
+- **Verworfen:** die Vorgabe des Felds `mail_intervall_minuten` zu ändern (träfe jede Konfiguration aus Python,
+  auch alle Tests); ein eigener Kanal vom Server zum Browser (die Abfrage je Minute genügt).
+- **Grenzen:** Die sichtbare Ansicht folgt einer Änderung im Hintergrund mit bis zu einer Minute Verzug. Eine eigene
+  schreibende Anfrage ohne anschließendes Neuladen löst beim nächsten Takt ein überflüssiges Neuladen aus.
+- **Tests:** `tests/core/test_mail_aktuell.py`, `tests/test_browser_mail_aktuell.py` (Abruf im Mail-Blatt bei
+  offenem Kontoblatt; Zuordnung im Hintergrund bei sichtbarem Kontoblatt, Auswahl bleibt). Angepasst:
+  `tests/test_mail_fortschritt_eigen.py` (Stand mit zwei neuen Feldern), `tests/test_oberflaeche.py` (neuer Pfad).

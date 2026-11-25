@@ -335,7 +335,7 @@ von systemd verschlüsselt bereitgestellt (siehe unten).
 | `KONTOR_OAUTH_REDIRECT_URI` | Umleitungsadresse (Vorgabe `http://127.0.0.1/oauth2/rueckruf`) |
 | `KONTOR_OAUTH_REFRESH_GUELTIG_STUNDEN` | Gültigkeit des Refresh-Tokens ohne Angabe des Anbieters (Vorgabe 168 = Testmodus; `0` nach Veröffentlichung des Projekts) |
 | `KONTOR_OAUTH_VORWARNUNG_STUNDEN` | Vorwarnung vor dem Ablauf (Vorgabe 24) |
-| `KONTOR_MAIL_INTERVALL_MINUTEN` | automatischer Mail-Abruf (Vorgabe 0 = aus) |
+| `KONTOR_MAIL_INTERVALL_MINUTEN` | Abstand des automatischen Mail-Abrufs; nicht gesetzt = wie `KONTOR_SYNC_INTERVALL_MINUTEN` (D-284), `0` = aus |
 | `KONTOR_MAIL_ERSTABRUF_TAGE`, `KONTOR_MAIL_UEBERLAPPUNG_STUNDEN` | Zeitraum des ersten Abrufs (30 Tage) und Überlappung (24 h) |
 | `KONTOR_MAIL_NUR_KOEPFE` | D-243: zuerst nur Absender und Betreff spiegeln, den Inhalt nur für Mails bekannter Anbieter (Vorauswahl in `ANBIETER.md`) und sonst beim Lesen oder Anhängen nachladen (Vorgabe aus, ausgeliefert an) |
 | `KONTOR_BENACHRICHTIGUNG_PLUGIN` | `keins` (Vorgabe im Echtbetrieb), `mock` (Vorgabe im Mock-Modus), `ntfy` |

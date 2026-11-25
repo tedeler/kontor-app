@@ -626,6 +626,8 @@ class MailDienst:
             aus = json.loads(json.dumps(self._stand))
         aus.setdefault("laeuft", False)
         aus["nur_koepfe"] = self.config.mail_nur_koepfe
+        aus["automatisch"] = self.config.mail_intervall_minuten > 0          # D-284
+        aus["intervall_minuten"] = self.config.mail_intervall_minuten
         return aus
 
     def _alle_koepfe_pruefen(self, alle_koepfe: bool) -> None:

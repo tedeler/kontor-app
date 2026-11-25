@@ -304,7 +304,7 @@ function mail(postfaecher, geheim) {
         catch (e) { /* gemeldet */ }
       } })),
       h("div", { class: "knopf-leiste", "data-einstellung": "abruf" }, knopf("Mails jetzt abrufen", { tid: "mail-abrufen", onclick: async () => {
-        try { await api("POST", "/api/mail/abruf"); melde("erfolg", "Mails abgerufen."); } catch (e) { melde("fehler", e.message); }
+        try { await api("POST", "/api/mail/abruf"); await oberflaeche.bestandGeaendert(); melde("erfolg", "Mails abgerufen."); } catch (e) { melde("fehler", e.message); }
       } }))),
     erweitert("mail", "OAuth-Client-Secret", [
       h("p", { class: "klein" }, "Nur nötig, wenn ein Postfach über OAuth2 statt mit einem App-Passwort angemeldet wird."),

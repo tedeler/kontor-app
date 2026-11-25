@@ -29,6 +29,7 @@ export async function mailSeite(seite, _param, suche) {
   let suchtext = (p.get("suche") || "").trim();
   let suchUhr = null;
   let stand = null;
+  let automatik = 0;   // D-284: Abstand des automatischen Abrufs in Minuten, 0 = aus
   let gesamt = 0;
   let seiten = 1;
   let mails = [];
@@ -247,6 +248,7 @@ export async function mailSeite(seite, _param, suche) {
       for (const p of stand.postfaecher) teile.push(h("span", { tid: `mail-postfach-${p.postfach_id}` }, postfachText(p)));
     }
     if (!teile.length) teile.push("Kein Postfach eingerichtet.");
+    else if (automatik > 0) teile.push(h("span", { tid: "mail-automatik" }, `automatischer Abruf alle ${dauerText(automatik)}`));
     const aus = [];
     teile.forEach((teil, i) => {
       if (i) aus.push(" · ");
@@ -308,7 +310,9 @@ export async function mailSeite(seite, _param, suche) {
     let st;
     try { st = await api("GET", "/api/mail/abruf/stand"); } catch (e) { return; }
     alleKnopf.hidden = !st.nur_koepfe;
+    automatik = st.automatisch ? st.intervall_minuten : 0;
     if (st.laeuft) abrufen(false, true);
+    else if (stand) standEl.replaceChildren(...standInhalt());
   }
 
   async function alleAbrufen(ausloeser) {
@@ -334,6 +338,7 @@ export async function mailSeite(seite, _param, suche) {
       const st = await verfolgen();
       if (st.fehler) throw new Error(st.fehler.meldung);
       abrufText = st.ergebnis ? abrufErgebnis(st.ergebnis) : "";
+      await oberflaeche.bestandGeaendert();   // D-284: offene Kontoblätter zeigen die neuen Zuordnungen
       seiteNr = 1;
       await laden();
     } catch (e) {
@@ -595,4 +600,10 @@ function erwartungenAusfuehrlich(m) {
       b.warum ? h("p", { class: "mail-warum", tid: `mail-warum-${b.id}` }, b.warum) : null,
       b.verwendungszweck ? h("span", { class: "klein" }, " ", b.verwendungszweck) : null)))
     : h("p", { class: "klein" }, "Noch keiner Buchung zugeordnet."))));
+}
+
+/** D-284: Abstand des automatischen Abrufs in Worten. */
+function dauerText(minuten) {
+  if (minuten % 60 === 0) return minuten === 60 ? "Stunde" : `${minuten / 60} Stunden`;
+  return minuten === 1 ? "Minute" : `${minuten} Minuten`;
 }

@@ -445,6 +445,7 @@ export function fehlerText(e) {
 export const oberflaeche = {
   neuLaden: async () => {},       // aktuelle Seite mit dem Stand des Servers neu zeigen
   benachrichtigungen: async () => {},
+  bestandGeaendert: async () => {},   // D-284: übrige Tabs veraltet, Stand des Buchbestands neu merken
   gehe: (pfad) => { location.assign(pfad); },
   istMobil: () => false,
 };
