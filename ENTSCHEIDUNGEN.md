@@ -4072,3 +4072,20 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - **Prüfung:** Core-Test `tests/core/test_offline_rueckkehr.py`; Browsertest `tests/test_browser_offline.py`
   (Anfragen an `/api/` scheitern bei `navigator.onLine = true`; vor der Korrektur rot). Auf einem echten Handy
   nicht geprüft.
+
+## D-277 Offline bleibt die geladene Seite stehen (Feature `offline-rueckkehr`, 2026-11-25)
+
+- **Anlass:** Wunsch vom 2026-11-25 zu D-276: Die Seite soll im Offline-Zustand nicht mehr geleert werden. Am
+  Handy genügt eine gescheiterte Anfrage nach der Rückkehr aus dem Hintergrund, und die Seite war leer.
+- **Entscheidung:** Ersetzt in D-276 den Punkt „Nicht geändert“ und in `oberflaeche.md` 18 / 27.1.4 „keine
+  veralteten Daten“. Der Offline-Zustand leert weder die aktive Seite noch die offenen Tabs (`Tabs.alleVerwerfen`
+  entfällt). Der Hinweis lautet jetzt „… Angezeigte Daten können veraltet sein; sie werden neu geladen, sobald die
+  Verbindung zurück ist.“ Geladene Tabs lassen sich offline zeigen. Nach der Rückkehr lädt die aktive Seite wie
+  nach einer Änderung neu (`zeigen({ behalten: true })`: Auswahl und Rollposition bleiben), die anderen Tabs beim
+  nächsten Zeigen.
+- **Grenzen:** Eine Seite, die offline erst angefordert wird (neuer Tab, anderer Abfrageteil, Neuladen des
+  Browsers), zeigt weiter nur ihre Überschrift. Schreibende Aktionen scheitern offline wie bisher ohne eigene
+  Meldung (der Hinweis genügt).
+- **Prüfung:** Core-Test `tests/core/test_offline_rueckkehr.py`; Browsertest `tests/test_browser_offline.py`
+  (Seite unverändert während des Hinweises, danach neue Anfrage an `/api/konten`). Der abgewählte Gesamttest
+  `m8/test_m8_thema_pwa.py::test_offline_huelle_und_keine_daten` ruft die Seite offline neu auf und gilt weiter.

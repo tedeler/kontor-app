@@ -108,11 +108,6 @@ export class Tabs {
     for (const t of this.liste) if (t !== ausser && t.geladen) t.veraltet = true;
   }
 
-  /** Offline (oberflaeche.md 18): keine veralteten Daten in inaktiven Tabs behalten. */
-  alleVerwerfen() {
-    for (const t of this.liste) { t.el = null; t.seite = null; t.geladen = false; t.veraltet = false; t.scroll = null; }
-  }
-
   schliessen(t) {
     const i = this.liste.indexOf(t);
     if (i < 0) return;

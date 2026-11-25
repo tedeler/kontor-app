@@ -315,7 +315,7 @@ async function tabZeigen(t, route, o) {
   if (t.layout !== app.dataset.layout && t.seite && t.seite.layoutGeaendert) t.seite.layoutGeaendert();
   t.layout = app.dataset.layout;
   if (o.inApp && !o.vonTab && t.seite && t.seite.wiederAngefordert) t.seite.wiederAngefordert();
-  if (t.veraltet) {
+  if (t.veraltet && !offline) {   // offline bleibt der Tab stehen; die Rückkehr lädt ihn neu (D-277)
     t.veraltet = false;
     if (t.seite && t.seite.aktualisieren) {
       try { await stammLaden(); await t.seite.aktualisieren(); } catch (e) { behandeln(e); }
@@ -357,7 +357,7 @@ async function zeigen(optionen) {
   if (o.behalten) tabs.andereVeraltet(aktuell);
   if (aktuell !== offen || !o.behalten) tabs.verlassen();
   // Wechsel zu einem offenen Tab: Zustand bleibt, solange der Abfrageteil passt
-  if (!o.behalten && !o.erneut && offen && offen !== aktuell && offen.geladen && offen.el && offen.suche === suche && !offline) {
+  if (!o.behalten && !o.erneut && offen && offen !== aktuell && offen.geladen && offen.el && offen.suche === suche) {
     if (await tabZeigen(offen, route, o)) return;
   }
   const tab = tabs.holen(pfad, suche);
@@ -934,14 +934,7 @@ function offlineSetzen(ja) {
   offlineHinweis.hidden = !ja;
   clearTimeout(pruefTimer);
   if (ja) {
-    // keine veralteten Daten zeigen
-    if (aktuell && aktuell.el) {
-      const leer = h("section", { class: `seite seite-${aktuell.name}`, tid: `seite-${aktuell.name}`, "data-geladen": "nein" },
-        h("h1", null, titelVon(aktuell.name)));
-      haupt.replaceChildren(leer);
-      tabs.alleVerwerfen();
-      Object.assign(aktuell, { el: leer, seite: null, geladen: false });
-    }
+    // D-277: Geladene Seiten und Tabs bleiben stehen (der Hinweis nennt sie veraltet); nach der Rückkehr laden sie neu.
     pruefWartezeit = 1000;
     pruefungPlanen();
   }
@@ -969,7 +962,8 @@ function verbindungPruefen() {
     pruefung = (async () => {
       try { await anmeldungLaden(); } catch (e) { pruefungPlanen(); return; }   // weiter offline (auch 502 des Proxys)
       offlineSetzen(false);
-      await zeigen();
+      // geladene Seite: mit dem Stand des Servers neu laden, Auswahl und Rollposition bleiben; andere Tabs veralten
+      await zeigen(aktuell && aktuell.geladen ? { behalten: true } : undefined);
       await benachrichtigungenZaehlen();
       sperrStatusPruefen();
     })().finally(() => { pruefung = null; });
