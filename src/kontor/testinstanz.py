@@ -7,7 +7,11 @@ dabei nur gelesen (konsistente Kopie über die Online-Sicherung von SQLite) und 
 Aufruf als root mit dem Python der Hauptinstanz::
 
     /opt/kontor/venv/bin/python -m kontor.testinstanz einrichten feature/<kurzname>
+    /opt/kontor/venv/bin/python -m kontor.testinstanz demo [<branch>]
     /opt/kontor/venv/bin/python -m kontor.testinstanz stoppen [--loeschen]
+
+``demo`` (Feature demodaten) füllt die Testinstanz statt mit einer Kopie mit einem erfundenen Haushalt zum
+Vorführen: Die Hauptinstanz wird dabei gar nicht gelesen, die Anmeldung ist ausgeschaltet.
 
 Aus der Kopie werden alle Geheimnisse (Chiffretexte, verpackter Datenschlüssel), offene TAN-Anforderungen und der
 gespeicherte Bankzugang entfernt, bevor die Testinstanz sie zu sehen bekommt.
@@ -32,6 +36,22 @@ from . import version as versionsinfo
 
 DIENST = "kontor-test.service"
 DATENBANK = "kontor-test.sqlite3"
+DEMO_MOCKDATEN = "demo-mockdaten.json"
+# Zusatz zur Umgebungsdatei, solange die Testinstanz Demodaten zeigt. Ein Drop-in der Unit lässt ihn nach der
+# gewöhnlichen Umgebungsdatei lesen (spätere Angaben gelten); die ausgelieferte Unit bleibt unverändert.
+DEMO_DROPIN = """# Kontor – Testinstanz mit Demodaten: Zusatz-Umgebungsdatei nach kontor-test.env lesen.
+# Geschrieben von „python -m kontor.testinstanz demo“, entfernt von „… einrichten“.
+[Service]
+EnvironmentFile=-{env}
+"""
+DEMO_ENV = """# Kontor – Testinstanz mit Demodaten (erfundener Haushalt zum Vorführen).
+# Geschrieben von „python -m kontor.testinstanz demo“, entfernt von „… einrichten“. Nicht von Hand ändern;
+# eigene Einstellungen gehören in kontor-test.env.
+# Ohne Anmeldung: Die Demodaten sind erfunden, jeder im erlaubten Netz darf sie sehen und ändern.
+KONTOR_ANMELDUNG=0
+# Bank und Postfächer der Mock-Plugins: die erfundene Welt, aus der die Demodaten gebaut sind
+KONTOR_MOCK_DATEN={mockdaten}
+"""
 _BRANCH = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$")
 # Tabellen, deren Inhalt die Testinstanz nie bekommt (nur falls in dieser Schemaversion vorhanden)
 _LEEREN = ("geheimnis", "geheimnis_huelle", "tan_anforderung")
@@ -65,6 +85,18 @@ class Orte:
     @property
     def datenbank(self) -> pathlib.Path:
         return self.daten / DATENBANK
+
+    @property
+    def demo_mockdaten(self) -> pathlib.Path:
+        return self.daten / DEMO_MOCKDATEN
+
+    @property
+    def demo_env(self) -> pathlib.Path:
+        return self.env.with_name(self.env.stem + "-demo" + self.env.suffix)
+
+    @property
+    def demo_dropin(self) -> pathlib.Path:
+        return self.unit.with_name(self.unit.name + ".d") / "demo.conf"
 
 
 Befehl = Callable[[list[str]], None]
@@ -201,6 +233,44 @@ def betriebsdateien(orte: Orte) -> None:
                 shutil.chown(orte.env, user="root", group=orte.benutzer)
 
 
+def _demo_entfernen(orte: Orte) -> None:
+    for datei in (orte.demo_dropin, orte.demo_env, orte.demo_mockdaten,
+                  orte.demo_mockdaten.with_name(DEMO_MOCKDATEN + ".neu")):
+        with contextlib.suppress(FileNotFoundError):
+            datei.unlink()
+    with contextlib.suppress(OSError):
+        orte.demo_dropin.parent.rmdir()
+
+
+def _programm_einrichten(branch: str, orte: Orte, befehl: Befehl, repository: str) -> None:
+    """Branch in ein neues Verzeichnis klonen (scheitert das, bleibt eine laufende Testinstanz unberührt) →
+    Testinstanz stoppen → Quellbaum ersetzen und in die eigene Umgebung installieren."""
+    orte.programm.mkdir(parents=True, exist_ok=True)
+    neu = orte.programm / "src.neu"
+    shutil.rmtree(neu, ignore_errors=True)
+    try:
+        befehl(["git", "clone", "--quiet", "--depth", "1", "--single-branch", "--branch", branch, repository,
+                str(neu)])
+    except TestinstanzFehler:
+        shutil.rmtree(neu, ignore_errors=True)
+        raise
+    # Einstellungen einer früheren Vorführung mit Demodaten zurücknehmen (wieder Anmeldung, eingebaute Mock-Bank);
+    # ``demo`` schreibt sie nach dem Aufbau neu
+    _demo_entfernen(orte)
+    betriebsdateien(orte)
+    befehl(["systemctl", "daemon-reload"])
+    befehl(["systemctl", "stop", DIENST])
+    shutil.rmtree(orte.quelle, ignore_errors=True)
+    os.replace(neu, orte.quelle)
+    if not (orte.venv / "bin" / "pip").exists():
+        befehl([sys.executable, "-m", "venv", str(orte.venv)])
+    # Editierbar installieren: so findet Kontor den Branch in .git/HEAD und zeigt ihn statt der Version (D-178)
+    befehl([str(orte.venv / "bin" / "pip"), "install", "--no-input", "--disable-pip-version-check", "--editable",
+            str(orte.quelle)])
+    orte.daten.mkdir(parents=True, exist_ok=True)
+    os.chmod(orte.daten, 0o700)
+
+
 def einrichten(branch: str, orte: Orte | None = None, befehl: Befehl | None = None,
                repository: str = versionsinfo.REPOSITORY) -> str:
     """Branch holen, installieren, Daten kopieren und die Testinstanz starten. Gibt eine Meldung zurück.
@@ -214,33 +284,44 @@ def einrichten(branch: str, orte: Orte | None = None, befehl: Befehl | None = No
     quelle_db = hauptdatenbank(orte.haupt_env)
     if not quelle_db.is_file():
         raise TestinstanzFehler(f"Die Datenbank der Hauptinstanz ({quelle_db}) gibt es nicht.")
-    orte.programm.mkdir(parents=True, exist_ok=True)
-    neu = orte.programm / "src.neu"
-    shutil.rmtree(neu, ignore_errors=True)
-    try:
-        befehl(["git", "clone", "--quiet", "--depth", "1", "--single-branch", "--branch", branch, repository,
-                str(neu)])
-    except TestinstanzFehler:
-        shutil.rmtree(neu, ignore_errors=True)
-        raise
-    betriebsdateien(orte)
-    befehl(["systemctl", "daemon-reload"])
-    befehl(["systemctl", "stop", DIENST])
-    shutil.rmtree(orte.quelle, ignore_errors=True)
-    os.replace(neu, orte.quelle)
-    if not (orte.venv / "bin" / "pip").exists():
-        befehl([sys.executable, "-m", "venv", str(orte.venv)])
-    # Editierbar installieren: so findet Kontor den Branch in .git/HEAD und zeigt ihn statt der Version (D-178)
-    befehl([str(orte.venv / "bin" / "pip"), "install", "--no-input", "--disable-pip-version-check", "--editable",
-            str(orte.quelle)])
-    orte.daten.mkdir(parents=True, exist_ok=True)
-    os.chmod(orte.daten, 0o700)
+    _programm_einrichten(branch, orte, befehl, repository)
     daten_kopieren(quelle_db, orte.datenbank)
     _besitz(orte.daten, orte.benutzer)
     _besitz(orte.datenbank, orte.benutzer)
     befehl(["systemctl", "start", DIENST])
     return (f"Die Testinstanz läuft mit dem Branch {branch} und einer Kopie der Daten (Mock-Modus). "
             f"Port und Einstellungen: {orte.env}.")
+
+
+def demo(branch: str = "main", orte: Orte | None = None, befehl: Befehl | None = None,
+         repository: str = versionsinfo.REPOSITORY) -> str:
+    """Branch holen, installieren, Demodaten aufbauen und die Testinstanz ohne Anmeldung starten.
+
+    Die Hauptinstanz wird nicht gelesen: Die Daten baut der Generator des Branches (``python -m kontor.demodaten``
+    in der Umgebung der Testinstanz) aus einer erfundenen Welt. Eine frühere Datenkopie wird vorher entfernt.
+    """
+    orte = orte or Orte()
+    befehl = befehl or _ausfuehren
+    branch_pruefen(branch)
+    _programm_einrichten(branch, orte, befehl, repository)
+    _weg(orte.datenbank)     # nie eine Kopie echter Daten liegen lassen, auch wenn der Aufbau scheitert
+    _weg(orte.datenbank.with_name(orte.datenbank.name + ".neu"))
+    befehl([str(orte.venv / "bin" / "python"), "-m", "kontor.demodaten", str(orte.datenbank),
+            str(orte.demo_mockdaten)])
+    orte.demo_env.parent.mkdir(parents=True, exist_ok=True)
+    orte.demo_env.write_text(DEMO_ENV.format(mockdaten=orte.demo_mockdaten), encoding="utf-8")
+    orte.demo_dropin.parent.mkdir(parents=True, exist_ok=True)
+    orte.demo_dropin.write_text(DEMO_DROPIN.format(env=orte.demo_env), encoding="utf-8")
+    for datei in (orte.demo_env, orte.demo_dropin):
+        os.chmod(datei, 0o644)
+    befehl(["systemctl", "daemon-reload"])
+    _besitz(orte.daten, orte.benutzer)
+    for datei in (orte.datenbank, orte.demo_mockdaten):
+        if datei.exists():
+            _besitz(datei, orte.benutzer)
+    befehl(["systemctl", "start", DIENST])
+    return (f"Die Testinstanz läuft mit dem Branch {branch} und Demodaten (erfundener Haushalt, Mock-Modus, ohne "
+            f"Anmeldung). Port und Einstellungen: {orte.env}.")
 
 
 def stoppen(orte: Orte | None = None, befehl: Befehl | None = None, loeschen: bool = False) -> str:
@@ -252,16 +333,20 @@ def stoppen(orte: Orte | None = None, befehl: Befehl | None = None, loeschen: bo
         return "Die Testinstanz ist gestoppt. Die Datenkopie bleibt bis zum nächsten Einrichten liegen."
     _weg(orte.datenbank)
     _weg(orte.datenbank.with_name(orte.datenbank.name + ".neu"))
-    return "Die Testinstanz ist gestoppt, die Datenkopie ist gelöscht."
+    _demo_entfernen(orte)
+    return "Die Testinstanz ist gestoppt, die Daten (Kopie oder Demodaten) sind gelöscht."
 
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="python -m kontor.testinstanz",
                                 description="Zweite Kontor-Instanz für einen Entwicklungsbranch (Mock-Modus, Kopie "
-                                            "der Daten). Die Hauptinstanz bleibt unberührt.")
+                                            "der Daten oder Demodaten). Die Hauptinstanz bleibt unberührt.")
     sub = p.add_subparsers(dest="aktion", required=True)
     e = sub.add_parser("einrichten", help="Branch installieren, Daten kopieren, Testinstanz starten")
     e.add_argument("branch", help="Branch im Repository, z. B. feature/kurzname")
+    d = sub.add_parser("demo", help="Branch installieren, Demodaten aufbauen (erfundener Haushalt), ohne Anmeldung "
+                                    "starten; die Hauptinstanz wird nicht gelesen")
+    d.add_argument("branch", nargs="?", default="main", help="Branch im Repository (Vorgabe: main)")
     s = sub.add_parser("stoppen", help="Testinstanz stoppen")
     s.add_argument("--loeschen", action="store_true", help="auch die Datenkopie löschen")
     args = p.parse_args(argv)
@@ -269,7 +354,12 @@ def main(argv: list[str] | None = None) -> int:
         print("Bitte als root ausführen.", file=sys.stderr)
         return 2
     try:
-        meldung = einrichten(args.branch) if args.aktion == "einrichten" else stoppen(loeschen=args.loeschen)
+        if args.aktion == "einrichten":
+            meldung = einrichten(args.branch)
+        elif args.aktion == "demo":
+            meldung = demo(args.branch)
+        else:
+            meldung = stoppen(loeschen=args.loeschen)
     except (TestinstanzFehler, OSError, subprocess.SubprocessError) as fehler:
         text = str(fehler) if isinstance(fehler, TestinstanzFehler) else f"Fehlgeschlagen ({type(fehler).__name__})."
         print(text, file=sys.stderr)

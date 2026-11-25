@@ -477,6 +477,7 @@ wiederkehrenden Schritte: [TESTINSTANZ.md](TESTINSTANZ.md) (D-213).
 # als root; holt den Branch, installiert ihn nach /opt/kontor-test, kopiert die Daten und startet die Testinstanz
 /opt/kontor/venv/bin/python -m kontor.testinstanz einrichten feature/<kurzname>
 # danach im Browser: http://<container-ip>:8081  (Anmeldung mit dem Haushaltspasswort)
+/opt/kontor/venv/bin/python -m kontor.testinstanz demo                # erfundener Haushalt zum Vorführen, ohne Anmeldung (D-285)
 /opt/kontor/venv/bin/python -m kontor.testinstanz stoppen             # Testinstanz anhalten
 /opt/kontor/venv/bin/python -m kontor.testinstanz stoppen --loeschen  # … und die Datenkopie löschen
 journalctl -u kontor-test -f

@@ -53,16 +53,72 @@ Der Befehl erledigt in einem Zug:
   kein zeitgesteuerter Abruf, kein Mail-Abruf, keine Update-Suche)
 - Dienst starten und prüfen, ob der Port antwortet
 
+## Vorführen mit Demodaten
+
+Für eine Vorführung ohne die eigenen Bankbewegungen füllt `kontor-test demo` die
+Testinstanz mit einem erfundenen Haushalt (D-285). Die Datenbank der
+Hauptinstanz wird dabei nicht gelesen.
+
+1. Als root auf dem Server: `kontor-test demo` (zeigt `main`) oder
+   `kontor-test demo <branch>`.
+2. Adresse im Browser öffnen. **Es gibt keine Anmeldung**: Die Daten sind
+   erfunden, jeder im erlaubten Netz darf sie sehen und ändern.
+3. Nach der Vorführung: `kontor-test neu` baut dieselbe Demo frisch auf,
+   `kontor-test start <branch>` kehrt zur Datenkopie mit Anmeldung zurück,
+   `kontor-test loeschen` räumt alles weg.
+
+Der Aufbau dauert auf dem Entwicklungsrechner rund 15 Sekunden. Enthalten sind:
+
+- Girokonto und Sparbuch der „Musterbank“ über gut drei Jahre bis drei Tage vor
+  dem Tag des Aufbaus: über 2000 Buchungen, die Kontostände stimmen mit der
+  Mock-Bank überein.
+- 14 Kategorien, sechs davon Unterkategorien (Wohnen › Nebenkosten, Energie;
+  Mobilität › Tanken, Bahn & ÖPNV; Freizeit › Restaurant; Einkommen › Gehalt).
+- Zwei Kredite: Wohnungsdarlehen (mit Sondertilgung und Jahresabgleichen samt
+  Korrekturbuchung) und Autokredit; die Raten sind in Zins und Tilgung geteilt.
+- Zwei Postfächer mit rund 250 Mails (Bestellungen, Erstattungen, Zahlungen,
+  Abschlagsmitteilungen); etwa zwei Drittel hängen als Dokument an Buchungen,
+  dazu rund 20 Belege als PDF.
+- Acht Regeln von Hand (eine vergibt nur ein Tag) und die automatisch gelernten,
+  eine Split-Vorlage, Tags, wiederkehrende Zahlungen, geplante Zahlungen,
+  Abstimmungen zum Jahresende, Änderungsprotokoll und Abrufe mit glaubwürdigen
+  Zeiten.
+
+Zum Zeigen liegt bereit:
+
+| Was | Wo |
+| --- | --- |
+| Neue Umsätze und Mails holen | „Synchronisation“ und „Mails abrufen“ bringen beim ersten Mal sicher Neues (eine Bestellung samt Mail, die sich an die Buchung hängt); für die folgenden 60 Tage kommt laufend etwas nach |
+| Vorschläge prüfen und bestätigen | Girokonto: die letzten drei Wochen sind vorläufig (Regel oder Lernmodell) |
+| Unkategorisiertes zuordnen | neue Empfänger ohne Vorgeschichte (Gartencenter, Schuhhaus, Tierarzt) |
+| Split-Vorlage anpassen | Die Stadtwerke haben den Abschlag erhöht; die Vorlage passt nicht mehr (Benachrichtigung) |
+| Dublette auflösen | Ein von Hand notiertes Abendessen kam noch einmal von der Bank. Der Abruf hat den Kontostand deshalb ausgeglichen; nach dem Zusammenführen nimmt der nächste Abruf den Ausgleich zurück |
+| Wiederkehrendes | „Was kommt noch?“: Verträge, ein gekündigtes Fitnessstudio, eine Preiserhöhung beim Streaming, eine überfällige Erstattung |
+| Mails von Hand zuordnen | Mail-Blatt, „Nicht erkannt“: Zahlungsmails von PayPal ohne Buchung |
+| Berichte | alle Berichte haben drei Jahre Stoff; Tags „Urlaub 2024“ bis „Urlaub 2026“, „Auto“ |
+
+Gut zu wissen:
+
+- Die Demo ist auf den Tag des Aufbaus bezogen. Liegt er länger zurück, vorher
+  `kontor-test neu`.
+- Bestätigungen tragen die Tags der beiden Personen, die die Anwendung kennt.
+- Alles ist erfunden: Namen, Beträge, Bestellnummern; die IBANs sind Test-IBANs
+  mit Bankleitzahl 00000000, Mailadressen liegen unter `example.invalid`.
+- Die Demo-Einstellungen stehen in `/etc/kontor/kontor-test-demo.env` und einem
+  Drop-in der Unit; `kontor-test start` und `kontor-test loeschen` entfernen
+  beides wieder.
+
 ## Wiederkehrende Aufgaben
 
 | Aufgabe | Befehl |
 | --- | --- |
-| Neuen Stand des Branches holen und Daten frisch kopieren | `kontor-test neu` |
+| Neuen Stand des Branches holen und Daten frisch kopieren (nach `demo`: Demodaten neu aufbauen) | `kontor-test neu` |
 | Anderen Branch testen | `kontor-test start <branch>` |
+| Mit Demodaten vorführen (ohne Anmeldung) | `kontor-test demo [branch]` |
 | Zustand, Branch und Adresse anzeigen | `kontor-test status` |
 | Protokoll mitlesen | `kontor-test log` |
 | Anhalten, Datenkopie behalten | `kontor-test stop` |
-| Anhalten und Datenkopie löschen | `kontor-test loeschen` |
+| Anhalten und Daten (Kopie oder Demodaten) löschen | `kontor-test loeschen` |
 
 `kontor-test neu` verwendet den Branch vom letzten `start`; das Skript merkt
 ihn sich in `/root/.kontor-test-branch`.
@@ -115,6 +171,7 @@ trägt sie dort ein. Nach einem Kontor-Update, das dieses Skript ändert, den
 
 ```bash
 /opt/kontor/venv/bin/python -m kontor.testinstanz einrichten feature/<kurzname>
+/opt/kontor/venv/bin/python -m kontor.testinstanz demo [<branch>]
 /opt/kontor/venv/bin/python -m kontor.testinstanz stoppen
 /opt/kontor/venv/bin/python -m kontor.testinstanz stoppen --loeschen
 journalctl -u kontor-test -f

@@ -8,6 +8,7 @@ Transaktion. Mehrere Apps im selben Prozess teilen keinen Zustand.
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import contextlib
 import datetime as dt
@@ -266,9 +267,37 @@ DUBLETTE_ANLEGEN = {"buchung_ids": S("int_liste", pflicht=True, min_items=2, max
 
 # ------------------------------------------------------------- App-Fabrik
 
+# D-286: Im Mock-Modus (Testinstanz) trägt Kontor einen eigenen Namen, eine eigene Farbe und eigene Symbole – in
+# der Tab-Leiste und als installierte Anwendung. Die Adressen bleiben dieselben wie im Echtbetrieb.
+TEST_NAME = "Kontor Test"
+TEST_FARBE = "#c2570b"
+TEST_SYMBOLE = {"icon.svg": "image/svg+xml", "icon-192.png": "image/png", "icon-512.png": "image/png",
+                "icon-maskable-512.png": "image/png"}
+
+
+def _als_testinstanz(seite: str) -> str:
+    """Kopf der Hülle bzw. der Anmeldeseite im Mock-Modus: Name und Farbe der Testinstanz. iOS nimmt den Namen der
+    installierten Anwendung aus der Seite, nicht aus dem Manifest."""
+    farbe = '<meta name="theme-color" content="'
+    anfang = seite.index(farbe) + len(farbe)
+    seite = seite[:anfang] + TEST_FARBE + seite[seite.index('"', anfang):]
+    return seite.replace("<title>Kontor", f'<meta name="apple-mobile-web-app-title" content="{TEST_NAME}">\n'
+                                           f"<title>{TEST_NAME}", 1)
+
+
+def _statisch(request: Request, daten: bytes, typ: str) -> Response:
+    """Wie alle statischen Dateien: no-cache mit ETag und 304 (M26 36.8.1, D-172)."""
+    etag = '"' + hashlib.sha256(daten).hexdigest()[:32] + '"'
+    koepfe = {"Cache-Control": "no-cache", "ETag": etag}
+    if etag in [x.strip() for x in request.headers.get("if-none-match", "").split(",")]:
+        return Response(status_code=304, headers=koepfe)
+    return Response(daten, media_type=typ, headers=koepfe)
+
 
 def _index_html(config: KontorConfig) -> str:
     vorlage = (WEB / "index.html").read_text(encoding="utf-8")
+    if config.mock_modus:
+        vorlage = _als_testinstanz(vorlage)
     if config.mock_modus:
         hinweis = ('<div id="mock-hinweis" class="mock-hinweis" data-testid="mock-hinweis" role="note">'
                    '<strong>Mock-Modus</strong> – nur synthetische Testdaten, eigene Mock-Datenbank'
@@ -303,6 +332,8 @@ class _Antwort(Exception):
 def _anmelde_html(config: KontorConfig, eingerichtet: bool) -> str:
     """Anmeldeseite (sicherheit.md 3.4): ohne Inhalte aus dem Buchbestand und ohne Teile der Anfrage."""
     vorlage = (WEB / "anmelden.html").read_text(encoding="utf-8")
+    if config.mock_modus:
+        vorlage = _als_testinstanz(vorlage)
     if config.mock_modus:
         hinweis = ('<div id="mock-hinweis" class="mock-hinweis" role="status"><strong>Mock-Modus</strong> – nur '
                    'synthetische Testdaten, eigene Mock-Datenbank. Keine Verbindung zu Bank oder Mailserver.</div>')
@@ -2185,13 +2216,23 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
 
     @app.get("/oeffentlich/manifest.webmanifest", include_in_schema=False)
     async def manifest(request: Request):
-        # wie alle statischen Dateien: no-cache mit ETag und 304 (M26 36.8.1, D-172)
         daten = (WEB / "oeffentlich" / "manifest.webmanifest").read_bytes()
-        etag = '"' + hashlib.sha256(daten).hexdigest()[:32] + '"'
-        koepfe = {"Cache-Control": "no-cache", "ETag": etag}
-        if etag in [x.strip() for x in request.headers.get("if-none-match", "").split(",")]:
-            return Response(status_code=304, headers=koepfe)
-        return Response(daten, media_type="application/manifest+json", headers=koepfe)
+        if config.mock_modus:   # D-286: die Testinstanz heißt und färbt sich anders, auch als installierte Anwendung
+            m = json.loads(daten)
+            m.update(name=TEST_NAME, short_name=TEST_NAME, theme_color=TEST_FARBE)
+            daten = json.dumps(m, ensure_ascii=False, indent=2).encode("utf-8")
+        return _statisch(request, daten, "application/manifest+json")
+
+    if config.mock_modus:
+        # D-286: eigene Symbole unter denselben Adressen (Hülle, Manifest und Service Worker bleiben, wie sie sind);
+        # vor dem Verzeichnis der statischen Dateien angemeldet
+        def symbol_route(name: str, typ: str):
+            async def symbol(request: Request):
+                return _statisch(request, (WEB / "oeffentlich" / ("testinstanz-" + name)).read_bytes(), typ)
+            return symbol
+
+        for name, typ in TEST_SYMBOLE.items():
+            app.add_api_route("/oeffentlich/" + name, symbol_route(name, typ), methods=["GET"], include_in_schema=False)
 
     app.mount("/oeffentlich", StaticFiles(directory=str(WEB / "oeffentlich")), name="oeffentlich")
 

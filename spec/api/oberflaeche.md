@@ -890,6 +890,14 @@ Wechsel geschieht ohne Neuladen.
   512 × 512 (`purpose` fehlt oder enthält `any`) sowie mindestens einem
   Symbol mit `purpose` `maskable`; alle Symbole unter `/oeffentlich/`, die
   angegebene Größe stimmt mit der Datei überein.
+- **Mock-Modus (Testinstanz, D-286):** Damit sich Haupt- und Testinstanz in der Tab-Leiste und als installierte
+  Anwendung unterscheiden, heißt die Anwendung im Mock-Modus „Kontor Test“ (`name`, `short_name`), hat ein anderes
+  `theme_color` und liefert unter denselben Adressen (`/oeffentlich/icon.svg`, `icon-192.png`, `icon-512.png`,
+  `icon-maskable-512.png`) eigene Symbole in denselben Größen, mit `Cache-Control: no-cache` und `ETag` wie alle
+  statischen Dateien. Hülle und Anmeldeseite nennen dort dasselbe `theme-color`, tragen
+  `<meta name="apple-mobile-web-app-title" content="Kontor Test">` und einen Seitentitel, der mit „Kontor Test“
+  beginnt (die Titel der Ansichten bleiben „… – Kontor“). Alle übrigen Angaben des Manifests und alle Adressen
+  sind wie im Echtbetrieb.
 - **Installierbarkeit:** Chromium meldet für `/` keine Hinderungsgründe
   (`Page.getInstallabilityErrors` leer).
 - **Service Worker** `/sw.js` (JavaScript, `Cache-Control: no-cache` oder
