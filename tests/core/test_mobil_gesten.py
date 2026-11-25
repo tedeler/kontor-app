@@ -31,3 +31,14 @@ def test_kopfzeile_mobil_bricht_nicht_um(client):
     css = client.get("/oeffentlich/app.css").text
     assert re.search(r'\[data-layout="mobil"\]:not\(\.suche-offen\) \.kopf\s*\{[^}]*flex-wrap:\s*nowrap', css)
     assert re.search(r"max-width:\s*402\.98px\)\s*\{[^}]*#wiederholen-knopf\s*\{\s*display:\s*none", css)
+
+
+def test_doppeltipp_nur_bei_ruhender_liste_und_auswahl_nur_ausdruecklich(client):
+    """D-281: Ein Tipp zählt für den Doppeltipp nur, wenn die Liste nicht gerade rollt und beide Tipps an derselben
+    Stelle liegen; Sprünge (Gegenbuchung, Berichte) wählen mobil nichts aus."""
+    js = client.get("/oeffentlich/app/konto.js").text
+    assert re.search(r"TIPP_RUHE_MS\s*=\s*\d+", js) and re.search(r"TIPP_ABSTAND\s*=\s*\d+", js)
+    assert re.search(r'addEventListener\("scroll"', js), "das Rollen wird nicht beobachtet"
+    sprung = js[js.index("  sprungMarkieren(id) {"):]
+    sprung = sprung[:sprung.index("\n  }\n")]
+    assert "istMobil()" in sprung, "der Sprung zu einer Buchung wählt mobil weiter aus"
