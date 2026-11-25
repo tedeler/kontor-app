@@ -397,6 +397,22 @@ Ein Pluginfehler führt nie zu einer 5xx-Antwort.
 Abruf, wenn noch kein Postfach einen `letzter_abruf_am` hat oder der jüngste
 `letzter_abruf_am` aller Postfächer + Intervall ≤ jetzt ist.
 
+Aus der Umgebung (D-284): Ist `KONTOR_MAIL_INTERVALL_MINUTEN` nicht gesetzt, gilt der Wert von
+`KONTOR_SYNC_INTERVALL_MINUTEN` – der Mail-Abruf läuft dann im Takt der Kontosynchronisation. Eine eigene Zahl
+setzt einen anderen Abstand, `0` schaltet den automatischen Abruf ab. Das Feld `mail_intervall_minuten` der
+Konfiguration behält die Vorgabe 0. `GET /api/mail/abruf/stand` nennt `automatisch` (bool) und
+`intervall_minuten`; das Mail-Blatt zeigt „automatischer Abruf alle …“ (`mail-automatik`).
+
+### 6.4a Offene Ansichten nach einem Abruf (D-284)
+
+`GET /api/bestand/stand` → 200 `{"stand": int}`: Kennung der jüngsten Änderung am Buchbestand (0 ohne Änderung),
+steigt mit jeder Änderung des Änderungsprotokolls; nur lesend. Die Oberfläche fragt sie jede Minute und bei der
+Rückkehr ins Fenster ab. Hat sie sich ohne eigenes Zutun geändert (Planer: Kontoabruf oder Mail-Abruf; anderes
+Gerät), laden die übrigen Tabs beim nächsten Zeigen neu und die sichtbare Ansicht sofort – außer es wird gerade
+in einem Feld getippt oder ein Fenster oder Menü ist offen; dann beim nächsten Anlass. Auswahl und Rollposition
+bleiben wie nach einer eigenen Aktion. Nach „Mails abrufen“ (Mail-Blatt, Einstellungen) gelten die übrigen Tabs
+sofort als veraltet.
+
 ### 6.5 Spiegel
 
 Gespiegelte Nachrichten sind Betriebszustand (E-118): Sie lassen sich aus
