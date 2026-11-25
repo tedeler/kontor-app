@@ -4377,3 +4377,22 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   Doppeltipp in `tests/test_browser.py` schlagen bei stark paralleler Ausführung gelegentlich fehl, auch auf dem
   Stand von main vor diesem Branch (mail_aktuell dort nachgestellt).
 
+
+## D-291 Rollen in Fenstern und Menüs sperrt die Liste nicht (Feature `tastatur`, 2026-11-25)
+
+- **Anlass:** Nach dem Merge von D-287 bis D-290 schlug in der CI auf main
+  `m26::test_zurueck_beendet_auswahl_ohne_ansicht_zu_verlassen` fehl: Die lange Berührung auf eine Buchung öffnete
+  das Kontextmenü nicht.
+- **Ursache:** Die Sperre aus D-281/D-282 (kein Doppeltipp, keine lange Berührung kurz nach dem Rollen) hörte auf
+  das Rollen jedes Elements der Seite. Der Test öffnet das Konto über die Befehlspalette; deren Trefferliste rollt
+  beim Öffnen. Lag die lange Berührung weniger als eine Sekunde danach, galt die Liste als „gerade gerollt“. Das
+  war schon vorher so und hing an der Laufzeit; seit diesem Branch ist das Blatt in der CI früher bedienbar, und
+  der Abstand reichte nicht mehr. In der CI mit zusätzlicher Protokollierung nachgestellt (Rollen in
+  `dialog-inhalt` 750 ms vor dem Auslösen).
+- **Entscheidung:** Rollen innerhalb eines Fensters (`dialog-huelle`) oder Menüs (`kontextmenue`) zählt nicht. Die
+  Sperre gilt weiter für die Liste und jeden anderen Bereich der Ansicht.
+- **Tests:** `tests/core/test_mobil_gesten.py`,
+  `tests/test_browser_tastatur.py::test_rollen_in_der_befehlspalette_sperrt_die_lange_beruehrung_nicht` (schlägt
+  ohne die Änderung fehl).
+- **Offen:** Ein dritter Lauf desselben CI-Jobs blieb in der Gesamtsuite mit Browser hängen, bis die Frist von
+  12 Minuten ablief (einmal, nicht nachgestellt; zwei Läufe der Suite auf einem Diagnose-Branch liefen durch).

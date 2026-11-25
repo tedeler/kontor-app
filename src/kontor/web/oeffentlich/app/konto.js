@@ -26,7 +26,10 @@ const MONATE = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "A
 // D-281: Zeitpunkt des letzten Rollens irgendeines Bereichs – wer mit wiederholtem Ansetzen schnell rollt, tippt nicht
 let letztesRollen = -Infinity;
 let rollenEigenBis = -Infinity;   // bis dahin stammt Rollen vom Markieren selbst (Zeile in den sichtbaren Bereich)
-document.addEventListener("scroll", () => {
+document.addEventListener("scroll", (e) => {
+  // D-291: gemeint ist das Rollen der Ansicht. Die Trefferliste eines Fensters (Befehlspalette, Kategorieauswahl)
+  // oder ein Menü sperren Doppeltipp und lange Berührung danach nicht.
+  if (e.target instanceof Element && e.target.closest(".dialog-huelle, .kontextmenue")) return;
   const jetzt = performance.now();
   if (jetzt > rollenEigenBis) letztesRollen = jetzt;
 }, { capture: true, passive: true });

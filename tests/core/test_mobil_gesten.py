@@ -62,3 +62,12 @@ def test_wischhinweis_liegt_ueber_der_zeile_und_erfassen_fehlt_mobil(client):
     assert "offsetTop" not in wisch, "der Hinweis rechnet weiter mit offsetTop (falsch in langen Listen)"
     css = client.get("/oeffentlich/app.css").text
     assert re.search(r'\[data-layout="mobil"\] \[data-testid="buchung-erfassen"\]\s*\{\s*display:\s*none', css)
+
+
+def test_rollen_in_fenstern_und_menues_zaehlt_nicht_als_rollen_der_liste(client):
+    """D-291: Die Sperre für Doppeltipp und lange Berührung gilt dem Rollen der Ansicht. Rollt die Trefferliste der
+    Befehlspalette oder ein Menü, sperrt das die Liste danach nicht."""
+    js = client.get("/oeffentlich/app/konto.js").text
+    lauscher = js[js.index('document.addEventListener("scroll"'):]
+    lauscher = lauscher[:lauscher.index("passive: true")]
+    assert ".dialog-huelle" in lauscher and ".kontextmenue" in lauscher, "Rollen in einem Fenster sperrt die Liste"
