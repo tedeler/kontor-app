@@ -4089,3 +4089,37 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - **Prüfung:** Core-Test `tests/core/test_offline_rueckkehr.py`; Browsertest `tests/test_browser_offline.py`
   (Seite unverändert während des Hinweises, danach neue Anfrage an `/api/konten`). Der abgewählte Gesamttest
   `m8/test_m8_thema_pwa.py::test_offline_huelle_und_keine_daten` ruft die Seite offline neu auf und gilt weiter.
+
+## D-278 Mobil: Gesten auf der Buchungszeile neu belegt (Feature `mobil-gesten`, 2026-11-25)
+
+- **Anlass:** Arbeitsanweisung vom 2026-11-25 (Gespräch mit Torsten): Am Handy sollen Bestätigen, Kategorie zuweisen
+  und notfalls eine neue Kategorie direkt erreichbar sein; alles andere eine Ebene tiefer.
+- **Bestand vor dem Umbau:** Tippen öffnete die Einzelheiten, lange Berührung begann den Auswahlmodus, Wischen nach
+  rechts schaltete die Auswahl um, nach links öffnete die Kategorie-Auswahl (D-141, `oberflaeche.md` 36.3/36.4). Die
+  Kategorie-Auswahl kann schon neue Kategorien anlegen (D-264). Das Kontextmenü gab es mobil nur über „Mehr“ im
+  Auswahlmodus, als Blatt von unten.
+- **Entscheidung** (`oberflaeche.md` 43): kurz tippen markiert genau eine Zeile (keine Auswahl, kein Fenster);
+  Doppeltipp (400 ms) öffnet die Einzelheiten; lang tippen öffnet das Kontextmenü der Zeile mit „Einzelheiten“ und
+  „Mehrfachauswahl“ vor den Einträgen des Desktops; nach rechts wischen bestätigt als die gewählte Person; nach links
+  wischen wie bisher. Nach dem Bestätigen bietet die Zeile drei Sekunden „Rückgängig“ an; bei schon bestätigten
+  Buchungen tut der Wisch nichts. Im Auswahlmodus schaltet Tippen weiter die Auswahl um.
+- **Einzelheiten:** „Bestätigen“ ist die Bestätigung der Person (Tag und Status, D-155/D-257). Eine importierte
+  Buchung ohne Zuordnung verlangt weiter zuerst eine Kategorie (D-260) – das ist die einzige Nachfrage beim Wisch.
+  „Rückgängig“ in der Zeile nimmt die Änderungen dieses Wischs zurück, solange sie die letzten im Stapel sind
+  (`stapelStand` in `app/kern.js`). Das Menü der einzelnen Zeile arbeitet mit `nurIds`, ohne die Auswahl zu setzen.
+- **Nicht geändert:** Desktop (auch mit Touch), Gesten in anderen Ansichten, der Auswahlmodus selbst.
+- **Prüfung:** Core-Test `tests/core/test_mobil_gesten.py`; Browsertest `tests/test_browser_gesten.py` (fünf Gesten bei
+  390 px, über Touch-Ereignisse). Angepasste Tests in `TESTUMBAU.md`. Auf einem echten Handy nicht geprüft
+  (Doppeltipp-Zeit, Zusammenspiel mit dem Menü des Browsers bei langer Berührung).
+
+## D-279 Mobil: Kopfzeile wieder in einer Zeile (Feature `mobil-gesten`, 2026-11-25)
+
+- **Anlass:** Am Handy stand der Menüknopf allein in einer Zeile über den übrigen Knöpfen (Screenshot vom 2026-11-25).
+- **Nachgestellt:** Mock-Modus bei 390, 360 und 320 px: Kopfzeile 101 px hoch in zwei Zeilen; bei 320 px ragte sie
+  7 px über den Rand. Ursache: mit dem Personenknopf (M28) sind es neun Knöpfe zu 44 px plus Abstände (über 420 px).
+- **Entscheidung:** Mobil kein Abstand zwischen den Knöpfen, kein Umbruch (außer bei eingeblendeter Suche);
+  „Wiederholen“ entfällt unter 403 px (vorher 390), der Knopf der Befehlspalette unter 359 px. Danach eine Zeile mit
+  54 px Höhe bei allen drei Breiten, alle Knöpfe 44 × 44 px. „Wiederholen“ bleibt über die Befehlspalette erreichbar,
+  unter 359 px mobil nicht mehr.
+- **Prüfung:** Messung vor und nach der Änderung; `tests/test_browser_gesten.py` (eine Zeile bei 390 px),
+  `m26/test_m26_oberflaeche.py::test_kopfzeile_eine_zeile_reihenfolge_und_groesse` prüft „eine Zeile“ jetzt wieder.

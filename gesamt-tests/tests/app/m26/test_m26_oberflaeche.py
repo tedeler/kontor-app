@@ -53,8 +53,9 @@ def test_kopfzeile_eine_zeile_reihenfolge_und_groesse(starte_server, neue_seite)
         bx = box(el)
         assert bx["width"] >= 44 - 0.5 and bx["height"] >= 44 - 0.5, f"{t}: mindestens 44 × 44 px ({bx})"
         boxen.append((t, bx))
-    # Reihenfolge in Lesefolge (Zeilen von oben, darin von links). „Eine Zeile“ (36.2.1) ist mit dem
-    # Personenknopf aus M28 (37.1) bei 390 px nicht erfüllbar (9 × 44 px > 390 px) und wird nicht geprüft (E-247).
+    # Reihenfolge in Lesefolge. Seit D-279 stehen alle Knöpfe wieder in einer Zeile (ohne „Wiederholen“ unter 403 px).
+    expect(tid(seite, "wiederholen-knopf")).to_be_hidden()
+    assert max(bx["y"] for _, bx in boxen) - min(bx["y"] for _, bx in boxen) <= 1, "eine Zeile (36.2.1, D-279)"
     def lesefolge(item):
         t, bx = item
         return (round((bx["y"] + bx["height"] / 2) / 22), bx["x"])
@@ -265,7 +266,7 @@ def test_zurueck_beendet_auswahl_ohne_ansicht_zu_verlassen(starte_server, neue_s
     r = _liste(api, k["giro"])
     warte_liste(seite, r)
     vorher_url, vorher_tabs = _url(seite), pfade(seite)
-    lange_beruehrung(seite, zeile(seite, r[0]))
+    m8.auswahl_starten_mobil(seite, zeile(seite, r[0]))
     expect(tid(seite, "auswahl-kopf")).to_be_visible()
     seite.go_back()
     warte(seite, lambda: ausgewaehlt(seite) == set(), text="Zurück hebt die Auswahl auf")
@@ -274,7 +275,7 @@ def test_zurueck_beendet_auswahl_ohne_ansicht_zu_verlassen(starte_server, neue_s
     assert pfade(seite) == vorher_tabs and aktive(seite) == [f"/konten/{k['giro']}"], "kein Tab-Wechsel"
     expect(tid(seite, "seite-konto")).to_be_visible()
     # anders beendet: das spätere Zurück führt zur vorigen Ansicht (kein leerer Schritt)
-    lange_beruehrung(seite, zeile(seite, r[1]))
+    m8.auswahl_starten_mobil(seite, zeile(seite, r[1]))
     expect(tid(seite, "auswahl-kopf")).to_be_visible()
     tid(seite, "auswahl-beenden").click()
     expect(tid(seite, "auswahl-kopf")).to_be_hidden()

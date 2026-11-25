@@ -540,12 +540,30 @@ def wischen(seite, locator, richtung: str, weite: int = 160) -> None:
     cdp.send("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []})
 
 
-def auswahlmenue_mobil(seite, zeile_locator):
-    """Mobil (M26, oberflaeche.md 36.3): lange Berührung wählt die Zeile aus (Auswahlmodus), ``mehrfach-mehr``
-    öffnet das Kontextmenü der Auswahl. Gibt das sichtbare ``kontextmenue`` zurück (E-248)."""
+def auswahl_starten_mobil(seite, zeile_locator) -> None:
+    """Mobil (D-278, oberflaeche.md 43): lange Berührung öffnet das Kontextmenü der Zeile; ``km-auswahl``
+    („Mehrfachauswahl“) darin beginnt den Auswahlmodus mit dieser Zeile."""
     from playwright.sync_api import expect
 
     lange_beruehrung(seite, zeile_locator)
+    expect(tid(seite, "km-auswahl")).to_be_visible()
+    tid(seite, "km-auswahl").click()
+    expect(zeile_locator).to_have_attribute("aria-selected", "true")
+
+
+def doppeltipp(seite, locator) -> None:
+    """Mobil (D-278): zwei Tipps kurz nacheinander auf dieselbe Buchungszeile öffnen die Einzelheiten."""
+    locator.scroll_into_view_if_needed()
+    locator.tap()
+    locator.tap()
+
+
+def auswahlmenue_mobil(seite, zeile_locator):
+    """Mobil (M26, oberflaeche.md 36.3; Einstieg seit D-278 über ``km-auswahl``): Zeile auswählen (Auswahlmodus),
+    ``mehrfach-mehr`` öffnet das Kontextmenü der Auswahl. Gibt das sichtbare ``kontextmenue`` zurück (E-248)."""
+    from playwright.sync_api import expect
+
+    auswahl_starten_mobil(seite, zeile_locator)
     expect(zeile_locator).to_have_attribute("aria-selected", "true")
     expect(tid(seite, "mehrfach-mehr")).to_be_visible()
     tid(seite, "mehrfach-mehr").click()

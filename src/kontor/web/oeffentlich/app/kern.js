@@ -453,6 +453,10 @@ export const oberflaeche = {
 const rueckStapel = [];
 const vorStapel = [];
 
+/** Stand des Rückgängig-Stapels (Höhe und oberster Eintrag): damit erkennt eine Stelle der Oberfläche, ob ihre eigene
+ *  Änderung noch die letzte ist (Wisch-Bestätigung im Kontoblatt, D-278). */
+export const stapelStand = () => ({ hoehe: rueckStapel.length, oben: rueckStapel[rueckStapel.length - 1] || null });
+
 export function stapelAnzeigen() {
   const r = tid("rueckgaengig-knopf");
   const w = tid("wiederholen-knopf");

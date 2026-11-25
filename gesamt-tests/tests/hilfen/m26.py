@@ -9,7 +9,8 @@ from __future__ import annotations
 from .m8 import _cdp, _mitte, tid
 
 #: Reihenfolge der Kopfzeile mobil (36.2.1)
-KOPF = ["menue-knopf", "suche-knopf", "sync-starten", "rueckgaengig-knopf", "wiederholen-knopf",
+#: bei 390 px Breite; „Wiederholen“ entfällt unter 403 px (D-279), damit alle Knöpfe in eine Zeile passen
+KOPF = ["menue-knopf", "suche-knopf", "sync-starten", "rueckgaengig-knopf",
         "befehlspalette-knopf", "benachrichtigungen-knopf", "tabs-knopf"]
 #: Knöpfe der Auswahlleiste, die im Auswahlmodus mobil sichtbar sind (36.3.3)
 LEISTE_SICHTBAR = ["mehrfach-kategorie", "mehrfach-tags", "mehrfach-loeschen", "mehrfach-mehr"]

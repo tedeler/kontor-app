@@ -2268,7 +2268,9 @@ Browser). Prüfmerkmale: E-247. **Ab M28 (37) entfallen** die Seite `/wiederkehr
 
 1. **Eine** Zeile mit, in dieser Reihenfolge: `menue-knopf`, `suche-knopf`, Synchronisation, Rückgängig,
    Wiederholen, Befehlspalette, Benachrichtigungen, `tabs-knopf` (ab M28 danach `person-knopf`, 37.1). Unter
-   390 CSS-Pixel Breite darf „Wiederholen“ fehlen. Alle Knöpfe mindestens 44 × 44 px.
+   403 CSS-Pixel Breite fehlt „Wiederholen“ (weiter über die Befehlspalette), unter 359 auch der Knopf der
+   Befehlspalette; zwischen den Knöpfen ist kein Abstand (D-279, vorher: Grenze 390 – mit dem Personenknopf
+   brach die Zeile um). Alle Knöpfe mindestens 44 × 44 px.
 2. **Suche:** `suche-feld` ist anfangs nicht sichtbar. `suche-knopf` (`aria-controls`, `aria-expanded`
    `false`/`true`, `aria-label` „Suche einblenden“/„Suche ausblenden“) blendet es als zweite Zeile ein und setzt
    den Fokus hinein; erneutes Betätigen blendet es aus. Verliert das **leere** Feld den Fokus (nicht an
@@ -2289,6 +2291,9 @@ Browser). Prüfmerkmale: E-247. **Ab M28 (37) entfallen** die Seite `/wiederkehr
    oben sichtbar.
 
 ### 36.3 Kontoansicht: Tippen, lange Berührung, Auswahlmodus (ersetzt für Buchungszeilen 16.4 „lange Berührung“)
+
+**Seit D-278 gilt für Tippen, lange Berührung und Wischen Abschnitt 43; die Nummern 1 und 2 und 36.4.1 sind
+dadurch abgelöst.** Der Auswahlmodus selbst (3, 4, 6) gilt unverändert.
 
 1. **Ohne Auswahl:** Tippen auf eine Buchungszeile öffnet die Einzelheiten (16.3).
 2. **Lange Berührung** (≥ 500 ms ohne Bewegung über 10 px) auf eine Buchungszeile öffnet **kein** Kontextmenü,
@@ -3243,3 +3248,30 @@ Seite `/konfiguration` (`seite-konfiguration`), nur lesend, aus
 
 D-236/2, 3, 12, 13 (klebende Betragsspalte, Gruppenbalken, rote Frist,
 Kachel) sind Darstellung und werden nicht geprüft.
+
+## 43. Gesten im mobilen Kontoblatt (D-278)
+
+Arbeitsanweisung vom 2026-11-25. Gilt nur im mobilen Layout (`data-layout="mobil"`) für Buchungszeilen; im
+Desktop-Layout (auch mit Touch) ändert sich nichts. Löst 36.3.1, 36.3.2 und 36.4.1 ab.
+
+| Geste | Wirkung |
+| --- | --- |
+| kurz tippen | Markiert genau diese Zeile: sie trägt `data-markiert` (sichtbar hervorgehoben), jede andere verliert es. `aria-selected` bleibt `false`, es öffnet sich nichts, `data-auswahlmodus` wird nicht `ja`. |
+| Doppeltipp | Zweiter Tipp auf dieselbe Zeile innerhalb von 400 ms: öffnet die Einzelheiten (`panel-details`, 16.3). Der erste Tipp markiert sofort. |
+| lang tippen (≥ 500 ms) | Kontextmenü als Blatt (36.5) für genau diese Zeile; es entsteht keine Auswahl. Einträge: `km-details` („Einzelheiten“), `km-auswahl` („Mehrfachauswahl“), danach die Einträge des Desktop-Kontextmenüs (8.2) in gleicher Reihenfolge. `km-auswahl` beginnt den Auswahlmodus (36.3.3) mit dieser Zeile. |
+| nach rechts wischen | Bestätigt die Buchung als die gewählte Person (wie `km-bestaetigen`), ohne Nachfrage. |
+| nach links wischen | Kategorie-Auswahl (9.1) mit Suche und „Neue Kategorie“ (unverändert). |
+
+1. **Nach dem Bestätigen** liegt drei Sekunden lang `wisch-rueckgaengig` („✓ Bestätigt … Rückgängig“) über der
+   Zeile; ein Tipp darauf nimmt genau diese Bestätigung zurück, sofern seither nichts anderes geändert wurde.
+   Danach bleibt `rueckgaengig-knopf`.
+2. **Schon bestätigt** (Tag der Person vorhanden, Status weder `importiert` noch `vorlaeufig`): der Wisch nach
+   rechts ändert nichts; `wisch-hinweis` zeigt „Schon bestätigt“ und wird nicht `data-bereit="ja"`.
+3. Ohne gewählte Person erscheint der Hinweis, oben rechts die Person zu wählen. Eine importierte Buchung ohne
+   Zuordnung verlangt auch hier zuerst Kategorie oder Konto (D-260).
+4. **Im Auswahlmodus:** Tippen schaltet die Auswahl der Zeile um (36.3.3); lang tippen nimmt die Zeile in die
+   Auswahl und öffnet das Kontextmenü der Auswahl (ohne `km-auswahl`); Wischen auf einer ausgewählten Zeile wirkt
+   auf die ganze Auswahl.
+5. `wisch-hinweis` (36.4.3): Text rechts „✓ Bestätigen“ bzw. „Schon bestätigt“, links „Kategorie …“.
+6. Der Browser zoomt beim Doppeltipp nicht und zeigt bei langer Berührung weder Textauswahl noch eigenes Menü
+   (`touch-action: pan-y`, `user-select: none` an der Zeile); senkrechtes Rollen bleibt (D-275).
