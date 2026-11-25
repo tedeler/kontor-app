@@ -4179,3 +4179,22 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - **Nicht geändert:** lange Berührung in anderen Ansichten (Kontenbaum, Kategorien, Tabs) und im Desktop-Layout.
 - **Prüfung:** Core-Test in `tests/core/test_mobil_gesten.py`; `tests/test_browser_gesten.py` (lange Berührung
   direkt nach einem Rollereignis öffnet nichts, danach wieder). Am echten Handy nicht geprüft.
+
+## D-283 Mobil: Wischhinweis als Overlay, Ansicht steht, kein Knopf „Buchung erfassen“ (Feature `mobil-gesten-3`, 2026-11-25)
+
+- **Anlass:** Rückmeldungen vom Handy nach Version 0.54: (1) Beim Wischen erscheint nichts, auch kein „Rückgängig“.
+  (2) Nach dem Bestätigen springt das Kontoblatt. (3) Der Knopf zum Erfassen kann mobil weg.
+- **Ursache (1), nachgestellt:** Hinweis und „Rückgängig“ wurden mit `offsetTop` der Zeile gesetzt. Ab 100 Zeilen
+  zeichnet die Liste nur einen Ausschnitt in einem eigenen Fenster; `offsetTop` gilt dann nicht mehr für die
+  Listenspalte. Bei 320 Buchungen lagen beide rund 5000 px über der Zeile, außerhalb des Bildschirms. In den
+  bisherigen Tests (20 Zeilen) fiel das nicht auf; schon bei gruppierter kurzer Liste lagen sie 47 px daneben.
+- **Ursache (2), nicht nachgestellt:** Im Test mit gleich hohen Zeilen blieb die Rollposition stehen. Vermutet: Nach
+  dem Neuladen misst die lange Liste die Zeilenhöhen nach; bei unterschiedlich hohen Zeilen verschiebt sich der Inhalt.
+- **Entscheidung:** (1) Lage über die sichtbare Position der Zeile (`zeilenLage`); der Hinweis liegt als Overlay über
+  der Zeile (vorher dahinter). (2) `ansichtHalten`: Nach dem Bestätigen und nach „Rückgängig“ in der Zeile wird die
+  Rollposition so nachgeführt, dass die Zeile an ihrer Stelle bleibt (über drei Bilder, also auch nach dem
+  Nachmessen). (3) `buchung-erfassen` ist mobil ausgeblendet; neue Buchungen von Hand gibt es am Handy damit nicht
+  mehr (Desktop unverändert).
+- **Prüfung:** Core-Test in `tests/core/test_mobil_gesten.py`; `tests/test_browser_gesten.py::
+  test_wischen_in_langer_liste_bleibt_an_der_zeile` (130 Buchungen, gerollt: Hinweis, „Rückgängig“ und Zeile an
+  derselben Stelle). Ob (2) am Handy damit behoben ist, zeigt erst der Versuch dort.

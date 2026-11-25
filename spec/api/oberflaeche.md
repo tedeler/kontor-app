@@ -2322,8 +2322,8 @@ dadurch abgelöst.** Der Auswahlmodus selbst (3, 4, 6) gilt unverändert.
    spätere Zurück-Navigation normal zur vorigen Ansicht (kein „leerer“ Schritt).
 5. Unverändert: Rechtsklick und Tastaturwege zum Kontextmenü auf Buchungszeilen; lange Berührung in anderen
    Ansichten (Kontenbaum, Kategorien, Tabs) öffnet weiter das jeweilige Kontextmenü (16.4).
-6. Außerhalb des Auswahlmodus ist `buchung-erfassen` ein schwebender Knopf unten rechts (sichtbar, nicht im
-   Seitenfluss); `filter-umschalten`, Konto-Einstellungen und Verschieben stehen mit dem Kontonamen in einer Zeile.
+6. `buchung-erfassen` ist mobil nicht sichtbar (D-283; vorher außerhalb des Auswahlmodus ein schwebender Knopf
+   unten rechts); `filter-umschalten`, Konto-Einstellungen und Verschieben stehen mit dem Kontonamen in einer Zeile.
 
 ### 36.4 Wischgesten (ergänzt 16.4)
 
@@ -3274,7 +3274,10 @@ Desktop-Layout (auch mit Touch) ändert sich nichts. Löst 36.3.1, 36.3.2 und 36
 4. **Im Auswahlmodus:** Tippen schaltet die Auswahl der Zeile um (36.3.3); lang tippen nimmt die Zeile in die
    Auswahl und öffnet das Kontextmenü der Auswahl (ohne `km-auswahl`); Wischen auf einer ausgewählten Zeile wirkt
    auf die ganze Auswahl.
-5. `wisch-hinweis` (36.4.3): Text rechts „✓ Bestätigen“ bzw. „Schon bestätigt“, links „Kategorie …“.
+5. `wisch-hinweis` (36.4.3): Text rechts „✓ Bestätigen“ bzw. „Schon bestätigt“, links „Kategorie …“. Seit D-283
+   liegt er als Overlay **über** der gewischten Zeile (gleiche Lage und Höhe, ±1 px), auch in langen Listen mit
+   gezeichnetem Ausschnitt; ebenso `wisch-rueckgaengig`. Nach dem Bestätigen (und nach „Rückgängig“ in der Zeile)
+   steht die Zeile an derselben Stelle des Bildschirms wie davor.
 6. Der Browser zoomt beim Doppeltipp nicht und zeigt bei langer Berührung weder Textauswahl noch eigenes Menü
    (`touch-action: pan-y`, `user-select: none` an der Zeile); senkrechtes Rollen bleibt (D-275).
 7. **Auswahlmodus nur ausdrücklich (D-281):** Mobil beginnt er allein über `km-auswahl`. Sprünge zu einer Buchung

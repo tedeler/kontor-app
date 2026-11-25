@@ -2271,6 +2271,31 @@ class Kontoansicht {
   }
 
   // ---------------------------------------------------------------- Rückmeldung beim Wischen (D-141)
+  /** Lage einer Zeile innerhalb der Listenspalte (für Hinweise über der Zeile). Über die sichtbare Lage gerechnet:
+   *  `offsetTop` bezieht sich in langen Listen auf das Fenster des gezeichneten Ausschnitts (D-283). */
+  zeilenLage(z) {
+    const r = z.getBoundingClientRect();
+    const s = this.listenSpalte.getBoundingClientRect();
+    return { oben: r.top - s.top + this.listenSpalte.scrollTop - this.listenSpalte.clientTop, hoehe: r.height };
+  }
+
+  /** Die Zeile `id` steht nach `tun()` (mit Neuladen der Liste) an derselben Stelle des Bildschirms wie davor. */
+  async ansichtHalten(id, tun) {
+    const roller = this.scrollBehaelter();
+    const z0 = this.zeilen.get(id);
+    const oben = z0 && z0.isConnected ? z0.getBoundingClientRect().top : null;
+    const stand = roller.scrollTop;
+    const ergebnis = await tun();
+    const bild = () => new Promise((r) => requestAnimationFrame(() => r()));
+    for (let i = 0; i < 3; i++) {       // auch nach dem Nachmessen der Zeilenhöhen (hoehenPruefen) im nächsten Bild
+      const z = this.zeilen.get(id);
+      if (z && z.isConnected && oben !== null) roller.scrollTop += z.getBoundingClientRect().top - oben;
+      else roller.scrollTop = stand;
+      await bild();
+    }
+    return ergebnis;
+  }
+
   wischZeigen(z, dx, dy) {
     if (dy > WISCH_QUER) { this.wischEnde(z); return; }
     if (!this.wischHinweis) {
@@ -2283,8 +2308,9 @@ class Kontoansicht {
     const offen = this.wischZiele(id).length > 0;
     hw.firstChild.textContent = offen || !personLesen() ? "✓ Bestätigen" : "Schon bestätigt";
     hw.dataset.wirkung = offen ? "bestaetigen" : "keine";
-    hw.style.top = z.offsetTop + "px";
-    hw.style.height = z.offsetHeight + "px";
+    const lage = this.zeilenLage(z);
+    hw.style.top = lage.oben + "px";
+    hw.style.height = lage.hoehe + "px";
     hw.dataset.richtung = dx > 0 ? "rechts" : "links";
     hw.dataset.bereit = Math.abs(dx) >= WISCH_WEG && (dx < 0 || offen) ? "ja" : "nein";
     hw.hidden = false;
@@ -2319,7 +2345,7 @@ class Kontoansicht {
     const ids = this.wischZiele(id);
     if (!ids.length) return;                       // schon bestätigt: die Zeile federt nur zurück
     const vorher = stapelStand();
-    if (!(await this.personMarkieren(ids, true))) return;
+    if (!(await this.ansichtHalten(id, () => this.personMarkieren(ids, true)))) return;
     const nachher = stapelStand();
     if (nachher.hoehe > vorher.hoehe) this.wischRueckZeigen(id, nachher, nachher.hoehe - vorher.hoehe);
   }
@@ -2330,13 +2356,14 @@ class Kontoansicht {
     if (!z || !z.isConnected) return;
     const el = h("button", { type: "button", class: "wisch-rueck", tid: "wisch-rueckgaengig" },
       h("span", null, "✓ Bestätigt"), h("span", { class: "wisch-rueck-knopf" }, "Rückgängig"));
-    el.style.top = z.offsetTop + "px";
-    el.style.height = z.offsetHeight + "px";
+    const lage = this.zeilenLage(z);
+    el.style.top = lage.oben + "px";
+    el.style.height = lage.hoehe + "px";
     el.addEventListener("click", async () => {
       this.wischRueckEnde();
       // nur, wenn seither nichts anderes geändert wurde; sonst bleibt der Rückgängig-Knopf der Werkzeugleiste
       if (stapelStand().oben !== stand.oben) return;
-      for (let i = 0; i < schritte; i++) await rueckgaengig();
+      await this.ansichtHalten(id, async () => { for (let i = 0; i < schritte; i++) await rueckgaengig(); });
     });
     this.listenSpalte.append(el);
     this.wischRueck = { el, timer: setTimeout(() => this.wischRueckEnde(), WISCH_RUECK_MS) };
