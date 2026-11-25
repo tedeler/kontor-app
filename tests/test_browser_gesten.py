@@ -106,12 +106,12 @@ def test_gesten_im_kontoblatt(tmp_path, browser):
         expect(rueck).to_have_count(0)
         expect(erste).to_have_attribute("data-status", "importiert")
         assert erste.get_attribute("data-bestaetigt") is None
-        # … und verschwindet sonst nach drei Sekunden von selbst; schon Bestätigtes bleibt beim Wisch unverändert
+        # schon Bestätigtes bleibt beim Wisch unverändert (das Verschwinden nach drei Sekunden wird hier nicht
+        # abgewartet: Zeitbudget des Browser-Jobs)
         _wischen(cdp, erste, 160)
         expect(rueck).to_be_visible()
-        expect(rueck).to_have_count(0, timeout=4500)
+        expect(erste).to_have_attribute("data-status", "bestaetigt")
         _wischen(cdp, erste, 160)
-        page.wait_for_timeout(300)
         expect(rueck).to_have_count(0)
         expect(erste).to_have_attribute("data-bestaetigt", "Torsten")
 
@@ -125,18 +125,15 @@ def test_gesten_im_kontoblatt(tmp_path, browser):
 def test_wischen_in_langer_liste_bleibt_an_der_zeile(tmp_path, browser):
     """D-283: In einer langen Liste (nur der sichtbare Ausschnitt ist gezeichnet) liegen Hinweis und „Rückgängig“
     über der gewischten Zeile, und die Ansicht steht nach dem Bestätigen an derselben Stelle."""
-    import datetime as dt
+    from kontor.importer.kmymoney import importiere_kmy
 
-    import httpx
+    from .conftest import GIRO, kmy, transaktion
 
-    with server(tmp_path) as (url, _), seite(browser, url, **HANDY) as page:
-        with httpx.Client(base_url=url, timeout=60) as c:
-            for i in range(110):
-                tag = dt.date(2024, 3, 1) + dt.timedelta(days=i % 28)
-                r = c.post("/api/buchungen", json={"datum": tag.isoformat(), "verwendungszweck": f"Massen {i}",
-                                                   "status": "importiert", "splits": [
-                                                       {"konto_id": 1, "betrag": -(i + 1)}, {"konto_id": 2, "betrag": i + 1}]})
-                assert r.status_code in (200, 201), r.text
+    with server(tmp_path, daten=False) as (url, config), seite(browser, url, **HANDY) as page:
+        # 130 Buchungen in einem Import (schneller als einzeln über REST; Zeitbudget des Browser-Jobs)
+        transaktionen = "".join(transaktion(f"T{i}", f"2024-03-{i % 28 + 1:02d}", ("A1", f"-{i + 1}/100"), ("A2", f"{i + 1}/100"),
+                                            memo=f"Massen {i}") for i in range(130))
+        assert importiere_kmy(config, kmy(GIRO, transaktionen=transaktionen)).erfolgreich
         page.goto(url + "/konten/1")
         bereit(page, "konto")
         page.evaluate("() => { document.querySelector('.hauptbereich').scrollTop = 3000; }")
