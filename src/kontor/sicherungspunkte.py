@@ -670,7 +670,7 @@ def liste(ab: Ablage, jetzt: dt.datetime, aktueller_pruefwert: str | None) -> di
             "gesamt": {"groesse": sum(m["groesse"] for m in ab.punkte.values()), "anzahl": len(ab.punkte),
                        "stufen": stufen},
             "bezugspunkt": bezug, "unveraendert": unveraendert, "zuletzt_geprueft": ab.stand["zuletzt_geprueft"],
-            "naechster_lauf": zeit_text(naechster), "frei": frei}
+            "naechster_lauf": zeit_text(naechster), "jetzt": zeit_text(jetzt), "frei": frei}
 
 
 # ======================================================================== Einspielen (5.1)

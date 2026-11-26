@@ -63,8 +63,8 @@ def test_suche_und_erweitert(tmp_path, browser):
         # Synonym: „backup“ findet die Datensicherung
         suche.fill("backup")
         expect(tid(page, "einstellungen-nav")).to_be_hidden()
-        expect(tid(page, "einstellungen-treffer-eintrag")).to_have_count(2)
-        expect(tid(page, "einstellungen-treffer-stand")).to_have_text("2 Einstellungen gefunden.")
+        expect(tid(page, "einstellungen-treffer-eintrag")).to_have_count(3)   # D-302: dazu die Sicherungspunkte
+        expect(tid(page, "einstellungen-treffer-stand")).to_have_text("3 Einstellungen gefunden.")
         suche.fill("gibtesnicht")
         expect(tid(page, "einstellungen-treffer-stand")).to_have_text("Keine passende Einstellung.")
         # Treffer unter „Erweitert“: Enter springt hin und klappt auf

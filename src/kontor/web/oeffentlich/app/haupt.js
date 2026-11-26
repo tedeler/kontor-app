@@ -15,6 +15,7 @@ import { erwartetSeite } from "./erwartet.js";
 import { mailSeite } from "./mail.js";
 import { berichteSeite } from "./berichte.js";
 import { lernmodellSeite } from "./lernmodell.js";
+import { sicherungSeite } from "./sicherung.js";
 import { Tabs } from "./tabs.js";
 
 const app = tid("app");
@@ -256,6 +257,7 @@ const ROUTEN = [
   [/^\/import$/, "import", "import", S.importSeite],
   [/^\/einstellungen$/, "einstellungen", "einstellungen", einstellungen],
   [/^\/protokoll$/, "protokoll", "protokoll", S.protokoll],
+  [/^\/sicherung$/, "sicherung", "einstellungen", sicherungSeite],
   [/^\/empfaenger$/, "empfaenger", "empfaenger", S.empfaenger],
   [/^\/regeln$/, "regeln", "regeln", S.regeln],
   [/^\/lernmodell$/, "lernmodell", "regeln", lernmodellSeite],
@@ -409,7 +411,7 @@ async function zeigen(optionen) {
 
 const TITEL = { uebersicht: "Finanzübersicht", konten: "Konten", konto: "Konto", kategorien: "Kategorien", tags: "Tags", konfiguration: "Konfiguration",
   kredite: "Kredite", kredit: "Kredit", berichte: "Berichte", import: "Import",
-  einstellungen: "Einstellungen", protokoll: "Änderungsprotokoll", empfaenger: "Empfänger", regeln: "Regeln", lernmodell: "Lernmodell",
+  einstellungen: "Einstellungen", protokoll: "Änderungsprotokoll", sicherung: "Sicherungspunkte", empfaenger: "Empfänger", regeln: "Regeln", lernmodell: "Lernmodell",
   vorlagen: "Split-Vorlagen", dubletten: "Dubletten", sync: "Synchronisation", benachrichtigungen: "Benachrichtigungen",
   suche: "Suche", tan: "TAN-Freigabe", postfach: "Postfach", buchung: "Buchung", erwartet: "Was kommt noch?",
   mail: "Mail-Blatt" };
@@ -883,6 +885,7 @@ const BEFEHLE = [
   ["gehe-import", "Gehe zu: Import", () => gehe("/import")],
   ["gehe-einstellungen", "Gehe zu: Einstellungen", () => gehe("/einstellungen")],
   ["gehe-protokoll", "Gehe zu: Änderungsprotokoll", () => gehe("/protokoll")],
+  ["gehe-sicherung", "Gehe zu: Sicherungspunkte (Backup, Wiederherstellen)", () => gehe("/sicherung")],
   ["gehe-empfaenger", "Gehe zu: Empfänger", () => gehe("/empfaenger")],
   ["gehe-tags", "Gehe zu: Tags", () => gehe("/tags")],
   ["gehe-konfiguration", "Gehe zu: Konfiguration (Umgebungsdatei)", () => gehe("/konfiguration")],
@@ -940,6 +943,7 @@ const BLATT_ZIELE = {
   kredit: [["b", "Tilgungsplan", T("tilgungsplan")]],
   kredite: [["b", "Liste", T("kredite-liste")]],
   protokoll: [["b", "Liste", T("protokoll-liste")]],
+  sicherung: [["b", "Liste", T("sicherung-liste")]],
   dubletten: [["b", "Liste", T("dubletten-liste")]],
 };
 

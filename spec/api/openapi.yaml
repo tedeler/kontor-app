@@ -7767,6 +7767,7 @@ components:
             - {type: string}
             - {type: "null"}
         naechster_lauf: {type: string}
+        jetzt: {type: string}
         frei:
           oneOf:
             - {type: integer}
