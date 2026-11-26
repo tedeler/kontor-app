@@ -369,12 +369,30 @@ export function kategorieAuswahl(titel, ausloeser, optionen) {
       markiert = -1;
       wahlbar().forEach((x) => x.el.setAttribute("aria-selected", "false"));
       suche.removeAttribute("aria-activedescendant");
+      // D-296: mit Suchtext ist der erste Treffer markiert, Enter übernimmt ihn
+      if (suche.value.trim() && sichtbar().length) markieren(0);
     }
     suche.addEventListener("input", filtern);
+    // D-296: ↑/↓ umlaufend, Bild↑/↓ zehn Einträge, Strg+Pos1/Ende erster/letzter, Enter übernimmt,
+    // Strg+Enter legt eine neue Kategorie mit dem Suchtext an
+    const SEITE = 10;
     suche.addEventListener("keydown", (e) => {
-      if (e.key === "ArrowDown") { e.preventDefault(); markieren(markiert + 1); }
-      else if (e.key === "ArrowUp") { e.preventDefault(); markieren(markiert - 1); }
-      else if (e.key === "Enter") {
+      const n = sichtbar().length;
+      const ziel = {
+        ArrowDown: markiert < 0 ? 0 : (markiert + 1) % Math.max(n, 1),
+        ArrowUp: markiert <= 0 ? n - 1 : markiert - 1,
+        PageDown: Math.min(n - 1, Math.max(markiert, 0) + SEITE),
+        PageUp: Math.max(0, markiert - SEITE),
+        Home: e.ctrlKey || e.metaKey ? 0 : null,
+        End: e.ctrlKey || e.metaKey ? n - 1 : null,
+      }[e.key];
+      if (ziel !== undefined && ziel !== null) {
+        e.preventDefault();
+        if (n) markieren(ziel);
+      } else if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        neuOeffnen();
+      } else if (e.key === "Enter") {
         e.preventDefault();
         const s = sichtbar();
         const wahl = markiert >= 0 ? s[markiert] : (s.length === 1 ? s[0] : null);
@@ -406,19 +424,34 @@ export function kategorieAuswahl(titel, ausloeser, optionen) {
       await angelegt;
     }));
     neuName.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); anlegen.click(); } });
+    // D-296: Enter in den Auswahlfeldern legt ebenfalls an; Esc führt zurück zur Auswahl statt das Fenster zu schließen
+    for (const feldEl of [neuArt, neuEltern]) {
+      feldEl.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); anlegen.click(); } });
+    }
     const neuForm = h("div", { class: "kategorie-neu", tid: "kategorie-neu", hidden: true },
       feld("Name", neuName), feld("Art", neuArt), feld("Übergeordnete Kategorie", neuEltern),
-      knopfLeiste(anlegen, knopf("Zurück zur Auswahl", { tid: "kategorie-neu-zurueck", onclick: () => {
-        neuForm.hidden = true; neuKnopf.hidden = false; liste.hidden = false; suche.hidden = false; suche.focus();
-      } })));
+      knopfLeiste(anlegen, knopf("Zurück zur Auswahl", { tid: "kategorie-neu-zurueck", onclick: () => zurueck() })));
+    function zurueck() {
+      neuForm.hidden = true; neuKnopf.hidden = false; liste.hidden = false; suche.hidden = false; tasten.hidden = false;
+      suche.focus();
+    }
+    neuForm.addEventListener("keydown", (e) => {
+      if (e.key !== "Escape" || dd.gesperrt) return;
+      e.preventDefault();
+      e.stopPropagation();
+      zurueck();
+    });
     function neuOeffnen() {
       neuName.value = suche.value.trim();
       elternFuellen();
-      neuForm.hidden = false; neuKnopf.hidden = true; liste.hidden = true; suche.hidden = true;
+      neuForm.hidden = false; neuKnopf.hidden = true; liste.hidden = true; suche.hidden = true; tasten.hidden = true;
       neuName.focus();
     }
     const neuKnopf = knopf("Neue Kategorie anlegen…", { tid: "kategorie-auswahl-neu", onclick: neuOeffnen });
-    inhalt.append(suche, liste, neuKnopf, neuForm);
+    const tasten = h("p", { class: "klein auswahl-tasten", tid: "kategorie-auswahl-tasten" },
+      "↑ ↓ wählen · Enter übernehmen · Strg+Enter anlegen · Esc abbrechen");
+    // am Handy ohne Tastatur kein Hinweis auf Tasten
+    inhalt.append(suche, liste, ...(oberflaeche.istMobil() ? [] : [tasten]), neuKnopf, neuForm);
   }, { ausloeser, klasse: "dialog-auswahl" });
   return d.ergebnis.then(async (wahl) => {
     try { await angelegt; } catch (e) { /* im Dialog gemeldet */ }

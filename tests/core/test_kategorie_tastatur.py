@@ -6,6 +6,8 @@ Tasten kennt und sie im Fenster nennt.
 
 from __future__ import annotations
 
+import re
+
 
 def _auswahl(client):
     js = client.get("/oeffentlich/app/ui.js").text
@@ -15,8 +17,8 @@ def _auswahl(client):
 
 def test_tasten_der_suche(client):
     teil = _auswahl(client)
-    for taste in ('"ArrowDown"', '"ArrowUp"', '"PageDown"', '"PageUp"', '"Home"', '"End"', '"Enter"'):
-        assert taste in teil, f"{taste} fehlt in der Kategorie-Auswahl"
+    for taste in ("ArrowDown", "ArrowUp", "PageDown", "PageUp", "Home", "End", "Enter"):
+        assert re.search(rf"\b{taste}\b", teil), f"{taste} fehlt in der Kategorie-Auswahl"
     assert "ctrlKey" in teil, "Strg+Enter (neue Kategorie) fehlt"
 
 

@@ -400,6 +400,16 @@ Dialog in `dialog-fehler` (`role="alert"`); der Dialog bleibt dann offen.
   derselben Art), `kategorie-neu-anlegen` und `kategorie-neu-zurueck`. Anlegen sendet `POST /api/konten`,
   schließt den Dialog und übernimmt die neue Kategorie wie eine gewählte. Enter im Suchfeld ohne Treffer und mit
   Text öffnet das Formular. Fehler stehen in `dialog-fehler`.
+- **Tastatur (D-296):** Der Dialog ist ohne Maus vollständig bedienbar.
+  - Im Suchfeld: Pfeil ab/auf markiert den nächsten/vorigen Eintrag (umlaufend; ohne Markierung ab = erster,
+    auf = letzter), Bild ab/auf zehn Einträge, Strg+Pos1/Strg+Ende den ersten/letzten. Mit Suchtext ist der erste
+    Treffer markiert; Enter übernimmt den markierten Eintrag. Strg+Enter öffnet das Formular „Neue Kategorie“ mit
+    dem Suchtext als Namen, auch wenn es Treffer gibt.
+  - Tab wechselt zwischen Suchfeld und `kategorie-auswahl-neu`, im Formular durch Name, Art, übergeordnete
+    Kategorie und die Knöpfe. Enter in Name, Art oder übergeordneter Kategorie legt an.
+  - Esc im Formular führt zurück zur Auswahl (Fokus im Suchfeld), sonst schließt Esc den Dialog ohne Wirkung.
+  - Nach dem Schließen liegt der Fokus wieder auf dem auslösenden Element (im Kontoblatt der Buchung).
+  - Am Desktop nennt `kategorie-auswahl-tasten` unter der Liste die Tasten; im mobilen Layout fehlt der Hinweis.
 
 ### 9.2 Tag-Auswahl (`tag-auswahl`)
 

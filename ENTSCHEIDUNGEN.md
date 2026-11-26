@@ -4493,3 +4493,22 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   eine eigene Regel.
 - **Tests:** `tests/core/test_regelgruppen.py`, `tests/test_browser_regelgruppen.py`. Bestehende Tests unverändert
   grün (Regeln, automatische Regeln, Ausdrücke, M15/M26/M30–M32 mit Browser).
+
+## D-296 Kategorie-Auswahl vollständig mit der Tastatur (Feature `kategorie-tastatur`, 2026-11-26)
+
+- **Anlass:** Auftrag vom 2026-11-26: Der Dialog zur Kategorieauswahl im Kontoblatt muss vollständig über die
+  Tastatur bedienbar sein.
+- **Befund:** Wählen ging schon mit Pfeilen und Enter, aber
+  - Enter übernahm bei mehreren Treffern nichts, solange kein Eintrag mit dem Pfeil markiert war;
+  - die Liste hatte kein Pos1/Ende und kein Blättern, und Pfeil auf am Anfang blieb stehen;
+  - „Neue Kategorie“ war bei vorhandenen Treffern nur über Tab und den Knopf erreichbar;
+  - Esc im Formular „Neue Kategorie“ schloss das ganze Fenster statt zur Auswahl zurückzuführen;
+  - in Art und übergeordneter Kategorie legte Enter nicht an.
+- **Entscheidung:** `oberflaeche.md` 9.1 „Tastatur“: Pfeile umlaufend, Bild ab/auf um zehn, Strg+Pos1/Ende; mit
+  Suchtext ist der erste Treffer markiert (wie in der Befehlspalette), Enter übernimmt; Strg+Enter öffnet das
+  Formular mit dem Suchtext; Enter in allen Feldern des Formulars legt an; Esc im Formular führt zurück. Pos1/Ende
+  ohne Strg bleiben im Suchfeld beim Textcursor. Ein Hinweis unter der Liste nennt die Tasten (nur am Desktop).
+- **Geändertes Verhalten:** Wer nach dem Tippen Pfeil ab drückt, landet jetzt auf dem zweiten Treffer (der erste
+  ist schon markiert). Kein bestehender Test hing davon ab.
+- **Tests:** `tests/core/test_kategorie_tastatur.py`, `tests/test_browser_kategorie_tastatur.py` (Wählen, neue
+  Kategorie samt übergeordneter Kategorie, Abbrechen; jeweils nur Tastatur, Fokus zurück auf der Buchung).
