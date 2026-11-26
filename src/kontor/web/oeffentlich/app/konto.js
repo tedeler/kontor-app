@@ -3,7 +3,7 @@
 import {
   BESTAND, STATUS_TEXT, abfrage, aktion, anhaengen, api, baumFolge, betragEingabe, betragEl, betragLesen, betragText, datumEl,
   datumText, h, kategorien, klasse,
-  kontoNach, kontoPfad, melde, nameAnzeige, neueId, oberflaeche, personBestaetigt, personLesen, personTag, personVonTag, pfadVon,
+  kontoNach, ausdruckPfad, kontoPfad, melde, nameAnzeige, neueId, oberflaeche, personBestaetigt, personLesen, personTag, personVonTag, pfadVon,
   rueckgaengig, stamm, stapelStand, tagHolen, tid,
 } from "./kern.js";
 import {
@@ -184,7 +184,7 @@ function alteFilterUebernehmen(f, istKategorie) {
   // D-250: in der Kontoansicht einer Kategorie bleibt ``kategorie_id`` der Filter ``filter-konto`` (22.2, E-274)
   if (f.kategorie_id && !f.unterkategorien && !istKategorie) {
     const k = kontoNach(Number(f.kategorie_id));
-    if (k) nimm("kategorie_id", `${istKategorie ? "konto" : "kategorie"} == ${qText(kontoPfad(k))}`);
+    if (k) nimm("kategorie_id", `${istKategorie ? "konto" : "kategorie"} == ${qText(ausdruckPfad(k))}`);
   }
   if (f.tag_id) {
     const tg = stamm.tags.find((x) => String(x.id) === f.tag_id);

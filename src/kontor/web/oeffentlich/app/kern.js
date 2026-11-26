@@ -343,6 +343,21 @@ export function kontoPfad(k) {
 
 export const pfadVon = (id) => kontoPfad(kontoNach(id));
 
+/** Pfad eines Kontos für Ausdrücke (Filter, Regeln): mit „:“ getrennt wie die kanonische Form des Servers (D-301).
+ *  `kontoPfad` mit „ › “ ist nur für die Anzeige. */
+export function ausdruckPfad(k) {
+  if (!k) return "";
+  const teile = [];
+  const gesehen = new Set();
+  let x = k;
+  while (x && !gesehen.has(x.id)) {
+    gesehen.add(x.id);
+    teile.unshift(x.name);
+    x = x.eltern_id ? kontoNach(x.eltern_id) : null;
+  }
+  return teile.join(":");
+}
+
 /** Konten als Baum in Tiefensuche (Geschwister nach Name, localeCompare deutsch), je mit Ebene ab 1. */
 export function baumFolge(konten) {
   const ids = new Set(konten.map((k) => k.id));

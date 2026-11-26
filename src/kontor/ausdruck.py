@@ -485,7 +485,8 @@ class Bezuege:
 
     @staticmethod
     def _suchen(karte: dict[int, str], name: str) -> list[int]:
-        n = _fold_ident(name.strip())
+        # D-301: „›“ ist der Trenner der Anzeige (Kontenbaum, Auswahllisten); im Ausdruck gleichwertig zu „:“
+        n = _fold_ident(re.sub(r"\s*:\s*", ":", re.sub(r"\s*›\s*", ":", name.strip())))
         voll = [k for k, p in karte.items() if _fold_ident(p) == n]
         if voll:
             return voll

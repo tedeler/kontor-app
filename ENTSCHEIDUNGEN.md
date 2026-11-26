@@ -4588,3 +4588,17 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - **Tests:** `tests/core/test_sonderposten.py`, `tests/test_browser_sonderposten.py`; angepasst
   `tests/core/test_tastenbelegung.py` (Eintrag in `tests/core/AENDERUNGEN.md`).
 - **Offen:** keine Sonderposten in den Demodaten.
+
+
+## D-301 Pfade von Unterkategorien im Ausdruck (Fehler `kategoriepfad`, 2026-11-26)
+
+- **Fehler** (Meldung des Auftraggebers): Der Baukasten des Filters (und des Regeleditors) schrieb eine
+  Unterkategorie als `kategorie == "Versicherungen › PKV"`. Der Server kennt Pfade nur mit `:` und meldete
+  „Kategorie … gibt es nicht“. Ursache: Die Auswahllisten nahmen `kontoPfad` (Anzeige, Trenner „ › “) auch als Wert;
+  ebenso der Rückweg vom Ausdruck in den Baukasten (`baukastenAusBaum`) und die Übersetzung alter Filteradressen
+  (`kategorie_id` → Ausdruck). Bei Kategorien ohne Oberkategorie fiel es nicht auf.
+- **Behebung:** `ausdruckPfad` in `kern.js` (Trenner `:`) für alle Werte, die in einen Ausdruck gehen; die Anzeige der
+  Auswahl bleibt „ › “. Zusätzlich nimmt der Server `›` als gleichwertigen Trenner an (`Bezuege._suchen`), damit
+  schon gespeicherte Filter, Lesezeichen und von Hand getippte Pfade gelten; die kanonische Form bleibt `:`.
+  `ausdruecke.md` 2.3.
+- **Tests:** `tests/core/test_kategoriepfad.py`, `tests/test_browser_kategoriepfad.py`.
