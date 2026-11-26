@@ -4447,3 +4447,25 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   Zeichenketten (URLs in der Konfiguration, Mail-Adressen) brechen weiter innerhalb der Spalte um.
 - **Tests:** `tests/core/test_tabellenbreite.py`, `tests/test_browser_tabellenbreite.py` (drei Breiten, acht
   Seiten; scheitert ohne die Änderung). Service-Worker-Cache `kontor-huelle-46`.
+
+## D-294 Änderungsprotokoll neu gestaltet (Feature `protokoll-gestaltung`, 2026-11-26)
+
+- **Anlass:** Der Auftraggeber fand das Änderungsprotokoll hässlich: eine nummerierte Liste mit drei gleich lauten
+  Knöpfen je Zeile, Zeitpunkt und Quelle ohne Abstand, technische Texte („sync_saldoausgleich“, „(1 Objekt)“), auf
+  dem Handy je Eintrag fast ein Drittel des Bildschirms.
+- **Entscheidung:** Gliederung nach Tagen in Karten; je Eintrag ein Raster aus Uhrzeit, farbiger Marke der Quelle
+  (Töne der Navigationsgruppen), Beschreibung als Knopf zu den Einzelheiten und einer Zeile mit dem betroffenen
+  Objekt bzw. dem Umfang; „Rückgängig“ und „Bis hierher“ rechts, gedämpft bis zum Zeigen. Filter nach Quellen
+  über den vorhandenen Parameter `quelle`. Das Fenster der Einzelheiten bekommt Kacheln im Kopf, Karten je Objekt
+  und lesbare Werte. Spezifikation `oberflaeche.md` 48.
+- **Server:** Beschreibung für `sync_saldoausgleich` ergänzt; ältere Einträge mit dem rohen Namen zeigt die
+  Oberfläche lesbar an. Ein Core-Test prüft, dass jede benutzte Aktion eine Beschreibung hat.
+- **Selbst entschieden:** „Bis hierher“ nur ohne Filter (sonst würden ausgeblendete Änderungen mit
+  zurückgenommen); der Knopf heißt sichtbar „Bis hierher“, die Bestätigung weiter „Bis hierher rückgängig“.
+  „Heute“/„Gestern“ nach der Uhr des Browsers. Der Filter wird nicht gemerkt. Die Seite liegt jetzt in
+  `app/aenderung.js` (zusammen mit dem Fenster), `seiten.js` reicht sie weiter.
+- **Unverändert:** alle `data-testid`, `data-quelle`, `data-wirksam`, die Klasse `bis-markiert` und das Verhalten
+  von Rückgängig (13.9, 25.1, 41.8).
+- **Tests:** `tests/core/test_protokoll_gestaltung.py`, `tests/test_browser_protokoll.py`; bestehende Tests
+  unverändert grün.
+

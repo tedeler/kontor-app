@@ -468,10 +468,6 @@ html.zieht, html.zieht * { cursor: grabbing !important; }
 .tabelle.einzelbuchungen { font-size: .92em; margin: 0; }
 .konto-knoepfe { display: flex; flex-wrap: wrap; gap: .25rem; }
 .konto-knoepfe .knopf { padding: .1rem .45rem; }
-.protokoll { padding-left: 1.2rem; }
-.aenderung { margin-bottom: .35rem; overflow-wrap: anywhere; }
-.aenderung.unwirksam { color: var(--text-2); }
-.aenderung.bis-markiert { background: var(--akzent-hell); border-radius: 4px; }
 .knopf-klein { font-size: .8rem; padding: .1rem .45rem; margin-left: .3rem; }
 .marke { font-size: .75rem; background: var(--hg-3); border-radius: 4px; padding: 0 .3em; }
 .regel-auto { margin-left: .4rem; font-size: .75rem; background: var(--hg-3); border-radius: 4px; padding: 0 .3em; }
@@ -1662,27 +1658,100 @@ tr.ueberfaellig td.e-zustand, tr.ueberfaellig td.e-frist { color: var(--gefahr);
 .tab-leiste { scroll-padding-right: 9.5rem; }
 /* Trenner der überdeckten Spalten bleiben über der klebenden Betragsspalte greifbar (Spaltenbreiten, M22) */
 .buchungsliste[data-kompakt="nein"] .liste-kopf .spalten-trenner { z-index: 3; }
-/* ---------------------------------------------------------------- Einzelheiten einer Änderung (D-237) */
+/* ---------------------------------------------------------------- Änderungsprotokoll (13.9, 25.1, D-294) */
+.seite-protokoll { max-width: 68rem; }
+.pr-kopf { align-items: flex-end; margin-bottom: .2rem; }
+.pr-stand { margin: .1rem 0 0; color: var(--text-2); font-size: .9rem; }
+.pr-stand:empty { display: none; }
+.pr-filter { display: flex; flex-wrap: wrap; gap: .35rem; margin: .5rem 0 1rem; }
+.pr-liste { display: flex; flex-direction: column; gap: 1.1rem; }
+.pr-tag-titel { display: flex; align-items: baseline; justify-content: space-between; gap: .6rem; margin: 0 0 .35rem;
+  padding: 0 .2rem; font-size: .78rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-2); }
+.pr-tag-zahl { font-weight: 400; letter-spacing: 0; text-transform: none; }
+.pr-tag-liste { list-style: none; margin: 0; padding: 0; border: 1px solid var(--rand); border-radius: calc(var(--radius) + 2px);
+  background: var(--hg); overflow: hidden; }
+.pr-zeile { display: grid; grid-template-columns: 3rem 6.9rem minmax(0, 1fr) auto; gap: .2rem .9rem; align-items: start;
+  padding: .6rem .9rem; border-top: 1px solid var(--hg-3); position: relative; }
+.pr-zeile:first-child { border-top: 0; }
+.pr-zeile:hover, .pr-zeile:focus-within { background: var(--hg-2); }
+.pr-zeit { font-variant-numeric: tabular-nums; color: var(--text-2); font-size: .9rem; padding-top: .12rem; }
+.pr-quelle { justify-self: start; display: inline-block; font-size: .76rem; font-weight: 600; line-height: 1.5; padding: .05rem .55rem;
+  border-radius: 999px; white-space: nowrap; background: var(--pr-ton, var(--hg-3)); color: var(--text); margin-top: .1rem; }
+.pr-ton-hand { --pr-ton: #d7e8f6; }
+.pr-ton-bank { --pr-ton: #d8f0e3; }
+.pr-ton-auto { --pr-ton: #e7e0f6; }
+.pr-ton-mail { --pr-ton: #fbe4d4; }
+.pr-ton-daten { --pr-ton: #f6efd4; }
+.pr-ton-zurueck { --pr-ton: var(--hg-3); }
+html[data-thema="dunkel"] .pr-ton-hand { --pr-ton: #2c4258; }
+html[data-thema="dunkel"] .pr-ton-bank { --pr-ton: #2a4538; }
+html[data-thema="dunkel"] .pr-ton-auto { --pr-ton: #3c3450; }
+html[data-thema="dunkel"] .pr-ton-mail { --pr-ton: #4a382c; }
+html[data-thema="dunkel"] .pr-ton-daten { --pr-ton: #453f2e; }
+.pr-inhalt { min-width: 0; }
+.pr-titel { display: block; max-width: 100%; border: 0; background: none; padding: 0; margin: 0; font: inherit; font-weight: 600;
+  color: var(--text); text-align: left; cursor: pointer; overflow-wrap: anywhere; }
+.pr-titel:hover { color: var(--akzent); text-decoration: underline; text-underline-offset: 2px; }
+.pr-unter { display: flex; flex-wrap: wrap; gap: .1rem .6rem; margin-top: .1rem; font-size: .86rem; color: var(--text-2); }
+.pr-umfang { overflow-wrap: anywhere; min-width: 0; }
+.pr-hinweis { white-space: nowrap; }
+.pr-hinweis::before { content: "·"; margin-right: .6rem; }
+.pr-hinweis-zurueck { color: var(--hinweis); }
+.pr-aktionen { display: flex; gap: .3rem; justify-content: flex-end; flex-wrap: nowrap; opacity: .55; transition: opacity .12s; }
+.pr-zeile:hover .pr-aktionen, .pr-zeile:focus-within .pr-aktionen, .pr-zeile.bis-markiert .pr-aktionen { opacity: 1; }
+.knopf.pr-aktion { min-height: 28px; padding: .1rem .55rem; font-size: .82rem; background: var(--hg); white-space: nowrap; }
+.pr-symbol { font-size: 1rem; line-height: 1; }
+.aenderung.unwirksam .pr-titel { color: var(--text-2); font-weight: 400; text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--text-2) 55%, transparent); }
+.aenderung.unwirksam .pr-quelle { opacity: .6; }
+.aenderung.bis-markiert { background: var(--akzent-hell); box-shadow: inset 3px 0 0 var(--akzent); }
+.pr-leer { margin: 1.5rem .2rem; }
+.knopf.pr-mehr { display: flex; width: 100%; margin: 1rem 0 .5rem; background: var(--hg); color: var(--text-2); }
+[data-layout="mobil"] .pr-filter { flex-wrap: nowrap; overflow-x: auto; margin: .4rem -.2rem .8rem; padding: 0 .2rem .2rem;
+  scrollbar-width: none; }
+[data-layout="mobil"] .pr-filter .chip { flex: none; min-height: 34px; }
+[data-layout="mobil"] .pr-zeile { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem .5rem; padding: .55rem .75rem; }
+[data-layout="mobil"] .pr-zeit { order: 1; padding: 0; font-size: .85rem; }
+[data-layout="mobil"] .pr-quelle { order: 2; margin: 0; }
+[data-layout="mobil"] .pr-aktionen { order: 3; margin-left: auto; opacity: 1; }
+[data-layout="mobil"] .pr-inhalt { order: 4; flex: 1 0 100%; }
+[data-layout="mobil"] .knopf.pr-aktion { min-height: 32px; padding: .1rem .5rem; font-size: .8rem; }
+
+/* ---------------------------------------------------------------- Einzelheiten einer Änderung (D-237, D-294) */
 .dialog-aenderung { width: min(62rem, 96vw); }
-.ae-kopf { display: grid; grid-template-columns: max-content 1fr; gap: .15rem 1rem; margin: 0 0 .8rem; }
-.ae-kopf dt { color: var(--text-2); }
-.ae-kopf dd { margin: 0; overflow-wrap: anywhere; }
+.ae-kopf { display: grid; grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr)); gap: .5rem; margin: 0 0 1rem; }
+.ae-angabe { background: var(--hg-2); border-radius: var(--radius); padding: .4rem .6rem; min-width: 0; }
+.ae-kopf dt { font-size: .72rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--text-2); }
+.ae-kopf dd { margin: .1rem 0 0; overflow-wrap: anywhere; }
+.ae-kopf code { font-size: .8rem; color: var(--text-2); }
+.ae-wirksam { color: var(--erfolg); font-weight: 600; }
+.ae-zurueck { color: var(--hinweis); }
 .ae-liste { display: flex; flex-direction: column; gap: .8rem; margin: .5rem 0; }
-.ae-eintrag { border: 1px solid var(--rand); border-radius: var(--radius); padding: .5rem .7rem; }
-.ae-eintrag h3 { margin: 0 0 .35rem; font-size: 1rem; overflow-wrap: anywhere; }
-.ae-art { font-size: .78rem; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; padding: .05rem .4rem; border-radius: 99px;
-  background: var(--hg-2); }
-.ae-angelegt { color: var(--positiv, #2e7d46); }
-.ae-geloescht { color: var(--gefahr); }
-.ae-tabelle { width: 100%; table-layout: fixed; }
-.ae-tabelle th[scope="row"] { width: 12rem; text-align: left; font-weight: 400; color: var(--text-2); vertical-align: top; }
+.ae-eintrag { border: 1px solid var(--rand); border-radius: calc(var(--radius) + 2px); overflow: hidden; }
+.ae-eintrag h3 { display: flex; flex-wrap: wrap; align-items: baseline; gap: .2rem .5rem; margin: 0; padding: .5rem .75rem;
+  font-size: .95rem; background: var(--hg-2); border-bottom: 1px solid var(--rand); overflow-wrap: anywhere; }
+.ae-eintrag > .klein { margin: .5rem .75rem; }
+.ae-art { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; padding: .05rem .45rem;
+  border-radius: 999px; background: var(--hg-3); color: var(--text-2); align-self: center; }
+.ae-angelegt { background: color-mix(in srgb, var(--erfolg) 16%, transparent); color: var(--erfolg); }
+.ae-geaendert { background: color-mix(in srgb, var(--akzent) 16%, transparent); color: var(--akzent); }
+.ae-geloescht { background: color-mix(in srgb, var(--gefahr) 14%, transparent); color: var(--gefahr); }
+.ae-objekt { color: var(--text-2); font-weight: 400; }
+.ae-titel { font-weight: 600; min-width: 0; }
+.ae-nr { margin-left: auto; color: var(--text-2); font-weight: 400; font-variant-numeric: tabular-nums; }
+.ae-tabelle { width: 100%; table-layout: fixed; border-collapse: collapse; margin: 0; }
+.ae-tabelle thead th { font-size: .72rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--text-2);
+  text-align: left; padding: .4rem .75rem .25rem; }
+.ae-tabelle tbody tr { border-top: 1px solid var(--hg-3); }
+.ae-tabelle th[scope="row"], .ae-tabelle td { padding: .35rem .75rem; }
+.ae-tabelle th[scope="row"] { width: 12rem; text-align: left; font-weight: 400; color: var(--text-2); vertical-align: top;
+  hyphens: auto; overflow-wrap: anywhere; }
 .ae-tabelle td { white-space: pre-line; overflow-wrap: anywhere; vertical-align: top; }
-.ae-tabelle td.ae-vorher { background: color-mix(in srgb, var(--gefahr) 9%, transparent); }
-.ae-tabelle td.ae-nachher { background: color-mix(in srgb, #2e7d46 12%, transparent); }
-.aenderung .knopf-klein { margin-left: .4rem; }
+.ae-tabelle td.ae-vorher { color: var(--text-2); background: color-mix(in srgb, var(--gefahr) 7%, transparent);
+  text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--gefahr) 45%, transparent); }
+.ae-tabelle td.ae-nachher { background: color-mix(in srgb, var(--erfolg) 10%, transparent); }
 [data-layout="mobil"] .ae-tabelle th[scope="row"] { width: 6.5rem; font-size: .85rem; }
-.ae-eintrag h3 small { margin-left: .3rem; font-weight: 400; }
-.ae-tabelle th[scope="row"] { hyphens: auto; overflow-wrap: anywhere; }
+[data-layout="mobil"] .ae-tabelle th[scope="row"], [data-layout="mobil"] .ae-tabelle td { padding: .35rem .5rem; }
 /* Geplante Zahlungen (D-238) */
 .e-wiederholung { margin-left: .5rem; font-weight: 400; white-space: nowrap; }
 
