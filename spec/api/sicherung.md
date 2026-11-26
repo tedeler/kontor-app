@@ -465,3 +465,14 @@ Beim Einspielen werden gleichnamige Konten bereinigt (`sammel3.md` 1.3),
 ältere Sicherungen mit Standardkategorien und Personen-Tags „Torsten“/„Tina“
 umgewandelt (`sammel3.md` 2.1, 5; nicht prüfbar, E-296). Keine neue
 Objektart.
+
+## 15. Feature `sicherung-stuendlich` (D-302, `sicherungspunkte.md`)
+
+- **Schemaversion 11:** neue Tabelle `einstellung (schluessel, wert)` mit den gesetzten Einstellungen
+  `lern_regeln_automatisch`, `lern_schwelle_promille`, `wk_filter_modus`, `wk_filter_toleranz`. Sie gehören
+  nicht zu `anzahl` und Inhaltsprüfsumme. Beim Einspielen ab Version 11 werden diese Einstellungen ersetzt, auch wenn
+  der Buchbestand identisch ist (dann ohne Änderung im Protokoll); ältere Sicherungen lassen sie unverändert.
+- **Ablauf des Einspielens** (5.3 ergänzt, `sicherungspunkte.md` 5.1): In derselben Schreibtransaktion wird zuerst
+  der bestehende Stand als Sicherungspunkt gesichert (scheitert das: 409 `sicherung_vorher_fehlgeschlagen`, nichts
+  geändert), nach dem Einfügen der Prüfwert gegen den Sollwert geprüft. Zusätzlich 409 `mail_abruf_laeuft`, solange
+  ein Mail-Abruf läuft. Die Antwort enthält zusätzlich `vorher` und `ziel`.

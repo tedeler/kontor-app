@@ -7768,6 +7768,11 @@ components:
             - {type: "null"}
         naechster_lauf: {type: string}
         jetzt: {type: string}
+        prueflauf:
+          description: "Täglicher Prüflauf: {tag, zeitpunkt, fehler: [kennung]} oder null"
+          oneOf:
+            - {type: object}
+            - {type: "null"}
         frei:
           oneOf:
             - {type: integer}

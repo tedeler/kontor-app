@@ -70,6 +70,15 @@ Ein neuer Punkt bezieht sich auf den Bezugspunkt. Beim Ausdünnen (4) wird die B
 älter als die Stundenstufe ist, auf den Anker seiner Kette umgestellt; die Kette ist dadurch höchstens
 Anker → Tages-/Wochen-/Monatspunkt → Stundenpunkte lang.
 
+### 3.5 Prüfung
+
+Nach dem Schreiben wird die Datei wieder gelesen, auf die Zeilen-Hashes der Basis angewendet und der Prüfwert
+verglichen (Sofortprüfung); misslingt das bei einer Differenz, wird der Punkt als Anker geschrieben. Herstellen und
+Herunterladen prüfen die Prüfsumme jeder Datei der Kette und den Prüfwert jedes Glieds.
+
+Einmal am Tag (erster stündlicher Lauf eines Kalendertags) prüft ein **Prüflauf** jeden Punkt durch Herstellen;
+das Ergebnis steht in `GET /api/sicherung/punkte` unter `prueflauf` (`{tag, zeitpunkt, fehler}`).
+
 ## 4. Ausdünnen
 
 Läuft nach jedem stündlichen Lauf. Bezug ist der Zeitpunkt des Laufs.
@@ -82,9 +91,9 @@ Läuft nach jedem stündlichen Lauf. Bezug ist der Zeitpunkt des Laufs.
 | Monate | bis `monate` (24) Monate | der jüngste Punkt jedes Kalendermonats |
 
 Zusätzlich bleiben: angeheftete Punkte, Punkte mit Marke `von_hand`, `vor_wiederherstellung`, `aus_datei` oder
-`vor_update` bis 30 Tage, der Bezugspunkt, und jeder Punkt, auf dem ein behaltener Punkt aufbaut, bis dessen
-Basis umgestellt ist. Ein Anker, auf dem nur noch ein einziger behaltener Punkt aufbaut und der selbst nicht
-behalten würde, geht in diesem Punkt auf (der Punkt wird Anker).
+`vor_update` bis 30 Tage und der Bezugspunkt. Wird der Anker einer Kette nicht behalten, wird der älteste behaltene
+Punkt dieser Kette zum neuen Anker. Behaltene Punkte außerhalb der Stundenstufe und Punkte, deren Basis entfällt,
+bekommen den Anker ihrer Kette als Basis. Ihr Zustand bleibt dabei gleich.
 
 Ausdünnen schreibt neue Dateien zuerst, prüft sie durch Herstellen gegen den Prüfwert und entfernt erst dann alte.
 
@@ -135,8 +144,10 @@ Antwort 200:
   (`{tabelle: {neu, geaendert, geloescht}}` gegenüber dem Eltern-Punkt), `geprueft_am`, `chronik_anzahl`,
   `aktuell` (ist Bezugspunkt und Stand unverändert), `verlassen` (liegt nicht auf dem Weg zum Bezugspunkt und ist
   nicht jünger als dieser auf dessen Ast).
-- `gesamt`: `groesse` (alle Dateien), `stufen` (`{stunden, tage, wochen, monate, angeheftet}` → Bytes), `anzahl`.
-- `bezugspunkt`, `unveraendert` (bool), `zuletzt_geprueft`, `naechster_lauf`, `frei` (Bytes auf dem Datenträger).
+- `gesamt`: `groesse` (alle Dateien), `stufen` (`{stunden, tage, wochen, monate, angeheftet, basis}` → Bytes;
+  `basis` = Punkte außerhalb aller Stufen, die nur noch als Grundlage dienen), `anzahl`.
+- `bezugspunkt`, `unveraendert` (bool), `zuletzt_geprueft`, `naechster_lauf`, `jetzt` (Uhr des Servers), `frei`
+  (Bytes auf dem Datenträger).
 
 ### 7.2 Weitere Endpunkte
 

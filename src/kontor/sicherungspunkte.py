@@ -110,6 +110,7 @@ def zustand_lesen(con) -> Zustand:
     """Gesicherter Zustand aus einer App-Datenbank (Lesen in der laufenden Transaktion des Aufrufers)."""
     aus: Zustand = {}
     for tabelle, spalten in sicherung.SPALTEN.items():
+        zeilen: list[tuple]
         if tabelle == "id_zaehler":
             zeilen = [tuple(x) for x in sorted(sicherung._zaehler_lesen(con).items())]
         elif tabelle == "dokument_inhalt":
@@ -428,7 +429,10 @@ def punkt_anlegen(ab: Ablage, con, jetzt: dt.datetime, marke: str, name: str | N
     ist_anker = anker or _anker_noetig(ab, jetzt)
 
     def inhalt_von(sha: str) -> bytes:
-        return dokumente.inhalt_bytes(con, sha)
+        inhalt = dokumente.inhalt_bytes(con, sha)
+        if inhalt is None:
+            raise OSError("Beleginhalt fehlt in der Datenbank.")
+        return inhalt
 
     if not ist_anker:
         try:
@@ -586,7 +590,8 @@ def _in_datenbank(zustand: Zustand, pfad: pathlib.Path) -> None:
         sicherung.laden(con, zeilen)
         con.executemany("INSERT INTO sync_kennung (kennung) VALUES (?)", zeilen["sync_kennung"])
         con.executemany("INSERT INTO sync_konto_zustand (iban, konto_id, letzter_abruf_bis, letzter_erfolg_am,"
-                        " entscheidung, entscheidung_buchungen) VALUES (?, ?, ?, ?, ?, ?)", zeilen["sync_konto_zustand"])
+                        " entscheidung, entscheidung_buchungen) VALUES (?, ?, ?, ?, ?, ?)",
+                        zeilen["sync_konto_zustand"])
         sicherung.einstellungen_setzen(con, zeilen["einstellung"])
         for objekt, hoechste in zeilen["id_zaehler"]:
             tabelle = sicherung.ZAEHLER.get(objekt)
@@ -670,7 +675,8 @@ def liste(ab: Ablage, jetzt: dt.datetime, aktueller_pruefwert: str | None) -> di
             "gesamt": {"groesse": sum(m["groesse"] for m in ab.punkte.values()), "anzahl": len(ab.punkte),
                        "stufen": stufen},
             "bezugspunkt": bezug, "unveraendert": unveraendert, "zuletzt_geprueft": ab.stand["zuletzt_geprueft"],
-            "naechster_lauf": zeit_text(naechster), "jetzt": zeit_text(jetzt), "frei": frei}
+            "naechster_lauf": zeit_text(naechster), "jetzt": zeit_text(jetzt), "frei": frei,
+            "prueflauf": ab.stand.get("prueflauf")}
 
 
 # ======================================================================== Einspielen (5.1)
@@ -697,8 +703,8 @@ def soll_pruefwert(s: sicherung.Sicherung) -> str:
 
 def nach_einspielen_pruefen(con, soll: str) -> None:
     if soll and pruefwert(hashes(zustand_lesen(con))) != soll:
-        raise ApiFehler(500, "interner_fehler", "Der eingespielte Stand stimmt nicht mit der Sicherung überein; nichts wurde"
-                                       " geändert.")
+        raise ApiFehler(500, "interner_fehler",
+                        "Der eingespielte Stand stimmt nicht mit der Sicherung überein; nichts wurde geändert.")
 
 
 @contextlib.contextmanager
@@ -762,8 +768,8 @@ def wechsel_vorbereiten(config: KontorConfig, kennung: str,
         try:
             daten, _ = sicherungsdatei(ab, kennung)
         except NichtHerstellbar:
-            raise ApiFehler(409, "punkt_nicht_herstellbar",
-                            "Der Sicherungspunkt lässt sich nicht herstellen (Datei fehlt oder ist beschädigt).") from None
+            raise ApiFehler(409, "punkt_nicht_herstellbar", "Der Sicherungspunkt lässt sich nicht herstellen"
+                            " (Datei fehlt oder ist beschädigt).") from None
         ziel_pw = ab.punkte[kennung]["pruefwert"]
         con = db.verbinde(config.aktive_datenbank)
         try:
@@ -806,6 +812,8 @@ def stunde(config: KontorConfig, *, jetzt: dt.datetime | None = None, marke: str
         gedeckt = ab.stand["letzte_aenderung"]
         if ausduennen:
             _ausduennen(ab, jetzt)
+            if (ab.stand.get("prueflauf") or {}).get("tag") != jetzt.date().isoformat():
+                prueflauf(ab, jetzt)
         aus = {"neu": neu, "punkt": oeffentlich(ab, meta)}
     if config.protokoll_stunden:
         grenze = zeit_text(jetzt - dt.timedelta(hours=config.protokoll_stunden))
@@ -815,6 +823,16 @@ def stunde(config: KontorConfig, *, jetzt: dt.datetime | None = None, marke: str
         finally:
             con.close()
     return aus
+
+
+def prueflauf(ab: Ablage, jetzt: dt.datetime) -> list[str]:
+    """Täglicher Prüflauf: jeden Punkt herstellen und prüfen; Ergebnis im Stand (``prueflauf``)."""
+    ab._cache = {}
+    fehler = sorted(k for k in ab.punkte if not ab.herstellbar(k))
+    ab._cache = {}
+    ab.stand["prueflauf"] = {"tag": jetzt.date().isoformat(), "zeitpunkt": zeit_text(jetzt), "fehler": fehler}
+    ab.speichern()
+    return fehler
 
 
 def ausduennen(config: KontorConfig, *, jetzt: dt.datetime | None = None) -> None:

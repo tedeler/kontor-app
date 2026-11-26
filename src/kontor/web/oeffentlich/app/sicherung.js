@@ -221,9 +221,15 @@ function standKachel(st) {
   const geprueft = st.zuletzt_geprueft ? `Zuletzt geprüft ${zeitText(st.zuletzt_geprueft)}` : "Noch nicht geprüft";
   // Uhr des Servers (im Mock-Modus simuliert), nicht die des Browsers
   const alt = st.zuletzt_geprueft && datum(st.jetzt) - datum(st.zuletzt_geprueft) > 2 * 3600000;
-  return h("section", { class: "karte sp-kachel", tid: "sicherung-stand", "data-zustand": alt ? "fehler" : zustand },
+  const pl = st.prueflauf;
+  const kaputt = pl && pl.fehler.length;
+  const prueflauf = pl ? h("p", { class: kaputt ? "fehler" : "klein", tid: "sicherung-prueflauf", role: kaputt ? "alert" : null },
+    kaputt ? `Prüflauf ${zeitText(pl.zeitpunkt)}: ${pl.fehler.length === 1 ? "1 Punkt lässt" : `${pl.fehler.length} Punkte lassen`} `
+      + "sich nicht herstellen. Der nächste Punkt wird vollständig gesichert."
+      : `Prüflauf ${zeitText(pl.zeitpunkt)}: alle Punkte herstellbar.`) : null;
+  return h("section", { class: "karte sp-kachel", tid: "sicherung-stand", "data-zustand": alt || kaputt ? "fehler" : zustand },
     h("h3", null, "Aktueller Stand"), h("p", null, text),
-    h("p", { class: "klein" }, alt ? `${geprueft} – die stündliche Sicherung läuft nicht.` : geprueft));
+    h("p", { class: "klein" }, alt ? `${geprueft} – die stündliche Sicherung läuft nicht.` : geprueft), prueflauf);
 }
 
 function speicherKachel(st) {
