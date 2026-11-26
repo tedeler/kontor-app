@@ -48,9 +48,8 @@ def test_w_wechselt_die_bereiche_im_kontoblatt(tmp_path, browser):  # noqa: F811
         _im(page, '[data-testid="panel-details"]')
         page.keyboard.press("Escape")
         expect(zeilen.nth(2)).to_be_focused()
-        # eingeklapptes Panel klappt auf
-        page.keyboard.press("v")
-        page.keyboard.press("d")
+        # eingeklapptes Panel klappt auf (D-292: ohne Kürzel, über den Knopf im Panelkopf)
+        tid(page, "panel-einklappen-details").click()
         expect(tid(page, "panel-details")).to_have_attribute("data-eingeklappt", "ja")
         page.keyboard.press("w")
         page.keyboard.press("e")
@@ -65,11 +64,12 @@ def test_w_wechselt_die_bereiche_im_kontoblatt(tmp_path, browser):  # noqa: F811
         page.keyboard.press("Backspace")
         page.keyboard.press("Escape")
         expect(zeilen.nth(2)).to_be_focused()
-        # die Vortaste f des Kontoblatts behält „f w“ (Zeitraum 7 Tage)
+        # die Vortaste f des Kontoblatts behält „f w“ (D-292: diese Woche)
+        zeilen.nth(2).locator('[data-feld="datum"]').click()
         page.keyboard.press("f")
         page.keyboard.press("w")
         expect(hinweis).to_have_count(0)
-        expect(page).to_have_url(re.compile("7d"))
+        expect(page).to_have_url(re.compile("diese_woche"))
         # unbelegte zweite Taste wird gemeldet
         page.keyboard.press("w")
         page.keyboard.press("q")
@@ -120,9 +120,9 @@ def test_w_navigation_tabs_und_f6(tmp_path, browser):  # noqa: F811
         page.keyboard.press("ArrowLeft")
         page.keyboard.press("Enter")
         expect(_tab(page, pfad)).to_have_attribute("aria-selected", "true")
-        # F6 reihum: Tab-Leiste → Filter → Buchungsblatt → Einzelheiten → Navigation; Umschalt+F6 zurück
+        # F6 reihum: Tab-Leiste → Filter → Aktionen (D-292) → Buchungsblatt → Einzelheiten → Navigation; Umschalt+F6 zurück
         _im(page, '[data-testid="tab-leiste"]')
-        for ziel in ("ausdruck-filter", "buchungsliste", "panel-details", "navigation"):
+        for ziel in ("ausdruck-filter", "konto-kopf", "buchungsliste", "panel-details", "navigation"):
             page.keyboard.press("F6")
             _im(page, f'[data-testid="{ziel}"]')
         page.keyboard.press("Shift+F6")
@@ -132,7 +132,7 @@ def test_w_navigation_tabs_und_f6(tmp_path, browser):  # noqa: F811
         page.keyboard.press("f")
         _im(page, '[data-testid="ausdruck-filter"]')
         page.keyboard.press("F6")
-        _im(page, '[data-testid="buchungsliste"]')
+        _im(page, '[data-testid="konto-kopf"]')
         # w x schließt den Tab
         page.keyboard.press("w")
         page.keyboard.press("x")
@@ -146,7 +146,7 @@ def test_hilfe_und_befehlspalette_nennen_die_bereiche(tmp_path, browser):  # noq
         page.goto(f"{url}/konten/{giro}")
         bereit(page, "konto")
         page.locator('[data-testid="buchungsliste"] [role="row"][data-testid^="buchung-"]').first.locator('[data-feld="datum"]').click()
-        page.keyboard.press("?")
+        page.keyboard.press("h")   # D-292: h statt ?
         hilfe = tid(page, "tastatur-hilfe-bereiche")
         expect(hilfe).to_contain_text("w b")
         expect(hilfe).to_contain_text("Buchungsblatt")
