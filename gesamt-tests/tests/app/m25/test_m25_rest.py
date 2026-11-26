@@ -205,8 +205,9 @@ def test_sicherung_rundreise(tmp_path):
     ziel = neue_api(tmp_path / "z")
     vorgabe(ziel, "aus")
     einspielen(ziel, sicherung(quelle))
-    assert einstellungen(ziel) == {"vorgabe": {"modus": "aus", "toleranz_prozent": None}, "empfaenger": soll}, \
-        "eigene Einstellungen kommen mit, die Vorgabe der Instanz nicht"
+    # D-302: seit Schemaversion 11 kommt auch die Vorgabe der Instanz mit
+    assert einstellungen(ziel) == {"vorgabe": {"modus": "toleranz", "toleranz_prozent": 30}, "empfaenger": soll}, \
+        "eigene Einstellungen und die Vorgabe kommen mit"
     assert bestand(ziel) == bs
     m2, _ = oeffne(sicherung(ziel))
     assert m2["inhalt_sha256"] == m["inhalt_sha256"]

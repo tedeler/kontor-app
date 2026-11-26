@@ -87,13 +87,13 @@ def test_jeder_punkt_als_eigenstaendige_datei(umgebung, tmp_path):
         buchen(100 + i)
         k = sp.stunde(config, jetzt=T0 + dt.timedelta(hours=i))["punkt"]["kennung"]
         staende.append((k, inhalt(c)))
-    for k, soll in staende:
+    # in einer anderen Instanz einspielbar und gleich dem damaligen Stand
+    frisch = TestClient(create_app(KontorConfig(datenbank=tmp_path / "neu.sqlite3",
+                                                sicherung_verzeichnis=tmp_path / "s-neu")))
+    for k, soll in reversed(staende):
         r = c.get(f"/api/sicherung/punkte/{k}/datei")
         assert r.status_code == 200
         assert r.headers["content-type"] == "application/zip"
-        # in einer frischen Instanz einspielbar und gleich dem damaligen Stand
-        frisch = TestClient(create_app(KontorConfig(datenbank=tmp_path / f"neu-{k}.sqlite3",
-                                                    sicherung_verzeichnis=tmp_path / f"s-{k}")))
         e = frisch.post("/api/sicherung/einspielen", params={"bestaetigt": "true"},
                         files={"datei": ("s.zip", r.content, "application/zip")})
         assert e.status_code == 200, e.text
