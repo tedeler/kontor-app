@@ -4670,6 +4670,7 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   Kontextmenü `km-nachweis` nur in Bestandskonten. Download per `fetch` und Blob, damit Fehler im Dialog erscheinen.
 - **Getrennt vom PDF-Export** (`berichte.md` 5): eigenes Modul `nachweis.py`, eigene Betragsformatierung mit
   Tausenderpunkten (der Export behält das Format aus 4.2). Noch nicht im OpenAPI-Vertrag.
-- **Tests:** `tests/core/test_nachweis_pdf.py` (auch Kürzen des Protokolls und Nachtragen), `tests/test_browser_nachweis_pdf.py`;
+- **Tests:** `tests/core/test_nachweis_pdf.py` (auch Kürzen des Protokolls), `tests/test_nachweis_pdf_eigen.py` (Fehler,
+  Vorbelegung, Nachtragen), `tests/test_browser_nachweis_pdf.py`;
   angepasst `tests/core/test_tastenbelegung.py`, `tests/test_oberflaeche.py` (Einträge in `tests/core/AENDERUNGEN.md`, `TESTUMBAU.md`).
 - **Offen:** kein Schritt in den Demodaten.
