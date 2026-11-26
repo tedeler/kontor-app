@@ -136,7 +136,9 @@ OPERATIONEN_M29 = {("get", "/api/bank/zugang"), ("put", "/api/bank/zugang"),
 OPERATIONEN_M30 = {("get", "/api/ausdruck/sprache"), ("post", "/api/ausdruck/pruefen"),
                    ("post", "/api/ausdruck/als-regel"), ("post", "/api/regeln/reihenfolge"),
                    ("post", "/api/regeln/test"), ("post", "/api/regeln/erklaeren"),
-                   ("post", "/api/regeln/{regel_id}/anwenden")}
+                   ("post", "/api/regeln/{regel_id}/anwenden"),
+                   # D-295: automatisch angelegte Regel als eigene übernehmen (kategorisierung.md 8.10)
+                   ("post", "/api/regeln/{regel_id}/uebernehmen")}
 OPERATIONEN_M31 = {("get", "/api/buchungen/{buchung_id}/lernmodell"), ("get", "/api/lernmodell/uebersicht"),
                    ("get", "/api/lernmodell/einstellungen"), ("put", "/api/lernmodell/einstellungen"),
                    ("post", "/api/mock/lerndaten"), ("get", "/api/berichte/monat")} | {

@@ -143,5 +143,6 @@ Im Ausgangsstand schlugen 19 Tests der Abnahmesuite und 3 eigene fehl. Kein Anwe
 | eigene `test_mail_fortschritt_eigen.py::test_hintergrund_mit_fortschritt`, `test_oberflaeche.py::test_oberflaeche_nutzt_nur_spezifizierte_api` | D-284: `GET /api/mail/abruf/stand` nennt zusätzlich `automatisch` und `intervall_minuten`; neuer Pfad `GET /api/bestand/stand` | erwarteter Stand um die zwei Felder ergänzt; Pfad in `REST` aufgenommen |
 | abgewählte Tests zu 36.3.1/36.3.2/36.4.1 (`m26`: lange Berührung wählt aus, Wischen rechts wählt; `m8/test_m8_panels_mobil.py`: Wischen rechts) | D-278 löst diese Festlegungen ab | nicht angepasst (abgewählt); vor einem Wiederaufnehmen in `abgewaehlt.txt` nach `oberflaeche.md` 43 umschreiben |
 | `spec/test_openapi.py::test_alle_operationen_vorhanden`, eigene `test_oberflaeche.py::test_oberflaeche_nutzt_nur_spezifizierte_api` | D-280: drei neue Operationen unter `/api/saldoausgleich/paare` | erwartete Operationen bzw. Pfade ergänzt |
+| `spec/test_openapi.py::test_alle_operationen_vorhanden` | D-295: neue Operation `POST /api/regeln/{regel_id}/uebernehmen` | in `OPERATIONEN_M30` ergänzt |
 
 Stabilität: Nach den Änderungen lief der Browser-Teil der Gesamtsuite viermal hintereinander grün.
