@@ -128,7 +128,7 @@ async function jahrZeichnen(b, k) {
 
 export function jahrSeite(seite, _param, suche) {
   return berichtRahmen(seite, suche, {
-    art: "jahr", titel: "Jahresbericht", pfad: "/api/berichte/jahr",
+    sonderposten: true, art: "jahr", titel: "Jahresbericht", pfad: "/api/berichte/jahr",
     lesen: (p) => ({ jahr: /^\d{4}$/.test(p.get("jahr") || "") ? Number(p.get("jahr")) : null, konten: kontenAus(p) }),
     anfrage: (z) => ({ jahr: z.jahr, konto_id: z.konten }), adresse: (z) => ({ jahr: z.jahr, konto: z.konten }), beiFehler: kontenFehler,
     steuerung: (b, k) => [jahrWahl(b, b.jahr, (jahr) => k.setzen({ jahr })), kontenWahl(b.konten, k.zustand.konten, (konten) => k.setzen({ konten }), k.merker)],

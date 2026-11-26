@@ -4533,3 +4533,27 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - **Tests:** `tests/core/test_filter_unbestaetigt.py`, `tests/test_browser_filter_unbestaetigt.py`; die
   Kürzeltabelle in `tests/core/test_tastenbelegung.py` ist um `f o` erweitert (`AENDERUNGEN.md`). Der
   Service-Worker-Cache heißt `kontor-huelle-48`. Mobil nicht im Browser angesehen.
+
+
+## D-300 Sonderposten in den Berichten (Feature `sonderposten`, 2026-11-26)
+
+- **Anlass:** Ein großer einmaliger Posten auf dem Girokonto (z. B. Autokauf) verfälscht die Berichte. Vom
+  Auftraggeber gewählt (2026-11-26): Sonderposten markieren, in den Berichten standardmäßig auslassen und getrennt
+  zeigen. Die richtige Buchung über Bestandskonten (Kredit, Vermögenskonto) bleibt der Weg für Fälle, in denen Geld
+  nur durchläuft.
+- **Markierung über einen festen Tag „Sonderposten“** statt eines neuen Feldes: kein Schemawechsel, Sicherung,
+  Protokoll, Rückgängig und Tag-Oberfläche gelten ohne Zusatz. Erkannt wird der Name ohne Groß- und Kleinschreibung;
+  Tags am Empfänger zählen nicht (ein Empfänger ist kein Einzelfall). Umbenennen des Tags beendet die Wirkung.
+- **Vorgabe `ohne`** in Monat, Jahr, Kategorien, Empfänger, Geldfluss und Einnahmen/Ausgaben. Kontostand, Vorschau und
+  Vermögen zählen alles, weil sie echte Bestände zeigen; der Tag-Bericht wählt seine Buchungen selbst.
+- **Gemeinsamer Baustein** `sonderposten.py` (`trennen` nach dem Laden der Posten, `abschnitt`); in der Oberfläche
+  `berichtRahmen` mit `sonderposten: true` (Schalter, Standzeile, Kasten).
+- **Vorschlag:** Die vorhandene Ausreißer-Erkennung braucht frühere Buchungen beim selben Empfänger und erkennt einen
+  Autokauf beim neuen Autohaus nicht. Deshalb eigene Liste `auffaellig.sonderposten`: nicht feste Ausgabe ab 2.000 €
+  und mindestens die Hälfte des üblichen Monats.
+- **Kürzel** `p` im Kontoblatt (D-292: Großbuchstaben sind Varianten; `S` wäre keine Variante von `s` Status).
+- **Vertrag:** `openapi.yaml` – Parameter `BerichtSonderposten`, Schema `SonderpostenAbschnitt`, Feld in
+  `EinnahmenAusgabenBericht` (sonst scheitert die strenge Schemaprüfung der M5-Tests).
+- **Tests:** `tests/core/test_sonderposten.py`, `tests/test_browser_sonderposten.py`; angepasst
+  `tests/core/test_tastenbelegung.py` (Eintrag in `tests/core/AENDERUNGEN.md`).
+- **Offen:** keine Sonderposten in den Demodaten.

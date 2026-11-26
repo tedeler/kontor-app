@@ -209,3 +209,30 @@ Erstattung (auf „Unkategorisiert“) zählt als Einnahme.
 `kategorien`, `empfaenger`, `geldfluss`, `qualitaet`, `tags`: Inhalt nach
 Definition 3, Abschnitt 9 (D-217); Aufbau der Antworten frei (Objekt). Ohne
 Parameter 200.
+
+## 7. Sonderposten (Feature `sonderposten`, D-300)
+
+Einmalige große Posten wie ein Autokauf verfälschen Schnitte, Vergleiche und Ranglisten. Eine Buchung ist ein
+**Sonderposten**, wenn sie den Tag „Sonderposten“ trägt (Name ohne Groß- und Kleinschreibung; nur Tags der Buchung,
+nicht Tags des Empfängers). Es gibt keinen weiteren Zustand.
+
+- **Parameter** `sonderposten` (`ohne` | `mit`, Vorgabe `ohne`) an `GET /api/berichte/einnahmen-ausgaben`, `monat`,
+  `jahr`, `kategorien`, `empfaenger` und `geldfluss`; ein anderer Wert ergibt 422 `validierung`.
+- Mit `ohne` zählen Sonderposten in keiner Zahl des Berichts: Summen, Monate, Vorjahresvergleich, Schnitte,
+  Ranglisten, größte Buchungen, Kategorien, Fluss, Ausreißer und Einzelbuchungen.
+- **Antwortfeld** `sonderposten` in diesen Berichten (in beiden Modi): `modus`, `tag_id` (null ohne den Tag),
+  `anzahl`, `ausgaben` (Beitrag zu den Ausgaben in Cent, Erstattungen mindern), `einnahmen`, `eintraege` (Form wie
+  `top_buchungen.eintraege`, nach Datum) – die Sonderposten im Zeitraum des Berichts; beim Empfängerbericht eines
+  Empfängers nur dessen, bei der Rangliste die der zwölf Monate.
+- Kontostand, Vorschau, Vermögen, Verträge, Datenqualität und Tag-Bericht zählen Sonderposten immer mit (echtes Geld
+  bzw. eigene Auswahl); sie kennen den Parameter nicht.
+- **Vorschlag im Monatsbericht:** `auffaellig.sonderposten` listet nicht feste Ausgaben des Monats ab 2.000 €, die
+  mindestens die Hälfte des Monatsschnitts der Ausgaben der zwölf Monate davor ausmachen (ohne Schnitt nur die
+  Grenze): `{buchung, ueblich_monat}`, größte zuerst. Bereits markierte Sonderposten erscheinen dort mit `ohne` nicht.
+- **Oberfläche:** In Monat, Jahr, Kategorien, Empfänger und Geldfluss steht der Schalter
+  `bericht-sonderposten-schalter` „ohne Sonderposten“ (sobald es den Tag gibt; Adresse `sonderposten=mit`, wenn aus),
+  die Standzeile nennt Anzahl und Betrag, und der Kasten `bericht-sonderposten` listet die Posten (`bericht-
+  sonderposten-<id>`, Klick zeigt die Buchung im Kontoblatt). Auf der Seite Berichte hat „Einnahmen und Ausgaben“ den
+  Haken `bericht-ea-sonderposten`. Im Monatsbericht hat jeder Vorschlag den Knopf `mb-sonderposten-markieren-<id>`.
+  Im Kontoblatt markiert `p` bzw. das Kontextmenü `km-sonderposten` die Buchungen oder nimmt die Markierung zurück
+  (legt den Tag bei Bedarf an).

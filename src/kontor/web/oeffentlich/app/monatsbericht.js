@@ -1,5 +1,5 @@
 /* Monatsbericht (Feature monatsbericht, D-206): Ausgaben eines Monats rein statistisch. Liest nur GET /api/berichte/monat. */
-import { betragEl, betragText, datumText, h, oberflaeche } from "./kern.js";
+import { aktion, api, betragEl, betragText, datumText, h, oberflaeche, stamm, tagHolen } from "./kern.js";
 import { centAchse, plotlyLayout } from "./seiten.js";
 import {
   MONATE_KURZ, MONAT_MUSTER, RHYTHMUS, WOCHENTAGE, WOCHENTAGE_KURZ, abweichung, balken, berichtRahmen, diagrammEl, empfName, euroKurz,
@@ -217,6 +217,15 @@ function karteEmpfaenger(b, zeigen) {
   return karte("mb-empfaenger", "Wohin das Geld ging", `Summe je Empfänger, verglichen mit dem, was dort sonst im Monat üblich ist.${mehrText}`, t);
 }
 
+async function alsSonderposten(id) {
+  try {
+    await aktion(async () => {
+      const t = await tagHolen("Sonderposten", (n) => stamm.tags.find((x) => x.name.toLowerCase() === n.toLowerCase()));
+      return api("POST", "/api/buchungen/mehrfach/tags", { buchung_ids: [id], hinzufuegen: [t.id], entfernen: [] });
+    }, { erfolg: "Als Sonderposten markiert: zählt in den Berichten nicht mit." });
+  } catch (e) { /* gemeldet */ }
+}
+
 function karteAuffaellig(b, zeigen) {
   const a = b.auffaellig;
   const punkte = [];
@@ -228,6 +237,19 @@ function karteAuffaellig(b, zeigen) {
     punkte.push(eintrag("hoch", "▲", `mb-ausreisser-${e.id}`,
       `${empfName(e.empfaenger)}: ${betragText(e.betrag)} am ${tagKurz(e.datum)} – üblich sind dort ${betragText(x.ueblich)}`,
       () => oberflaeche.zurBuchung(e.konto_id, e.id)));
+  }
+  // D-300: sehr große einzelne Ausgaben – als Sonderposten markieren?
+  for (const x of a.sonderposten || []) {
+    const e = x.buchung;
+    punkte.push(h("li", { class: "mb-auffaellig mb-auf-hoch", tid: `mb-sonderposten-vorschlag-${e.id}` },
+      h("span", { class: "mb-zeichen", "aria-hidden": "true" }, "★"),
+      h("button", { type: "button", class: "knopf-link", onclick: () => oberflaeche.zurBuchung(e.konto_id, e.id) },
+        `${empfName(e.empfaenger)}: ${betragText(e.betrag)} am ${tagKurz(e.datum)}` +
+        (x.ueblich_monat ? ` – mehr als die Hälfte der üblichen Monatsausgaben (${betragText(x.ueblich_monat)})` : " – eine sehr große Einzelausgabe")),
+      " ",
+      h("button", { type: "button", class: "knopf knopf-klein", tid: `mb-sonderposten-markieren-${e.id}`,
+        title: "Mit dem Tag „Sonderposten“ versehen: zählt in den Berichten dann nur mit dem Schalter mit",
+        onclick: () => alsSonderposten(e.id) }, "Als Sonderposten markieren")));
   }
   for (const s of a.serien) {
     const name = `${empfName(s.empfaenger)} (${RHYTHMUS[s.rhythmus] || s.rhythmus})`;
@@ -281,7 +303,7 @@ function karteKalender(b, zeigen) {
 // ------------------------------------------------------------------ Seite
 export function monatsberichtSeite(seite, _param, suche) {
   return berichtRahmen(seite, suche, {
-    art: "monat", titel: "Monatsbericht", pfad: "/api/berichte/monat",
+    sonderposten: true, art: "monat", titel: "Monatsbericht", pfad: "/api/berichte/monat",
     lesen: (p) => ({ monat: MONAT_MUSTER.test(p.get("monat") || "") ? p.get("monat") : null, konten: kontenAus(p) }),
     anfrage: (z) => ({ monat: z.monat, konto_id: z.konten }),
     adresse: (z) => ({ monat: z.monat, konto: z.konten }),

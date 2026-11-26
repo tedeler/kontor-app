@@ -6,7 +6,7 @@ import bisect
 import datetime as dt
 from collections import defaultdict
 
-from . import buch
+from . import buch, sonderposten
 from .buch import BESTAND, ApiFehler
 
 INTERVALLE = ("tag", "woche", "monat", "jahr")
@@ -148,6 +148,12 @@ def einnahmen_ausgaben(con, f: dict, heute: str) -> dict:
         sql += (f" AND EXISTS (SELECT 1 FROM split x WHERE x.buchung_id = b.id AND x.konto_id IN"
                 f" ({buch._platzhalter(len(ks))}))")
         par += ks
+    # D-300: Sonderposten (Tag „Sonderposten“) mit sonderposten=ohne (Vorgabe) nicht mitzählen
+    modus = f.get("sonderposten", "ohne")
+    sp_tag = sonderposten.tag_id(con)
+    if modus == "ohne" and sp_tag is not None:
+        sql += " AND b.id NOT IN (SELECT buchung_id FROM buchung_tag WHERE tag_id = ?)"
+        par.append(sp_tag)
     sql += " GROUP BY b.datum, s.konto_id"
     enden = [p[1] for p in pers]
     werte = [{"einnahmen": 0, "ausgaben": 0, "nicht_kategorisiert": 0} for _ in pers]
@@ -181,7 +187,17 @@ def einnahmen_ausgaben(con, f: dict, heute: str) -> dict:
     kategorien = [{"kategorie_id": k, "name": konten[k]["name"], "art": konten[k]["art"], "summe": kat.get(k, 0)}
                   for k in sorted(vorhanden)]
     return {"von": von, "bis": bis, "intervall": f["intervall"], "perioden": perioden_aus, "gesamt": gesamt,
-            "kategorien": kategorien}
+            "kategorien": kategorien, "sonderposten": _sonder_abschnitt(con, konten, f, von, bis, modus)}
+
+
+def _sonder_abschnitt(con, konten: dict, f: dict, von: str, bis: str, modus: str) -> dict:
+    """D-300: die Sonderposten im Zeitraum, mit derselben Wirkung wie im Monatsbericht (ohne Umbuchungen)."""
+    from .monatsbericht import _laden   # spät, damit kein Kreis beim Laden der Module entsteht
+    gewaehlt = set(f["konto_id"]) if f["konto_id"] else {k for k, v in konten.items() if v["art"] in BESTAND}
+    d_von, d_bis = dt.date.fromisoformat(von), dt.date.fromisoformat(bis)
+    posten, _ = _laden(con, gewaehlt, konten, d_von, d_bis)
+    _rest, trennung = sonderposten.trennen(con, posten, modus)
+    return trennung.abschnitt(d_von, d_bis)
 
 
 __all__ = ["kontostand", "einnahmen_ausgaben", "stichtage", "perioden"]

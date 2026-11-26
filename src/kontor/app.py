@@ -36,7 +36,7 @@ from . import (__version__, ausdruck, auswertungen, berichte, buch, db, export, 
                sicherung, verschieben, vorlagen, wiederkehrend)
 from . import aktualisierung
 from . import abgleich, anbieter, ausgleich, bankzugang, bestellmail, config_anzeige, dokumente, erwartung, kontonamen
-from . import umbuchung
+from . import sonderposten, umbuchung
 from . import anmeldung as anm
 from . import version as versionsinfo
 from .geheimnisse import REST_NAMEN
@@ -1613,11 +1613,13 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
         return erg
 
     # -------------------------------------------- M5: Berichte und Export
-    def berichtsfilter(request: Request) -> dict:
+    def berichtsfilter(request: Request, mit_sonderposten: bool = False) -> dict:
         q = Query(request.query_params)
         f = {"konto_id": q.ganzzahlen("konto_id"), "von": q.datum("von"), "bis": q.datum("bis"),
              "intervall": q.auswahl("intervall", berichte.INTERVALLE) or "monat",
              "unterkonten": q.wahrheitswert("unterkonten") or False}
+        if mit_sonderposten:
+            f["sonderposten"] = sonderposten.modus_lesen(q)   # D-300
         if f["von"] and f["bis"] and f["von"] > f["bis"]:
             q.fehler_melden("von", "von darf nicht nach bis liegen.")
         q.pruefen()
@@ -1629,7 +1631,7 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
 
     @endpunkt("GET", "/api/berichte/einnahmen-ausgaben")
     async def bericht_einnahmen_ausgaben(request: Request):
-        f = berichtsfilter(request)
+        f = berichtsfilter(request, mit_sonderposten=True)
         return await lesen(berichte.einnahmen_ausgaben, f, sync.heute().isoformat())
 
     @endpunkt("GET", "/api/berichte/monat")
@@ -1644,10 +1646,11 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
             monat = monatsbericht.monat_lesen(text, heute)
         except ValueError:
             q.fehler_melden("monat", "Erwartet wird ein Monat der Form JJJJ-MM.")
-        for name in sorted(set(request.query_params.keys()) - {"konto_id", "monat"}):
+        modus = sonderposten.modus_lesen(q)   # D-300
+        for name in sorted(set(request.query_params.keys()) - {"konto_id", "monat", "sonderposten"}):
             q.fehler_melden(name, "Unbekannter Parameter.")
         q.pruefen()
-        return await lesen(monatsbericht.bericht, monat, konto_ids, heute)
+        return await lesen(monatsbericht.bericht, monat, konto_ids, heute, modus)
 
     def _auswertung(name: str):
         funktion, erlaubt, lesen_argumente = auswertungen.BERICHTE[name]

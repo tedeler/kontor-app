@@ -15,6 +15,7 @@ from . import buch, erwartung, wiederkehrend
 from .buch import BESTAND, ApiFehler
 from .monatsbericht import (_Posten, _grenzen, _konten_waehlen, _laden, _monat_plus, _schluessel, monat_lesen)
 from .statistik import _median
+from . import sonderposten as sp
 
 TOP = 10
 MONATE_JE_RHYTHMUS = {name: m for name, m, _ in wiederkehrend.RHYTHMEN}
@@ -159,7 +160,7 @@ def vertraege(con, konto_ids: list[int], heute: str) -> dict:
 
 
 # ------------------------------------------------------------------ Jahresbericht
-def jahr(con, jahr_nr: int, konto_ids: list[int], heute: str) -> dict:
+def jahr(con, jahr_nr: int, konto_ids: list[int], heute: str, sonderposten: str = "ohne") -> dict:
     """``GET /api/berichte/jahr``."""
     h = _heute(heute)
     gewaehlt, konten = _konten_waehlen(con, konto_ids)
@@ -167,6 +168,7 @@ def jahr(con, jahr_nr: int, konto_ids: list[int], heute: str) -> dict:
     laufend = h.year == jahr_nr
     stichtag = h if laufend else bis
     posten, umb = _laden(con, set(gewaehlt), konten, von, bis)
+    posten, sonder = sp.trennen(con, posten, sonderposten)   # D-300
     _fix_setzen(posten, [] if h.year < jahr_nr else _serien(con, set(gewaehlt), stichtag))
     je: dict[str, list[_Posten]] = defaultdict(list)
     for p in posten:
@@ -213,6 +215,7 @@ def jahr(con, jahr_nr: int, konto_ids: list[int], heute: str) -> dict:
                           "summe": sum(p.betrag for p in nach_betrag[:TOP]), "gesamt": sum(p.betrag for p in ausgaben)},
         "top_empfaenger": emp,
         "ausgeschlossen": {"umbuchungen": sum(n for m, n in umb.items() if m.startswith(f"{jahr_nr:04d}-"))},
+        "sonderposten": sonder.abschnitt(dt.date(jahr_nr, 1, 1), bis),
     }
 
 
@@ -420,7 +423,7 @@ def _kategorie_zeilen(konten, arten, extra, eigen: dict[int, list[int]], zahl: d
     return aus
 
 
-def kategorien(con, monat: tuple[int, int], konto_ids: list[int], heute: str) -> dict:
+def kategorien(con, monat: tuple[int, int], konto_ids: list[int], heute: str, sonderposten: str = "ohne") -> dict:
     """``GET /api/berichte/kategorien``."""
     jahr_nr, mon = monat
     gewaehlt, konten = _konten_waehlen(con, konto_ids)
@@ -428,6 +431,7 @@ def kategorien(con, monat: tuple[int, int], konto_ids: list[int], heute: str) ->
     reihe = _monatsreihe(_monat_plus(jahr_nr, mon, -12), (jahr_nr, mon))
     index = {m: i for i, m in enumerate(reihe)}
     posten, _ = _laden(con, set(gewaehlt), konten, _grenzen(*_monat_plus(jahr_nr, mon, -12))[0], bis)
+    posten, sonder = sp.trennen(con, posten, sonderposten)   # D-300
     unkat = _unkategorisiert(con)
     aus: dict[int, list[int]] = defaultdict(lambda: [0] * 13)
     ein: dict[int, list[int]] = defaultdict(lambda: [0] * 13)
@@ -453,6 +457,7 @@ def kategorien(con, monat: tuple[int, int], konto_ids: list[int], heute: str) ->
     im_monat = [p for p in posten if p.datum >= von]
     return {
         "monat": _schluessel(von), "heute": heute, "laufend": von <= h < bis, "monate": reihe,
+        "sonderposten": sonder.abschnitt(von, bis),
         "vergleich_monate": n_frueher, "konten": _konten_kurz(gewaehlt, konten),
         "erster_monat": erster, "letzter_monat": letzter,
         "summen": {"ausgaben": sum(z["summe"] for z in z_aus if z["ebene"] == 0),
@@ -464,7 +469,7 @@ def kategorien(con, monat: tuple[int, int], konto_ids: list[int], heute: str) ->
 
 
 # ------------------------------------------------------------------ Empfänger
-def empfaenger(con, empfaenger_id: int | None, konto_ids: list[int], heute: str) -> dict:
+def empfaenger(con, empfaenger_id: int | None, konto_ids: list[int], heute: str, sonderposten: str = "ohne") -> dict:
     """``GET /api/berichte/empfaenger``: ohne ``empfaenger_id`` die Rangliste der letzten zwölf Monate."""
     h = _heute(heute)
     gewaehlt, konten = _konten_waehlen(con, konto_ids)
@@ -472,6 +477,7 @@ def empfaenger(con, empfaenger_id: int | None, konto_ids: list[int], heute: str)
     if empfaenger_id is None:
         von = _grenzen(*_monat_plus(h.year, h.month, -11))[0]
         posten, _ = _laden(con, set(gewaehlt), konten, von, h)
+        posten, sonder = sp.trennen(con, posten, sonderposten)   # D-300
         je: dict[int, dict] = {}
         for p in posten:
             if p.empfaenger_id is None:
@@ -483,13 +489,15 @@ def empfaenger(con, empfaenger_id: int | None, konto_ids: list[int], heute: str)
             e["anzahl"] += 1
             e["letzte"] = max(e["letzte"], p.datum.isoformat())
         liste = sorted(je.values(), key=lambda e: (-(e["ausgaben"] + e["einnahmen"]), e["empfaenger"]["name"]))
-        return {**kopf, "empfaenger": None, "von": von.isoformat(), "rangliste": liste[:100], "anzahl": len(liste)}
+        return {**kopf, "empfaenger": None, "von": von.isoformat(), "rangliste": liste[:100], "anzahl": len(liste),
+                "sonderposten": sonder.abschnitt(von, h)}
     r = con.execute("SELECT id, name FROM empfaenger WHERE id = ?", (empfaenger_id,)).fetchone()
     if r is None:
         raise ApiFehler(404, "nicht_gefunden", "Empfänger nicht gefunden.")
     erster, _ = _erster_monat(con)
     von = dt.date(int(erster[:4]), int(erster[5:]), 1) if erster else h
     posten = [p for p in _laden(con, set(gewaehlt), konten, von, h)[0] if p.empfaenger_id == empfaenger_id]
+    posten, sonder = sp.trennen(con, posten, sonderposten)   # D-300
     serien = [s for s in _serien(con, set(gewaehlt), h) if s["empfaenger"]["id"] == empfaenger_id]
     _fix_setzen(posten, serien)
     reihe = _monatsreihe(_monat_plus(h.year, h.month, -23), (h.year, h.month))
@@ -506,7 +514,7 @@ def empfaenger(con, empfaenger_id: int | None, konto_ids: list[int], heute: str)
     abstaende = [(b - a).days for a, b in zip(daten, daten[1:])]
     grenze = _grenzen(*_monat_plus(h.year, h.month, -11))[0]
     return {
-        **kopf, "empfaenger": {"id": r["id"], "name": r["name"]},
+        **kopf, "empfaenger": {"id": r["id"], "name": r["name"]}, "sonderposten": sonder.abschnitt(),
         "tag_ids": [t["tag_id"] for t in con.execute(
             "SELECT tag_id FROM empfaenger_tag WHERE empfaenger_id = ? ORDER BY tag_id", (empfaenger_id,))],
         "kennzahlen": {"ausgaben": sum(p.netto for p in posten),
@@ -530,7 +538,7 @@ def empfaenger(con, empfaenger_id: int | None, konto_ids: list[int], heute: str)
 
 
 # ------------------------------------------------------------------ Geldfluss
-def geldfluss(con, zeitraum: tuple, konto_ids: list[int], heute: str) -> dict:
+def geldfluss(con, zeitraum: tuple, konto_ids: list[int], heute: str, sonderposten: str = "ohne") -> dict:
     """``GET /api/berichte/geldfluss``: *zeitraum* ist ``("monat", (Jahr, Monat))`` oder ``("jahr", Jahr)``."""
     gewaehlt, konten = _konten_waehlen(con, konto_ids)
     if zeitraum[0] == "jahr":
@@ -538,6 +546,7 @@ def geldfluss(con, zeitraum: tuple, konto_ids: list[int], heute: str) -> dict:
     else:
         von, bis = _grenzen(*zeitraum[1])
     posten, _ = _laden(con, set(gewaehlt), konten, von, bis)
+    posten, sonder = sp.trennen(con, posten, sonderposten)   # D-300
 
     def oberste(kid: int) -> int:
         art = konten[kid]["art"]
@@ -576,6 +585,7 @@ def geldfluss(con, zeitraum: tuple, konto_ids: list[int], heute: str) -> dict:
     erster, letzter = _erster_monat(con)
     return {
         "zeitraum": zeitraum[0], "monat": _schluessel(von) if zeitraum[0] == "monat" else None,
+        "sonderposten": sonder.abschnitt(von, bis),
         "jahr": von.year, "von": von.isoformat(), "bis": bis.isoformat(), "heute": heute,
         "konten": _konten_kurz(gewaehlt, konten), "erster_monat": erster, "letzter_monat": letzter,
         "einnahmen": s_ein, "ausgaben": s_aus, "summe": max(s_ein, s_aus), "quellen": quellen, "ziele": ziele,
@@ -745,15 +755,17 @@ def _geldfluss_zeitraum(q, heute: str):
 #: Name → (Funktion, erlaubte Parameter, Leser der Argumente nach ``con``)
 BERICHTE = {
     "vertraege": (vertraege, ("konto_id",), lambda q, h: (q.ganzzahlen("konto_id"), h)),
-    "jahr": (jahr, ("jahr", "konto_id"), lambda q, h: (_jahr_lesen(q, h), q.ganzzahlen("konto_id"), h)),
+    "jahr": (jahr, ("jahr", "konto_id", "sonderposten"),
+             lambda q, h: (_jahr_lesen(q, h), q.ganzzahlen("konto_id"), h, sp.modus_lesen(q))),
     "vorschau": (vorschau, ("tage", "konto_id"),
                  lambda q, h: (_zeitraum(q, "tage", VORSCHAU_TAGE, 60), q.ganzzahlen("konto_id"), h)),
     "vermoegen": (vermoegen, ("monate",), lambda q, h: (_zeitraum(q, "monate", ZEITRAEUME, 24), h)),
-    "kategorien": (kategorien, ("monat", "konto_id"), lambda q, h: (_monat(q, h), q.ganzzahlen("konto_id"), h)),
-    "empfaenger": (empfaenger, ("empfaenger_id", "konto_id"),
-                   lambda q, h: (q.ganzzahl("empfaenger_id", 1), q.ganzzahlen("konto_id"), h)),
-    "geldfluss": (geldfluss, ("monat", "jahr", "konto_id"),
-                  lambda q, h: (_geldfluss_zeitraum(q, h), q.ganzzahlen("konto_id"), h)),
+    "kategorien": (kategorien, ("monat", "konto_id", "sonderposten"),
+                   lambda q, h: (_monat(q, h), q.ganzzahlen("konto_id"), h, sp.modus_lesen(q))),
+    "empfaenger": (empfaenger, ("empfaenger_id", "konto_id", "sonderposten"),
+                   lambda q, h: (q.ganzzahl("empfaenger_id", 1), q.ganzzahlen("konto_id"), h, sp.modus_lesen(q))),
+    "geldfluss": (geldfluss, ("monat", "jahr", "konto_id", "sonderposten"),
+                  lambda q, h: (_geldfluss_zeitraum(q, h), q.ganzzahlen("konto_id"), h, sp.modus_lesen(q))),
     "qualitaet": (qualitaet, (), lambda q, h: (h,)),
     "tags": (tags, ("tag_id", "monate", "konto_id"),
              lambda q, h: (q.ganzzahlen("tag_id"), _zeitraum(q, "monate", ZEITRAEUME, 12), q.ganzzahlen("konto_id"), h)),

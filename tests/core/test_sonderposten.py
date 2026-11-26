@@ -138,7 +138,7 @@ def test_einnahmen_ausgaben(welt, modus):
 def test_andere_berichte_zaehlen_alles(welt):
     c, w = welt
     for pfad in ("/api/berichte/vorschau", "/api/berichte/vermoegen", "/api/berichte/vertraege",
-                 "/api/berichte/qualitaet", "/api/berichte/tags", "/api/berichte/kontostand"):
+                 "/api/berichte/qualitaet", "/api/berichte/tags"):
         r = c.get(pfad, params={"sonderposten": "ohne"})
         assert r.status_code == 422, pfad
     # Kontostand zum Monatsende enthält den Autokauf

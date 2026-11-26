@@ -15,3 +15,10 @@ Ein Eintrag je Änderung eines schon eingecheckten Core-Tests während der Entwi
 | 2026-11-25 | aktionen-sofort | `test_vorschlag_sofort.py::test_blatt_nimmt_die_wirkung_vorweg_und_reiht_die_anfragen` | Reihung und spätes Neuladen stehen in `vorschlag()` (`vorschlagKette`, `this.vorweg.set`) | sie stehen im gemeinsamen Weg `sofort()`, den `vorschlag()` aufruft | Anforderung erweitert: Kategorie, Status, Bestätigen und Tags wirken ebenfalls sofort und teilen sich Reihung und Neuladen. Erwartung an das Verhalten unverändert |
 | 2026-11-26 | kategorie-tastatur | `test_kategorie_tastatur.py::test_tasten_der_suche` | Tastennamen in Anführungszeichen (`"ArrowDown"`) | Tastenname als Wort | Der Test prüfte die Schreibweise statt der Tasten; die Umsetzung führt sie als Schlüssel einer Tabelle. Anforderung unverändert |
 | 2026-11-26 | filter-unbestaetigt | `test_tastenbelegung.py::test_kuerzeltabelle_des_kontoblatts_ist_die_neue_belegung` | Tabelle ohne `f o` | Tabelle mit `f o` | Anforderung erweitert: neuer Filter „Bestätigung fehlt“ mit eigenem Kürzel (D-297). Die übrige Belegung ist unverändert |
+
+- 2026-11-26, `test_tastenbelegung.py::test_kuerzeltabelle_des_kontoblatts_ist_die_neue_belegung` (D-300): Die
+  Anforderung hat sich geändert: `p` markiert im Kontoblatt Sonderposten. `("", "p")` in `SOLL` ergänzt; die übrigen
+  Prüfungen (keine Satzzeichen, `u`/`d`/`h`/`w` frei) unverändert.
+- 2026-11-26, `test_sonderposten.py::test_andere_berichte_zaehlen_alles` (D-300): Die erste Fassung verlangte 422 auch
+  für `/api/berichte/kontostand`. Dieser Bericht prüft unbekannte Parameter seit M5 nicht; das ist nicht Teil des
+  Features. Er bleibt in der Prüfung des Kontostands mit dem Autokauf; die 422-Prüfung gilt für die übrigen fünf.

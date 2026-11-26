@@ -213,6 +213,7 @@ const KUERZEL = [
     const e = s.bestaetigenEintrag(ids);
     if (e) e.tun(); else melde("hinweis", "Bitte oben rechts wählen, wer du bist.");
   }), "person"],
+  ["", "p", "Als Sonderposten markieren / zurücknehmen", (s) => s.mitZielen((ids) => s.sonderpostenEintrag(ids).tun())],
   ["", "a", "Vorschlag annehmen", (s) => s.mitZielen((ids) => s.vorschlagTaste(ids, "annehmen"))],
   ["", "A", "Vorschlag ablehnen", (s) => s.mitZielen((ids) => s.vorschlagTaste(ids, "ablehnen"))],
   ["", "e", "Bearbeiten… (mehrere Felder)", (s) => s.mitZielen((ids, el) => s.mehrfachDialog(ids, el))],
@@ -264,6 +265,7 @@ const KUERZEL = [
   ["v", "e", "Konto-Einstellungen…", (s) => kontoEinstellungen(s.konto, tid("konto-einstellungen-oeffnen", s.seite))],
 ];
 const VORTASTEN = { f: "Filter", v: "Ansicht" };
+const SONDERPOSTEN = "Sonderposten";   // D-300
 const FOKUSSIERBAR = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 const BEDINGUNG_TEXT = {
@@ -2512,6 +2514,35 @@ class Kontoansicht {
     return true;
   }
 
+  /** D-300: Tag „Sonderposten“ (Name ohne Groß- und Kleinschreibung) – zählt in den Berichten nur auf Wunsch mit. */
+  sonderpostenTag() { return stamm.tags.find((t) => t.name.toLowerCase() === SONDERPOSTEN.toLowerCase()) || null; }
+
+  sonderpostenEintrag(ids) {
+    const name = (this.sonderpostenTag() || { name: SONDERPOSTEN }).name;
+    const alle = ids.length > 0 && ids.every((id) => {
+      const b = this.eintraege.find((x) => x.id === id);
+      return !!b && b.tags.some((t) => t.name.toLowerCase() === name.toLowerCase());
+    });
+    return { tid: "km-sonderposten", kuerzel: "p", text: alle ? "Sonderposten zurücknehmen" : "Als Sonderposten markieren",
+      tun: () => this.sonderpostenMarkieren(ids, !alle) };
+  }
+
+  sonderpostenMarkieren(ids, hinzu) {
+    if (!ids.length) return false;
+    const vorhanden = this.sonderpostenTag();
+    const name = vorhanden ? vorhanden.name : SONDERPOSTEN;
+    const gleich = (t) => t.name.toLowerCase() === name.toLowerCase();
+    return this.sofort(ids, (b) => {
+      if (!hinzu) { b.tags = b.tags.filter((t) => !gleich(t)); return; }
+      if (!b.tags.some(gleich)) b.tags = [...b.tags, { id: vorhanden ? vorhanden.id : 0, name }];
+    }, async () => {
+      const t = hinzu ? await tagHolen(name, (n) => stamm.tags.find((x) => x.name.toLowerCase() === n.toLowerCase())) : vorhanden;
+      if (!t) return null;
+      return api("POST", "/api/buchungen/mehrfach/tags", { buchung_ids: ids, hinzufuegen: hinzu ? [t.id] : [], entfernen: hinzu ? [] : [t.id] });
+    }, { erfolg: hinzu ? (ids.length === 1 ? "Als Sonderposten markiert: zählt in den Berichten nicht mit." : `${ids.length} Buchungen als Sonderposten markiert.`)
+      : "Sonderposten zurückgenommen." });
+  }
+
   async personMarkieren(ids, hinzu) {
     const name = personLesen();
     if (!name) { melde("hinweis", "Bitte oben rechts wählen, wer du bist."); return false; }
@@ -2783,6 +2814,7 @@ class Kontoansicht {
       { tid: "km-bearbeiten", kuerzel: "F2", text: "Verwendungszweck bearbeiten", aktiv: eine, tun: () => this.bearbeiten(ids[0], "verwendungszweck") },
       { tid: "km-status", kuerzel: "s", text: "Status setzen…", tun: () => this.statusWaehlen(ids, ausloeser) },
       this.bestaetigenEintrag(ids),
+      this.sonderpostenEintrag(ids),
       this.filterEintrag(b),
       { tid: "km-mehrfach", kuerzel: "e", text: "Bearbeiten…", tun: () => this.mehrfachDialog(ids, ausloeser) },
       this.gegenbuchungEintrag(b, x, y, ausloeser),
