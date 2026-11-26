@@ -757,7 +757,7 @@ und Buchungszeilen `buchung-<id>` (Kontextmenü 8.2).
 `protokoll-mehr`): `aenderung-<id>` mit Zeitpunkt, Quelle, Beschreibung,
 `data-quelle`, `data-wirksam` = `ja`/`nein`; bei wirksamen
 `aenderung-rueckgaengig-<id>` (`POST /api/aenderungen/{id}/rueckgaengig`). Ab M15
-zusätzlich `aenderung-bis-<id>` (25.1).
+zusätzlich `aenderung-bis-<id>` (25.1). Gestaltung, Gliederung nach Tagen und Filter: 48 (D-294).
 
 ### 13.10 Übrige Seiten (Mindestumfang)
 
@@ -3505,3 +3505,34 @@ Befehlspalette (jetzt nur Kürzel, die es auf dem Blatt gibt).
 - Die Tabelle der Kategorien im Lernmodell (`lern-kategorien`) erscheint im mobilen Layout als Karten.
 - In Desktop-Fenstern bis 1100 px stehen die Knöpfe einer Regel unter ihrem Inhalt, und das Jahresraster der
   Berichte hat vier statt sechs Spalten.
+
+## 48. Änderungsprotokoll neu gestaltet (D-294, ergänzt 13.9, 25.1, 41.8)
+
+- **Kopf:** Überschrift, darunter `protokoll-stand` mit der Zahl der Änderungen (`gesamt` der Antwort), bei
+  Filter mit „ · <Filtername>“. Darunter die Filter `protokoll-filter-<name>` als Schalter (`aria-pressed`):
+  `alle`, `hand` (Quelle `manuell`), `bank` (`sync`, `umbuchung`), `automatik` (`regeln`, `lernmodell`,
+  `vorlage`, `kredit`, `mail`), `daten` (`import`, `sicherung`), `rueckgaengig`. Ein Filter lädt die Liste neu
+  mit den Quellen als wiederholtem Parameter `quelle`; Vorgabe `alle`.
+- **Liste:** `protokoll-liste` gliedert die geladenen Änderungen nach Kalendertagen (Ortszeit des Browsers):
+  Abschnitt `.pr-tag` mit `data-tag` = JJJJ-MM-TT, Überschrift „Heute“, „Gestern“ oder Wochentag und Datum
+  (mit Jahr, wenn nicht das laufende) und der Zahl der Änderungen des Tages. Innerhalb eines Tags eine
+  geordnete Liste; nur die Einträge `aenderung-<id>` sind Listenpunkte (`li`).
+- **Eintrag** `aenderung-<id>` (Attribute wie bisher): Uhrzeit (`time` mit `datetime`, voller Zeitpunkt im
+  Titel), Marke der Quelle (`.pr-quelle`, Farbton nach Gruppe), Beschreibung ohne den Zähler „(n Objekte)“
+  als Knopf `aenderung-einzelheiten-<id>` (öffnet 41.8), darunter bei genau einem Objekt dessen Art und
+  Bezeichnung, sonst der Umfang („3 Buchungen geändert, …“). Zurückgenommene Änderungen: Beschreibung
+  durchgestrichen, Hinweis „zurückgenommen durch #<id>“; Änderungen der Quelle `rueckgaengig`: „nimmt Änderung
+  #<id> zurück“. Rechts `aenderung-rueckgaengig-<id>` („Rückgängig“) und `aenderung-bis-<id>` („Bis hierher“,
+  Bedeutung und Bestätigung wie 25.1); auf dem Desktop gedämpft, bis Zeiger oder Fokus in der Zeile sind.
+- **Mit Filter gibt es kein `aenderung-bis-<id>`**: „Bis hierher“ nimmt alle neueren Änderungen zurück, auch
+  ausgeblendete.
+- Leere Liste: „Noch keine Änderungen.“ bzw. „Keine Änderungen in „<Filtername>“.“ `protokoll-mehr` lautet
+  „Ältere laden (<n> von <gesamt> angezeigt)“.
+- **Handy:** Filter in einer Zeile zum Wischen; je Eintrag oben Uhrzeit, Quelle und die beiden Knöpfe, darunter
+  Beschreibung und Umfang; kein seitliches Rollen.
+- **Einzelheiten (41.8):** Titel ist die Beschreibung ohne Zähler. Kopf als Kacheln Zeitpunkt, Quelle (Marke),
+  Umfang (`ae-umfang`), Stand (`ae-stand`), ggf. „Macht rückgängig“, Änderung (`#<id>` und `ae-aktion`). Je Objekt
+  eine Karte mit Art (farbig), Objektart, Bezeichnung (erwartete Zahlung: Händler und Beschreibung; Abstimmung:
+  Konto und Stichtag) und `#<objekt_id>`. Beträge auch in `gesamt`, `guthaben`, `restschuld`; gespeicherte
+  Kurzwerte lesbar („jährlich“, „vorläufig“, „Ausgabe“ …).
+

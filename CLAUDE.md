@@ -226,7 +226,8 @@ nicht mehr. Ein Thread schreibt Tests und Code.
 - Geplante Zahlungen (D-238): Wiederholung in `erwartung_wiederholung` (Teil der Objektart `erwartung`,
   Sicherungsdatei Schemaversion 10); Fortsetzung und Rücknahme in `erwartung.folge_anlegen`/`folge_entfernen`, Vorschau über
   `erwartung.geplante`. Das Feld `wiederholung` erscheint nur, wenn eine besteht.
-- Änderungsprotokoll: Einzelheiten je Änderung zeigt `app/aenderung.js` (D-237). Neue Felder der Protokollform
+- Änderungsprotokoll: Seite `/protokoll` und Einzelheiten je Änderung liegen in `app/aenderung.js` (D-237, D-294;
+  Quellen mit Bezeichnung und Farbton in `QUELLEN`, Filter in `FILTER`). Neue Felder der Protokollform
   bekommen dort einen Namen in `FELD_NAMEN` (sonst erscheint der Schlüssel) und ggf. eine Deutung in `wertText`.
 
 ## Hinweise zum Sammelbranch `feature/sammel4` (ab D-242)

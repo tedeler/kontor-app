@@ -10,7 +10,6 @@ import {
 } from "./ui.js";
 import { kategorienBaum, kontoMenue, langeBeruehrung } from "./baum.js";
 import { regelEditor, regelnSeite } from "./regeleditor.js";
-import { aenderungFenster, zusammenfassung } from "./aenderung.js";
 
 const kopf = (seite, titel, ...werkzeuge) => {
   seite.append(h("div", { class: "seiten-kopf" }, h("h1", null, titel),
@@ -815,81 +814,8 @@ function importErgebnis(e) {
         + (m.referenz ? ` (${m.referenz})` : "")))) : null);
 }
 
-// ------------------------------------------------------------------ Protokoll (13.9)
-const QUELLEN = { manuell: "manuell", import: "Import", sync: "Synchronisation", regel: "Regel", rueckgaengig: "Rückgängig",
-  planer: "Planer", system: "System", sicherung: "Sicherung" };
-
-export async function protokoll(seite) {
-  kopf(seite, "Änderungsprotokoll");
-  const liste = h("ol", { class: "protokoll", tid: "protokoll-liste" });
-  const mehr = knopf("Ältere laden", { tid: "protokoll-mehr", hidden: true });
-  let seiteNr = 0;
-  let geladen = [];
-  async function laden(n) {
-    const s = await api("GET", `/api/aenderungen?pro_seite=50&seite=${n}`);
-    return s;
-  }
-  function zeichnen(gesamt) {
-    liste.replaceChildren(...geladen.map((a) => {
-      const wirksam = a.rueckgaengig_durch === null;       // protokoll.md 3
-      return h("li", { tid: `aenderung-${a.id}`, "data-id": String(a.id), "data-quelle": a.quelle, "data-wirksam": wirksam ? "ja" : "nein",
-        class: "aenderung" + (wirksam ? "" : " unwirksam") },
-      zeitEl("span", a.zeitpunkt, { class: "zeit" }), " ", h("span", { class: "marke" }, QUELLEN[a.quelle] || a.quelle), " ",
-      h("span", null, a.beschreibung),
-      a.rueckgaengig_durch ? h("span", { class: "klein" }, ` (rückgängig gemacht durch #${a.rueckgaengig_durch})`) : null,
-      // D-237: Einzelheiten der Änderung (je Objekt vorher → nachher) in einem eigenen Fenster
-      knopf("Einzelheiten…", { tid: `aenderung-einzelheiten-${a.id}`, class: "knopf knopf-klein", "aria-haspopup": "dialog",
-        "aria-label": `Einzelheiten der Änderung ${a.id}`, title: zusammenfassung(a.eintraege),
-        onclick: (ev) => aenderungFenster(a.id, ev.currentTarget).catch((e) => melde("fehler", e.message)) }),
-      wirksam ? knopf("Rückgängig", { tid: `aenderung-rueckgaengig-${a.id}`,
-        "aria-label": `Änderung ${a.id} rückgängig machen`, onclick: async () => {
-          try { await api("POST", `/api/aenderungen/${a.id}/rueckgaengig`); melde("erfolg", "Rückgängig gemacht."); await oberflaeche.neuLaden(); }
-          catch (e) { melde("fehler", e.message); }
-        } }) : null,
-      bisKnopf(a));
-    }));
-    mehr.hidden = geladen.length >= gesamt;
-  }
-  // Rückgängig bis hierher (D-108): alle Änderungen ab dieser (einschließlich) in einem Schritt
-  function markieren(id) {
-    for (const li of liste.children) li.classList.toggle("bis-markiert", id !== null && Number(li.dataset.id) >= id);
-  }
-  function bisKnopf(a) {
-    const neuer = geladen.filter((x) => x.id >= a.id && x.rueckgaengig_durch === null).length;
-    if (!neuer) return null;
-    const k = knopf("Bis hierher rückgängig", { tid: `aenderung-bis-${a.id}`, class: "knopf knopf-klein",
-      "aria-label": `Alle Änderungen bis einschließlich ${a.id} rückgängig machen`, onclick: async () => {
-        markieren(a.id);
-        const ok = await bestaetigen(`Alle Änderungen seit „${a.beschreibung}“ (${zeitText(a.zeitpunkt)}) einschließlich `
-          + "dieser rückgängig machen? Das ergibt eine einzige neue Änderung, die sich ebenfalls wieder rückgängig machen lässt.",
-        { ja: "Bis hierher rückgängig", ausloeser: k });
-        markieren(null);
-        if (!ok) return;
-        try {
-          const u = await api("POST", "/api/aenderungen/rueckgaengig", { bis_id: a.id });
-          melde("erfolg", `${u.rueckgaengig_von.length === 1 ? "1 Änderung" : `${u.rueckgaengig_von.length} Änderungen`} rückgängig gemacht.`);
-          await oberflaeche.neuLaden();
-        } catch (e) { melde("fehler", e.message); }
-      } });
-    k.addEventListener("mouseenter", () => markieren(a.id));
-    k.addEventListener("mouseleave", () => markieren(null));
-    k.addEventListener("focus", () => markieren(a.id));
-    k.addEventListener("blur", () => markieren(null));
-    return k;
-  }
-  mehr.addEventListener("click", async () => {
-    const s = await laden(seiteNr + 1);
-    seiteNr += 1;
-    geladen = geladen.concat(s.eintraege);
-    zeichnen(s.gesamt);
-  });
-  const s = await laden(1);
-  seiteNr = 1;
-  geladen = s.eintraege;
-  zeichnen(s.gesamt);
-  seite.append(...[liste, geladen.length ? null : leer("Noch keine Änderungen."), mehr].filter(Boolean));
-  return { titel: "Änderungsprotokoll" };
-}
+// ------------------------------------------------------------------ Protokoll (13.9, D-294): in aenderung.js
+export { protokollSeite as protokoll } from "./aenderung.js";
 
 // ------------------------------------------------------------------ Empfänger (13.10)
 /** Personen, die den Empfänger bestätigt haben (Tags „<Name>-Bestätigt“, D-262). */
