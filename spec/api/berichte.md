@@ -236,3 +236,39 @@ nicht Tags des Empfängers). Es gibt keinen weiteren Zustand.
   Haken `bericht-ea-sonderposten`. Im Monatsbericht hat jeder Vorschlag den Knopf `mb-sonderposten-markieren-<id>`.
   Im Kontoblatt markiert `p` bzw. das Kontextmenü `km-sonderposten` die Buchungen oder nimmt die Markierung zurück
   (legt den Tag bei Bedarf an).
+
+## 8. Nachweis markierter Buchungen als PDF (Feature `nachweis-pdf`, D-302)
+
+Nur lesend: kein Zustand, kein Protokoll, nichts in der Sicherung. Noch nicht im OpenAPI-Vertrag (wie D-217).
+
+- **`GET /api/export/nachweis.pdf?konto_id=<id>&buchung_id=<id>[&buchung_id=…][&inhaber=<text>]`** liefert
+  `application/pdf` mit `Content-Disposition: attachment; filename="kontor-nachweis-<JJJJMMTT>.pdf"` und
+  `Cache-Control: no-store`.
+  - `konto_id` Pflicht; Konto fehlt → 404 `nicht_gefunden`; kein Bestandskonto (Kategorie, Eigenkapital) → 422
+    `kein_bestandskonto`.
+  - `buchung_id` 1 bis 500 verschiedene Werte (doppelte zählen einmal), sonst 422 `validierung`; eine fehlt → 404
+    `nicht_gefunden`; eine ohne Split auf dem Konto → 422 `buchung_nicht_im_konto` (`details.buchung_ids`).
+  - `inhaber` höchstens 200 Zeichen (sonst 422); fehlt der Parameter, gilt der Kontoinhaber aus den Kontodaten der
+    Bank (leer → „–“). Unbekannte Parameter → 422.
+- **Inhalt** (Text mit `pypdf` extrahierbar): Kopf „KONTOR Homebanking-Software“, Auszugsdatum = heute (App-Uhr),
+  Titel „Kontoauszug“ mit „Nachweis ausgewählter Buchungen · kein Dokument der Bank“; Kontoinhaber, IBAN gekürzt
+  (`DE79 XXXX XXXX XXXX XXXX 1001`: Ländercode, Prüfziffer, letzte vier Stellen, immer vier Gruppen `XXXX`;
+  Konto ohne IBAN „–“), BIC aus den Kontodaten der Bank (sonst „–“), Kontoart. Je Buchung, nach Datum und ID:
+  Buchungstag `TT.MM.JJJJ`, Empfänger, Verwendungszweck, Betrag auf diesem Konto (`+1.234,56` / `-1.234,56`).
+  Danach „Summe der <n> ausgewählten Buchung(en)“ mit der Summe. Fußzeile mit Hinweis auf die Homebanking-Software
+  und „Seite n von m“. Kontostände kommen nicht vor; die vollständige IBAN steht nirgends in der Datei.
+- **Hinweise je Buchung** (Zeile „Hinweis: …“):
+  - „Nicht von der Bank abgerufen (von Hand erfasst oder importiert)“ – keine Bankkennung `bank:<IBAN des Kontos>:…`.
+  - „Von Hand erfasst und mit einem Umsatz der Bank zusammengeführt“ – die Bankkennung kam durch Zusammenführen an
+    eine vorhandene Buchung.
+  - „Abgleich mit dem Abruf von der Bank nicht möglich“ – Bankkennung vorhanden, aber kein Stand des Abrufs im
+    Änderungsprotokoll.
+  - „Nach dem Abruf von der Bank geändert: <Felder>“ – Vergleich mit dem Stand, mit dem die Synchronisation die
+    Buchung angelegt hat; Felder in der Reihenfolge Datum, Empfänger (andere Zuordnung oder umbenannt), Verwendungszweck,
+    Betrag.
+- **`GET /api/export/nachweis/angaben?konto_id=<id>`** → `{"inhaber": str, "bic": str|null}` aus den von der Bank
+  gemeldeten Kontodaten (Bankzugang); Fehler wie oben.
+- **Oberfläche:** Im Kontoblatt eines Bestandskontos öffnen `v p`, das Kontextmenü `km-nachweis` „Nachweis als PDF…“
+  und die Befehlspalette den Dialog `nachweis-dialog` für die markierten Buchungen: `nachweis-umfang` (Anzahl),
+  Feld `nachweis-inhaber` (vorbelegt), `nachweis-ok` lädt die Datei herunter und schließt den Dialog; Fehler stehen
+  im Dialog. In Kategorien gibt es weder Kürzel noch Menüeintrag.

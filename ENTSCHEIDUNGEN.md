@@ -4602,3 +4602,29 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   schon gespeicherte Filter, Lesezeichen und von Hand getippte Pfade gelten; die kanonische Form bleibt `:`.
   `ausdruecke.md` 2.3.
 - **Tests:** `tests/core/test_kategoriepfad.py`, `tests/test_browser_kategoriepfad.py`.
+
+
+## D-302 Nachweis markierter Buchungen als PDF (Feature `nachweis-pdf`, 2026-11-26)
+
+- **Anlass:** Zahlungen gegenüber Dritten (Vermieter, Versicherung …) belegen, ohne Kontostand und übrige Umsätze
+  preiszugeben. Gestaltung mit dem Auftraggeber abgestimmt (2026-11-26): Stil eines Kontoauszugs, nur die markierten
+  Buchungen mit Datum, Empfänger, Verwendungszweck und Betrag; keine Kontostände (am Ende die Summe); Auszugsdatum,
+  Kontoinhaber und BIC lesbar, IBAN gekürzt; an den Buchungen selbst nichts unkenntlich.
+- **Herkunft offen ausgewiesen:** „Auszug aus der Homebanking-Software Kontor – kein Dokument der Bank“ im Kopf und in
+  der Fußzeile, kein Banklogo. Da sich Buchungen in Kontor bearbeiten und von Hand erfassen lassen, trägt jede
+  Buchung, die nicht unverändert von der Bank stammt, einen Hinweis (`berichte.md` 8). Maßstab ist der Stand, mit dem
+  die Synchronisation die Buchung angelegt hat (erster Protokolleintrag der Quelle `sync`, dessen Stand eine
+  Bankkennung des Kontos trägt); der Empfängername zum Vergleich ist der Stand des Empfängers bis zu dieser Änderung.
+  Zuordnungen über Aliase gelten nicht als Änderung (Kontor speichert den Rohnamen der Bank nicht).
+- **IBAN:** Ländercode, Prüfziffer und letzte vier Stellen, dazwischen immer vier Gruppen `XXXX` (verbirgt auch die
+  Länge). Nicht „•“: In der Standardschrift Helvetica (WinAnsi) kommt es beim Kopieren aus dem PDF als Steuerzeichen
+  heraus.
+- **Kontoinhaber:** aus den von der Bank gemeldeten Kontodaten (Bankzugang, nur FinTS), im Dialog änderbar; im
+  Mock-Modus leer. Eigener Lesepunkt `GET /api/export/nachweis/angaben` für die Vorbelegung.
+- **Kürzel** `v p` (Wunsch des Auftraggebers; `p` ohne Vortaste ist Sonderposten, D-300), Bedingung `bestand`;
+  Kontextmenü `km-nachweis` nur in Bestandskonten. Download per `fetch` und Blob, damit Fehler im Dialog erscheinen.
+- **Getrennt vom PDF-Export** (`berichte.md` 5): eigenes Modul `nachweis.py`, eigene Betragsformatierung mit
+  Tausenderpunkten (der Export behält das Format aus 4.2). Noch nicht im OpenAPI-Vertrag.
+- **Tests:** `tests/core/test_nachweis_pdf.py`, `tests/test_browser_nachweis_pdf.py`; angepasst
+  `tests/core/test_tastenbelegung.py` (Einträge in `tests/core/AENDERUNGEN.md`).
+- **Offen:** kein Schritt in den Demodaten.

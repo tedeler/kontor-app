@@ -145,5 +145,6 @@ Im Ausgangsstand schlugen 19 Tests der Abnahmesuite und 3 eigene fehl. Kein Anwe
 | abgewählte Tests zu 36.3.1/36.3.2/36.4.1 (`m26`: lange Berührung wählt aus, Wischen rechts wählt; `m8/test_m8_panels_mobil.py`: Wischen rechts) | D-278 löst diese Festlegungen ab | nicht angepasst (abgewählt); vor einem Wiederaufnehmen in `abgewaehlt.txt` nach `oberflaeche.md` 43 umschreiben |
 | `spec/test_openapi.py::test_alle_operationen_vorhanden`, eigene `test_oberflaeche.py::test_oberflaeche_nutzt_nur_spezifizierte_api` | D-280: drei neue Operationen unter `/api/saldoausgleich/paare` | erwartete Operationen bzw. Pfade ergänzt |
 | `spec/test_openapi.py::test_alle_operationen_vorhanden` | D-295: neue Operation `POST /api/regeln/{regel_id}/uebernehmen` | in `OPERATIONEN_M30` ergänzt |
+| eigene `test_oberflaeche.py::test_oberflaeche_nutzt_nur_spezifizierte_api` | D-302: neuer Pfad `/api/export/nachweis` (Nachweis als PDF) | Pfad ergänzt |
 
 Stabilität: Nach den Änderungen lief der Browser-Teil der Gesamtsuite viermal hintereinander grün.
