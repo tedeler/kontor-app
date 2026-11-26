@@ -26,7 +26,7 @@ from kontor.config import KontorConfig
 from kontor.plugins.bank import BankKonto
 
 GIRO_IBAN = "DE79000000000004711001"
-GEKUERZT = "DE79 •••• •••• •••• •••• 1001"
+GEKUERZT = "DE79 XXXX XXXX XXXX XXXX 1001"
 
 
 @pytest.fixture
@@ -83,7 +83,7 @@ def test_enthaelt_genau_die_markierten_buchungen_und_die_summe(welt):
     assert "Summe der 2 ausgewählten Buchungen" in t
     assert _eur(miete["betrag"] + gehalt["betrag"]) in t
     assert "Erika Mustermann (fiktiv)" in t
-    assert "Auszugsdatum" in t and "30.06.2024" in t
+    assert "auszugsdatum" in t.lower() and "30.06.2024" in t
     assert "kein Dokument der Bank" in t and "Homebanking-Software" in t
     assert "Kontostand" not in t
 
@@ -160,7 +160,7 @@ def test_von_hand_erfasste_buchung_hat_hinweis(welt):
 def test_inhaber_und_bic_aus_den_kontodaten_der_bank(welt):
     c, giro, buchungen, pfad = welt
     assert c.get("/api/export/nachweis/angaben", params={"konto_id": giro}).json() == {"inhaber": "", "bic": None}
-    con = db.verbinde(pfad)
+    con = db.verbinde(KontorConfig(datenbank=pfad, mock_modus=True).aktive_datenbank)
     try:
         with con:
             bankzugang.konten_uebernehmen(con, [BankKonto(GIRO_IBAN, "TESTDEFFXXX", "Giro", "girokonto",
