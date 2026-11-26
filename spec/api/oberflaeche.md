@@ -385,6 +385,22 @@ Knopf) den Fokus; Tab bleibt im Dialog; Esc schließt ohne Wirkung; danach
 erhält das auslösende Element den Fokus zurück. Fehler des Servers stehen im
 Dialog in `dialog-fehler` (`role="alert"`); der Dialog bleibt dann offen.
 
+**Tastatur in allen Dialogen (D-298):**
+
+- Den Anfangsfokus bekommt nur ein bedienbares Element (nicht deaktiviert,
+  sichtbar): das erste Eingabefeld, sonst der erste Knopf, sonst das erste
+  andere Bedienelement, sonst der Dialog selbst. Der Fokus steht nach dem
+  Öffnen immer im Dialog.
+- In einer Knopfleiste wechseln ← und → zwischen den bedienbaren Knöpfen
+  (umlaufend), Pos1 und Ende springen zum ersten bzw. letzten Knopf. Enter
+  und Leertaste lösen den Knopf aus.
+- Auf Knöpfen, Links und Ankreuzfeldern gehen ↑ und ↓ wie Tab und
+  Umschalt+Tab zum nächsten bzw. vorigen Bedienelement des Dialogs
+  (umlaufend).
+- Textfelder, Auswahlfelder, Optionsgruppen, Listen, Bäume, Menüs und Tabs
+  behalten ihre eigene Pfeilbedienung (z. B. die Liste der Kategorie-Auswahl,
+  9.1). Mit Strg, Alt oder Cmd haben die Pfeile keine Dialogwirkung.
+
 ### 9.1 Kategorie-Auswahl (`kategorie-auswahl`)
 
 - `kategorie-auswahl-suche` (Texteingabe, Fokus) filtert die Liste

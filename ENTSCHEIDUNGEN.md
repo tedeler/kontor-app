@@ -4533,3 +4533,22 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - **Tests:** `tests/core/test_filter_unbestaetigt.py`, `tests/test_browser_filter_unbestaetigt.py`; die
   Kürzeltabelle in `tests/core/test_tastenbelegung.py` ist um `f o` erweitert (`AENDERUNGEN.md`). Der
   Service-Worker-Cache heißt `kontor-huelle-48`. Mobil nicht im Browser angesehen.
+
+
+## D-298 Tastaturbedienung aller Dialoge (Feature `dialog-tastatur`, 2026-11-26)
+
+- **Anlass:** Auftrag vom 2026-11-26: In der Löschabfrage ließ sich nicht mit Tasten navigieren; alle Dialoge prüfen.
+- **Befund** (Browsertest über 16 Dialoge: Kontoblatt mit Entf, k, t, s, e, x, M, n, h, Strg+K; Regeln, Konten, Tags,
+  Erwartet, Über):
+  - Tab, Umschalt+Tab und Esc funktionierten überall, der Fokus kam nach Esc zurück.
+  - **Pfeiltasten** wirkten in keinem Dialog außerhalb von Listen; in der Löschabfrage blieb der Fokus auf dem Knopf.
+  - **Split-Dialog:** Der Fokus blieb nach dem Öffnen im Kontoblatt, weil das Grundgerüst das erste Auswahlfeld wählte,
+    ohne deaktivierte zu übergehen (Auswahl der Split-Vorlage ist ohne Vorlagen deaktiviert). Tasten wirkten dann
+    auf das Kontoblatt statt auf den Dialog.
+- **Entscheidung:** im Grundgerüst `dialog()` (alle Dialoge entstehen dort, Core-Test sichert das):
+  Anfangsfokus aus `fokussierbare()`, Rückfall auf den Dialog selbst; `dialogPfeil`: ←/→ und Pos1/Ende in der
+  Knopfleiste, ↑/↓ wie Tab auf Knöpfen, Links und Ankreuzfeldern; Elemente mit eigener Pfeilbedienung und
+  bereits behandelte Tasten (`defaultPrevented`) bleiben unberührt. `oberflaeche.md` 9.
+- **Tests:** `tests/core/test_dialog_tastatur.py`, `tests/test_browser_dialog_tastatur.py`. Eigene Browsertests mit
+  Dialogen (83) und Browser-Gesamtsuite grün; `m8/test_m8_bearbeiten.py::test_konto_loeschen_rueckgaengig` schlug
+  einmal unter voller Last fehl, danach dreimal im Paket grün (wacklig, nicht durch diese Änderung).

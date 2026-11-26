@@ -67,8 +67,11 @@ export function dialog(testid, titel, aufbau, optionen) {
   aufbau(inhalt, d);
   document.body.append(huelle);
   ebeneOeffnen(d);
-  let ziel = o.fokus ? o.fokus(box) : (box.querySelector("input:not([type=hidden]):not([disabled]), select, textarea")
-    || box.querySelector("button:not([disabled])"));
+  box.addEventListener("keydown", (e) => dialogPfeil(box, e));
+  // D-298: nur bedienbare Elemente (ein deaktiviertes Auswahlfeld nahm sonst den Fokus nicht an, er blieb dahinter)
+  const bedienbar = fokussierbare(box);
+  let ziel = o.fokus ? o.fokus(box) : (bedienbar.find((e) => e.matches("input, select, textarea"))
+    || bedienbar.find((e) => e.matches("button")) || bedienbar[0]);
   if (oberflaeche.istMobil && oberflaeche.istMobil()) {
     // mobil (D-141): die Bildschirmtastatur erst auf Tippen ins Feld öffnen; Tippen neben das Blatt schließt es
     if (!o.fokus && ziel && ziel.matches("input:not([type=checkbox]):not([type=radio]):not([type=date]), textarea")) {
@@ -78,7 +81,46 @@ export function dialog(testid, titel, aufbau, optionen) {
     huelle.addEventListener("click", (e) => { if (e.target === huelle) d.escape(); });
   }
   if (ziel) ziel.focus();
+  if (!box.contains(document.activeElement)) {   // nichts Bedienbares oder Fokus abgelehnt: der Dialog selbst
+    box.tabIndex = -1;
+    box.focus();
+  }
   return d;
+}
+
+// Elemente mit eigener Pfeiltastenbedienung (Textfelder, Auswahllisten, Listen, Bäume …) behalten ihre Tasten.
+const EIGENE_PFEILE = 'input:not([type="checkbox"]):not([type="button"]):not([type="submit"]):not([type="reset"]), ' +
+  'select, textarea, [contenteditable=""], [contenteditable="true"], [role="listbox"], [role="option"], ' +
+  '[role="tree"], [role="treeitem"], [role="grid"], [role="row"], [role="menu"], [role="menuitem"], ' +
+  '[role="tablist"], [role="tab"], [role="radiogroup"], [role="slider"], [role="combobox"]';
+
+/**
+ * Pfeiltasten im Dialog (D-298, oberflaeche.md 9): In einer Knopfleiste wechseln ←/→ zwischen den Knöpfen
+ * (umlaufend), Pos1/Ende springen zum ersten bzw. letzten. Auf Knöpfen, Links und Ankreuzfeldern gehen ↑/↓ wie
+ * Tab zum vorigen bzw. nächsten Bedienelement. Elemente mit eigener Pfeilbedienung bleiben unberührt.
+ */
+export function dialogPfeil(box, e) {
+  if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(e.key)) return;
+  const a = document.activeElement;
+  if (!a || a === box || !box.contains(a) || a.matches(EIGENE_PFEILE) || a.closest(EIGENE_PFEILE)) return;
+  const leiste = a.closest(".knopf-leiste");
+  const gruppe = leiste && box.contains(leiste) ? fokussierbare(leiste).filter((k) => k.matches("button")) : [];
+  if (gruppe.length >= 2 && gruppe.includes(a) && e.key !== "ArrowUp" && e.key !== "ArrowDown") {
+    const i = gruppe.indexOf(a);
+    const n = e.key === "Home" ? 0 : e.key === "End" ? gruppe.length - 1
+      : (i + (e.key === "ArrowRight" ? 1 : -1) + gruppe.length) % gruppe.length;
+    e.preventDefault();
+    gruppe[n].focus();
+    return;
+  }
+  if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+    const alle = fokussierbare(box);
+    const i = alle.indexOf(a);
+    if (i < 0 || alle.length < 2) return;
+    e.preventDefault();
+    alle[(i + (e.key === "ArrowDown" ? 1 : -1) + alle.length) % alle.length].focus();
+  }
 }
 
 export function fokusFalle(box, e) {
