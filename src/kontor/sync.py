@@ -19,7 +19,7 @@ from dataclasses import dataclass
 import json
 
 from .plugins.fints_diagnose import Diagnose
-from . import abgleich, ausgleich, bankzugang, buch, db, kontonamen, kredite, lernmodell, pflege, protokoll, regeln, vorlagen, wiederkehrend
+from . import abgleich, ausgleich, bankumsatz, bankzugang, buch, db, kontonamen, kredite, lernmodell, pflege, protokoll, regeln, vorlagen, wiederkehrend
 from .buch import BESTAND, ApiFehler
 from .config import KontorConfig
 from .fehler import (BankPinFalsch, BankZugangGesperrt, KontorFehler, TanAbgelaufen, TanErforderlich, TanUngueltig)
@@ -920,6 +920,12 @@ class SyncDienst:
                         paare.append((kennung, bid))
             for kennung, bid in paare:
                 con.execute("INSERT OR IGNORE INTO sync_kennung (kennung) VALUES (?)", (kennung,))
+                u = next(x for x, k in eintraege if k == kennung)
+                name = (u.gegenpartei_name or "").strip() or None
+                eid = buch.empfaenger_zu_name(con, name) if name is not None else None
+                if eid is not None:
+                    name = con.execute("SELECT name FROM empfaenger WHERE id = ?", (eid,)).fetchone()["name"]
+                bankumsatz.merken(con, kennung, u.buchungstag.isoformat(), name, u.verwendungszweck, u.betrag)  # D-303
                 con.execute("INSERT OR IGNORE INTO buchung_extern (buchung_id, extern_id) VALUES (?, ?)", (bid, kennung))
                 z["buchungen_zusammengefuehrt"] += 1
                 erledigt.add(kennung)
@@ -1028,6 +1034,7 @@ class SyncDienst:
         jetzt = self.jetzt_text()
         for u, kennung, name, exakt, aehnlich in bewertung:
             con.execute("INSERT OR IGNORE INTO sync_kennung (kennung) VALUES (?)", (kennung,))
+            bankumsatz.merken(con, kennung, u.buchungstag.isoformat(), name, u.verwendungszweck, u.betrag)  # D-303
             if len(exakt) == 1 and zaehler[next(iter(exakt))] == 1:
                 con.execute("INSERT OR IGNORE INTO buchung_extern (buchung_id, extern_id) VALUES (?, ?)",
                             (next(iter(exakt)), kennung))

@@ -3511,7 +3511,8 @@ Bestandskonten liegen, sonst nach dem Vorzeichen im angezeigten Konto `"ausgabe"
 Zeiträume (letzte 7 bzw. 30 Tage) gibt es nur als Knöpfe `filter-schnell-*`.
 
 Vortaste `v`: `v g` Gruppierung, `v k`/`v K` alle Gruppen auf-/zuklappen, `v o` Sortierspalte, `v r` Richtung,
-`v s` Spaltenbreiten an den Inhalt, `v 0` Spaltenbreiten zurücksetzen, `v e` Konto-Einstellungen. Das Panel
+`v s` Spaltenbreiten an den Inhalt, `v 0` Spaltenbreiten zurücksetzen, `v e` Konto-Einstellungen, `v p` Nachweis
+der markierten Buchungen als PDF (nur Bestandskonten, D-303, `berichte.md` 8). Das Panel
 Einzelheiten hat kein Kürzel mehr; `w e` klappt es auf.
 
 ### 46.5 Kontextmenü

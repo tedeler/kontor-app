@@ -27,7 +27,8 @@ REST = ["/api/status", "/api/ausdruck",  # D-185
         "/api/version", "/api/import/kmymoney", "/api/import/gnucash", "/api/dubletten", "/api/regeln", "/api/sync", "/api/tan-anforderungen",
         "/api/benachrichtigungen", "/api/aenderungen", "/api/abstimmungen", "/api/suche", "/api/umbuchungen/erkennen",
         "/api/lernmodell", "/api/vorlagen", "/api/sicherung", "/api/kredite", "/api/wiederkehrend", "/api/berichte/kontostand",
-        "/api/export/buchungen.csv", "/api/export/buchungen.pdf", "/api/berichte/einnahmen-ausgaben", "/api/mock/zeit", "/api/geheimnisse", "/api/mail/postfaecher",
+        "/api/export/buchungen.csv", "/api/export/buchungen.pdf", "/api/export/nachweis",  # nachweis: D-303
+        "/api/berichte/einnahmen-ausgaben", "/api/mock/zeit", "/api/geheimnisse", "/api/mail/postfaecher",
         "/api/mail/anmeldung/abschluss", "/api/mail/abruf", "/api/anmeldung", "/api/update",  # update: D-107
         "/api/dokumente", "/api/mail/nachrichten",  # Dokumente: D-123
         "/api/mock/lerndaten",  # Mock-Lerndaten: D-184

@@ -4643,3 +4643,34 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   Server unter systemd geprüft.
 - **Tests:** `tests/core/test_sicherung_stuendlich.py`, `tests/test_sicherung_stuendlich_eigen.py`,
   `tests/test_browser_sicherung_stuendlich.py`; geänderte Tests in `tests/core/AENDERUNGEN.md` und `TESTUMBAU.md`.
+## D-303 Nachweis markierter Buchungen als PDF (Feature `nachweis-pdf`, 2026-11-26)
+
+- **Anlass:** Zahlungen gegenüber Dritten (Vermieter, Versicherung …) belegen, ohne Kontostand und übrige Umsätze
+  preiszugeben. Gestaltung mit dem Auftraggeber abgestimmt (2026-11-26): Stil eines Kontoauszugs, nur die markierten
+  Buchungen mit Datum, Empfänger, Verwendungszweck und Betrag; keine Kontostände (am Ende die Summe); Auszugsdatum,
+  Kontoinhaber und BIC lesbar, IBAN gekürzt; an den Buchungen selbst nichts unkenntlich.
+- **Herkunft offen ausgewiesen:** „Auszug aus der Homebanking-Software Kontor – kein Dokument der Bank“ im Kopf und in
+  der Fußzeile, kein Banklogo. Da sich Buchungen in Kontor bearbeiten und von Hand erfassen lassen, trägt jede
+  Buchung, die nicht unverändert so dasteht, wie die Bank den Umsatz geliefert hat, einen Hinweis (`berichte.md` 8).
+- **Maßstab `bank_umsatz` statt Änderungsprotokoll:** Ein erster Entwurf verglich mit dem ersten Stand der
+  Synchronisation im Protokoll. Seit D-302 wird das Protokoll nach einer Stunde gekürzt; deshalb merkt sich die
+  Synchronisation je Bankkennung Buchungstag, Empfängername (nach Alias-Auflösung, also wie Kontor ihn vergeben hat),
+  Verwendungszweck und Betrag (Datenbankschema 20, `bankumsatz.py`). Schlüssel ist die Kennung (eindeutig), nicht die
+  Buchung: Rückgängig, Wiederholen und Einspielen legen Buchungen neu an, die Kennung bleibt. Betriebszustand wie
+  `buchung_herkunft`: nicht im Protokoll, nicht in der Sicherung (nach dem Einspielen auf einer frischen Installation
+  heißt es bei älteren Buchungen „Abgleich nicht möglich“ – vorsichtig statt falsch). Altbestand wird beim ersten
+  Start einmal aus dem noch vorhandenen Protokoll nachgetragen (nur Buchungen, die die Synchronisation angelegt hat).
+  Auch Übergangskennungen (D-200) werden gemerkt.
+- **IBAN:** Ländercode, Prüfziffer und letzte vier Stellen, dazwischen immer vier Gruppen `XXXX` (verbirgt auch die
+  Länge). Nicht „•“: In der Standardschrift Helvetica (WinAnsi) kommt es beim Kopieren aus dem PDF als Steuerzeichen
+  heraus.
+- **Kontoinhaber:** aus den von der Bank gemeldeten Kontodaten (Bankzugang, nur FinTS), im Dialog änderbar; im
+  Mock-Modus leer. Eigener Lesepunkt `GET /api/export/nachweis/angaben` für die Vorbelegung.
+- **Kürzel** `v p` (Wunsch des Auftraggebers; `p` ohne Vortaste ist Sonderposten, D-300), Bedingung `bestand`;
+  Kontextmenü `km-nachweis` nur in Bestandskonten. Download per `fetch` und Blob, damit Fehler im Dialog erscheinen.
+- **Getrennt vom PDF-Export** (`berichte.md` 5): eigenes Modul `nachweis.py`, eigene Betragsformatierung mit
+  Tausenderpunkten (der Export behält das Format aus 4.2). Noch nicht im OpenAPI-Vertrag.
+- **Tests:** `tests/core/test_nachweis_pdf.py` (auch Kürzen des Protokolls), `tests/test_nachweis_pdf_eigen.py` (Fehler,
+  Vorbelegung, Nachtragen), `tests/test_browser_nachweis_pdf.py`;
+  angepasst `tests/core/test_tastenbelegung.py`, `tests/test_oberflaeche.py` (Einträge in `tests/core/AENDERUNGEN.md`, `TESTUMBAU.md`).
+- **Offen:** kein Schritt in den Demodaten.

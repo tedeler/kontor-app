@@ -18,7 +18,7 @@ from .text import norm
 
 _log = logging.getLogger("kontor.db")
 
-SCHEMA_VERSION = 19
+SCHEMA_VERSION = 20
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (
@@ -302,6 +302,16 @@ CREATE TABLE IF NOT EXISTS buchung_herkunft (
     gruppe TEXT NOT NULL,
     buchung_id INTEGER NOT NULL,
     PRIMARY KEY (gruppe, buchung_id)
+) WITHOUT ROWID;
+
+-- D-303 (Schema 20): Umsätze, wie die Bank sie geliefert hat, je Bankkennung (Betriebszustand, nicht im Protokoll,
+-- nicht in der Sicherung); Vergleichsmaßstab für den Nachweis als PDF (bankumsatz.py).
+CREATE TABLE IF NOT EXISTS bank_umsatz (
+    kennung TEXT PRIMARY KEY,
+    datum TEXT NOT NULL,
+    empfaenger TEXT NOT NULL DEFAULT '',
+    verwendungszweck TEXT NOT NULL DEFAULT '',
+    betrag INTEGER NOT NULL CHECK (typeof(betrag) = 'integer')
 ) WITHOUT ROWID;
 
 -- ------------------------------------------------------------ Meilenstein 4
@@ -629,6 +639,8 @@ def _migrieren(con: sqlite3.Connection) -> None:
     _regel_kategorie_optional(con)
     _erwartung_anbieter_frei(con)
     _zugeordnete_vorlaeufig(con)
+    from . import bankumsatz
+    bankumsatz.nachtragen(con)   # D-303: einmalig aus dem Änderungsprotokoll, soweit noch vorhanden
     for sql in _NACH_MIGRATION:
         con.execute(sql)
 
