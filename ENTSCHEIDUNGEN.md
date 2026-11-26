@@ -4423,3 +4423,27 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   Einstellungen). Der Service-Worker-Cache heißt `kontor-huelle-45`.
 - **Tests:** `tests/core/test_tastenbelegung.py`, `tests/test_browser_tastenbelegung.py`; angepasst
   `tests/test_browser_tastatur.py` sowie in `gesamt-tests` M8 und M28 (`TESTUMBAU.md`).
+
+## D-293 Kein Umbruch mitten im Wort in Tabellen (Feature `tabellenbreite`, 2026-11-26)
+
+- **Anlass:** Meldung vom 2026-11-26 mit Bildschirmfoto: In der Finanzübersicht stand am Handy „Ausgaben“ Buchstabe
+  für Buchstabe untereinander; alle Tabellen prüfen und Spalten im Zweifel verbreitern.
+- **Befund:** Geprüft mit den Demodaten (D-285) auf allen Seiten, zwölf Berichten und sechs Einstellungsbereichen in
+  den Breiten 390, 768, 1024 und 1440 px (Suche nach Wörtern, die über mehrere Zeilen laufen). Ursachen:
+  - `overflow-wrap: anywhere` an allen Tabellenzellen und Karten. Es macht die Mindestbreite einer Spalte fast
+    null; bei knappem Platz schrumpfte der Browser Spalten bis auf einzelne Buchstaben (Tilgungsplan, Konten,
+    Empfänger, Was kommt noch, Konfiguration, Lernmodell bei 768 px).
+  - Am Handy bekam die `caption` einer Tabelle als Karten (Finanzübersicht) nur die Breite eines Buchstabens.
+  - Regelliste bei 768 px: drei Knöpfe neben dem Inhalt ließen ihm etwa 100 px; Jahresraster: „September“ in
+    einer Kachel von 65 px.
+- **Entscheidung:**
+  - Zellen und Karten mit `overflow-wrap: break-word`: Spalten sind mindestens so breit wie ihr längstes Wort.
+    `anywhere` nur noch für Code, Mail-Links und `.technisch`; Werte der Konfiguration mindestens 7rem breit.
+  - Jede `table.tabelle` bekommt einen Rahmen `.tabelle-rahmen` mit `overflow-x: auto` (MutationObserver in
+    `haupt.js`, nicht in der Buchungsliste). Breite Tabellen rollen dort statt der ganzen Seite.
+  - Mobile Karten: `caption` als Block. Lernmodell-Kategorien als Karten, Prozentangabe mit festem Leerzeichen.
+  - Desktop bis 1100 px: Regelknöpfe unter dem Inhalt, Jahresraster in vier Spalten.
+- **Bleibt:** Berichtstabellen mit `white-space: nowrap` (D-217) rollen wie bisher in ihrem Rahmen; technische
+  Zeichenketten (URLs in der Konfiguration, Mail-Adressen) brechen weiter innerhalb der Spalte um.
+- **Tests:** `tests/core/test_tabellenbreite.py`, `tests/test_browser_tabellenbreite.py` (drei Breiten, acht
+  Seiten; scheitert ohne die Änderung). Service-Worker-Cache `kontor-huelle-46`.

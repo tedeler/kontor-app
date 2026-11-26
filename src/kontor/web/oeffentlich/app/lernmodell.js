@@ -1,7 +1,7 @@
 /* Kontor – Seite „Lernmodell“ (/lernmodell, D-183): Stand, Güte auf den eigenen Daten, Schwelle, Verlässlichkeit der
  * Prozentangabe, Kategorien mit Verwechslungen und stärksten Merkmalen. Lesezugriffe; Einstellungen der Instanz über
  * PUT /api/lernmodell/einstellungen (nicht im Änderungsprotokoll, wie D-137). */
-import { aktion, api, datumText, h, melde, pfadVon } from "./kern.js";
+import { aktion, api, datumText, h, melde, mobilKarten, pfadVon } from "./kern.js";
 import { knopf } from "./ui.js";
 
 const prozent = (z, n) => (n ? `${Math.round((100 * z) / n)} %` : "–");
@@ -110,15 +110,16 @@ function kategorienKarte(u) {
   return karte("Kategorien",
     h("p", { class: "klein" }, "Schwächste zuerst. „Erkannt“ = richtige Vorschläge unter den Prüfbuchungen dieser "
       + "Kategorie. Die Merkmale sprechen am stärksten für die Kategorie."),
-    h("table", { class: "tabelle lern-tabelle", tid: "lern-kategorien" },
+    // D-293: am Handy als Karten (Kategorie als Titel, Merkmale in eigener Zeile), sonst werden die Zeilen sehr hoch
+    mobilKarten(h("table", { class: "tabelle lern-tabelle", tid: "lern-kategorien" },
       h("thead", null, h("tr", null, h("th", null, "Kategorie"), h("th", null, "Beispiele"), h("th", null, "Prüfung"),
         h("th", null, "erkannt"), h("th", null, "verwechselt mit"), h("th", null, "stärkste Merkmale"))),
       h("tbody", null, liste.map((k) => h("tr", { tid: `lern-kategorie-${k.kategorie_id}` },
         h("td", null, pfadVon(k.kategorie_id)), h("td", null, zahl(k.beispiele)), h("td", null, zahl(k.pruef)),
-        h("td", null, k.pruef ? `${k.richtig} (${prozent(k.richtig, k.pruef)})` : "–"),
+        h("td", null, k.pruef ? `${k.richtig}\u00a0(${prozent(k.richtig, k.pruef).replace(" ", "\u00a0")})` : "–"),
         h("td", null, k.verwechslungen.length ? k.verwechslungen.map((v) => `${pfadVon(v.kategorie_id)} (${v.anzahl})`).join(", ") : "–"),
         h("td", null, k.merkmale.map((m) => h("span", { class: "lern-chip", title: `${m.anzahl_kategorie} von ${m.anzahl} Buchungen` },
-          m.art === "empfaenger" ? `👤 ${m.text}` : m.text))))))));
+          m.art === "empfaenger" ? `👤 ${m.text}` : m.text))))))), ["titel", "info", "info", "info", "info", "zeile"]));
 }
 
 export async function lernmodellSeite(seite) {
