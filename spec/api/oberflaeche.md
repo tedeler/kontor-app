@@ -2918,6 +2918,22 @@ Je Regel `regel-<id>` mit Griff `regel-griff-<id>`, Schalter
 - Reihenfolge per Ziehen oder Alt+↑/↓ am Griff; jede Änderung ist ein
   Rückgängig-Schritt (`regeln_reihenfolge`).
 - `regel-anlegen` öffnet den Editor, `regeln-anwenden` bleibt.
+- **Zwei Abschnitte (D-292, `kategorisierung.md` 8.10):**
+  - `regeln-eigene` mit Überschrift „Eigene Regeln (<Anzahl>)“ und der
+    Liste `regel-liste`: nur eigene Regeln, mit Griff und Nummer; Ziehen und
+    Alt+↑/↓ ordnen nur innerhalb dieses Abschnitts. Ohne eigene Regeln steht
+    „Noch keine eigenen Regeln.“
+  - `regeln-automatisch` (aufklappbar, Kopf `regeln-automatisch-kopf`,
+    Vorgabe eingeklappt) mit Überschrift „Automatisch angelegt (<Anzahl>)“
+    und der Liste `regel-liste-automatisch`; fehlt ohne automatische
+    Regeln. Zeilen ohne Griff und Nummer, mit Marke `regel-automatisch-<id>`
+    und Knopf `regel-als-eigene-<id>` „Als eigene übernehmen“
+    (`POST /api/regeln/{id}/uebernehmen`).
+  - Sortierung `regeln-automatisch-sortierung`: Name (Vorgabe), Kategorie,
+    Zuletzt angelegt. Suche `regeln-automatisch-suche` über Name, Ausdruck
+    und Kategorie; bei aktiver Suche nennt `regeln-automatisch-anzahl`
+    „<Treffer> von <Anzahl>“. Aufgeklappt-Zustand und Sortierung merkt sich
+    der Browser.
 
 ### 39.4 Regeleditor (`regel-dialog`)
 

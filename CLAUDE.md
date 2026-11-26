@@ -307,6 +307,12 @@ nicht mehr. Ein Thread schreibt Tests und Code.
 - Neue Tags über `tagHolen` (`kern.js`) anlegen. Browsertests warten nach solchen Aktionen auf
   `data-ausstehend="0"` an `seite-konto`, bevor sie mit Zeilen weiterarbeiten.
 
+## Hinweise zu den Regelgruppen (Feature `regelgruppen`, D-292)
+
+- Die Reihenfolge der Regeln ist „eigene vor automatisch angelegten“, je Gruppe `prioritaet`, `id`
+  (`regeln._REIHENFOLGE`). Wer Regeln in Reihenfolge braucht, nimmt `regeln.regeln_liste`/`aktive_regeln`, nie ein
+  eigenes `ORDER BY prioritaet`.
+
 ## Codequalität vor jedem Meilenstein
 
 - **Vor Beginn jedes neuen Meilensteins** die Codequalitätsanalyse nach
