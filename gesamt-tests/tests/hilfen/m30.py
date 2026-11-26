@@ -23,7 +23,8 @@ FELDER = {"empfänger": ("empf", True), "verwendungszweck": ("vwz", True), "betr
           "tags": (None, True), "notiz": (None, True), "iban": (None, True), "konto": (None, True),
           "monatstag": (None, True), "monat": (None, True), "quartal": (None, True), "jahr": (None, False),
           "kw": (None, False), "wochentag": (None, True), "letzter_tag": (None, True),
-          "verdächtig": (None, False)}   # D-263
+          "verdächtig": (None, False),   # D-263
+          "unbestätigt": (None, False)}   # D-297
 WIRKUNGEN = ["neu", "abweichend", "bereits_so", "verdeckt", "uebersprungen", "treffer"]
 
 
