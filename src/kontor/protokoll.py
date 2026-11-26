@@ -463,7 +463,53 @@ def aenderungen_liste(con, f: dict) -> dict:
     if offset < gesamt:
         zeilen = con.execute(f"SELECT * FROM aenderung a{wo} ORDER BY a.id DESC LIMIT ? OFFSET ?",
                              par + [pro_seite, offset]).fetchall()
-    return {"eintraege": _aenderungen_dicts(con, zeilen), "gesamt": gesamt, "seite": seite, "pro_seite": pro_seite}
+    r = con.execute("SELECT wert FROM meta WHERE schluessel = 'protokoll_gekuerzt_bis'").fetchone()
+    return {"eintraege": _aenderungen_dicts(con, zeilen), "gesamt": gesamt, "seite": seite, "pro_seite": pro_seite,
+            "gekuerzt_bis": r[0] if r is not None else None}
+
+
+# ============================================================== Kürzen (D-302, sicherungspunkte.md 6)
+
+
+def _kuerzbar(con, grenze: str, bis_id: int) -> set[int]:
+    """Änderungen vor ``grenze`` bis ``bis_id``; Rückgängig-Paare nur zusammen."""
+    zeilen = {r["id"]: r for r in con.execute(
+        "SELECT id, rueckgaengig_von, rueckgaengig_durch FROM aenderung WHERE id <= ? AND zeitpunkt < ?",
+        (bis_id, grenze))}
+    weg = set(zeilen)
+    while True:
+        raus = {i for i in weg if (zeilen[i]["rueckgaengig_durch"] is not None
+                                   and zeilen[i]["rueckgaengig_durch"] not in weg)
+                or any(z not in weg for z in json.loads(zeilen[i]["rueckgaengig_von"]))}
+        if not raus:
+            return weg
+        weg -= raus
+
+
+def kuerzen(con, grenze: str, bis_id: int) -> int:
+    """Entfernt gesicherte Änderungen vor ``grenze`` (höchstens bis ``bis_id``) samt Vermerken; vorher wird die
+    Herkunft angelegter Buchungen dauerhaft vermerkt. Danach Beleginhalte ohne Bezug. Liefert die Anzahl."""
+    with db.transaktion(con):
+        weg = sorted(_kuerzbar(con, grenze, bis_id))
+        if not weg:
+            return 0
+        bis = con.execute("SELECT MAX(zeitpunkt) FROM aenderung WHERE id <= ?", (weg[-1],)).fetchone()[0]
+        for teil in buch._stueckweise(weg):
+            ph = buch._platzhalter(len(teil))
+            con.execute("INSERT OR IGNORE INTO buchung_herkunft (gruppe, buchung_id) SELECT a.gruppe, e.objekt_id"
+                        " FROM aenderung a JOIN aenderung_eintrag e ON e.aenderung_id = a.id"
+                        f" WHERE a.id IN ({ph}) AND (a.gruppe LIKE 'import:%' OR a.gruppe LIKE 'sync:%')"
+                        " AND e.objekt = 'buchung' AND e.art = 'angelegt'", teil)
+            for tabelle in ("aenderung_eintrag", "sicherung_zustand", "sync_wiederherstellung"):
+                con.execute(f"DELETE FROM {tabelle} WHERE aenderung_id IN ({ph})", teil)
+            con.execute(f"DELETE FROM aenderung WHERE id IN ({ph})", teil)
+        con.execute("INSERT INTO meta (schluessel, wert) VALUES ('protokoll_gekuerzt_bis', ?) ON CONFLICT(schluessel)"
+                    " DO UPDATE SET wert = excluded.wert", (bis,))
+        con.execute("DELETE FROM dokument_inhalt WHERE sha256 NOT IN (SELECT sha256 FROM dokument)"
+                    " AND sha256 NOT IN (SELECT roh_sha256 FROM mail_nachricht WHERE roh_sha256 IS NOT NULL)"
+                    " AND NOT EXISTS (SELECT 1 FROM aenderung_eintrag e WHERE e.objekt = 'dokument'"
+                    " AND (instr(e.vorher, dokument_inhalt.sha256) > 0 OR instr(e.nachher, dokument_inhalt.sha256) > 0))")
+    return len(weg)
 
 
 # ============================================================== Rückgängig

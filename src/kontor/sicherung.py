@@ -32,6 +32,7 @@ import tempfile
 import sqlite3
 import zipfile
 import zlib
+from collections.abc import Callable
 from typing import Any
 
 from . import __version__, buch, db, dokumente, erwartung, kompression, kontonamen, kredite, mail, pflege, protokoll, regeln, vorlagen
@@ -41,7 +42,7 @@ from .validierung import ApiFehler, datum_gueltig
 
 FORMAT = "kontor-sicherung"
 FORMATVERSION = 1
-SCHEMAVERSION = 10
+SCHEMAVERSION = 11
 OBJEKTE = protokoll.OBJEKTE
 # Objektarten aus M9 (immer in ``anzahl``) und ab M5 nur bei Vorhandensein (sicherung.md 2.5, E-109)
 OBJEKTE_IMMER = ("konto", "empfaenger", "tag", "buchung", "regel", "verdacht", "abstimmung", "vorlage")
@@ -52,13 +53,15 @@ MAX_MANIFEST = 1024 ** 2
 
 # Objektarten je Schemaversion der Sicherungsdatei (für spätere Meilensteine, sicherung.md 2.3, 3.4).
 OBJEKTE_JE_VERSION = {1: OBJEKTE_IMMER, 2: OBJEKTE_IMMER + ("kredit",), 3: OBJEKTE_IMMER + ("kredit", "postfach"),
-                      4: OBJEKTE_IMMER + ("kredit", "postfach", "dokument"), 5: OBJEKTE, 6: OBJEKTE, 7: OBJEKTE, 8: OBJEKTE, 9: OBJEKTE, 10: OBJEKTE}
+                      4: OBJEKTE_IMMER + ("kredit", "postfach", "dokument"), 5: OBJEKTE, 6: OBJEKTE, 7: OBJEKTE, 8: OBJEKTE, 9: OBJEKTE, 10: OBJEKTE, 11: OBJEKTE}
 # Tabellen, die erst ab einer Schemaversion der Sicherungsdatei existieren (ältere Sicherungen: leer, 3.4)
 TABELLEN_AB = {"kredit": 2, "kredit_zuordnung": 2, "kredit_abgleich": 2, "postfach": 3,
                "dokument_inhalt": 4, "dokument": 4, "dokument_buchung": 4, "erwartung": 5,
                "empfaenger_wiederkehrend": 6, "empfaenger_tag": 7,
                "regel_automatisch": 8, "empfaenger_lernregel_sperre": 8, "regel_tag": 9,
-               "erwartung_wiederholung": 10}
+               "erwartung_wiederholung": 10, "einstellung": 11}
+# Schemaversion 11 (D-302): Einstellungen der Instanz aus ``meta``, die zum fachlichen Zustand gehören
+EINSTELLUNGEN = ("lern_regeln_automatisch", "lern_schwelle_promille", "wk_filter_modus", "wk_filter_toleranz")
 
 # Tabellen der Sicherungsdatei (Schemaversion 1): Name → [(Spalte, Typ, nullbar)]. Die Namen entsprechen den
 # Tabellen der App-Datenbank; ``id_zaehler`` hält die höchste je vergebene ID je Objektart (auch Splits).
@@ -131,11 +134,13 @@ SPALTEN: dict[str, list[tuple[str, str, bool]]] = {
     # Schemaversion 10 (D-238): Wiederholung geplanter Zahlungen
     "erwartung_wiederholung": [("erwartung_id", "int", False), ("rhythmus", "str", False), ("tag", "int", False),
                                ("bis", "str", True), ("vorgaenger_id", "int", True)],
+    # Schemaversion 11 (D-302): Einstellungen (Werte aus ``meta``, nur die Schlüssel aus ``EINSTELLUNGEN``)
+    "einstellung": [("schluessel", "str", False), ("wert", "str", False)],
 }
 _ORDNUNG = {
     "split": "buchung_id, position, id",     "empfaenger_alias": "empfaenger_id, alias",
     "empfaenger_wiederkehrend": "empfaenger_id", "empfaenger_tag": "empfaenger_id, tag_id",
-    "erwartung_wiederholung": "erwartung_id",
+    "erwartung_wiederholung": "erwartung_id", "einstellung": "schluessel",
     "regel_automatisch": "regel_id", "empfaenger_lernregel_sperre": "empfaenger_id", "regel_tag": "regel_id, tag_id",
     "buchung_tag": "buchung_id, tag_id", "buchung_extern": "buchung_id, extern_id",
     "vorschlag": "buchung_id", "verdacht_kandidat": "verdacht_id, buchung_id", "sync_kennung": "kennung",
@@ -146,6 +151,7 @@ _ORDNUNG = {
 _SCHLUESSEL = {"empfaenger_alias": "PRIMARY KEY (empfaenger_id, alias)",
                "empfaenger_wiederkehrend": "PRIMARY KEY (empfaenger_id)",
                "erwartung_wiederholung": "PRIMARY KEY (erwartung_id)",
+               "einstellung": "PRIMARY KEY (schluessel)",
                "regel_automatisch": "PRIMARY KEY (regel_id)",
                "regel_tag": "PRIMARY KEY (regel_id, tag_id)",
                "empfaenger_lernregel_sperre": "PRIMARY KEY (empfaenger_id)",
@@ -221,6 +227,20 @@ def alle_formen(con) -> dict[str, dict[int, dict]]:
 # ================================================================ Erstellen
 
 
+def einstellungen_lesen(con) -> list[tuple[str, str]]:
+    """D-302: gesetzte Einstellungen der Instanz (Tabelle ``einstellung`` der Sicherungsdatei)."""
+    ph = ", ".join("?" * len(EINSTELLUNGEN))
+    return [(r[0], r[1]) for r in con.execute(
+        f"SELECT schluessel, wert FROM meta WHERE schluessel IN ({ph}) ORDER BY schluessel", EINSTELLUNGEN)]
+
+
+def einstellungen_setzen(con, zeilen: list[tuple[str, str]]) -> None:
+    """D-302: Einstellungen aus einer Sicherung ab Schemaversion 11 übernehmen (fehlende entfallen)."""
+    ph = ", ".join("?" * len(EINSTELLUNGEN))
+    con.execute(f"DELETE FROM meta WHERE schluessel IN ({ph})", EINSTELLUNGEN)
+    con.executemany("INSERT INTO meta (schluessel, wert) VALUES (?, ?)", zeilen)
+
+
 def _zaehler_lesen(con) -> dict[str, int]:
     seq = {r[0]: r[1] for r in con.execute("SELECT name, seq FROM sqlite_sequence")}
     aus = {}
@@ -247,6 +267,8 @@ def _erstellen(pfad, modus: str, erstellt: dt.datetime) -> tuple[bytes, str]:
                     zeilen = ((r["sha256"], kompression.entpacken(r["inhalt"], r["verfahren"])) for r in con.execute(
                         "SELECT sha256, inhalt, verfahren FROM dokument_inhalt WHERE sha256 IN"
                         f" (SELECT sha256 FROM dokument) ORDER BY {ordnung}"))
+                elif tabelle == "einstellung":
+                    zeilen = einstellungen_lesen(con)
                 else:
                     zeilen = (tuple(r) for r in con.execute(
                         f"SELECT {', '.join(namen)} FROM {tabelle} ORDER BY {ordnung}"))
@@ -554,6 +576,8 @@ def _inhalt_pruefen(zeilen: dict[str, list[tuple]]) -> dict[str, dict[int, dict]
                 schlecht(f"{tabelle}.{name}")
             if art == "zeit" and not (isinstance(w, str) and _ZEIT.match(w)):
                 schlecht(f"{tabelle}.{name}")
+    if any(k not in EINSTELLUNGEN or not isinstance(w, str) or len(w) > 100 for k, w in zeilen["einstellung"]):
+        schlecht("Einstellung")
     for r in zeilen["sync_konto_zustand"]:
         if r[4] not in (None, "wiederherstellen", "ignorieren") or r[5] not in (None, "alle", "nur_neue"):
             schlecht("Entscheidung je Bankkonto")
@@ -756,15 +780,33 @@ def _vor_version(version, grenze: tuple[int, int]) -> bool:
     return len(teile) < 2 or teile < grenze
 
 
-def einspielen(con, s: Sicherung, zeitpunkt: str) -> dict:
-    """sicherung.md 5.3: ersetzt den fachlichen Zustand in einer Transaktion (eine Änderung) oder nichts."""
+def nacharbeiten(con, s: Sicherung) -> None:
+    """Anpassungen älterer Sicherungen nach dem Laden (auch für den Sollwert in ``sicherungspunkte``)."""
+    pflege.standardkategorien_umwandeln(con)  # D-219: ältere Sicherungen können Standardkategorien enthalten
+    # D-223/D-249: das bloße „<Name>“ nur aus Sicherungen bis 0.34; „B-<Name>“ immer (D-262)
+    pflege.personentags_umbenennen(con, nur_namen=_vor_version(s.manifest.get("app_version"), (0, 35)))
+    kontonamen.bereinigen(con)  # D-218: ältere Sicherungen können gleichnamige Konten enthalten
+    if s.manifest["schemaversion"] >= 11:   # D-302: ältere Sicherungen lassen die Einstellungen stehen
+        einstellungen_setzen(con, s.zeilen["einstellung"])
+
+
+def einspielen(con, s: Sicherung, zeitpunkt: str, vor_einspielen: Callable | None = None,
+               nach_einspielen: Callable | None = None) -> dict:
+    """sicherung.md 5.3: ersetzt den fachlichen Zustand in einer Transaktion (eine Änderung) oder nichts.
+
+    D-302 (sicherungspunkte.md 5.1): ``vor_einspielen(con)`` läuft zu Beginn in derselben Schreibtransaktion
+    (bestehenden Stand sichern), ``nach_einspielen(con)`` am Ende (Prüfwert gegen den Sollwert); eine Ausnahme rollt alles zurück."""
     erg: dict = {}
     with protokoll.protokolliert(con, "sicherung", "sicherung_einspielen", zeitpunkt) as k:
+        if vor_einspielen is not None:
+            vor_einspielen(con)
         aktuell = alle_formen(con)
         unterschied, betroffen = vergleich(aktuell, s)
         erg.update(unterschied=unterschied, betroffen=betroffen)
         if _identisch(aktuell, s):
             erg["geaendert"] = False
+            if s.manifest["schemaversion"] >= 11:
+                einstellungen_setzen(con, s.zeilen["einstellung"])
         else:
             erg["geaendert"] = True
             con.execute("PRAGMA defer_foreign_keys = ON")
@@ -794,10 +836,9 @@ def einspielen(con, s: Sicherung, zeitpunkt: str) -> dict:
                     con.execute("INSERT INTO sqlite_sequence (name, seq) VALUES (?, ?)", (tabelle, neu))
                 elif neu != hier:
                     con.execute("UPDATE sqlite_sequence SET seq = ? WHERE name = ?", (neu, tabelle))
-            pflege.standardkategorien_umwandeln(con)  # D-219: ältere Sicherungen können Standardkategorien enthalten
-            # D-223/D-249: das bloße „<Name>“ nur aus Sicherungen bis 0.34; „B-<Name>“ immer (D-262)
-            pflege.personentags_umbenennen(con, nur_namen=_vor_version(s.manifest.get("app_version"), (0, 35)))
-            kontonamen.bereinigen(con)  # D-218: ältere Sicherungen können gleichnamige Konten enthalten
+            nacharbeiten(con, s)
+        if nach_einspielen is not None:
+            nach_einspielen(con)
     aid = k.aenderung_id if erg["geaendert"] else None
     return _ergebnis(s, False, erg["geaendert"], aid, erg["unterschied"], erg["betroffen"])
 

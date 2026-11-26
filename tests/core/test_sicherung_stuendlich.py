@@ -127,7 +127,9 @@ def test_zurueck_und_vorwaerts(umgebung):
     # derselbe Stand: nichts zu tun; Stand vor dem Wechsel war schon gesichert (Marke am bestehenden Punkt)
     r = c.post(f"/api/sicherung/punkte/{vorher}/wechseln", params={"bestaetigt": "true"})
     assert r.status_code == 409 and r.json()["fehler"]["code"] == "stand_unveraendert"
-    assert len(punkte(c)["punkte"]) == 4   # a, b, vorher, und a erhielt bei Schritt 2 eine Marke (kein neuer Punkt)
+    p = punkte(c)["punkte"]
+    assert len(p) == 3   # a, b, vorher; beim Vorwärts entsprach der Stand a, a erhielt nur die Marke
+    assert "vor_wiederherstellung" in next(x for x in p if x["kennung"] == a)["marken"]
     assert c.post("/api/sicherung/punkte/xyz/wechseln", params={"bestaetigt": "true"}).status_code == 404
 
 
@@ -187,32 +189,36 @@ def test_beschaedigter_punkt_wird_erkannt_und_neuer_anker(umgebung):
 
 def test_ausduennen_behaelt_stufen_und_alles_bleibt_herstellbar(umgebung):
     config, c, buchen = umgebung
-    zeiten = []
-    t = dt.datetime(2026, 9, 1, 8, 0, tzinfo=UTC)
-    # 70 Tage, je Tag zwei Punkte mit Änderung
-    for tag in range(70):
-        for stunde in (8, 20):
-            zeit = t + dt.timedelta(days=tag, hours=stunde - 8)
-            buchen(tag * 10 + stunde)
-            sp.stunde(config, jetzt=zeit, ausduennen=False)
-            zeiten.append(zeit)
+    import dataclasses
+    config = dataclasses.replace(config, sicherung_tage=8)   # kleine Stufen halten den Test schnell
+    t = dt.datetime(2026, 10, 10, 20, 0, tzinfo=UTC)
+    zeiten = [t + dt.timedelta(days=tag) for tag in range(20)]          # ein Punkt je Tag
+    zeiten += [zeiten[-1] + dt.timedelta(hours=h) for h in (2, 4, 6)]   # und drei in den letzten Stunden
+    for i, zeit in enumerate(zeiten):
+        buchen(100 + i)
+        sp.stunde(config, jetzt=zeit, ausduennen=False)
     jetzt = zeiten[-1]
     sp.ausduennen(config, jetzt=jetzt)
     p = punkte(c)["punkte"]
     behalten = sorted(dt.datetime.fromisoformat(x["zeitpunkt"].replace("Z", "+00:00")) for x in p)
-    letzte_48h = [z for z in zeiten if jetzt - z <= dt.timedelta(hours=48)]
-    assert all(z in behalten for z in letzte_48h)
-    tage = {z.date() for z in behalten if dt.timedelta(hours=48) < jetzt - z <= dt.timedelta(days=30)}
-    assert all(z.replace(hour=20) in behalten for z in zeiten if dt.timedelta(days=3) < jetzt - z <= dt.timedelta(days=29))
-    assert len(tage) >= 27
-    alt = [z for z in behalten if jetzt - z > dt.timedelta(days=30)]
-    assert len(alt) <= 6   # nur Wochenpunkte (und der Anker-Monatsanfang wird aufgelöst)
-    assert len(behalten) < len(zeiten) / 2
+    stunden = [z for z in zeiten if jetzt - z <= dt.timedelta(hours=48)]
+    tage = [z for z in zeiten if dt.timedelta(hours=48) < jetzt - z <= dt.timedelta(days=8)]
+    alt = [z for z in zeiten if jetzt - z > dt.timedelta(days=8)]
+    assert all(z in behalten for z in stunden + tage)
+    wochen = {tuple(z.isocalendar())[:2] for z in alt}
+    assert sorted(z for z in behalten if z in alt) == sorted(max(z for z in alt if tuple(z.isocalendar())[:2] == w)
+                                                           for w in wochen)
     for x in p:
         assert sp.herstellen_pruefen(config, x["kennung"]) is True
-        assert x["groesse_herstellen"] <= sum(y["groesse"] for y in p)
-    # Ketten bleiben kurz: höchstens Anker → Tagespunkt → Stundenpunkte
-    assert max(sp.kettenlaenge(config, x["kennung"]) for x in p) <= 2 + len(letzte_48h)
+    # Ketten bleiben kurz: höchstens Anker → Tages-/Wochenpunkt → Stundenpunkte
+    assert max(sp.kettenlaenge(config, x["kennung"]) for x in p) <= 2 + len(stunden)
+    assert sum(1 for x in p if x["anker"]) <= 2   # je Monat höchstens ein Anker
+    # angeheftete Punkte bleiben auch nach Ablauf aller Stufen
+    k = p[-1]["kennung"]
+    assert c.patch(f"/api/sicherung/punkte/{k}", json={"angeheftet": True}).status_code == 200
+    sp.ausduennen(dataclasses.replace(config, sicherung_wochen=0, sicherung_monate=0), jetzt=jetzt)
+    assert k in {x["kennung"] for x in punkte(c)["punkte"]}
+    assert sp.herstellen_pruefen(config, k) is True
 
 
 def test_protokoll_wird_nach_gesichertem_lauf_gekuerzt(umgebung):
