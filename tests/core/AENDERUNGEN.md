@@ -15,3 +15,7 @@ Ein Eintrag je Änderung eines schon eingecheckten Core-Tests während der Entwi
 | 2026-11-25 | aktionen-sofort | `test_vorschlag_sofort.py::test_blatt_nimmt_die_wirkung_vorweg_und_reiht_die_anfragen` | Reihung und spätes Neuladen stehen in `vorschlag()` (`vorschlagKette`, `this.vorweg.set`) | sie stehen im gemeinsamen Weg `sofort()`, den `vorschlag()` aufruft | Anforderung erweitert: Kategorie, Status, Bestätigen und Tags wirken ebenfalls sofort und teilen sich Reihung und Neuladen. Erwartung an das Verhalten unverändert |
 | 2026-11-26 | kategorie-tastatur | `test_kategorie_tastatur.py::test_tasten_der_suche` | Tastennamen in Anführungszeichen (`"ArrowDown"`) | Tastenname als Wort | Der Test prüfte die Schreibweise statt der Tasten; die Umsetzung führt sie als Schlüssel einer Tabelle. Anforderung unverändert |
 | 2026-11-26 | filter-unbestaetigt | `test_tastenbelegung.py::test_kuerzeltabelle_des_kontoblatts_ist_die_neue_belegung` | Tabelle ohne `f o` | Tabelle mit `f o` | Anforderung erweitert: neuer Filter „Bestätigung fehlt“ mit eigenem Kürzel (D-297). Die übrige Belegung ist unverändert |
+
+- 2026-11-26, `test_markierung_nachruecken.py::test_laden_bestimmt_den_nachfolger` (D-299): Die erste Fassung hatte
+  eine fehlerhaft geklammerte Bedingung (`and`/`or`), die immer zutraf oder immer scheiterte. Vor der Umsetzung
+  durch die eindeutige Prüfung auf `gleicheAbfrage` und die gesetzten Felder ersetzt; nicht abgeschwächt.

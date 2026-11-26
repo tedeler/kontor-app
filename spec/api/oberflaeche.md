@@ -212,6 +212,15 @@ erlaubt. Ein `data-testid` kommt auf einer Seite höchstens einmal vor
   Aufruf mit Abfrage setzt die Felder entsprechend. Ein Filterwechsel
   behält die Auswahl, soweit die Buchungen zur neuen Liste gehören (D-271, vorher: hebt sie auf); die Buchung mit
   dem Fokus wird in die Mitte gerollt und bekommt den Fokus, außer der Fokus steht gerade in einem Eingabefeld.
+- **Nachrücken (D-299):** Fällt beim Neuladen nach einer Änderung (Filter,
+  Sortierung und Gruppierung unverändert) die markierte Buchung aus der
+  Liste, z. B. weil ihre Kategorie nicht mehr zum Filter passt oder sie
+  gelöscht wurde, ist danach die Buchung direkt darunter markiert und hat den
+  Fokus; war es die letzte, die darüber. Bei mehreren markierten Buchungen,
+  die alle herausfallen, zählt die unterste. Bleibt ein Teil der Auswahl,
+  bleibt er markiert, und nur der Fokus geht weiter. Mobil wird die Buchung
+  nur markiert, nicht ausgewählt (D-281). Ein Filterwechsel rückt nicht nach
+  (D-271).
 
 ### 7.2 Buchungsliste
 

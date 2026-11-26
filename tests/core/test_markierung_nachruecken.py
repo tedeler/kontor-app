@@ -19,5 +19,6 @@ def test_laden_bestimmt_den_nachfolger(client):
     assert "nachruecken(" in teil, "laden() lässt keinen Nachfolger nachrücken"
     n = js[js.index("  nachruecken("):]
     n = n[:n.index("\n  }\n")]
-    assert "this.abfrageSchluessel" in teil and "abfrageSchluessel" in n or "gleicheAbfrage" in teil, \
-        "Nachrücken hängt nicht an einer unveränderten Abfrage"
+    assert "gleicheAbfrage" in teil, "Nachrücken hängt nicht an einer unveränderten Abfrage"
+    for teilstueck in ("this.auswahl", "this.fokusId", "this.anker"):
+        assert teilstueck in n, f"{teilstueck} wird beim Nachrücken nicht gesetzt"

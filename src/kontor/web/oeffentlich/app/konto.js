@@ -758,6 +758,11 @@ class Kontoansicht {
     const mail = new Map();
     for (const e of await erwartungen) for (const id of e.buchung_ids) if (!mail.has(id)) mail.set(id, erwartungText(e));
     if (nr !== this.ladeNr) return;
+    // D-299: gleiche Abfrage (nur Daten geändert) – fällt die Markierung heraus, rückt die Buchung darunter nach
+    const schluessel = JSON.stringify([this.konto.id, this.filter, this.sortierung, this.gruppierung || null]);
+    const gleicheAbfrage = schluessel === this.abfrageSchluessel;
+    this.abfrageSchluessel = schluessel;
+    const vorher = gleicheAbfrage ? this.sichtbareIds() : [];
     this.mailBestaetigt = mail;
     this.kandidatenCache = new Map();
     this.verdachte = verdachte;
@@ -766,6 +771,7 @@ class Kontoansicht {
     this.gesamt = gesamt;
     this.summe = summe;
     const ids = new Set(eintraege.map((b) => b.id));
+    if (gleicheAbfrage) this.nachruecken(vorher, ids);
     for (const id of [...this.auswahl]) if (!ids.has(id)) this.auswahl.delete(id);
     if (!ids.has(this.anker)) this.anker = null;
     if (!ids.has(this.fokusId)) this.fokusId = null;
@@ -775,6 +781,30 @@ class Kontoansicht {
     if (!(o && o.nurBeiAenderung && this.bild && this.bild === this.bildVon())) this.listeZeichnen();
     this.zusammenfassungZeichnen();
     this.seite.dataset.geladen = "ja";
+  }
+
+  /** D-299: Fällt die Markierung beim Neuladen aus der Liste (z. B. eine Kategorie passt nicht mehr zum Filter),
+   *  rückt die Buchung direkt unter der untersten herausgefallenen nach, am Ende die darüber. Bleibt ein Teil
+   *  der Auswahl, bleibt es bei ihm; nur der Fokus geht dann zur nächsten verbliebenen Buchung. */
+  nachruecken(vorher, ids) {
+    const weg = (id) => id !== null && id !== undefined && !ids.has(id);
+    const auswahlWeg = this.auswahl.size > 0 && [...this.auswahl].every(weg);
+    if (!auswahlWeg && !weg(this.fokusId)) return;
+    const pos = (id) => vorher.indexOf(id);
+    const gefallen = [...this.auswahl, this.fokusId].filter(weg).filter((id) => pos(id) >= 0);
+    if (!gefallen.length) return;
+    const unten = Math.max(...gefallen.map(pos));
+    let ziel = vorher.slice(unten + 1).find((id) => ids.has(id));
+    if (ziel === undefined) ziel = vorher.slice(0, unten).reverse().find((id) => ids.has(id));
+    if (ziel === undefined) return;
+    if (auswahlWeg) {
+      this.auswahl = oberflaeche.istMobil() ? new Set() : new Set([ziel]);   // mobil nur markiert (D-281)
+      this.anker = ziel;
+      this.fokusId = ziel;
+    } else if (weg(this.fokusId)) {
+      const rest = vorher.slice(pos(this.fokusId) + 1).find((id) => this.auswahl.has(id) && ids.has(id));
+      this.fokusId = rest !== undefined ? rest : ziel;
+    }
   }
 
   async aktualisieren() {
