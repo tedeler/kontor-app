@@ -251,7 +251,11 @@ def _zaehler_lesen(con) -> dict[str, int]:
 
 
 def _erstellen(pfad, modus: str, erstellt: dt.datetime) -> tuple[bytes, str]:
-    con = db.verbinde(pfad)
+    return erstellen_aus(db.verbinde(pfad), modus, erstellt)
+
+
+def erstellen_aus(con, modus: str, erstellt: dt.datetime) -> tuple[bytes, str]:
+    """Sicherungsdatei aus einer offenen App-Datenbank (schließt ``con``); D-302 auch für Datenbanken im Speicher."""
     ziel = sqlite3.connect(":memory:", isolation_level=None)
     try:
         ziel.executescript(_ddl())
