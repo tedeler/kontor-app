@@ -198,9 +198,12 @@ function alteFilterUebernehmen(f, istKategorie) {
   return f;
 }
 
-const SCHNELL_TEIL = /^(?:datum|dt)\s+(?:in|==)\s+(?:heute|[+-]\d+[dwmqy]|dieser_monat|letzter_monat|dieses_jahr|letztes_jahr|vorjahr)$/i;
-// Tastaturkürzel des Kontoblatts (D-167): [Vortaste, Taste, Text, Wirkung]. Ohne Vortaste wirken sie auf die
-// markierten Buchungen; „f“ führt zu den Filtern, „v“ zur Ansicht. Groß-/Kleinschreibung zählt (Umschalt).
+const SCHNELL_TEIL = /^(?:datum|dt)\s+(?:in|==)\s+(?:heute|gestern|[+-]\d+[dwmqy]|diese_woche|letzte_woche|dieser_monat|letzter_monat|dieses_quartal|letztes_quartal|dieses_jahr|letztes_jahr|vorjahr)$/i;
+// Tastaturkürzel des Kontoblatts (D-167, neu geordnet D-292): [Vortaste, Taste, Text, Wirkung, Bedingung]. Ohne
+// Vortaste wirken sie auf die markierten Buchungen; „f“ führt zu den Filtern, „v“ zur Ansicht. Groß-/Kleinschreibung
+// zählt: groß ist das Gegenstück oder die Variante, bei Zeiträumen immer „letzter“. Keine Satzzeichen. `u`/`d`
+// (Markierung bewegen) und `h` (Hilfe) sind global (haupt.js). Bedingung (nur für die Tastaturhilfe): `eine` = genau
+// eine Buchung, `person` = gewählte Person, `bestand` = nur in Bestandskonten.
 const KUERZEL = [
   ["", "k", "Kategorie setzen…", (s) => s.mitZielen((ids, el) => s.kategorieWaehlen(ids, el))],
   ["", "t", "Tags…", (s) => s.mitZielen((ids, el) => s.tagsDialog(ids, el))],
@@ -208,12 +211,12 @@ const KUERZEL = [
   ["", "b", "Als ich bestätigen / zurücknehmen", (s) => s.mitZielen((ids) => {
     const e = s.bestaetigenEintrag(ids);
     if (e) e.tun(); else melde("hinweis", "Bitte oben rechts wählen, wer du bist.");
-  })],
+  }), "person"],
   ["", "a", "Vorschlag annehmen", (s) => s.mitZielen((ids) => s.vorschlagTaste(ids, "annehmen"))],
   ["", "A", "Vorschlag ablehnen", (s) => s.mitZielen((ids) => s.vorschlagTaste(ids, "ablehnen"))],
   ["", "e", "Bearbeiten… (mehrere Felder)", (s) => s.mitZielen((ids, el) => s.mehrfachDialog(ids, el))],
-  ["", "x", "Splitten…", (s) => s.mitZielen((ids, el) => s.einzeln(ids, (b) => splitDialog(b, el)))],
-  ["", "d", "Als Dublette markieren…", (s) => s.mitZielen((ids, el) => {
+  ["", "x", "Splitten…", (s) => s.mitZielen((ids, el) => s.einzeln(ids, (b) => splitDialog(b, el))), "eine"],
+  ["", "X", "Als Dublette markieren…", (s) => s.mitZielen((ids, el) => {
     const d = s.dubletteFuer(ids);
     if (d) dubletteDialog(d, el); else melde("hinweis", "Dafür eine Buchung mit Verdacht oder genau zwei Buchungen markieren.");
   })],
@@ -221,44 +224,72 @@ const KUERZEL = [
     const [x, y] = menuePosition(null, el);
     const e = s.gegenbuchungEintrag(b, x, y, el);
     if (e.aktiv) e.tun(); else melde("hinweis", "Die Buchung hat keine Gegenbuchung.");
-  }))],
+  })), "eine"],
   ["", "m", "Dokument anhängen…", (s) => s.mitZielen((ids) => dateiWaehlen(ids))],
   ["", "M", "E-Mail anhängen…", (s) => s.mitZielen((ids, el) => mailDialog(ids, el))],
   ["", "n", "Neue Buchung erfassen", (s) => erfassenDialog(s.konto.id, tid("buchung-erfassen", s.seite))],
-  ["f", "f", "Filter-Baukasten ein/aus", (s) => s.filterLeisteTaste()],
-  ["f", "u", "mit Unterkonten ein/aus", (s) => s.filterSetzen("unterkonten", s.filter.unterkonten === "true" ? "" : "true")
-    .then(() => s.filterLeisteNeu())],
-  ["f", "U", "mit Unterkategorien ein/aus", (s) => (s.istKategorie ? melde("hinweis", "In einer Kategorie gibt es diesen Filter nicht.")
-    : s.filterSetzen("unterkategorien", s.filter.unterkategorien === "true" ? "" : "true").then(() => s.filterLeisteNeu()))],
-  [`f`, ".", "gleicher Empfänger wie die markierte Buchung", (s) => s.filterWieBuchung("km-filter-empfaenger")],
-  ["f", ",", "gleicher Verwendungszweck", (s) => s.filterWieBuchung("km-filter-zweck")],
-  ["f", ";", "ähnlicher Verwendungszweck", (s) => s.filterWieBuchung("km-filter-zweck-aehnlich")],
-  ["f", "h", "Zeitraum: heute", (s) => s.zeitraumSetzen("heute")],
-  ["f", "w", "Zeitraum: letzte 7 Tage", (s) => s.zeitraumSetzen("-7d")],
-  ["f", "d", "Zeitraum: letzte 30 Tage", (s) => s.zeitraumSetzen("-30d")],
-  ["f", "m", "Zeitraum: dieser Monat", (s) => s.zeitraumSetzen("dieser_monat")],
-  ["f", "l", "Zeitraum: letzter Monat", (s) => s.zeitraumSetzen("letzter_monat")],
-  ["f", "j", "Zeitraum: dieses Jahr", (s) => s.zeitraumSetzen("dieses_jahr")],
-  ["f", "J", "Zeitraum: letztes Jahr", (s) => s.zeitraumSetzen("letztes_jahr")],
-  ["f", "x", "Zeitraum entfernen", (s) => s.zeitraumSetzen(null)],
   ["f", "a", "Filterausdruck", (s) => { if (s.ausdruckEingabe) s.ausdruckEingabe.eingabe.focus(); }],
+  ["f", "f", "Filter-Baukasten ein/aus", (s) => s.filterLeisteTaste()],
   ["f", "0", "alle Filter zurücksetzen", (s) => { const k = tid("filter-zuruecksetzen", s.filterLeiste); if (k) k.click(); }],
+  ["f", "u", "mit Unterkonten ein/aus", (s) => s.filterSetzen("unterkonten", s.filter.unterkonten === "true" ? "" : "true")
+    .then(() => s.filterLeisteNeu()), "bestand"],
+  ["f", "U", "mit Unterkategorien ein/aus", (s) => (s.istKategorie ? melde("hinweis", "In einer Kategorie gibt es diesen Filter nicht.")
+    : s.filterSetzen("unterkategorien", s.filter.unterkategorien === "true" ? "" : "true").then(() => s.filterLeisteNeu())), "bestand"],
+  ["f", "t", "Zeitraum: heute", (s) => s.zeitraumSetzen("heute")],
+  ["f", "T", "Zeitraum: gestern", (s) => s.zeitraumSetzen("gestern")],
+  ["f", "w", "Zeitraum: diese Woche", (s) => s.zeitraumSetzen("diese_woche")],
+  ["f", "W", "Zeitraum: letzte Woche", (s) => s.zeitraumSetzen("letzte_woche")],
+  ["f", "m", "Zeitraum: dieser Monat", (s) => s.zeitraumSetzen("dieser_monat")],
+  ["f", "M", "Zeitraum: letzter Monat", (s) => s.zeitraumSetzen("letzter_monat")],
+  ["f", "q", "Zeitraum: dieses Quartal", (s) => s.zeitraumSetzen("dieses_quartal")],
+  ["f", "Q", "Zeitraum: letztes Quartal", (s) => s.zeitraumSetzen("letztes_quartal")],
+  ["f", "y", "Zeitraum: dieses Jahr", (s) => s.zeitraumSetzen("dieses_jahr")],
+  ["f", "Y", "Zeitraum: letztes Jahr", (s) => s.zeitraumSetzen("letztes_jahr")],
+  ["f", "x", "Zeitraum entfernen", (s) => s.zeitraumSetzen(null)],
+  ["f", "e", "gleicher Empfänger wie die markierte Buchung", (s) => s.filterWieBuchung("km-filter-empfaenger"), "eine"],
+  ["f", "E", "ähnlicher Empfänger", (s) => s.filterWieBuchung("km-filter-empfaenger-aehnlich"), "eine"],
+  ["f", "z", "gleicher Verwendungszweck", (s) => s.filterWieBuchung("km-filter-zweck"), "eine"],
+  ["f", "Z", "ähnlicher Verwendungszweck", (s) => s.filterWieBuchung("km-filter-zweck-aehnlich"), "eine"],
+  ["f", "b", "gleicher Betrag (mit Vorzeichen)", (s) => s.filterWieBuchung("km-filter-betrag"), "eine"],
+  ["f", "B", "gleicher Betrag (ohne Vorzeichen)", (s) => s.filterWieBuchung("km-filter-betrag-absolut"), "eine"],
   ["v", "g", "Gruppierung: nächste Tiefe (keine → Jahr → Monat → Abschnitt → Tag)", (s) => s.gruppierungWeiter()],
-  ["v", "+", "alle Gruppen aufklappen", (s) => s.alleKlappen(false)],
-  ["v", "-", "alle Gruppen zuklappen", (s) => s.alleKlappen(true)],
+  ["v", "k", "alle Gruppen aufklappen", (s) => s.alleKlappen(false)],
+  ["v", "K", "alle Gruppen zuklappen", (s) => s.alleKlappen(true)],
   ["v", "o", "Sortierspalte wechseln", (s) => s.sortierungWechseln(false)],
   ["v", "r", "Sortierrichtung umkehren", (s) => s.sortierungWechseln(true)],
-  ["v", "d", "Panel Einzelheiten ein-/ausklappen", (s) => s.panelUmschalten("details")],
-  ["v", "a", "Spaltenbreiten an den Inhalt anpassen", (s) => s.spalteAnpassen(s.spalten.map(([f]) => f))],
+  ["v", "s", "Spaltenbreiten an den Inhalt anpassen", (s) => s.spalteAnpassen(s.spalten.map(([f]) => f))],
   ["v", "0", "Spaltenbreiten zurücksetzen", (s) => s.spaltenZuruecksetzen()],
-  ["v", ",", "Konto-Einstellungen…", (s) => kontoEinstellungen(s.konto, tid("konto-einstellungen-oeffnen", s.seite))],
+  ["v", "e", "Konto-Einstellungen…", (s) => kontoEinstellungen(s.konto, tid("konto-einstellungen-oeffnen", s.seite))],
 ];
 const VORTASTEN = { f: "Filter", v: "Ansicht" };
 const FOKUSSIERBAR = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-/** Kürzel des Kontoblatts für Hilfe und Befehlspalette: [Tastenfolge, Gruppe, Text]. */
-export function kontoKuerzel() {
-  return KUERZEL.map(([vor, taste, text]) => [vor ? `${vor} ${taste}` : taste, vor ? VORTASTEN[vor] : "Markierte Buchungen", text]);
+const BEDINGUNG_TEXT = {
+  eine: "braucht genau eine markierte Buchung",
+  person: "erst oben rechts wählen, wer du bist",
+};
+
+/** Fokus auf das erste sichtbare Bedienelement im Kopf einer Seite (D-292, `w a`). */
+function kopfFokus(seite) {
+  const kopf = seite && seite.querySelector(".seiten-kopf");
+  const ziel = kopf ? [...kopf.querySelectorAll(FOKUSSIERBAR)].find((el) => el.getClientRects().length) : null;
+  if (ziel) ziel.focus(); else melde("hinweis", "Hier gibt es keine Aktionen.");
+}
+
+/** Kürzel des Kontoblatts für Hilfe und Befehlspalette (D-292): { i, folge, gruppe, text, hinweis }. Mit `seite`
+ *  fehlen Kürzel, die es dort nicht gibt (Unterkonten in einer Kategorie), und `hinweis` nennt, warum ein Kürzel
+ *  gerade nicht wirkt (keine oder mehrere Buchungen markiert, keine Person gewählt). */
+export function kontoKuerzel(seite) {
+  const markiert = seite ? (seite.auswahl.size || (seite.fokusId !== null ? 1 : 0)) : 1;
+  const liste = [];
+  KUERZEL.forEach(([vor, taste, text, , bed], i) => {
+    if (seite && bed === "bestand" && seite.istKategorie) return;
+    let hinweis = "";
+    if (seite && bed === "eine" && markiert !== 1) hinweis = BEDINGUNG_TEXT.eine;
+    if (seite && bed === "person" && !personLesen()) hinweis = BEDINGUNG_TEXT.person;
+    liste.push({ i, folge: vor ? `${vor} ${taste}` : taste, gruppe: vor ? VORTASTEN[vor] : "Markierte Buchungen", text, hinweis });
+  });
+  return liste;
 }
 
 const SPALTEN = [["datum", "Datum", true], ["empfaenger", "Empfänger", true], ["verwendungszweck", "Verwendungszweck"],
@@ -767,7 +798,7 @@ class Kontoansicht {
     this.auswahlSummenEl = h("span", { tid: "auswahl-summen", class: "auswahl-summen", hidden: true });
     const erfassen = knopf("Buchung erfassen", { tid: "buchung-erfassen",
       onclick: (e) => erfassenDialog(this.konto.id, e.currentTarget) });
-    s.append(h("div", { class: "seiten-kopf" }, h("h1", null, this.konto.name),
+    s.append(h("div", { class: "seiten-kopf", tid: "konto-kopf" }, h("h1", null, this.konto.name),
       h("div", { class: "werkzeuge" }, erfassen,
         knopf("Einstellungen…", { tid: "konto-einstellungen-oeffnen", onclick: (e) => kontoEinstellungen(this.konto, e.currentTarget) }))),
     h("div", { class: "listen-info" }, this.anzahlEl, " · Summe ", this.summeEl, h("span", { class: "auswahl-trenner" }, " · "),
@@ -887,7 +918,7 @@ class Kontoansicht {
 
   /** Setzt bzw. ersetzt einen einfachen Datumsteil auf oberster Ebene (Schnellauswahl). */
   mitZeitraum(w) {
-    return this.mitTeil(SCHNELL_TEIL, w === null ? null : w === "heute" ? "datum == heute" : `datum in ${w}`);
+    return this.mitTeil(SCHNELL_TEIL, w === null ? null : w === "heute" || w === "gestern" ? `datum == ${w}` : `datum in ${w}`);
   }
 
   /** Ersetzt Teile auf oberster Ebene, die `muster` erfüllen, durch `neu` (null: nur entfernen). */
@@ -2501,10 +2532,15 @@ class Kontoansicht {
   bereiche() {
     return [
       { taste: "f", text: "Filter", tun: () => this.filterBereichFokus(), el: () => this.ausdruckFilterEl },
+      // D-292: Kopf des Blatts (Buchung erfassen, Einstellungen)
+      { taste: "a", text: "Aktionen", tun: () => kopfFokus(this.seite), el: () => this.seite.querySelector(".seiten-kopf") },
       { taste: "b", text: "Buchungsblatt", tun: () => this.listeFokussieren(), el: () => this.listenSpalte },
       { taste: "e", text: "Einzelheiten", tun: () => this.detailsFokussieren(), el: () => (this.panelEls && this.panelEls.details || {}).el },
     ];
   }
+
+  /** Bedingungen der Kürzel für die Tastaturhilfe (D-292). */
+  kuerzelHilfe() { return kontoKuerzel(this); }
 
   filterBereichFokus() {
     if (this.ausdruckEingabe) this.ausdruckEingabe.eingabe.focus();
@@ -2637,15 +2673,30 @@ class Kontoansicht {
     const aehnlich = zweck
       ? { zweck_aehnlich: zweck, zweck_gleich: "", zweck_leer: "", verwendungszweck: "" }
       : { zweck_leer: "true", zweck_gleich: "", zweck_aehnlich: "", verwendungszweck: "" };
+    // D-292: gleicher Betrag. `betrag` der Ausdruckssprache ist ohne Vorzeichen; das Vorzeichen steckt in `richtung`
+    // (im Kontoblatt aus Sicht des angezeigten Kontos, ausdruecke.md 2.2).
+    const cent = b ? Math.abs(b.betrag || 0) : 0;
+    const euro = `${Math.floor(cent / 100)}.${String(cent % 100).padStart(2, "0")}`;
+    const richtung = !b ? "" : this.istUmbuchung(b) ? "umbuchung" : (b.betrag || 0) < 0 ? "ausgabe" : "einnahme";
+    const BETRAG_TEIL = /^(?:bet|betrag)\s*(?:==|!=|>=|<=|>|<)|^(?:dir|richtung)\s*(?:==|!=)/;
     return { tid: "km-filter", text: "Filter", aktiv: !!b, kinder: [
-      { tid: "km-filter-empfaenger", text: "gleicher Empfänger", aktiv: !!(b && b.empfaenger),
+      { tid: "km-filter-empfaenger", kuerzel: "f e", text: "gleicher Empfänger", aktiv: !!(b && b.empfaenger),
         tun: () => this.ausdruckSetzen(this.mitTeil(/^(?:empf|empfänger|empfaenger)\s*==/, `empf == ${qText(b.empfaenger.name)}`)) },
-      { tid: "km-filter-zweck", text: "Gleicher Verwendungszweck",
+      { tid: "km-filter-zweck", kuerzel: "f z", text: "Gleicher Verwendungszweck",
         tun: () => this.ausdruckSetzen(this.mitTeil(/^(?:vwz|verwendungszweck)\s*==/, `vwz == ${qText(zweck)}`)) },
-      { tid: "km-filter-zweck-aehnlich", text: "ähnlicher Verwendungszweck", tun: () => this.filterAnwenden(aehnlich) },
-      { tid: "km-filter-empfaenger-aehnlich", text: "ähnlicher Empfänger", aktiv: !!(b && b.empfaenger),
+      { tid: "km-filter-zweck-aehnlich", kuerzel: "f ⇧Z", text: "ähnlicher Verwendungszweck", tun: () => this.filterAnwenden(aehnlich) },
+      { tid: "km-filter-empfaenger-aehnlich", kuerzel: "f ⇧E", text: "ähnlicher Empfänger", aktiv: !!(b && b.empfaenger),
         tun: () => this.filterAnwenden({ empfaenger_aehnlich: b.empfaenger.name, empfaenger_id: "", ohne_empfaenger: "" }) },
+      { tid: "km-filter-betrag", kuerzel: "f b", text: "gleicher Betrag",
+        tun: () => this.ausdruckSetzen(this.mitTeil(BETRAG_TEIL, `bet == ${euro} and dir == "${richtung}"`)) },
+      { tid: "km-filter-betrag-absolut", kuerzel: "f ⇧B", text: "gleicher Betrag (ohne Vorzeichen)",
+        tun: () => this.ausdruckSetzen(this.mitTeil(BETRAG_TEIL, `bet == ${euro}`)) },
     ] };
+  }
+
+  /** Alle Splits auf Bestandskonten: Richtung „umbuchung“ (ausdruecke.md 2.2). */
+  istUmbuchung(b) {
+    return (b.splits || []).length > 0 && b.splits.every((s) => BESTAND.has((kontoNach(s.konto_id) || {}).art));
   }
 
   async filterAnwenden(teil) {
@@ -2694,7 +2745,7 @@ class Kontoansicht {
       { tid: "km-kategorie", kuerzel: "k", text: "Kategorie setzen…", tun: () => this.kategorieWaehlen(ids, ausloeser) },
       { tid: "km-tags", kuerzel: "t", text: "Tags…", tun: () => this.tagsDialog(ids, ausloeser) },
       { tid: "km-splitten", kuerzel: "x", text: "Splitten…", aktiv: eine, tun: () => splitDialog(b, ausloeser) },
-      { tid: "km-dublette", kuerzel: "d", text: "Als Dublette markieren…", aktiv: !!dublette,
+      { tid: "km-dublette", kuerzel: "⇧X", text: "Als Dublette markieren…", aktiv: !!dublette,
         tun: () => { if (dublette) dubletteDialog(dublette, ausloeser); } },
       { tid: "km-vorschlag-annehmen", kuerzel: "a", text: "Vorschlag annehmen", aktiv: mitVorschlag, tun: () => this.vorschlag(null, ids, "annehmen") },
       { tid: "km-vorschlag-ablehnen", kuerzel: "⇧A", text: "Vorschlag ablehnen", aktiv: mitVorschlag, tun: () => this.vorschlag(null, ids, "ablehnen") },

@@ -3,7 +3,7 @@
 Regeln: feste Zuordnungen mit UND-verknüpften Bedingungen auf Empfänger,
 Verwendungszweck, Regelbetrag und Konto – oder (D-185) mit einem Ausdruck der Kontor-Ausdruckssprache
 (``ausdruck.py``). Ein Ausdruck wird als einzige Bedingung ``{"feld": "ausdruck", "operator": "ausdruck",
-"wert": <Baum>}`` in ``bedingungen`` gespeichert; der Baum hält Verweise als IDs. Reihenfolge (D-292): erst alle
+"wert": <Baum>}`` in ``bedingungen`` gespeichert; der Baum hält Verweise als IDs. Reihenfolge (D-295): erst alle
 eigenen, dann alle automatisch angelegten Regeln, je Gruppe ``prioritaet`` aufsteigend, dann ``id``; die erste
 passende aktive Regel gewinnt. Gesetzte
 Kategorien sind Vorschläge, bis sie bestätigt oder erledigt sind.
@@ -247,7 +247,7 @@ def regel_dict(r, bez: ausdruck.Bezuege | None = None) -> dict:
 _AUSWAHL = ("SELECT r.*, (ra.regel_id IS NOT NULL) AS automatisch, ra.empfaenger_id AS auto_empfaenger_id,"
             " (SELECT group_concat(rt.tag_id) FROM regel_tag rt WHERE rt.regel_id = r.id) AS tag_liste FROM regel r"
             " LEFT JOIN regel_automatisch ra ON ra.regel_id = r.id")
-_REIHENFOLGE = "automatisch, r.prioritaet, r.id"   # D-292: eigene Regeln vor automatisch angelegten
+_REIHENFOLGE = "automatisch, r.prioritaet, r.id"   # D-295: eigene Regeln vor automatisch angelegten
 
 
 def regel_zeilen(con, ids: list[int]) -> list:
@@ -367,7 +367,7 @@ def regel_loeschen(con, rid: int) -> None:
 
 def reihenfolge_setzen(con, ids: list[int]) -> list[dict]:
     """POST /api/regeln/reihenfolge (Konzept 6.3): vollständige ID-Liste → Priorität 10, 20, … Die Gruppen bleiben
-    (D-292): erst die eigenen Regeln in der Reihenfolge der Liste, dann die automatisch angelegten."""
+    (D-295): erst die eigenen Regeln in der Reihenfolge der Liste, dann die automatisch angelegten."""
     vorhanden = [r["id"] for r in con.execute("SELECT id FROM regel ORDER BY prioritaet, id")]
     if sorted(ids) != sorted(vorhanden):
         raise ApiFehler(422, "validierung", "Die Liste muss jede Regel genau einmal enthalten.",
@@ -382,7 +382,7 @@ def reihenfolge_setzen(con, ids: list[int]) -> list[dict]:
 
 
 def uebernehmen(con, rid: int) -> dict:
-    """POST /api/regeln/{id}/uebernehmen (D-292): Eine automatisch angelegte Regel wird eine eigene am Ende der eigenen
+    """POST /api/regeln/{id}/uebernehmen (D-295): Eine automatisch angelegte Regel wird eine eigene am Ende der eigenen
     Regeln. Bedingung, Kategorie, Tags und Aktiv bleiben. Der Empfänger wird gesperrt, damit für ihn keine neue
     automatische Regel entsteht, auch wenn die übernommene Regel später gelöscht oder geändert wird."""
     alt = regel_lesen(con, rid)
@@ -630,7 +630,7 @@ def _bewerten(con, baum_: dict, kat: int | None, rid: int | None, ids: list[int]
     art_von = kontoarten(con)
     alle = regeln_liste(con, mit_ausdruck=False)
     andere = [r for r in alle if r["aktiv"] and r["id"] != rid]
-    if rid is not None:   # nur Regeln davor verdecken (Reihenfolge der Liste, D-292)
+    if rid is not None:   # nur Regeln davor verdecken (Reihenfolge der Liste, D-295)
         davor = {r["id"] for r in alle[:[r["id"] for r in alle].index(rid)]}
         andere = [r for r in andere if r["id"] in davor]
     aw = ausdruck.Auswerter(heute, markieren=mit_zeilen)

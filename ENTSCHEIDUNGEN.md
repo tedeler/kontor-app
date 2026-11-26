@@ -4397,8 +4397,79 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - **Offen:** Ein dritter Lauf desselben CI-Jobs blieb in der Gesamtsuite mit Browser hängen, bis die Frist von
   12 Minuten ablief (einmal, nicht nachgestellt; zwei Läufe der Suite auf einem Diagnose-Branch liefen durch).
 
+## D-292 Tastenbelegung systematisiert (Feature `tastenbelegung`, 2026-11-26)
 
-## D-292 Eigene Regeln vor automatisch angelegten, Übernehmen als eigene Regel (Feature `regelgruppen`, 2026-11-26)
+- **Anlass:** Auftrag vom 2026-11-26: die Tastenkürzel systematisch ordnen; `u`/`d` bewegen die Markierung im
+  Kontoblatt wie die Pfeiltasten; `w` bietet je Blatt sinnvolle Ziele; Tastaturhilfe je Blatt. Die Belegung wurde
+  in mehreren Runden mit dem Auftraggeber abgestimmt (Projektdokument `feature-tastenbelegung.md`).
+- **Entscheidung:** Vertrag `oberflaeche.md` 46. Regeln: einzelne Buchstaben = Tätigkeiten, Vortasten `w`/`f`/`v`
+  = Ziele; klein = Grundform, groß = Gegenstück bzw. Variante, bei Zeiträumen groß = „letzter“; keine
+  Satzzeichen; `0` setzt zurück, `x` entfernt.
+  - `u`/`d`/`U`/`D` global (`BEWEGUNG` in `haupt.js`): gehen als Pfeiltaste an das fokussierte Element. Liegt der
+    Fokus nicht im Blatt, führt der erste Druck dorthin. Tabellen ohne eigene Zeilentastatur bekommen Pfeil
+    auf/ab zur Nachbarzeile (`zeileWeiter`), damit `u`/`d` dort wirken.
+  - Dublette `d` → `X` (Gegenstück von `x` Splitten). `?` → `h`, `/` entfällt (`w s`).
+  - Zeiträume `f t T w W m M q Q y Y`; „letzte 7/30 Tage“ nur noch als Knopf (`f w` heißt jetzt „diese Woche“).
+  - Filter wie die markierte Buchung `f e E z Z b B`; `f b` = `bet == … and dir == "…"`, `f B` = `bet == …`;
+    auch im Untermenü `km-filter` (`km-filter-betrag`, `km-filter-betrag-absolut`).
+  - Ansicht `v g k K o r s 0 e`; `v d` (Panel) entfällt, `w e` klappt das Panel auf.
+  - `w` je Blatt: Seiten ohne `bereiche()` bekommen ihre Ziele aus `BLATT_ZIELE` (Name der Seite → Taste, Text,
+    Selektor); `w a` = Kopf der Seite (`.seiten-kopf`), wenn er Bedienelemente hat. Nicht sichtbare Ziele fehlen.
+  - Tastaturhilfe je Blatt (`tastatur-hilfe-blatt`, `-ueberall`, `-liste`, `-alle`); `kontoKuerzel(seite)` nennt
+    für die Hilfe, was gerade nicht wirkt.
+- **Alte Folgen** entfallen ohne Übergang und werden als „nicht belegt“ gemeldet.
+- **Grenzen:** Auf der Finanzübersicht gibt es keine Knöpfe im Kopf, also kein `w a`. Die Mail-Liste und die
+  Tabellen sind nur stichprobenartig im Browser geprüft (Finanzübersicht, Konten, Kategorien, Empfänger,
+  Einstellungen). Der Service-Worker-Cache heißt `kontor-huelle-45`.
+- **Tests:** `tests/core/test_tastenbelegung.py`, `tests/test_browser_tastenbelegung.py`; angepasst
+  `tests/test_browser_tastatur.py` sowie in `gesamt-tests` M8 und M28 (`TESTUMBAU.md`).
+
+## D-293 Kein Umbruch mitten im Wort in Tabellen (Feature `tabellenbreite`, 2026-11-26)
+
+- **Anlass:** Meldung vom 2026-11-26 mit Bildschirmfoto: In der Finanzübersicht stand am Handy „Ausgaben“ Buchstabe
+  für Buchstabe untereinander; alle Tabellen prüfen und Spalten im Zweifel verbreitern.
+- **Befund:** Geprüft mit den Demodaten (D-285) auf allen Seiten, zwölf Berichten und sechs Einstellungsbereichen in
+  den Breiten 390, 768, 1024 und 1440 px (Suche nach Wörtern, die über mehrere Zeilen laufen). Ursachen:
+  - `overflow-wrap: anywhere` an allen Tabellenzellen und Karten. Es macht die Mindestbreite einer Spalte fast
+    null; bei knappem Platz schrumpfte der Browser Spalten bis auf einzelne Buchstaben (Tilgungsplan, Konten,
+    Empfänger, Was kommt noch, Konfiguration, Lernmodell bei 768 px).
+  - Am Handy bekam die `caption` einer Tabelle als Karten (Finanzübersicht) nur die Breite eines Buchstabens.
+  - Regelliste bei 768 px: drei Knöpfe neben dem Inhalt ließen ihm etwa 100 px; Jahresraster: „September“ in
+    einer Kachel von 65 px.
+- **Entscheidung:**
+  - Zellen und Karten mit `overflow-wrap: break-word`: Spalten sind mindestens so breit wie ihr längstes Wort.
+    `anywhere` nur noch für Code, Mail-Links und `.technisch`; Werte der Konfiguration mindestens 7rem breit.
+  - Jede `table.tabelle` bekommt einen Rahmen `.tabelle-rahmen` mit `overflow-x: auto` (MutationObserver in
+    `haupt.js`, nicht in der Buchungsliste). Breite Tabellen rollen dort statt der ganzen Seite.
+  - Mobile Karten: `caption` als Block. Lernmodell-Kategorien als Karten, Prozentangabe mit festem Leerzeichen.
+  - Desktop bis 1100 px: Regelknöpfe unter dem Inhalt, Jahresraster in vier Spalten.
+- **Bleibt:** Berichtstabellen mit `white-space: nowrap` (D-217) rollen wie bisher in ihrem Rahmen; technische
+  Zeichenketten (URLs in der Konfiguration, Mail-Adressen) brechen weiter innerhalb der Spalte um.
+- **Tests:** `tests/core/test_tabellenbreite.py`, `tests/test_browser_tabellenbreite.py` (drei Breiten, acht
+  Seiten; scheitert ohne die Änderung). Service-Worker-Cache `kontor-huelle-46`.
+
+## D-294 Änderungsprotokoll neu gestaltet (Feature `protokoll-gestaltung`, 2026-11-26)
+
+- **Anlass:** Der Auftraggeber fand das Änderungsprotokoll hässlich: eine nummerierte Liste mit drei gleich lauten
+  Knöpfen je Zeile, Zeitpunkt und Quelle ohne Abstand, technische Texte („sync_saldoausgleich“, „(1 Objekt)“), auf
+  dem Handy je Eintrag fast ein Drittel des Bildschirms.
+- **Entscheidung:** Gliederung nach Tagen in Karten; je Eintrag ein Raster aus Uhrzeit, farbiger Marke der Quelle
+  (Töne der Navigationsgruppen), Beschreibung als Knopf zu den Einzelheiten und einer Zeile mit dem betroffenen
+  Objekt bzw. dem Umfang; „Rückgängig“ und „Bis hierher“ rechts, gedämpft bis zum Zeigen. Filter nach Quellen
+  über den vorhandenen Parameter `quelle`. Das Fenster der Einzelheiten bekommt Kacheln im Kopf, Karten je Objekt
+  und lesbare Werte. Spezifikation `oberflaeche.md` 48.
+- **Server:** Beschreibung für `sync_saldoausgleich` ergänzt; ältere Einträge mit dem rohen Namen zeigt die
+  Oberfläche lesbar an. Ein Core-Test prüft, dass jede benutzte Aktion eine Beschreibung hat.
+- **Selbst entschieden:** „Bis hierher“ nur ohne Filter (sonst würden ausgeblendete Änderungen mit
+  zurückgenommen); der Knopf heißt sichtbar „Bis hierher“, die Bestätigung weiter „Bis hierher rückgängig“.
+  „Heute“/„Gestern“ nach der Uhr des Browsers. Der Filter wird nicht gemerkt. Die Seite liegt jetzt in
+  `app/aenderung.js` (zusammen mit dem Fenster), `seiten.js` reicht sie weiter.
+- **Unverändert:** alle `data-testid`, `data-quelle`, `data-wirksam`, die Klasse `bis-markiert` und das Verhalten
+  von Rückgängig (13.9, 25.1, 41.8).
+- **Tests:** `tests/core/test_protokoll_gestaltung.py`, `tests/test_browser_protokoll.py`; bestehende Tests
+  unverändert grün.
+
+## D-295 Eigene Regeln vor automatisch angelegten, Übernehmen als eigene Regel (Feature `regelgruppen`, 2026-11-26)
 
 - **Anlass:** Der Auftraggeber möchte die Regeln ordnen, getrennt nach eigenen und automatisch angelegten (D-179).
   Weil die Reihenfolge zugleich die Priorität ist, ist das keine reine Anzeige. Mit dem Auftraggeber abgestimmt

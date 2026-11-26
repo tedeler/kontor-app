@@ -919,6 +919,60 @@ const BEREICH_ZIELE = [
   ["x", "aktuellen Tab schließen", () => tabSchliessen()],
 ];
 const TASTEN_TEXT = { ArrowLeft: "←", ArrowRight: "→" };
+// D-292: Ziele je Blatt für Seiten ohne eigenes `bereiche()`: Name der Seite → [Taste, Text, Selektor]. `w a`
+// (Kopf der Seite) und `w b` (Blatt) gibt es überall; `w b` nimmt den Selektor des Blatts, sonst das erste
+// Bedienelement. Angeboten wird nur, was auf der Seite sichtbar ist.
+const T = (k) => `[data-testid="${k}"]`;
+const BLATT_ZIELE = {
+  uebersicht: [["b", "Kontentabelle", T("uebersicht-tabelle")], ["k", "Kategorientabellen", T("uebersicht-kategorien")],
+    ["o", "offene Zahlungen", T("kachel-erwartet")]],
+  konten: [["b", "Kontentabelle", T("kontenbaum")]],
+  kategorien: [["b", "Kategorienbaum", T("kategorienbaum")]],
+  tags: [["b", "Tag-Liste", T("tag-liste")], ["e", "Buchungen des Tags", T("tag-buchungen")]],
+  empfaenger: [["b", "Empfängerliste", T("empfaenger-liste")], ["f", "Suche", T("empfaenger-suche")]],
+  mail: [["b", "Mail-Liste", T("mail-liste")], ["f", "Suche und Filter", T("mail-suche")], ["e", "Lesebereich", T("mail-lesen")],
+    ["o", "Zuordnungen der Mail", T("mail-zuordnungen")]],
+  erwartet: [["b", "Liste", T("erwartet-liste")], ["f", "Suche und Filter", T("erwartet-suche")]],
+  berichte: [["b", "Tabelle des Berichts", "table"]],
+  regeln: [["b", "Regelliste", T("regel-liste")]],
+  einstellungen: [["b", "Liste der Bereiche", T("einstellungen-nav")], ["f", "Einstellung suchen", T("einstellungen-suche")],
+    ["e", "Inhalt des Bereichs", '[data-testid^="einstellungen-bereich-"]:not([hidden]):not([data-testid="einstellungen-bereich-titel"])']],
+  kredit: [["b", "Tilgungsplan", T("tilgungsplan")]],
+  kredite: [["b", "Liste", T("kredite-liste")]],
+  protokoll: [["b", "Liste", T("protokoll-liste")]],
+  dubletten: [["b", "Liste", T("dubletten-liste")]],
+};
+
+const ZEILE_SEL = 'tr[tabindex], [role="row"][tabindex], [role="treeitem"][tabindex]';
+
+/** Fokus in ein Element: die markierte bzw. fokussierbare Zeile, sonst das erste Bedienelement, sonst das Element. */
+function fokusIn(el) {
+  if (!el) return;
+  if (el.matches(FOKUSSIERBAR) && !el.matches("table, [role=tree], [role=grid]")) { el.focus(); return; }
+  // Vorrang: markierte Zeile, dann eine Zeile der Liste, dann irgendein Bedienelement
+  for (const sel of ['[aria-selected="true"][tabindex], [aria-current][tabindex]', ZEILE_SEL, FOKUSSIERBAR]) {
+    const z = [...el.querySelectorAll(sel)].find(sichtbar);
+    if (z) { z.focus(); return; }
+  }
+  el.tabIndex = -1;
+  el.focus();
+}
+
+function kopfZiel() {
+  const kopf = aktuell && aktuell.el && aktuell.el.isConnected ? aktuell.el.querySelector(".seiten-kopf") : null;
+  return kopf && [...kopf.querySelectorAll(FOKUSSIERBAR)].some(sichtbar) ? kopf : null;
+}
+
+/** Ziele des angezeigten Blatts: `bereiche()` der Seite oder die Tabelle BLATT_ZIELE. */
+function blattZiele() {
+  if (!aktuell || !aktuell.el || !aktuell.el.isConnected) return [];
+  if (aktuell.seite && aktuell.seite.bereiche) return aktuell.seite.bereiche().map((x) => ({ ...x, blatt: true }));
+  const wurzel = aktuell.el;
+  const ziele = (BLATT_ZIELE[aktuell.name] || []).map(([taste, text, sel]) => ({
+    taste, text, blatt: true, el: () => wurzel.querySelector(sel), tun: () => fokusIn(wurzel.querySelector(sel)) }));
+  if (kopfZiel()) ziele.unshift({ taste: "a", text: "Aktionen", blatt: true, el: kopfZiel, tun: () => fokusIn(kopfZiel()) });
+  return ziele;
+}
 let bereichOffen = false;
 let bereichHinweis = null;
 
@@ -926,7 +980,8 @@ const sichtbar = (el) => !!(el && el.isConnected && el.getClientRects().length);
 
 /** Alle Ziele der aktuellen Ansicht: die der Seite, dann die allgemeinen (ohne von der Seite belegte Tasten). */
 function bereichZiele() {
-  const s = aktuell && aktuell.el && aktuell.el.isConnected && aktuell.seite && aktuell.seite.bereiche ? aktuell.seite.bereiche() : [];
+  // D-292: Ziele des Blatts, die gerade nicht sichtbar sind, fehlen (auch in Hinweis, Hilfe und Palette)
+  const s = blattZiele().filter((x) => !x.el || sichtbar(x.el()));
   const allgemein = BEREICH_ZIELE.map(([taste, text, tun, el]) => ({ taste, text, tun, el }));
   return [...allgemein.filter((a) => !s.some((x) => x.taste === a.taste)), ...s];
 }
@@ -1056,8 +1111,8 @@ function palette(ausloeser) {
   if (tid("befehlspalette")) return;
   // im Kontoblatt dessen Kürzel als Befehle (D-167), mit der Tastenfolge im Text
   const seite = aktuell && aktuell.seite && aktuell.seite.kuerzelAusfuehren ? aktuell.seite : null;
-  const konto = seite ? kontoKuerzel().map(([k, g, text], i) => ({ id: `kontoblatt-${i}`,
-    text: `Kontoblatt (${g}): ${text} [${k}]`, tun: () => seite.kuerzelAusfuehren(i) })) : [];
+  const konto = seite ? kontoKuerzel(seite).map((k) => ({ id: `kontoblatt-${k.i}`,
+    text: `Kontoblatt (${k.gruppe}): ${k.text} [${k.folge}]`, tun: () => seite.kuerzelAusfuehren(k.i) })) : [];
   const eintraege = BEFEHLE.filter((b) => !b[3] || b[3]()).map(([id, text, tun]) => ({ id, text, tun }))
     .concat(stamm.konten.filter((k) => BESTAND.has(k.art) && !k.geschlossen).sort(nachName)
       .map((k) => ({ id: `konto-${k.id}`, text: `Konto öffnen: ${k.name}`, tun: () => gehe(`/konten/${k.id}`) })))
@@ -1105,30 +1160,130 @@ function palette(ausloeser) {
     fokus: (box) => box.querySelector("[data-testid=befehlspalette-eingabe]") });   // M26 36.5 (D-172)
 }
 
+// ------------------------------------------------------------------ Tastaturhilfe je Blatt (D-292)
+const HILFE_UEBERALL = [["Strg+K, ⌘+K, Strg+Umschalt+P", "Befehlspalette"], ["h", "diese Hilfe"],
+  ["Strg+Z", "Rückgängig"], ["Strg+Umschalt+Z, Strg+Y", "Wiederholen"], ["Alt+1 … Alt+7", "Finanzübersicht … Einstellungen"],
+  ["F6, Umschalt+F6", "nächster / vorheriger Bereich (auch aus Textfeldern)"],
+  ["Esc", "Menü/Dialog schließen, sonst Auswahl leeren; aus Navigation, Tab-Leiste und Einzelheiten zurück ins Blatt"]];
+const BUCHUNGSLISTE = [["↑ ↓, u d", "Buchung wählen"], ["Umschalt+↑ ↓, U D", "Bereich markieren"],
+  ["Strg+↑ ↓", "nur den Fokus bewegen"], ["Pos1, Ende, Bild↑, Bild↓", "erste / letzte Buchung, seitenweise"],
+  ["Leertaste", "Buchung zur Auswahl hinzu/weg"], ["Strg+A", "alle Buchungen auswählen"], ["Enter", "Einzelheiten zeigen"],
+  ["F2", "Verwendungszweck bearbeiten"], ["Entf", "Auswahl löschen (mit Rückfrage)"],
+  ["Umschalt+F10, Kontextmenü-Taste", "Kontextmenü (mit Alt: erweitert)"], ["← → auf einem Gruppenbalken", "Gruppe zu- / aufklappen"]];
+const BAUM = [["↑ ↓, u d", "Eintrag wählen"], ["Pos1, Ende", "erster / letzter Eintrag"], ["← →", "zu- / aufklappen"],
+  ["Enter", "öffnen"], ["Leertaste", "markieren"], ["Umschalt+F10, Kontextmenü-Taste", "Kontextmenü"]];
+// Tasten der Liste je Blatt: [Überschrift, Zeilen]
+const HILFE_LISTE = {
+  konto: ["Buchungsliste", BUCHUNGSLISTE],
+  empfaenger: ["Empfängerliste", [["↑ ↓, u d", "Empfänger wählen"], ["Umschalt+↑ ↓, U D", "Bereich markieren"],
+    ["Strg+↑ ↓", "nur den Fokus bewegen"], ["Pos1, Ende", "erster / letzter"], ["Leertaste", "zur Auswahl hinzu/weg"],
+    ["Strg+A", "alle auswählen"], ["Enter, F2", "Empfänger bearbeiten"], ["Umschalt+F10, Kontextmenü-Taste", "Kontextmenü"]]],
+  konten: ["Kontentabelle", [["↑ ↓, u d", "Konto wählen"], ["Enter", "Konto öffnen"],
+    ["Umschalt+F10, Kontextmenü-Taste", "Kontextmenü"]]],
+  kategorien: ["Kategorienbaum", BAUM],
+  mail: ["Mail-Liste", [["↑ ↓, u d", "vorige / nächste Mail"], ["Enter", "in den Lesebereich"]]],
+  erwartet: ["Liste", [["↑ ↓, u d", "Zeile wählen"], ["Enter", "Details und Zuordnung"],
+    ["Umschalt+F10, Kontextmenü-Taste", "Kontextmenü"]]],
+  tags: ["Tag-Liste", [["↑ ↓, u d", "Tag wählen"], ["Enter, Leertaste", "Buchungen des Tags zeigen"]]],
+  berichte: ["Tabelle", [["↑ ↓, u d", "Zeile wählen"], ["Enter, Leertaste", "Einzelbuchungen bzw. Zoom"]]],
+  uebersicht: ["Kontentabelle", [["↑ ↓, u d", "Konto wählen"], ["Enter", "Konto öffnen"],
+    ["Umschalt+F10, Kontextmenü-Taste", "Kontextmenü"]]],
+  regeln: ["Regelliste", [["Alt+↑ ↓ am Griff", "Regel nach oben / unten"]]],
+  einstellungen: ["Einstellung suchen", [["Enter", "ersten Treffer öffnen"], ["↓ ↑", "durch die Treffer"], ["Esc", "Suche leeren"]]],
+};
+const BLATT_NAMEN = { konto: "Kontoblatt", empfaenger: "Empfänger", konten: "Konten", kategorien: "Kategorien", mail: "Mail",
+  erwartet: "Was kommt noch?", tags: "Tags", berichte: "Berichte", uebersicht: "Finanzübersicht", regeln: "Regeln",
+  einstellungen: "Einstellungen" };
+const GRUPPEN_TID = { Filter: "filter", Ansicht: "ansicht", "Markierte Buchungen": "aktionen" };
+
+/** Kürzel des Kontoblatts nach Gruppen; ohne Seite ohne Zustand (für „alle Blätter“). */
+function kontoGruppen(seite) {
+  const gruppen = new Map();
+  for (const k of kontoKuerzel(seite)) {
+    if (!gruppen.has(k.gruppe)) gruppen.set(k.gruppe, []);
+    gruppen.get(k.gruppe).push(k);
+  }
+  return gruppen;
+}
+
 function tastaturHilfe() {
   if (tid("tastatur-hilfe")) return;
-  const K = [["Strg+K, ⌘+K, Strg+Umschalt+P", "Befehlspalette"], ["/", "Suche"], ["?", "diese Hilfe"],
-    ["Strg+Z", "Rückgängig"], ["Strg+Umschalt+Z, Strg+Y", "Wiederholen"], ["Alt+1 … Alt+7", "Finanzübersicht … Einstellungen"],
-    ["Esc", "Menü/Dialog schließen, sonst Auswahl leeren; aus Navigation, Tab-Leiste und Einzelheiten zurück ins Blatt"],
-    ["F6, Umschalt+F6", "nächster / vorheriger Bereich (auch aus Textfeldern)"], ["Pfeiltasten, Pos1, Ende, Bild↑, Bild↓", "Buchung wählen"],
-    ["Umschalt+Pfeil", "Bereich auswählen"], ["Strg+Pfeil", "nur den Fokus bewegen"], ["Leertaste", "Buchung zur Auswahl hinzu/weg"],
-    ["Strg+A", "alle Buchungen auswählen"], ["F2", "Verwendungszweck bearbeiten"], ["Entf", "Auswahl löschen (mit Rückfrage)"],
-    ["Enter", "Einzelheiten zeigen"], ["Umschalt+F10, Kontextmenü-Taste", "Kontextmenü"]];
-  const zeile = ([k, w]) => h("tr", null, h("th", { scope: "row" }, h("kbd", null, k)), h("td", null, w));
-  // im Kontoblatt zusätzlich dessen Kürzel, nach Gruppen (D-167)
-  const imKonto = !!(aktuell && aktuell.seite && aktuell.seite.kuerzel);
-  const gruppen = new Map();
-  if (imKonto) for (const [k, g, w] of kontoKuerzel()) { if (!gruppen.has(g)) gruppen.set(g, []); gruppen.get(g).push([k, w]); }
+  const zeile = ([k, w, hinweis]) => h("tr", hinweis ? { class: "inaktiv", "aria-disabled": "true" } : null,
+    h("th", { scope: "row" }, h("kbd", null, k)), h("td", null, w, hinweis ? h("span", { class: "klein" }, ` – ${hinweis}`) : null));
+  const tabelleVon = (kennung, zeilen) => h("table", { class: "tabelle", tid: kennung }, h("tbody", null, zeilen.map(zeile)));
+  const name = aktuell && aktuell.el && aktuell.el.isConnected ? aktuell.name : null;
+  const ueberschrift = aktuell && aktuell.el && aktuell.el.querySelector("h1") ? aktuell.el.querySelector("h1").textContent : "";
+  const blattName = BLATT_NAMEN[name] || ueberschrift || "diese Seite";
+  const seite = aktuell && aktuell.seite && aktuell.seite.kuerzelHilfe ? aktuell.seite : null;
+  const listeTeil = (n, kennung) => {
+    const l = HILFE_LISTE[n];
+    return l ? [h("h3", null, l[0]), tabelleVon(kennung, l[1])] : [];
+  };
+  const kontoTeil = (s, praefix) => [...kontoGruppen(s)].map(([g, liste]) => [h("h3", null, `Kontoblatt – ${g}`),
+    tabelleVon(`${praefix}${GRUPPEN_TID[g]}`, liste.map((k) => [k.folge, k.text, k.hinweis]))]).flat();
   dialog("tastatur-hilfe", "Tastaturkürzel", (inhalt, d) => {
-    inhalt.append(h("table", { class: "tabelle" }, h("tbody", null, K.map(zeile))),
+    const weitere = h("div", { tid: "tastatur-hilfe-weitere", hidden: true });
+    const alle = h("input", { type: "checkbox", tid: "tastatur-hilfe-alle" });
+    alle.addEventListener("change", () => {
+      if (alle.checked && !weitere.childElementCount) {
+        for (const n of Object.keys(HILFE_LISTE)) {
+          if (n === name) continue;
+          weitere.append(h("h3", { class: "hilfe-blatt" }, BLATT_NAMEN[n]), ...listeTeil(n, `tastatur-hilfe-liste-${n}`));
+          if (n === "konto") weitere.append(...kontoTeil(null, "tastatur-hilfe-alle-"));
+        }
+      }
+      weitere.hidden = !alle.checked;
+    });
+    inhalt.append(
+      h("p", { tid: "tastatur-hilfe-blatt", "data-blatt": name || "" }, `Für: ${blattName}`),
+      h("h3", null, "Überall"), tabelleVon("tastatur-hilfe-ueberall", HILFE_UEBERALL),
       h("h3", null, "Bereich wechseln"),
-      h("table", { class: "tabelle", tid: "tastatur-hilfe-bereiche" },
-        h("tbody", null, bereichTexte().map(([k, w]) => zeile([`${BEREICH_VORTASTE} ${k}`, w])))),
-      ...[...gruppen].map(([g, liste]) => [h("h3", null, `Kontoblatt – ${g}`),
-        h("table", { class: "tabelle", tid: `tastatur-hilfe-${g === "Filter" ? "filter" : g === "Ansicht" ? "ansicht" : "aktionen"}` },
-          h("tbody", null, liste.map(zeile)))]).flat(),
+      tabelleVon("tastatur-hilfe-bereiche", bereichTexte().map(([k, w]) => [`${BEREICH_VORTASTE} ${k}`, w])),
+      ...listeTeil(name, "tastatur-hilfe-liste"),
+      ...(seite ? kontoTeil(seite, "tastatur-hilfe-") : []),
+      h("label", { class: "klein" }, alle, " alle Blätter zeigen"), weitere,
       knopfLeiste(knopf("Schließen", { onclick: () => d.schliessen(null) })));
   });
+}
+
+// ------------------------------------------------------------------ Markierung bewegen: u/d (D-292)
+const HILFE_TASTE = "h";
+// u/d wie ↑/↓, U/D wie Umschalt+↑/↓: in jeder Liste, die die Pfeiltasten kennt. Die Taste geht als Pfeiltaste an das
+// fokussierte Element; liegt der Fokus nicht im Blatt der Seite, setzt der erste Druck ihn dorthin.
+const BEWEGUNG = { u: ["ArrowUp", false], d: ["ArrowDown", false], U: ["ArrowUp", true], D: ["ArrowDown", true] };
+
+function bewegen(e) {
+  const b = BEWEGUNG[e.key];
+  if (!b || (aktuell && aktuell.seite && aktuell.seite.vortaste)) return false;
+  const a = document.activeElement;
+  const blatt = bereichZiele().find((x) => x.taste === "b");
+  const imBlatt = !!(blatt && blatt.el && blatt.el() && blatt.el().contains(a));
+  const imMenue = navigation.contains(a) || tabs.leiste.contains(a);
+  if (!imBlatt && !imMenue && !(a && a.closest && a.closest('[role="row"], tr, [role="treeitem"]'))) {
+    bereichGehe("b");
+    return true;
+  }
+  const [key, shiftKey] = b;
+  const ev = new KeyboardEvent("keydown", { key, code: key, shiftKey, bubbles: true, cancelable: true });
+  a.dispatchEvent(ev);
+  return true;
+}
+
+/** Pfeil auf/ab in einer Tabelle ohne eigene Zeilentastatur (D-292): auf einer fokussierbaren Zeile oder einem
+ *  Link bzw. Knopf in ihr geht der Fokus zur Nachbarzeile (zur Zeile selbst, sonst zu ihrem ersten Bedienelement). */
+function zeileWeiter(e) {
+  if (e.defaultPrevented || (e.key !== "ArrowDown" && e.key !== "ArrowUp") || e.shiftKey) return false;
+  const a = e.target;
+  if (!a || !a.closest || !a.matches("tr[tabindex], a[href], button")) return false;
+  const tr = a.closest("tr");
+  const koerper = tr && tr.closest("tbody");
+  if (!koerper || !aktuell || !aktuell.el || !aktuell.el.contains(koerper)) return false;
+  const ziel = (z) => (z.matches("[tabindex]") ? z : [...z.querySelectorAll(FOKUSSIERBAR)].find(sichtbar));
+  const zeilen = [...koerper.children].filter((z) => sichtbar(z) && ziel(z));
+  const z = zeilen[zeilen.indexOf(tr) + (e.key === "ArrowDown" ? 1 : -1)];
+  e.preventDefault();
+  if (z) ziel(z).focus();
+  return true;
 }
 
 // ------------------------------------------------------------------ Globale Tastatur (12.1)
@@ -1170,6 +1325,8 @@ document.addEventListener("keydown", (e) => {
   }
   if (imText || ebene) return;
   if (!strg && !e.altKey && bereichTaste(e)) { e.preventDefault(); return; }
+  if (!strg && !e.altKey && bewegen(e)) { e.preventDefault(); return; }
+  if (!strg && !e.altKey && zeileWeiter(e)) return;
   // Kürzel der aktuellen Seite (Kontoblatt, D-167) vor den globalen Ein-Tasten-Kürzeln
   if (aktuell && aktuell.seite && aktuell.seite.kuerzel && aktuell.el && aktuell.el.isConnected && aktuell.seite.kuerzel(e)) {
     e.preventDefault();
@@ -1182,9 +1339,31 @@ document.addEventListener("keydown", (e) => {
     return;
   }
   if (strg || e.altKey) return;
-  if (e.key === "/") { e.preventDefault(); tid("suche-feld").focus(); return; }
-  if (e.key === "?") { e.preventDefault(); tastaturHilfe(); }
+  if (e.key === HILFE_TASTE) { e.preventDefault(); tastaturHilfe(); }
 });
+
+// ------------------------------------------------------------------ Tabellen rollen in ihrem Rahmen (D-293)
+// Spalten werden nicht mehr mitten im Wort umbrochen; reicht der Platz nicht, rollt die Tabelle waagerecht in einem
+// eigenen Rahmen, nicht die ganze Seite. Die Buchungsliste ist keine Tabelle und bleibt unberührt.
+function tabelleRahmen(t) {
+  const eltern = t.parentElement;
+  if (!eltern || eltern.classList.contains("tabelle-rahmen")) return;
+  const rahmen = document.createElement("div");
+  rahmen.className = "tabelle-rahmen";
+  t.replaceWith(rahmen);
+  rahmen.append(t);
+}
+
+new MutationObserver((liste) => {
+  for (const m of liste) {
+    for (const n of m.addedNodes) {
+      if (n.nodeType !== 1) continue;
+      if (n.matches("table.tabelle")) tabelleRahmen(n);
+      else if (n.firstElementChild && !n.closest(".buchungsliste")) n.querySelectorAll("table.tabelle").forEach(tabelleRahmen);
+    }
+  }
+}).observe(document.body, { childList: true, subtree: true });
+document.querySelectorAll("table.tabelle").forEach(tabelleRahmen);
 
 // ------------------------------------------------------------------ Offline (18)
 const offlineHinweis = tid("offline-hinweis");

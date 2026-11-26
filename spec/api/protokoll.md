@@ -679,7 +679,7 @@ Rückgängig kann mit 409 `konto_existiert` abgelehnt werden (`sammel3.md`
 Änderung (`sammel3.md` 14.5). Die Protokollform der Erwartung trägt
 `wiederholung` nur bei Erwartungen mit Wiederholung.
 
-## 25. Feature `regelgruppen` (D-292, `kategorisierung.md` 8.10)
+## 25. Feature `regelgruppen` (D-295, `kategorisierung.md` 8.10)
 
 | Operation | `quelle` | `aktion` | `gruppe` |
 | --- | --- | --- | --- |

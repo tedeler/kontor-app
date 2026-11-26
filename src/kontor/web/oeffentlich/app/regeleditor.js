@@ -72,7 +72,7 @@ export async function regelnSeite(seite, kopf) {
     seite.append(h("p", { class: "leer" }, "Noch keine Regeln. Regeln ordnen neuen Buchungen eine Kategorie zu, bevor das Lernmodell gefragt wird, und können Tags vergeben."));
     return { titel: "Regeln" };
   }
-  // D-292: zwei Abschnitte; alle eigenen Regeln wirken vor allen automatisch angelegten.
+  // D-295: zwei Abschnitte; alle eigenen Regeln wirken vor allen automatisch angelegten.
   const eigene = liste.filter((r) => !r.automatisch);
   const auto = liste.filter((r) => r.automatisch);
   const reihenfolgeSenden = async (ids) => {

@@ -849,7 +849,7 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
 
     @endpunkt("POST", "/api/regeln/{regel_id:int}/uebernehmen")
     async def regel_uebernehmen(request: Request):
-        """D-292: automatisch angelegte Regel als eigene übernehmen (Beschreibung mit dem Namen der Regel)."""
+        """D-295: automatisch angelegte Regel als eigene übernehmen (Beschreibung mit dem Namen der Regel)."""
         def tun(rid: int) -> dict:
             con = db.verbinde(pfad)
             try:

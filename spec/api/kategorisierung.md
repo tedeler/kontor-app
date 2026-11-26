@@ -18,7 +18,7 @@ bestätigt“. Das Lernmodell (zweite Stufe) ist M4. Ergänzt `datenmodell.md`
 
 Gleiche Prioritäten sind erlaubt. **Reihenfolge** aller Regeln:
 `prioritaet` aufsteigend, bei Gleichstand `id` aufsteigend. `GET
-/api/regeln` liefert genau diese Reihenfolge. Ab 8.10 (D-292): erst alle
+/api/regeln` liefert genau diese Reihenfolge. Ab 8.10 (D-295): erst alle
 eigenen, dann alle automatisch angelegten Regeln, je Gruppe in dieser
 Reihenfolge.
 
@@ -364,7 +364,7 @@ Test (Vorgabe der Testmenge `datum in -12m`).
 Datenverlust umgestellt; Regeln, ihre IDs und der Vermerk „automatisch
 angelegt“ bleiben erhalten (in kontor-tests nicht prüfbar, E-273).
 
-### 8.10 Eigene und automatisch angelegte Regeln (Feature `regelgruppen`, D-292)
+### 8.10 Eigene und automatisch angelegte Regeln (Feature `regelgruppen`, D-295)
 
 - **Zwei Gruppen:** Eigene Regeln (ohne `automatisch`) und automatisch
   angelegte Regeln (`automatisch: true`, `lernmodell.md` 9). Alle eigenen

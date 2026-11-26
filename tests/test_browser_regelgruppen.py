@@ -1,4 +1,4 @@
-"""Entwicklungstest für das Feature „regelgruppen“ (D-292): Regelliste mit den Abschnitten „Eigene Regeln“ und
+"""Entwicklungstest für das Feature „regelgruppen“ (D-295): Regelliste mit den Abschnitten „Eigene Regeln“ und
 „Automatisch angelegt“, Sortierung, Suche und „Als eigene übernehmen“.
 Playwright mit Chrome headless gegen einen echten Server im Mock-Modus (synthetische Daten).
 """

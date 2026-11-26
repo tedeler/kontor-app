@@ -226,7 +226,8 @@ nicht mehr. Ein Thread schreibt Tests und Code.
 - Geplante Zahlungen (D-238): Wiederholung in `erwartung_wiederholung` (Teil der Objektart `erwartung`,
   Sicherungsdatei Schemaversion 10); Fortsetzung und Rücknahme in `erwartung.folge_anlegen`/`folge_entfernen`, Vorschau über
   `erwartung.geplante`. Das Feld `wiederholung` erscheint nur, wenn eine besteht.
-- Änderungsprotokoll: Einzelheiten je Änderung zeigt `app/aenderung.js` (D-237). Neue Felder der Protokollform
+- Änderungsprotokoll: Seite `/protokoll` und Einzelheiten je Änderung liegen in `app/aenderung.js` (D-237, D-294;
+  Quellen mit Bezeichnung und Farbton in `QUELLEN`, Filter in `FILTER`). Neue Felder der Protokollform
   bekommen dort einen Namen in `FELD_NAMEN` (sonst erscheint der Schlüssel) und ggf. eine Deutung in `wertText`.
 
 ## Hinweise zum Sammelbranch `feature/sammel4` (ab D-242)
@@ -295,6 +296,10 @@ nicht mehr. Ein Thread schreibt Tests und Code.
   mit eigenen Bereichen bietet `bereiche()` an: Liste aus `{ taste, text, tun, el }` in der Reihenfolge von F6
   (Vorbild `konto.js`). Hinweis, Hilfe und Befehlspalette lesen dieselbe Liste.
 - `w` darf auf keiner Seite ein Kürzel ohne Vortaste werden.
+- Belegung nach D-292 (`oberflaeche.md` 46): keine Satzzeichen; `u`/`d`/`U`/`D` (bewegen) und `h` (Hilfe) sind
+  global und dürfen im Kontoblatt nicht ohne Vortaste belegt werden. Neue Kürzel in `KUERZEL` (`konto.js`) mit
+  Bedingung für die Hilfe (`eine`, `person`, `bestand`); Seiten ohne `bereiche()` melden ihre `w`-Ziele in
+  `BLATT_ZIELE` und ihre Listentasten in `HILFE_LISTE` (`haupt.js`).
 
 ## Hinweise zur sofortigen Wirkung im Kontoblatt (D-289, D-290)
 
@@ -307,7 +312,7 @@ nicht mehr. Ein Thread schreibt Tests und Code.
 - Neue Tags über `tagHolen` (`kern.js`) anlegen. Browsertests warten nach solchen Aktionen auf
   `data-ausstehend="0"` an `seite-konto`, bevor sie mit Zeilen weiterarbeiten.
 
-## Hinweise zu den Regelgruppen (Feature `regelgruppen`, D-292)
+## Hinweise zu den Regelgruppen (Feature `regelgruppen`, D-295)
 
 - Die Reihenfolge der Regeln ist „eigene vor automatisch angelegten“, je Gruppe `prioritaet`, `id`
   (`regeln._REIHENFOLGE`). Wer Regeln in Reihenfolge braucht, nimmt `regeln.regeln_liste`/`aktive_regeln`, nie ein

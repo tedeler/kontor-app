@@ -1391,7 +1391,7 @@ paths:
     post:
       tags: [regeln]
       operationId: regelUebernehmen
-      summary: Automatisch angelegte Regel als eigene übernehmen (kategorisierung.md 8.10, D-292)
+      summary: Automatisch angelegte Regel als eigene übernehmen (kategorisierung.md 8.10, D-295)
       responses:
         "200":
           description: Die Regel, jetzt ohne Vermerk „automatisch angelegt“
