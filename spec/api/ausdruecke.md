@@ -95,6 +95,10 @@ Nicht im Umfang: Filter in der globalen Suche.
   wird der Bezug, nicht der Name. Nach einer Umbenennung zeigt der Ausdruck
   den neuen Namen. Ein unbekannter Name ist ein Fehler
   (`referenz_unbekannt`).
+  Der Trenner der Anzeige `›` (mit oder ohne Leerzeichen) gilt gleichwertig
+  zu `:`, ebenso Leerzeichen um `:`; die kanonische Form schreibt `:`
+  (D-301). Die Oberfläche schreibt Verweise immer mit `:` in den Ausdruck
+  (Baukasten, Übernahme alter Filteradressen).
 - Nicht erlaubt: Ausdrücke ohne Wahrheitswert (`empfänger` allein,
   `kein_wahrheitswert`) und Vergleiche ungleicher Typen (`betrag > "10"`).
 

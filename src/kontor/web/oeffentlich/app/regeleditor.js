@@ -1,6 +1,6 @@
 /* Kontor – Regelliste, Regeleditor (Baukasten und Ausdruck) und Testbereich (D-185, Konzept 5.1–5.3). */
 import {
-  BESTAND, aktion, api, baumFolge, betragEl, betragLesen, datumText, fehlerText, h, kategorien, kontoPfad, melde, neueId, pfadVon,
+  BESTAND, aktion, api, ausdruckPfad, baumFolge, betragEl, betragLesen, datumText, fehlerText, h, kategorien, kontoNach, kontoPfad, melde, neueId, pfadVon,
   stamm,
 } from "./kern.js";
 import { bestaetigen, dialog, feld, imDialog, knopf, knopfLeiste } from "./ui.js";
@@ -308,7 +308,7 @@ export function baukastenAusBaum(b, sp) {
     if (x.t === "betrag") return centText(x.cent).replace(".", ",");
     if (x.t === "int") return String(x.wert);
     if (x.t === "zeit") return zeitText(x.z);
-    if (x.t === "ref") return x.art === "tag" ? ((stamm.tags.find((t) => t.id === x.id) || {}).name || `#${x.id}`) : pfadVon(x.id);
+    if (x.t === "ref") return x.art === "tag" ? ((stamm.tags.find((t) => t.id === x.id) || {}).name || `#${x.id}`) : ausdruckPfad(kontoNach(x.id));
     return null;
   };
   const NEG = { enthaelt: "enthaelt_nicht", ist: "ist_nicht", regex: "regex_nicht", "==": "!=", hat: "hat_nicht", leer: "nicht_leer", wahr: "falsch" };
@@ -391,9 +391,9 @@ function wertEingabe(f, z, tidBasis, aenderung) {
       return z.op === "zwischen" ? [text("wert", attrs), " und ", text("wert2", attrs)] : text("wert", attrs);
     }
     case "auswahl": return auswahl(f.werte.map((w) => [w, w]));
-    case "konto": return auswahl(baumFolge(stamm.konten.filter((k) => BESTAND.has(k.art))).map(({ konto }) => [kontoPfad(konto), kontoPfad(konto)]));
+    case "konto": return auswahl(baumFolge(stamm.konten.filter((k) => BESTAND.has(k.art))).map(({ konto }) => [ausdruckPfad(konto), kontoPfad(konto)]));
     case "kategorie":
-      return z.op === "leer" || z.op === "nicht_leer" ? null : auswahl(kategorien().map(({ konto }) => [kontoPfad(konto), kontoPfad(konto)]));
+      return z.op === "leer" || z.op === "nicht_leer" ? null : auswahl(kategorien().map(({ konto }) => [ausdruckPfad(konto), kontoPfad(konto)]));
     case "tags": return auswahl(stamm.tags.slice().sort((a, b) => a.name.localeCompare(b.name, "de")).map((t) => [t.name, t.name]));
     default: return null;
   }
