@@ -4552,3 +4552,16 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - **Tests:** `tests/core/test_dialog_tastatur.py`, `tests/test_browser_dialog_tastatur.py`. Eigene Browsertests mit
   Dialogen (83) und Browser-Gesamtsuite grün; `m8/test_m8_bearbeiten.py::test_konto_loeschen_rueckgaengig` schlug
   einmal unter voller Last fehl, danach dreimal im Paket grün (wacklig, nicht durch diese Änderung).
+
+## D-299 Nachrücken der Markierung im Kontoblatt (Feature `markierung-nachruecken`, 2026-11-26)
+
+- **Anlass:** Auftrag vom 2026-11-26: Fällt eine markierte Buchung in der gefilterten Kontoliste durch eine Änderung
+  (z. B. Kategoriezuweisung) aus der Liste, war keine Buchung mehr markiert. Gewünscht: die Buchung direkt darunter.
+- **Entscheidung:** `Kontoansicht.nachruecken` beim Neuladen, nur wenn Konto, Filter, Sortierung und Gruppierung
+  gleich geblieben sind (`gleicheAbfrage`); ein Filterwechsel bleibt bei D-271. Nachfolger ist die nächste noch
+  vorhandene Buchung unter der untersten herausgefallenen in der angezeigten Reihenfolge, sonst die darüber.
+  Fällt nur ein Teil der Auswahl heraus, bleibt der Rest; der Fokus geht zur nächsten verbliebenen markierten
+  Buchung. Gilt ebenso nach dem Löschen. Mobil nur Markierung (D-281). `oberflaeche.md` 7.1.
+- **Tests:** `tests/core/test_markierung_nachruecken.py`, `tests/test_browser_markierung_nachruecken.py` (Mitte,
+  Ende, zwei markierte; jeweils weiter mit der Tastatur). Eigene Browsertests und Browser-Gesamtsuite grün;
+  `test_browser_mail_aktuell.py` schlug einmal unter voller Last fehl (bekannt wacklig), einzeln zweimal grün.
