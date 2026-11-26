@@ -249,13 +249,14 @@ class Ablage:
             fcntl.flock(fd, fcntl.LOCK_UN)
             os.close(fd)
 
-    def _schreiben(self, name: str, daten: bytes) -> None:
+    def _schreiben(self, name: str, daten: bytes, dauerhaft: bool = True) -> None:
         fd, tmp = tempfile.mkstemp(prefix=".neu-", dir=self.pfad)
         try:
             with os.fdopen(fd, "wb") as f:
                 f.write(daten)
                 f.flush()
-                os.fsync(f.fileno())
+                if dauerhaft:   # die Zustandsliste lässt sich aus der Kette neu bilden und braucht kein fsync
+                    os.fsync(f.fileno())
             os.chmod(tmp, 0o600)
             os.replace(tmp, self.pfad / name)
         except BaseException:
@@ -292,7 +293,8 @@ class Ablage:
             return None, None
 
     def zustandsliste_setzen(self, kennung: str, h: Hashes) -> None:
-        self._schreiben("zustand.json.gz", zlib.compress(json.dumps({"kennung": kennung, "hashes": h}).encode(), 1))
+        self._schreiben("zustand.json.gz", zlib.compress(json.dumps({"kennung": kennung, "hashes": h}).encode(), 1),
+                        dauerhaft=False)
 
     # ---------------------------------------------------------------- Herstellen
     def kette(self, kennung: str) -> list[str]:
@@ -580,44 +582,39 @@ def _ausduennen(ab: Ablage, jetzt: dt.datetime) -> None:
 # ======================================================================== Herstellen als Sicherungsdatei
 
 
-def _in_datenbank(zustand: Zustand, pfad: pathlib.Path) -> None:
-    db.schema_anlegen(pfad)
-    con = db.verbinde(pfad)
-    try:
-        zeilen = {t: list(zustand[t].values()) for t in sicherung.SPALTEN}
-        con.execute("PRAGMA foreign_keys = OFF")
-        con.execute("BEGIN")
-        sicherung.laden(con, zeilen)
-        con.executemany("INSERT INTO sync_kennung (kennung) VALUES (?)", zeilen["sync_kennung"])
-        con.executemany("INSERT INTO sync_konto_zustand (iban, konto_id, letzter_abruf_bis, letzter_erfolg_am,"
-                        " entscheidung, entscheidung_buchungen) VALUES (?, ?, ?, ?, ?, ?)",
-                        zeilen["sync_konto_zustand"])
-        sicherung.einstellungen_setzen(con, zeilen["einstellung"])
-        for objekt, hoechste in zeilen["id_zaehler"]:
-            tabelle = sicherung.ZAEHLER.get(objekt)
-            if tabelle:
-                con.execute("DELETE FROM sqlite_sequence WHERE name = ?", (tabelle,))
-                con.execute("INSERT INTO sqlite_sequence (name, seq) VALUES (?, ?)", (tabelle, hoechste))
-        con.execute("COMMIT")
-    finally:
-        con.close()
+def _in_datenbank(zustand: Zustand) -> sqlite3.Connection:
+    """App-Datenbank im Arbeitsspeicher mit dem Zustand eines Punkts."""
+    con = db.verbinde(":memory:")  # type: ignore[arg-type]
+    con.executescript(db.SCHEMA)
+    db._migrieren(con)
+    zeilen = {t: list(zustand[t].values()) for t in sicherung.SPALTEN}
+    con.execute("PRAGMA foreign_keys = OFF")
+    con.execute("BEGIN")
+    sicherung.laden(con, zeilen)
+    con.executemany("INSERT INTO sync_kennung (kennung) VALUES (?)", zeilen["sync_kennung"])
+    con.executemany("INSERT INTO sync_konto_zustand (iban, konto_id, letzter_abruf_bis, letzter_erfolg_am,"
+                    " entscheidung, entscheidung_buchungen) VALUES (?, ?, ?, ?, ?, ?)",
+                    zeilen["sync_konto_zustand"])
+    sicherung.einstellungen_setzen(con, zeilen["einstellung"])
+    for objekt, hoechste in zeilen["id_zaehler"]:
+        tabelle = sicherung.ZAEHLER.get(objekt)
+        if tabelle:
+            con.execute("DELETE FROM sqlite_sequence WHERE name = ?", (tabelle,))
+            con.execute("INSERT INTO sqlite_sequence (name, seq) VALUES (?, ?)", (tabelle, hoechste))
+    con.execute("COMMIT")
+    return con
 
 
 def sicherungsdatei(ab: Ablage, kennung: str) -> tuple[bytes, str]:
     """Eigenständige Sicherungsdatei (sicherung.md 3) eines Punkts; geprüft gegen den Prüfwert."""
     zustand = ab.herstellen(kennung)
     m = ab.punkte[kennung]
-    with tempfile.TemporaryDirectory(prefix="kontor-punkt-") as tmp:
-        pfad = pathlib.Path(tmp) / "k.sqlite3"
-        _in_datenbank(zustand, pfad)
-        con = db.verbinde(pfad)
-        try:
-            if pruefwert(hashes(zustand_lesen(con))) != m["pruefwert"]:
-                raise NichtHerstellbar("Sicherungsdatei")
-        finally:
-            con.close()
-        modus = "mock" if ab.config.mock_modus else "echt"
-        return sicherung.erstellen(pfad, modus, zeit_lesen(m["zeitpunkt"]))
+    con = _in_datenbank(zustand)
+    if pruefwert(hashes(zustand_lesen(con))) != m["pruefwert"]:
+        con.close()
+        raise NichtHerstellbar("Sicherungsdatei")
+    modus = "mock" if ab.config.mock_modus else "echt"
+    return sicherung.erstellen_aus(con, modus, zeit_lesen(m["zeitpunkt"]))
 
 
 # ======================================================================== Öffentliche Sicht
