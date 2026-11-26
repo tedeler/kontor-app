@@ -87,13 +87,13 @@ def test_sicherung_service_und_timer():
     s = "Service"
     assert u.wert(s, "Type") == "oneshot" and u.wert(s, "EnvironmentFile") == "/etc/kontor/kontor.env"
     assert u.werte(s, "ExecStart") == [
-        f"{PY} -m kontor.sicherung --verzeichnis /var/lib/kontor/sicherungen --behalten 14"]
+        f"{PY} -m kontor.sicherung stunde --verzeichnis /var/lib/kontor/sicherungen"]   # D-302
     assert u.wert(s, "StateDirectory") == "kontor"
     assert "LoadCredentialEncrypted" not in u.schluessel(s) and "Install" not in u.abschnitte
     _haertung(u)
     t = Unit(betriebsdatei("kontor-sicherung.timer"))
     kal = t.wert("Timer", "OnCalendar")
-    assert kal == "daily" or kal.startswith("*-*-* ")
+    assert kal == "hourly"   # D-302: stündliche Sicherungspunkte
     assert t.wert("Timer", "Persistent") == "yes"
     assert t.wert("Timer", "Unit") in (None, "kontor-sicherung.service")
     assert t.werte("Install", "WantedBy") == ["timers.target"]

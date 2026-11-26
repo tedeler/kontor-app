@@ -881,10 +881,48 @@ def sichere_in_verzeichnis(config: KontorConfig, verzeichnis, *, behalten: int =
     return datei
 
 
+def stunde_main(argv: list[str]) -> int:
+    """``python -m kontor.sicherung stunde [--verzeichnis <pfad>] [--marke vor_update]`` (sicherungspunkte.md 8)."""
+    import argparse
+    import dataclasses
+    import sys
+
+    from . import sicherungspunkte
+    from .fehler import KonfigurationsFehler
+
+    parser = argparse.ArgumentParser(prog="python -m kontor.sicherung stunde",
+                                     description="Stündlicher Sicherungspunkt, Ausdünnen, Änderungsprotokoll kürzen")
+    parser.add_argument("--verzeichnis")
+    parser.add_argument("--marke", choices=("stuendlich", "vor_update"), default="stuendlich")
+    args = parser.parse_args(argv)
+    try:
+        config = KontorConfig.fuer_werkzeug()   # D-251: ohne Credentials lauffähig
+        if args.verzeichnis:
+            config = dataclasses.replace(config, sicherung_verzeichnis=pathlib.Path(args.verzeichnis))
+    except KonfigurationsFehler as e:
+        print(f"Konfigurationsfehler: {e}", file=sys.stderr)
+        return 2
+    try:
+        erg = sicherungspunkte.stunde(config, marke=args.marke)
+    except OSError as e:
+        print(f"Fehler: Der Sicherungspunkt konnte nicht geschrieben werden ({e.strerror or e}).", file=sys.stderr)
+        return 1
+    except Exception:  # noqa: BLE001 - kein Stacktrace auf der Kommandozeile
+        print("Fehler: Die Sicherung ist fehlgeschlagen.", file=sys.stderr)
+        return 1
+    p = erg["punkt"]
+    print(f"{p['kennung']} {'neu' if erg['neu'] else 'unverändert'} {p['groesse']} Bytes")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
-    """``python -m kontor.sicherung --verzeichnis <pfad> [--behalten N]`` (betrieb.md 8)."""
+    """``python -m kontor.sicherung --verzeichnis <pfad> [--behalten N]`` (betrieb.md 8) bzw. ``stunde`` (D-302)."""
     import argparse
     import sys
+
+    argv = sys.argv[1:] if argv is None else argv
+    if argv[:1] == ["stunde"]:
+        return stunde_main(argv[1:])
 
     from .fehler import KonfigurationsFehler
 

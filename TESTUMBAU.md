@@ -147,3 +147,6 @@ Im Ausgangsstand schlugen 19 Tests der Abnahmesuite und 3 eigene fehl. Kein Anwe
 | `spec/test_openapi.py::test_alle_operationen_vorhanden` | D-295: neue Operation `POST /api/regeln/{regel_id}/uebernehmen` | in `OPERATIONEN_M30` ergänzt |
 
 Stabilität: Nach den Änderungen lief der Browser-Teil der Gesamtsuite viermal hintereinander grün.
+| eigene `test_m6_eigen.py::test_sicherung_der_schemaversion_2_einspielbar_und_postfach_bleibt_erhalten`, `test_geplant_eigen.py::test_sicherung_und_altbestand` | D-302: Sicherungsdatei Schemaversion 11 (Einstellungen) | erwartete Schemaversion 11 bzw. mindestens 10 |
+| `spec/test_openapi.py::test_alle_operationen_vorhanden` | D-302: sieben neue Operationen unter `/api/sicherung/punkte` | in `OPERATIONEN_M9` ergänzt |
+| `m7/test_m7_betrieb.py::test_sicherung_service_und_timer` | D-302: Die zeitgesteuerte Sicherung legt stündlich Sicherungspunkte an (`sicherungspunkte.md` 8) | `ExecStart` mit `stunde --verzeichnis /var/lib/kontor/sicherungen`, `OnCalendar=hourly` |

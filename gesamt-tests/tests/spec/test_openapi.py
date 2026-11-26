@@ -63,7 +63,12 @@ OPERATIONEN_M4 = {
     ("delete", "/api/vorlagen/{vorlage_id}"),
 }
 
-OPERATIONEN_M9 = {("get", "/api/sicherung"), ("post", "/api/sicherung/einspielen")}
+OPERATIONEN_M9 = {("get", "/api/sicherung"), ("post", "/api/sicherung/einspielen"),
+                  # D-302: Sicherungspunkte (sicherungspunkte.md 7)
+                  ("get", "/api/sicherung/punkte"), ("post", "/api/sicherung/punkte"),
+                  ("patch", "/api/sicherung/punkte/{kennung}"), ("get", "/api/sicherung/punkte/{kennung}/chronik"),
+                  ("get", "/api/sicherung/punkte/{kennung}/vergleich"), ("get", "/api/sicherung/punkte/{kennung}/datei"),
+                  ("post", "/api/sicherung/punkte/{kennung}/wechseln")}
 
 OPERATIONEN_M5 = {
     ("get", "/api/kredite"), ("post", "/api/kredite"), ("post", "/api/kredite/tilgungsplan"),

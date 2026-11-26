@@ -155,13 +155,14 @@ und `Environment=KONTOR_BANK_PIN_QUELLE=eingabe`.
 
 `kontor-sicherung.service`, `[Service]`: `Type=oneshot`, `User=kontor`,
 `Group=kontor`, `EnvironmentFile=/etc/kontor/kontor.env`,
-`ExecStart=/opt/kontor/venv/bin/python -m kontor.sicherung --verzeichnis /var/lib/kontor/sicherungen --behalten 14`,
+`ExecStart=/opt/kontor/venv/bin/python -m kontor.sicherung stunde --verzeichnis /var/lib/kontor/sicherungen`
+(D-302, vorher `--verzeichnis /var/lib/kontor/sicherungen --behalten 14`),
 `StateDirectory=kontor`, `UMask=0077` und dieselben Härtungswerte wie 4.1
 (Tabellenzeilen ab `NoNewPrivileges`). Keine `LoadCredential*`-Zeile
 (die Sicherung braucht keine Geheimnisse). Kein `[Install]`-Abschnitt.
 
-`kontor-sicherung.timer`, `[Timer]`: `OnCalendar=` mit einem täglichen
-Zeitpunkt (Wert beginnt mit `*-*-* ` oder ist `daily`), `Persistent=yes`;
+`kontor-sicherung.timer`, `[Timer]`: `OnCalendar=hourly` (D-302, stündliche
+Sicherungspunkte nach `sicherungspunkte.md`; vorher täglich), `Persistent=yes`;
 `Unit=` fehlt oder ist `kontor-sicherung.service`. `[Install]`:
 `WantedBy=timers.target`.
 

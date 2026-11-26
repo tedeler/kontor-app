@@ -230,9 +230,10 @@ class Ablage:
 
     # ---------------------------------------------------------------- Dateien
     def anlegen(self) -> None:
-        if not self.pfad.is_dir():
-            self.pfad.mkdir(parents=True, mode=0o700)
-            os.chmod(self.pfad, 0o700)
+        for p in (self.pfad.parent, self.pfad):
+            if not p.is_dir():
+                p.mkdir(parents=True, mode=0o700)
+                os.chmod(p, 0o700)
 
     @contextlib.contextmanager
     def gesperrt(self) -> Iterator[Ablage]:
