@@ -1,7 +1,7 @@
 /* Gemeinsame Bausteine der Berichte (Monatsbericht D-206, weitere Berichte D-217): Karten, Kacheln, Balken,
    Einzelbuchungen, Diagramme, Monats- und Kontenwahl. */
 import {
-  BESTAND, abfrage, api, baumFolge, betragEl, betragText, datumEl, h, kontoNach, kontoPfad, mobilKarten, nameAnzeige, oberflaeche, stamm,
+  BESTAND, abfrage, api, baumFolge, betragEl, betragText, datumEl, datumText, h, kontoNach, kontoPfad, mobilKarten, nameAnzeige, oberflaeche, stamm,
 } from "./kern.js";
 import { dialog } from "./ui.js";
 import { PLOTLY_OPTIONEN, farben, plotlyLaden } from "./seiten.js";
@@ -266,9 +266,13 @@ export const berichtAdresse = (art, params) => "/berichte" + abfrage({ art, ...(
  * Gerüst einer Berichtsseite: Kopf mit Steuerung, Standzeile, Inhalt; lädt bei jeder Änderung des Zustands neu und
  * schreibt ihn in die Adresse. `o`: art, titel, pfad, lesen(URLSearchParams) → Zustand, anfrage(zustand) → Parameter
  * der REST-Abfrage, adresse(zustand) → Parameter der Adresse, steuerung(b, k), stand(b, k), inhalt(b, k), danach(b, k).
+ * Mit `sonderposten: true` kommen Schalter, Standzeile und Kasten der Sonderposten dazu (D-300).
  */
 export async function berichtRahmen(seite, suche, o) {
-  const zustand = o.lesen(new URLSearchParams(suche || ""));
+  const suchParams = new URLSearchParams(suche || "");
+  const zustand = o.lesen(suchParams);
+  if (o.sonderposten) zustand.sonderposten = suchParams.get("sonderposten") === "mit" ? "mit" : "ohne";
+  const mitSonder = (params, wert) => (o.sonderposten && zustand.sonderposten === "mit" ? { ...params, sonderposten: wert } : params);
   const steuerung = h("div", { class: "werkzeuge mb-steuerung" });
   const stand = h("p", { class: "klein mb-stand", tid: "mb-stand" });
   const inhalt = h("div", { class: "mb-inhalt" });
@@ -277,7 +281,7 @@ export async function berichtRahmen(seite, suche, o) {
   const k = { zustand, seite, merker: {}, zeigen: buchungenZeigen };
   k.setzen = (aenderung) => {
     Object.assign(zustand, aenderung);
-    history.replaceState(history.state, "", berichtAdresse(o.art, o.adresse(zustand)));
+    history.replaceState(history.state, "", berichtAdresse(o.art, mitSonder(o.adresse(zustand), "mit")));
     if (oberflaeche.urlGeaendert) oberflaeche.urlGeaendert();
     return laden();
   };
@@ -286,7 +290,7 @@ export async function berichtRahmen(seite, suche, o) {
     seite.dataset.geladen = "nein";
     let b;
     try {
-      b = await api("GET", o.pfad + abfrage(o.anfrage(zustand)));
+      b = await api("GET", o.pfad + abfrage(mitSonder(o.anfrage(zustand), "mit")));
     } catch (e) {
       if (n !== lauf) return;
       if (o.beiFehler && o.beiFehler(e, k)) { await k.setzen({}); return; }
@@ -297,15 +301,51 @@ export async function berichtRahmen(seite, suche, o) {
     if (n !== lauf) return;
     const fokusTid = document.activeElement && seite.contains(document.activeElement) ? document.activeElement.dataset.testid : null;
     k.farben = eigeneFarben(seite);
-    steuerung.replaceChildren(...(o.steuerung ? o.steuerung(b, k) : []).flat().filter(Boolean));
-    stand.replaceChildren(...(o.stand ? [o.stand(b, k)].flat().filter(Boolean) : []));
-    inhalt.replaceChildren(...[o.inhalt(b, k)].flat().filter(Boolean));
+    const sp = o.sonderposten && b.sonderposten ? b.sonderposten : null;
+    steuerung.replaceChildren(...[...(o.steuerung ? o.steuerung(b, k) : []), sp ? sonderSchalter(sp, k) : null].flat().filter(Boolean));
+    stand.replaceChildren(...[...(o.stand ? [o.stand(b, k)].flat() : []), sp ? sonderStand(sp) : null].filter(Boolean));
+    inhalt.replaceChildren(...[sp ? sonderKasten(sp) : null, o.inhalt(b, k)].flat().filter(Boolean));
     if (fokusTid) { const el = seite.querySelector(`[data-testid="${fokusTid}"]`); if (el && !el.disabled) el.focus(); }
     if (o.danach) await o.danach(b, k);
     if (n === lauf) seite.dataset.geladen = "ja";
   }
   await laden();
   return { titel: o.titel, aktualisieren: laden };
+}
+
+// ------------------------------------------------------------------ Sonderposten (D-300)
+// Buchungen mit dem Tag „Sonderposten“ zählen in den Berichten über Einnahmen und Ausgaben nur mit dem Schalter mit.
+
+/** Schalter „ohne Sonderposten“; erscheint erst, wenn es den Tag gibt. */
+export function sonderSchalter(sp, k) {
+  if (sp.tag_id === null && !sp.anzahl) return null;
+  const box = h("input", { type: "checkbox", tid: "bericht-sonderposten-schalter", checked: sp.modus === "ohne" });
+  box.addEventListener("change", () => k.setzen({ sonderposten: box.checked ? "ohne" : "mit" }));
+  return h("label", { class: "mb-schalter", title: "Buchungen mit dem Tag „Sonderposten“ (z. B. ein Autokauf) nicht mitzählen" },
+    box, " ohne Sonderposten");
+}
+
+export function sonderStand(sp) {
+  if (!sp.anzahl) return null;
+  const was = `${mehrzahl(sp.anzahl, "Sonderposten", "Sonderposten")} (${betragText(sp.ausgaben || sp.einnahmen)})`;
+  return ` ${was} ${sp.modus === "ohne" ? (sp.anzahl === 1 ? "zählt" : "zählen") + " nicht mit" : "mitgezählt"}.`;
+}
+
+/** Kasten mit den Sonderposten des Zeitraums; ein Klick zeigt die Buchung im Kontoblatt. */
+export function sonderKasten(sp) {
+  if (!sp.anzahl) return null;
+  const tabelle = h("table", { class: "tabelle mb-tabelle" },
+    h("thead", null, h("tr", null, h("th", { scope: "col" }, "Datum"), h("th", { scope: "col" }, "Empfänger / Zweck"),
+      h("th", { scope: "col", class: "zahl" }, "Betrag"))),
+    h("tbody", null, sp.eintraege.map((e) => h("tr", { class: "klickbar", tabindex: "0", role: "button", tid: `bericht-sonderposten-${e.id}`,
+      "data-konto": String(e.konto_id), "data-id": String(e.id),
+      "aria-label": `${datumText(e.datum)} ${empfName(e.empfaenger)}: ${betragText(e.betrag)}. Im Kontoblatt zeigen` },
+    h("td", null, datumText(e.datum)), h("td", null, h("span", { class: "mb-name" }, empfName(e.empfaenger)),
+      e.verwendungszweck ? h("span", { class: "klein" }, e.verwendungszweck) : null),
+    betragEl("td", e.art === "einnahme" ? e.betrag : -e.betrag, { class: "zahl" })))));
+  klickbareZeilen(tabelle, (tr) => oberflaeche.gehe(`/konten/${tr.dataset.konto}?buchung=${tr.dataset.id}`));
+  return karte("bericht-sonderposten", sp.modus === "ohne" ? "Sonderposten – nicht mitgezählt" : "Sonderposten – mitgezählt",
+    "Buchungen mit dem Tag „Sonderposten“ im Zeitraum. Der Schalter „ohne Sonderposten“ oben zählt sie wieder mit.", tabelle);
 }
 
 /** Standard bei unbekannten Konten in der Adresse: Kontenwahl verwerfen und neu laden. */

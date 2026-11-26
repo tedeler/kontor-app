@@ -3485,7 +3485,7 @@ Navigation → Tab-Leiste → Filter → Aktionen → Buchungsblatt → Einzelhe
 Einzelne Tasten (markierte Buchungen, ohne Markierung die fokussierte): `k` Kategorie, `t` Tags, `s` Status,
 `b` bestätigen, `a`/`A` Vorschlag annehmen/ablehnen, `e` Bearbeiten, `x` Splitten (genau eine), `X` als Dublette
 markieren (Bedingung wie bisher), `g` Gegenbuchung (genau eine), `m`/`M` Dokument/E-Mail anhängen, `n` neue
-Buchung. `d` ist nicht mehr die Dublette.
+Buchung, `p` als Sonderposten markieren bzw. zurücknehmen (D-300). `d` ist nicht mehr die Dublette.
 
 Vortaste `f`:
 

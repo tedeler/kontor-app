@@ -16,6 +16,7 @@ from collections import defaultdict
 from . import buch, wiederkehrend
 from .buch import BESTAND, ApiFehler
 from .statistik import AUSREISSER_HUNDERTSTEL, _mad, _median, _z_hundertstel
+from . import sonderposten as sp
 
 VERGLEICH_MONATE = 6          # Durchschnittslinie des Verlaufs und „üblich“ je Empfänger
 RUECKBLICK_MONATE = 12        # Monatsvergleich, neue Empfänger, Basis der Ausreißer
@@ -249,6 +250,21 @@ def _ausreisser(ausgaben: list[_Posten], historie: list[_Posten]) -> list[dict]:
     return aus
 
 
+#: D-300: Vorschlag „Sonderposten?“ – eine einzelne, nicht feste Ausgabe ab 2.000 €, die mindestens die Hälfte der
+#: üblichen Ausgaben eines ganzen Monats ausmacht (Schnitt der zwölf Monate davor; ohne Schnitt nur die Grenze).
+SONDER_VORSCHLAG_CENT = 200_000
+SONDER_VORSCHLAG_ANTEIL_PROZENT = 50
+
+
+def _sonder_vorschlaege(ausgaben: list[_Posten], schnitt: int | None) -> list[dict]:
+    grenze = SONDER_VORSCHLAG_CENT
+    if schnitt:
+        grenze = max(grenze, schnitt * SONDER_VORSCHLAG_ANTEIL_PROZENT // 100)
+    treffer = [p for p in ausgaben if not p.fix and p.betrag >= grenze]
+    treffer.sort(key=lambda p: (-p.betrag, p.datum, p.id))
+    return [{"buchung": p.kurz(), "ueblich_monat": schnitt} for p in treffer]
+
+
 def _serien_auffaellig(serien: list[dict], von: dt.date, bis: dt.date, stichtag: dt.date) -> list[dict]:
     aus = []
     for s in serien:
@@ -293,7 +309,7 @@ def _kontostand(con, gewaehlt: list[int], von: dt.date, ende: dt.date) -> dict:
             "tiefststand": {"datum": tage[tief], "betrag": werte[tief]} if tief is not None else None}
 
 
-def bericht(con, monat: tuple[int, int], konto_ids: list[int], heute: str) -> dict:
+def bericht(con, monat: tuple[int, int], konto_ids: list[int], heute: str, sonderposten: str = "ohne") -> dict:
     """``GET /api/berichte/monat``."""
     jahr, mon = monat
     gewaehlt, konten = _konten_waehlen(con, konto_ids)
@@ -307,6 +323,7 @@ def bericht(con, monat: tuple[int, int], konto_ids: list[int], heute: str) -> di
     tage_vergangen = 0 if zukunft else stichtag.day
     lade_von = _grenzen(*_monat_plus(jahr, mon, -RUECKBLICK_MONATE))[0]
     posten, umbuchungen = _laden(con, menge, konten, lade_von, bis)
+    posten, sonder = sp.trennen(con, posten, sonderposten)   # D-300: auch nicht im Rückblick und bei Ausreißern
     serien = [] if zukunft else _serien(con, menge, stichtag)
     fix_ids = {i for s in serien if s["richtung"] == "ausgabe" for i in s["buchung_ids"]}
     je_monat: dict[str, list[_Posten]] = defaultdict(list)
@@ -423,10 +440,12 @@ def bericht(con, monat: tuple[int, int], konto_ids: list[int], heute: str) -> di
         "top_empfaenger": _top_empfaenger(ausgaben, basis_empf, monate_frueher)[:TOP],
         "empfaenger_anzahl": len({p.empfaenger_id for p in ausgaben}),
         "auffaellig": {"ausreisser": _ausreisser(ausgaben, historie), "neue_empfaenger": neue,
-                       "serien": _serien_auffaellig(serien, von, bis, stichtag)},
+                       "serien": _serien_auffaellig(serien, von, bis, stichtag),
+                       "sonderposten": _sonder_vorschlaege(ausgaben, schnitt)},
         "kalender": kalender, "wochentage": wochentage,
         "kontostand": _kontostand(con, gewaehlt, von, bis if zukunft else stichtag),
         "ausgeschlossen": {"umbuchungen": umbuchungen.get(_schluessel(von), 0)},
+        "sonderposten": sonder.abschnitt(von, bis),
         "buchungen": [p.kurz() for p in aktuell if p.art != "einnahme"],
     }
 

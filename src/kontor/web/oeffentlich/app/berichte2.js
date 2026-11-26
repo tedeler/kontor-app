@@ -64,7 +64,7 @@ function bewegungen(b) {
 
 export function kategorienSeite(seite, _param, suche) {
   return berichtRahmen(seite, suche, {
-    art: "kategorien", titel: "Kategorienbericht", pfad: "/api/berichte/kategorien",
+    sonderposten: true, art: "kategorien", titel: "Kategorienbericht", pfad: "/api/berichte/kategorien",
     lesen: (p) => ({ monat: MONAT_MUSTER.test(p.get("monat") || "") ? p.get("monat") : null, konten: kontenAus(p) }),
     anfrage: (z) => ({ monat: z.monat, konto_id: z.konten }), adresse: (z) => ({ monat: z.monat, konto: z.konten }), beiFehler: kontenFehler,
     steuerung: (b, k) => [monatsWahl(b, b.monat, (monat) => k.setzen({ monat })), kontenWahl(b.konten, k.zustand.konten, (konten) => k.setzen({ konten }), k.merker)],
@@ -156,7 +156,7 @@ function empfaengerEinzeln(b, k) {
 
 export function empfaengerSeite(seite, _param, suche) {
   return berichtRahmen(seite, suche, {
-    art: "empfaenger", titel: "Empfängerbericht", pfad: "/api/berichte/empfaenger",
+    sonderposten: true, art: "empfaenger", titel: "Empfängerbericht", pfad: "/api/berichte/empfaenger",
     lesen: (p) => ({ empfaenger: /^\d+$/.test(p.get("empfaenger") || "") ? Number(p.get("empfaenger")) : null, konten: kontenAus(p) }),
     anfrage: (z) => ({ empfaenger_id: z.empfaenger, konto_id: z.konten }), adresse: (z) => ({ empfaenger: z.empfaenger, konto: z.konten }),
     beiFehler: (e, k) => { if (k.zustand.empfaenger && e.code === "nicht_gefunden") { k.zustand.empfaenger = null; return true; } return kontenFehler(e, k); },
@@ -242,7 +242,7 @@ function flussTabelle(tid, titel, liste, b, klasse) {
 
 export function geldflussSeite(seite, _param, suche) {
   return berichtRahmen(seite, suche, {
-    art: "geldfluss", titel: "Geldfluss", pfad: "/api/berichte/geldfluss",
+    sonderposten: true, art: "geldfluss", titel: "Geldfluss", pfad: "/api/berichte/geldfluss",
     lesen: (p) => ({ jahr: /^\d{4}$/.test(p.get("jahr") || "") ? Number(p.get("jahr")) : null, proJahr: p.has("jahr"),
       monat: MONAT_MUSTER.test(p.get("monat") || "") ? p.get("monat") : null, konten: kontenAus(p) }),
     anfrage: (z) => (z.proJahr ? { jahr: z.jahr || jahrVon(new Date().toISOString()), konto_id: z.konten } : { monat: z.monat, konto_id: z.konten }),

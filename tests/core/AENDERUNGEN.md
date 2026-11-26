@@ -19,3 +19,10 @@ Ein Eintrag je Änderung eines schon eingecheckten Core-Tests während der Entwi
 - 2026-11-26, `test_markierung_nachruecken.py::test_laden_bestimmt_den_nachfolger` (D-299): Die erste Fassung hatte
   eine fehlerhaft geklammerte Bedingung (`and`/`or`), die immer zutraf oder immer scheiterte. Vor der Umsetzung
   durch die eindeutige Prüfung auf `gleicheAbfrage` und die gesetzten Felder ersetzt; nicht abgeschwächt.
+
+- 2026-11-26, `test_tastenbelegung.py::test_kuerzeltabelle_des_kontoblatts_ist_die_neue_belegung` (D-300): Die
+  Anforderung hat sich geändert: `p` markiert im Kontoblatt Sonderposten. `("", "p")` in `SOLL` ergänzt; die übrigen
+  Prüfungen (keine Satzzeichen, `u`/`d`/`h`/`w` frei) unverändert.
+- 2026-11-26, `test_sonderposten.py::test_andere_berichte_zaehlen_alles` (D-300): Die erste Fassung verlangte 422 auch
+  für `/api/berichte/kontostand`. Dieser Bericht prüft unbekannte Parameter seit M5 nicht; das ist nicht Teil des
+  Features. Er bleibt in der Prüfung des Kontostands mit dem Autokauf; die 422-Prüfung gilt für die übrigen fünf.

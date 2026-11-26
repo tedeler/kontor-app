@@ -3007,6 +3007,7 @@ paths:
         - {$ref: "#/components/parameters/BerichtVon"}
         - {$ref: "#/components/parameters/BerichtBis"}
         - {$ref: "#/components/parameters/BerichtIntervall"}
+        - {$ref: "#/components/parameters/BerichtSonderposten"}
       responses:
         "200":
           description: Bericht
@@ -3037,6 +3038,7 @@ paths:
             items: {type: integer}
           style: form
           explode: true
+        - {$ref: "#/components/parameters/BerichtSonderposten"}
       responses:
         "200":
           description: Bericht
@@ -4654,6 +4656,14 @@ components:
         type: string
         enum: [tag, woche, monat, jahr]
         default: monat
+    BerichtSonderposten:
+      name: sonderposten
+      in: query
+      description: D-300 – `ohne` lässt Buchungen mit dem Tag „Sonderposten“ aus, `mit` zählt sie mit
+      schema:
+        type: string
+        enum: [ohne, mit]
+        default: ohne
 
   responses:
     NichtAngemeldet:
@@ -7909,6 +7919,24 @@ components:
         kategorien:
           type: array
           items: {$ref: "#/components/schemas/KategorieSumme"}
+        sonderposten: {$ref: "#/components/schemas/SonderpostenAbschnitt"}
+
+    SonderpostenAbschnitt:
+      description: >-
+        D-300 (berichte.md 7): Buchungen mit dem Tag „Sonderposten“ im Zeitraum des Berichts. Mit `modus` = `ohne`
+        zählen sie in den übrigen Zahlen nicht mit.
+      type: object
+      additionalProperties: false
+      required: [modus, tag_id, anzahl, ausgaben, einnahmen, eintraege]
+      properties:
+        modus: {type: string, enum: [ohne, mit]}
+        tag_id: {type: [integer, "null"]}
+        anzahl: {type: integer, minimum: 0}
+        ausgaben: {type: integer, description: Beitrag zu den Ausgaben in Cent (Erstattungen mindern)}
+        einnahmen: {type: integer}
+        eintraege:
+          type: array
+          items: {type: object}
 
     AnmeldeStatus:
       type: object

@@ -443,11 +443,21 @@ export async function berichte(seite) {
   for (const el of [konten, von, bis, intervall]) el.addEventListener("change", laden);
   const ea = h("div", { "aria-live": "polite" });
   const eaDiagramm = h("div", { class: "diagramm-rahmen", hidden: true });
+  // D-300: Sonderposten (Tag „Sonderposten“) zählen nur ohne Haken mit
+  const eaOhneSonder = h("input", { type: "checkbox", tid: "bericht-ea-sonderposten", checked: true });
+  const eaSonderText = h("p", { class: "klein", tid: "bericht-ea-sonderposten-text", hidden: true });
   const eaLaden = knopf("Einnahmen und Ausgaben berechnen", { onclick: async () => {
     const ids = [...konten.selectedOptions].map((o) => Number(o.value));
     try {
       const b = await api("GET", "/api/berichte/einnahmen-ausgaben" + abfrage({ konto_id: ids, von: von.value || null,
-        bis: bis.value || null, intervall: intervall.value }));
+        bis: bis.value || null, intervall: intervall.value, sonderposten: eaOhneSonder.checked ? null : "mit" }));
+      const sp = b.sonderposten;
+      eaSonderText.hidden = !sp || !sp.anzahl;
+      if (sp && sp.anzahl) {
+        eaSonderText.textContent = `${sp.anzahl} ${sp.anzahl === 1 ? "Sonderposten" : "Sonderposten"} (${betragText(sp.ausgaben || sp.einnahmen)}): `
+          + sp.eintraege.map((e) => `${datumText(e.datum)} ${e.empfaenger ? e.empfaenger.name : e.verwendungszweck}`).join(", ")
+          + (sp.modus === "ohne" ? " – nicht mitgezählt." : " – mitgezählt.");
+      }
       eaDiagramm.hidden = !b.perioden.length;
       const plot = b.perioden.length ? await eaZeichnen(eaDiagramm, b) : null;
       const hinweis = h("p", { class: "klein", tid: "bericht-ea-zoom-hinweis", hidden: true });
@@ -464,7 +474,8 @@ export async function berichte(seite) {
   } });
   seite.append(abschnitt("Kontostandsverlauf", h("div", { class: "formular-zeile" }, feld("Konten", konten), feld("Von", von),
     feld("Bis", bis), feld("Intervall", intervall)), diagramm, ausgabe),
-  abschnitt("Einnahmen und Ausgaben", h("p", { class: "klein" }, "Ohne Umbuchungen; Konten, Zeitraum und Intervall wie oben."), eaLaden, eaDiagramm, ea),
+  abschnitt("Einnahmen und Ausgaben", h("p", { class: "klein" }, "Ohne Umbuchungen; Konten, Zeitraum und Intervall wie oben."),
+    h("label", { class: "mb-schalter" }, eaOhneSonder, " ohne Sonderposten"), eaLaden, eaSonderText, eaDiagramm, ea),
   abschnitt("Export", h("p", null, csv, " · ", pdf)));
   await diagrammZeichnen(diagramm, null);
   ausgabe.replaceChildren(leer("Bitte Konten wählen."));
