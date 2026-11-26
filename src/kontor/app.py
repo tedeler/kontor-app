@@ -847,6 +847,20 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
         d = regeln.regel_koerper(await request.body(), neu=False)
         return await aendern("regel_aendern", regeln.regel_aendern, pid(request, "regel_id"), d)
 
+    @endpunkt("POST", "/api/regeln/{regel_id:int}/uebernehmen")
+    async def regel_uebernehmen(request: Request):
+        """D-295: automatisch angelegte Regel als eigene übernehmen (Beschreibung mit dem Namen der Regel)."""
+        def tun(rid: int) -> dict:
+            con = db.verbinde(pfad)
+            try:
+                with protokoll.protokolliert(con, "manuell", "regel_uebernehmen", sync.jetzt_text()) as k:
+                    r = regeln.uebernehmen(con, rid)
+                    k.beschreibung = f"Regel „{r['name']}“ als eigene übernommen"
+                return r
+            finally:
+                con.close()
+        return await run_in_threadpool(tun, pid(request, "regel_id"))
+
     @endpunkt("DELETE", "/api/regeln/{regel_id:int}", 204)
     async def regel_loeschen(request: Request):
         return await aendern("regel_loeschen", regeln.regel_loeschen, pid(request, "regel_id"))

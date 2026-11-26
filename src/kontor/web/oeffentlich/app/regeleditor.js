@@ -72,36 +72,60 @@ export async function regelnSeite(seite, kopf) {
     seite.append(h("p", { class: "leer" }, "Noch keine Regeln. Regeln ordnen neuen Buchungen eine Kategorie zu, bevor das Lernmodell gefragt wird, und können Tags vergeben."));
     return { titel: "Regeln" };
   }
-  const ul = h("ol", { class: "regel-liste", tid: "regel-liste", "aria-label": "Regeln in der Reihenfolge ihrer Anwendung" });
+  // D-295: zwei Abschnitte; alle eigenen Regeln wirken vor allen automatisch angelegten.
+  const eigene = liste.filter((r) => !r.automatisch);
+  const auto = liste.filter((r) => r.automatisch);
   const reihenfolgeSenden = async (ids) => {
     try { await aktion(() => api("POST", "/api/regeln/reihenfolge", { regel_ids: ids }), { erfolg: "Reihenfolge geändert." }); }
     catch (e) { /* gemeldet */ }
   };
-  const ids = liste.map((r) => r.id);
+  const ids = eigene.map((r) => r.id);
+  const autoIds = auto.map((r) => r.id);
+  const eigeneSenden = (neu) => reihenfolgeSenden(neu.concat(autoIds));
   const verschieben = (id, um) => {
     const i = ids.indexOf(id);
     const j = i + um;
     if (j < 0 || j >= ids.length) return;
     const neu = ids.slice();
     [neu[i], neu[j]] = [neu[j], neu[i]];
-    reihenfolgeSenden(neu);
+    eigeneSenden(neu);
   };
   let gezogen = null;
-  liste.forEach((r, i) => {
+  const zeile = (r, nr) => {
     const aktiv = h("input", { type: "checkbox", tid: `regel-aktiv-${r.id}`, checked: r.aktiv,
       "aria-label": `Regel ${r.name} aktiv` });
     aktiv.addEventListener("change", async () => {
       try { await aktion(() => api("PATCH", `/api/regeln/${r.id}`, { aktiv: aktiv.checked }), { erfolg: aktiv.checked ? "Regel aktiviert." : "Regel deaktiviert." }); }
       catch (e) { aktiv.checked = !aktiv.checked; }
     });
-    const griff = h("button", { type: "button", class: "regel-griff", tid: `regel-griff-${r.id}`,
-      "aria-label": `Regel ${r.name} verschieben (Alt+Pfeil hoch/runter)`, title: "Ziehen oder Alt+↑/↓" }, "⠿");
-    griff.addEventListener("keydown", (e) => {
-      if (e.altKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) { e.preventDefault(); verschieben(r.id, e.key === "ArrowUp" ? -1 : 1); }
-    });
-    const li = h("li", { tid: `regel-${r.id}`, class: "karte regel-zeile" + (r.aktiv ? "" : " inaktiv"), draggable: "true",
-      "data-id": String(r.id) },
-    griff, h("span", { class: "regel-nr" }, `${i + 1}.`), aktiv,
+    let griff = null;
+    if (!r.automatisch) {
+      griff = h("button", { type: "button", class: "regel-griff", tid: `regel-griff-${r.id}`,
+        "aria-label": `Regel ${r.name} verschieben (Alt+Pfeil hoch/runter)`, title: "Ziehen oder Alt+↑/↓" }, "⠿");
+      griff.addEventListener("keydown", (e) => {
+        if (e.altKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) { e.preventDefault(); verschieben(r.id, e.key === "ArrowUp" ? -1 : 1); }
+      });
+    }
+    const knoepfe = [];
+    if (r.automatisch) {
+      knoepfe.push(knopf("Als eigene übernehmen", { tid: `regel-als-eigene-${r.id}`, "aria-label": `Regel ${r.name} als eigene übernehmen`,
+        title: "Die Regel wird eine eigene Regel am Ende der eigenen Regeln. Für diesen Empfänger legt Kontor danach keine automatische Regel mehr an.",
+        onclick: async () => {
+          try { await aktion(() => api("POST", `/api/regeln/${r.id}/uebernehmen`), { erfolg: `Regel „${r.name}“ als eigene übernommen.` }); }
+          catch (f) { /* gemeldet */ }
+        } }));
+    }
+    knoepfe.push(
+      knopf("Bearbeiten…", { "aria-label": `Bearbeiten: Regel ${r.name}`, onclick: (e) => regelEditor(r, e.currentTarget) }),
+      knopf("Duplizieren", { "aria-label": `Regel ${r.name} duplizieren`, onclick: (e) =>
+        regelEditor({ ...r, id: null, automatisch: false, name: `${r.name} (Kopie)` }, e.currentTarget) }),
+      knopf("Löschen", { "aria-label": `Regel ${r.name} löschen`, onclick: async (e) => {
+        if (!(await bestaetigen(`Regel „${r.name}“ löschen?`, { ja: "Löschen", ausloeser: e.currentTarget }))) return;
+        try { await aktion(() => api("DELETE", `/api/regeln/${r.id}`), { erfolg: "Regel gelöscht." }); } catch (f) { /* gemeldet */ }
+      } }));
+    const li = h("li", { tid: `regel-${r.id}`, class: "karte regel-zeile" + (r.automatisch ? " regel-zeile-auto" : "") + (r.aktiv ? "" : " inaktiv"),
+      draggable: r.automatisch ? null : "true", "data-id": String(r.id) },
+    griff, r.automatisch ? null : h("span", { class: "regel-nr" }, `${nr}.`), aktiv,
     h("div", { class: "regel-inhalt" },
       h("strong", null, r.name), h("span", { class: "regel-ziel", tid: `regel-ziel-${r.id}` },
         r.kategorie_id ? ` → ${pfadVon(r.kategorie_id)} ` : (r.tag_ids || []).length ? " → " : " → (keine Aktion) ",
@@ -110,30 +134,69 @@ export async function regelnSeite(seite, kopf) {
         title: "Aus deinen Zuordnungen gelernt. Wird die Regel gelöscht, legt Kontor sie für diesen Empfänger nicht wieder an." },
       "automatisch angelegt") : null,
       h("div", { class: "regel-bedingung", tid: `regel-ausdruck-${r.id}`, title: r.ausdruck }, hervorgehoben(r.ausdruck || "", felder))),
-    knopfLeiste(
-      knopf("Bearbeiten…", { "aria-label": `Bearbeiten: Regel ${r.name}`, onclick: (e) => regelEditor(r, e.currentTarget) }),
-      knopf("Duplizieren", { "aria-label": `Regel ${r.name} duplizieren`, onclick: (e) =>
-        regelEditor({ ...r, id: null, name: `${r.name} (Kopie)` }, e.currentTarget) }),
-      knopf("Löschen", { "aria-label": `Regel ${r.name} löschen`, onclick: async (e) => {
-        if (!(await bestaetigen(`Regel „${r.name}“ löschen?`, { ja: "Löschen", ausloeser: e.currentTarget }))) return;
-        try { await aktion(() => api("DELETE", `/api/regeln/${r.id}`), { erfolg: "Regel gelöscht." }); } catch (f) { /* gemeldet */ }
-      } })));
-    li.addEventListener("dragstart", (e) => { gezogen = r.id; e.dataTransfer.effectAllowed = "move"; li.classList.add("zieht"); });
-    li.addEventListener("dragend", () => { li.classList.remove("zieht"); gezogen = null; });
-    li.addEventListener("dragover", (e) => { if (gezogen !== null && gezogen !== r.id) { e.preventDefault(); li.classList.add("ziel"); } });
-    li.addEventListener("dragleave", () => li.classList.remove("ziel"));
-    li.addEventListener("drop", (e) => {
-      e.preventDefault();
-      li.classList.remove("ziel");
-      if (gezogen === null || gezogen === r.id) return;
-      const neu = ids.filter((x) => x !== gezogen);
-      neu.splice(neu.indexOf(r.id) + (ids.indexOf(gezogen) < ids.indexOf(r.id) ? 1 : 0), 0, gezogen);
-      reihenfolgeSenden(neu);
-    });
-    ul.append(li);
-  });
-  seite.append(h("p", { class: "hinweis klein" }, "Regeln wirken von oben nach unten; für die Kategorie gilt die erste passende Regel, Tags vergeben alle passenden Regeln. "
-    + "Reihenfolge per Ziehen oder Alt+↑/↓ am Griff."), ul);
+    knopfLeiste(...knoepfe));
+    if (!r.automatisch) {
+      li.addEventListener("dragstart", (e) => { gezogen = r.id; e.dataTransfer.effectAllowed = "move"; li.classList.add("zieht"); });
+      li.addEventListener("dragend", () => { li.classList.remove("zieht"); gezogen = null; });
+      li.addEventListener("dragover", (e) => { if (gezogen !== null && gezogen !== r.id) { e.preventDefault(); li.classList.add("ziel"); } });
+      li.addEventListener("dragleave", () => li.classList.remove("ziel"));
+      li.addEventListener("drop", (e) => {
+        e.preventDefault();
+        li.classList.remove("ziel");
+        if (gezogen === null || gezogen === r.id) return;
+        const neu = ids.filter((x) => x !== gezogen);
+        neu.splice(neu.indexOf(r.id) + (ids.indexOf(gezogen) < ids.indexOf(r.id) ? 1 : 0), 0, gezogen);
+        eigeneSenden(neu);
+      });
+    }
+    return li;
+  };
+
+  // Abschnitt „Eigene Regeln“: Reihenfolge = Priorität
+  const ul = h("ol", { class: "regel-liste", tid: "regel-liste", "aria-label": "Eigene Regeln in der Reihenfolge ihrer Anwendung" },
+    ...eigene.map((r, i) => zeile(r, i + 1)));
+  seite.append(h("section", { class: "regel-abschnitt", tid: "regeln-eigene", "aria-labelledby": "regeln-eigene-titel" },
+    h("h2", { id: "regeln-eigene-titel" }, `Eigene Regeln (${eigene.length})`),
+    h("p", { class: "hinweis klein" }, "Regeln wirken von oben nach unten; für die Kategorie gilt die erste passende Regel, Tags vergeben alle passenden Regeln. "
+      + "Eigene Regeln wirken immer vor den automatisch angelegten. Reihenfolge per Ziehen oder Alt+↑/↓ am Griff."),
+    eigene.length ? ul : h("p", { class: "leer" }, "Noch keine eigenen Regeln.")));
+
+  // Abschnitt „Automatisch angelegt“: eingeklappt, sortier- und durchsuchbar
+  if (auto.length) {
+    const SCHLUESSEL = "kontor.regeln.automatisch";
+    let stand = { offen: false, sortierung: "name" };
+    try { stand = { ...stand, ...JSON.parse(localStorage.getItem(SCHLUESSEL) || "{}") }; } catch (e) { /* Speicher nicht verfügbar */ }
+    const merken = () => { try { localStorage.setItem(SCHLUESSEL, JSON.stringify(stand)); } catch (e) { /* Speicher nicht verfügbar */ } };
+    const sortierung = h("select", { tid: "regeln-automatisch-sortierung", "aria-label": "Automatisch angelegte Regeln sortieren" },
+      h("option", { value: "name" }, "Name"), h("option", { value: "kategorie" }, "Kategorie"), h("option", { value: "neu" }, "Zuletzt angelegt"));
+    sortierung.value = ["name", "kategorie", "neu"].includes(stand.sortierung) ? stand.sortierung : "name";
+    const suche = h("input", { type: "search", tid: "regeln-automatisch-suche", placeholder: "Suchen …",
+      "aria-label": "Automatisch angelegte Regeln durchsuchen" });
+    const ol = h("ul", { class: "regel-liste", tid: "regel-liste-automatisch", "aria-label": "Automatisch angelegte Regeln" });
+    const anzahl = h("span", { class: "klein", tid: "regeln-automatisch-anzahl", role: "status" });
+    const vergleich = { name: (a, b) => a.name.localeCompare(b.name, "de"),
+      kategorie: (a, b) => (a.kategorie_id ? pfadVon(a.kategorie_id) : "").localeCompare(b.kategorie_id ? pfadVon(b.kategorie_id) : "", "de")
+        || a.name.localeCompare(b.name, "de"),
+      neu: (a, b) => b.id - a.id };
+    const zeichnen = () => {
+      const q = suche.value.trim().toLocaleLowerCase("de");
+      const treffer = auto.filter((r) => !q || [r.name, r.ausdruck || "", r.kategorie_id ? pfadVon(r.kategorie_id) : ""]
+        .some((t) => t.toLocaleLowerCase("de").includes(q))).sort(vergleich[sortierung.value]);
+      ol.replaceChildren(...treffer.map((r) => zeile(r)));
+      anzahl.textContent = q ? `${treffer.length} von ${auto.length}` : "";
+    };
+    sortierung.addEventListener("change", () => { stand.sortierung = sortierung.value; merken(); zeichnen(); });
+    suche.addEventListener("input", zeichnen);
+    const det = h("details", { class: "regel-abschnitt", tid: "regeln-automatisch" },
+      h("summary", { tid: "regeln-automatisch-kopf" }, h("h2", null, `Automatisch angelegt (${auto.length})`)),
+      h("p", { class: "hinweis klein" }, "Aus deinen Zuordnungen gelernt: je Empfänger höchstens eine Regel, deshalb spielt die Reihenfolge hier keine Rolle. "
+        + "„Als eigene übernehmen“ verschiebt eine Regel zu den eigenen Regeln."),
+      h("div", { class: "regel-auto-leiste" }, h("label", null, "Sortieren nach ", sortierung), suche, anzahl), ol);
+    det.open = !!stand.offen;
+    det.addEventListener("toggle", () => { stand.offen = det.open; merken(); });
+    zeichnen();
+    seite.append(det);
+  }
   return { titel: "Regeln" };
 }
 

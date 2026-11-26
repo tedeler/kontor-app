@@ -84,6 +84,7 @@ BESCHREIBUNG = {
     "dublette_anlegen": "Dublettenverdacht angelegt",
     "dublette_aufloesen": "Dublettenverdacht aufgelöst",
     "regel_anlegen": "Regel angelegt", "regel_aendern": "Regel geändert", "regel_loeschen": "Regel gelöscht",
+    "regel_uebernehmen": "Regel als eigene übernommen",
     "abstimmung_anlegen": "Konto abgestimmt", "abstimmung_aufheben": "Abstimmung aufgehoben",
     "umbuchung_zusammenfuehren": "Umbuchung zusammengeführt", "umbuchung_erkennen": "Umbuchungen erkannt",
     "import_kmymoney": "KMyMoney-Import", "import_gnucash": "GnuCash-Import", "import_alfbanco": "ALF-BanCo-Import",

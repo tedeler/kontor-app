@@ -4469,3 +4469,27 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - **Tests:** `tests/core/test_protokoll_gestaltung.py`, `tests/test_browser_protokoll.py`; bestehende Tests
   unverändert grün.
 
+## D-295 Eigene Regeln vor automatisch angelegten, Übernehmen als eigene Regel (Feature `regelgruppen`, 2026-11-26)
+
+- **Anlass:** Der Auftraggeber möchte die Regeln ordnen, getrennt nach eigenen und automatisch angelegten (D-179).
+  Weil die Reihenfolge zugleich die Priorität ist, ist das keine reine Anzeige. Mit dem Auftraggeber abgestimmt
+  (2026-11-25/26): zwei feste Abschnitte, eigene Regeln wirken immer vor automatischen; Übernehmen nur über einen
+  ausdrücklichen Knopf, nicht beim Bearbeiten.
+- **Reihenfolge:** erst alle eigenen, dann alle automatisch angelegten Regeln, je Gruppe `prioritaet`, dann `id`
+  (`regeln._REIHENFOLGE`). Gilt für Liste, Auswertung und Verdeckung im Test. Keine Schemaänderung: Die Gruppe folgt
+  aus `regel_automatisch`. Vorher konnte eine neue eigene Regel hinter automatischen landen; jetzt gewinnt eine
+  eigene Regel immer.
+- **`POST /api/regeln/reihenfolge`** nimmt weiter die vollständige Liste und ordnet sie nach Gruppen (eigene zuerst),
+  statt eine gemischte Liste abzulehnen. So bleiben bisherige Aufrufe gültig.
+- **`POST /api/regeln/{id}/uebernehmen`:** Vermerk weg, Priorität ans Ende der eigenen Regeln, Empfänger gesperrt
+  (`empfaenger_lernregel_sperre`). Die Sperre verhindert, dass nach Ändern oder Löschen der übernommenen Regel für
+  denselben Empfänger wieder eine automatische Regel entsteht; das ist dieselbe Wirkung wie beim Löschen einer
+  automatischen Regel. 422 `regel_nicht_automatisch` für eigene Regeln. Eine Änderung `regel_uebernehmen` mit dem
+  Namen in der Beschreibung (eigener Endpunkt mit `protokoll.protokolliert`, weil `aendern` keine Beschreibung setzt).
+- **Oberfläche:** Abschnitt „Eigene Regeln“ wie bisher (Ziehen, Alt+↑/↓, Nummern). Abschnitt „Automatisch angelegt“
+  als `<details>`, Vorgabe eingeklappt, ohne Griff und Nummer, sortierbar (Name, Kategorie, Zuletzt angelegt) und
+  durchsuchbar; Zustand in `localStorage` (`kontor.regeln.automatisch`). Die im Konzept genannte Sortierung nach
+  Treffern entfällt, weil die Regelliste noch keine Trefferzahl hat. Duplizieren einer automatischen Regel ergibt
+  eine eigene Regel.
+- **Tests:** `tests/core/test_regelgruppen.py`, `tests/test_browser_regelgruppen.py`. Bestehende Tests unverändert
+  grün (Regeln, automatische Regeln, Ausdrücke, M15/M26/M30–M32 mit Browser).

@@ -3,8 +3,9 @@
 Regeln: feste Zuordnungen mit UND-verknüpften Bedingungen auf Empfänger,
 Verwendungszweck, Regelbetrag und Konto – oder (D-185) mit einem Ausdruck der Kontor-Ausdruckssprache
 (``ausdruck.py``). Ein Ausdruck wird als einzige Bedingung ``{"feld": "ausdruck", "operator": "ausdruck",
-"wert": <Baum>}`` in ``bedingungen`` gespeichert; der Baum hält Verweise als IDs. Reihenfolge: ``prioritaet``
-aufsteigend, dann ``id``; die erste passende aktive Regel gewinnt. Gesetzte
+"wert": <Baum>}`` in ``bedingungen`` gespeichert; der Baum hält Verweise als IDs. Reihenfolge (D-295): erst alle
+eigenen, dann alle automatisch angelegten Regeln, je Gruppe ``prioritaet`` aufsteigend, dann ``id``; die erste
+passende aktive Regel gewinnt. Gesetzte
 Kategorien sind Vorschläge, bis sie bestätigt oder erledigt sind.
 
 Tags (D-215): Eine Regel kann zusätzlich oder statt der Kategorie Tags vergeben (``regel_tag``). Tags sind additiv:
@@ -246,6 +247,7 @@ def regel_dict(r, bez: ausdruck.Bezuege | None = None) -> dict:
 _AUSWAHL = ("SELECT r.*, (ra.regel_id IS NOT NULL) AS automatisch, ra.empfaenger_id AS auto_empfaenger_id,"
             " (SELECT group_concat(rt.tag_id) FROM regel_tag rt WHERE rt.regel_id = r.id) AS tag_liste FROM regel r"
             " LEFT JOIN regel_automatisch ra ON ra.regel_id = r.id")
+_REIHENFOLGE = "automatisch, r.prioritaet, r.id"   # D-295: eigene Regeln vor automatisch angelegten
 
 
 def regel_zeilen(con, ids: list[int]) -> list:
@@ -254,7 +256,7 @@ def regel_zeilen(con, ids: list[int]) -> list:
 
 def regeln_liste(con, mit_ausdruck: bool = True) -> list[dict]:
     bez = ausdruck.Bezuege.laden(con) if mit_ausdruck else None
-    return [regel_dict(r, bez) for r in con.execute(f"{_AUSWAHL} ORDER BY r.prioritaet, r.id")]
+    return [regel_dict(r, bez) for r in con.execute(f"{_AUSWAHL} ORDER BY {_REIHENFOLGE}")]
 
 
 def regel_lesen(con, rid: int) -> dict:
@@ -364,16 +366,37 @@ def regel_loeschen(con, rid: int) -> None:
 
 
 def reihenfolge_setzen(con, ids: list[int]) -> list[dict]:
-    """POST /api/regeln/reihenfolge (Konzept 6.3): vollständige ID-Liste → Priorität 10, 20, …"""
+    """POST /api/regeln/reihenfolge (Konzept 6.3): vollständige ID-Liste → Priorität 10, 20, … Die Gruppen bleiben
+    (D-295): erst die eigenen Regeln in der Reihenfolge der Liste, dann die automatisch angelegten."""
     vorhanden = [r["id"] for r in con.execute("SELECT id FROM regel ORDER BY prioritaet, id")]
     if sorted(ids) != sorted(vorhanden):
         raise ApiFehler(422, "validierung", "Die Liste muss jede Regel genau einmal enthalten.",
                         {"fehlend": sorted(set(vorhanden) - set(ids)), "unbekannt": sorted(set(ids) - set(vorhanden))})
     if len(ids) * 10 > PRIO_MAX:
         raise ApiFehler(422, "validierung", "Zu viele Regeln.")
+    auto = {r[0] for r in con.execute("SELECT regel_id FROM regel_automatisch")}
+    ids = [i for i in ids if i not in auto] + [i for i in ids if i in auto]
     for i, rid in enumerate(ids):
         con.execute("UPDATE regel SET prioritaet = ? WHERE id = ? AND prioritaet <> ?", ((i + 1) * 10, rid, (i + 1) * 10))
     return regeln_liste(con)
+
+
+def uebernehmen(con, rid: int) -> dict:
+    """POST /api/regeln/{id}/uebernehmen (D-295): Eine automatisch angelegte Regel wird eine eigene am Ende der eigenen
+    Regeln. Bedingung, Kategorie, Tags und Aktiv bleiben. Der Empfänger wird gesperrt, damit für ihn keine neue
+    automatische Regel entsteht, auch wenn die übernommene Regel später gelöscht oder geändert wird."""
+    alt = regel_lesen(con, rid)
+    if not alt.get("automatisch"):
+        raise ApiFehler(422, "regel_nicht_automatisch", "Nur automatisch angelegte Regeln lassen sich übernehmen.")
+    r = con.execute("SELECT MAX(prioritaet) AS m FROM regel WHERE id NOT IN (SELECT regel_id FROM regel_automatisch)"
+                    ).fetchone()
+    prio = 100 if r["m"] is None else min(r["m"] + 10, PRIO_MAX)
+    con.execute("INSERT OR IGNORE INTO empfaenger_lernregel_sperre (empfaenger_id)"
+                " SELECT empfaenger_id FROM regel_automatisch WHERE regel_id = ?"
+                " AND empfaenger_id IN (SELECT id FROM empfaenger)", (rid,))
+    con.execute("DELETE FROM regel_automatisch WHERE regel_id = ?", (rid,))
+    con.execute("UPDATE regel SET prioritaet = ? WHERE id = ?", (prio, rid))
+    return regel_lesen(con, rid)
 
 
 # =============================================================== Auswertung
@@ -605,10 +628,11 @@ def _bewerten(con, baum_: dict, kat: int | None, rid: int | None, ids: list[int]
     """Wirkung der (ungespeicherten) Regel je Buchung der Testmenge (Konzept 5.3). ``tags_neu``: Tags der Regel, die
     der Buchung noch fehlen (D-215); gesperrte Buchungen bekommen keine."""
     art_von = kontoarten(con)
-    andere = [r for r in regeln_liste(con, mit_ausdruck=False) if r["aktiv"] and r["id"] != rid]
-    if rid is not None:
-        eigene = con.execute("SELECT prioritaet FROM regel WHERE id = ?", (rid,)).fetchone()["prioritaet"]
-        andere = [r for r in andere if (r["prioritaet"], r["id"]) < (eigene, rid)]
+    alle = regeln_liste(con, mit_ausdruck=False)
+    andere = [r for r in alle if r["aktiv"] and r["id"] != rid]
+    if rid is not None:   # nur Regeln davor verdecken (Reihenfolge der Liste, D-295)
+        davor = {r["id"] for r in alle[:[r["id"] for r in alle].index(rid)]}
+        andere = [r for r in andere if r["id"] in davor]
     aw = ausdruck.Auswerter(heute, markieren=mit_zeilen)
     zeilen: list[dict] = []
     nicht_erfasst: list[int] = []

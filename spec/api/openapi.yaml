@@ -1382,6 +1382,29 @@ paths:
             application/json:
               schema: {$ref: "#/components/schemas/Fehler"}
 
+  /api/regeln/{regel_id}/uebernehmen:
+    parameters:
+      - name: regel_id
+        in: path
+        required: true
+        schema: {type: integer}
+    post:
+      tags: [regeln]
+      operationId: regelUebernehmen
+      summary: Automatisch angelegte Regel als eigene übernehmen (kategorisierung.md 8.10, D-295)
+      responses:
+        "200":
+          description: Die Regel, jetzt ohne Vermerk „automatisch angelegt“
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Regel"}
+        "404": {$ref: "#/components/responses/NichtGefunden"}
+        "422":
+          description: "`regel_nicht_automatisch`"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Fehler"}
+
   /api/ausdruck/sprache:
     get:
       tags: [ausdruck]

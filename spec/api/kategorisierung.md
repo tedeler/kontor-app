@@ -18,7 +18,9 @@ bestätigt“. Das Lernmodell (zweite Stufe) ist M4. Ergänzt `datenmodell.md`
 
 Gleiche Prioritäten sind erlaubt. **Reihenfolge** aller Regeln:
 `prioritaet` aufsteigend, bei Gleichstand `id` aufsteigend. `GET
-/api/regeln` liefert genau diese Reihenfolge.
+/api/regeln` liefert genau diese Reihenfolge. Ab 8.10 (D-295): erst alle
+eigenen, dann alle automatisch angelegten Regeln, je Gruppe in dieser
+Reihenfolge.
 
 ### 1.1 Bedingung
 
@@ -361,3 +363,37 @@ Test (Vorgabe der Testmenge `datum in -12m`).
 `protokoll.md` 22, `sicherung.md` 12. Die Datenbank wird beim Start ohne
 Datenverlust umgestellt; Regeln, ihre IDs und der Vermerk „automatisch
 angelegt“ bleiben erhalten (in kontor-tests nicht prüfbar, E-273).
+
+### 8.10 Eigene und automatisch angelegte Regeln (Feature `regelgruppen`, D-295)
+
+- **Zwei Gruppen:** Eigene Regeln (ohne `automatisch`) und automatisch
+  angelegte Regeln (`automatisch: true`, `lernmodell.md` 9). Alle eigenen
+  Regeln stehen vor allen automatisch angelegten, unabhängig von
+  `prioritaet`. Innerhalb jeder Gruppe gilt `prioritaet` aufsteigend, dann
+  `id`.
+- Diese Reihenfolge gilt überall: `GET /api/regeln`, Auswertung bei der
+  Synchronisation und beim Anwenden (8.3), Verdeckung im Test (8.6: nur
+  Regeln davor in dieser Reihenfolge verdecken).
+- `POST /api/regeln/reihenfolge` (8.5) nimmt weiter die vollständige Liste.
+  Die Gruppen bleiben: Die Prioritäten werden 10, 20, 30 … in der
+  Reihenfolge „eigene Regeln in der Reihenfolge der Liste, danach die
+  automatisch angelegten in der Reihenfolge der Liste“.
+- Eine neue Regel ohne `prioritaet` bekommt wie bisher die größte vorhandene
+  `prioritaet` + 10; als eigene Regel steht sie damit am Ende der eigenen.
+
+#### `POST /api/regeln/{id}/uebernehmen`
+
+Ohne Körper. Macht aus einer automatisch angelegten Regel eine eigene.
+
+- Name, Aktiv, Kategorie, Bedingungen und Tags bleiben. Der Vermerk
+  „automatisch angelegt“ entfällt (`automatisch`, `empfaenger_id` fehlen
+  danach). `prioritaet` wird die größte `prioritaet` der eigenen Regeln
+  + 10 (ohne eigene Regeln 100): Die Regel steht am Ende der eigenen.
+- Der Empfänger der Regel wird gesperrt (`lernregel_gesperrt`): Für ihn
+  entsteht keine neue automatische Regel, auch wenn die übernommene Regel
+  später geändert oder gelöscht wird.
+- Antwort 200: die Regel (wie `GET /api/regeln/{id}`).
+- Fehler: 404 bei unbekannter Regel; 422 `regel_nicht_automatisch`, wenn die
+  Regel keine automatisch angelegte ist. Nichts wird geändert.
+- Genau eine Änderung `regel_uebernehmen` (`protokoll.md` 25). Rückgängig
+  stellt Vermerk, Priorität und Sperre wieder her.
