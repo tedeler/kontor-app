@@ -552,6 +552,8 @@ Rückgängig in der Oberfläche **ist** Rückgängig im Änderungsprotokoll
 
 ### 12.1 Globale Kürzel
 
+> Ab D-292 gilt Abschnitt 46: `h` statt `?`, `/` entfällt (Suche über `w s`), dazu `u`/`d`.
+
 Einbuchstabige Kürzel (`/`, `?`) und Alt-Kürzel wirken nicht, solange der
 Fokus in einer Texteingabe, einem Auswahlfeld oder einem Editor liegt.
 
@@ -566,6 +568,8 @@ Fokus in einer Texteingabe, einem Auswahlfeld oder einem Editor liegt.
 | Esc | oberste Ebene schließen (Menü, Dialog, Palette, mobiles Menü); sonst Auswahl leeren |
 
 ### 12.1a Bereich wechseln: Vortaste `w` und F6 (D-287)
+
+> Ab D-292 ergänzt durch Abschnitt 46.2: Ziele je Blatt, `w a` (Aktionen), F6 mit Aktionen.
 
 `w` und danach eine zweite Taste setzen den Fokus in einen Bereich der Oberfläche oder wechseln den Tab. Die
 Vortaste wirkt auf jeder Seite, aber wie die übrigen einbuchstabigen Kürzel nicht in Texteingaben, Auswahlfeldern,
@@ -2598,7 +2602,9 @@ Reihenfolge der Einträge einer Buchungsauswahl (Desktop, ohne Alt):
     Zweck: `zweck_leer=true`);
   - `km-filter-zweck-aehnlich` „ähnlicher Verwendungszweck“: `zweck_aehnlich` (leer: wie oben);
   - `km-filter-empfaenger-aehnlich` „ähnlicher Empfänger“ (deaktiviert ohne Empfänger):
-    `empfaenger_aehnlich` = Empfängername.
+    `empfaenger_aehnlich` = Empfängername;
+  - ab D-292 `km-filter-betrag` „gleicher Betrag“ und `km-filter-betrag-absolut` „gleicher Betrag (ohne
+    Vorzeichen)“ (46.4).
   Wirkung: die übrigen Werte dieser Gruppe werden ersetzt, Auswahl geleert, Filterleiste geöffnet und zeigt
   den gesetzten Wert (zurücksetzbar über `filter-zuruecksetzen` und das jeweilige Feld), Adresse und Liste
   wie bei jedem Filter. Bedeutung der Filter: M27.
@@ -2644,6 +2650,9 @@ Reihenfolge der Einträge einer Buchungsauswahl (Desktop, ohne Alt):
   (REST M27, `tag_ids`), je Aktion ein Rückgängig-Schritt. Zusammenführen behält die Bestätigungen am Ziel.
 
 ### 37.11 Kontoblatt: Tastaturkürzel (D-167)
+
+> Ab D-292 ersetzt durch Abschnitt 46 (Belegung, Tastaturhilfe). Gültig bleiben die Regeln zu Fokus, Ziel der
+> Aktionen, Hinweis nach einer Vortaste und Befehlspalette.
 
 Einzelne Tasten ohne Strg/Alt/⌘; wirksam nur, wenn der Fokus im Kontoblatt außerhalb von Textfeldern,
 Auswahllisten, Dialogen, Menüs und dem Kategorienbaum liegt. Ziel der Aktionen: die markierten Buchungen,
@@ -2902,7 +2911,7 @@ Zeile `<k>-fehler`.
   (`POST /api/ausdruck/als-regel`).
 - Tastenkürzel (ersetzen die Kürzel der Einzelfelder aus 37.11): `f a`
   Ausdrucksfeld, `f f` Baukasten, `f h`/`w`/`d`/`m`/`l`/`j`/`J` Zeiträume,
-  `f x` Zeitraum entfernen.
+  `f x` Zeitraum entfernen. Ab D-292 gelten die Zeiträume aus 46.4.
 - Die Einträge des Untermenüs `km-filter` (37.9) setzen weiter einen Filter
   mit derselben Trefferliste; ob er im Ausdruck oder als `filter-alt-<name>`
   erscheint, folgt den beiden Punkten über alte Adressen.
@@ -3359,4 +3368,127 @@ Im Kontoblatt zeigt die Liste die Wirkung der folgenden Aktionen, noch bevor der
 - Ein vorweg gezeigter neuer Tag trägt bis zur Antwort `data-tag-id="0"`.
 - Nicht vorweggenommen: Umbuchung auf ein Bestandskonto, gesplittete Buchungen, Löschen, Splitten,
   Inline-Bearbeitung, „Bearbeiten…“ mit mehreren Feldern, Summen im Kopf des Blatts, die Erfolgsmeldung.
+
+## 46. Tastenbelegung (D-292)
+
+Ersetzt die Belegung aus 12.1 (`/`, `?`), 37.11 und den Kürzel-Absatz in 39; ergänzt 12.1a. Einzelne Tasten und
+Vortasten wirken nicht in Texteingaben, Auswahlfeldern, Dialogen und Menüs. Groß- und Kleinschreibung zählt. Kein
+Kürzel enthält ein Satzzeichen. Alte Folgen entfallen ohne Übergang; sie werden wie jede unbelegte Taste gemeldet.
+
+**Regeln:** Einzelne Buchstaben sind Tätigkeiten an den markierten Zeilen, dazu überall `h` und `u`/`d`. Vortasten
+führen zu Zielen: `w` wohin, `f` Filter, `v` Ansicht. Klein ist die Grundform, groß das Gegenstück oder die
+Variante; bei Zeiträumen ist groß immer „letzter“. `0` setzt zurück, `x` entfernt oder schließt.
+
+### 46.1 Überall
+
+| Taste | Wirkung |
+| --- | --- |
+| Strg+K, ⌘+K, Strg+Umschalt+P | Befehlspalette |
+| `h` | Tastaturhilfe `tastatur-hilfe` des angezeigten Blatts (46.7) |
+| Strg+Z, ⌘+Z · Strg+Umschalt+Z, Strg+Y | Rückgängig · Wiederholen |
+| Alt+1 … Alt+7 | Navigationsziele wie bisher |
+| F6 / Umschalt+F6 | nächster / vorheriger Bereich |
+| Esc | wie bisher |
+
+`/` und `?` haben keine Wirkung mehr; die Suche erreicht man mit `w s`.
+
+### 46.2 Vortaste `w` je Blatt
+
+Die allgemeinen Ziele aus 12.1a bleiben (`n`, `t`, `s`, `←`, `→`, `z`, `x`, `1`–`9`). Dazu meldet jedes Blatt eigene
+Ziele; angeboten werden nur Ziele, deren Element sichtbar ist (Hinweis, Hilfe, Befehlspalette, F6):
+
+| Blatt | Ziele |
+| --- | --- |
+| Kontoblatt | `f` Filter, `a` Aktionen (`konto-kopf`), `b` Buchungsblatt, `e` Einzelheiten |
+| Finanzübersicht | `b` Kontentabelle, `k` Kategorientabellen, `o` offene Zahlungen |
+| Konten | `a` Aktionen, `b` Kontentabelle |
+| Kategorien | `a` Aktionen, `b` Kategorienbaum |
+| Tags | `a` Aktionen, `b` Tag-Liste, `e` Buchungen des Tags |
+| Empfänger | `a` Aktionen, `b` Empfängerliste, `f` Suche |
+| Mail | `a` Aktionen, `b` Mail-Liste, `f` Suche und Filter, `e` Lesebereich, `o` Zuordnungen der Mail |
+| Was kommt noch? | `a` Aktionen, `b` Liste, `f` Suche und Filter |
+| Berichte | `a` Aktionen, `b` Tabelle des Berichts |
+| Regeln | `a` Aktionen, `b` Regelliste |
+| Einstellungen | `b` Liste der Bereiche, `f` Einstellung suchen, `e` Inhalt des Bereichs |
+| Kredit, Kredite, Protokoll, Dubletten | `a` Aktionen (falls vorhanden), `b` Liste bzw. Tilgungsplan |
+
+`w a` setzt den Fokus auf das erste Bedienelement im Kopf der Seite; ohne Bedienelement fehlt das Ziel. `w b`
+setzt ihn auf die markierte Zeile, sonst die erste Zeile, sonst das erste Bedienelement. F6 im Kontoblatt:
+Navigation → Tab-Leiste → Filter → Aktionen → Buchungsblatt → Einzelheiten.
+
+### 46.3 Markierung bewegen
+
+| Taste | Wirkung |
+| --- | --- |
+| `u` / `d` | wie Pfeil auf / ab |
+| `U` / `D` | wie Umschalt+Pfeil auf / ab (Bereich markieren, wo es ihn gibt) |
+
+- Gilt in jeder Liste mit Pfeiltasten: Kontoblatt, Empfänger, Kategorienbaum, Mail-Liste, Navigation sowie
+  Tabellen mit fokussierbaren Zeilen oder Links (Finanzübersicht, Konten, Tags, Was kommt noch?, Berichte).
+- In diesen Tabellen bewegen auch die Pfeiltasten selbst den Fokus zur Nachbarzeile.
+- Liegt der Fokus nicht im Blatt der Seite, setzt der erste Druck ihn dorthin (wie `w b`), ohne zu bewegen.
+- Bei offener Vortaste `f` oder `v` gehört die Taste zur Vortaste (`f u`, `f U`).
+
+### 46.4 Kontoblatt
+
+Einzelne Tasten (markierte Buchungen, ohne Markierung die fokussierte): `k` Kategorie, `t` Tags, `s` Status,
+`b` bestätigen, `a`/`A` Vorschlag annehmen/ablehnen, `e` Bearbeiten, `x` Splitten (genau eine), `X` als Dublette
+markieren (Bedingung wie bisher), `g` Gegenbuchung (genau eine), `m`/`M` Dokument/E-Mail anhängen, `n` neue
+Buchung. `d` ist nicht mehr die Dublette.
+
+Vortaste `f`:
+
+| Folge | Wirkung |
+| --- | --- |
+| `f a`, `f f`, `f 0` | Filterausdruck, Baukasten, alle Filter zurücksetzen |
+| `f u` / `f U` | mit Unterkonten / Unterkategorien (nur Bestandskonten) |
+| `f t` / `f T` | `datum == heute` / `datum == gestern` |
+| `f w` / `f W` | `datum in diese_woche` / `letzte_woche` |
+| `f m` / `f M` | `datum in dieser_monat` / `letzter_monat` |
+| `f q` / `f Q` | `datum in dieses_quartal` / `letztes_quartal` |
+| `f y` / `f Y` | `datum in dieses_jahr` / `letztes_jahr` |
+| `f x` | Zeitraum entfernen |
+| `f e` / `f E` | gleicher / ähnlicher Empfänger wie die markierte Buchung (genau eine) |
+| `f z` / `f Z` | gleicher / ähnlicher Verwendungszweck |
+| `f b` | gleicher Betrag mit Vorzeichen: `bet == <Betrag> and dir == "<Richtung>"` |
+| `f B` | gleicher Betrag ohne Vorzeichen: `bet == <Betrag>` |
+
+Ein Zeitraum ersetzt einen vorhandenen einfachen Datumsteil auf oberster Ebene; ein Betragsfilter ersetzt
+vorhandene `bet`- und `dir`-Vergleiche auf oberster Ebene. Die Richtung ist `"umbuchung"`, wenn alle Splits auf
+Bestandskonten liegen, sonst nach dem Vorzeichen im angezeigten Konto `"ausgabe"` bzw. `"einnahme"`. Die gleitenden
+Zeiträume (letzte 7 bzw. 30 Tage) gibt es nur als Knöpfe `filter-schnell-*`.
+
+Vortaste `v`: `v g` Gruppierung, `v k`/`v K` alle Gruppen auf-/zuklappen, `v o` Sortierspalte, `v r` Richtung,
+`v s` Spaltenbreiten an den Inhalt, `v 0` Spaltenbreiten zurücksetzen, `v e` Konto-Einstellungen. Das Panel
+Einzelheiten hat kein Kürzel mehr; `w e` klappt es auf.
+
+### 46.5 Kontextmenü
+
+Das Untermenü `km-filter` hat zusätzlich `km-filter-betrag` „gleicher Betrag“ und `km-filter-betrag-absolut`
+„gleicher Betrag (ohne Vorzeichen)“, Wirkung wie `f b` / `f B`. Die Einträge zeigen ihr Kürzel; `km-dublette`
+zeigt `⇧X`.
+
+### 46.6 Unverändert
+
+Listentasten der Buchungsliste (12.2, 7.4), Tasten im Baum, in der Tab-Leiste, im Kontextmenü, in der
+Befehlspalette, in der Einstellungssuche; Hinweis `kuerzel-hinweis` nach einer Vortaste; Einträge der
+Befehlspalette (jetzt nur Kürzel, die es auf dem Blatt gibt).
+
+### 46.7 Tastaturhilfe
+
+`tastatur-hilfe` zeigt nur, was auf dem angezeigten Blatt wirkt:
+
+| Kennung | Inhalt |
+| --- | --- |
+| `tastatur-hilfe-blatt` | „Für: <Blatt>“, `data-blatt` = Name der Seite |
+| `tastatur-hilfe-ueberall` | 46.1 |
+| `tastatur-hilfe-bereiche` | Ziele von `w` auf diesem Blatt |
+| `tastatur-hilfe-liste` | Tasten der Liste des Blatts; fehlt auf Blättern ohne Liste |
+| `tastatur-hilfe-aktionen`, `-filter`, `-ansicht` | nur im Kontoblatt: die Kürzel aus 46.4 |
+| `tastatur-hilfe-alle` | Ankreuzfeld „alle Blätter zeigen“; blendet `tastatur-hilfe-weitere` mit den übrigen Blättern ein |
+
+- In einer Kategorie fehlen `f u` und `f U`.
+- Kürzel, die gerade nicht wirken, sind als Zeile mit Klasse `inaktiv` und `aria-disabled="true"` grau und nennen
+  den Grund: „braucht genau eine markierte Buchung“ (`x`, `g`, `f e`/`E`/`z`/`Z`/`b`/`B`), „erst oben rechts
+  wählen, wer du bist“ (`b`).
 

@@ -1691,3 +1691,7 @@ button.option { width: 100%; border: 0; background: none; color: inherit; font: 
 [data-testid="postfaecher"]:empty::before { content: "Noch kein Postfach eingerichtet."; color: var(--text-2); font-size: .9em; }
 /* D-280: Paar von Ausgleichsbuchungen im Fenster „zusammenführen?“ */
 .ausgleich-paar { margin: .3rem 0 .6rem; padding-left: 1.2rem; }
+
+/* D-292: Tastaturhilfe – Kürzel, die gerade nicht wirken */
+#tastatur-hilfe tr.inaktiv, [data-testid="tastatur-hilfe"] tr.inaktiv { opacity: .55; }
+[data-testid="tastatur-hilfe"] .hilfe-blatt { margin-top: 1.5em; border-top: 1px solid var(--rand, #ccc); padding-top: .5em; }

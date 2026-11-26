@@ -123,7 +123,8 @@ def test_alt_ziffern_und_schraegstrich(bereit):
     seite.keyboard.press("Alt+8")   # ohne Wirkung
     seite.wait_for_timeout(300)     # Zeitraum, in dem eine Navigation einträte
     assert seite.url == server.url + "/einstellungen"
-    seite.keyboard.press("/")
+    seite.keyboard.press("w")   # D-292: w s statt /
+    seite.keyboard.press("s")
     expect(tid(seite, "suche-feld")).to_be_focused()
     # im Suchfeld wirken Einbuchstaben- und Alt-Kürzel nicht
     seite.keyboard.press("Alt+1")
@@ -135,7 +136,7 @@ def test_alt_ziffern_und_schraegstrich(bereit):
 def test_suche_und_tastaturhilfe(bereit):
     server, seite, erw, ids = bereit
     seite.evaluate("() => document.activeElement && document.activeElement.blur()")
-    seite.keyboard.press("?")
+    seite.keyboard.press("h")   # D-292: h statt ?
     hilfe = tid(seite, "tastatur-hilfe")
     expect(hilfe).to_be_visible()
     expect(hilfe).to_have_attribute("role", "dialog")
