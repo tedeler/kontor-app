@@ -3474,6 +3474,7 @@ Vortaste `f`:
 | `f q` / `f Q` | `datum in dieses_quartal` / `letztes_quartal` |
 | `f y` / `f Y` | `datum in dieses_jahr` / `letztes_jahr` |
 | `f x` | Zeitraum entfernen |
+| `f o` | offen: nur Buchungen, bei denen die Bestätigung fehlt (rot und gelb), ein/aus (D-297, Abschnitt 47) |
 | `f e` / `f E` | gleicher / ähnlicher Empfänger wie die markierte Buchung (genau eine) |
 | `f z` / `f Z` | gleicher / ähnlicher Verwendungszweck |
 | `f b` | gleicher Betrag mit Vorzeichen: `bet == <Betrag> and dir == "<Richtung>"` |
@@ -3561,4 +3562,18 @@ Befehlspalette (jetzt nur Kürzel, die es auf dem Blatt gibt).
   eine Karte mit Art (farbig), Objektart, Bezeichnung (erwartete Zahlung: Händler und Beschreibung; Abstimmung:
   Konto und Stichtag) und `#<objekt_id>`. Beträge auch in `gesamt`, `guthaben`, `restschuld`; gespeicherte
   Kurzwerte lesbar („jährlich“, „vorläufig“, „Ausgabe“ …).
+
+## 47. Kontoblatt: Filter „Bestätigung fehlt“ (D-297)
+
+- In der Zeile mit Zeitraum und Gruppierung steht der Schalter `filter-unbestaetigt` („Bestätigung fehlt“,
+  `aria-pressed`). Eingeschaltet zeigt das Blatt nur die rot und gelb getönten Buchungen: Status Importiert oder
+  Vorläufig und nicht abgestimmt. Kürzel `f o`.
+- Der Schalter setzt bzw. entfernt den Teil `unbestätigt` im Filterausdruck; die übrigen Teile (Zeitraum, Empfänger
+  …) bleiben. Enthält der Ausdruck „oder“ oder Klammern, wird er zu `(…) and unbestätigt`; in dieser Form nimmt
+  der Schalter den Teil auch wieder heraus.
+- `aria-pressed="true"`, solange der angewandte Filter den Teil `unbestätigt` (auch `unbestaetigt`,
+  `unbestätigt == True`) auf oberster Ebene enthält – auch wenn er von Hand eingegeben wurde.
+- `unbestätigt` ist ein Wahrheitsfeld des Filterausdrucks (`ausdruecke.md`; nur im Filter, nicht in Regeln) und
+  steht damit in Vervollständigung und Baukasten. Nur Rot: `status == "importiert"`, nur Gelb:
+  `status == "vorlaeufig"`.
 

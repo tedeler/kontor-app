@@ -198,6 +198,7 @@ function alteFilterUebernehmen(f, istKategorie) {
   return f;
 }
 
+const UNBESTAETIGT_TEIL = /^unbest(?:ä|ae)tigt(?:\s*==\s*true)?$/i;   // D-297
 const SCHNELL_TEIL = /^(?:datum|dt)\s+(?:in|==)\s+(?:heute|gestern|[+-]\d+[dwmqy]|diese_woche|letzte_woche|dieser_monat|letzter_monat|dieses_quartal|letztes_quartal|dieses_jahr|letztes_jahr|vorjahr)$/i;
 // Tastaturkürzel des Kontoblatts (D-167, neu geordnet D-292): [Vortaste, Taste, Text, Wirkung, Bedingung]. Ohne
 // Vortaste wirken sie auf die markierten Buchungen; „f“ führt zu den Filtern, „v“ zur Ansicht. Groß-/Kleinschreibung
@@ -246,6 +247,7 @@ const KUERZEL = [
   ["f", "y", "Zeitraum: dieses Jahr", (s) => s.zeitraumSetzen("dieses_jahr")],
   ["f", "Y", "Zeitraum: letztes Jahr", (s) => s.zeitraumSetzen("letztes_jahr")],
   ["f", "x", "Zeitraum entfernen", (s) => s.zeitraumSetzen(null)],
+  ["f", "o", "offen: nur Buchungen, bei denen die Bestätigung fehlt (rot und gelb), ein/aus", (s) => s.unbestaetigtUmschalten()],
   ["f", "e", "gleicher Empfänger wie die markierte Buchung", (s) => s.filterWieBuchung("km-filter-empfaenger"), "eine"],
   ["f", "E", "ähnlicher Empfänger", (s) => s.filterWieBuchung("km-filter-empfaenger-aehnlich"), "eine"],
   ["f", "z", "gleicher Verwendungszweck", (s) => s.filterWieBuchung("km-filter-zweck"), "eine"],
@@ -890,6 +892,10 @@ class Kontoansicht {
     const chips = h("div", { class: "filter-schnell", tid: "filter-schnell", role: "group", "aria-label": "Zeitraum" },
       SCHNELL.map(([w, text]) => h("button", { type: "button", class: "chip", tid: `filter-schnell-${w}`,
         onclick: () => this.zeitraumSetzen(w) }, text)));
+    // D-297: Schalter für die rot und gelb getönten Buchungen (Teil „unbestätigt“ des Filterausdrucks)
+    this.unbestaetigtChip = h("button", { type: "button", class: "chip", tid: "filter-unbestaetigt", "aria-pressed": "false",
+      title: "Nur rote und gelbe Buchungen zeigen: importiert oder vorläufig (f o)",
+      onclick: () => this.unbestaetigtUmschalten() }, "Bestätigung fehlt");
     // D-236: am Handy sind Filterfeld, Zeitraum und Gruppierung eingeklappt, damit die Liste oben beginnt;
     // der Zustand gilt je Kontoblatt und wirkt nur im mobilen Layout (app.css).
     this.ansichtKnopf = h("button", { type: "button", class: "knopf klein ansicht-umschalter", tid: "ansicht-umschalten",
@@ -901,7 +907,8 @@ class Kontoansicht {
       this.bkKnopf),
     this.zusammenfassungEl, this.alteEl,
     // Zeitraum und Gruppierung teilen sich eine Zeile: die Auswahl-Summen oben verschieben so nichts mehr (D-236)
-    h("div", { class: "ansicht-zeile" }, chips, this.gruppierungLeiste()));
+    h("div", { class: "ansicht-zeile" }, chips, h("div", { class: "filter-schnell", role: "group", "aria-label": "Status" },
+      this.unbestaetigtChip), this.gruppierungLeiste()));
     // D-250: Esc im Filterfeld (auch bei offener Vervollständigung) führt zurück in die Liste (D-167)
     this.ausdruckFilterEl.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && e.target.closest('[data-testid="filter-ausdruck"]')) setTimeout(() => this.listeFokussieren());
@@ -938,6 +945,29 @@ class Kontoansicht {
 
   zeitraumSetzen(w) { return this.ausdruckSetzen(this.mitZeitraum(w)); }
 
+  /** D-297: Steht „unbestätigt“ als eigener Teil im angewandten Filter? Liefert den Ausdruck ohne diesen Teil
+   *  (leer möglich) oder null. Bei „oder“ und Klammern nur in der Form „(…) and unbestätigt“, wie der Schalter sie
+   *  selbst anlegt. */
+  ohneUnbestaetigt(text) {
+    const t = (text || "").trim();
+    const m = /^\((.*)\)\s+(?:and|&&)\s+unbest(?:ä|ae)tigt$/i.exec(t);
+    if (m) {
+      let tiefe = 0;
+      for (const z of m[1]) { if (z === "(") tiefe += 1; else if (z === ")") tiefe -= 1; if (tiefe < 0) return null; }
+      return tiefe === 0 ? m[1] : null;
+    }
+    if (/\bor\b|\|\||[()]/.test(t)) return null;
+    const teile = t.split(/\s+(?:and|&&)\s+/);
+    const rest = teile.filter((x) => !UNBESTAETIGT_TEIL.test(x.trim()));
+    return rest.length < teile.length ? rest.join(" and ") : null;
+  }
+
+  /** Schalter „Bestätigung fehlt“ (f o): nur rote und gelbe Buchungen ein/aus; andere Teile des Filters bleiben. */
+  unbestaetigtUmschalten() {
+    const ohne = this.ohneUnbestaetigt(this.ausdruckEingabe.wert);
+    return this.ausdruckSetzen(ohne !== null ? ohne : this.mitTeil(UNBESTAETIGT_TEIL, "unbestätigt"));
+  }
+
   zusammenfassungZeichnen() {
     if (!this.zusammenfassungEl) return;
     const e = this.ausdruckEingabe && this.ausdruckEingabe.ergebnis;
@@ -945,6 +975,7 @@ class Kontoansicht {
     const alte = Object.entries(ALTE_FILTER).filter(([k]) => this.filter[k] !== undefined)
       .map(([k, text]) => `${text}: ${k.startsWith("betrag") ? betragText(Number(this.filter[k])) : this.filter[k]}`);
     if (this.ausdruckFilterEl) this.ausdruckFilterEl.dataset.gefiltert = t || alte.length ? "ja" : "nein";
+    if (this.unbestaetigtChip) this.unbestaetigtChip.setAttribute("aria-pressed", String(this.ohneUnbestaetigt(t) !== null));
     if (!t && !alte.length) { this.zusammenfassungEl.textContent = ""; return; }
     const teile = [...(t && e && e.gueltig ? e.zusammenfassung : []), ...alte];
     this.zusammenfassungEl.textContent = [...teile, `${this.gesamt} Buchung${this.gesamt === 1 ? "" : "en"}`].join(" · ");

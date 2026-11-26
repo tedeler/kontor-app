@@ -4512,3 +4512,24 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   ist schon markiert). Kein bestehender Test hing davon ab.
 - **Tests:** `tests/core/test_kategorie_tastatur.py`, `tests/test_browser_kategorie_tastatur.py` (Wählen, neue
   Kategorie samt übergeordneter Kategorie, Abbrechen; jeweils nur Tastatur, Fokus zurück auf der Buchung).
+
+## D-297 Filter „Bestätigung fehlt“: rote und gelbe Buchungen (Feature `filter-unbestaetigt`, 2026-11-26)
+
+- **Anlass:** Auftrag vom 2026-11-26: Es muss eine Filtermöglichkeit nach gelben und roten Buchungen geben, also
+  nach denen, bei denen noch eine Bestätigung fehlt.
+- **Entscheidung:** Der Filterausdruck bekommt das Wahrheitsfeld `unbestätigt` (auch `unbestaetigt`,
+  `not unbestätigt`, `unbestätigt == True`). Es trifft Buchungen mit Status Importiert oder Vorläufig, die nicht
+  abgestimmt sind – dieselbe Bedingung wie die rote und gelbe Tönung im Kontoblatt (D-254). Nur im Filter, nicht
+  in Regeln; es steht in `GET /api/ausdruck/sprache` und damit in Vervollständigung und Baukasten.
+- **Bedienung:** Schalter „Bestätigung fehlt“ (`filter-unbestaetigt`) neben den Zeiträumen und das Kürzel `f o`
+  („offen“). Beide setzen oder entfernen nur diesen Teil; Zeitraum und andere Teile bleiben. Vertrag:
+  `oberflaeche.md` 47.
+- **Rot und Gelb zusammen, nicht getrennt:** gefragt war nach den Buchungen ohne Bestätigung. Einzeln geht es wie
+  bisher über `status == "importiert"` bzw. `status == "vorlaeufig"`; eigene Schalter dafür gibt es nicht.
+- **Nicht gemeint:** die Bestätigung einer bestimmten Person (Tag „<Name>-Bestätigt“). Eine bestätigte Buchung
+  ohne mein Tag gilt hier nicht als offen.
+- **Grenze:** Steht `unbestätigt` in einem von Hand geschriebenen Ausdruck innerhalb von Klammern oder neben
+  „oder“ (außer in der Form `(…) and unbestätigt`), erkennt der Schalter es nicht und zeigt „aus“.
+- **Tests:** `tests/core/test_filter_unbestaetigt.py`, `tests/test_browser_filter_unbestaetigt.py`; die
+  Kürzeltabelle in `tests/core/test_tastenbelegung.py` ist um `f o` erweitert (`AENDERUNGEN.md`). Der
+  Service-Worker-Cache heißt `kontor-huelle-48`. Mobil nicht im Browser angesehen.

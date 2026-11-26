@@ -55,6 +55,7 @@ Nicht im Umfang: Filter in der globalen Suche.
 | `wochentag` | – | Auswahl | `"mo"` … `"so"`, dazu `"werktag"` (Montag bis Freitag) und `"wochenende"` | ja |
 | `letzter_tag` | – | Wahrheitswert | letzter Tag des Monats | ja |
 | `verdächtig` | – | Wahrheitswert | Buchung trägt das Label „Verdächtig“ (berechnet, D-263) | nein (nur Filter) |
+| `unbestätigt` | – | Wahrheitswert | Bestätigung fehlt: Status Importiert oder Vorläufig und nicht abgestimmt – die rot und gelb getönten Buchungen (D-297) | nein (nur Filter) |
 
 - Statt `ä`, `ö`, `ü`, `ß` sind in Feldnamen und Auswahlwerten auch `ae`,
   `oe`, `ue`, `ss` erlaubt.

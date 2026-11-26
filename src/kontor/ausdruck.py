@@ -68,6 +68,8 @@ FELDER: dict[str, Feld] = {f.name: f for f in (
     Feld("wochentag", None, "auswahl", "Wochentag", werte=WOCHENTAGE + tuple(WOCHENTAG_GRUPPEN)),
     Feld("letzter_tag", None, "bool", "Letzter Tag des Monats"),
     Feld("verdächtig", None, "bool", "Verdächtig", nur_filter=True),   # D-263: berechnet (verdacht.py), nie gespeichert
+    # D-297: die rot und gelb getönten Buchungen des Kontoblatts (importiert oder vorläufig, nicht abgestimmt)
+    Feld("unbestätigt", None, "bool", "Unbestätigt", nur_filter=True),
 )}
 
 SCHLUESSELWOERTER = {"and", "or", "not", "in", "is", "none", "null", "true", "false"}
@@ -1415,6 +1417,12 @@ class Sicht:
     tag_namen: tuple[str, ...] = ()
     umbuchung: bool = False
     verdacht: bool = False   # D-263: nur gefüllt, wenn der Filter das Feld „verdächtig“ nutzt
+    abgestimmt: bool = False
+
+    @property
+    def unbestaetigt(self) -> bool:
+        """D-297: Die Bestätigung fehlt noch – dieselbe Bedingung wie die rote und gelbe Tönung im Kontoblatt."""
+        return self.status in ("importiert", "vorlaeufig") and not self.abgestimmt
 
     @property
     def betrag(self) -> int:
@@ -1512,6 +1520,8 @@ class Auswerter:
             return s.tag_ids
         if name == "verdächtig":
             return s.verdacht
+        if name == "unbestätigt":
+            return s.unbestaetigt
         d = s.datum_d()
         if d is None:
             return None
@@ -1758,7 +1768,8 @@ def sicht_aus_buchung(b: dict, art_von: dict[int, str], konten: set[int] | None 
         iban=b.get("gegen_iban"), notiz=" ".join(x["memo"] for x in sp if x["memo"]),
         kategorie_id=b["kategorie_id"], status=b["status"],
         tag_ids=frozenset(t["id"] for t in b["tags"]), tag_namen=tuple(t["name"] for t in b["tags"]),
-        umbuchung=bool(b.get("ist_umbuchung")), verdacht=bool(b.get("verdacht")))
+        umbuchung=bool(b.get("ist_umbuchung")), verdacht=bool(b.get("verdacht")),
+        abgestimmt=bool(b.get("abgestimmt")))
 
 
 def filtern(con, baum: dict, ids: Iterable[int], konten: set[int] | None, heute: dt.date,
