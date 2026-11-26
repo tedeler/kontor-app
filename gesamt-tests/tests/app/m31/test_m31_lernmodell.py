@@ -87,7 +87,8 @@ def test_einstellungen_nicht_in_der_sicherung(tmp_path):
     ziel = neue_api(tmp_path / "z")
     einstellungen_setzen(ziel, schwelle_promille=550)
     einspielen(ziel, sicherung(quelle))
-    assert einstellungen(ziel) == {"schwelle_promille": 550, "regeln_automatisch": False}
+    # D-302: Einstellungen gehören seit Schemaversion 11 zur Sicherung (nicht zur Inhaltsprüfsumme, siehe oben)
+    assert einstellungen(ziel) == {"schwelle_promille": 800, "regeln_automatisch": True}
 
 
 def test_schwelle_wirkt_auf_vorhersage_anwenden_und_zustand(api):

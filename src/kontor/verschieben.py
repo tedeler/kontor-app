@@ -31,7 +31,8 @@ def _angelegt_von(con, gruppe: str) -> set[int]:
     """IDs der Buchungen, die eine Änderung dieser Gruppe angelegt hat (unabhängig davon, ob sie noch existieren)."""
     return {r["objekt_id"] for r in con.execute(
         "SELECT e.objekt_id FROM aenderung a JOIN aenderung_eintrag e ON e.aenderung_id = a.id"
-        " WHERE a.gruppe = ? AND e.objekt = 'buchung' AND e.art = 'angelegt'", (gruppe,))}
+        " WHERE a.gruppe = ? AND e.objekt = 'buchung' AND e.art = 'angelegt'"
+        " UNION SELECT buchung_id FROM buchung_herkunft WHERE gruppe = ?", (gruppe, gruppe))}
 
 
 def _auf_konto(con, konto_id: int) -> set[int]:
@@ -62,7 +63,8 @@ def herkunft(con, konto_id: int) -> list[dict]:
     for r in con.execute(
             "SELECT a.gruppe, e.objekt_id FROM aenderung a JOIN aenderung_eintrag e ON e.aenderung_id = a.id"
             " WHERE (a.gruppe LIKE 'import:%' OR a.gruppe LIKE 'sync:%')"
-            " AND e.objekt = 'buchung' AND e.art = 'angelegt'"):
+            " AND e.objekt = 'buchung' AND e.art = 'angelegt'"
+            " UNION SELECT gruppe, buchung_id FROM buchung_herkunft"):   # D-302: nach dem Kürzen des Protokolls
         if r["objekt_id"] in auf:
             je.setdefault(r["gruppe"], set()).add(r["objekt_id"])
     ergebnis = []

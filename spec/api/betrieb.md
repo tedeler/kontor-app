@@ -155,13 +155,14 @@ und `Environment=KONTOR_BANK_PIN_QUELLE=eingabe`.
 
 `kontor-sicherung.service`, `[Service]`: `Type=oneshot`, `User=kontor`,
 `Group=kontor`, `EnvironmentFile=/etc/kontor/kontor.env`,
-`ExecStart=/opt/kontor/venv/bin/python -m kontor.sicherung --verzeichnis /var/lib/kontor/sicherungen --behalten 14`,
+`ExecStart=/opt/kontor/venv/bin/python -m kontor.sicherung stunde --verzeichnis /var/lib/kontor/sicherungen`
+(D-302, vorher `--verzeichnis /var/lib/kontor/sicherungen --behalten 14`),
 `StateDirectory=kontor`, `UMask=0077` und dieselben Härtungswerte wie 4.1
 (Tabellenzeilen ab `NoNewPrivileges`). Keine `LoadCredential*`-Zeile
 (die Sicherung braucht keine Geheimnisse). Kein `[Install]`-Abschnitt.
 
-`kontor-sicherung.timer`, `[Timer]`: `OnCalendar=` mit einem täglichen
-Zeitpunkt (Wert beginnt mit `*-*-* ` oder ist `daily`), `Persistent=yes`;
+`kontor-sicherung.timer`, `[Timer]`: `OnCalendar=hourly` (D-302, stündliche
+Sicherungspunkte nach `sicherungspunkte.md`; vorher täglich), `Persistent=yes`;
 `Unit=` fehlt oder ist `kontor-sicherung.service`. `[Install]`:
 `WantedBy=timers.target`.
 
@@ -386,3 +387,16 @@ Fehlerausgabe. Python: `kontor.demodaten.aufbauen(datenbank, mock_datei, heute=N
 Geprüft: `tests/core/test_demodaten.py`, `tests/test_demodaten_eigen.py`,
 `tests/test_testinstanz_skript_eigen.py`. Nicht prüfbar: der Lauf unter systemd auf dem Server.
 
+
+## 12. Stündliche Sicherungspunkte (Feature `sicherung-stuendlich`, D-302)
+
+- `kontor-sicherung.service` ruft `python -m kontor.sicherung stunde --verzeichnis /var/lib/kontor/sicherungen` auf,
+  `kontor-sicherung.timer` stündlich (4.3). Die Punkte liegen in `<verzeichnis>/punkte-echt` bzw. `punkte-mock`
+  (0700, Dateien 0600). Ohne `--verzeichnis` gilt `KONTOR_SICHERUNG_VERZEICHNIS`, sonst `sicherungen` neben der
+  Datenbank; der Dienst benutzt dieselbe Vorgabe, damit Oberfläche und Timer dieselbe Ablage sehen.
+- Ausgabe eine Zeile `<kennung> neu|unverändert <Bytes> Bytes`; Exit 0, 1 (Fehler beim Schreiben), 2
+  (Konfiguration). `--marke vor_update` setzt die Marke „Vor Update“.
+- Der bisherige Aufruf `--verzeichnis <pfad> [--behalten N]` (8) schreibt weiter eine volle ZIP-Datei; vorhandene
+  Tagesdateien bleiben liegen und lassen sich über „Sicherung einspielen“ verwenden.
+- Aufbewahrung über `KONTOR_SICHERUNG_STUNDEN`, `_TAGE`, `_WOCHEN`, `_MONATE`, `KONTOR_PROTOKOLL_STUNDEN`
+  (0–720, `sicherungspunkte.md` 8).

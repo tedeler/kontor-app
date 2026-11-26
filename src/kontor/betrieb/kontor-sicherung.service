@@ -1,7 +1,8 @@
-# Kontor – tägliche Sicherung (betrieb.md 4.3, 8). Gestartet von kontor-sicherung.timer.
+# Kontor – stündlicher Sicherungspunkt (betrieb.md 4.3, 8; sicherungspunkte.md 8). Gestartet von
+# kontor-sicherung.timer und vor jedem Update (kontor-update.service).
 # Braucht keine Geheimnisse: keine Credentials.
 [Unit]
-Description=Kontor – Datensicherung in /var/lib/kontor/sicherungen
+Description=Kontor – Sicherungspunkt in /var/lib/kontor/sicherungen
 After=kontor.service
 
 [Service]
@@ -9,7 +10,7 @@ Type=oneshot
 User=kontor
 Group=kontor
 EnvironmentFile=/etc/kontor/kontor.env
-ExecStart=/opt/kontor/venv/bin/python -m kontor.sicherung --verzeichnis /var/lib/kontor/sicherungen --behalten 14
+ExecStart=/opt/kontor/venv/bin/python -m kontor.sicherung stunde --verzeichnis /var/lib/kontor/sicherungen
 StateDirectory=kontor
 StateDirectoryMode=0700
 UMask=0077

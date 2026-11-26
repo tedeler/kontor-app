@@ -1,11 +1,11 @@
-# Kontor – Zeitplan der täglichen Sicherung (betrieb.md 4.3)
+# Kontor – Zeitplan der stündlichen Sicherungspunkte (betrieb.md 4.3, sicherungspunkte.md 8)
 [Unit]
-Description=Kontor – tägliche Datensicherung
+Description=Kontor – stündliche Sicherungspunkte
 
 [Timer]
-OnCalendar=*-*-* 03:15:00
+OnCalendar=hourly
 Persistent=yes
-RandomizedDelaySec=600
+RandomizedDelaySec=120
 Unit=kontor-sicherung.service
 
 [Install]

@@ -75,13 +75,14 @@ nicht mehr. Ein Thread schreibt Tests und Code.
 | `src/kontor/auswertungen.py` | Feature berichte (D-217): Verträge, Jahr, Vorschau, Vermögen, Kategorien, Empfänger, Geldfluss, Datenqualität, Tags (`GET /api/berichte/<name>`, Tabelle `BERICHTE`), nur lesend; Oberfläche `app/berichte.js`, `berichte2.js`, `berichtsteile.js` unter `/berichte?art=<name>` (ein Tab) |
 | `src/kontor/bestellmail.py` | Feature amazon-bestellnummer (D-208): Mails mit der Amazon-Bestellnummer einer Buchung als Dokumente anhängen (`mail_bestellnummer`), Tabelle `bestellmail` als Betriebszustand; Aufruf über `abgleich.nach_ereignis` |
 | `src/kontor/berichte.py`, `export.py` | M5: Kontostandsverlauf, Einnahmen/Ausgaben; CSV- und PDF-Export (reportlab) der Buchungsliste |
+| `src/kontor/sicherungspunkte.py` | D-302: Sicherungspunkte (Zeilendifferenzen, Anker, Prüfwert, Ausdünnen, Prüflauf, Herstellen als Sicherungsdatei, Einspielen nach `sicherungspunkte.md` 5.1); Seite `app/sicherung.js`; Kommandozeile `python -m kontor.sicherung stunde` |
 | `src/kontor/sicherung.py` | M9: Datensicherung (eigenes Schema der Sicherungsdatei `SPALTEN`, Version `SCHEMAVERSION`), Prüfung nach sicherung.md 5.1, Inhaltsprüfung in einer App-Datenbank im Arbeitsspeicher, Probelauf, Einspielen |
 | `src/kontor/anbieter/` | D-230: Anbieter-Beschreibungen für den Mail-Abgleich (`amazon.toml`, `paypal.toml`, Zusatzdateien aus `anbieter_verzeichnis`); `__init__.py` liest, prüft und wertet sie aus; Format in `ANBIETER.md`. Änderungen an den mitgelieferten Dateien gegen `tests/test_anbieter_eigen.py` prüfen (Vergleich mit `tests/referenz_mailerkennung.py`) |
 | `src/kontor/kontonamen.py` | Sammelbranch sammel3 (D-218): Kontonamen je Ebene eindeutig – `pruefen` (409 `konto_existiert`, aufgerufen am Ende von `protokoll.protokolliert`), `bereinigen` (Altbestand, Importe, Sicherung), `freier_name` |
 | `src/kontor/umbuchung.py` | Sammelbranch sammel4 (D-242): Zuordnung von Hand auf Kategorie oder Bestandskonto (`zuordnen`, `mehrfach`, `gegenbuchungen`) hinter `PUT /api/buchungen/{id}/kategorie`; beim Bestandskonto Umbuchung, passende Gegenseite des Zielkontos wird zusammengeführt |
 | `src/kontor/ausgleich.py` | Feature ausgleich-aufraeumen (D-280, kontostand.md 5): Ausgleichsbuchungen des Saldoabgleichs, die sich innerhalb von sieben Tagen aufheben – `gegenstueck` (beim Abruf), `aufraeumen`/`altbestand_aufraeumen`, `paare`, `zusammenfuehren`, `getrennt_lassen` (Betriebszustand in `meta`); Fenster `ausgleichDialog` in `app/haupt.js` |
 | `src/kontor/kompression.py` | D-255: zlib für Mail-Dokumente und Rohfassungen im Mail-Spiegel (`packen`, `entpacken`; Verfahren `zlib`, `''`, `NULL` = Altbestand) |
-| `src/kontor/db.py` | SQLite-Schema (Version 18; `mails_packen` und `verkleinern` beim Start, D-255), WAL, Migration früherer Versionen ohne Datenverlust, Verbindungen, `checkpoint` |
+| `src/kontor/db.py` | SQLite-Schema (Version 19; `mails_packen` und `verkleinern` beim Start, D-255), WAL, Migration früherer Versionen ohne Datenverlust, Verbindungen, `checkpoint` |
 | `src/kontor/geheimnisse.py` | M6: verschlüsselter Geheimnisspeicher (AES-256-GCM, Schlüssel aus systemd-creds oder Schlüsseldatei), `verwaiste_entfernen` |
 | `src/kontor/mail.py` | M6: Postfächer (Buchbestand), Betriebszustand, OAuth2 mit PKCE, `zugang` (Token-Erneuerung, Ablauf, Widerruf), paralleler Abruf, Spiegel |
 | `src/kontor/zustellung.py` | M6: Zustellung der Benachrichtigungen über das Benachrichtigungs-Plugin (erster Versuch, Wiederholung, Status) |
@@ -311,6 +312,15 @@ nicht mehr. Ein Thread schreibt Tests und Code.
   danach sind die geladenen Buchungen schon geändert.
 - Neue Tags über `tagHolen` (`kern.js`) anlegen. Browsertests warten nach solchen Aktionen auf
   `data-ausstehend="0"` an `seite-konto`, bevor sie mit Zeilen weiterarbeiten.
+
+## Hinweise zu den Sicherungspunkten (Feature `sicherung-stuendlich`, D-302)
+
+- Neuer fachlicher Zustand gehört wie bisher in `sicherung.SPALTEN`; die Sicherungspunkte (`sicherungspunkte.py`)
+  lesen genau diese Tabellen. Ein Feld, das sich ohne fachliche Änderung bewegt, gehört in `BEGLEIT` (sonst entsteht
+  bei jedem Lauf ein Punkt).
+- Das Änderungsprotokoll wird gekürzt (`protokoll.kuerzen`): Nichts darf ältere Protokolleinträge als dauerhafte
+  Quelle voraussetzen. Herkunft angelegter Buchungen über `buchung_herkunft`.
+- Sperrenfolge: erst `Ablage.gesperrt()` (Dateisperre), dann eine Schreibtransaktion der Datenbank, nie umgekehrt.
 
 ## Hinweise zu den Regelgruppen (Feature `regelgruppen`, D-295)
 

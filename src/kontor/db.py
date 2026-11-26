@@ -18,7 +18,7 @@ from .text import norm
 
 _log = logging.getLogger("kontor.db")
 
-SCHEMA_VERSION = 18
+SCHEMA_VERSION = 19
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (
@@ -295,6 +295,14 @@ CREATE TABLE IF NOT EXISTS sync_wiederherstellung (
     iban TEXT NOT NULL,
     PRIMARY KEY (aenderung_id, iban)
 );
+
+-- D-302 (sicherungspunkte.md 6): Herkunft angelegter Buchungen (Gruppe import:/sync:), vermerkt beim Kürzen des
+-- Änderungsprotokolls. Betriebszustand, nie in einer Sicherung; IDs können auf nicht mehr vorhandene Buchungen zeigen.
+CREATE TABLE IF NOT EXISTS buchung_herkunft (
+    gruppe TEXT NOT NULL,
+    buchung_id INTEGER NOT NULL,
+    PRIMARY KEY (gruppe, buchung_id)
+) WITHOUT ROWID;
 
 -- ------------------------------------------------------------ Meilenstein 4
 -- Split-Vorlagen (vorlagen.md 1); Bedingungen und Teile als JSON-Listen.

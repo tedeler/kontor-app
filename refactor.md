@@ -45,6 +45,7 @@ SQL-Text eingesetzt werden.
 | 2026-11-12 | `5191417` | Dokumente (Branch, noch nicht gemergt), vor Mail-Abgleich | 16 425 | 5 420² | 380 | 46 | 40 | 134 | 399 | 0 |
 | 2026-11-12 | `698d2fa` | M16, M17 (auf main, Version 0.09), vor ALF-BanCo-Import | 15 734 | 4 997² | 363 | 46 | 38 | 127 | 379 | 0 |
 | 2026-11-19 | `68b53a6` | Stand main nach M18–M28 und Folgefeatures, vor FinTS/CAMT-Umstellung (`feature/fints-camt`) | 23 095 | 10 036² | 567 | 67 | 55 | 168 | 564 | 0⁴ |
+| 2026-11-26 | `b8aa349` | Stand main 0.66, vor Sicherungspunkte (`feature/sicherung-stuendlich`) | 28 295 | 14 608² | 706 | 73 | 71 | 263⁵ | 698 | 0⁶ |
 
 ¹ `--select E,F,W,B,C90,SIM,UP,PL --line-length 120`.
 ² Ab M8 Summe der ES-Module `src/kontor/web/oeffentlich/app/*.js` (R-07, `app.js` gibt es nicht mehr).
@@ -52,6 +53,10 @@ SQL-Text eingesetzt werden.
 ⁴ 84 Hinweise von `S608`; für diese Zeile nicht einzeln nachgeprüft (seit 2026-11-12 fehlen Zeilen für mehrere Features, die Sprünge
   aller Kennzahlen stammen aus diesen und nicht aus einer einzelnen Änderung). Maßnahme R-neu: Zeilen je Feature nachtragen
   und die S608-Hinweise der neuen Module durchsehen.
+⁵ Mit mypy aus der Umgebung der Sitzung (`/usr/local/bin/mypy`, Abhängigkeiten installiert); nicht unmittelbar mit
+  der Vorzeile vergleichbar.
+⁶ 104 Hinweise von `S608`; durchgesehen nur `sicherung.py` und `protokoll.py` (23, alle Platzhalterlisten oder feste
+  Spaltennamen), die dieses Feature ändert.
 
 ## Bewertung (2026-11-09)
 
@@ -245,3 +250,17 @@ breiten `except`, keine echten SQL-Funde. Maßnahme **R-12**. Der Import selbst 
 
 - [ ] **R-12 `wiederkehrend._schritt_text` als Tabelle je Schrittart** (Textbausteine je `art`, verhaltensneutral;
   Maßstab die M16-Tests).
+
+### Fortschreibung vor den Sicherungspunkten (2026-11-26, Stand `b8aa349`)
+
+Seit `68b53a6` kamen rund 20 Features ohne eigene Zeile dazu (FinTS/camt, Einstellungen, Berichte, Mail-Kopfabruf,
+Demodaten, Tastatur, Regelgruppen, Sonderposten, Kategoriepfad u. a.): +5 200 Python-Zeilen, +4 600 Zeilen in den
+ES-Modulen. C901 +6 und radon D/E/F +16 verteilen sich auf diese Features; die meisten D-Funktionen liegen jetzt in
+`auswertungen.py` (Berichte, 8) und `ausdruck.py` (Regelausdrücke, 6). ruff-Funde und Parameter ohne Annotation wachsen mit dem
+Umfang. Vier breite `except` (BLE), keine neuen echten SQL-Funde in den durchgesehenen Modulen. Maßnahmen
+**R-14** und **R-15**. Das neue Modul `sicherungspunkte.py` hält jede Funktion bei C901 ≤ 15 und ist annotiert.
+
+- [ ] **R-14 Berichte (`auswertungen.py`) in kleinere Funktionen je Bericht zerlegen** (verhaltensneutral, Maßstab
+  `tests/core/test_berichte*.py` und die Gesamttests).
+- [ ] **R-15 S608-Hinweise der Module seit `68b53a6` durchsehen** und die Zeilen der fehlenden Features nachtragen
+  (übernimmt R-neu aus Fußnote ⁴).

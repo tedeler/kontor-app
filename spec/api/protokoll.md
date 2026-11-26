@@ -690,3 +690,14 @@ Rückgängig kann mit 409 `konto_existiert` abgelehnt werden (`sammel3.md`
   Art `geaendert` (`lernregel_gesperrt`), wenn der Empfänger noch nicht
   gesperrt war.
 - Beschreibung: „Regel „<Name>“ als eigene übernommen“.
+
+## 26. Kurzes Änderungsprotokoll (D-302, `sicherungspunkte.md` 6)
+
+- Der stündliche Lauf entfernt Änderungen, die älter als `protokoll_stunden` (Vorgabe 1) Stunden sind und deren
+  Stand ein geprüfter Sicherungspunkt abdeckt. Rückgängig-Paare werden nur zusammen entfernt. Rückgängig,
+  „Bis hierher“ und `gruppe` wirken nur auf die verbliebenen Änderungen.
+- Die Herkunft angelegter Buchungen (`import:<id>`, `sync:<id>`) bleibt in `buchung_herkunft`; `GET
+  /api/konten/{id}/herkunft` und das Verschieben nach Gruppe (`buchhaltungspflege.md`) lesen beides.
+- `GET /api/aenderungen` liefert zusätzlich `gekuerzt_bis`.
+- Beleginhalte ohne Dokument, ohne Verweis aus dem Mail-Spiegel und ohne verbliebenen Protokolleintrag entfallen beim
+  Kürzen.

@@ -232,9 +232,11 @@ export async function protokollSeite(seite) {
   const liste = h("div", { class: "pr-liste", tid: "protokoll-liste" });
   const leerEl = h("p", { class: "leer pr-leer", hidden: true });
   const mehr = knopf("Ältere laden", { tid: "protokoll-mehr", class: "knopf pr-mehr", hidden: true });
+  const aelter = h("p", { class: "klein pr-aelter", tid: "protokoll-aelter" }, "Ältere Änderungen stehen in den ",
+    h("a", { href: "/sicherung" }, "Sicherungspunkten"), ".");
   seite.classList.add("seite-protokoll");
   seite.append(h("div", { class: "seiten-kopf pr-kopf" }, h("div", null, h("h1", null, "Änderungsprotokoll"), stand)),
-    filterLeiste, liste, leerEl, mehr);
+    filterLeiste, liste, leerEl, mehr, aelter);
 
   let filter = FILTER[0];
   let seiteNr = 0;
@@ -324,6 +326,8 @@ export async function protokollSeite(seite) {
     leerEl.hidden = geladen.length > 0;
     leerEl.textContent = filter[2].length ? `Keine Änderungen in „${filter[1]}“.` : "Noch keine Änderungen.";
     mehr.hidden = geladen.length >= gesamt;
+    // D-302: Das Protokoll reicht nur rund eine Stunde zurück; ältere Stände stehen in den Sicherungspunkten
+    aelter.hidden = geladen.length < gesamt;
     mehr.textContent = `Ältere laden (${geladen.length.toLocaleString("de-DE")} von ${gesamt.toLocaleString("de-DE")} angezeigt)`;
   }
 

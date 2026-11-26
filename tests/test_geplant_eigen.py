@@ -152,7 +152,7 @@ def test_sicherung_und_altbestand(umgebung, tmp_path):
     with zipfile.ZipFile(io.BytesIO(r.content)) as z:
         manifest = json.loads(z.read("manifest.json"))
         (tmp_path / "s.sqlite").write_bytes(z.read("kontor.sqlite"))
-    assert manifest["schemaversion"] == 10
+    assert manifest["schemaversion"] >= 10   # D-302: ab 11 mit Einstellungen
     con = sqlite3.connect(tmp_path / "s.sqlite")
     assert con.execute("SELECT erwartung_id, rhythmus, tag, bis, vorgaenger_id FROM erwartung_wiederholung").fetchall() == [
         (e["id"], "halbjaehrlich", 31, None, None)]
