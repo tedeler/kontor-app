@@ -1,4 +1,4 @@
-"""Core-Tests zum Feature „nachweis-pdf“ (D-302): markierte Buchungen eines Bankkontos als Nachweis im Stil eines
+"""Core-Tests zum Feature „nachweis-pdf“ (D-303): markierte Buchungen eines Bankkontos als Nachweis im Stil eines
 Kontoauszugs.
 
 - ``GET /api/export/nachweis.pdf?konto_id=…&buchung_id=…&buchung_id=…[&inhaber=…]`` liefert ein PDF mit genau den
@@ -20,7 +20,7 @@ import pytest
 from fastapi.testclient import TestClient
 from pypdf import PdfReader
 
-from kontor import bankzugang, db
+from kontor import bankumsatz, bankzugang, db, protokoll
 from kontor.app import create_app
 from kontor.config import KontorConfig
 from kontor.plugins.bank import BankKonto
@@ -106,43 +106,28 @@ def test_reihenfolge_nach_datum(welt):
     assert t.index(_de(frueh["datum"])) < t.index(_de(spaet["datum"]))
 
 
-def test_unveraenderte_bankbuchung_ohne_hinweis(welt):
+def test_hinweise_bei_abweichung_vom_umsatz_der_bank(welt):
+    """Je geändertes Feld ein Hinweis; unveränderte Bankbuchungen ohne Hinweis. Eine Buchung je Fall."""
     c, giro, buchungen, _ = welt
-    t = _text(_nachweis(c, giro, [_waehlen(buchungen, "Miete")["id"]]))
-    assert "Hinweis" not in t
-
-
-@pytest.mark.parametrize("feld,wert,name", [
-    ("verwendungszweck", "Miete geändert", "Verwendungszweck"),
-    ("datum", "2024-04-02", "Datum"),
-])
-def test_geaenderte_bankbuchung_hat_hinweis(welt, feld, wert, name):
-    c, giro, buchungen, _ = welt
-    b = _waehlen(buchungen, "Miete 04")
-    assert c.patch(f"/api/buchungen/{b['id']}", json={feld: wert}).status_code == 200
-    t = _text(_nachweis(c, giro, [b["id"]]))
-    assert f"Hinweis: Nach dem Abruf von der Bank geändert: {name}" in t
-
-
-def test_geaenderter_betrag_hat_hinweis(welt):
-    c, giro, buchungen, _ = welt
-    b = _waehlen(buchungen, "Miete 04")
-    splits = [{"konto_id": s["konto_id"], "betrag": s["betrag"] * 2, "memo": s["memo"]} for s in b["splits"]]
-    r = c.put(f"/api/buchungen/{b['id']}/splits", json={"splits": splits})
+    zweck, datum, betrag, empf = (_waehlen(buchungen, z) for z in ("Miete 04", "Miete 05", "Miete 06", "Gehalt 04"))
+    unveraendert = _waehlen(buchungen, "Gehalt 05")
+    assert c.patch(f"/api/buchungen/{zweck['id']}", json={"verwendungszweck": "Miete geändert"}).status_code == 200
+    assert c.patch(f"/api/buchungen/{datum['id']}", json={"datum": "2024-05-04"}).status_code == 200
+    splits = [{"konto_id": s["konto_id"], "betrag": s["betrag"] * 2, "memo": s["memo"]} for s in betrag["splits"]]
+    r = c.put(f"/api/buchungen/{betrag['id']}/splits", json={"splits": splits})
     assert r.status_code == 200, r.text
-    t = _text(_nachweis(c, giro, [b["id"]]))
-    assert "Hinweis: Nach dem Abruf von der Bank geändert: Betrag" in t
-    assert _eur(b["betrag"] * 2) in t
-
-
-def test_umbenannter_empfaenger_hat_hinweis(welt):
-    c, giro, buchungen, _ = welt
-    b = _waehlen(buchungen, "Miete 04")
-    r = c.patch(f"/api/empfaenger/{b['empfaenger']['id']}", json={"name": "Vermieter (fiktiv)"})
+    neu = c.post("/api/empfaenger", json={"name": "Anderer Arbeitgeber (fiktiv)"}).json()["id"]
+    assert c.patch(f"/api/buchungen/{empf['id']}", json={"empfaenger_id": neu}).status_code == 200
+    for b, feld in ((zweck, "Verwendungszweck"), (datum, "Datum"), (betrag, "Betrag"), (empf, "Empfänger")):
+        t = _text(_nachweis(c, giro, [b["id"]]))
+        assert t.count("Hinweis:") == 1 and f"Hinweis: Weicht vom Umsatz der Bank ab: {feld}" in t, feld
+    assert _eur(betrag["betrag"] * 2) in _text(_nachweis(c, giro, [betrag["id"]]))
+    assert "Hinweis" not in _text(_nachweis(c, giro, [unveraendert["id"]]))
+    # Umbenennen des Empfängers ist eine Abweichung vom Namen beim Abruf
+    r = c.patch(f"/api/empfaenger/{unveraendert['empfaenger']['id']}", json={"name": "Arbeitgeber neu (fiktiv)"})
     assert r.status_code == 200, r.text
-    t = _text(_nachweis(c, giro, [b["id"]]))
-    assert "Vermieter (fiktiv)" in t
-    assert "Hinweis: Nach dem Abruf von der Bank geändert: Empfänger" in t
+    t = _text(_nachweis(c, giro, [unveraendert["id"]]))
+    assert "Arbeitgeber neu (fiktiv)" in t and "Hinweis: Weicht vom Umsatz der Bank ab: Empfänger" in t
 
 
 def test_von_hand_erfasste_buchung_hat_hinweis(welt):
@@ -211,3 +196,50 @@ def test_kuerzel_v_p_und_kontextmenue(client):
     tabelle = js[js.index("const KUERZEL = ["):js.index("const VORTASTEN")]
     assert re.search(r'\["v", "p", "Nachweis als PDF[^"]*", .*"bestand"\]', tabelle)
     assert 'tid: "km-nachweis"' in js
+
+
+def _con(pfad):
+    return db.verbinde(KontorConfig(datenbank=pfad, mock_modus=True).aktive_datenbank)
+
+
+def test_hinweise_ueberstehen_das_kuerzen_des_protokolls(welt):
+    """D-302 kürzt das Änderungsprotokoll; der Maßstab für den Nachweis bleibt (D-303)."""
+    c, giro, buchungen, pfad = welt
+    b = _waehlen(buchungen, "Miete 04")
+    unveraendert = _waehlen(buchungen, "Gehalt 04")
+    assert c.patch(f"/api/buchungen/{b['id']}", json={"verwendungszweck": "Miete geändert"}).status_code == 200
+    con = _con(pfad)
+    try:
+        assert protokoll.kuerzen(con, "9999-12-31T00:00:00Z", 10**9) > 0
+        assert con.execute("SELECT COUNT(*) FROM aenderung").fetchone()[0] == 0
+    finally:
+        con.close()
+    t = _text(_nachweis(c, giro, [b["id"], unveraendert["id"]]))
+    assert t.count("Hinweis:") == 1
+    assert "Hinweis: Weicht vom Umsatz der Bank ab: Verwendungszweck" in t
+
+
+def test_nachtragen_aus_dem_protokoll(welt):
+    """Schema 20: Bestand aus der Zeit davor wird einmalig aus dem (noch vorhandenen) Protokoll nachgetragen."""
+    c, giro, buchungen, pfad = welt
+    b = _waehlen(buchungen, "Miete 04")
+    con = _con(pfad)
+    try:
+        with con:
+            con.execute("DELETE FROM bank_umsatz")
+            con.execute("DELETE FROM meta WHERE schluessel = ?", (bankumsatz.NACHGETRAGEN,))
+    finally:
+        con.close()
+    t = _text(_nachweis(c, giro, [b["id"]]))
+    assert "Hinweis: Abgleich mit dem Umsatz der Bank nicht möglich" in t
+    con = _con(pfad)
+    try:
+        with con:
+            bank = con.execute("SELECT COUNT(*) FROM buchung_extern WHERE extern_id LIKE 'bank:%'").fetchone()[0]
+            assert bankumsatz.nachtragen(con) == bank > 0   # alle Bankumsätze beider Konten
+            assert bankumsatz.nachtragen(con) == 0                    # nur einmal
+    finally:
+        con.close()
+    assert c.patch(f"/api/buchungen/{b['id']}", json={"datum": "2024-04-05"}).status_code == 200
+    t = _text(_nachweis(c, giro, [b["id"]]))
+    assert "Hinweis: Weicht vom Umsatz der Bank ab: Datum" in t

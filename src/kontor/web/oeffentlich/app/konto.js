@@ -3283,7 +3283,7 @@ class Kontoansicht {
   }
 
   // ---------------------------------------------------------------- Verschieben (D-110)
-  /** Nachweis der markierten Buchungen als PDF im Stil eines Kontoauszugs (D-302): Kontoinhaber vorbelegt aus den
+  /** Nachweis der markierten Buchungen als PDF im Stil eines Kontoauszugs (D-303): Kontoinhaber vorbelegt aus den
    *  Kontodaten der Bank, änderbar; die Datei wird heruntergeladen. */
   async nachweisDialog(ids, ausloeser) {
     if (this.istKategorie) { melde("hinweis", "Ein Nachweis ist nur im Kontoblatt eines Bankkontos möglich."); return; }

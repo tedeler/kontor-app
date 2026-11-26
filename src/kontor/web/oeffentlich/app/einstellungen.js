@@ -42,6 +42,7 @@ const VERZEICHNIS = [
   ["sicherheit", "passwort", "Passwort ändern", "login kennwort anmeldung"],
   ["sicherheit", "abmelden", "Abmelden", "logout ausloggen sitzung"],
   ["sicherheit", "schutz", "Schutz der Geheimnisse", "verschluesselung sperren entsperren gemerkte pin login-passwort"],
+  ["daten", "sicherungspunkte", "Sicherungspunkte (stündlich, zurück und vorwärts)", "backup wiederherstellen rollback restore stündlich zeitpunkt"],
   ["daten", "sicherung", "Sicherung herunterladen", "backup datensicherung export download"],
   ["daten", "einspielen", "Sicherung einspielen", "backup wiederherstellen restore zuruecksichern datensicherung"],
   ["daten", "tags", "Tags", "schlagwort label umbenennen loeschen"],
@@ -435,6 +436,9 @@ function daten() {
     } })))) : leer("Noch keine Tags.");
   return [
     abschnitt("Datensicherung",
+      h("div", { "data-einstellung": "sicherungspunkte" }, h("p", null, "Kontor sichert stündlich, wenn sich etwas geändert hat, "
+        + "und hält ältere Stände je Tag, Woche und Monat. Jeder Stand lässt sich wiederherstellen und herunterladen."),
+      h("p", null, h("a", { tid: "sicherungspunkte-link", href: "/sicherung", class: "knopf knopf-haupt" }, "Sicherungspunkte öffnen"))),
       h("div", { "data-einstellung": "sicherung" }, h("p", null, h("a", { tid: "sicherung-herunterladen", href: "/api/sicherung", download: "",
         class: "knopf" }, "Sicherung herunterladen")),
       h("p", { class: "klein" }, "Enthält den gesamten Buchbestand, aber keine Geheimnisse (PIN, Passwörter, Tokens).")),

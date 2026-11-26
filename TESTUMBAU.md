@@ -145,6 +145,11 @@ Im Ausgangsstand schlugen 19 Tests der Abnahmesuite und 3 eigene fehl. Kein Anwe
 | abgewählte Tests zu 36.3.1/36.3.2/36.4.1 (`m26`: lange Berührung wählt aus, Wischen rechts wählt; `m8/test_m8_panels_mobil.py`: Wischen rechts) | D-278 löst diese Festlegungen ab | nicht angepasst (abgewählt); vor einem Wiederaufnehmen in `abgewaehlt.txt` nach `oberflaeche.md` 43 umschreiben |
 | `spec/test_openapi.py::test_alle_operationen_vorhanden`, eigene `test_oberflaeche.py::test_oberflaeche_nutzt_nur_spezifizierte_api` | D-280: drei neue Operationen unter `/api/saldoausgleich/paare` | erwartete Operationen bzw. Pfade ergänzt |
 | `spec/test_openapi.py::test_alle_operationen_vorhanden` | D-295: neue Operation `POST /api/regeln/{regel_id}/uebernehmen` | in `OPERATIONEN_M30` ergänzt |
-| eigene `test_oberflaeche.py::test_oberflaeche_nutzt_nur_spezifizierte_api` | D-302: neuer Pfad `/api/export/nachweis` (Nachweis als PDF) | Pfad ergänzt |
+| eigene `test_oberflaeche.py::test_oberflaeche_nutzt_nur_spezifizierte_api` | D-303: neuer Pfad `/api/export/nachweis` (Nachweis als PDF) | Pfad ergänzt |
 
 Stabilität: Nach den Änderungen lief der Browser-Teil der Gesamtsuite viermal hintereinander grün.
+| eigene `test_m6_eigen.py::test_sicherung_der_schemaversion_2_einspielbar_und_postfach_bleibt_erhalten`, `test_geplant_eigen.py::test_sicherung_und_altbestand` | D-302: Sicherungsdatei Schemaversion 11 (Einstellungen) | erwartete Schemaversion 11 bzw. mindestens 10 |
+| eigene `test_browser_einstellungen.py::test_suche_und_erweitert` | D-302: neuer Eintrag „Sicherungspunkte“ im Bereich Daten (Synonym „backup“) | drei statt zwei Treffer für „backup“ |
+| `m31/test_m31_lernmodell.py::test_einstellungen_nicht_in_der_sicherung`, `m25/test_m25_rest.py::test_sicherung_rundreise` | D-302: Einstellungen der Instanz (Lernschwelle, automatische Regeln, Vorgabe des Betragsfilters) gehören ab Schemaversion 11 zur Sicherung und kommen beim Einspielen mit; die Inhaltsprüfsumme bleibt ohne sie | erwarten die Einstellungen der Quelle statt der des Ziels |
+| `spec/test_openapi.py::test_alle_operationen_vorhanden` | D-302: sieben neue Operationen unter `/api/sicherung/punkte` | in `OPERATIONEN_M9` ergänzt |
+| `m7/test_m7_betrieb.py::test_sicherung_service_und_timer` | D-302: Die zeitgesteuerte Sicherung legt stündlich Sicherungspunkte an (`sicherungspunkte.md` 8) | `ExecStart` mit `stunde --verzeichnis /var/lib/kontor/sicherungen`, `OnCalendar=hourly` |

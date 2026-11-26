@@ -181,6 +181,13 @@ class KontorConfig:
     update_url: str = "https://api.github.com/repos/tedeler/kontor-app/releases/latest"
     update_intervall_stunden: int = 24
     update_verzeichnis: pathlib.Path | None = None
+    # Feature sicherung-stuendlich (D-302, sicherungspunkte.md 8): Ablage und Aufbewahrung der Sicherungspunkte
+    sicherung_verzeichnis: pathlib.Path | None = None
+    sicherung_stunden: int = 48
+    sicherung_tage: int = 30
+    sicherung_wochen: int = 26
+    sicherung_monate: int = 24
+    protokoll_stunden: int = 1
 
     def __post_init__(self) -> None:
         setze = object.__setattr__
@@ -188,6 +195,7 @@ class KontorConfig:
         self._m7_pruefen()
         self._m10_pruefen()
         self._aktualisierung_pruefen()
+        self._sicherung_pruefen()
         if not isinstance(self.wiederkehrend_automatisch, bool):
             raise KonfigurationsFehler("wiederkehrend_automatisch muss wahr oder falsch sein.",
                                        feld="wiederkehrend_automatisch")
@@ -360,6 +368,22 @@ class KontorConfig:
             raise KonfigurationsFehler("sync_saldo_angleichen muss wahr oder falsch sein.",
                                        feld="sync_saldo_angleichen")
 
+    def _sicherung_pruefen(self) -> None:
+        if self.sicherung_verzeichnis is not None and not isinstance(self.sicherung_verzeichnis, pathlib.Path):
+            object.__setattr__(self, "sicherung_verzeichnis", pathlib.Path(self.sicherung_verzeichnis))
+        for feld in SICHERUNG_GANZ:
+            w = getattr(self, feld)
+            if type(w) is not int or not 0 <= w <= 720:
+                raise KonfigurationsFehler(f"{feld} muss eine Ganzzahl von 0 bis 720 sein.", feld=feld)
+
+    @property
+    def sicherungspunkte_verzeichnis(self) -> pathlib.Path:
+        """Ablage der Sicherungspunkte je Modus (sicherungspunkte.md 8)."""
+        basis = self.sicherung_verzeichnis
+        if basis is None:
+            basis = pathlib.Path(self.datenbank).parent / "sicherungen"
+        return basis / ("punkte-mock" if self.mock_modus else "punkte-echt")
+
     def _aktualisierung_pruefen(self) -> None:
         if not isinstance(self.update_pruefen, bool):
             raise KonfigurationsFehler("update_pruefen muss wahr oder falsch sein.", feld="update_pruefen")
@@ -445,6 +469,7 @@ class KontorConfig:
         m7 = _m7_aus_umgebung(wert)
         m10 = _m10_aus_umgebung(wert)
         upd = _update_aus_umgebung(wert)
+        upd.update(_sicherung_aus_umgebung(wert))
         heute_text = wert("KONTOR_MOCK_HEUTE")
         mock_heute = None
         if heute_text:
@@ -541,6 +566,24 @@ def _update_aus_umgebung(wert: Callable[[str], str]) -> dict:
         aus["update_intervall_stunden"] = int(text)
     if wert("KONTOR_UPDATE_VERZEICHNIS"):
         aus["update_verzeichnis"] = pathlib.Path(wert("KONTOR_UPDATE_VERZEICHNIS"))
+    return aus
+
+
+SICHERUNG_GANZ = ("sicherung_stunden", "sicherung_tage", "sicherung_wochen", "sicherung_monate", "protokoll_stunden")
+
+
+def _sicherung_aus_umgebung(wert: Callable[[str], str]) -> dict:
+    """D-302: KONTOR_SICHERUNG_VERZEICHNIS, _STUNDEN, _TAGE, _WOCHEN, _MONATE, KONTOR_PROTOKOLL_STUNDEN."""
+    aus: dict = {}
+    if wert("KONTOR_SICHERUNG_VERZEICHNIS"):
+        aus["sicherung_verzeichnis"] = pathlib.Path(wert("KONTOR_SICHERUNG_VERZEICHNIS"))
+    for feld in SICHERUNG_GANZ:
+        variable = "KONTOR_" + feld.upper()
+        text = wert(variable)
+        if text:
+            if not text.isascii() or not text.isdigit() or int(text) > 720:
+                raise KonfigurationsFehler(f"{variable} muss eine Ganzzahl von 0 bis 720 sein.", variable=variable)
+            aus[feld] = int(text)
     return aus
 
 

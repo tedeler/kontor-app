@@ -36,7 +36,7 @@ from . import (__version__, ausdruck, auswertungen, berichte, buch, db, export, 
                sicherung, verschieben, vorlagen, wiederkehrend)
 from . import aktualisierung
 from . import abgleich, anbieter, ausgleich, bankzugang, bestellmail, config_anzeige, dokumente, erwartung, kontonamen
-from . import sonderposten, umbuchung
+from . import sicherungspunkte, sonderposten, umbuchung
 from . import anmeldung as anm
 from . import version as versionsinfo
 from .geheimnisse import REST_NAMEN
@@ -55,7 +55,7 @@ log = logging.getLogger("kontor")
 WEB = pathlib.Path(__file__).parent / "web"
 #: Routen der Oberfläche (oberflaeche.md 3) und Links aus Benachrichtigungen (/buchungen/<id>, /sync/konten)
 SPA_ROUTEN = ["/", "/konten", "/konten/{konto_id:int}", "/kategorien", "/tags", "/konfiguration", "/erwartet", "/mail", "/kredite",
-              "/kredite/{kredit_id:int}", "/berichte", "/berichte/monat", "/import", "/einstellungen", "/protokoll", "/empfaenger", "/regeln", "/lernmodell",
+              "/kredite/{kredit_id:int}", "/berichte", "/berichte/monat", "/import", "/einstellungen", "/protokoll", "/sicherung", "/empfaenger", "/regeln", "/lernmodell",
               "/vorlagen", "/dubletten", "/sync", "/sync/konten", "/benachrichtigungen", "/suche", "/tan/{tan_id:int}",
               "/mail/postfaecher/{postfach_id:int}", "/buchungen/{buchung_id:int}"]
 MOCK_HINWEIS = "Mock-Modus: Es werden ausschließlich synthetische Testdaten verwendet (eigene Mock-Datenbank)."
@@ -257,6 +257,9 @@ WIEDERKEHREND_PRUEFEN = {"buchung_ids": S("int_liste", max_items=10000, eindeuti
 # D-137: Betragsfilter (fachliche Prüfung in wiederkehrend._filter_pruefen)
 WIEDERKEHREND_FILTER = {"modus": S("enum", pflicht=True, werte=wiederkehrend.MODI),
                         "toleranz_prozent": S("int", nullbar=True), "mindestbetrag": S("int", nullbar=True)}
+PUNKT_ANLEGEN = {"name": S("str", nullbar=True, strip=True, max_len=100)}
+PUNKT_AENDERN = {"name": S("str", nullbar=True, strip=True, max_len=100), "angeheftet": S("bool")}
+PUNKT_KENNUNG = re.compile(r"^[0-9]{8}T[0-9]{6}Z-[0-9a-f]{6}$")
 LERN_EINSTELLUNGEN = {"schwelle_promille": S("int"), "regeln_automatisch": S("bool")}
 DUBLETTE_AUFLOESEN = {
     "entscheidung": S("enum", pflicht=True, werte=("zusammenfuehren", "keine_dublette")),
@@ -1689,7 +1692,7 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
                         headers={"Content-Disposition": f'attachment; filename="{_exportname("pdf")}"',
                                  "Cache-Control": "no-store"})
 
-    # ------------------------------------------- Feature nachweis-pdf (D-302)
+    # ------------------------------------------- Feature nachweis-pdf (D-303)
     @endpunkt("GET", "/api/export/nachweis.pdf")
     async def export_nachweis(request: Request):
         q = Query(request.query_params)
@@ -2038,12 +2041,114 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
                 if not bestaetigt:
                     raise ApiFehler(409, "bestaetigung_erforderlich",
                                     "Das Einspielen ersetzt den gesamten Bestand; bitte ausdrücklich bestätigen.")
-                with sync.ohne_lauf():
-                    return sicherung.einspielen(con, s, sync.jetzt_text())
+                with sync.ohne_lauf(), maildienst.ohne_abruf():   # D-302: Ablauf sicherungspunkte.md 5.1
+                    return sicherungspunkte.einspielen(config, s, sync.jetzt(), sync.jetzt_text())
             finally:
                 con.close()
 
         return await run_in_threadpool(ausfuehren)
+
+    # ------------------------------------------------- Sicherungspunkte (D-302, sicherungspunkte.md 7)
+    def kennung(request: Request) -> str:
+        k = request.path_params["kennung"]
+        if not PUNKT_KENNUNG.match(k):
+            raise ApiFehler(404, "nicht_gefunden", "Den Sicherungspunkt gibt es nicht.")
+        return k
+
+    def punkt_lesen(k: str):
+        ab = sicherungspunkte.Ablage(config)
+        if k not in ab.punkte:
+            raise ApiFehler(404, "nicht_gefunden", "Den Sicherungspunkt gibt es nicht.")
+        return ab
+
+    @endpunkt("GET", "/api/sicherung/punkte")
+    async def sicherungspunkte_liste(request: Request):
+        def f():
+            pw = sicherungspunkte.aktueller_pruefwert(config)
+            return sicherungspunkte.liste(sicherungspunkte.Ablage(config), sync.jetzt(), pw)
+        return await run_in_threadpool(f)
+
+    @endpunkt("POST", "/api/sicherung/punkte")
+    async def sicherungspunkt_anlegen(request: Request):
+        d = await koerper(request, PUNKT_ANLEGEN)
+        meta, neu = await run_in_threadpool(sicherungspunkte.von_hand, config, sync.jetzt(), d.get("name"))
+        return JSONResponse(dict(meta, neu=neu), status_code=201 if neu else 200)
+
+    @endpunkt("PATCH", "/api/sicherung/punkte/{kennung}")
+    async def sicherungspunkt_aendern(request: Request):
+        k = kennung(request)
+        d = await koerper(request, PUNKT_AENDERN)
+
+        def f():
+            with sicherungspunkte.Ablage(config).gesperrt() as ab:
+                if k not in ab.punkte:
+                    raise ApiFehler(404, "nicht_gefunden", "Den Sicherungspunkt gibt es nicht.")
+                m = ab.punkte[k]
+                if "name" in d:
+                    m["name"] = d["name"] or None
+                if "angeheftet" in d:
+                    m["angeheftet"] = d["angeheftet"]
+                ab.speichern()
+                return sicherungspunkte.oeffentlich(ab, m)
+        return await run_in_threadpool(f)
+
+    @endpunkt("GET", "/api/sicherung/punkte/{kennung}/chronik")
+    async def sicherungspunkt_chronik(request: Request):
+        k = kennung(request)
+
+        def f():
+            ab = punkt_lesen(k)
+            try:
+                return {"eintraege": ab.lesen(k).get("chronik", [])}
+            except sicherungspunkte.NichtHerstellbar:
+                raise ApiFehler(409, "punkt_nicht_herstellbar", "Der Sicherungspunkt ist beschädigt.") from None
+        return await run_in_threadpool(f)
+
+    @endpunkt("GET", "/api/sicherung/punkte/{kennung}/vergleich")
+    async def sicherungspunkt_vergleich(request: Request):
+        k = kennung(request)
+
+        def f():
+            s, _ = sicherungspunkte.wechsel_vorbereiten(config, k, unveraendert_erlaubt=True)
+            con = db.verbinde(pfad)
+            try:
+                return sicherung.probelauf(con, s)
+            finally:
+                con.close()
+        return await run_in_threadpool(f)
+
+    @endpunkt("GET", "/api/sicherung/punkte/{kennung}/datei")
+    async def sicherungspunkt_datei(request: Request):
+        k = kennung(request)
+
+        def f():
+            with sicherungspunkte.Ablage(config).gesperrt() as ab:
+                if k not in ab.punkte:
+                    raise ApiFehler(404, "nicht_gefunden", "Den Sicherungspunkt gibt es nicht.")
+                try:
+                    return sicherungspunkte.sicherungsdatei(ab, k)
+                except sicherungspunkte.NichtHerstellbar:
+                    raise ApiFehler(409, "punkt_nicht_herstellbar", "Der Sicherungspunkt lässt sich nicht"
+                                    " herstellen (Datei fehlt oder ist beschädigt).") from None
+        daten, name = await run_in_threadpool(f)
+        return Response(daten, media_type="application/zip",
+                        headers={"Content-Disposition": f'attachment; filename="{name}"', "Cache-Control": "no-store"})
+
+    @endpunkt("POST", "/api/sicherung/punkte/{kennung}/wechseln")
+    async def sicherungspunkt_wechseln(request: Request):
+        k = kennung(request)
+        q = Query(request.query_params)
+        bestaetigt = bool(q.wahrheitswert("bestaetigt"))
+        q.pruefen()
+
+        def f():
+            s, ziel = sicherungspunkte.wechsel_vorbereiten(config, k)
+            if not bestaetigt:
+                raise ApiFehler(409, "bestaetigung_erforderlich",
+                                "Der Wechsel ersetzt den gesamten Bestand; bitte ausdrücklich bestätigen.")
+            with sync.ohne_lauf(), maildienst.ohne_abruf():
+                return sicherungspunkte.einspielen(config, s, sync.jetzt(), sync.jetzt_text(), ziel=ziel)
+        return await run_in_threadpool(f)
 
     # --------------------------------------------------------- Dubletten
     @endpunkt("GET", "/api/dubletten")

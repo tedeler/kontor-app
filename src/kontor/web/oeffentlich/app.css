@@ -1801,3 +1801,45 @@ button.option { width: 100%; border: 0; background: none; color: inherit; font: 
   [data-layout="desktop"] .regel-zeile > .knopf-leiste { grid-column: 4 / -1; margin-top: 0; }
   [data-layout="desktop"] .mb-jahresraster { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
+
+/* ------------------------------------------------------------------ Sicherungspunkte (D-302, oberflaeche.md 49) */
+.sp-kacheln { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: .8rem; margin: .6rem 0 1.2rem; }
+.sp-kachel h3 { margin-top: 0; }
+.sp-kachel[data-zustand="ok"] { box-shadow: inset 3px 0 0 var(--erfolg); }
+.sp-kachel[data-zustand="offen"] { box-shadow: inset 3px 0 0 var(--hinweis); }
+.sp-kachel[data-zustand="fehler"] { box-shadow: inset 3px 0 0 var(--gefahr); }
+.sp-balken { display: flex; height: .7rem; border-radius: 999px; overflow: hidden; background: var(--hg-3); margin: .5rem 0; }
+.sp-stufe { min-width: 3px; }
+.sp-legende { display: flex; flex-wrap: wrap; gap: .2rem .9rem; list-style: none; margin: 0 0 .4rem; padding: 0; font-size: .85rem;
+  color: var(--text-2); }
+.sp-punkt { display: inline-block; width: .65rem; height: .65rem; border-radius: 50%; margin-right: .3rem; vertical-align: middle; }
+.sp-stufe-stunden { background: #5b8fc7; }
+.sp-stufe-tage { background: #59a77c; }
+.sp-stufe-wochen { background: #a18ad0; }
+.sp-stufe-monate { background: #c9a24a; }
+.sp-stufe-angeheftet { background: #d0784a; }
+.sp-stufe-basis { background: var(--text-2); }
+.sp-zeile { grid-template-columns: 3rem 6.9rem minmax(0, 1fr) auto; }
+.sp-marken { display: flex; flex-wrap: wrap; gap: .2rem; }
+.sp-name { font-weight: 600; }
+.sp-aktuell { box-shadow: inset 3px 0 0 var(--akzent); background: var(--akzent-hell); }
+.sp-verlassen .pr-titel { color: var(--text-2); font-weight: 400; }
+.sp-luecke { list-style: none; padding: .15rem .9rem .15rem 4rem; font-size: .8rem; color: var(--text-2); border-top: 1px dashed var(--rand); }
+.sp-alt > summary { cursor: pointer; list-style: none; }
+.sp-alt > summary::-webkit-details-marker { display: none; }
+.sp-alt > summary .pr-tag-titel::before { content: "▸ "; }
+.sp-alt[open] > summary .pr-tag-titel::before { content: "▾ "; }
+.sp-angaben { display: grid; grid-template-columns: max-content 1fr; gap: .2rem 1rem; margin: .6rem 0; }
+.sp-angaben dt { color: var(--text-2); }
+.sp-angaben dd { margin: 0; }
+.sp-chronik { list-style: none; margin: 0 0 .8rem; padding: 0; max-height: 14rem; overflow: auto; }
+.sp-chronik li { display: flex; gap: .6rem; align-items: baseline; padding: .15rem 0; }
+.pr-aelter { margin: 1rem .2rem; color: var(--text-2); }
+[data-layout="mobil"] .sp-zeile { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem .5rem; padding: .55rem .75rem; }
+[data-layout="mobil"] .sp-zeile .pr-zeit { order: 1; padding: 0; }
+[data-layout="mobil"] .sp-zeile .sp-marken { order: 2; }
+[data-layout="mobil"] .sp-zeile .pr-aktionen { order: 3; margin-left: auto; opacity: 1; }
+[data-layout="mobil"] .sp-zeile .pr-inhalt { order: 4; flex: 1 0 100%; }
+.sp-zeile .pr-unter > :first-child::before { content: none; margin: 0; }
+.sp-name-zeile { display: flex; gap: .5rem; align-items: flex-end; margin: .4rem 0 .8rem; }
+.sp-name-zeile > :first-child { flex: 1; margin: 0; }

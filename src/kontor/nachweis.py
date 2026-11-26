@@ -11,10 +11,9 @@ nicht von der Bank stammen oder nach dem Abruf geändert wurden.
 from __future__ import annotations
 
 import io
-import json
 import re
 
-from . import __version__, bankzugang, buch
+from . import __version__, bankumsatz, bankzugang, buch
 from .validierung import ApiFehler
 
 MAX_BUCHUNGEN = 500
@@ -270,57 +269,20 @@ _FELDER = (("datum", "Datum"), ("empfaenger", "Empfänger"), ("verwendungszweck"
            ("betrag", "Betrag"))
 
 
-def _bankstand(con, bid: int, kennungen: set[str]) -> tuple[int, str, dict] | None:
-    """Erster Eintrag der Synchronisation, mit dem die Buchung eine ihrer Bankkennungen bekam:
-    (Änderung, Art des Eintrags, Stand danach)."""
-    for r in con.execute(
-            "SELECT e.aenderung_id, e.art, e.nachher FROM aenderung_eintrag e JOIN aenderung a ON a.id = e.aenderung_id"
-            " WHERE e.objekt = 'buchung' AND e.objekt_id = ? AND a.quelle = 'sync' AND e.nachher IS NOT NULL"
-            " ORDER BY e.aenderung_id, e.position", (bid,)):
-        stand = json.loads(r["nachher"])
-        if kennungen & set(stand.get("extern_ids") or []):
-            return r["aenderung_id"], r["art"], stand
-    return None
-
-
-def _empfaengername(con, eid: int | None, bis_aenderung: int) -> str | None:
-    """Name eines Empfängers nach dem Stand der Änderung ``bis_aenderung`` (None: unbekannt)."""
-    if eid is None:
-        return ""
-    r = con.execute("SELECT nachher FROM aenderung_eintrag WHERE objekt = 'empfaenger' AND objekt_id = ?"
-                    " AND aenderung_id <= ? AND nachher IS NOT NULL ORDER BY aenderung_id DESC, position DESC LIMIT 1",
-                    (eid, bis_aenderung)).fetchone()
-    return None if r is None else json.loads(r["nachher"]).get("name")
-
-
 def hinweis(con, b: dict, konto: dict) -> str:
-    """Leer, wenn die Buchung so auf dem Nachweis steht, wie die Bank sie geliefert hat; sonst ein kurzer Hinweis."""
+    """Leer, wenn die Buchung so auf dem Nachweis steht, wie die Bank den Umsatz geliefert hat; sonst ein kurzer
+    Hinweis. Maßstab ist ``bank_umsatz`` (D-303), nicht das Änderungsprotokoll (wird gekürzt, D-302)."""
     praefix = f"bank:{konto['iban']}:" if konto["iban"] else None
-    kennungen = {k for k in b["extern_ids"] if praefix and k.startswith(praefix)}
+    kennungen = [k for k in b["extern_ids"] if praefix and k.startswith(praefix)]
     if not kennungen:
         return "Nicht von der Bank abgerufen (von Hand erfasst oder importiert)"
-    gefunden = _bankstand(con, b["id"], kennungen)
-    if gefunden is None:
-        return "Abgleich mit dem Abruf von der Bank nicht möglich"
-    aid, art, stand = gefunden
-    if art != "angelegt":   # Bankumsatz an eine vorhandene Buchung angehängt: die Angaben stammen nicht von der Bank
-        return "Von Hand erfasst und mit einem Umsatz der Bank zusammengeführt"
-    alt_name = _empfaengername(con, stand.get("empfaenger_id"), aid)
-    jetzt = {"datum": b["datum"], "verwendungszweck": b["verwendungszweck"], "betrag": b["betrag"],
-             "empfaenger": (b["empfaenger"] or {}).get("id"), "name": (b["empfaenger"] or {}).get("name", "")}
-    vorher = {"datum": stand.get("datum"), "verwendungszweck": stand.get("verwendungszweck"),
-              "betrag": sum(s["betrag"] for s in stand.get("splits") or [] if s["konto_id"] == konto["id"]),
-              "empfaenger": stand.get("empfaenger_id"), "name": alt_name}
-    geaendert = []
-    for feld, text in _FELDER:
-        if feld == "empfaenger":
-            anders = jetzt["empfaenger"] != vorher["empfaenger"] or (
-                alt_name is not None and jetzt["name"] != vorher["name"])
-        else:
-            anders = jetzt[feld] != vorher[feld]
-        if anders:
-            geaendert.append(text)
-    return f"Nach dem Abruf von der Bank geändert: {', '.join(geaendert)}" if geaendert else ""
+    bank = bankumsatz.lesen(con, kennungen)
+    if bank is None:
+        return "Abgleich mit dem Umsatz der Bank nicht möglich"
+    jetzt = {"datum": b["datum"], "empfaenger": (b["empfaenger"] or {}).get("name", ""),
+             "verwendungszweck": b["verwendungszweck"], "betrag": b["betrag"]}
+    abweichend = [text for feld, text in _FELDER if jetzt[feld] != bank[feld]]
+    return f"Weicht vom Umsatz der Bank ab: {', '.join(abweichend)}" if abweichend else ""
 
 
 _KONTOART = {"girokonto": "Girokonto", "sparkonto": "Sparkonto", "kreditkonto": "Kreditkonto"}

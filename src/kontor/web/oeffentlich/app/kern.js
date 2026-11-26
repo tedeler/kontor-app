@@ -590,7 +590,10 @@ function nacheinander(schritt) {
 async function stapelSchritt(von, nach, text) {
   if (laufendeAktionen.size) await Promise.all([...laufendeAktionen]);   // eben ausgelöste Änderung zuerst stapeln
   if (!von.length) {
-    melde("hinweis", von === rueckStapel ? "Es gibt nichts rückgängig zu machen." : "Es gibt nichts zu wiederholen.");
+    // D-302: Ältere Stände stehen in den Sicherungspunkten (das Protokoll reicht nur rund eine Stunde zurück)
+    if (von === rueckStapel) melde("hinweis", "Es gibt nichts rückgängig zu machen.",
+      { link: { href: "/sicherung", tid: "meldung-sicherung", text: "Ältere Stände: Sicherungspunkte" } });
+    else melde("hinweis", "Es gibt nichts zu wiederholen.");
     return false;
   }
   const e = von.pop();

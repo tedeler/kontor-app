@@ -4604,7 +4604,46 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - **Tests:** `tests/core/test_kategoriepfad.py`, `tests/test_browser_kategoriepfad.py`.
 
 
-## D-302 Nachweis markierter Buchungen als PDF (Feature `nachweis-pdf`, 2026-11-26)
+## D-302 Sicherungspunkte: stündlich inkrementell, Zurück und Vorwärts, kurzes Änderungsprotokoll (Feature `sicherung-stuendlich`, 2026-11-26)
+
+- **Auftrag** (mit dem Auftraggeber abgestimmt, Projektdokument `feature-sicherung-stuendlich.md`): stündliche,
+  sehr kleine inkrementelle Sicherung; gute Wiederherstellung mit zuverlässigem Zurück und Vorwärts; jeder Punkt
+  ansteuerbar und herunterladbar; Größe je Punkt und gesamt; ältere Punkte ausgedünnt (48 h / 30 Tage / 26 Wochen /
+  24 Monate); keine leeren Punkte; Einspielen = bestehende Daten sichern, alles löschen, einspielen; nur auf dem
+  Server; Belege stündlich mit; Änderungsprotokoll nur noch rund eine Stunde; tägliche volle Datei entfällt.
+- **Bauweise:** `sicherungspunkte.py`. Ein Punkt ist die logische Zeilendifferenz (Tabellen der Sicherungsdatei,
+  Schlüssel je Tabelle) zu seiner Basis, als LZMA-gepacktes JSON; Anker enthalten alles. Beleginhalte sind
+  inhaltsadressiert und kommen nur als neue Zeile mit. Prüfwert = SHA-256 über Zeilen-Hashes ohne Begleitzustand
+  (`id_zaehler`, `sync_konto_zustand`; sie bewegen sich ohne fachliche Änderung und stehen voll in jedem Punkt).
+  Verworfen: Export des Änderungsprotokolls, Seitendifferenz der SQLite-Datei.
+- **Ausdünnen:** Stufen nach `sicherungspunkte.md` 4. Statt eines eigenen Tages-Differenzpunkts zum Monatsanker
+  (Konzept) bekommen behaltene Punkte außerhalb der Stundenstufe beim Ausdünnen den Anker ihrer Kette als Basis;
+  fällt der Anker weg, wird der älteste behaltene Punkt der Kette Anker. Gleiche Wirkung (kurze Ketten, je Monat
+  ein Anker), aber ohne doppelte Dateien.
+- **Einspielen:** `sicherung.einspielen` bekam zwei Haken: `vor_einspielen` sichert den Stand in derselben
+  Schreibtransaktion (andere Schreiber warten auf die Sperre der Datenbank, nichts geht verloren), `nach_einspielen`
+  prüft den Prüfwert gegen den Sollwert (Sollwert aus derselben Ladung samt Nacharbeiten in einer Datenbank im
+  Arbeitsspeicher; für Sicherungen vor Version 11 entfällt die Prüfung, weil die Einstellungen der Instanz bleiben).
+  Zusätzlich `maildienst.ohne_abruf()`. Reihenfolge der Sperren: erst Dateisperre der Ablage, dann Datenbank.
+- **Abweichung vom Konzept 10.3:** Das Einspielen bleibt eine Änderung `sicherung_einspielen` mit Nettowirkung (M9,
+  unverändert, alle M9-Tests gelten weiter). Weil das Protokoll nach einer Stunde gekürzt wird, belastet der große
+  Eintrag es nur kurz; danach führt der Punkt „Vor Wechsel“ zurück.
+- **Kurzes Protokoll:** `protokoll.kuerzen` nach jedem stündlichen Lauf; Herkunft angelegter Buchungen in
+  `buchung_herkunft` (Datenbankschema 19), gelesen von `verschieben.herkunft` und `_angelegt_von`. Andere Leser der
+  Protokollgeschichte: `sync._wiederkehrend_pruefen` (nur der eben gelaufene Lauf) und `MAX(id)` (AUTOINCREMENT
+  bleibt) – unkritisch.
+- **Einstellungen:** Sicherungsdatei Schemaversion 11 mit `einstellung` (vier Schlüssel aus `meta`); `status_farben`
+  ist ein Migrationsvermerk, kein Wert der Nutzer.
+- **Oberfläche:** Seite `/sicherung` (`app/sicherung.js`); die Vorschau eines Punkts ist ein Fenster (Desktop und
+  Handy gleich) statt einer Spalte rechts. Die Uhr des Servers bestimmt Tage und Warnungen (Mock-Uhr).
+- **Betrieb:** `kontor-sicherung.timer` stündlich, `python -m kontor.sicherung stunde`. Der alte Aufruf bleibt.
+- **Offen:** Die Marke „Vor Update“ setzt der Update-Dienst noch nicht (er startet `kontor-sicherung.service`, der
+  einen gewöhnlichen Punkt anlegt; `--marke vor_update` gibt es). Vorhandene tägliche ZIP-Dateien werden nicht als
+  Punkte übernommen. Keine Benachrichtigung bei einem fehlgeschlagenen Prüflauf (nur Anzeige). Nicht auf dem echten
+  Server unter systemd geprüft.
+- **Tests:** `tests/core/test_sicherung_stuendlich.py`, `tests/test_sicherung_stuendlich_eigen.py`,
+  `tests/test_browser_sicherung_stuendlich.py`; geänderte Tests in `tests/core/AENDERUNGEN.md` und `TESTUMBAU.md`.
+## D-303 Nachweis markierter Buchungen als PDF (Feature `nachweis-pdf`, 2026-11-26)
 
 - **Anlass:** Zahlungen gegenüber Dritten (Vermieter, Versicherung …) belegen, ohne Kontostand und übrige Umsätze
   preiszugeben. Gestaltung mit dem Auftraggeber abgestimmt (2026-11-26): Stil eines Kontoauszugs, nur die markierten
@@ -4612,10 +4651,16 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   Kontoinhaber und BIC lesbar, IBAN gekürzt; an den Buchungen selbst nichts unkenntlich.
 - **Herkunft offen ausgewiesen:** „Auszug aus der Homebanking-Software Kontor – kein Dokument der Bank“ im Kopf und in
   der Fußzeile, kein Banklogo. Da sich Buchungen in Kontor bearbeiten und von Hand erfassen lassen, trägt jede
-  Buchung, die nicht unverändert von der Bank stammt, einen Hinweis (`berichte.md` 8). Maßstab ist der Stand, mit dem
-  die Synchronisation die Buchung angelegt hat (erster Protokolleintrag der Quelle `sync`, dessen Stand eine
-  Bankkennung des Kontos trägt); der Empfängername zum Vergleich ist der Stand des Empfängers bis zu dieser Änderung.
-  Zuordnungen über Aliase gelten nicht als Änderung (Kontor speichert den Rohnamen der Bank nicht).
+  Buchung, die nicht unverändert so dasteht, wie die Bank den Umsatz geliefert hat, einen Hinweis (`berichte.md` 8).
+- **Maßstab `bank_umsatz` statt Änderungsprotokoll:** Ein erster Entwurf verglich mit dem ersten Stand der
+  Synchronisation im Protokoll. Seit D-302 wird das Protokoll nach einer Stunde gekürzt; deshalb merkt sich die
+  Synchronisation je Bankkennung Buchungstag, Empfängername (nach Alias-Auflösung, also wie Kontor ihn vergeben hat),
+  Verwendungszweck und Betrag (Datenbankschema 20, `bankumsatz.py`). Schlüssel ist die Kennung (eindeutig), nicht die
+  Buchung: Rückgängig, Wiederholen und Einspielen legen Buchungen neu an, die Kennung bleibt. Betriebszustand wie
+  `buchung_herkunft`: nicht im Protokoll, nicht in der Sicherung (nach dem Einspielen auf einer frischen Installation
+  heißt es bei älteren Buchungen „Abgleich nicht möglich“ – vorsichtig statt falsch). Altbestand wird beim ersten
+  Start einmal aus dem noch vorhandenen Protokoll nachgetragen (nur Buchungen, die die Synchronisation angelegt hat).
+  Auch Übergangskennungen (D-200) werden gemerkt.
 - **IBAN:** Ländercode, Prüfziffer und letzte vier Stellen, dazwischen immer vier Gruppen `XXXX` (verbirgt auch die
   Länge). Nicht „•“: In der Standardschrift Helvetica (WinAnsi) kommt es beim Kopieren aus dem PDF als Steuerzeichen
   heraus.
@@ -4625,6 +4670,6 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   Kontextmenü `km-nachweis` nur in Bestandskonten. Download per `fetch` und Blob, damit Fehler im Dialog erscheinen.
 - **Getrennt vom PDF-Export** (`berichte.md` 5): eigenes Modul `nachweis.py`, eigene Betragsformatierung mit
   Tausenderpunkten (der Export behält das Format aus 4.2). Noch nicht im OpenAPI-Vertrag.
-- **Tests:** `tests/core/test_nachweis_pdf.py`, `tests/test_browser_nachweis_pdf.py`; angepasst
-  `tests/core/test_tastenbelegung.py` (Einträge in `tests/core/AENDERUNGEN.md`).
+- **Tests:** `tests/core/test_nachweis_pdf.py` (auch Kürzen des Protokolls und Nachtragen), `tests/test_browser_nachweis_pdf.py`;
+  angepasst `tests/core/test_tastenbelegung.py`, `tests/test_oberflaeche.py` (Einträge in `tests/core/AENDERUNGEN.md`, `TESTUMBAU.md`).
 - **Offen:** kein Schritt in den Demodaten.

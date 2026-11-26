@@ -15,6 +15,7 @@ const DATEIEN = [
   "/oeffentlich/app/seiten.js",
   "/oeffentlich/app/bankzugang.js",
   "/oeffentlich/app/einstellungen.js",
+  "/oeffentlich/app/sicherung.js",
   "/oeffentlich/app/tabs.js",
   "/oeffentlich/app/dokumente.js",
   "/oeffentlich/app/erwartet.js",

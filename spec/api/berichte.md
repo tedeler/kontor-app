@@ -237,7 +237,7 @@ nicht Tags des Empfängers). Es gibt keinen weiteren Zustand.
   Im Kontoblatt markiert `p` bzw. das Kontextmenü `km-sonderposten` die Buchungen oder nimmt die Markierung zurück
   (legt den Tag bei Bedarf an).
 
-## 8. Nachweis markierter Buchungen als PDF (Feature `nachweis-pdf`, D-302)
+## 8. Nachweis markierter Buchungen als PDF (Feature `nachweis-pdf`, D-303)
 
 Nur lesend: kein Zustand, kein Protokoll, nichts in der Sicherung. Noch nicht im OpenAPI-Vertrag (wie D-217).
 
@@ -257,15 +257,15 @@ Nur lesend: kein Zustand, kein Protokoll, nichts in der Sicherung. Noch nicht im
   Buchungstag `TT.MM.JJJJ`, Empfänger, Verwendungszweck, Betrag auf diesem Konto (`+1.234,56` / `-1.234,56`).
   Danach „Summe der <n> ausgewählten Buchung(en)“ mit der Summe. Fußzeile mit Hinweis auf die Homebanking-Software
   und „Seite n von m“. Kontostände kommen nicht vor; die vollständige IBAN steht nirgends in der Datei.
-- **Hinweise je Buchung** (Zeile „Hinweis: …“):
+- **Hinweise je Buchung** (Zeile „Hinweis: …“). Maßstab ist der Umsatz, wie die Bank ihn geliefert hat: Die
+  Synchronisation merkt sich je Bankkennung Buchungstag, Empfängername (nach Auflösung der Aliase), Verwendungszweck
+  und Betrag (Betriebszustand, nicht im Protokoll und nicht in der Sicherung; beim ersten Start mit Schema 20 aus dem
+  noch vorhandenen Änderungsprotokoll nachgetragen).
   - „Nicht von der Bank abgerufen (von Hand erfasst oder importiert)“ – keine Bankkennung `bank:<IBAN des Kontos>:…`.
-  - „Von Hand erfasst und mit einem Umsatz der Bank zusammengeführt“ – die Bankkennung kam durch Zusammenführen an
-    eine vorhandene Buchung.
-  - „Abgleich mit dem Abruf von der Bank nicht möglich“ – Bankkennung vorhanden, aber kein Stand des Abrufs im
-    Änderungsprotokoll.
-  - „Nach dem Abruf von der Bank geändert: <Felder>“ – Vergleich mit dem Stand, mit dem die Synchronisation die
-    Buchung angelegt hat; Felder in der Reihenfolge Datum, Empfänger (andere Zuordnung oder umbenannt), Verwendungszweck,
-    Betrag.
+  - „Abgleich mit dem Umsatz der Bank nicht möglich“ – Bankkennung vorhanden, aber kein gemerkter Umsatz.
+  - „Weicht vom Umsatz der Bank ab: <Felder>“ – Felder in der Reihenfolge Datum, Empfänger, Verwendungszweck, Betrag
+    (Betrag auf diesem Konto). Das gilt auch für von Hand erfasste Buchungen, an die die Synchronisation einen
+    Bankumsatz angehängt hat.
 - **`GET /api/export/nachweis/angaben?konto_id=<id>`** → `{"inhaber": str, "bic": str|null}` aus den von der Bank
   gemeldeten Kontodaten (Bankzugang); Fehler wie oben.
 - **Oberfläche:** Im Kontoblatt eines Bestandskontos öffnen `v p`, das Kontextmenü `km-nachweis` „Nachweis als PDF…“

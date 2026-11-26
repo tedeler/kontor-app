@@ -249,7 +249,7 @@ Schwellenänderung zwischengespeichert werden. Keine Änderung im Protokoll.
   Unbekanntes Feld, falscher Typ oder Wert außerhalb des Bereichs → 422
   `validierung`. Antwort 200 mit dem Stand danach.
 - Gespeichert in der Datenbank der Instanz (bleibt über einen Neustart),
-  **nicht** im Änderungsprotokoll und **nicht** in der Sicherung (wie die
+  **nicht** im Änderungsprotokoll; seit D-302 in der Sicherung (Schemaversion 11, `sicherung.md` 15; wie die
   Vorgabe des Betragsfilters, `wiederkehrend.md` 9). Ein einmal gespeicherter
   Wert geht der Konfiguration vor.
 - Die Schwelle ersetzt `7/10` in 4.6 überall (5.1, 5.2, 5.3, 8.1);

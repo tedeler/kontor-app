@@ -465,7 +465,8 @@ nach Name, dann ID.
 #### 9.3.2 `PUT /api/wiederkehrend/einstellungen/vorgabe` → 200 `{"modus", "toleranz_prozent"}`
 
 Reihenfolge: Schema → fachliche Prüfung. Einstellung der Instanz: **kein** Protokolleintrag, nicht rückgängig zu
-machen, **nicht** Teil der Sicherung. Einspielen einer Sicherung ändert die Vorgabe nicht. Wirkung sofort auf
+machen; ab Sicherungsdatei Version 11 Teil der Sicherung und beim Einspielen ersetzt (D-302, `sicherung.md` 15,
+vorher nicht Teil der Sicherung). Wirkung sofort auf
 Übersicht, Begründung und Ereignisse.
 
 #### 9.3.3 `PUT /api/empfaenger/{id}/wiederkehrend` → 200
@@ -508,7 +509,7 @@ Neue Felder, im Schema optional (Pflicht nur in M25-Tests):
   Änderung und kommt mit Rückgängig zurück. Das Ziel behält seine eigene Einstellung.
 - Sicherung: Die eigenen Einstellungen gehören dazu. Schemaversion der Sicherungsdatei **6** (bisher 5; ältere
   Versionen werden weiter eingespielt, dann ohne Einstellungen). `anzahl` und Inhaltsprüfsumme ändern sich nur über
-  das Feld `wiederkehrend` der Empfängerform. Die Vorgabe der Instanz gehört nicht zur Sicherung. Rundreise-Test mit
+  das Feld `wiederkehrend` der Empfängerform. Die Vorgabe der Instanz gehört ab Version 11 dazu (D-302). Rundreise-Test mit
   einer Einstellung je Modus.
 
 ### 9.5 Beispiele (kern; Vorgabe ±10 %, Empfänger ohne eigene Einstellung)

@@ -3512,7 +3512,7 @@ Zeiträume (letzte 7 bzw. 30 Tage) gibt es nur als Knöpfe `filter-schnell-*`.
 
 Vortaste `v`: `v g` Gruppierung, `v k`/`v K` alle Gruppen auf-/zuklappen, `v o` Sortierspalte, `v r` Richtung,
 `v s` Spaltenbreiten an den Inhalt, `v 0` Spaltenbreiten zurücksetzen, `v e` Konto-Einstellungen, `v p` Nachweis
-der markierten Buchungen als PDF (nur Bestandskonten, D-302, `berichte.md` 8). Das Panel
+der markierten Buchungen als PDF (nur Bestandskonten, D-303, `berichte.md` 8). Das Panel
 Einzelheiten hat kein Kürzel mehr; `w e` klappt es auf.
 
 ### 46.5 Kontextmenü
@@ -3603,3 +3603,24 @@ Befehlspalette (jetzt nur Kürzel, die es auf dem Blatt gibt).
   steht damit in Vervollständigung und Baukasten. Nur Rot: `status == "importiert"`, nur Gelb:
   `status == "vorlaeufig"`.
 
+
+## 49. Sicherungspunkte (D-302, `sicherungspunkte.md`)
+
+- Route `/sicherung`, Seitenname `seite-sicherung`, Titel „Sicherungspunkte“, ein Tab; erreichbar über
+  Einstellungen › Daten und Sicherung (`sicherungspunkte-link`), die Befehlspalette („Gehe zu: Sicherungspunkte“),
+  die Meldung „Es gibt nichts rückgängig zu machen.“ (`meldung-sicherung`) und das Ende des Änderungsprotokolls
+  (`protokoll-aelter`, sichtbar, wenn alle Änderungen geladen sind).
+- Kopf: `sicherung-anlegen` (Fenster `punkt-anlegen-dialog` mit `punkt-anlegen-name`, `punkt-anlegen-ok`),
+  `sicherung-datei-einspielen` (Fenster `einspielen-dialog`: Datei wählen prüft im Probelauf, `sp-einspielen` nach
+  Rückfrage). Kacheln `sicherung-stand` (`data-zustand` `ok`, `offen`, `fehler`; `fehler`, wenn die letzte Prüfung
+  mehr als zwei Stunden vor der Serveruhr liegt) und `sicherung-speicher` (`sicherung-gesamt` mit `data-bytes`,
+  Balken und Legende je Stufe, Hinweis „nur auf diesem Server“).
+- Zeitleiste `sicherung-liste`: Tage der letzten 30 Tage (nach der Uhr des Servers), ältere Monate eingeklappt
+  (`details`). Je Punkt `punkt-<kennung>` mit Uhrzeit, Marken (`data-marke`; „Stündlich“ nur ohne weitere Marke),
+  Name bzw. Zusammenfassung der Änderungen (`punkt-oeffnen-<kennung>`), Größe (`punkt-groesse-<kennung>`),
+  „geprüft“, „angeheftet“, „entspricht dem aktuellen Stand“, „vorwärts“, „verlassener Verlauf“ und dem Link
+  `punkt-laden-<kennung>`. Zwischen Punkten eines Tages mit mehr als einer Stunde Abstand „HH:MM–HH:MM unverändert“.
+  Pfeiltasten wechseln zwischen den Punkten.
+- Fenster `punkt-dialog`: `punkt-wirkung` (Unterschied zum aktuellen Stand, `data-gleich`), `punkt-angaben`,
+  `punkt-chronik`, `punkt-name` mit `punkt-benennen`, `punkt-wechseln` (inaktiv bei gleichem Stand; Rückfrage
+  `bestaetigen-dialog`, dann über `aktion()`), `punkt-herunterladen`, `punkt-anheften`.

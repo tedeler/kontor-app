@@ -2631,7 +2631,7 @@ paths:
             application/json:
               schema: {$ref: "#/components/schemas/SicherungErgebnis"}
         "409":
-          description: "`sicherung_modus`, `bestaetigung_erforderlich`, `sync_laeuft`, `tan_ausstehend`"
+          description: "`sicherung_modus`, `bestaetigung_erforderlich`, `sync_laeuft`, `tan_ausstehend`; D-302: `mail_abruf_laeuft`, `sicherung_vorher_fehlgeschlagen`"
           content:
             application/json:
               schema: {$ref: "#/components/schemas/Fehler"}
@@ -2645,6 +2645,185 @@ paths:
           content:
             application/json:
               schema: {$ref: "#/components/schemas/Fehler"}
+
+  /api/sicherung/punkte:
+    get:
+      tags: [sicherung]
+      operationId: sicherungspunkteListe
+      summary: "D-302: Sicherungspunkte mit Größen und Bezugspunkt (sicherungspunkte.md 7.1)"
+      responses:
+        "200":
+          description: Punkte, neueste zuerst
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Sicherungspunkte"}
+    post:
+      tags: [sicherung]
+      operationId: sicherungspunktAnlegen
+      summary: "D-302: Sicherungspunkt von Hand; bei unverändertem Stand der bestehende Punkt (200)"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                name:
+                  oneOf:
+                    - {type: string, maxLength: 100}
+                    - {type: "null"}
+      responses:
+        "200":
+          description: Stand war schon gesichert
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Sicherungspunkt"}
+        "201":
+          description: Neuer Punkt
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Sicherungspunkt"}
+        "409":
+          description: "`sicherung_vorher_fehlgeschlagen` (Ablage nicht beschreibbar)"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Fehler"}
+        "422": {$ref: "#/components/responses/Validierung"}
+
+  /api/sicherung/punkte/{kennung}:
+    patch:
+      tags: [sicherung]
+      operationId: sicherungspunktAendern
+      summary: "D-302: Name und Anheften eines Punkts"
+      parameters:
+        - {name: kennung, in: path, required: true, schema: {type: string}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                name:
+                  oneOf:
+                    - {type: string, maxLength: 100}
+                    - {type: "null"}
+                angeheftet: {type: boolean}
+      responses:
+        "200":
+          description: Geänderter Punkt
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Sicherungspunkt"}
+        "404":
+          description: "`nicht_gefunden`"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Fehler"}
+        "422": {$ref: "#/components/responses/Validierung"}
+
+  /api/sicherung/punkte/{kennung}/chronik:
+    get:
+      tags: [sicherung]
+      operationId: sicherungspunktChronik
+      summary: "D-302: Was seit dem vorigen Punkt geschah"
+      parameters:
+        - {name: kennung, in: path, required: true, schema: {type: string}}
+      responses:
+        "200":
+          description: Chronik
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  eintraege: {type: array, items: {type: object}}
+        "404":
+          description: "`nicht_gefunden`"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Fehler"}
+        "409":
+          description: "`punkt_nicht_herstellbar`"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Fehler"}
+
+  /api/sicherung/punkte/{kennung}/vergleich:
+    get:
+      tags: [sicherung]
+      operationId: sicherungspunktVergleich
+      summary: "D-302: Unterschied zwischen Punkt und aktuellem Stand (wie Probelauf)"
+      parameters:
+        - {name: kennung, in: path, required: true, schema: {type: string}}
+      responses:
+        "200":
+          description: Probelauf
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/SicherungErgebnis"}
+        "404":
+          description: "`nicht_gefunden`"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Fehler"}
+        "409":
+          description: "`punkt_nicht_herstellbar`"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Fehler"}
+
+  /api/sicherung/punkte/{kennung}/datei:
+    get:
+      tags: [sicherung]
+      operationId: sicherungspunktDatei
+      summary: "D-302: Eigenständige Sicherungsdatei eines Punkts (sicherung.md 3)"
+      parameters:
+        - {name: kennung, in: path, required: true, schema: {type: string}}
+      responses:
+        "200":
+          description: ZIP-Datei
+          content:
+            application/zip:
+              schema: {type: string, format: binary}
+        "404":
+          description: "`nicht_gefunden`"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Fehler"}
+        "409":
+          description: "`punkt_nicht_herstellbar`"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Fehler"}
+
+  /api/sicherung/punkte/{kennung}/wechseln:
+    post:
+      tags: [sicherung]
+      operationId: sicherungspunktWechseln
+      summary: "D-302: Auf einen Punkt wechseln (Ablauf sicherungspunkte.md 5.1)"
+      parameters:
+        - {name: kennung, in: path, required: true, schema: {type: string}}
+        - {name: bestaetigt, in: query, required: false, schema: {type: boolean, default: false}}
+      responses:
+        "200":
+          description: Gewechselt
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/SicherungErgebnis"}
+        "404":
+          description: "`nicht_gefunden`"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Fehler"}
+        "409":
+          description: "`punkt_nicht_herstellbar`, `stand_unveraendert`, `bestaetigung_erforderlich`, `sync_laeuft`, `tan_ausstehend`, `mail_abruf_laeuft`, `sicherung_vorher_fehlgeschlagen`"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Fehler"}
+        "422": {$ref: "#/components/responses/Validierung"}
 
   /api/kredite:
     get:
@@ -7110,6 +7289,11 @@ components:
         gesamt: {type: integer, minimum: 0}
         seite: {type: integer, minimum: 1}
         pro_seite: {type: integer, minimum: 1, maximum: 500}
+        gekuerzt_bis:
+          description: "D-302: Zeitpunkt der jüngsten durch Kürzen entfernten Änderung (sicherungspunkte.md 6)"
+          oneOf:
+            - {type: string}
+            - {type: "null"}
 
     Rueckgaengig:
       type: object
@@ -7516,6 +7700,83 @@ components:
           description: Je Schlüssel von manifest.anzahl die Zählung nach sicherung.md 5.2
           additionalProperties: {$ref: "#/components/schemas/SicherungZaehlung"}
         abgestimmte_buchungen_betroffen: {type: integer, minimum: 0}
+        vorher:
+          description: "D-302: Kennung des Sicherungspunkts mit dem Stand vor dem Einspielen"
+          oneOf:
+            - {type: string}
+            - {type: "null"}
+        ziel:
+          description: "D-302: Kennung des Zielpunkts bei einem Wechsel, sonst null"
+          oneOf:
+            - {type: string}
+            - {type: "null"}
+
+    Sicherungspunkt:
+      type: object
+      description: "D-302 (sicherungspunkte.md 7.1)"
+      required: [kennung, zeitpunkt, marken, name, angeheftet, anker, basis, eltern, groesse, groesse_herstellen,
+                 aenderungen, geprueft_am, chronik_anzahl]
+      properties:
+        kennung: {type: string}
+        zeitpunkt: {type: string}
+        marken:
+          type: array
+          items: {type: string, enum: [stuendlich, von_hand, vor_wiederherstellung, aus_datei, vor_update]}
+        name:
+          oneOf:
+            - {type: string}
+            - {type: "null"}
+        angeheftet: {type: boolean}
+        anker: {type: boolean}
+        basis:
+          oneOf:
+            - {type: string}
+            - {type: "null"}
+        eltern:
+          oneOf:
+            - {type: string}
+            - {type: "null"}
+        groesse: {type: integer, minimum: 0}
+        groesse_herstellen: {type: integer, minimum: 0}
+        aenderungen: {type: object}
+        geprueft_am:
+          oneOf:
+            - {type: string}
+            - {type: "null"}
+        chronik_anzahl: {type: integer, minimum: 0}
+        aktuell: {type: boolean}
+        vorwaerts: {type: boolean}
+        verlassen: {type: boolean}
+        neu: {type: boolean}
+
+    Sicherungspunkte:
+      type: object
+      required: [punkte, gesamt, bezugspunkt, unveraendert, zuletzt_geprueft, naechster_lauf, frei]
+      properties:
+        punkte:
+          type: array
+          items: {$ref: "#/components/schemas/Sicherungspunkt"}
+        gesamt: {type: object}
+        bezugspunkt:
+          oneOf:
+            - {type: string}
+            - {type: "null"}
+        unveraendert: {type: boolean}
+        zuletzt_geprueft:
+          oneOf:
+            - {type: string}
+            - {type: "null"}
+        naechster_lauf: {type: string}
+        jetzt: {type: string}
+        prueflauf:
+          description: "Täglicher Prüflauf: {tag, zeitpunkt, fehler: [kennung]} oder null"
+          oneOf:
+            - {type: object}
+            - {type: "null"}
+        frei:
+          oneOf:
+            - {type: integer}
+            - {type: "null"}
 
     Zinsmethode:
       type: string
