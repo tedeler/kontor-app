@@ -4396,3 +4396,30 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   ohne die Änderung fehl).
 - **Offen:** Ein dritter Lauf desselben CI-Jobs blieb in der Gesamtsuite mit Browser hängen, bis die Frist von
   12 Minuten ablief (einmal, nicht nachgestellt; zwei Läufe der Suite auf einem Diagnose-Branch liefen durch).
+
+## D-292 Tastenbelegung systematisiert (Feature `tastenbelegung`, 2026-11-26)
+
+- **Anlass:** Auftrag vom 2026-11-26: die Tastenkürzel systematisch ordnen; `u`/`d` bewegen die Markierung im
+  Kontoblatt wie die Pfeiltasten; `w` bietet je Blatt sinnvolle Ziele; Tastaturhilfe je Blatt. Die Belegung wurde
+  in mehreren Runden mit dem Auftraggeber abgestimmt (Projektdokument `feature-tastenbelegung.md`).
+- **Entscheidung:** Vertrag `oberflaeche.md` 46. Regeln: einzelne Buchstaben = Tätigkeiten, Vortasten `w`/`f`/`v`
+  = Ziele; klein = Grundform, groß = Gegenstück bzw. Variante, bei Zeiträumen groß = „letzter“; keine
+  Satzzeichen; `0` setzt zurück, `x` entfernt.
+  - `u`/`d`/`U`/`D` global (`BEWEGUNG` in `haupt.js`): gehen als Pfeiltaste an das fokussierte Element. Liegt der
+    Fokus nicht im Blatt, führt der erste Druck dorthin. Tabellen ohne eigene Zeilentastatur bekommen Pfeil
+    auf/ab zur Nachbarzeile (`zeileWeiter`), damit `u`/`d` dort wirken.
+  - Dublette `d` → `X` (Gegenstück von `x` Splitten). `?` → `h`, `/` entfällt (`w s`).
+  - Zeiträume `f t T w W m M q Q y Y`; „letzte 7/30 Tage“ nur noch als Knopf (`f w` heißt jetzt „diese Woche“).
+  - Filter wie die markierte Buchung `f e E z Z b B`; `f b` = `bet == … and dir == "…"`, `f B` = `bet == …`;
+    auch im Untermenü `km-filter` (`km-filter-betrag`, `km-filter-betrag-absolut`).
+  - Ansicht `v g k K o r s 0 e`; `v d` (Panel) entfällt, `w e` klappt das Panel auf.
+  - `w` je Blatt: Seiten ohne `bereiche()` bekommen ihre Ziele aus `BLATT_ZIELE` (Name der Seite → Taste, Text,
+    Selektor); `w a` = Kopf der Seite (`.seiten-kopf`), wenn er Bedienelemente hat. Nicht sichtbare Ziele fehlen.
+  - Tastaturhilfe je Blatt (`tastatur-hilfe-blatt`, `-ueberall`, `-liste`, `-alle`); `kontoKuerzel(seite)` nennt
+    für die Hilfe, was gerade nicht wirkt.
+- **Alte Folgen** entfallen ohne Übergang und werden als „nicht belegt“ gemeldet.
+- **Grenzen:** Auf der Finanzübersicht gibt es keine Knöpfe im Kopf, also kein `w a`. Die Mail-Liste und die
+  Tabellen sind nur stichprobenartig im Browser geprüft (Finanzübersicht, Konten, Kategorien, Empfänger,
+  Einstellungen). Der Service-Worker-Cache heißt `kontor-huelle-45`.
+- **Tests:** `tests/core/test_tastenbelegung.py`, `tests/test_browser_tastenbelegung.py`; angepasst
+  `tests/test_browser_tastatur.py` sowie in `gesamt-tests` M8 und M28 (`TESTUMBAU.md`).

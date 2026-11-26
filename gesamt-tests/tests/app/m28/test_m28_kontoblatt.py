@@ -239,7 +239,8 @@ def test_filter_untermenue(starte_server, neue_seite, eintrag, param):
     u = tid(seite, "untermenue")
     expect(u).to_be_visible()
     assert u.locator('[role="menuitem"]').evaluate_all("els => els.map(e => e.getAttribute('data-testid'))") == [
-        "km-filter-empfaenger", "km-filter-zweck", "km-filter-zweck-aehnlich", "km-filter-empfaenger-aehnlich"]
+        "km-filter-empfaenger", "km-filter-zweck", "km-filter-zweck-aehnlich", "km-filter-empfaenger-aehnlich",
+        "km-filter-betrag", "km-filter-betrag-absolut"]   # D-292: gleicher Betrag
     tid(seite, eintrag).click()
     wert = {"empfaenger_id": str(e1), "zweck_gleich": "Brot und Mehl", "zweck_aehnlich": "Brot und Mehl",
             "empfaenger_aehnlich": "Bäckerei Krume (fiktiv)"}[param]
@@ -410,7 +411,7 @@ def test_kuerzel_aktionen_und_vortasten(starte_server, neue_seite):
     seite.keyboard.press("b")
     seite.keyboard.press("q")    # unbelegte zweite Taste: Meldung, Abbruch
     expect(tid(seite, "kuerzel-hinweis")).to_be_hidden()
-    seite.keyboard.press("?")
+    seite.keyboard.press("h")   # D-292: h statt ?
     hilfe = tid(seite, "tastatur-hilfe")
     expect(hilfe).to_be_visible()
     for t in ("tastatur-hilfe-aktionen", "tastatur-hilfe-filter", "tastatur-hilfe-ansicht"):

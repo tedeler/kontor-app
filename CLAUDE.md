@@ -295,6 +295,10 @@ nicht mehr. Ein Thread schreibt Tests und Code.
   mit eigenen Bereichen bietet `bereiche()` an: Liste aus `{ taste, text, tun, el }` in der Reihenfolge von F6
   (Vorbild `konto.js`). Hinweis, Hilfe und Befehlspalette lesen dieselbe Liste.
 - `w` darf auf keiner Seite ein Kürzel ohne Vortaste werden.
+- Belegung nach D-292 (`oberflaeche.md` 46): keine Satzzeichen; `u`/`d`/`U`/`D` (bewegen) und `h` (Hilfe) sind
+  global und dürfen im Kontoblatt nicht ohne Vortaste belegt werden. Neue Kürzel in `KUERZEL` (`konto.js`) mit
+  Bedingung für die Hilfe (`eine`, `person`, `bestand`); Seiten ohne `bereiche()` melden ihre `w`-Ziele in
+  `BLATT_ZIELE` und ihre Listentasten in `HILFE_LISTE` (`haupt.js`).
 
 ## Hinweise zur sofortigen Wirkung im Kontoblatt (D-289, D-290)
 
