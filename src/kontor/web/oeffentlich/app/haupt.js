@@ -1342,6 +1342,29 @@ document.addEventListener("keydown", (e) => {
   if (e.key === HILFE_TASTE) { e.preventDefault(); tastaturHilfe(); }
 });
 
+// ------------------------------------------------------------------ Tabellen rollen in ihrem Rahmen (D-293)
+// Spalten werden nicht mehr mitten im Wort umbrochen; reicht der Platz nicht, rollt die Tabelle waagerecht in einem
+// eigenen Rahmen, nicht die ganze Seite. Die Buchungsliste ist keine Tabelle und bleibt unberührt.
+function tabelleRahmen(t) {
+  const eltern = t.parentElement;
+  if (!eltern || eltern.classList.contains("tabelle-rahmen")) return;
+  const rahmen = document.createElement("div");
+  rahmen.className = "tabelle-rahmen";
+  t.replaceWith(rahmen);
+  rahmen.append(t);
+}
+
+new MutationObserver((liste) => {
+  for (const m of liste) {
+    for (const n of m.addedNodes) {
+      if (n.nodeType !== 1) continue;
+      if (n.matches("table.tabelle")) tabelleRahmen(n);
+      else if (n.firstElementChild && !n.closest(".buchungsliste")) n.querySelectorAll("table.tabelle").forEach(tabelleRahmen);
+    }
+  }
+}).observe(document.body, { childList: true, subtree: true });
+document.querySelectorAll("table.tabelle").forEach(tabelleRahmen);
+
 // ------------------------------------------------------------------ Offline (18)
 const offlineHinweis = tid("offline-hinweis");
 

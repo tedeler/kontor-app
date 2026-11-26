@@ -166,7 +166,7 @@ fieldset { border: 1px solid var(--rand); border-radius: var(--radius); padding:
 .seiten-kopf { display: flex; align-items: center; justify-content: space-between; gap: .6rem; flex-wrap: wrap; margin-bottom: .4rem; }
 .seiten-kopf h1 { margin: 0; overflow-wrap: anywhere; }
 .werkzeuge { display: flex; gap: .4rem; flex-wrap: wrap; }
-.karte { border: 1px solid var(--rand); border-radius: var(--radius); padding: .7rem .9rem; margin: 0 0 .8rem; background: var(--hg); overflow-wrap: anywhere; }
+.karte { border: 1px solid var(--rand); border-radius: var(--radius); padding: .7rem .9rem; margin: 0 0 .8rem; background: var(--hg); overflow-wrap: break-word; }
 .karten-liste { list-style: none; padding: 0; margin: 0; }
 .klickbar { cursor: pointer; }
 .karte.gelesen { opacity: .75; }
@@ -176,7 +176,10 @@ fieldset { border: 1px solid var(--rand); border-radius: var(--radius); padding:
 
 /* Tabellen */
 .tabelle { width: 100%; border-collapse: collapse; margin-bottom: .8rem; }
-.tabelle th, .tabelle td { text-align: left; padding: .35rem .5rem; border-bottom: 1px solid var(--rand); vertical-align: top; overflow-wrap: anywhere; }
+/* D-293: Wörter brechen nicht mitten im Wort um (`break-word` zählt bei der Spaltenbreite das längste Wort mit);
+   nur technische Zeichenketten ohne Leerzeichen (Adressen, Pfade, Kennungen) dürfen überall umbrechen. */
+.tabelle th, .tabelle td { text-align: left; padding: .35rem .5rem; border-bottom: 1px solid var(--rand); vertical-align: top; overflow-wrap: break-word; }
+.tabelle :is(td, th) :is(code, a[href^="mailto:"], .technisch), .tabelle td.technisch { overflow-wrap: anywhere; }
 .tabelle th.zahl, .tabelle td.zahl { text-align: right; }
 .tabelle tbody tr.klickbar:hover { background: var(--hg-2); }
 .tabelle .name { padding-left: calc(.5rem + var(--stufe, 0) * 1.2rem); }
@@ -1695,3 +1698,20 @@ button.option { width: 100%; border: 0; background: none; color: inherit; font: 
 /* D-292: Tastaturhilfe – Kürzel, die gerade nicht wirken */
 #tastatur-hilfe tr.inaktiv, [data-testid="tastatur-hilfe"] tr.inaktiv { opacity: .55; }
 [data-testid="tastatur-hilfe"] .hilfe-blatt { margin-top: 1.5em; border-top: 1px solid var(--rand, #ccc); padding-top: .5em; }
+
+/* D-293: Überschrift einer Tabelle als Karten (Finanzübersicht: Ausgaben, Einnahmen, Sonstige) über die ganze Breite */
+[data-layout="mobil"] .tabelle.mobil-karten > caption { display: block; }
+
+/* D-293: Jede Tabelle liegt in einem Rahmen, der waagerecht rollt, wenn ihre Spalten mehr Platz brauchen als da ist
+   (statt Wörter zu zerbrechen oder die ganze Seite rollen zu lassen). Der Rahmen entsteht in haupt.js. */
+.tabelle-rahmen { overflow-x: auto; max-width: 100%; }
+.tabelle-rahmen > .tabelle { margin-bottom: .8rem; }
+.tabelle-rahmen > .mb-tabelle { margin-bottom: 0; }
+/* Werte der Konfiguration: kurze Werte bleiben ganz, lange Adressen und Pfade brechen innerhalb der Spalte */
+.konfiguration-tabelle td:not(:first-child) { min-width: 7rem; }
+/* Schmale Desktop-Fenster: Knöpfe der Regel unter den Inhalt, Jahresraster in vier Spalten */
+@media (max-width: 1100px) {
+  [data-layout="desktop"] .regel-zeile { grid-template-columns: auto auto auto 1fr; }
+  [data-layout="desktop"] .regel-zeile > .knopf-leiste { grid-column: 4 / -1; margin-top: 0; }
+  [data-layout="desktop"] .mb-jahresraster { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}

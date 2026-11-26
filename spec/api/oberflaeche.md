@@ -3492,3 +3492,16 @@ Befehlspalette (jetzt nur Kürzel, die es auf dem Blatt gibt).
   den Grund: „braucht genau eine markierte Buchung“ (`x`, `g`, `f e`/`E`/`z`/`Z`/`b`/`B`), „erst oben rechts
   wählen, wer du bist“ (`b`).
 
+
+## 47. Spaltenbreite und Umbruch in Tabellen (D-293)
+
+- Text in Tabellenzellen und Karten bricht nur zwischen Wörtern (und an Bindestrichen) um, nie mitten im Wort. Eine
+  Spalte ist mindestens so breit wie ihr längstes Wort. Ausgenommen sind technische Zeichenketten ohne Leerzeichen
+  (Code, Adressen, Pfade, Mail-Links): sie dürfen überall umbrechen.
+- Reicht der Platz für alle Spalten nicht, rollt die Tabelle waagerecht in einem eigenen Rahmen
+  (`.tabelle-rahmen`); die Seite selbst rollt nicht waagerecht.
+- Im mobilen Layout steht die Überschrift einer Tabelle als Karten (`caption`, z. B. „Ausgaben“ in der
+  Finanzübersicht) über die ganze Breite.
+- Die Tabelle der Kategorien im Lernmodell (`lern-kategorien`) erscheint im mobilen Layout als Karten.
+- In Desktop-Fenstern bis 1100 px stehen die Knöpfe einer Regel unter ihrem Inhalt, und das Jahresraster der
+  Berichte hat vier statt sechs Spalten.
