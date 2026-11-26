@@ -255,8 +255,8 @@ breiten `except`, keine echten SQL-Funde. Maßnahme **R-12**. Der Import selbst 
 
 Seit `68b53a6` kamen rund 20 Features ohne eigene Zeile dazu (FinTS/camt, Einstellungen, Berichte, Mail-Kopfabruf,
 Demodaten, Tastatur, Regelgruppen, Sonderposten, Kategoriepfad u. a.): +5 200 Python-Zeilen, +4 600 Zeilen in den
-ES-Modulen. C901 +6 und radon D/E/F +16 verteilen sich auf diese Features; die neuen D-Funktionen liegen vor allem
-in `auswertungen.py` (Berichte) und `bankzugang.py`. ruff-Funde und Parameter ohne Annotation wachsen mit dem
+ES-Modulen. C901 +6 und radon D/E/F +16 verteilen sich auf diese Features; die meisten D-Funktionen liegen jetzt in
+`auswertungen.py` (Berichte, 8) und `ausdruck.py` (Regelausdrücke, 6). ruff-Funde und Parameter ohne Annotation wachsen mit dem
 Umfang. Vier breite `except` (BLE), keine neuen echten SQL-Funde in den durchgesehenen Modulen. Maßnahmen
 **R-14** und **R-15**. Das neue Modul `sicherungspunkte.py` hält jede Funktion bei C901 ≤ 15 und ist annotiert.
 
