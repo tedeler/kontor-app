@@ -38,6 +38,7 @@ QUELLEN = ("manuell", "import", "sync", "regeln", "umbuchung", "rueckgaengig", "
 # Tabelle → (Objektart, Spalte mit der Objekt-ID)
 _TABELLEN = {
     "konto": ("konto", "id"),
+    "konto_inhaber": ("konto", "konto_id"),
     "empfaenger": ("empfaenger", "id"),
     "empfaenger_alias": ("empfaenger", "empfaenger_id"),
     "empfaenger_tag": ("empfaenger", "empfaenger_id"),
@@ -216,8 +217,9 @@ def formen(con, objekt: str, ids: list[int]) -> dict[int, dict]:
     for teil in buch._stueckweise(ids):
         ph = buch._platzhalter(len(teil))
         if objekt == "konto":
+            inhaber = buch.inhaber_laden(con, teil)
             for r in con.execute(f"SELECT * FROM konto WHERE id IN ({ph})", teil):
-                aus[r["id"]] = buch.konto_dict(r)
+                aus[r["id"]] = buch.konto_dict(r, inhaber.get(r["id"]))
         elif objekt == "tag":
             for r in con.execute(f"SELECT id, name, extern_id FROM tag WHERE id IN ({ph})", teil):
                 aus[r["id"]] = {"id": r["id"], "name": r["name"], "extern_id": r["extern_id"]}
@@ -568,6 +570,7 @@ def _einfuegen(con, objekt: str, f: dict) -> None:
                     " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     (f["id"], f["name"], f["art"], f["eltern_id"], f["iban"], 1 if f["geschlossen"] else 0,
                      f["eroeffnet_am"], f["notiz"], f["extern_id"]))
+        buch.inhaber_setzen(con, f["id"], f.get("inhaber"))   # D-310
     elif objekt == "empfaenger":
         # D-219: die Standardkategorie ist entfallen; ältere Einträge stellen sie nicht wieder her
         con.execute("INSERT INTO empfaenger (id, name, extern_id) VALUES (?, ?, ?)",

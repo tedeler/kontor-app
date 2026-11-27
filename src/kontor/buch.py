@@ -35,24 +35,39 @@ def sichere_id(x: int) -> int:
 # ===================================================================== Konten
 
 
-def konto_dict(r: sqlite3.Row) -> dict:
-    return {
+def konto_dict(r: sqlite3.Row, inhaber: dict | None = None) -> dict:
+    d = {
         "id": r["id"], "name": r["name"], "art": r["art"], "eltern_id": r["eltern_id"],
         "iban": r["iban"], "waehrung": "EUR", "geschlossen": bool(r["geschlossen"]),
         "eroeffnet_am": r["eroeffnet_am"], "notiz": r["notiz"], "extern_id": r["extern_id"],
         "ist_kategorie": r["art"] in KATEGORIEARTEN,
     }
+    if inhaber:   # D-310: nur wenn gesetzt (Protokollform und Inhaltsprüfsumme bleiben für Konten ohne gleich)
+        d["inhaber"] = inhaber
+    return d
 
 
 def konto_zeile(con, konto_id: int) -> sqlite3.Row | None:
     return con.execute("SELECT * FROM konto WHERE id = ?", (sichere_id(konto_id),)).fetchone()
 
 
+def inhaber_laden(con, ids: list[int] | None = None) -> dict[int, dict]:
+    """D-310: Inhaber je Konto-ID (nur Konten mit Inhaber)."""
+    sql = "SELECT konto_id, vorname, nachname FROM konto_inhaber"
+    par: list = []
+    if ids is not None:
+        if not ids:
+            return {}
+        sql += f" WHERE konto_id IN ({_platzhalter(len(ids))})"
+        par = list(ids)
+    return {r["konto_id"]: {"vorname": r["vorname"], "nachname": r["nachname"]} for r in con.execute(sql, par)}
+
+
 def konto_lesen(con, konto_id: int) -> dict:
     r = konto_zeile(con, konto_id)
     if r is None:
         raise nicht_gefunden("Das Konto")
-    return konto_dict(r)
+    return konto_dict(r, inhaber_laden(con, [r["id"]]).get(r["id"]))
 
 
 def konten_liste(con, arten: list[str] | None = None, geschlossen: bool | None = None) -> list[dict]:
@@ -66,7 +81,8 @@ def konten_liste(con, arten: list[str] | None = None, geschlossen: bool | None =
         par.append(1 if geschlossen else 0)
     if bed:
         sql += " WHERE " + " AND ".join(bed)
-    return [konto_dict(r) for r in con.execute(sql + " ORDER BY id", par)]
+    inhaber = inhaber_laden(con)
+    return [konto_dict(r, inhaber.get(r["id"])) for r in con.execute(sql + " ORDER BY id", par)]
 
 
 def _iban_pruefen(con, art: str, iban: str | None, eigene_id: int | None) -> str | None:
@@ -103,16 +119,48 @@ def _eltern_pruefen(con, art: str, eltern_id: int | None, eigene_id: int | None)
             k = r["eltern_id"] if r else None
 
 
+def _inhaber_pruefen(art: str, inhaber: dict | None) -> dict | None:
+    """D-310: Inhaber nur bei Bestandskonten; beide Teile leer = kein Inhaber."""
+    if not inhaber:
+        return None
+    neu = {"vorname": inhaber.get("vorname") or "", "nachname": inhaber.get("nachname") or ""}
+    if not neu["vorname"] and not neu["nachname"]:
+        return None
+    if KLASSE[art] != "bestand":
+        raise ApiFehler(422, "inhaber_ungueltig", "Einen Kontoinhaber haben nur Giro-, Spar- und Kreditkonten.")
+    return neu
+
+
+def inhaber_setzen(con, konto_id: int, inhaber: dict | None) -> None:
+    con.execute("DELETE FROM konto_inhaber WHERE konto_id = ?", (konto_id,))
+    if inhaber:
+        con.execute("INSERT INTO konto_inhaber (konto_id, vorname, nachname) VALUES (?, ?, ?)",
+                    (konto_id, inhaber["vorname"], inhaber["nachname"]))
+
+
+def _art_pruefen(con, konto_id: int, alt: str, neu: str) -> None:
+    """D-310: Kontotyp nur innerhalb der Bestandskonten; das Darlehenskonto eines Kredits bleibt Kreditkonto."""
+    if neu == alt:
+        return
+    if KLASSE[alt] != "bestand" or KLASSE.get(neu) != "bestand":
+        raise ApiFehler(422, "art_ungueltig", "Den Kontotyp können nur Giro-, Spar- und Kreditkonten wechseln.")
+    if alt == "kreditkonto" and con.execute("SELECT 1 FROM kredit WHERE konto_id = ?", (konto_id,)).fetchone():
+        raise ApiFehler(409, "konto_in_verwendung", "Das Konto ist Darlehenskonto eines Kredits und bleibt ein"
+                        " Kreditkonto.")
+
+
 def konto_anlegen(con, d: dict, extern_id: str | None = None) -> dict:
     art = d["art"]
     eltern_id = d.get("eltern_id")
     _eltern_pruefen(con, art, eltern_id, None)
     iban = _iban_pruefen(con, art, d.get("iban"), None)
+    inhaber = _inhaber_pruefen(art, d.get("inhaber"))
     cur = con.execute(
         "INSERT INTO konto (name, art, eltern_id, iban, geschlossen, eroeffnet_am, notiz, extern_id)"
         " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         (d["name"], art, eltern_id, iban, 1 if d.get("geschlossen") else 0, d.get("eroeffnet_am"),
          d.get("notiz", ""), extern_id))
+    inhaber_setzen(con, cur.lastrowid, inhaber)
     _zuordnung_erledigt(con, iban)
     return konto_lesen(con, cur.lastrowid)
 
@@ -120,6 +168,11 @@ def konto_anlegen(con, d: dict, extern_id: str | None = None) -> dict:
 def konto_aendern(con, konto_id: int, d: dict) -> dict:
     alt = konto_lesen(con, konto_id)
     neu = dict(alt)
+    if "art" in d:
+        _art_pruefen(con, konto_id, alt["art"], d["art"])
+        neu["art"] = d["art"]
+    if "inhaber" in d:
+        inhaber_setzen(con, konto_id, _inhaber_pruefen(neu["art"], d["inhaber"]))
     if "eltern_id" in d:
         _eltern_pruefen(con, alt["art"], d["eltern_id"], konto_id)
         neu["eltern_id"] = d["eltern_id"]
@@ -129,9 +182,9 @@ def konto_aendern(con, konto_id: int, d: dict) -> dict:
         if f in d:
             neu[f] = d[f]
     con.execute(
-        "UPDATE konto SET name = ?, eltern_id = ?, iban = ?, geschlossen = ?, eroeffnet_am = ?, notiz = ?"
+        "UPDATE konto SET name = ?, art = ?, eltern_id = ?, iban = ?, geschlossen = ?, eroeffnet_am = ?, notiz = ?"
         " WHERE id = ?",
-        (neu["name"], neu["eltern_id"], neu["iban"], 1 if neu["geschlossen"] else 0, neu["eroeffnet_am"],
+        (neu["name"], neu["art"], neu["eltern_id"], neu["iban"], 1 if neu["geschlossen"] else 0, neu["eroeffnet_am"],
          neu["notiz"], konto_id))
     _zuordnung_erledigt(con, neu["iban"])
     return konto_lesen(con, konto_id)

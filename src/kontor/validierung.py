@@ -152,6 +152,8 @@ def _pruefe_wert(f: Feld, wert: Any, ort: list, fehler: list[dict]) -> Any:
         if f.max_items is not None and len(wert) > f.max_items:
             fehler.append(fehler_eintrag(ort, f"Höchstens {f.max_items} Einträge erlaubt."))
         return aus
+    if t == "objekt":   # D-310: verschachteltes Objekt (z. B. ``inhaber`` eines Kontos)
+        return pruefe_objekt(wert, f.unter, ort, fehler)
     if t == "objekte":
         if not isinstance(wert, list):
             fehler.append(fehler_eintrag(ort, "Liste erwartet."))
