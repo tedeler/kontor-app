@@ -4,7 +4,7 @@ import {
   BESTAND, STATUS_TEXT, abfrage, aktion, anhaengen, api, baumFolge, betragEingabe, betragEl, betragLesen, betragText, datumEl,
   datumText, h, kategorien, klasse,
   kontoNach, ausdruckPfad, kontoPfad, melde, nameAnzeige, neueId, oberflaeche, personBestaetigt, personLesen, personTag, personVonTag, pfadVon,
-  rueckgaengig, stamm, stapelStand, tagHolen, tid,
+  rueckgaengig, stamm, stapelStand, tagHolen, tid, vorzeichen,
 } from "./kern.js";
 import {
   bestaetigen, dialog, dubletteDialog, erfassenDialog, feld, imDialog, kategorieAuswahl, kontextmenue, knopf, knopfLeiste,
@@ -576,6 +576,7 @@ class Kontoansicht {
     this.seite = seite;
     this.konto = konto;
     this.istKategorie = klasse(konto) !== "bestand";   // 22.2: Kategorie oder technisches Konto
+    this.vz = vorzeichen(konto);   // D-310: Vorzeichen der geladenen Beträge (Kreditkonto −1)
     this.spalten = this.istKategorie ? SPALTEN_KATEGORIE : SPALTEN;
     this.spaltenVariante = this.istKategorie ? "kategorie" : "konto";
     this.breiten = spaltenLaden(this.spaltenVariante);
@@ -735,7 +736,11 @@ class Kontoansicht {
     const nr = (this.ladeNr = (this.ladeNr || 0) + 1);   // nur die jüngste Antwort zählt
     this.seite.dataset.geladen = "nein";
     const proSeite = this.gruppierung ? GRUPPE_SEITE : PRO_SEITE;
-    const basis = { konto_id: this.konto.id, ...this.filter, sortierung: this.sortierung, pro_seite: proSeite, verdacht: "ja" };
+    // D-310: Kreditkonten zeigen Beträge umgedreht; das aktuelle Konto aus dem Stamm (Typ kann sich ändern)
+    const vz = vorzeichen(kontoNach(this.konto.id) || this.konto);
+    const sortierung = vz < 0 && /^-?betrag$/.test(this.sortierung)
+      ? (this.sortierung.startsWith("-") ? "betrag" : "-betrag") : this.sortierung;
+    const basis = { konto_id: this.konto.id, ...this.filter, sortierung, pro_seite: proSeite, verdacht: "ja" };
     delete basis.gruppierung;
     // D-130: Buchungen, die einer aus Mails erkannten Erwartung zugeordnet sind (Mail-Abgleich, D-128)
     const erwartungen = api("GET", "/api/erwartungen" + abfrage({ grund: MAIL_GRUENDE, zustand: ERWARTUNG_ZUSTAENDE }))
@@ -762,6 +767,9 @@ class Kontoansicht {
     const mail = new Map();
     for (const e of await erwartungen) for (const id of e.buchung_ids) if (!mail.has(id)) mail.set(id, erwartungText(e));
     if (nr !== this.ladeNr) return;
+    if (vz < 0) for (const b of eintraege) b.betrag = -(b.betrag || 0);
+    summe *= vz;
+    this.vz = vz;
     // D-299: gleiche Abfrage (nur Daten geändert) – fällt die Markierung heraus, rückt die Buchung darunter nach
     const schluessel = JSON.stringify([this.konto.id, this.filter, this.sortierung, this.gruppierung || null]);
     const gleicheAbfrage = schluessel === this.abfrageSchluessel;
@@ -1518,7 +1526,7 @@ class Kontoansicht {
   /** Kopf der Einzelheiten: Empfänger und Betrag groß, darunter Datum und Status. */
   detailsKopf(b, gesperrt) {
     const eigen = b.splits.filter((s) => s.konto_id === this.konto.id);
-    const betrag = eigen.length ? eigen.reduce((n, s) => n + s.betrag, 0) : null;
+    const betrag = eigen.length ? eigen.reduce((n, s) => n + s.betrag, 0) * this.vz : null;   // D-310: wie die Zeile
     const status = h("span", { class: `dk-status dk-status-${b.status}` },
       (STATUS_TEXT[b.status] || b.status) + (b.abgestimmt ? " · abgestimmt" : ""));
     return h("header", { class: `dk-kopf${betrag === null ? "" : betrag < 0 ? " dk-aus" : " dk-ein"}` },
@@ -2768,7 +2776,8 @@ class Kontoansicht {
     // (im Kontoblatt aus Sicht des angezeigten Kontos, ausdruecke.md 2.2).
     const cent = b ? Math.abs(b.betrag || 0) : 0;
     const euro = `${Math.floor(cent / 100)}.${String(cent % 100).padStart(2, "0")}`;
-    const richtung = !b ? "" : this.istUmbuchung(b) ? "umbuchung" : (b.betrag || 0) < 0 ? "ausgabe" : "einnahme";
+    // D-310: Richtung nach dem gespeicherten Betrag (Kreditkonto: Anzeige umgedreht)
+    const richtung = !b ? "" : this.istUmbuchung(b) ? "umbuchung" : (b.betrag || 0) * this.vz < 0 ? "ausgabe" : "einnahme";
     const BETRAG_TEIL = /^(?:bet|betrag)\s*(?:==|!=|>=|<=|>|<)|^(?:dir|richtung)\s*(?:==|!=)/;
     return { tid: "km-filter", text: "Filter", aktiv: !!b, kinder: [
       { tid: "km-filter-empfaenger", kuerzel: "f e", text: "gleicher Empfänger", aktiv: !!(b && b.empfaenger),
@@ -2873,7 +2882,7 @@ class Kontoansicht {
     // Kategorieansicht: Betrag und Name aus Sicht des Bestandskontos (wie die Bank ihn zeigt)
     const bestand = b.splits.filter((s) => { const k = kontoNach(s.konto_id); return k && BESTAND.has(k.art); });
     const ausBestand = this.istKategorie && bestand.length > 0;
-    const betrag = ausBestand ? bestand.reduce((n, s) => n + s.betrag, 0) : b.betrag;
+    const betrag = ausBestand ? bestand.reduce((n, s) => n + s.betrag, 0) : b.betrag * this.vz;   // gespeichert
     const konto = ausBestand ? [...new Set(bestand.map((s) => pfadVon(s.konto_id)))].join(", ") : this.konto.name;
     return teilenText({
       empfaenger: b.empfaenger && b.empfaenger.name, betrag, datum: b.datum, konto, kategorie: kat,
@@ -3548,9 +3557,11 @@ class Kontoansicht {
       && b.splits.filter((s) => s.konto_id === this.konto.id).length === 1;
   }
 
-  /** Split auf dem Konto der Ansicht v, der andere −v; Reihenfolge, Konten und Memos bleiben. */
+  /** Split auf dem Konto der Ansicht v (angezeigter Betrag, D-310: beim Kreditkonto umgedreht gespeichert), der andere
+   *  −v; Reihenfolge, Konten und Memos bleiben. */
   betragSplits(b, v) {
-    return b.splits.map((s) => ({ konto_id: s.konto_id, betrag: s.konto_id === this.konto.id ? v : -v, memo: s.memo }));
+    const w = v * this.vz;
+    return b.splits.map((s) => ({ konto_id: s.konto_id, betrag: s.konto_id === this.konto.id ? w : -w, memo: s.memo }));
   }
 }
 

@@ -20,7 +20,7 @@ const FILTER = [["alle", "Alle", []], ["hand", "Von Hand", ["manuell"]], ["bank"
   ["daten", "Import & Sicherung", ["import", "sicherung"]], ["rueckgaengig", "Rückgängig", ["rueckgaengig"]]];
 const FELD_NAMEN = { datum: "Datum", empfaenger_id: "Empfänger", verwendungszweck: "Verwendungszweck", status: "Status", splits: "Aufteilung",
   tag_ids: "Tags", extern_ids: "Kennungen der Herkunft", extern_id: "Kennung der Herkunft", vorschlag: "Vorschlag", gegen_iban: "Gegen-IBAN",
-  name: "Name", aliase: "Aliase", standardkategorie_id: "Standardkategorie", eltern_id: "Übergeordnetes Konto", art: "Art",
+  name: "Name", aliase: "Aliase", standardkategorie_id: "Standardkategorie", eltern_id: "Übergeordnetes Konto", art: "Art", inhaber: "Kontoinhaber",
   konto_id: "Konto", kategorie_id: "Kategorie", betrag: "Betrag", memo: "Notiz", abstimmung_id: "Abstimmung", dokument_ids: "Dokumente",
   buchung_ids: "Buchungen", iban: "IBAN", waehrung: "Währung", bedingungen: "Bedingungen", aktionen: "Aktionen", aktiv: "Aktiv",
   position: "Reihenfolge", automatisch: "Automatisch anwenden", wiederkehrend: "Wiederkehrend", stichtag: "Stichtag", saldo: "Saldo",
@@ -84,6 +84,7 @@ function wertText(schluessel, w, n) {
   if (typeof w === "string" && /^\d{4}-\d{2}-\d{2}$/.test(w)) return datumText(w);
   if (typeof w === "string" && /^\d{4}-\d{2}-\d{2}T/.test(w)) return zeitText(w);
   if (typeof w === "string" && Object.hasOwn(WERTE, w)) return WERTE[w];
+  if (schluessel === "inhaber") return [w.vorname, w.nachname].filter(Boolean).join(" ") || "–";   // D-310
   if (schluessel === "splits") return w.map((s) => splitText(s, n)).join("\n");
   if (Array.isArray(w)) return w.map((x) => (typeof x === "object" && x !== null ? objektText(x, n) : wertText(schluessel.replace(/s$/, ""), x, n))).join("\n");
   if (typeof w === "object") return objektText(w, n);

@@ -2,7 +2,7 @@
 import {
   BESTAND, STATUS_TEXT, abfrage, aktion, anmeldung, api, baumFolge, betragEl, betragLesen, betragText, datumEl,
   datumText, h, kategorien, kontoNach, kontoPfad, melde, mobilKarten, nachName, nameAnzeige, neueId, oberflaeche, personLesen, personTag, personVonTag, pfadVon, sichtbar, stamm, tid, zeitEl,
-  zeitText,
+  zeitText, inhaberText, vorzeichen,
 } from "./kern.js";
 import {
   abstimmungDialog, bestaetigen, dialog, dubletteAufloesen, feld, imDialog, knopf, knopfLeiste, kontextmenue,
@@ -152,7 +152,10 @@ export async function konten(seite) {
     const name = h("td", { class: "name", stil: { "--stufe": String(ebene - 1) } }, h("a", { href: `/konten/${k.id}` }, k.name));
     const tr = h("tr", { tid: `kontenbaum-konto-${k.id}`, "aria-level": String(ebene), class: k.geschlossen ? "geschlossen" : "" },
       name, h("td", null, ARTEN[k.art]), h("td", { class: "iban" }, k.iban || ""),
-      betragEl("td", (saldo.get(k.id) || { saldo_gesamt: 0 }).saldo_gesamt, { class: "zahl" }),
+      h("td", { "data-feld": "inhaber" }, inhaberText(k)),
+      // D-310: Kreditkonten zeigen den Kontostand umgedreht (Schulden positiv), data-betrag bleibt gespeichert
+      anzeigeBetrag("td", (saldo.get(k.id) || { saldo_gesamt: 0 }).saldo_gesamt, vorzeichen(k),
+        { class: "zahl", "data-feld": "saldo" }),
       h("td", null, knopf("Abstimmen…", { tid: `kontenbaum-abstimmen-${k.id}`, "aria-label": `Konto ${k.name} abstimmen`,
         onclick: (e) => abstimmungDialog(k, e.currentTarget) })));
     tr.addEventListener("contextmenu", (e) => {
@@ -163,8 +166,8 @@ export async function konten(seite) {
   });
   langeBeruehrung(seite, (t) => t.closest("tr[data-testid]"), (tr, x, y) => tr.dispatchEvent(new MouseEvent("contextmenu",
     { bubbles: true, cancelable: true, clientX: x, clientY: y })));
-  seite.append(zeilen.length ? tabelle({ tid: "kontenbaum" }, ["Konto", "Art", "IBAN", "Saldo", "Abstimmung"], zeilen,
-    ["titel", "info-", "info-", "betrag", "aktion2"])
+  seite.append(zeilen.length ? tabelle({ tid: "kontenbaum" }, ["Konto", "Art", "IBAN", "Inhaber", "Saldo", "Abstimmung"], zeilen,
+    ["titel", "info-", "info-", "info-", "betrag", "aktion2"])
     : h("div", { tid: "kontenbaum" }, leer("Noch keine Konten.")));
   return { titel: "Konten" };
 }

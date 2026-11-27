@@ -2,7 +2,7 @@
 import {
   ApiFehler, BESTAND, aktion, anhaengen, api, betragEingabe, betragEl, betragLesen, betragText, datumText, ebeneOeffnen,
   ebeneSchliessen, fehlerText, h, kategorien, klasse, kontoNach, kontoPfad, baumFolge, melde, neueId, oberflaeche, passt,
-  personBestaetigt, stamm, tagHolen, tid,
+  personBestaetigt, stamm, tagHolen, tid, vorzeichen,
 } from "./kern.js";
 
 // ------------------------------------------------------------------ Dialog-Grundgerüst (9)
@@ -1085,6 +1085,7 @@ export function erfassenDialog(kontoId, ausloeser) {
 
 // ------------------------------------------------------------------ Kontenabstimmung (13.3)
 export function abstimmungDialog(konto, ausloeser) {
+  const vz = vorzeichen(konto);   // D-310: Kreditkonten mit umgedrehtem Vorzeichen
   dialog("abstimmung-dialog", `Abstimmung „${konto.name}“`, (inhalt, d) => {
     const stichtag = h("input", { type: "date", tid: "abstimmung-stichtag", required: true });
     const saldo = h("input", { type: "text", inputmode: "decimal", tid: "abstimmung-saldo", required: true });
@@ -1095,19 +1096,19 @@ export function abstimmungDialog(konto, ausloeser) {
       const c = betragLesen(saldo.value);
       saldo.setAttribute("aria-invalid", typeof c === "number" ? "false" : "true");
       if (typeof c !== "number" || !stichtag.value) throw new ApiFehler(422, { meldung: "Bitte Stichtag und Saldo angeben." });
-      return { konto_id: konto.id, stichtag: stichtag.value, saldo: c, trocken };
+      return { konto_id: konto.id, stichtag: stichtag.value, saldo: c * vz, trocken };
     };
     pruefenK.addEventListener("click", () => imDialog(d, pruefenK, async () => {
       const r = await api("POST", "/api/abstimmungen", koerper(true));
-      ergebnis.replaceChildren(h("p", null, "Berechneter Saldo: ", betragEl("span", r.berechneter_saldo),
-        " · Differenz: ", betragEl("span", r.differenz), r.stimmt ? " · stimmt" : " · stimmt nicht"));
+      ergebnis.replaceChildren(h("p", null, "Berechneter Saldo: ", betragEl("span", r.berechneter_saldo * vz),
+        " · Differenz: ", betragEl("span", r.differenz * vz), r.stimmt ? " · stimmt" : " · stimmt nicht"));
     }));
     speichern.addEventListener("click", () => imDialog(d, speichern, async () => {
       const body = koerper(false);
       const r = await aktion(() => api("POST", "/api/abstimmungen", body), { stillBeiFehler: true,
         danach: (e) => { if (e && e.abgestimmt) d.schliessen(true); } });
       if (r && r.abgestimmt) melde("erfolg", "Konto abgestimmt.", { rueckgaengig: true });
-      else if (r) d.fehler(`Der Saldo stimmt nicht (Differenz ${betragText(r.differenz)}).`);
+      else if (r) d.fehler(`Der Saldo stimmt nicht (Differenz ${betragText(r.differenz * vz)}).`);
     }));
     inhalt.append(feld("Stichtag", stichtag), feld("Saldo laut Kontoauszug (€)", saldo), ergebnis,
       knopfLeiste(pruefenK, speichern, knopf("Abbrechen", { onclick: () => d.schliessen(null) })));
@@ -1130,11 +1131,30 @@ export async function bankkontenBekannt() {
 }
 
 export async function kontoEinstellungen(konto, ausloeser) {
+  konto = kontoNach(konto.id) || konto;   // aktueller Stand (Typ und Inhaber, D-310)
   const bestand = BESTAND.has(konto.art);
   const bekannt = bestand ? await bankkontenBekannt() : [];
   dialog("konto-einstellungen", `Einstellungen „${konto.name}“`, (inhalt, d) => {
     const name = h("input", { type: "text", tid: "einstellungen-name", maxlength: "200", value: konto.name });
     inhalt.append(feld("Name", name));
+    // D-310: Kontotyp und Kontoinhaber (nur Bestandskonten)
+    let art = null;
+    let vorname = null;
+    let nachname = null;
+    if (bestand) {
+      art = h("select", { tid: "einstellungen-art" }, ["girokonto", "sparkonto", "kreditkonto"].map((a) =>
+        h("option", { value: a }, ART_NAMEN[a])));
+      art.value = konto.art;
+      const alt = konto.inhaber || { vorname: "", nachname: "" };
+      vorname = h("input", { type: "text", tid: "einstellungen-inhaber-vorname", maxlength: "200", value: alt.vorname,
+        autocomplete: "off" });
+      nachname = h("input", { type: "text", tid: "einstellungen-inhaber-nachname", maxlength: "200", value: alt.nachname,
+        autocomplete: "off" });
+      inhalt.append(feld("Kontotyp", art, "Bei Kreditkonten zeigt das Kontoblatt Abbuchungen positiv und den Kontostand"
+        + " als Schulden; in der Finanzübersicht zählt er negativ."),
+      h("fieldset", { class: "feldgruppe", tid: "einstellungen-inhaber" }, h("legend", null, "Kontoinhaber (optional)"),
+        feld("Vorname", vorname), feld("Nachname", nachname)));
+    }
     let sync = null;
     let ibanFrei = null;
     if (bestand) {
@@ -1169,6 +1189,13 @@ export async function kontoEinstellungen(konto, ausloeser) {
       const n = name.value.trim();
       if (!n) { d.fehler("Bitte einen Namen eingeben."); return; }
       if (n !== konto.name) body.name = n;
+      if (art && art.value !== konto.art) body.art = art.value;
+      if (vorname) {
+        const alt = konto.inhaber || { vorname: "", nachname: "" };
+        const v = vorname.value.trim();
+        const nn = nachname.value.trim();
+        if (v !== alt.vorname || nn !== alt.nachname) body.inhaber = v || nn ? { vorname: v, nachname: nn } : null;
+      }
       if (sync) {
         const iban = sync.value === "*" ? ibanFrei.value.replace(/\s+/g, "").toUpperCase() : sync.value;
         if (sync.value === "*" && !iban) { d.fehler("Bitte eine IBAN eingeben."); return; }

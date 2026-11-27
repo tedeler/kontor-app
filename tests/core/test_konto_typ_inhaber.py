@@ -40,17 +40,15 @@ def _konto(c, name, art, **mehr):
 # ---------------------------------------------------------------------------------------------- Kontotyp
 
 
-@pytest.mark.parametrize("von,nach", [("girokonto", "kreditkonto"), ("kreditkonto", "sparkonto"),
-                                      ("sparkonto", "girokonto")])
-def test_art_von_bestandskonten_aenderbar(c, von, nach):
-    k = _konto(c, "Karte", von)
-    r = c.patch(f"/api/konten/{k['id']}", json={"art": nach})
-    assert r.status_code == 200, r.text
-    assert r.json()["art"] == nach
-    assert c.get(f"/api/konten/{k['id']}").json()["art"] == nach
-
-
-def test_art_nur_innerhalb_der_bestandskonten(c):
+def test_art_von_bestandskonten_aenderbar_und_nur_innerhalb_der_bestandskonten(c):
+    # ein Client für alle Fälle (Zeitbudget der Core-Tests)
+    for i, (von, nach) in enumerate([("girokonto", "kreditkonto"), ("kreditkonto", "sparkonto"),
+                                     ("sparkonto", "girokonto")]):
+        k = _konto(c, f"Karte {i}", von)
+        r = c.patch(f"/api/konten/{k['id']}", json={"art": nach})
+        assert r.status_code == 200, r.text
+        assert r.json()["art"] == nach
+        assert c.get(f"/api/konten/{k['id']}").json()["art"] == nach
     kat = _konto(c, "Lebensmittel", "aufwand")
     giro = _konto(c, "Giro", "girokonto")
     r = c.patch(f"/api/konten/{kat['id']}", json={"art": "girokonto"})
@@ -60,6 +58,17 @@ def test_art_nur_innerhalb_der_bestandskonten(c):
         assert r.status_code == 422 and r.json()["fehler"]["code"] == "validierung", art
     assert c.get(f"/api/konten/{kat['id']}").json()["art"] == "aufwand"
     assert c.get(f"/api/konten/{giro['id']}").json()["art"] == "girokonto"
+    # gespeicherte Beträge bleiben beim Typwechsel, die Finanzübersicht zählt Schulden negativ
+    karte = _konto(c, "Kreditkarte", "girokonto")
+    c.post("/api/buchungen", json={"datum": "2026-11-02", "splits": [{"konto_id": karte["id"], "betrag": -4_990},
+                                                                     {"konto_id": kat["id"], "betrag": 4_990}]})
+    assert c.patch(f"/api/konten/{karte['id']}", json={"art": "kreditkonto"}).status_code == 200
+    liste = c.get("/api/buchungen", params={"konto_id": karte["id"]}).json()
+    assert [b["betrag"] for b in liste["eintraege"]] == [-4_990]
+    u = c.get("/api/kontenuebersicht").json()
+    saldo = {k["konto_id"]: k["saldo_gesamt"] for k in u["konten"]}
+    assert saldo[karte["id"]] == -4_990
+    assert u["summe_bestand"] == -4_990
 
 
 def test_darlehenskonto_eines_kredits_bleibt_kreditkonto(c):
@@ -77,20 +86,6 @@ def test_darlehenskonto_eines_kredits_bleibt_kreditkonto(c):
     assert c.patch(f"/api/konten/{darlehen['id']}", json={"art": "kreditkonto"}).status_code == 200
 
 
-def test_gespeicherte_betraege_bleiben_bei_typwechsel(c):
-    karte = _konto(c, "Karte", "girokonto")
-    kat = _konto(c, "Einkauf", "aufwand")
-    c.post("/api/buchungen", json={"datum": "2026-11-02", "splits": [{"konto_id": karte["id"], "betrag": -4_990},
-                                                                     {"konto_id": kat["id"], "betrag": 4_990}]})
-    assert c.patch(f"/api/konten/{karte['id']}", json={"art": "kreditkonto"}).status_code == 200
-    liste = c.get("/api/buchungen", params={"konto_id": karte["id"]}).json()
-    assert [b["betrag"] for b in liste["eintraege"]] == [-4_990]
-    u = c.get("/api/kontenuebersicht").json()
-    saldo = {k["konto_id"]: k["saldo_gesamt"] for k in u["konten"]}
-    assert saldo[karte["id"]] == -4_990          # Finanzübersicht: Schulden gehen negativ ein
-    assert u["summe_bestand"] == -4_990
-
-
 # ---------------------------------------------------------------------------------------------- Inhaber
 
 
@@ -105,13 +100,16 @@ def test_inhaber_anlegen_lesen_aendern_entfernen(c):
     r = c.patch(f"/api/konten/{k['id']}", json={"inhaber": {"vorname": " ", "nachname": ""}})
     assert r.status_code == 200 and "inhaber" not in r.json()
     assert all("inhaber" not in x for x in c.get("/api/konten").json())
-
-
-def test_inhaber_teilweise_angeben_und_andere_felder_lassen_ihn(c):
-    k = _konto(c, "Giro", "girokonto", inhaber={"nachname": "Mustermann"})
+    # teilweise angeben; andere Felder lassen ihn stehen, ein Typwechsel auch
+    k = _konto(c, "Giro 2", "girokonto", inhaber={"nachname": "Mustermann"})
     assert k["inhaber"] == {"vorname": "", "nachname": "Mustermann"}
     r = c.patch(f"/api/konten/{k['id']}", json={"name": "Giro neu"})
     assert r.json()["inhaber"] == {"vorname": "", "nachname": "Mustermann"}
+    r = c.patch(f"/api/konten/{k['id']}", json={"art": "kreditkonto"})
+    assert r.json()["inhaber"] == {"vorname": "", "nachname": "Mustermann"}
+    # Löschen nimmt den Inhaber mit
+    assert c.delete(f"/api/konten/{k['id']}").status_code == 204
+    assert "inhaber" not in _konto(c, "Giro neu", "girokonto")
 
 
 def test_inhaber_ungueltig(c):
@@ -126,19 +124,6 @@ def test_inhaber_ungueltig(c):
         assert r.status_code == 422 and r.json()["fehler"]["code"] == "validierung", falsch
     # leerer Inhaber an einer Kategorie stört nicht
     assert c.patch(f"/api/konten/{kat['id']}", json={"inhaber": None}).status_code == 200
-
-
-def test_typwechsel_behaelt_inhaber(c):
-    k = _konto(c, "Karte", "girokonto", inhaber={"vorname": "Erika", "nachname": "Mustermann"})
-    r = c.patch(f"/api/konten/{k['id']}", json={"art": "kreditkonto"})
-    assert r.json()["inhaber"] == {"vorname": "Erika", "nachname": "Mustermann"}
-
-
-def test_konto_mit_inhaber_loeschen(c):
-    k = _konto(c, "Giro", "girokonto", inhaber={"vorname": "Erika", "nachname": "Mustermann"})
-    assert c.delete(f"/api/konten/{k['id']}").status_code == 204
-    k2 = _konto(c, "Giro", "girokonto")
-    assert "inhaber" not in k2
 
 
 # ---------------------------------------------------------------------------------------------- Protokoll
