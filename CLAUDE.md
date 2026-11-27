@@ -337,6 +337,15 @@ nicht mehr. Ein Thread schreibt Tests und Code.
   verhindert nur eine bestehende Regel: die automatische des Empfängers (gleich welcher Zustand) oder eine Regel, die
   seine jüngste Buchung trifft (aktiv oder deaktiviert).
 
+## Hinweise zu Kontotyp und Kontoinhaber (Feature `konto-typ-inhaber`, D-310)
+
+- `art` eines Bestandskontos ist änderbar (nur innerhalb `bestand`). Wer Konten nach Art behandelt, darf sich nicht
+  darauf verlassen, dass die Art seit dem Anlegen gleich ist.
+- Kreditkonten speichern nach der Vorzeichenkonvention; umgedreht wird nur in der Anzeige des Kontos selbst
+  (`vorzeichen(konto)` in `kern.js`, `Kontoansicht.vz`: die geladenen Buchungen tragen den angezeigten `betrag`).
+  Was an den Server geht, mit `this.vz` zurückrechnen (Vorbild `betragSplits`).
+- Inhaber in `konto_inhaber` (Objektart `konto`); `konto_dict(r, inhaber)` setzt `inhaber` nur, wenn vorhanden.
+
 ## Codequalität vor jedem Meilenstein
 
 - **Vor Beginn jedes neuen Meilensteins** die Codequalitätsanalyse nach

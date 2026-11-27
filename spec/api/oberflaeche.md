@@ -3683,3 +3683,23 @@ Befehlspalette (jetzt nur Kürzel, die es auf dem Blatt gibt).
   Ohne diese Funktion oder bei einem anderen Fehler `navigator.clipboard.writeText` mit der Meldung „Kurztext und
   Link in die Zwischenablage kopiert.“; geht auch das nicht, zeigt `teilen-dialog` den Text in `teilen-text`
   (markiert) mit `teilen-schliessen`.
+
+## 51. Kontotyp, Kontoinhaber und Vorzeichen bei Kreditkonten (Feature `konto-typ-inhaber`, D-310)
+
+- **Kontoeinstellungen** (`konto-einstellungen`, Kontextmenü „Einstellungen…“ und `konto-einstellungen-oeffnen` im
+  Kontoblatt): bei Bestandskonten zusätzlich die Auswahl `einstellungen-art` „Kontotyp“ (Girokonto, Sparkonto,
+  Kreditkonto) mit Hinweis zum Vorzeichen und die Gruppe `einstellungen-inhaber` „Kontoinhaber (optional)“ mit
+  `einstellungen-inhaber-vorname` und `einstellungen-inhaber-nachname`. Gespeichert wird nur, was sich geändert hat;
+  beide Felder leer entfernen den Inhaber. Der Dialog zeigt immer den aktuellen Stand des Kontos.
+- **Kontoblatt eines Kreditkontos:** Beträge der Liste (`data-feld="betrag"`, auch `data-betrag`), Summe
+  (`buchungsliste-summe`), Eingang/Ausgang/Summe der Perioden, Summen der Auswahl und der Betrag im Kopf der
+  Einzelheiten erscheinen mit umgedrehtem Vorzeichen; eine Abbuchung ist positiv. Die Sortierung nach Betrag folgt der
+  Anzeige. Wer den Betrag an Ort und Stelle bearbeitet, gibt ihn wie angezeigt ein; gespeichert wird umgedreht.
+  Filter „gleicher Betrag“ und Teilen bestimmen die Richtung (Ausgabe/Einnahme) nach dem gespeicherten Vorzeichen.
+  Der Dialog der Buchungssätze (`split-dialog`) zeigt die Splits wie gespeichert.
+- **Kontenliste** (`/konten`, `kontenbaum`): neue Spalte „Inhaber“ (`data-feld="inhaber"`, „Vorname Nachname“) vor
+  „Saldo“; der Saldo eines Kreditkontos erscheint umgedreht (Schulden positiv), `data-betrag` bleibt der gespeicherte
+  Wert. Die Abstimmung (`abstimmung-dialog`) erwartet und zeigt den Saldo eines Kreditkontos ebenso umgedreht.
+- **Finanzübersicht** unverändert: der Saldo eines Kreditkontos und die Summe der Bestandskonten wie gespeichert
+  (Schulden negativ).
+- **Änderungsprotokoll:** Feld `inhaber` heißt „Kontoinhaber“ und erscheint als „Vorname Nachname“.

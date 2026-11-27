@@ -775,3 +775,22 @@ ohne Groß-/Kleinschreibung und Leerraum am Rand eindeutig; Verstöße → 409
 Geschwister (Warnungen `konto_zusammengefasst`, `konto_umbenannt`). Ersetzt
 die Aussage in 2 und Regel 2 für Konten anderer Klassen in 10.3. Einzelheiten:
 `sammel3.md` 1 (E-295).
+
+## 21. Kontotyp änderbar, Kontoinhaber, Vorzeichen bei Kreditkonten (Feature `konto-typ-inhaber`, D-310)
+
+- **Kontotyp:** `art` ist bei Bestandskonten über `PATCH /api/konten/{id}` änderbar, und zwar nur innerhalb der
+  Klasse `bestand` (`girokonto`, `sparkonto`, `kreditkonto`). Ersetzt „nach dem Anlegen unveränderlich“ in 2 für
+  Bestandskonten. Andere Werte → 422 `validierung`; Kategorien und technische Konten (`aufwand`, `ertrag`,
+  `eigenkapital`) wechseln den Typ nicht → 422 `art_ungueltig`. Das Darlehenskonto eines Kredits (`kredite.md`)
+  bleibt `kreditkonto` → 409 `konto_in_verwendung`. Splits, Salden und Unterkonten bleiben unverändert.
+- **Kontoinhaber:** neues Feld `inhaber` = `{vorname, nachname}` (je höchstens 200 Zeichen, Ränder entfernt), nur bei
+  Bestandskonten. Beide Teile dürfen leer bleiben; sind beide leer, hat das Konto keinen Inhaber und das Feld fehlt in
+  der Antwort. Beim Anlegen und Ändern darf ein Teil fehlen (gilt als leer); `null` entfernt den Inhaber. Ein
+  nicht leerer Inhaber bei einem anderen Konto → 422 `inhaber_ungueltig`. Andere Änderungen (auch des Typs) lassen den
+  Inhaber stehen; Löschen des Kontos löscht ihn mit.
+- **Vorzeichen bei Kreditkonten:** Gespeichert wird weiter nach der Vorzeichenkonvention (Soll positiv); REST,
+  Berichte, Filter und Ausdrücke rechnen unverändert. Nur die Anzeige des Kreditkontos selbst dreht das Vorzeichen um
+  (`oberflaeche.md` 51): eine Abbuchung erscheint positiv, der Kontostand als Schuld positiv. In der Finanzübersicht
+  und der Summe der Bestandskonten geht der Kontostand eines Kreditkontos wie gespeichert negativ ein.
+- **Protokoll und Sicherung:** `inhaber` gehört zur Protokollform des Kontos (`protokoll.md` 27); Sicherung ab
+  Schemaversion 12 mit Tabelle `konto_inhaber` (`sicherung.md` 16).

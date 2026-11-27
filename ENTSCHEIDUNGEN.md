@@ -4786,3 +4786,35 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - **Prüfung:** Core-Test `tests/core/test_markierung_status.py`; Browsertest `tests/test_browser_markierung_status.py`
   (rote, gelbe und weiße Zeile bei 390 px: Grundton und Streifen vor und nach dem Tippen gleich, Rahmen vorhanden,
   die drei Status bleiben unterscheidbar).
+
+## D-310 Kontotyp änderbar, Kontoinhaber, Kreditkonten mit umgedrehtem Vorzeichen (Feature `konto-typ-inhaber`, 2026-11-27)
+
+- **Anlass:** Arbeitsanweisung vom 2026-11-27: Zu den änderbaren Eigenschaften eines Kontos gehören Kontotyp (Giro,
+  Sparbuch, Kreditkonto) und Kontoinhaber (Vorname, Nachname, darf leer bleiben). Kreditkonten haben umgedrehte
+  Vorzeichen: eine Abbuchung zählt positiv; in der Finanzübersicht geht der Kontostand negativ ein. Die Sicherung
+  muss die neuen Eigenschaften erfassen.
+- **Kontotyp:** Die Arten `girokonto`, `sparkonto` und `kreditkonto` gab es schon; neu ist nur, dass sie sich ändern
+  lassen. „Sparbuch“ ist `sparkonto`. Gewechselt wird nur innerhalb der Bestandskonten, weil Kategorien andere Regeln
+  (Hierarchie, Regeln, Berichte) haben. Das Darlehenskonto eines Kredits bleibt Kreditkonto (sonst wäre der Kredit
+  ungültig, `kredite.md`). Werte außerhalb der Bestandsarten sind ein Formfehler (`validierung`), damit der bisherige
+  Test „Art nicht änderbar“ (Kategorie → andere Kategorie) unverändert gilt.
+- **Vorzeichen nur in der Anzeige:** Die Speicherung bleibt nach der Vorzeichenkonvention (Soll positiv). So ändern
+  sich beim Typwechsel keine Buchungen, Bankumsätze und Saldoabgleich behalten das Vorzeichen der Bank, und Berichte,
+  Vermögen, Kredite, Regeln und Ausdrücke rechnen weiter richtig. Umgedreht wird dort, wo man das Konto selbst ansieht
+  (Kontoblatt, Kontenliste, Abstimmung). Die Finanzübersicht bleibt, wie sie war: der Kontostand eines Kreditkontos
+  ist dort negativ und zählt negativ in die Summe. Das gilt auch für Darlehenskonten (Art `kreditkonto`).
+  Eingabe im Kontoblatt (Betrag an Ort und Stelle) folgt der Anzeige; der Erfassen-Dialog arbeitet ohnehin mit
+  „Ausgabe/Einnahme“ und positivem Betrag. Filter (Ausdrücke, Betrag ab/bis) bleiben bei ihrer Bedeutung: `betrag`
+  ohne Vorzeichen, Richtung nach dem gespeicherten Vorzeichen (eine Kartenzahlung ist eine Ausgabe).
+- **Inhaber:** eigene Tabelle `konto_inhaber` (statt Spalten an `konto`), damit Sicherungen der Schemaversion ≤ 11
+  ohne Spaltenversionen gelesen werden und die Form eines Kontos ohne Inhaber gleich bleibt (Inhaltsprüfsumme,
+  Rückgängig älterer Einträge). Im REST und in der Protokollform erscheint `inhaber` nur, wenn er gesetzt ist (wie
+  `wiederkehrend` beim Empfänger). Nur bei Bestandskonten; ein Teil darf leer sein.
+- **Sicherung:** Schemaversion 12 mit `konto_inhaber`; ältere Sicherungen gelten als ohne Inhaber (3.4). Die
+  Sicherungspunkte erfassen die Tabelle über `SPALTEN` automatisch.
+- **OpenAPI 2.26.0:** `Konto.inhaber` (optional), `KontoInhaber`, `KontoInhaberEingabe`, `KontoNeu.inhaber`,
+  `KontoAenderung.art`/`inhaber`, Codes `art_ungueltig`, `inhaber_ungueltig`.
+- **Demodaten:** das Sparbuch hat die erfundene Inhaberin „Tina Muster“.
+- **Tests:** `tests/core/test_konto_typ_inhaber.py`, `tests/test_browser_konto_typ_inhaber.py`. Angepasst:
+  `tests/core/test_sicherung_stuendlich.py` (`AENDERUNGEN.md`), `tests/test_m6_eigen.py` (Schemaversion 12),
+  `gesamt-tests/tests/spec/test_openapi.py` (`TESTUMBAU.md`).

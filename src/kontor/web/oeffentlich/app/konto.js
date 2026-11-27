@@ -2882,11 +2882,12 @@ class Kontoansicht {
     // Kategorieansicht: Betrag und Name aus Sicht des Bestandskontos (wie die Bank ihn zeigt)
     const bestand = b.splits.filter((s) => { const k = kontoNach(s.konto_id); return k && BESTAND.has(k.art); });
     const ausBestand = this.istKategorie && bestand.length > 0;
-    const betrag = ausBestand ? bestand.reduce((n, s) => n + s.betrag, 0) : b.betrag * this.vz;   // gespeichert
+    const betrag = ausBestand ? bestand.reduce((n, s) => n + s.betrag, 0) : b.betrag;
+    const roh = ausBestand ? betrag : b.betrag * this.vz;   // D-310: Art nach dem gespeicherten Vorzeichen
     const konto = ausBestand ? [...new Set(bestand.map((s) => pfadVon(s.konto_id)))].join(", ") : this.konto.name;
     return teilenText({
       empfaenger: b.empfaenger && b.empfaenger.name, betrag, datum: b.datum, konto, kategorie: kat,
-      art: umbuchung ? "umbuchung" : betrag < 0 ? "ausgabe" : "einnahme",
+      art: umbuchung ? "umbuchung" : roh < 0 ? "ausgabe" : "einnahme",
       tags: (b.tags || []).map((t) => t.name), zweck: b.verwendungszweck,
       link: `${location.origin}/konten/${this.konto.id}?buchung=${b.id}`,
     });

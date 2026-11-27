@@ -161,3 +161,4 @@ Stabilität: Nach den Änderungen lief der Browser-Teil der Gesamtsuite viermal 
 | `m30/test_m30_oberflaeche.py::test_regelliste` | D-308: deaktivierte Regeln stehen im Bereich „Deaktiviert“ ohne Griff; aktive eigene Regeln vor deaktivierten | nach dem Schalter Regel im Bereich „Deaktiviert“; erwartete Reihenfolge nach Alt+↑ `[leer, beide, nur]` |
 | `spec/test_openapi.py::test_alle_operationen_vorhanden` | D-308: neue Operation `GET /api/regeln/pruefung` | in `OPERATIONEN_M30` ergänzt |
 | eigene `test_lernregeln_eigen.py`: `test_geloeschte_regel_entsteht_nicht_wieder`, `test_sicherung_enthaelt_vermerk_und_sperre` | D-308 | Löschen ohne Sperre; Sicherung mit deaktivierter Regel |
+| `spec/test_openapi.py::test_m8_schemas`, `::test_m32_schemas`, eigene `test_m6_eigen.py::test_sicherung_der_schemaversion_2_…` | D-310: `KontoAenderung` mit `art` und `inhaber`, OpenAPI 2.26.0, Sicherung Schemaversion 12 | Felder ergänzt; Version „mindestens 2.25.0“; Schemaversion 12 |
