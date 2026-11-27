@@ -263,6 +263,9 @@ def test_regelliste(starte_server, neue_seite):
     # Schalter
     tid(seite, f"regel-aktiv-{nur['id']}").click()
     warte_bis(lambda: next(r for r in _regeln(api) if r["id"] == nur["id"])["aktiv"] is False, text="Regel inaktiv")
+    # D-305: deaktivierte Regeln stehen im Bereich „Deaktiviert“ ganz unten, ohne Griff
+    expect(tid(seite, "regel-liste-deaktiviert").locator(f'[data-testid="regel-{nur["id"]}"]')).to_have_count(1)
+    expect(tid(seite, f"regel-griff-{nur['id']}")).to_have_count(0)
     # Reihenfolge mit Alt+↑ am Griff: ein Rückgängig-Schritt
     a0 = m8.max_aenderung(api)
     # Nach dem Schalter baut die Seite die Liste neu auf; ein Tastendruck auf den alten Griff ginge verloren.
@@ -271,7 +274,7 @@ def test_regelliste(starte_server, neue_seite):
 
     def umsortiert():
         ist = [r["id"] for r in _regeln(api)]
-        if ist == [beide["id"], leer["id"], nur["id"]]:
+        if ist == [leer["id"], beide["id"], nur["id"]]:   # D-305: aktive Regeln vor deaktivierten
             return True
         if ist == [beide["id"], nur["id"], leer["id"]] and time.monotonic() - gedrueckt[0] > 1.5:
             gedrueckt[0] = time.monotonic()

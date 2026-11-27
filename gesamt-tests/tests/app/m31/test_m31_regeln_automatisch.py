@@ -199,7 +199,8 @@ def test_sync_regeln_lernmodell_und_rueckgaengig_loesen_nichts_aus(tmp_path):
 # ------------------------------------------------------------------ 9.4 Löschen, Rückgängig, Umbenennen
 
 
-def test_loeschen_sperrt_den_empfaenger_rueckgaengig_hebt_auf(tmp_path):
+def test_loeschen_sperrt_nicht_rueckgaengig_bringt_zurueck(tmp_path):
+    """D-305: Das Löschen sperrt den Empfänger nicht mehr; die Regel darf wieder entstehen."""
     api = _app(tmp_path)
     b = Bestand(api)
     bs = b.reihe(5)
@@ -209,21 +210,29 @@ def test_loeschen_sperrt_den_empfaenger_rueckgaengig_hebt_auf(tmp_path):
     api.delete(f"/api/regeln/{r['id']}", erwartet=204)
     (a,) = aenderungen_seit(api, a0)
     assert (a["quelle"], a["aktion"]) == ("manuell", "regel_loeschen")
-    nachher = bestand(api, gesperrt={b.empf()})
+    nachher = bestand(api)  # ohne Sperre
     pruefe_eintraege(a, vorher, nachher)
-    assert {(e["objekt"], e["art"]) for e in a["eintraege"]} == {("regel", "geloescht"), ("empfaenger", "geaendert")}
-    e = next(x for x in a["eintraege"] if x["objekt"] == "empfaenger")
-    assert e["nachher"]["lernregel_gesperrt"] is True and "lernregel_gesperrt" not in e["vorher"]
-    _patch_zweck(api, bs[1]["id"], "Einkauf Dienstag")
-    b.buchen("2026-04-01")
-    assert automatische(api) == {}, "gesperrter Empfänger bekommt keine Regel mehr"
+    assert {(e["objekt"], e["art"]) for e in a["eintraege"]} == {("regel", "geloescht")}
     a1 = letzte_aenderung_id(api)
     u = rueckgaengig(api, a["id"]).daten
     assert u["aktion"] == "rueckgaengig"
-    assert set(automatische(api)) == {b.empf()}, "Regel wieder da"
-    assert automatische(api)[b.empf()] == r
-    bestand(api)  # ohne Sperre (die Hilfe prüft, dass kein Empfänger gesperrt ist)
+    assert automatische(api)[b.empf()] == r, "Regel wieder da"
     assert _lernmodell_aenderungen(api, a1) == []
+    api.delete(f"/api/regeln/{r['id']}", erwartet=204)
+    _patch_zweck(api, bs[1]["id"], "Einkauf Dienstag")
+    neu = automatische(api)
+    assert set(neu) == {b.empf()} and neu[b.empf()]["id"] != r["id"], "nach dem Löschen entsteht sie wieder"
+
+
+def test_deaktivierte_regel_verhindert_neue(tmp_path):
+    api = _app(tmp_path)
+    b = Bestand(api)
+    bs = b.reihe(5)
+    (r,) = automatische(api).values()
+    api.patch(f"/api/regeln/{r['id']}", json={"aktiv": False}, erwartet=200)
+    _patch_zweck(api, bs[1]["id"], "Einkauf Dienstag")
+    b.buchen("2026-04-01")
+    assert [x["id"] for x in automatische(api).values()] == [r["id"]], "keine zweite Regel"
 
 
 def test_rueckgaengig_der_anlage_und_erneute_anlage(tmp_path):
@@ -260,20 +269,20 @@ def test_sicherung_rundreise(tmp_path):
     b.reihe(5)
     b.reihe(5, name="Drogerie Fiktiv", kat="Drogerie")
     auto = automatische(quelle)
-    gesperrt = b.e["Drogerie Fiktiv"]
-    quelle.delete(f"/api/regeln/{auto[gesperrt]['id']}", erwartet=204)
-    bs = bestand(quelle, gesperrt={gesperrt})
+    aus = b.e["Drogerie Fiktiv"]
+    quelle.patch(f"/api/regeln/{auto[aus]['id']}", json={"aktiv": False}, erwartet=200)  # D-305 statt Sperre
+    bs = bestand(quelle)
     m, _ = oeffne(sicherung(quelle))
     assert m["schemaversion"] >= 9
     ziel = _app(tmp_path / "z")
     einspielen(ziel, sicherung(quelle))
-    assert bestand(ziel, gesperrt={gesperrt}) == bs
+    assert bestand(ziel) == bs
     assert automatische(ziel) == automatische(quelle)
     m2, _ = oeffne(sicherung(ziel))
     assert m2["inhalt_sha256"] == m["inhalt_sha256"] and m2["anzahl"] == m["anzahl"]
-    d = [x for x in ziel.alle_buchungen() if x["empfaenger"] and x["empfaenger"]["id"] == gesperrt]
+    d = [x for x in ziel.alle_buchungen() if x["empfaenger"] and x["empfaenger"]["id"] == aus]
     _patch_zweck(ziel, d[0]["id"], "Seife")
-    assert set(automatische(ziel)) == {b.e[NAME]}, "die Sperre gilt auch nach dem Einspielen"
+    assert automatische(ziel) == automatische(quelle), "die deaktivierte Regel wirkt auch nach dem Einspielen"
 
 
 def test_pruefsumme_ohne_automatische_regeln_unveraendert(tmp_path):
