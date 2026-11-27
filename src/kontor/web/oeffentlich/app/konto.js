@@ -342,9 +342,11 @@ const SPALTEN_RASTER = { datum: "6.5rem", empfaenger: "minmax(7rem, 1.2fr)", ver
   kategorie: "minmax(9rem, 1.6fr)", konto: "minmax(7rem, 1.2fr)", tags: "minmax(4rem, .7fr)", status: "6.5rem",
   betrag: "var(--betrag-breite, 7.5rem)" };
 
-// D-318: Kontoblatt eines Kreditkontos (breite Liste) wie GnuCash mit „Zahlung“ und „Belastung“ in der Spalte Betrag.
-// Der angezeigte Betrag (D-312) entscheidet: positiv = Belastung (Abbuchung), negativ = Zahlung; beide ohne Vorzeichen.
-const BETRAG_TEILE = [["zahlung", "Zahlung"], ["belastung", "Belastung"]];
+// D-318/D-319: Kontoblatt eines Kreditkontos (breite Liste) wie GnuCash mit „Tilgung“ und „Belastung“ in der Spalte
+// Betrag. Der angezeigte Betrag (D-312) entscheidet: positiv = Belastung (erhöht die Schulden), negativ = Tilgung
+// (mindert sie); beide ohne Vorzeichen.
+const BETRAG_TEILE = [["tilgung", "Tilgung", "Mindert die Schulden: Rückzahlung, Erstattung"],
+  ["belastung", "Belastung", "Erhöht die Schulden: Kartenzahlung, Auszahlung, Zinsen"]];
 
 function betragTeile(cent) {
   return BETRAG_TEILE.map(([teil]) => {
@@ -1882,7 +1884,8 @@ class Kontoansicht {
     this.zweiBetraege = this.vz < 0 && !kompakt;   // D-318
     this.liste.dataset.zweiBetraege = this.zweiBetraege ? "ja" : "nein";
     const kopfText = (feld, text) => (feld === "betrag" && this.zweiBetraege
-      ? BETRAG_TEILE.map(([teil, t]) => h("span", { class: `betrag-teil betrag-${teil}`, "data-teil": teil }, t)) : [text]);
+      ? BETRAG_TEILE.map(([teil, t, titel]) => h("span", { class: `betrag-teil betrag-${teil}`, "data-teil": teil, title: titel }, t))
+      : [text]);
     const kopf = h("div", { role: "row", class: "liste-kopf" }, this.spalten.map(([feld, text, sortierbar]) => {
       const aktiv = sort.replace(/^-/, "") === feld;
       const zelle = h("div", { role: "columnheader", class: `zelle zelle-${feld}`, "data-feld": feld,
