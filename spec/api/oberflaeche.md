@@ -3740,8 +3740,8 @@ im Kontoblatt eines Bankkontos. Seit D-316 ohne Dialog: die Datei wird direkt he
   Filter „gleicher Betrag“ und Teilen bestimmen die Richtung (Ausgabe/Einnahme) nach dem gespeicherten Vorzeichen.
   Der Dialog der Buchungssätze (`split-dialog`) zeigt die Splits wie gespeichert.
 - **Zwei Betragsspalten** (seit D-318): In der breiten Liste eines Kreditkontos ist die Spalte Betrag wie bei GnuCash
-  in „Zahlung“ (angezeigter Betrag negativ, mindert die Schulden) und „Belastung“ (positiv) geteilt, beide ohne
-  Vorzeichen (`[data-teil="zahlung"]`, `[data-teil="belastung"]` in der Zelle `data-feld="betrag"`, die andere
+  in „Tilgung“ (angezeigter Betrag negativ, mindert die Schulden; seit D-319, vorher „Zahlung“) und „Belastung“
+  (positiv, erhöht sie) geteilt, beide ohne Vorzeichen, mit Tooltip am Kopf (`[data-teil="tilgung"]`, `[data-teil="belastung"]` in der Zelle `data-feld="betrag"`, die andere
   leer). `data-betrag` bleibt der angezeigte Betrag; die Liste trägt `data-zwei-betraege="ja|nein"`. Der Spaltenkopf
   `spalte-betrag` zeigt beide Wörter und sortiert nach Betrag. Breite, Ausblenden und Bearbeiten an Ort und Stelle
   gelten für die Spalte als Ganzes (Spaltenbreiten der Kreditkonten getrennt gemerkt, Liste `kredit`). Die mobile

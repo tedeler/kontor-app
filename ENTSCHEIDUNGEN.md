@@ -4948,3 +4948,13 @@ Anlass: Klick auf einen Punkt unter `/sicherung` brauchte auf dem Server 10–20
   Kreditkonten werden getrennt gemerkt (Liste `kredit`), damit eine gemerkte schmale Betragsspalte nicht drückt.
 - **Mobil** bleibt ein Betrag mit Vorzeichen (zu wenig Platz). Summen, Perioden und Einzelheiten unverändert.
 - **Tests:** `tests/test_browser_kredit_spalten.py`.
+
+## D-319 Spaltenkopf „Tilgung“ statt „Zahlung“ beim Kreditkonto (Feature `kredit-tilgung`, 2026-11-27)
+
+- **Anlass (Auftraggeber):** „Zahlung“ (D-318, aus der deutschen GnuCash-Übersetzung) nennt keine Richtung – auch eine
+  Abbuchung ist eine Zahlung. „Gutschrift“ wurde verworfen: beim Darlehen doppeldeutig (die Auszahlung ist im Alltag
+  eine Gutschrift, erhöht aber die Schuld).
+- **Regel:** Die beiden Teile der Spalte Betrag heißen „Tilgung“ (mindert die Schulden) und „Belastung“ (erhöht sie).
+  Kennung im DOM `data-teil="tilgung"` (statt `zahlung`). Ein Tooltip am Kopf nennt Beispiele, weil auch Erstattungen
+  des Händlers unter „Tilgung“ und Auszahlung oder Zinsen eines Darlehens unter „Belastung“ stehen.
+- Ersetzt in D-318 die Bezeichnung „Zahlung“; alles andere aus D-318 gilt weiter.
