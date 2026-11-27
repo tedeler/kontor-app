@@ -59,9 +59,11 @@ def test_kreditkonto_und_inhaber(tmp_path, browser):
         zelle = tid(page, f"kontenbaum-konto-{giro['id']}").locator('[data-feld="saldo"]')
         expect(zelle).to_have_attribute("data-betrag", str(saldo))
         expect(zelle).not_to_contain_text("-")
-        # Finanzübersicht: negativ
+        # Finanzübersicht (D-317): Zeile wie in der Kontenliste (Schulden positiv), die Summe zählt sie negativ
         page.goto(f"{url}/")
         bereit(page, "uebersicht")
         z = tid(page, f"uebersicht-konto-{giro['id']}").locator('[data-feld="saldo"]')
         expect(z).to_have_attribute("data-betrag", str(saldo))
-        expect(z).to_contain_text("-")
+        expect(z).not_to_contain_text("-")
+        summe = _get(url + "/api/kontenuebersicht")["summe_bestand"]
+        expect(tid(page, "uebersicht-summe")).to_have_attribute("data-betrag", str(summe))
