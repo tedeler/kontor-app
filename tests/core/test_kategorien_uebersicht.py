@@ -168,8 +168,10 @@ def _eur(cent):
 def test_nachweis_einer_kategorie(welt):
     c, giro, unk, k, ids, b = welt
     gewaehlt = ids["miete"][:2] + ids["strom"][:1]
-    r = c.get("/api/export/nachweis.pdf", params={"konto_id": k["wohnen"], "buchung_id": gewaehlt,
-                                                   "inhaber": "Erika Mustermann (fiktiv)"})
+    # D-316: Kontoinhaber aus den beteiligten Bankkonten
+    assert c.patch(f"/api/konten/{giro}", json={"inhaber": {"vorname": "Erika", "nachname": "Mustermann (fiktiv)"}}
+                   ).status_code == 200
+    r = c.get("/api/export/nachweis.pdf", params={"konto_id": k["wohnen"], "buchung_id": gewaehlt})
     assert r.headers["content-disposition"] == 'attachment; filename="kontor-nachweis-20240630.pdf"'
     t = _text(r)
     assert "Buchungsnachweis" in t and "kein Dokument der Bank" in t

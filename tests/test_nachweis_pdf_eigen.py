@@ -31,7 +31,12 @@ def test_inhaber_und_bic_aus_den_kontodaten_der_bank(welt):
         "inhaber": "Max Mustermann (fiktiv)", "bic": "TESTDEFFXXX"}
     t = _text(_nachweis(c, giro, [buchungen[0]["id"]]))
     assert "Max Mustermann (fiktiv)" in t and "TESTDEFFXXX" in t
-    t = _text(_nachweis(c, giro, [buchungen[0]["id"]], inhaber="Erika Mustermann (fiktiv)"))
+    # D-316: der Kontoinhaber aus den Eigenschaften des Kontos geht den Angaben der Bank vor
+    r = c.patch(f"/api/konten/{giro}", json={"inhaber": {"vorname": "Erika", "nachname": "Mustermann (fiktiv)"}})
+    assert r.status_code == 200, r.text
+    assert c.get("/api/export/nachweis/angaben", params={"konto_id": giro}).json() == {
+        "inhaber": "Erika Mustermann (fiktiv)", "bic": "TESTDEFFXXX"}
+    t = _text(_nachweis(c, giro, [buchungen[0]["id"]]))
     assert "Erika Mustermann (fiktiv)" in t and "Max Mustermann" not in t
 
 
@@ -48,7 +53,7 @@ def test_fehler(welt):
     code(c.get("/api/export/nachweis.pdf", params={"konto_id": giro}), 422)                 # keine Buchung
     code(c.get("/api/export/nachweis.pdf", params={"buchung_id": buchungen[0]["id"]}), 422)  # kein Konto
     code(_nachweis(c, giro, list(range(1, 502))), 422)                                       # zu viele
-    code(_nachweis(c, giro, [buchungen[0]["id"]], inhaber="x" * 201), 422)
+    code(_nachweis(c, giro, [buchungen[0]["id"]], inhaber="x"), 422)                         # D-316: kein Parameter
     assert code(_nachweis(c, 999999, [buchungen[0]["id"]]), 404) == "nicht_gefunden"
     assert code(_nachweis(c, giro, [999999]), 404) == "nicht_gefunden"
     # D-311: Kategorien sind erlaubt, die Buchung muss aber zur Kategorie gehören; „Unkategorisiert“ nicht

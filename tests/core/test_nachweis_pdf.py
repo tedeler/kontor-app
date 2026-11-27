@@ -1,7 +1,7 @@
 """Core-Tests zum Feature „nachweis-pdf“ (D-303): markierte Buchungen eines Bankkontos als Nachweis im Stil eines
 Kontoauszugs.
 
-- ``GET /api/export/nachweis.pdf?konto_id=…&buchung_id=…&buchung_id=…[&inhaber=…]`` liefert ein PDF mit genau den
+- ``GET /api/export/nachweis.pdf?konto_id=…&buchung_id=…&buchung_id=…`` liefert ein PDF mit genau den
   angegebenen Buchungen (Datum, Empfänger, Verwendungszweck, Betrag auf diesem Konto), der Summe, dem Auszugsdatum
   (heute), Kontoinhaber, BIC und der gekürzten IBAN. Kontostände kommen nicht vor.
 - Der Nachweis weist sich als Auszug aus der Homebanking-Software aus („kein Dokument der Bank“).
@@ -59,6 +59,11 @@ def _eur(cent):
     return f"{'-' if cent < 0 else '+'}{e:,}".replace(",", ".") + f",{r:02d}"
 
 
+def _inhaber(c, konto_id, vorname, nachname):
+    r = c.patch(f"/api/konten/{konto_id}", json={"inhaber": {"vorname": vorname, "nachname": nachname}})
+    assert r.status_code == 200, r.text
+
+
 def _waehlen(buchungen, zweck_anfang):
     return next(b for b in buchungen if b["verwendungszweck"].startswith(zweck_anfang))
 
@@ -68,7 +73,8 @@ def test_enthaelt_genau_die_markierten_buchungen_und_die_summe(welt):
     miete = _waehlen(buchungen, "Miete")
     gehalt = _waehlen(buchungen, "Gehalt")
     andere = [b for b in buchungen if b["id"] not in (miete["id"], gehalt["id"])]
-    r = _nachweis(c, giro, [miete["id"], gehalt["id"]], inhaber="Erika Mustermann (fiktiv)")
+    _inhaber(c, giro, "Erika", "Mustermann (fiktiv)")   # D-316: Kontoinhaber aus den Eigenschaften des Kontos
+    r = _nachweis(c, giro, [miete["id"], gehalt["id"]])
     assert re.match(r'attachment; filename="kontor-nachweis-20240630\.pdf"', r.headers["content-disposition"])
     assert r.headers["cache-control"] == "no-store"
     t = _text(r)
@@ -161,3 +167,14 @@ def test_hinweise_ueberstehen_das_kuerzen_des_protokolls(welt):
     assert "Hinweis: Weicht vom Umsatz der Bank ab: Verwendungszweck" in t
 
 
+
+
+def test_inhaber_nur_aus_dem_konto_kein_parameter(welt):
+    """D-316: Der Kontoinhaber wird nicht mehr übergeben; ohne Inhaber am Konto steht „–“."""
+    c, giro, buchungen, _ = welt
+    r = _nachweis(c, giro, [buchungen[0]["id"]], inhaber="Erika Mustermann (fiktiv)")
+    assert r.status_code == 422 and r.json()["fehler"]["code"] == "validierung"
+    t = _text(_nachweis(c, giro, [buchungen[0]["id"]]))
+    assert "Erika" not in t
+    _inhaber(c, giro, "", "Mustermann (fiktiv)")
+    assert "Mustermann (fiktiv)" in _text(_nachweis(c, giro, [buchungen[0]["id"]]))
