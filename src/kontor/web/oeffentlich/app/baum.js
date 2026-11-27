@@ -176,18 +176,30 @@ function nameMitTreffer(name, suche) {
   return [name.slice(0, i), h("mark", null, name.slice(i, i + suche.length)), name.slice(i + suche.length)];
 }
 
-/** Kleiner Verlauf (zwölf Monate) als SVG-Linie; Werte in Cent, nur zum Zeichnen. */
-function verlaufEl(werte, monate) {
+/** Name eines Abschnitts des Verlaufs nach seinem Enddatum (D-320). */
+function abschnittText(art, bis) {
+  const [j, m, t] = bis.split("-");
+  if (art === "tag") return `${t}.${m}.`;
+  if (art === "quartal") return `Q${Math.ceil(Number(m) / 3)}/${j.slice(2)}`;
+  if (art === "jahr") return j;
+  return `${m}/${j.slice(2)}`;
+}
+
+/** Kleiner Verlauf als SVG-Linie (D-320): kumuliert über den gewählten Zeitraum, beginnt bei 0 und endet mit der
+ *  Summe der Zeile. Werte in Cent, nur zum Zeichnen; der Tooltip nennt den Stand, wo er sich ändert. */
+function verlaufEl(verlauf, abschnitte) {
   const ns = "http://www.w3.org/2000/svg";
   const svg = document.createElementNS(ns, "svg");
   svg.setAttribute("class", "kat-verlauf");
   svg.setAttribute("viewBox", "0 0 66 20");
   svg.setAttribute("aria-hidden", "true");
-  if (!werte || !werte.some((w) => w !== 0)) { svg.classList.add("leer"); return svg; }
-  const max = Math.max(...werte, 0);
-  const min = Math.min(...werte, 0);
+  if (!verlauf || !verlauf.some((w) => w !== 0)) { svg.classList.add("leer"); return svg; }
+  const werte = [0, ...verlauf];   // Beginn des Zeitraums
+  const max = Math.max(...werte);
+  const min = Math.min(...werte);
   const spanne = max - min || 1;
-  const punkte = werte.map((w, i) => [3 + i * 5.45, 17 - ((w - min) * 14) / spanne]);
+  const schritt = 60 / (werte.length - 1);
+  const punkte = werte.map((w, i) => [3 + i * schritt, 17 - ((w - min) * 14) / spanne]);
   const flaeche = document.createElementNS(ns, "path");
   flaeche.setAttribute("d", `M${punkte[0][0]},17 ` + punkte.map(([x, y]) => `L${x.toFixed(1)},${y.toFixed(1)}`).join(" ")
     + ` L${punkte[punkte.length - 1][0].toFixed(1)},17 Z`);
@@ -202,7 +214,8 @@ function verlaufEl(werte, monate) {
   punkt.setAttribute("r", "1.8");
   punkt.setAttribute("class", "kat-verlauf-punkt");
   const titel = document.createElementNS(ns, "title");
-  titel.textContent = monate ? monate.map((m, i) => `${m.slice(5)}/${m.slice(2, 4)}: ${betragText(werte[i])}`).join("\n") : "";
+  titel.textContent = abschnitte ? abschnitte.bis.map((bis, i) => (i === verlauf.length - 1 || verlauf[i] !== (i ? verlauf[i - 1] : 0)
+    ? `${abschnittText(abschnitte.art, bis)}: ${betragText(verlauf[i])}` : null)).filter(Boolean).join("\n") : "";
   svg.append(titel, flaeche, linie, punkt);
   return svg;
 }
@@ -213,7 +226,7 @@ function verlaufEl(werte, monate) {
  * (der Eintrag reserviert ihren Platz mit einem Außenabstand). So liegt die Mitte eines Eintrags auf seiner eigenen
  * Zeile, nicht auf einer Unterkategorie.
  * optionen.buchungsZiel: true → Einträge nehmen gezogene Buchungen an (Kontoansicht).
- * Kategorienseite (D-311): optionen.werte (Map id → {summe, anzahl, letzte, verlauf}), optionen.monate,
+ * Kategorienseite (D-311): optionen.werte (Map id → {summe, anzahl, letzte, verlauf}), optionen.abschnitte ({art, bis} des Verlaufs, D-320),
  * optionen.summen ({aufwand, ertrag}), optionen.suche, optionen.nachBetrag; jede Zeile bekommt dann Knöpfe zum Öffnen
  * und für das Kontextmenü. Ohne diese Optionen bleibt der Baum wie im Seitenbereich der Kontoansicht.
  */
@@ -290,7 +303,7 @@ export function kategorienBaum(optionen) {
         }
         zeile.append(
           h("span", { class: "kat-anzahl klein", "aria-hidden": "true" }, w.anzahl ? `${w.anzahl}×` : ""),
-          verlaufEl(w.verlauf, o.monate),
+          verlaufEl(w.verlauf, o.abschnitte),
           h("span", { class: "kat-anteil", "aria-hidden": "true" }, h("span", { stil: { width: `${balken / 10}%` } })),
           betragEl("span", w.summe, { class: "kat-betrag" + (w.anzahl || w.summe ? "" : " kat-null"), tid: `kategorie-summe-${k.id}` }),
           h("span", { class: "kat-aktionen" }, oeffnen, menue));

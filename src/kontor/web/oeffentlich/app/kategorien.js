@@ -141,7 +141,7 @@ export async function kategorienSeite(seite, _p, suche) {
     leiste.hidden = false;
     const werte = new Map((daten ? daten.kategorien : []).map((z) => [z.id, z]));
     const summen = daten ? { aufwand: daten.summen.ausgaben, ertrag: daten.summen.einnahmen } : { aufwand: 0, ertrag: 0 };
-    const baum = kategorienBaum({ neuZeichnen: zeichnen, werte, summen, monate: daten ? daten.monate : null,
+    const baum = kategorienBaum({ neuZeichnen: zeichnen, werte, summen, abschnitte: daten ? { art: daten.verlauf_art, bis: daten.verlauf_bis } : null,
       suche: suchtext, nachBetrag });
     const inhalt = [baum];
     const t = suchtext.trim();
