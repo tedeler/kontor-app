@@ -4905,4 +4905,7 @@ Anlass: Klick auf einen Punkt unter `/sicherung` brauchte auf dem Server 10–20
   Verlauf endet mit dem laufenden Monat). Reihenfolge der Knöpfe: Dieser Monat, Letzter Monat, 30 Tage, 12 Monate,
   Dieses Jahr, Letztes Jahr, Gesamt. Die Vorgabe bleibt „12 Monate“. Die Kacheln zeigen bei „30 Tage“ die Tage
   („28.10. – 27.11.2026“) statt Monate.
+- Mit sieben Knöpfen passt die Zeitraumleiste in schmalen Fenstern (768 px, Desktop-Layout) nicht mehr in eine Zeile:
+  Sie scrollt dort waagrecht (dünne Bildlaufleiste), der gewählte Zeitraum wird sichtbar gehalten; die Seite selbst
+  scrollt nicht waagrecht (`tests/test_browser_tabellenbreite.py`).
 - **Prüfung:** `tests/core/test_kategorien_uebersicht.py` (ergänzt), `tests/test_browser_kategorien_uebersicht.py`.

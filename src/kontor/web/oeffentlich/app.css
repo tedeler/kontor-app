@@ -1049,7 +1049,7 @@ html[data-thema="dunkel"] mark.treffer { background: #6a5a12; }
 .filter-zusammenfassung:empty { display: none; }
 .filter-schnell, .test-schnell, .test-chips { display: flex; flex-wrap: wrap; gap: .3rem; margin: .2rem 0; }
 .chip[aria-pressed="true"] { background: var(--akzent); color: var(--akzent-text); border-color: var(--akzent); }
-[data-layout="mobil"] .filter-schnell { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+[data-layout="mobil"] .filter-schnell { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; }
 
 .regel-liste { list-style: none; padding: 0; margin: 0; display: grid; gap: .4rem; }
 .regel-zeile { display: grid; grid-template-columns: auto auto auto 1fr auto; gap: .5rem; align-items: start; }
@@ -1873,7 +1873,8 @@ html[data-thema="dunkel"] .baum-uebersicht .baum-eintrag[data-ton="7"] { --kat-t
 .kat-suche:focus { background: var(--hg); border-color: var(--akzent); }
 .kat-suche-huelle::before { content: "⌕"; position: absolute; left: .7rem; top: 50%; transform: translateY(-52%);
   color: var(--text-2); pointer-events: none; font-size: 1.05rem; }
-.kat-wahl { display: inline-flex; }
+.kat-wahl { display: inline-flex; min-width: 0; max-width: 100%; overflow-x: auto; scrollbar-width: thin; }
+.kat-wahl .segment { flex: none; }
 .kat-klappen { display: inline-flex; gap: .3rem; margin-left: auto; }
 .kat-klappen .knopf-klein { margin-left: 0; }
 .segment { display: inline-flex; border: 1px solid var(--rand); border-radius: 999px; background: var(--hg-2); padding: 2px; }
