@@ -340,7 +340,18 @@ function spaltenSpeichern(variante, breiten) {
 const SPALTEN_AUS_SCHLUESSEL = "kontor.spalten.aus";
 const SPALTEN_RASTER = { datum: "6.5rem", empfaenger: "minmax(7rem, 1.2fr)", verwendungszweck: "minmax(8rem, 1.8fr)",
   kategorie: "minmax(9rem, 1.6fr)", konto: "minmax(7rem, 1.2fr)", tags: "minmax(4rem, .7fr)", status: "6.5rem",
-  betrag: "7.5rem" };
+  betrag: "var(--betrag-breite, 7.5rem)" };
+
+// D-318: Kontoblatt eines Kreditkontos (breite Liste) wie GnuCash mit „Zahlung“ und „Belastung“ in der Spalte Betrag.
+// Der angezeigte Betrag (D-312) entscheidet: positiv = Belastung (Abbuchung), negativ = Zahlung; beide ohne Vorzeichen.
+const BETRAG_TEILE = [["zahlung", "Zahlung"], ["belastung", "Belastung"]];
+
+function betragTeile(cent) {
+  return BETRAG_TEILE.map(([teil]) => {
+    const hier = teil === "belastung" ? cent > 0 : cent < 0;
+    return h("span", { class: `betrag-teil betrag-${teil}`, "data-teil": teil }, hier ? betragText(Math.abs(cent)) : "");
+  });
+}
 
 function spaltenAusAlle() {
   try {
@@ -580,7 +591,8 @@ class Kontoansicht {
     // D-311: Nachweis als PDF im Kontoblatt eines Bankkontos und einer Kategorie (nicht „Unkategorisiert“)
     this.nachweisMoeglich = !this.istKategorie || konto.art === "aufwand" || konto.art === "ertrag";
     this.spalten = this.istKategorie ? SPALTEN_KATEGORIE : SPALTEN;
-    this.spaltenVariante = this.istKategorie ? "kategorie" : "konto";
+    // D-318: Kreditkonten merken ihre Spaltenbreiten getrennt (die Spalte Betrag ist dort doppelt so breit)
+    this.spaltenVariante = this.istKategorie ? "kategorie" : this.vz < 0 ? "kredit" : "konto";
     this.breiten = spaltenLaden(this.spaltenVariante);
     this.spaltenAus = spaltenAusLaden(this.spaltenVariante, this.spalten);
     this.wiederkehrend = new Set();
@@ -1867,6 +1879,10 @@ class Kontoansicht {
     this.vorwegAnwenden();   // D-289
     const kompakt = oberflaeche.istMobil();
     const sort = this.sortierung;
+    this.zweiBetraege = this.vz < 0 && !kompakt;   // D-318
+    this.liste.dataset.zweiBetraege = this.zweiBetraege ? "ja" : "nein";
+    const kopfText = (feld, text) => (feld === "betrag" && this.zweiBetraege
+      ? BETRAG_TEILE.map(([teil, t]) => h("span", { class: `betrag-teil betrag-${teil}`, "data-teil": teil }, t)) : [text]);
     const kopf = h("div", { role: "row", class: "liste-kopf" }, this.spalten.map(([feld, text, sortierbar]) => {
       const aktiv = sort.replace(/^-/, "") === feld;
       const zelle = h("div", { role: "columnheader", class: `zelle zelle-${feld}`, "data-feld": feld,
@@ -1874,8 +1890,8 @@ class Kontoansicht {
       if (sortierbar) {
         zelle.append(h("button", { type: "button", class: "spalten-knopf", tid: `spalte-${feld}`,
           onclick: () => this.filterSetzen("sortierung", aktiv ? (sort.startsWith("-") ? feld : "-" + feld) : feld) },
-        text, aktiv ? (sort.startsWith("-") ? " ↓" : " ↑") : ""));
-      } else zelle.append(text);
+        ...kopfText(feld, text), aktiv ? (sort.startsWith("-") ? " ↓" : " ↑") : ""));
+      } else zelle.append(...kopfText(feld, text));
       if (!kompakt) zelle.append(this.spaltenTrenner(feld, text));
       return zelle;
     }));
@@ -2033,7 +2049,10 @@ class Kontoansicht {
       b.verdacht ? h("span", { class: "tag tag-verdacht", tid: "verdacht", "data-grund": b.verdacht.grund,
         title: b.verdacht.text, "aria-label": b.verdacht.text }, "Verdächtig") : null),
     h("div", { role: "gridcell", class: "zelle zelle-status", "data-feld": "status" }, STATUS_TEXT[b.status] || b.status),
-    betragEl("div", b.betrag, { role: "gridcell", class: "zelle zelle-betrag", "data-feld": "betrag" }));
+    this.zweiBetraege   // D-318: Kreditkonto mit Zahlung und Belastung, data-betrag wie angezeigt
+      ? h("div", { role: "gridcell", class: "zelle zelle-betrag betrag zwei-betraege", "data-feld": "betrag",
+        "data-betrag": String(b.betrag) }, betragTeile(b.betrag))
+      : betragEl("div", b.betrag, { role: "gridcell", class: "zelle zelle-betrag", "data-feld": "betrag" }));
     const bestaetigtVon = b.tags.map((t) => personVonTag(t.name)).filter(Boolean);
     if (bestaetigtVon.length) zeile.dataset.bestaetigt = bestaetigtVon.join(" ");
     if (b.verdacht) zeile.dataset.verdacht = b.verdacht.grund;

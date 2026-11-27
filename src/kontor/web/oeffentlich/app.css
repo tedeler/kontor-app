@@ -324,13 +324,18 @@ fieldset { border: 1px solid var(--rand); border-radius: var(--radius); padding:
 .dk-herkunft { margin: .6rem 0 0; opacity: .75; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .buchungsliste { min-width: min-content; }   /* D-168: nicht nach dem längsten Text wachsen */
-.buchungsliste .liste-kopf, .buchungsliste .zeile { display: grid; grid-template-columns: 6.5rem minmax(7rem, 1.2fr) minmax(8rem, 1.8fr) minmax(9rem, 1.6fr) minmax(4rem, .7fr) 6.5rem 7.5rem;
+.buchungsliste .liste-kopf, .buchungsliste .zeile { display: grid; grid-template-columns: 6.5rem minmax(7rem, 1.2fr) minmax(8rem, 1.8fr) minmax(9rem, 1.6fr) minmax(4rem, .7fr) 6.5rem var(--betrag-breite, 7.5rem);
   align-items: center; min-height: var(--zeile); }
 .buchungsliste .liste-kopf { position: sticky; top: 0; z-index: 2; background: var(--hg-2); font-weight: 600; font-size: .9rem; border-bottom: 1px solid var(--rand); }
 .buchungsliste.treffer .liste-kopf, .buchungsliste.treffer .zeile { grid-template-columns: 6.5rem 1.2fr 2fr 1.3fr 7.5rem; }
 .zelle { padding: .2rem .45rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .zelle-betrag, .zelle.zahl { text-align: right; }
 .liste-kopf .zelle-betrag { text-align: right; }
+/* D-318: Kreditkonto – Spalte Betrag in „Zahlung“ und „Belastung“ geteilt */
+.buchungsliste[data-zwei-betraege="ja"] { --betrag-breite: 14rem; }
+.zelle-betrag.zwei-betraege, .liste-kopf .zelle-betrag:has(.betrag-teil) { display: flex; gap: .45rem; }
+.liste-kopf .zelle-betrag .spalten-knopf:has(.betrag-teil) { display: flex; gap: .45rem; flex: 1; min-width: 0; }
+.betrag-teil { flex: 1 1 0; min-width: 0; text-align: right; overflow: hidden; text-overflow: ellipsis; }
 .spalten-knopf { border: none; background: none; font: inherit; font-weight: 600; color: var(--text); cursor: pointer; padding: 0; }
 .zeile { border-bottom: 1px solid var(--hg-3); cursor: default; user-select: none; touch-action: pan-y; }
 .zeile:hover { background-color: var(--hg-2); }
@@ -500,7 +505,7 @@ html.zieht, html.zieht * { cursor: grabbing !important; }
 .kategorien-gruppe caption { text-align: left; font-weight: 600; padding: .25rem 0; }
 
 /* M11 (oberflaeche.md 22.2): Buchungsliste einer Kategorie mit Spalte „Konto“ */
-.buchungsliste.mit-konto .liste-kopf, .buchungsliste.mit-konto .zeile { grid-template-columns: 6.5rem minmax(7rem, 1.2fr) minmax(8rem, 2fr) minmax(7rem, 1.3fr) minmax(7rem, 1.2fr) minmax(4rem, .8fr) 6.5rem 7.5rem; }
+.buchungsliste.mit-konto .liste-kopf, .buchungsliste.mit-konto .zeile { grid-template-columns: 6.5rem minmax(7rem, 1.2fr) minmax(8rem, 2fr) minmax(7rem, 1.3fr) minmax(7rem, 1.2fr) minmax(4rem, .8fr) 6.5rem var(--betrag-breite, 7.5rem); }
 .buchungsliste.mit-konto[data-kompakt="ja"] .liste-kopf .zelle-konto { display: none; }
 .buchungsliste.mit-konto[data-kompakt="ja"] .zeile { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; grid-template-areas: "datum empf betrag" "kat konto tags"; }
 .buchungsliste.mit-konto[data-kompakt="ja"] .zelle-konto { grid-area: konto; font-size: .85rem; color: var(--text-2); }
@@ -1573,7 +1578,7 @@ html[data-thema="dunkel"] .mail-zuordnung[data-zustand="erfuellt"] .mail-marke {
   .buchungsliste[data-kompakt="nein"] [role="row"] > .zelle-betrag { box-shadow: -8px 0 8px -8px rgba(0, 0, 0, .35); }
   /* schmale Liste: kleinere Mindestbreiten, damit Empfänger, Zweck und Kategorie neben dem Betrag Platz finden */
   .buchungsliste[data-kompakt="nein"]:not(.spalten-eigen):not(.spalten-raster):not(.mit-konto):not(.treffer) :is(.liste-kopf, .zeile) {
-    grid-template-columns: 6.5rem minmax(5.5rem, 1.2fr) minmax(5.5rem, 1.8fr) minmax(6.5rem, 1.6fr) minmax(4rem, .7fr) 6.5rem 7.5rem; }
+    grid-template-columns: 6.5rem minmax(5.5rem, 1.2fr) minmax(5.5rem, 1.8fr) minmax(6.5rem, 1.6fr) minmax(4rem, .7fr) 6.5rem var(--betrag-breite, 7.5rem); }
   /* Gruppenbalken: nur die Zahlen, damit die Summe sichtbar bleibt */
   .perioden-balken .perioden-wort, .perioden-balken .perioden-anzahl { display: none; }
   .perioden-balken [data-art="summe"] { font-weight: 700; margin-left: auto; }

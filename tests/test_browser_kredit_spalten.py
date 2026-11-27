@@ -4,10 +4,13 @@ mobile Liste bleiben bei einer Spalte. Nur Mock-Modus, synthetische Daten."""
 
 from __future__ import annotations
 
+import datetime as dt
+
 import pytest
 
+from .conftest import kmy, transaktion
 from .test_browser import DESKTOP, bereit, browser, seite, server, tid  # noqa: F401 (Fixture)
-from .test_browser_tabs import _daten, _get
+from .test_browser_tabs import KONTEN, _get
 
 playwright = pytest.importorskip("playwright.sync_api")
 expect = playwright.expect
@@ -18,6 +21,18 @@ def _text(cent: int) -> str:
     euro, rest = divmod(abs(cent), 100)
     gruppen = f"{euro:,}".replace(",", ".")
     return f"{gruppen},{rest:02d}\u00a0€"
+
+
+def _daten(basis):
+    from kontor.config import KontorConfig
+    from kontor.importer.kmymoney import importiere_kmy
+
+    # Abbuchungen und eine Gutschrift (Zahlung auf die Karte)
+    t = "".join(transaktion(f"T{i}", f"2024-01-{i:02d}", ("A1", f"-{i * 100}/100"), ("A2", f"{i * 100}/100"),
+                            memo=f"Einkauf {i}") for i in range(1, 6))
+    t += transaktion("TZ", "2024-02-01", ("A1", "4500/100"), ("A3", "-4500/100"), memo="Ausgleich")
+    config = KontorConfig(datenbank=basis / "kontor.sqlite3", mock_modus=True, mock_heute=dt.date(2024, 6, 30))
+    assert importiere_kmy(config, kmy(KONTEN, transaktionen=t)).erfolgreich
 
 
 def _zellen(page):
