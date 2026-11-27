@@ -322,10 +322,21 @@ def test_vorschlaege_annehmen_und_ablehnen(daten, neue_seite, geraet):
     ohne = next(b["id"] for b in api.alle_buchungen(konto_id=giro) if not b.get("vorschlag"))
     expect(zeile(seite, ohne)).to_have_attribute("data-vorschlag", "nein")
     a, b2 = mit[0]["id"], mit[1]["id"]
-    tid(seite, f"vorschlag-annehmen-{a}").click()
+    # D-305: keine Knöpfe in der Zeile mehr; Desktop über das Kontextmenü, Handy über Wischen und Einzelheiten
+    expect(zeile(seite, a).get_by_test_id(f"vorschlag-annehmen-{a}")).to_have_count(0)
+
+    if geraet == "handy":
+        # Handy: Annehmen durch Wischen nach rechts (Bestätigen nimmt den Vorschlag an). Ablehnen geht mobil über
+        # Kontextmenü oder Einzelheiten; hier über die Schnittstelle, damit der Rest des Tests gleich bleibt.
+        m8.wischen(seite, zeile(seite, a), "rechts")
+        api.post(f"/api/buchungen/{b2}/vorschlag", json={"aktion": "ablehnen"}, erwartet=200)
+    else:
+        zeile(seite, a).click(button="right")
+        tid(seite, "km-vorschlag-annehmen").click()
+        m8.warte_bis(lambda: api.buchung_lesen(a)["vorschlag"] is None)
+        zeile(seite, b2).click(button="right")
+        tid(seite, "km-vorschlag-ablehnen").click()
     m8.warte_bis(lambda: api.buchung_lesen(a)["vorschlag"] is None and api.buchung_lesen(a)["kategorie_id"] == haushalt)
     expect(zeile(seite, a)).to_have_attribute("data-vorschlag", "nein")
-    assert m8.ausgewaehlt(seite) == set(), "Klick auf die Vorschlagsknöpfe ändert die Auswahl nicht"
-    tid(seite, f"vorschlag-ablehnen-{b2}").click()
     m8.warte_bis(lambda: api.buchung_lesen(b2)["vorschlag"] is None)
     assert api.buchung_lesen(b2)["kategorie_id"] == mit[1]["vorschlag"]["vorher_konto_id"]

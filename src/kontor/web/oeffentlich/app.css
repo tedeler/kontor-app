@@ -483,12 +483,6 @@ html.zieht, html.zieht * { cursor: grabbing !important; }
 .zelle-kategorie .kat-text { flex: 0 1 auto; min-width: 3.5em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .zelle-kategorie .kat-text.vorschlag-kategorie { font-style: italic; color: var(--akzent); }
 .zelle-kategorie { position: relative; }
-.zelle-kategorie .vorschlag-knoepfe { position: absolute; right: 0; top: 50%; transform: translateY(-50%); display: flex; gap: 2px;
-  background: var(--hg); padding-left: 3px; opacity: 0; transition: opacity .12s; }
-.zeile:hover .vorschlag-knoepfe, .zeile:focus-within .vorschlag-knoepfe, .zeile[aria-selected="true"] .vorschlag-knoepfe,
-.zeile:focus .vorschlag-knoepfe, .buchungsliste[data-kompakt="ja"] .vorschlag-knoepfe { opacity: 1; }
-.zeile[aria-selected="true"] .vorschlag-knoepfe { background: var(--auswahl); }
-.buchungsliste[data-kompakt="ja"] .vorschlag-knoepfe { position: static; transform: none; background: none; }
 .zelle-kategorie .mini-knopf { flex: none; }
 .zelle-kategorie .vorschlag-marke { flex: none; white-space: nowrap; }
 .vorschlag-marke[data-quelle="lernmodell"] { background: var(--hg-3); }
@@ -720,8 +714,6 @@ html[data-thema="dunkel"] { --wahl-schleier: color-mix(in srgb, var(--text) 16%,
 /* ist die Zeile breiter als die Liste, schließt die klebende Betragszelle den Rahmen rechts */
 .buchungsliste[data-kompakt="nein"] .zeile[aria-selected="true"] > .zelle-betrag { box-shadow: inset -3px 0 0 var(--wahl-linie); }
 .buchungsliste .zeile[aria-selected="true"]:hover { --schleier: var(--wahl-schleier-hover); }
-.buchungsliste .zeile[aria-selected="true"] .vorschlag-knoepfe, .buchungsliste .zeile:hover .vorschlag-knoepfe,
-.buchungsliste .zeile:focus-within .vorschlag-knoepfe { background: var(--toenung); }
 /* Zusatzmarken vor dem Empfänger: wiederkehrende Buchung ↻, durch Mail bestätigt ✉ (nur Gestaltung) */
 .zeile[data-wiederkehrend="ja"] .zelle-empfaenger::before, .zeile[data-mail="ja"] .zelle-empfaenger::before {
   color: var(--akzent); margin-right: .3em; font-weight: 600; flex: none; }

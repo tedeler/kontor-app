@@ -255,9 +255,12 @@ erlaubt. Ein `data-testid` kommt auf einer Seite höchstens einmal vor
 
 - **Vorschläge** (K 7): Zeilen mit `vorschlag ≠ null` tragen
   `data-vorschlag="ja"`; die Kategoriezelle enthält zusätzlich
-  `vorschlag-marke` und die Knöpfe `vorschlag-annehmen-<id>` und
-  `vorschlag-ablehnen-<id>` (`POST /api/buchungen/{id}/vorschlag`). Ein
-  Klick auf diese Knöpfe ändert die Auswahl nicht.
+  `vorschlag-marke`. Knöpfe zum Annehmen und Ablehnen gibt es in der Zeile
+  nicht mehr (D-305); das geht über `a`/`A`, das Kontextmenü
+  (`km-vorschlag-annehmen`/`km-vorschlag-ablehnen`), die Mehrfachleiste, die
+  Einzelheiten, auf dem Handy außerdem Wischen nach rechts (Bestätigen nimmt
+  den Vorschlag an) und nach links (andere Kategorie wählen)
+  (`POST /api/buchungen/{id}/vorschlag`).
 - Ein Konto mit `ist_kategorie = true` lässt sich ebenso öffnen (alle
   Buchungen dieser Kategorie). Ab M11 mit denselben Funktionen und einer
   Spalte für das Bestandskonto (22.2).
@@ -1509,9 +1512,8 @@ Für Zeilen mit `vorschlag ≠ null`:
   `standardkategorie` „Empf.“. `title` bzw. `aria-label` nennen die Quelle
   ausführlich: „Vorschlag des Lernmodells, Sicherheit 87 %“, „Vorschlag der
   Regel „<Name>““, „Vorschlag: Standardkategorie des Empfängers“.
-- `vorschlag-annehmen-<id>` und `vorschlag-ablehnen-<id>` bleiben in der
-  Zelle (7.2). Desktop: bei Zeiger, Fokus oder Auswahl der Zeile voll
-  sichtbar; mobil immer.
+- ~~`vorschlag-annehmen-<id>` und `vorschlag-ablehnen-<id>` in der Zelle~~ –
+  entfallen (D-305, 7.2).
 - Einzelheiten (`panel-details` bzw. mobiler Dialog, 7.3): Abschnitt
   `details-vorschlag` mit `data-quelle` zeigt die vorgeschlagene Kategorie,
   die Quelle mit Sicherheit und das vorherige Konto

@@ -60,17 +60,23 @@ def _lesen(url, bid):
     return _get(f"{url}/api/buchungen/{bid}")
 
 
+
+def _entscheiden(page, bid, was):
+    """Zeile markieren, dann `a` (annehmen) bzw. `A` (ablehnen); Knöpfe in der Zeile gibt es nicht mehr (D-305)."""
+    tid(page, f"buchung-{bid}").locator('[data-feld="datum"]').click()
+    page.keyboard.press("a" if was == "annehmen" else "Shift+A")
+
 def test_annehmen_und_ablehnen_wirken_sofort(blatt):
     url, page, konten, mit, schranke = blatt
     a, b = mit[0], mit[1]
     za, zb = tid(page, f"buchung-{a['id']}"), tid(page, f"buchung-{b['id']}")
     expect(za).to_have_attribute("data-vorschlag", "ja")
-    tid(page, f"vorschlag-annehmen-{a['id']}").click()
+    _entscheiden(page, a['id'], "annehmen")
     expect(za).to_have_attribute("data-vorschlag", "nein")
     expect(za).to_have_attribute("data-status", "bestaetigt")
     expect(za.locator('[data-feld="kategorie"]')).to_have_attribute("data-kategorie-id", str(konten["Drogerie"]))
     assert _lesen(url, a["id"])["vorschlag"] is not None, "der Server kennt die Entscheidung schon"
-    tid(page, f"vorschlag-ablehnen-{b['id']}").click()
+    _entscheiden(page, b['id'], "ablehnen")
     expect(zb).to_have_attribute("data-vorschlag", "nein")
     expect(zb.locator('[data-feld="kategorie"]')).to_have_attribute(
         "data-kategorie-id", str(b["vorschlag"]["vorher_konto_id"]))
@@ -96,7 +102,7 @@ def test_schnell_hintereinander_ohne_zurueckspringen(blatt):
     url, page, konten, mit, schranke = blatt
     ids = [b["id"] for b in mit[:4]]
     for i in ids:
-        tid(page, f"vorschlag-annehmen-{i}").click()
+        _entscheiden(page, i, "annehmen")
     for i in ids:
         expect(tid(page, f"buchung-{i}")).to_have_attribute("data-vorschlag", "nein")
     assert all(_lesen(url, i)["vorschlag"] for i in ids), "der Server kennt die Entscheidungen schon"
@@ -126,6 +132,6 @@ def test_fehler_des_servers_stellt_die_zeile_wieder_her(blatt):
         status=409, content_type="application/json",
         body='{"fehler":{"code":"buchung_gesperrt","meldung":"Die Buchung ist gesperrt.","details":null}}'))
     za = tid(page, f"buchung-{a['id']}")
-    tid(page, f"vorschlag-annehmen-{a['id']}").click()
+    _entscheiden(page, a['id'], "annehmen")
     expect(tid(page, "meldungen")).to_contain_text("gesperrt")
     expect(za).to_have_attribute("data-vorschlag", "ja")

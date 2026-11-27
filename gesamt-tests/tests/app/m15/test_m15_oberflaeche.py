@@ -512,9 +512,9 @@ def test_vorschlag_marken(starte_server, neue_seite, geraet):
         kat = z.locator('[data-feld="kategorie"] .vorschlag-kategorie')
         expect(kat).to_have_count(1)
         assert text_normal(kat.inner_text()) == pfad
-        if geraet == "handy":
-            expect(tid(seite, f"vorschlag-annehmen-{k[x]}")).to_be_visible()
-            expect(tid(seite, f"vorschlag-ablehnen-{k[x]}")).to_be_visible()
+        # D-305: keine Knöpfe zum Annehmen/Ablehnen in der Zeile (auch mobil nicht)
+        expect(tid(seite, f"vorschlag-annehmen-{k[x]}")).to_have_count(0)
+        expect(tid(seite, f"vorschlag-ablehnen-{k[x]}")).to_have_count(0)
 
 
 def test_details_vorschlag_und_kandidaten(starte_server, neue_seite):

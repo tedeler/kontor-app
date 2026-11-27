@@ -4688,3 +4688,17 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   Oberfläche; kein neuer Endpunkt, kein Zustand.
 - **Tests:** `tests/core/test_buchung_teilen.py`, `tests/test_browser_buchung_teilen.py` (Teilen-Funktion und
   Zwischenablage als Attrappe).
+
+
+## D-305 Keine Knöpfe ✓/✗ für Kategorievorschläge in der Buchungszeile (Feature `vorschlag-knoepfe`, 2026-11-27)
+
+- **Anlass (Auftraggeber):** Die Knöpfe zum Annehmen und Ablehnen in der Kategoriezelle sind überflüssig; auf dem Handy
+  erledigt das Wischen, am Computer die Tastatur.
+- **Entfällt:** `vorschlag-annehmen-<id>`, `vorschlag-ablehnen-<id>` samt Stil `vorschlag-knoepfe` (`oberflaeche.md`
+  7.2 und Abschnitt zu den Vorschlagsmarken). Die Marke `vorschlag-marke` bleibt.
+- **Bleibt:** `a`/`A`, Kontextmenü `km-vorschlag-annehmen`/`km-vorschlag-ablehnen` (mobil per langer Berührung),
+  Mehrfachleiste, Einzelheiten (`details-vorschlag-annehmen`/`-ablehnen`), Wischen nach rechts (Bestätigen nimmt den
+  Vorschlag an). Keine Änderung am Server.
+- **Tests:** `tests/core/test_vorschlag_knoepfe.py`; angepasst `tests/test_browser_vorschlag_sofort.py`,
+  `gesamt-tests/tests/app/m8/test_m8_kontoansicht.py`, `gesamt-tests/tests/app/m15/test_m15_oberflaeche.py`
+  (`TESTUMBAU.md`).

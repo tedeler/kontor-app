@@ -1927,11 +1927,8 @@ class Kontoansicht {
       // Sammelpaket (D-112): vorgeschlagene Kategorie, Quelle und Sicherheit je Zeile
       kat.append(h("span", { class: "vorschlag-marke", tid: "vorschlag-marke", title: vs.lang, "aria-label": vs.lang,
         "data-quelle": b.vorschlag.quelle, "data-sicherheit": b.vorschlag.sicherheit === null || b.vorschlag.sicherheit === undefined
-          ? "" : String(b.vorschlag.sicherheit) }, vs.marke), h("span", { class: "vorschlag-knoepfe" },
-        h("button", { type: "button", class: "mini-knopf", tid: `vorschlag-annehmen-${b.id}`, "data-nicht-ziehen": "",
-          "aria-label": `Vorschlag ${katText} annehmen`, onclick: (e) => this.vorschlag(e, [b.id], "annehmen") }, "✓"),
-        h("button", { type: "button", class: "mini-knopf", tid: `vorschlag-ablehnen-${b.id}`, "data-nicht-ziehen": "",
-          "aria-label": "Vorschlag ablehnen", onclick: (e) => this.vorschlag(e, [b.id], "ablehnen") }, "✗")));
+          ? "" : String(b.vorschlag.sicherheit) }, vs.marke));
+      // D-305: keine Knöpfe ✓/✗ in der Zeile; annehmen/ablehnen über a/A, Kontextmenü, Wischen, Einzelheiten
     }
     const empfName = b.empfaenger ? nameAnzeige(b.empfaenger.name) : "";
     const empf = h("div", { role: "gridcell", class: "zelle zelle-empfaenger", "data-feld": "empfaenger",
