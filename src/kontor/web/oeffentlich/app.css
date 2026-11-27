@@ -1954,3 +1954,10 @@ html[data-thema="dunkel"] .segment-knopf[aria-checked="true"] { background: var(
 [data-layout="mobil"] .kat-kacheln { grid-template-columns: 1fr 1fr; gap: .5rem; }
 [data-layout="mobil"] .kat-kachel-wert { font-size: 1.1rem; }
 @media (max-width: 1100px) { .baum-uebersicht .kat-verlauf { display: none; } }
+
+/* D-313: Unterkonten im Kontoblatt einblenden – Schalter im Kopf, Herkunft je Buchung */
+.knopf-umschalter[aria-pressed="true"] { background: var(--akzent-hell); border-color: var(--akzent); font-weight: 700; }
+.herkunft { display: inline-block; max-width: 12rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  vertical-align: bottom; font-size: .75rem; font-weight: 400; color: var(--text-2); border: 1px solid var(--rand);
+  border-radius: 9px; padding: 0 .45em; margin-right: .35em; }
+.herkunft::before { content: "↳ "; }

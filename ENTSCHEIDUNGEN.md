@@ -4857,3 +4857,22 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - **Tests:** `tests/core/test_konto_typ_inhaber.py`, `tests/test_browser_konto_typ_inhaber.py`. Angepasst:
   `tests/core/test_sicherung_stuendlich.py` (`AENDERUNGEN.md`), `tests/test_m6_eigen.py` (Schemaversion 12),
   `gesamt-tests/tests/spec/test_openapi.py` (`TESTUMBAU.md`).
+
+## D-313 Unterkonten im Konto- und Kategorieblatt einblenden, Herkunft je Buchung (Feature `unterkonten-einblenden`, 2026-11-27)
+
+Stand: erster Entwurf in der iterativen Phase, Feinheiten noch mit dem Auftraggeber abzustimmen.
+
+- **Schalter im Kopf:** Neben „Buchung erfassen“ der Umschaltknopf `unterkonten-schalter` (`aria-pressed`),
+  beschriftet „mit Unterkonten“ (Bestandskonto) bzw. „mit Unterkategorien“ (Kategorie). Er setzt denselben Filter
+  `unterkonten=true` wie das Kontrollkästchen `filter-unterkonten` im Filter-Baukasten (beide zeigen denselben
+  Zustand, Beschriftung gleich). Sichtbar nur, wenn das Konto Unterkonten hat (oder der Filter aus der Adresse schon
+  gesetzt ist). Die Seite trägt `data-unterkonten="ja|nein"`.
+- **Kürzel `f u`** gilt jetzt auch in Kategorien (bisher nur Bestandskonten); ohne Unterkonten ein Hinweis.
+- **Herkunft:** Mit eingeblendeten Unterkonten trägt jede Buchung, die einen Split auf einem (auch indirekten)
+  Unterkonto hat, vor dem Empfänger eine Marke `herkunft` mit dem Pfad ab dem Konto der Ansicht („Rücklage › Urlaub“
+  statt „Giro › Rücklage › Urlaub“), `data-konto-ids`, Tooltip mit vollem Pfad. Mehrere Unterkonten (Split): alle,
+  durch „, “ getrennt. Buchungen nur auf dem Konto selbst tragen keine Marke. Rein in der Oberfläche; Endpunkte
+  unverändert (`unterkonten` aus `datenmodell.md` 16.1).
+- **Warum eine Marke statt einer Spalte:** Die Spaltenraster (Breiten, ausgeblendete Spalten, mobile Anordnung)
+  sind je Liste fest; eine Marke wirkt ohne Umbau auch mobil.
+- **Tests:** `tests/test_browser_unterkonten.py`.
