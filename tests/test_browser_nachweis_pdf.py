@@ -67,9 +67,15 @@ def test_v_p_und_kontextmenue(tmp_path, browser):  # noqa: F811
         expect(tid(page, "nachweis-umfang")).to_contain_text("1 markierte Buchung")
         page.keyboard.press("Escape")
         expect(tid(page, "nachweis-dialog")).to_have_count(0)
-        # in einer Kategorie gibt es den Eintrag nicht
+        # D-310: auch im Kontoblatt einer Kategorie, als „Buchungsnachweis“
         page.goto(f"{url}/konten/{kat}")
         bereit(page, "konto")
+        tid(page, f"buchung-{ids[1]}").locator('[data-feld="datum"]').click()
         tid(page, f"buchung-{ids[1]}").click(button="right")
-        expect(tid(page, "km-sonderposten")).to_be_visible()
-        expect(tid(page, "km-nachweis")).to_have_count(0)
+        tid(page, "km-nachweis").click()
+        expect(tid(page, "nachweis-umfang")).to_contain_text("1 markierte Buchung")
+        with page.expect_download() as info:
+            tid(page, "nachweis-ok").click()
+        t = _pdf_text(info.value)
+        assert "Buchungsnachweis" in t and "Miete NW" in t and "Miete 05/2026" in t and "-980,00" in t
+        assert "Giro NW · DE57 XXXX XXXX XXXX XXXX 1009" in t

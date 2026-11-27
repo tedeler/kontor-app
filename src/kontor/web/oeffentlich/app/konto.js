@@ -264,7 +264,7 @@ const KUERZEL = [
   ["v", "s", "Spaltenbreiten an den Inhalt anpassen", (s) => s.spalteAnpassen(s.spalten.map(([f]) => f))],
   ["v", "0", "Spaltenbreiten zurücksetzen", (s) => s.spaltenZuruecksetzen()],
   ["v", "e", "Konto-Einstellungen…", (s) => kontoEinstellungen(s.konto, tid("konto-einstellungen-oeffnen", s.seite))],
-  ["v", "p", "Nachweis als PDF (markierte Buchungen)…", (s) => s.mitZielen((ids, el) => s.nachweisDialog(ids, el)), "bestand"],
+  ["v", "p", "Nachweis als PDF (markierte Buchungen)…", (s) => s.mitZielen((ids, el) => s.nachweisDialog(ids, el)), "nachweis"],
 ];
 const VORTASTEN = { f: "Filter", v: "Ansicht" };
 const SONDERPOSTEN = "Sonderposten";   // D-300
@@ -290,6 +290,7 @@ export function kontoKuerzel(seite) {
   const liste = [];
   KUERZEL.forEach(([vor, taste, text, , bed], i) => {
     if (seite && bed === "bestand" && seite.istKategorie) return;
+    if (seite && bed === "nachweis" && !seite.nachweisMoeglich) return;
     let hinweis = "";
     if (seite && bed === "eine" && markiert !== 1) hinweis = BEDINGUNG_TEXT.eine;
     if (seite && bed === "person" && !personLesen()) hinweis = BEDINGUNG_TEXT.person;
@@ -576,6 +577,8 @@ class Kontoansicht {
     this.seite = seite;
     this.konto = konto;
     this.istKategorie = klasse(konto) !== "bestand";   // 22.2: Kategorie oder technisches Konto
+    // D-310: Nachweis als PDF im Kontoblatt eines Bankkontos und einer Kategorie (nicht „Unkategorisiert“)
+    this.nachweisMoeglich = !this.istKategorie || konto.art === "aufwand" || konto.art === "ertrag";
     this.spalten = this.istKategorie ? SPALTEN_KATEGORIE : SPALTEN;
     this.spaltenVariante = this.istKategorie ? "kategorie" : "konto";
     this.breiten = spaltenLaden(this.spaltenVariante);
@@ -2846,7 +2849,7 @@ class Kontoansicht {
       this.sonderpostenEintrag(ids),
       this.filterEintrag(b),
       { tid: "km-mehrfach", kuerzel: "e", text: "Bearbeiten…", tun: () => this.mehrfachDialog(ids, ausloeser) },
-      !this.istKategorie ? { tid: "km-nachweis", kuerzel: "v p", text: "Nachweis als PDF…",
+      this.nachweisMoeglich ? { tid: "km-nachweis", kuerzel: "v p", text: "Nachweis als PDF…",
         tun: () => this.nachweisDialog(ids, ausloeser) } : null,
       this.gegenbuchungEintrag(b, x, y, ausloeser),
       // Dokumente (D-123): an alle gewählten Buchungen
@@ -3325,7 +3328,7 @@ class Kontoansicht {
   /** Nachweis der markierten Buchungen als PDF im Stil eines Kontoauszugs (D-303): Kontoinhaber vorbelegt aus den
    *  Kontodaten der Bank, änderbar; die Datei wird heruntergeladen. */
   async nachweisDialog(ids, ausloeser) {
-    if (this.istKategorie) { melde("hinweis", "Ein Nachweis ist nur im Kontoblatt eines Bankkontos möglich."); return; }
+    if (!this.nachweisMoeglich) { melde("hinweis", "Ein Nachweis ist nur im Kontoblatt eines Bankkontos oder einer Kategorie möglich."); return; }
     const sortiert = ids.slice().sort((a, b) => a - b);
     if (!sortiert.length) { melde("hinweis", "Bitte zuerst Buchungen markieren."); return; }
     let vorgabe = { inhaber: "", bic: null };
@@ -3352,9 +3355,13 @@ class Kontoansicht {
       inhalt.append(
         h("p", { tid: "nachweis-umfang" }, `${anzahl} aus „${this.konto.name}“.`),
         feld("Kontoinhaber", inhaber, "Vorbelegt aus den Kontodaten der Bank."),
-        h("p", { class: "hinweis" }, "Der Nachweis zeigt Datum, Empfänger, Verwendungszweck und Betrag der Buchungen, "
-          + "die Summe und eine gekürzte IBAN, aber keine Kontostände. Er weist sich als Auszug aus Kontor aus; "
-          + "Buchungen, die nicht von der Bank stammen oder danach geändert wurden, sind gekennzeichnet."),
+        h("p", { class: "hinweis" }, this.istKategorie
+          ? "Der Nachweis zeigt Datum, Empfänger, Verwendungszweck und den Anteil der Kategorie aus Sicht des Bankkontos, "
+            + "je Buchung das Bankkonto mit gekürzter IBAN und am Ende die Summe. Er weist sich als Auszug aus Kontor aus; "
+            + "Buchungen, die nicht von der Bank stammen oder danach geändert wurden, sind gekennzeichnet."
+          : "Der Nachweis zeigt Datum, Empfänger, Verwendungszweck und Betrag der Buchungen, "
+            + "die Summe und eine gekürzte IBAN, aber keine Kontostände. Er weist sich als Auszug aus Kontor aus; "
+            + "Buchungen, die nicht von der Bank stammen oder danach geändert wurden, sind gekennzeichnet."),
         knopfLeiste(ok, knopf("Abbrechen", { onclick: () => d.schliessen(null) })));
     }, { ausloeser });
   }

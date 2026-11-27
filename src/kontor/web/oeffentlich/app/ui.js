@@ -804,11 +804,11 @@ export function zielAuswahl(konto, ausloeser) {
 export function kontoDialog(vorgabe, ausloeser) {
   const v = vorgabe || {};
   dialog("konto-dialog", v.titel || "Konto anlegen", (inhalt, d) => {
-    const name = h("input", { type: "text", tid: "konto-name", maxlength: "200", required: true });
+    const name = h("input", { type: "text", tid: "konto-name", maxlength: "200", required: true, value: v.name || "" });
     inhalt.append(feld("Name", name));
     let art = null;
     if (v.arten) {
-      art = h("select", { tid: "konto-art" }, v.arten.map((a) => h("option", { value: a }, ART_NAMEN[a] || a)));
+      art = h("select", { tid: "konto-art" }, v.arten.map((a) => h("option", { value: a, selected: a === v.artVorgabe }, ART_NAMEN[a] || a)));
       inhalt.append(feld("Art", art));
     }
     let iban = null;
