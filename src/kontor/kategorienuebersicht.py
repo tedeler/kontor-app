@@ -13,7 +13,7 @@ from collections import defaultdict
 
 from . import buch
 
-ZEITRAEUME = ("monat", "12monate", "jahr", "vorjahr", "gesamt")
+ZEITRAEUME = ("monat", "vormonat", "30tage", "12monate", "jahr", "vorjahr", "gesamt")
 VORGABE = "12monate"
 
 
@@ -32,6 +32,11 @@ def grenzen(zeitraum: str, heute: dt.date) -> tuple[str | None, str | None, tupl
     j, m = heute.year, heute.month
     if zeitraum == "monat":
         return dt.date(j, m, 1).isoformat(), _monatsende(j, m).isoformat(), (j, m)
+    if zeitraum == "vormonat":
+        vj, vm = _monat_plus(j, m, -1)
+        return dt.date(vj, vm, 1).isoformat(), _monatsende(vj, vm).isoformat(), (vj, vm)
+    if zeitraum == "30tage":
+        return (heute - dt.timedelta(days=29)).isoformat(), heute.isoformat(), (j, m)
     if zeitraum == "12monate":
         vj, vm = _monat_plus(j, m, -11)
         return dt.date(vj, vm, 1).isoformat(), _monatsende(j, m).isoformat(), (j, m)
