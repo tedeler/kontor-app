@@ -3624,3 +3624,18 @@ Befehlspalette (jetzt nur Kürzel, die es auf dem Blatt gibt).
 - Fenster `punkt-dialog`: `punkt-wirkung` (Unterschied zum aktuellen Stand, `data-gleich`), `punkt-angaben`,
   `punkt-chronik`, `punkt-name` mit `punkt-benennen`, `punkt-wechseln` (inaktiv bei gleichem Stand; Rückfrage
   `bestaetigen-dialog`, dann über `aktion()`), `punkt-herunterladen`, `punkt-anheften`.
+
+## 50. Buchung teilen (Feature `buchung-teilen`, D-304)
+
+- Das Kontextmenü jeder Buchungszeile der Kontoansicht (Konto und Kategorie, Desktop und mobil) hat direkt vor
+  „Löschen…“ (`km-loeschen`) den Eintrag `km-teilen` „Teilen…“, aktiv bei genau einer gewählten Buchung. Keine Taste.
+- Kurztext, Zeilen getrennt durch Zeilenumbruch: „Buchung vom TT.MM.JJJJ“, „<Empfänger>: <Betrag>“ (ohne Empfänger
+  „Ohne Empfänger“, Betrag wie in der Liste mit gewöhnlichem Leerzeichen vor „€“), „Kategorie: <Text der Spalte
+  Kategorie>“, „Verwendungszweck: <Text>“ (Leerraum zusammengefasst, über 140 Zeichen gekürzt mit „…“, fehlt bei
+  leerem Zweck), „Konto: <Name der angezeigten Ansicht>“, zuletzt der Link
+  `<Ursprung>/konten/<id der angezeigten Ansicht>?buchung=<id>` (Sprungziel D-118: öffnet die Ansicht mit markierter
+  Buchung).
+- Weitergabe: `navigator.share({text})` (Teilen-Auswahl des Geräts, z. B. WhatsApp); Abbrechen dort ohne Meldung.
+  Ohne diese Funktion oder bei einem anderen Fehler `navigator.clipboard.writeText` mit der Meldung „Kurztext und
+  Link in die Zwischenablage kopiert.“; geht auch das nicht, zeigt `teilen-dialog` den Text in `teilen-text`
+  (markiert) mit `teilen-schliessen`.

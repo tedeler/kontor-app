@@ -2860,8 +2860,48 @@ class Kontoansicht {
       // Verschieben nur mit gehaltener Alt-Taste, auf dem Handy im Menü (D-160)
       ...(!this.istKategorie && (alt || oberflaeche.istMobil()) ? [{ tid: "km-verschieben",
         text: "Auf anderes Konto verschieben…", tun: () => this.verschiebenDialog(ids, ausloeser) }] : []),
+      { tid: "km-teilen", text: "Teilen…", aktiv: eine, tun: () => this.teilen(b, ausloeser) },
       { tid: "km-loeschen", kuerzel: "Entf", text: "Löschen…", tun: () => this.loeschen(ausloeser, ids) },
     ].filter(Boolean), ausloeser);
+  }
+
+  // ---------------------------------------------------------------- Teilen (D-304)
+  /** Kurztext einer Buchung zum Teilen, zuletzt der Link auf dieses Kontoblatt mit der Buchung als Sprungziel. */
+  teilenText(b) {
+    const gegen = gegensplits(b);
+    const kat = b.kategorie_id ? pfadVon(b.kategorie_id)
+      : (gegen.length > 1 ? "Gesplittet" : gegen.length === 0 ? this.umbuchungText(b) : pfadVon(gegen[0].konto_id));
+    const name = (b.empfaenger && b.empfaenger.name) || "Ohne Empfänger";
+    const zeilen = [
+      `Buchung vom ${datumText(b.datum)}`,
+      `${name}: ${betragText(b.betrag).replace(/\u00a0/g, " ")}`,
+    ];
+    if (kat) zeilen.push(`Kategorie: ${kat}`);
+    const zweck = String(b.verwendungszweck || "").replace(/\s+/g, " ").trim();
+    if (zweck) zeilen.push(`Verwendungszweck: ${zweck.length > 140 ? zweck.slice(0, 139) + "…" : zweck}`);
+    zeilen.push(`Konto: ${this.konto.name}`);
+    zeilen.push(`${location.origin}/konten/${this.konto.id}?buchung=${b.id}`);
+    return zeilen.join("\n");
+  }
+
+  /** Über die Teilen-Funktion des Geräts (z. B. WhatsApp); ohne sie in die Zwischenablage, sonst zum Kopieren. */
+  async teilen(b, ausloeser) {
+    if (!b) return;
+    const text = this.teilenText(b);
+    if (navigator.share) {
+      try { await navigator.share({ text }); return; }
+      catch (e) { if (e && e.name === "AbortError") return; }   // abgebrochen: nichts weiter
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      melde("erfolg", "Kurztext und Link in die Zwischenablage kopiert.");
+      return;
+    } catch (e) { /* ohne Zwischenablage: zum Kopieren zeigen */ }
+    dialog("teilen-dialog", "Buchung teilen", (inhalt, d) => {
+      const feldEl = h("textarea", { tid: "teilen-text", rows: "7", readonly: true }, text);
+      inhalt.append(feldEl, knopfLeiste(knopf("Schließen", { tid: "teilen-schliessen", onclick: () => d.schliessen(null) })));
+      setTimeout(() => feldEl.select(), 0);
+    }, { ausloeser });
   }
 
   // ---------------------------------------------------------------- Gehe zur Gegenbuchung (D-119)
