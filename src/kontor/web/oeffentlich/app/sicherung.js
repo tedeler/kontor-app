@@ -181,30 +181,41 @@ function eineZeile(p, oeffnen) {
       tid: `punkt-laden-${p.kennung}`, "aria-label": `Sicherungspunkt ${punktText(p)} herunterladen` }, "Herunterladen")));
 }
 
-/** Zwischen zwei Punkten desselben Tages mit mehr als einer Stunde Abstand: „15:00–21:00 unverändert“. */
-function luecke(neuer, aelter) {
-  const ab = datum(aelter.zeitpunkt);
-  const bis = datum(neuer.zeitpunkt);
-  if (bis - ab < 2 * 3600000) return null;
-  return h("li", { class: "sp-luecke", "aria-hidden": "true" }, `${uhrzeit(aelter.zeitpunkt)}–${uhrzeit(neuer.zeitpunkt)} unverändert`);
+/** Prüfungen ohne Änderung (D-305): aufeinanderfolgende zu einer Zeile zusammengefasst. */
+function pruefZeile(gruppe) {
+  const neu = gruppe[0].zeitpunkt;
+  const alt = gruppe[gruppe.length - 1].zeitpunkt;
+  const text = gruppe.length === 1 ? `${uhrzeit(neu)} geprüft – keine Änderung`
+    : `${uhrzeit(alt)}–${uhrzeit(neu)} · ${gruppe.length} Prüfungen – keine Änderung`;
+  return h("li", { class: "sp-pruefung", tid: `pruefung-${neu}`, "data-anzahl": String(gruppe.length) },
+    h("span", { class: "sp-pruefung-zeichen", "aria-hidden": "true" }, "✓"), text);
 }
 
-function zeitleiste(punkte, oeffnen, jetzt) {
+function zeitleiste(punkte, pruefungen, oeffnen, jetzt) {
+  // Punkte und Prüfungen ohne Änderung, neueste zuerst
+  const eintraege = [...punkte.map((p) => ({ zeitpunkt: p.zeitpunkt, punkt: p })),
+    ...pruefungen.map((x) => ({ zeitpunkt: x.zeitpunkt, pruefung: x }))]
+    .sort((a, b) => (a.zeitpunkt < b.zeitpunkt ? 1 : a.zeitpunkt > b.zeitpunkt ? -1 : a.punkt ? -1 : 1));
   const gruppen = new Map();
-  for (const p of punkte) {
-    const [art, s, text] = gruppenSchluessel(p, jetzt);
-    if (!gruppen.has(s)) gruppen.set(s, { art, text, punkte: [] });
-    gruppen.get(s).punkte.push(p);
+  for (const e of eintraege) {
+    const [art, s, text] = gruppenSchluessel(e, jetzt);
+    if (!gruppen.has(s)) gruppen.set(s, { art, text, eintraege: [] });
+    gruppen.get(s).eintraege.push(e);
   }
   return [...gruppen].map(([s, g]) => {
     const zeilen = [];
-    g.punkte.forEach((p, i) => {
-      if (i && g.art === "tag") { const l = luecke(g.punkte[i - 1], p); if (l) zeilen.push(l); }
-      zeilen.push(eineZeile(p, oeffnen));
-    });
-    const summe = g.punkte.reduce((a, p) => a + p.groesse, 0);
-    const kopf = h("h2", { class: "pr-tag-titel" }, h("span", null, g.text),
-      h("span", { class: "pr-tag-zahl" }, `${g.punkte.length === 1 ? "1 Punkt" : `${g.punkte.length} Punkte`} · ${groesseText(summe)}`));
+    let offen = [];
+    const abschliessen = () => { if (offen.length) zeilen.push(pruefZeile(offen)); offen = []; };
+    for (const e of g.eintraege) {
+      if (e.pruefung) { offen.push(e.pruefung); continue; }
+      abschliessen();
+      zeilen.push(eineZeile(e.punkt, oeffnen));
+    }
+    abschliessen();
+    const gp = g.eintraege.filter((e) => e.punkt).map((e) => e.punkt);
+    const summe = gp.reduce((a, p) => a + p.groesse, 0);
+    const zahl = gp.length ? `${gp.length === 1 ? "1 Punkt" : `${gp.length} Punkte`} · ${groesseText(summe)}` : "keine Änderung";
+    const kopf = h("h2", { class: "pr-tag-titel" }, h("span", null, g.text), h("span", { class: "pr-tag-zahl" }, zahl));
     const liste = h("ol", { class: "pr-tag-liste" }, zeilen);
     if (g.art === "tag") return h("section", { class: "pr-tag", "data-tag": s }, kopf, liste);
     return h("details", { class: "pr-tag sp-alt", "data-monat": s }, h("summary", null, kopf), liste);
@@ -215,10 +226,12 @@ function standKachel(st) {
   const bezug = st.punkte.find((p) => p.kennung === st.bezugspunkt);
   let text;
   let zustand;
-  if (!bezug) { text = "Noch kein Sicherungspunkt."; zustand = "offen"; }
+  if (!bezug) { text = st.zuletzt_geprueft ? "Noch kein Sicherungspunkt." : "Die stündliche Sicherung ist noch nicht gelaufen."; zustand = "offen"; }
   else if (st.unveraendert) { text = `Gesichert · unverändert seit ${punktText(bezug)}`; zustand = "ok"; }
   else { text = `Ungesicherte Änderungen seit ${punktText(bezug)} · nächste Sicherung ${uhrzeit(st.naechster_lauf)}`; zustand = "offen"; }
-  const geprueft = st.zuletzt_geprueft ? `Zuletzt geprüft ${zeitText(st.zuletzt_geprueft)}` : "Noch nicht geprüft";
+  const letzte = (st.pruefungen || [])[0];
+  const ohne = letzte && letzte.zeitpunkt === st.zuletzt_geprueft ? " – keine Änderung" : "";
+  const geprueft = st.zuletzt_geprueft ? `Zuletzt geprüft ${zeitText(st.zuletzt_geprueft)}${ohne}` : "Noch nicht geprüft";
   // Uhr des Servers (im Mock-Modus simuliert), nicht die des Browsers
   const alt = st.zuletzt_geprueft && datum(st.jetzt) - datum(st.zuletzt_geprueft) > 2 * 3600000;
   const pl = st.prueflauf;
@@ -292,8 +305,8 @@ export async function sicherungSeite(seite) {
     const st = await api("GET", "/api/sicherung/punkte");
     kacheln.replaceChildren(standKachel(st), speicherKachel(st));
     const oeffnen = (p, el) => punktFenster(p, el, neuLaden).catch((e) => melde("fehler", e.message));
-    liste.replaceChildren(...zeitleiste(st.punkte, oeffnen, datum(st.jetzt)));   // Uhr des Servers
-    leerEl.hidden = st.punkte.length > 0;
+    liste.replaceChildren(...zeitleiste(st.punkte, st.pruefungen || [], oeffnen, datum(st.jetzt)));   // Uhr des Servers
+    leerEl.hidden = st.punkte.length > 0 || (st.pruefungen || []).length > 0;
   }
 
   anlegen.addEventListener("click", () => dialog("punkt-anlegen-dialog", "Sicherungspunkt anlegen", (inhalt, d) => {

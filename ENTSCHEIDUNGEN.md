@@ -4688,3 +4688,20 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   Oberfläche; kein neuer Endpunkt, kein Zustand.
 - **Tests:** `tests/core/test_buchung_teilen.py`, `tests/test_browser_buchung_teilen.py` (Teilen-Funktion und
   Zwischenablage als Attrappe).
+
+
+## D-305 Stündliche Sicherung im Dienst, Prüfungen sichtbar, Tags nicht mehr in den Einstellungen (Feature `sicherung-nachzug`, 2026-11-27)
+
+- **Befund des Auftraggebers:** Auf dem Server entstanden nach dem Update auf 0.67 keine stündlichen Punkte, und es
+  gab keinen Hinweis, wenn sich nichts geändert hatte.
+- **Ursache:** Die systemd-Units werden bei der Installation einmal nach `/etc/systemd/system` kopiert
+  (`README.md`); der Update-Dienst installiert nur das Wheel und darf `/etc` nicht schreiben (`ProtectSystem=full`).
+  Der Server lief deshalb weiter mit dem täglichen Timer und dem alten Aufruf `--verzeichnis … --behalten 14`, der
+  nur die ZIP-Datei schrieb.
+- **Lösung:** `sicherungspunkte.Stundenlauf` im Dienst (Lifespan, Takt 60 s, fällig, wenn für die laufende Stunde
+  noch keine Prüfung vorliegt). Der alte Aufruf legt zusätzlich einen Punkt an. Die neue Timer-Unit bleibt
+  ausgeliefert; wer sie installiert, hat eine zweite, harmlose Auslösung. Verworfen: Units durch den Update-Dienst
+  erneuern (bräuchte selbst eine neue, von Hand installierte Unit mit Schreibrecht auf `/etc`).
+- **Prüfungen ohne Änderung** werden im Stand vermerkt und in der Zeitleiste als „geprüft – keine Änderung“ gezeigt
+  (statt der Lückenangabe), auch in der Kachel und im Stand des Einstellungsbereichs.
+- **Tags** stehen nicht mehr unter Einstellungen › Daten und Sicherung (thematisch fremd); sie bleiben auf `/tags`.

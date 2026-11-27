@@ -22,6 +22,7 @@ import datetime as dt
 import fcntl
 import hashlib
 import json
+import logging
 import lzma
 import os
 import pathlib
@@ -38,6 +39,7 @@ from .config import KontorConfig
 from .validierung import ApiFehler
 
 UTC = dt.timezone.utc
+log = logging.getLogger("kontor.sicherungspunkte")
 FORMAT = "kontor-punkt"
 FORMATVERSION = 1
 BEGLEIT = ("id_zaehler", "sync_konto_zustand")   # nicht im Prüfwert, vollständig in jedem Punkt (2.3)
@@ -404,6 +406,17 @@ def _alte_hashes(ab: Ablage, bezug: str) -> Hashes:
     return hashes(ab.herstellen(bezug))
 
 
+PRUEFUNGEN_HOECHSTENS = 400
+
+
+def _pruefung_vermerken(ab: Ablage, jetzt: dt.datetime, kennung: str, neu: bool, marke: str) -> None:
+    """Jede Prüfung (auch ohne Änderung) für die Zeitleiste; behalten wird die Stundenstufe."""
+    grenze = zeit_text(jetzt - dt.timedelta(hours=max(ab.config.sicherung_stunden, 48)))
+    liste = [p for p in ab.stand.get("pruefungen", []) if p["zeitpunkt"] >= grenze]
+    liste.append({"zeitpunkt": zeit_text(jetzt), "kennung": kennung, "neu": neu, "marke": marke})
+    ab.stand["pruefungen"] = liste[-PRUEFUNGEN_HOECHSTENS:]
+
+
 def _marke_setzen(meta: dict, marke: str, name: str | None) -> None:
     if marke != "stuendlich" and marke not in meta["marken"]:
         meta["marken"].append(marke)
@@ -424,6 +437,7 @@ def punkt_anlegen(ab: Ablage, con, jetzt: dt.datetime, marke: str, name: str | N
         _marke_setzen(meta, marke, name)
         ab.stand["zuletzt_geprueft"] = jetzt_text
         ab.stand["letzte_aenderung"] = _chronik(con, ab.stand["letzte_aenderung"])[1]
+        _pruefung_vermerken(ab, jetzt, bezug, False, marke)
         ab.speichern()
         return meta, False
     chronik, hoechste = _chronik(con, ab.stand["letzte_aenderung"])
@@ -464,6 +478,7 @@ def punkt_anlegen(ab: Ablage, con, jetzt: dt.datetime, marke: str, name: str | N
             raise OSError("Der neue Sicherungspunkt ließ sich nicht prüfen.")
     meta["geprueft_am"] = jetzt_text
     ab.stand.update(bezug=kennung, zuletzt_geprueft=jetzt_text, letzte_aenderung=hoechste)
+    _pruefung_vermerken(ab, jetzt, kennung, True, marke)
     ab.speichern()
     ab.zustandsliste_setzen(kennung, h)
     ab.aufraeumen()
@@ -673,7 +688,8 @@ def liste(ab: Ablage, jetzt: dt.datetime, aktueller_pruefwert: str | None) -> di
                        "stufen": stufen},
             "bezugspunkt": bezug, "unveraendert": unveraendert, "zuletzt_geprueft": ab.stand["zuletzt_geprueft"],
             "naechster_lauf": zeit_text(naechster), "jetzt": zeit_text(jetzt), "frei": frei,
-            "prueflauf": ab.stand.get("prueflauf")}
+            "prueflauf": ab.stand.get("prueflauf"),
+            "pruefungen": [p for p in ab.stand.get("pruefungen", []) if not p["neu"]][::-1]}
 
 
 # ======================================================================== Einspielen (5.1)
@@ -830,6 +846,67 @@ def prueflauf(ab: Ablage, jetzt: dt.datetime) -> list[str]:
     ab.stand["prueflauf"] = {"tag": jetzt.date().isoformat(), "zeitpunkt": zeit_text(jetzt), "fehler": fehler}
     ab.speichern()
     return fehler
+
+
+def faellig(config: KontorConfig, jetzt: dt.datetime) -> bool:
+    """Steht für die laufende Stunde noch keine Prüfung im Stand?"""
+    try:
+        stand = json.loads((config.sicherungspunkte_verzeichnis / "punkte.json").read_text("utf-8"))
+    except (OSError, ValueError):
+        return True
+    letzte = stand.get("zuletzt_geprueft")
+    if not letzte:
+        return True
+    try:
+        z = zeit_lesen(letzte)
+    except ValueError:
+        return True
+    stunde_jetzt = jetzt.astimezone(UTC).replace(minute=0, second=0, microsecond=0)
+    return z < stunde_jetzt or z > jetzt + dt.timedelta(hours=1)
+
+
+class Stundenlauf:
+    """D-305: Der Dienst selbst legt stündlich den Sicherungspunkt an (unabhängig vom systemd-Timer, dessen Unit
+    ein Update nicht erneuert). Doppelte Läufe mit dem Timer sind harmlos: Dateisperre und Regel 3.1."""
+
+    TAKT = 60.0
+
+    def __init__(self, config: KontorConfig, jetzt: Callable[[], dt.datetime]) -> None:
+        import threading
+
+        self.config = config
+        self.jetzt = jetzt
+        self._stopp = threading.Event()
+        self._thread: threading.Thread | None = None
+
+    def einmal(self) -> dict | None:
+        jetzt = self.jetzt()
+        if not faellig(self.config, jetzt):
+            return None
+        return stunde(self.config, jetzt=jetzt)
+
+    def starten(self) -> None:
+        import threading
+
+        if self._thread is not None:
+            return
+        self._stopp.clear()
+
+        def schleife() -> None:
+            while not self._stopp.wait(self.TAKT):
+                try:
+                    self.einmal()
+                except Exception:  # noqa: BLE001 - der Dienst läuft weiter; Stand zeigt die fehlende Prüfung
+                    log.exception("Fehler beim stündlichen Sicherungspunkt")
+
+        self._thread = threading.Thread(target=schleife, name="kontor-sicherung", daemon=True)
+        self._thread.start()
+
+    def beenden(self) -> None:
+        self._stopp.set()
+        if self._thread is not None:
+            self._thread.join(timeout=30)
+            self._thread = None
 
 
 def ausduennen(config: KontorConfig, *, jetzt: dt.datetime | None = None) -> None:
