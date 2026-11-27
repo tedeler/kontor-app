@@ -172,3 +172,5 @@ Stabilität: Nach den Änderungen lief der Browser-Teil der Gesamtsuite viermal 
 - 2026-11-27 (D-317): `gesamt-tests/tests/app/m8/test_m8_kontoansicht.py` (Saldotext je Bestandskonto der
   Finanzübersicht) und eigene `tests/test_browser_konto_typ_inhaber.py`: Kreditkonten zeigen den Saldo dort jetzt
   umgedreht (Schulden positiv); `data-betrag` und Summe unverändert.
+- 2026-11-27 (D-322): `gesamt-tests/tests/app/m22/test_m22_oberflaeche.py`: `FELDER_KONTO` und `FELDER_KATEGORIE` um die
+  neue Spalte `saldo` („Summe“) ergänzt.

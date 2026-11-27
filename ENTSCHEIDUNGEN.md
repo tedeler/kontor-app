@@ -4982,3 +4982,21 @@ Anlass: Klick auf einen Punkt unter `/sicherung` brauchte auf dem Server 10–20
 - **Entscheidung:** Wie bei D-304 wird nicht das Budget angehoben, sondern ein unabhängiger, stabiler Teil verschoben:
   `tests/core/test_mail_schlank.py` (D-255, in der Suite rund 1,3 s lokal) unverändert nach
   `tests/test_mail_schlank_eigen.py`. Er läuft weiter in der CI (Job „eigene“), nur nicht mehr in der Entwicklungsschleife.
+
+## D-322 Spalte „Summe“ (laufender Stand) in allen Kontoblättern (Feature `laufende-summe`, 2026-11-27)
+
+- **Anlass (Auftraggeber):** Auf allen Kontoblättern eine zusätzliche Spalte „Summe“ mit dem kumulierten Betrag: alle
+  Buchungen bis zu dieser aufsummiert, unabhängig von Filtern.
+- **Server:** `GET /api/buchungen` liefert mit `konto_id` zusätzlich `salden` (Liste parallel zu `eintraege`, nicht als
+  Feld der Buchung, weil Listeneinträge der vollständigen Buchung entsprechen müssen, `test_filter.py`). Berechnet über
+  eine Fensterfunktion über alle Buchungen der Kontenmenge, danach auf die Einträge der Seite beschränkt. OpenAPI 2.27.0.
+- **Reihenfolge innerhalb eines Tages:** Die Bank liefert keine Uhrzeit; der Stand am Tagesende ist eindeutig, die
+  Zwischenstände nicht. Gewählt ist die Reihenfolge, in der die Liste bei Sortierung nach Datum steht (Gleichstand
+  `id` aufsteigend, openapi): aufsteigend `id` aufsteigend, bei `-datum` (Vorgabe des Kontoblatts) `id` absteigend. So
+  springt die Spalte in der Vorgabeansicht von oben nach unten genau um den Betrag der Zeile.
+- **Kontenmenge:** die der Liste (`konto_id`, mit „mit Unterkonten“ samt Unterkonten). Alle übrigen Filter (Zeitraum,
+  Text, Ausdruck, Betrag …) wirken nicht auf die Summe.
+- **Oberfläche:** neue Spalte nach „Betrag“, Kreditkonten umgedreht, mobil ausgeblendet. Nach einer sofortigen Aktion
+  (D-289) gilt bis zum Neuladen der alte Stand.
+- **Tests:** `tests/core/test_laufende_summe.py`, `tests/test_browser_laufende_summe.py`; geändert
+  `gesamt-tests/tests/app/m22/test_m22_oberflaeche.py` (Spaltenliste, `TESTUMBAU.md`).

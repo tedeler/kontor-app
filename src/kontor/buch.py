@@ -994,11 +994,29 @@ def buchungsliste(con, f: dict) -> dict:
             from . import verdacht
             verdacht.anreichern(con, eintraege)
     aus = {"eintraege": eintraege, "gesamt": gesamt, "seite": seite, "pro_seite": pro_seite, "summe": summe}
+    if konten is not None:   # D-322: laufende Summe je Eintrag, unabhängig von den übrigen Filtern
+        aus["salden"] = _laufende_salden(con, konten, [e["id"] for e in eintraege], sortierung == "-datum")
     if f.get("position_id") is not None:   # D-271: Stelle (ab 0) in der gefilterten, sortierten Liste oder None
         r = con.execute(f"SELECT pos FROM (SELECT id, ROW_NUMBER() OVER (ORDER BY {order}) - 1 AS pos FROM ({basis}))"
                         " WHERE id = ?", alle_par + [sichere_id(f["position_id"])]).fetchone()
         aus["position"] = None if r is None else r["pos"]
     return aus
+
+
+def _laufende_salden(con, konten: list[int], ids: list[int], absteigend: bool) -> list[int]:
+    """D-322: je Buchung aus ``ids`` die Summe der Splits auf ``konten`` über alle Buchungen bis einschließlich dieser
+    (nach Datum; innerhalb eines Tages ``id`` aufsteigend, bei absteigender Datumsliste ``id`` absteigend, damit die
+    Spalte dort von Zeile zu Zeile genau um den Betrag springt)."""
+    if not ids:
+        return []
+    ph = _platzhalter(len(konten))
+    richtung = "DESC" if absteigend else "ASC"
+    stand = {r["id"]: r["saldo"] for r in con.execute(
+        f"SELECT id, saldo FROM (SELECT id, SUM(n) OVER (ORDER BY datum, id {richtung} ROWS UNBOUNDED PRECEDING) AS saldo"
+        f" FROM (SELECT b.id AS id, b.datum AS datum, SUM(s.betrag) AS n FROM split s JOIN buchung b ON b.id = s.buchung_id"
+        f" WHERE s.konto_id IN ({ph}) GROUP BY b.id)) WHERE id IN (SELECT value FROM json_each(?))",
+        [*konten, json.dumps(ids)])}
+    return [stand.get(i, 0) for i in ids]
 
 
 def _filter_par(par: list, konten: list[int] | None) -> list:
