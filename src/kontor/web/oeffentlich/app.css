@@ -324,13 +324,17 @@ fieldset { border: 1px solid var(--rand); border-radius: var(--radius); padding:
 .dk-herkunft { margin: .6rem 0 0; opacity: .75; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .buchungsliste { min-width: min-content; }   /* D-168: nicht nach dem längsten Text wachsen */
-.buchungsliste .liste-kopf, .buchungsliste .zeile { display: grid; grid-template-columns: 6.5rem minmax(7rem, 1.2fr) minmax(8rem, 1.8fr) minmax(9rem, 1.6fr) minmax(4rem, .7fr) 6.5rem var(--betrag-breite, 7.5rem);
+.buchungsliste .liste-kopf, .buchungsliste .zeile { display: grid; grid-template-columns: 6.5rem minmax(7rem, 1.2fr) minmax(8rem, 1.8fr) minmax(9rem, 1.6fr) minmax(4rem, .7fr) 6.5rem var(--betrag-breite, 7.5rem) 7.5rem;
   align-items: center; min-height: var(--zeile); }
 .buchungsliste .liste-kopf { position: sticky; top: 0; z-index: 2; background: var(--hg-2); font-weight: 600; font-size: .9rem; border-bottom: 1px solid var(--rand); }
 .buchungsliste.treffer .liste-kopf, .buchungsliste.treffer .zeile { grid-template-columns: 6.5rem 1.2fr 2fr 1.3fr 7.5rem; }
 .zelle { padding: .2rem .45rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-.zelle-betrag, .zelle.zahl { text-align: right; }
-.liste-kopf .zelle-betrag { text-align: right; }
+.zelle-betrag, .zelle-saldo, .zelle.zahl { text-align: right; }
+.liste-kopf .zelle-betrag, .liste-kopf .zelle-saldo { text-align: right; }
+/* D-322: Spalte Summe (laufender Stand) etwas zurückgenommen, mobil ausgeblendet */
+.zelle-saldo { color: var(--text-2); }
+.zelle-saldo.negativ { color: var(--negativ); }
+.buchungsliste[data-kompakt="ja"] .zelle-saldo { display: none; }
 /* D-318/D-319: Kreditkonto – Spalte Betrag in „Tilgung“ und „Belastung“ geteilt */
 .buchungsliste[data-zwei-betraege="ja"] { --betrag-breite: 12.5rem; }
 .zelle-betrag.zwei-betraege, .liste-kopf .zelle-betrag:has(.betrag-teil) { display: flex; gap: .45rem; }
@@ -505,7 +509,7 @@ html.zieht, html.zieht * { cursor: grabbing !important; }
 .kategorien-gruppe caption { text-align: left; font-weight: 600; padding: .25rem 0; }
 
 /* M11 (oberflaeche.md 22.2): Buchungsliste einer Kategorie mit Spalte „Konto“ */
-.buchungsliste.mit-konto .liste-kopf, .buchungsliste.mit-konto .zeile { grid-template-columns: 6.5rem minmax(7rem, 1.2fr) minmax(8rem, 2fr) minmax(7rem, 1.3fr) minmax(7rem, 1.2fr) minmax(4rem, .8fr) 6.5rem var(--betrag-breite, 7.5rem); }
+.buchungsliste.mit-konto .liste-kopf, .buchungsliste.mit-konto .zeile { grid-template-columns: 6.5rem minmax(7rem, 1.2fr) minmax(8rem, 2fr) minmax(7rem, 1.3fr) minmax(7rem, 1.2fr) minmax(4rem, .8fr) 6.5rem var(--betrag-breite, 7.5rem) 7.5rem; }
 .buchungsliste.mit-konto[data-kompakt="ja"] .liste-kopf .zelle-konto { display: none; }
 .buchungsliste.mit-konto[data-kompakt="ja"] .zeile { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; grid-template-areas: "datum empf betrag" "kat konto tags"; }
 .buchungsliste.mit-konto[data-kompakt="ja"] .zelle-konto { grid-area: konto; font-size: .85rem; color: var(--text-2); }
@@ -676,6 +680,7 @@ tr.ueberfaellig td { color: var(--gefahr); }
 .buchungsliste[data-spalten-aus~="tags"] [role="row"] > .zelle-tags { display: none; }
 .buchungsliste[data-spalten-aus~="status"] [role="row"] > .zelle-status { display: none; }
 .buchungsliste[data-spalten-aus~="betrag"] [role="row"] > .zelle-betrag { display: none; }
+.buchungsliste[data-spalten-aus~="saldo"] [role="row"] > .zelle-saldo { display: none; }
 .spalten-messer { position: absolute; left: 0; top: 0; visibility: hidden; pointer-events: none; height: 0; overflow: hidden; }
 .spalten-messer > .zelle { width: max-content; max-width: none; overflow: visible; }
 
@@ -717,7 +722,7 @@ html[data-thema="dunkel"] { --wahl-schleier: color-mix(in srgb, var(--text) 16%,
 .buchungsliste .zeile[aria-selected="true"]:has(+ .zeile[aria-selected="true"])::after { border-bottom-width: 0; }
 .buchungsliste .zeile:focus-visible { outline: none; }
 /* ist die Zeile breiter als die Liste, schließt die klebende Betragszelle den Rahmen rechts */
-.buchungsliste[data-kompakt="nein"] .zeile[aria-selected="true"] > .zelle-betrag { box-shadow: inset -3px 0 0 var(--wahl-linie); }
+.buchungsliste[data-kompakt="nein"] .zeile[aria-selected="true"] > .zelle-saldo { box-shadow: inset -3px 0 0 var(--wahl-linie); }
 .buchungsliste .zeile[aria-selected="true"]:hover { --schleier: var(--wahl-schleier-hover); }
 /* Zusatzmarken vor dem Empfänger: wiederkehrende Buchung ↻, durch Mail bestätigt ✉ (nur Gestaltung) */
 .zeile[data-wiederkehrend="ja"] .zelle-empfaenger::before, .zeile[data-mail="ja"] .zelle-empfaenger::before {
@@ -1572,13 +1577,17 @@ html[data-thema="dunkel"] .mail-zuordnung[data-zustand="erfuellt"] .mail-marke {
    Browser eine der ausgetauschten Zeilen als Anker fest und schiebt die Rollposition bei jedem Austausch nach – der
    Schwung nach dem Loslassen bremst dann nicht mehr ab, sondern läuft bis ans Ende der Liste. */
 .buchungsliste { overflow-anchor: none; }
-.buchungsliste[data-kompakt="nein"] [role="row"] > .zelle-betrag { position: sticky; right: 0; z-index: 1; background-color: inherit; }
-.buchungsliste[data-kompakt="nein"] .liste-kopf > .zelle-betrag { background-color: var(--hg-2); }
+.buchungsliste[data-kompakt="nein"] [role="row"] > :is(.zelle-betrag, .zelle-saldo) { position: sticky; right: 0; z-index: 1;
+  background-color: inherit; }
+/* D-322: Betrag klebt links neben der Spalte Summe (ohne Summe am Rand) */
+.buchungsliste[data-kompakt="nein"] [role="row"] > .zelle-betrag { right: var(--saldo-breite, 7.5rem); }
+.buchungsliste[data-kompakt="nein"][data-spalten-aus~="saldo"] [role="row"] > .zelle-betrag { right: 0; }
+.buchungsliste[data-kompakt="nein"] .liste-kopf > :is(.zelle-betrag, .zelle-saldo) { background-color: var(--hg-2); }
 @container (max-width: 46rem) {
   .buchungsliste[data-kompakt="nein"] [role="row"] > .zelle-betrag { box-shadow: -8px 0 8px -8px rgba(0, 0, 0, .35); }
   /* schmale Liste: kleinere Mindestbreiten, damit Empfänger, Zweck und Kategorie neben dem Betrag Platz finden */
   .buchungsliste[data-kompakt="nein"]:not(.spalten-eigen):not(.spalten-raster):not(.mit-konto):not(.treffer) :is(.liste-kopf, .zeile) {
-    grid-template-columns: 6.5rem minmax(5.5rem, 1.2fr) minmax(5.5rem, 1.8fr) minmax(6.5rem, 1.6fr) minmax(4rem, .7fr) 6.5rem var(--betrag-breite, 7.5rem); }
+    grid-template-columns: 6.5rem minmax(5.5rem, 1.2fr) minmax(5.5rem, 1.8fr) minmax(6.5rem, 1.6fr) minmax(4rem, .7fr) 6.5rem var(--betrag-breite, 7.5rem) 7.5rem; }
   /* Gruppenbalken: nur die Zahlen, damit die Summe sichtbar bleibt */
   .perioden-balken .perioden-wort, .perioden-balken .perioden-anzahl { display: none; }
   .perioden-balken [data-art="summe"] { font-weight: 700; margin-left: auto; }
@@ -1647,7 +1656,7 @@ tr.ueberfaellig td.e-zustand, tr.ueberfaellig td.e-frist { color: var(--gefahr);
   background: var(--hg-2); }
 .tab-aufraeumen:hover, .tab-aufraeumen:focus-visible { color: var(--text); text-decoration: underline; }
 [data-layout="mobil"].tabs-offen .tab-aufraeumen { position: static; align-self: stretch; text-align: left; min-height: 44px; padding: .6rem 1rem; }
-.buchungsliste[data-kompakt="nein"] .zeile > .zelle-betrag { background-color: var(--toenung);
+.buchungsliste[data-kompakt="nein"] .zeile > :is(.zelle-betrag, .zelle-saldo) { background-color: var(--toenung);
   background-image: linear-gradient(var(--schleier), var(--schleier)); }   /* D-269: wie die Zeile, deckend */
 .gruppierung-zeile .knopf-klein { margin-left: 0; min-height: 28px; }
 /* Mail-Blatt am Handy: je Mail eine Karte (Betreff und Zeit oben, Zuordnung darunter), Filter in einer rollbaren Zeile */

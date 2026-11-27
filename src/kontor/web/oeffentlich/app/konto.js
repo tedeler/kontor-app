@@ -299,7 +299,8 @@ export function kontoKuerzel(seite) {
 }
 
 const SPALTEN = [["datum", "Datum", true], ["empfaenger", "Empfänger", true], ["verwendungszweck", "Verwendungszweck"],
-  ["kategorie", "Kategorie"], ["tags", "Tags"], ["status", "Status"], ["betrag", "Betrag", true]];
+  ["kategorie", "Kategorie"], ["tags", "Tags"], ["status", "Status"], ["betrag", "Betrag", true],
+  ["saldo", "Summe"]];   // D-322: Summe aller Buchungen bis zu dieser, unabhängig von Filtern
 // M11 (oberflaeche.md 22.2): Kontoansicht einer Kategorie mit zusätzlicher Spalte „Konto“ nach „Kategorie“
 const SPALTEN_KATEGORIE = [...SPALTEN.slice(0, 4), ["konto", "Konto"], ...SPALTEN.slice(4)];
 
@@ -340,7 +341,7 @@ function spaltenSpeichern(variante, breiten) {
 const SPALTEN_AUS_SCHLUESSEL = "kontor.spalten.aus";
 const SPALTEN_RASTER = { datum: "6.5rem", empfaenger: "minmax(7rem, 1.2fr)", verwendungszweck: "minmax(8rem, 1.8fr)",
   kategorie: "minmax(9rem, 1.6fr)", konto: "minmax(7rem, 1.2fr)", tags: "minmax(4rem, .7fr)", status: "6.5rem",
-  betrag: "var(--betrag-breite, 7.5rem)" };
+  betrag: "var(--betrag-breite, 7.5rem)", saldo: "7.5rem" };
 
 // D-318/D-319: Kontoblatt eines Kreditkontos (breite Liste) wie GnuCash mit „Tilgung“ und „Belastung“ in der Spalte
 // Betrag. Der angezeigte Betrag (D-312) entscheidet: positiv = Belastung (erhöht die Schulden), negativ = Tilgung
@@ -768,14 +769,16 @@ class Kontoansicht {
     // Die weiteren Seiten laufen parallel; ohne Gruppierung bleibt es beim seitenweisen Nachladen.
     const bis = this.gruppierung ? 100000 : this.seiten;
     const erste = await api("GET", "/api/buchungen" + abfrage({ ...basis, seite: 1 }));
-    eintraege.push(...erste.eintraege);
+    // D-322: laufende Summe je Eintrag (vom Server, unabhängig von den Filtern)
+    const mitSaldo = (s) => s.eintraege.map((b, i) => Object.assign(b, { saldo: s.salden ? s.salden[i] : null }));
+    eintraege.push(...mitSaldo(erste));
     gesamt = erste.gesamt;
     summe = erste.summe;
     const letzte = Math.min(bis, Math.ceil(gesamt / proSeite) || 1);
     if (letzte > 1) {
       const rest = await Promise.all(Array.from({ length: letzte - 1 }, (_, i) =>
         api("GET", "/api/buchungen" + abfrage({ ...basis, seite: i + 2 }))));
-      for (const s of rest) eintraege.push(...s.eintraege);
+      for (const s of rest) eintraege.push(...mitSaldo(s));
     }
     let verdachte = [];
     try { verdachte = await api("GET", "/api/dubletten?status=offen&vorschlaege=ja"); } catch (e) { verdachte = []; }
@@ -783,7 +786,7 @@ class Kontoansicht {
     const mail = new Map();
     for (const e of await erwartungen) for (const id of e.buchung_ids) if (!mail.has(id)) mail.set(id, erwartungText(e));
     if (nr !== this.ladeNr) return;
-    if (vz < 0) for (const b of eintraege) b.betrag = -(b.betrag || 0);
+    if (vz < 0) for (const b of eintraege) { b.betrag = -(b.betrag || 0); if (b.saldo !== null) b.saldo = -b.saldo; }
     summe *= vz;
     this.vz = vz;
     // D-299: gleiche Abfrage (nur Daten geändert) – fällt die Markierung heraus, rückt die Buchung darunter nach
@@ -2055,7 +2058,10 @@ class Kontoansicht {
     this.zweiBetraege   // D-318: Kreditkonto mit Zahlung und Belastung, data-betrag wie angezeigt
       ? h("div", { role: "gridcell", class: "zelle zelle-betrag betrag zwei-betraege", "data-feld": "betrag",
         "data-betrag": String(b.betrag) }, betragTeile(b.betrag))
-      : betragEl("div", b.betrag, { role: "gridcell", class: "zelle zelle-betrag", "data-feld": "betrag" }));
+      : betragEl("div", b.betrag, { role: "gridcell", class: "zelle zelle-betrag", "data-feld": "betrag" }),
+    // D-322: Stand nach dieser Buchung; fehlt er (noch nicht vom Server bestätigt), bleibt die Zelle leer
+    typeof b.saldo === "number" ? betragEl("div", b.saldo, { role: "gridcell", class: "zelle zelle-saldo", "data-feld": "saldo" })
+      : h("div", { role: "gridcell", class: "zelle zelle-saldo", "data-feld": "saldo" }));
     const bestaetigtVon = b.tags.map((t) => personVonTag(t.name)).filter(Boolean);
     if (bestaetigtVon.length) zeile.dataset.bestaetigt = bestaetigtVon.join(" ");
     if (b.verdacht) zeile.dataset.verdacht = b.verdacht.grund;
@@ -2133,6 +2139,9 @@ class Kontoansicht {
       this.liste.style.setProperty("--spalten", this.spalten.filter(([f]) => !aus.includes(f))
         .map(([f]) => (this.breiten[f] ? `${this.breiten[f]}px` : (festgelegt ? `${SPALTE_ERSATZ}px` : SPALTEN_RASTER[f]))).join(" "));
     } else this.liste.style.removeProperty("--spalten");
+    // D-322: Betrag klebt links neben der Spalte Summe am rechten Rand
+    if (this.breiten.saldo && !aus.includes("saldo")) this.liste.style.setProperty("--saldo-breite", `${this.breiten.saldo}px`);
+    else this.liste.style.removeProperty("--saldo-breite");
   }
 
   /** Spalte ein- oder ausblenden (D-224); mindestens eine bleibt sichtbar. */

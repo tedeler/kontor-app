@@ -20,8 +20,9 @@ from tests.hilfen.m20 import NR, amazon_bestellung, mock_datei
 pytestmark = pytest.mark.browser
 expect = pytest.importorskip("playwright.sync_api", reason="Browsertests übersprungen: Playwright fehlt").expect
 
-FELDER_KONTO = ["datum", "empfaenger", "verwendungszweck", "kategorie", "tags", "status", "betrag"]
-FELDER_KATEGORIE = ["datum", "empfaenger", "verwendungszweck", "kategorie", "konto", "tags", "status", "betrag"]
+FELDER_KONTO = ["datum", "empfaenger", "verwendungszweck", "kategorie", "tags", "status", "betrag", "saldo"]   # D-322: Summe
+FELDER_KATEGORIE = ["datum", "empfaenger", "verwendungszweck", "kategorie", "konto", "tags", "status", "betrag",
+                    "saldo"]
 
 JS_BREITEN = """felder => felder.map(f => {
     const t = document.querySelector(`[data-testid="spalte-trenner-${f}"]`);

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Kontor REST-API
-  version: 2.26.0
+  version: 2.27.0
   description: |
     REST-Schnittstelle von Kontor, Meilensteine 1 bis 10. Verbindlicher Vertrag
     zwischen Implementierung und Tests. Fachliche Regeln stehen in
@@ -5382,6 +5382,14 @@ components:
         summe:
           type: integer
           description: Summe von `betrag` über alle Treffer (alle Seiten)
+        salden:
+          type: array
+          items: {type: integer}
+          description: |
+            D-322: nur mit `konto_id`. Je Eintrag (gleiche Reihenfolge wie `eintraege`) die Summe der Splits auf der
+            Kontenmenge der Liste über alle Buchungen bis einschließlich dieser, unabhängig von den übrigen Filtern,
+            Seite und Sortierung (gespeichertes Vorzeichen). Reihenfolge nach Datum, innerhalb eines Tages `id`
+            aufsteigend, bei `sortierung=-datum` `id` absteigend.
 
     MehrfachKategorie:
       type: object

@@ -3769,3 +3769,15 @@ im Kontoblatt eines Bankkontos. Seit D-316 ohne Dialog: die Datei wird direkt he
    der Ansicht (ohne dieses, Trenner „ › “), bei mehreren Unterkonten alle durch „, “ getrennt; `data-konto-ids` =
    deren IDs durch Leerzeichen; Tooltip „aus <voller Pfad>“. Buchungen nur auf dem Konto selbst tragen keine Marke.
    Ohne Filter gibt es keine Marke. Gilt auch im mobilen Layout.
+
+## 54. Spalte „Summe“ im Kontoblatt (Feature `laufende-summe`, D-322, ergänzt 7.2)
+
+1. Jedes Kontoblatt (Bestandskonto und Kategorie) hat nach „Betrag“ die Spalte „Summe“ (`data-feld="saldo"`, Kopf
+   mit `spalte-trenner-saldo`, nicht sortierbar, nicht bearbeitbar): der Stand nach dieser Buchung, also die Summe
+   aller Buchungen des Kontos bis einschließlich dieser (`salden` aus `GET /api/buchungen`, `berichte`/openapi
+   `Buchungsseite`). `data-betrag` trägt den angezeigten Wert.
+2. Unabhängig von allen Filtern, Seite, Gruppierung und Sortierung; nur „mit Unterkonten“ ändert die Kontenmenge.
+   In der nach Datum sortierten Liste springt die Summe von Zeile zu Zeile genau um den Betrag.
+3. Kreditkonto: umgedreht wie der Betrag (D-312). Spaltenbreite, Ausblenden und „an den Inhalt anpassen“ wie bei den
+   übrigen Spalten. Am rechten Rand kleben „Betrag“ und „Summe“ (in dieser Reihenfolge).
+4. Mobil (kompakte Liste) ist die Spalte ausgeblendet.
