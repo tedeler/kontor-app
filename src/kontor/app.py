@@ -49,6 +49,7 @@ from .importer import alfbanco as alfbanco_import
 from .validierung import (BETRAG_MAX, STATUS, ApiFehler, Feld, Query, Validierungsfehler, fehler_eintrag,
                           json_koerper, pruefe_koerper, pruefe_objekt)
 from .validierung import KONTOARTEN
+BESTANDSARTEN = ("girokonto", "sparkonto", "kreditkonto")
 
 log = logging.getLogger("kontor")
 
@@ -103,9 +104,13 @@ KONTO_NEU = {
     "geschlossen": S("bool"),
     "eroeffnet_am": S("datum", nullbar=True),
     "notiz": S("str", max_len=10000),
+    # D-312: Kontoinhaber, beide Teile dürfen leer bleiben
+    "inhaber": S("objekt", nullbar=True, unter={"vorname": S("str", strip=True, max_len=200),
+                                               "nachname": S("str", strip=True, max_len=200)}),
 }
 KONTO_AENDERUNG = {k: v for k, v in KONTO_NEU.items() if k != "art"}
 KONTO_AENDERUNG["name"] = S("str", strip=True, min_len=1, max_len=200)
+KONTO_AENDERUNG["art"] = S("enum", werte=BESTANDSARTEN)   # D-312: Kontotyp nur innerhalb der Bestandskonten
 SPLIT_NEU = {
     "konto_id": S("int", pflicht=True),
     "betrag": S("betrag", pflicht=True),

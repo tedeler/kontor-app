@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Kontor REST-API
-  version: 2.25.0
+  version: 2.26.0
   description: |
     REST-Schnittstelle von Kontor, Meilensteine 1 bis 10. Verbindlicher Vertrag
     zwischen Implementierung und Tests. Fachliche Regeln stehen in
@@ -230,7 +230,7 @@ paths:
             application/json:
               schema: {$ref: "#/components/schemas/Fehler"}
         "422":
-          description: "`validierung`, `iban_ungueltig`, `hierarchie_ungueltig` (Elternkonto andere Klasse), `referenz_unbekannt` (Elternkonto fehlt)"
+          description: "`validierung`, `iban_ungueltig`, `hierarchie_ungueltig` (Elternkonto andere Klasse), `referenz_unbekannt` (Elternkonto fehlt), `inhaber_ungueltig` (Inhaber bei einem Konto, das kein Bestandskonto ist, D-312)"
           content:
             application/json:
               schema: {$ref: "#/components/schemas/Fehler"}
@@ -264,12 +264,12 @@ paths:
               schema: {$ref: "#/components/schemas/Konto"}
         "404": {$ref: "#/components/responses/NichtGefunden"}
         "409":
-          description: "`iban_existiert`"
+          description: "`iban_existiert`; `konto_in_verwendung` (D-312: Darlehenskonto eines Kredits bleibt `kreditkonto`)"
           content:
             application/json:
               schema: {$ref: "#/components/schemas/Fehler"}
         "422":
-          description: "`validierung`, `iban_ungueltig`, `hierarchie_ungueltig` (andere Klasse oder Zyklus), `referenz_unbekannt`"
+          description: "`validierung`, `iban_ungueltig`, `hierarchie_ungueltig` (andere Klasse oder Zyklus), `referenz_unbekannt`, `art_ungueltig` (Typwechsel einer Kategorie oder eines technischen Kontos, D-312), `inhaber_ungueltig` (D-312)"
           content:
             application/json:
               schema: {$ref: "#/components/schemas/Fehler"}
@@ -4997,6 +4997,8 @@ components:
                 Ab M32 zusätzlich: konto_existiert (409, `details.konto_ids`,
                 `sammel3.md` 1.2), wiederholung_nur_geplant,
                 wiederholung_fehlt (422, `sammel3.md` 14.1).
+                Ab D-312 zusätzlich: art_ungueltig, inhaber_ungueltig (422,
+                `datenmodell.md` 21).
                 Ab M29 zusätzlich: bankzugang_nicht_aenderbar,
                 bankzugang_unvollstaendig, tan_offen (`bankzugang.md` 4);
                 die Endpunkte unter `/api/bank/zugang` liefern außerdem die
@@ -5077,6 +5079,26 @@ components:
         notiz: {type: string}
         extern_id: {type: [string, "null"]}
         ist_kategorie: {type: boolean}
+        inhaber:
+          $ref: "#/components/schemas/KontoInhaber"
+          description: "D-312, im Schema optional: nur vorhanden, wenn Vor- oder Nachname gesetzt ist"
+
+    KontoInhaber:
+      type: object
+      additionalProperties: false
+      description: "D-312: Kontoinhaber eines Bestandskontos; einer der Teile darf leer sein, nicht beide"
+      required: [vorname, nachname]
+      properties:
+        vorname: {type: string, maxLength: 200}
+        nachname: {type: string, maxLength: 200}
+
+    KontoInhaberEingabe:
+      type: object
+      additionalProperties: false
+      description: "D-312: fehlende Teile gelten als leer; Ränder werden entfernt; beide leer = kein Inhaber"
+      properties:
+        vorname: {type: string, maxLength: 200}
+        nachname: {type: string, maxLength: 200}
 
     KontoNeu:
       type: object
@@ -5093,12 +5115,27 @@ components:
             - {$ref: "#/components/schemas/Datum"}
             - {type: "null"}
         notiz: {type: string, maxLength: 10000, default: ""}
+        inhaber:
+          description: "D-312: nur bei Bestandskonten (sonst 422 `inhaber_ungueltig`, außer leer)"
+          oneOf:
+            - {$ref: "#/components/schemas/KontoInhaberEingabe"}
+            - {type: "null"}
 
     KontoAenderung:
       type: object
       additionalProperties: false
-      description: Nur angegebene Felder werden geändert. `art` ist nicht änderbar.
+      description: "Nur angegebene Felder werden geändert. `art` ist ab D-312 innerhalb der Bestandskonten änderbar
+        (andere Werte 422 `validierung`; eine Kategorie oder ein technisches Konto 422 `art_ungueltig`)."
       properties:
+        art:
+          type: string
+          enum: [girokonto, sparkonto, kreditkonto]
+          description: "D-312: Kontotyp; das Darlehenskonto eines Kredits bleibt `kreditkonto` (409 `konto_in_verwendung`)"
+        inhaber:
+          description: "D-312: `null` oder beide Teile leer entfernen den Inhaber"
+          oneOf:
+            - {$ref: "#/components/schemas/KontoInhaberEingabe"}
+            - {type: "null"}
         name: {type: string, minLength: 1, maxLength: 200}
         eltern_id: {type: [integer, "null"]}
         iban: {type: [string, "null"]}

@@ -164,3 +164,4 @@ Stabilität: Nach den Änderungen lief der Browser-Teil der Gesamtsuite viermal 
 | `spec/test_openapi.py::test_alle_operationen_vorhanden` | D-308: neue Operation `GET /api/regeln/pruefung` | in `OPERATIONEN_M30` ergänzt |
 | eigene `test_lernregeln_eigen.py`: `test_geloeschte_regel_entsteht_nicht_wieder`, `test_sicherung_enthaelt_vermerk_und_sperre` | D-308 | Löschen ohne Sperre; Sicherung mit deaktivierter Regel |
 | eigene `test_browser_buchung_teilen.py` | D-310: Beschriftung nach den Symbolen im Teilen-Text | erwartete Zeilen mit „Datum:“, „Konto:“, „Kategorie:“ |
+| `spec/test_openapi.py::test_m8_schemas`, `::test_m32_schemas`, eigene `test_m6_eigen.py::test_sicherung_der_schemaversion_2_…` | D-312: `KontoAenderung` mit `art` und `inhaber`, OpenAPI 2.26.0, Sicherung Schemaversion 12 | Felder ergänzt; Version „mindestens 2.25.0“; Schemaversion 12 |

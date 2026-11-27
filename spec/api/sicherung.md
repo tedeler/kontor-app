@@ -476,3 +476,10 @@ Objektart.
   der bestehende Stand als Sicherungspunkt gesichert (scheitert das: 409 `sicherung_vorher_fehlgeschlagen`, nichts
   geändert), nach dem Einfügen der Prüfwert gegen den Sollwert geprüft. Zusätzlich 409 `mail_abruf_laeuft`, solange
   ein Mail-Abruf läuft. Die Antwort enthält zusätzlich `vorher` und `ziel`.
+
+## 16. Feature `konto-typ-inhaber` (D-312, `datenmodell.md` 21)
+
+- **Schemaversion 12:** neue Tabelle `konto_inhaber (konto_id, vorname, nachname)`, je Konto mit Inhaber eine Zeile
+  (Teil der Objektart `konto`). Der Kontotyp steht wie bisher in `konto.art`.
+- Die Form eines Kontos ohne Inhaber ist unverändert; `anzahl` und Inhaltsprüfsumme bleiben für Bestände ohne Inhaber
+  gleich. Sicherungen der Schemaversion 1–11 werden ohne Inhaber gelesen (3.4): Einspielen entfernt vorhandene Inhaber.

@@ -203,6 +203,18 @@ export const ART_TEXT = { girokonto: "Girokonto", sparkonto: "Sparkonto", kredit
   aufwand: "Ausgaben", ertrag: "Einnahmen", eigenkapital: "Eigenkapital" };
 export const BESTAND = new Set(["girokonto", "sparkonto", "kreditkonto"]);
 
+/** D-312: Vorzeichen der Anzeige eines Kontos. Kreditkonten zeigen Beträge umgedreht (Abbuchung positiv, Schulden
+ *  als positiver Kontostand); gespeichert wird unverändert. Die Finanzübersicht zeigt den Saldo wie gespeichert. */
+export function vorzeichen(konto) {
+  return konto && konto.art === "kreditkonto" ? -1 : 1;
+}
+
+/** D-312: „Vorname Nachname“ des Kontoinhabers oder "". */
+export function inhaberText(konto) {
+  const i = konto && konto.inhaber;
+  return i ? [i.vorname, i.nachname].filter(Boolean).join(" ") : "";
+}
+
 /** Normalisierung für Befehlspalette und Kategorie-Auswahl (12.3). */
 export function normalisieren(text) {
   return String(text)

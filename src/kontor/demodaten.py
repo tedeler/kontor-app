@@ -185,7 +185,8 @@ class _Aufbau:
         self.konto_anlegen("giro", "Girokonto", "girokonto", iban=W.GIRO, eroeffnet_am=vortag,
                            notiz="Gemeinsames Konto bei der Musterbank (Demodaten)")
         self.konto_anlegen("sparbuch", "Sparbuch", "sparkonto", iban=W.SPARBUCH, eroeffnet_am=vortag,
-                           notiz="Rücklagen und Urlaubskasse (Demodaten)")
+                           notiz="Rücklagen und Urlaubskasse (Demodaten)",
+                           inhaber={"vorname": "Tina", "nachname": "Muster"})   # D-312: erfundener Inhaber
         self.konto_anlegen("wohnung", W.WOHNUNG["name"], "kreditkonto")
         self.konto_anlegen("auto", W.AUTO["name"], "kreditkonto")
         for art, pfade in (("aufwand", W.AUFWAND), ("ertrag", W.ERTRAG)):

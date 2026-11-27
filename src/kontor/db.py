@@ -515,6 +515,15 @@ CREATE TABLE IF NOT EXISTS erwartung_wiederholung (
     vorgaenger_id INTEGER
 );
 
+-- ------------------------------------------------------------ Kontoinhaber (D-312)
+-- Inhaber eines Bestandskontos (Buchbestand, gehört zur Objektart ``konto``); ohne Zeile hat das Konto keinen.
+CREATE TABLE IF NOT EXISTS konto_inhaber (
+    konto_id INTEGER PRIMARY KEY REFERENCES konto(id) ON DELETE CASCADE,
+    vorname TEXT NOT NULL DEFAULT '',
+    nachname TEXT NOT NULL DEFAULT '',
+    CHECK (vorname <> '' OR nachname <> '')
+);
+
 -- ------------------------------------------------------------ Betragsfilter wiederkehrender Buchungen (D-137)
 -- Eigene Einstellung je Empfänger (Buchbestand, gehört zur Objektart ``empfaenger``); ohne Zeile gilt die Vorgabe
 -- aus ``meta`` (wk_filter_modus, wk_filter_toleranz). ``mindestbetrag`` in Cent ohne Vorzeichen.
