@@ -1,5 +1,5 @@
 /* Kontor – Kurztext zum Teilen einer Buchung (D-304, Gestaltung D-306, oberflaeche.md 50).
- * Gesetzt für WhatsApp und ähnliche Dienste: *fett* für Empfänger und Betrag, eine Zeile je Angabe mit Symbol,
+ * Gesetzt für WhatsApp und ähnliche Dienste: *fett* für Empfänger und Betrag, eine Zeile je Angabe mit Symbol und Beschriftung (D-310),
  * der lesbare Teil des Verwendungszwecks als Zitat „> …“, zuletzt allein der Link (damit er klickbar erkannt wird).
  * Reine Funktion ohne DOM; Texte aus dem Buchbestand werden so entschärft, dass sie die Auszeichnung nicht stören.
  */
@@ -52,13 +52,13 @@ export function teilenText(a) {
   const art = ARTEN[a.art] || "";
   const zeilen = [`*${name}*`, `*${betragMitVorzeichen(a.betrag)}*${art ? ` · ${art}` : ""}`, ""];
   const datum = datumMitTag(a.datum);
-  if (datum) zeilen.push(`📅 ${datum}`);
+  if (datum) zeilen.push(`📅 Datum: ${datum}`);
   const konto = entschaerfen(a.konto);
-  if (konto) zeilen.push(`🏦 ${konto}`);
+  if (konto) zeilen.push(`🏦 Konto: ${konto}`);
   const kategorie = entschaerfen(a.kategorie);
-  if (kategorie) zeilen.push(`🏷️ ${kategorie}`);
+  if (kategorie) zeilen.push(`🏷️ Kategorie: ${kategorie}`);
   const tags = (a.tags || []).map(entschaerfen).filter(Boolean);
-  if (tags.length) zeilen.push(`🔖 ${tags.join(", ")}`);
+  if (tags.length) zeilen.push(`🔖 Tags: ${tags.join(", ")}`);
   const zweck = zweckKurz(a.zweck, a.empfaenger);
   if (zweck) zeilen.push("", `> ${zweck}`);
   zeilen.push("", a.link);

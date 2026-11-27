@@ -3666,8 +3666,9 @@ Befehlspalette (jetzt nur Kürzel, die es auf dem Blatt gibt).
   2. `*<Betrag>* · <Art>`: Betrag wie in der Liste mit Vorzeichen „−“ (U+2212) oder „+“ und geschütztem Leerzeichen
      vor „€“; Art „Ausgabe“, „Einnahme“ oder „Umbuchung“ (Buchung ohne Kategorie und ohne Gegensplit auf eine
      Kategorie),
-  3. Leerzeile, dann je eine Zeile „📅 <Wochentag>, TT.MM.JJJJ“ (Wochentag zweibuchstabig), „🏦 <Konto>“,
-     „🏷️ <Text der Spalte Kategorie>“ (mehrere Gegensplits: „Gesplittet (n)“; fehlt ohne Text) und „🔖 <Tags>“
+  3. Leerzeile, dann je eine Zeile mit Symbol und Beschriftung (D-310) „📅 Datum: <Wochentag>, TT.MM.JJJJ“
+     (Wochentag zweibuchstabig), „🏦 Konto: <Konto>“, „🏷️ Kategorie: <Text der Spalte Kategorie>“ (mehrere
+     Gegensplits: „Gesplittet (n)“; fehlt ohne Text) und „🔖 Tags: <Tags>“
      (durch Komma getrennt; fehlt ohne Tags),
   4. Leerzeile und „> <Verwendungszweck>“: nur der lesbare Teil wie in den Einzelheiten (D-175, ohne SEPA-Kennungen,
      Referenzen, Karte), Teile durch „ · “ getrennt, Leerraum zusammengefasst, über 140 Zeichen gekürzt mit „…“; fehlt,

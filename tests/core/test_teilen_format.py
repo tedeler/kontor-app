@@ -39,10 +39,10 @@ def test_aufbau():
         "*Markt Beispiel (fiktiv)*",
         "*−23,40 €* · Ausgabe",
         "",
-        "📅 Sa, 14.11.2026",
-        "🏦 Girokonto",
-        "🏷️ Lebensmittel:Supermarkt",
-        "🔖 Urlaub, B-Tina",
+        "📅 Datum: Sa, 14.11.2026",
+        "🏦 Konto: Girokonto",
+        "🏷️ Kategorie: Lebensmittel:Supermarkt",
+        "🔖 Tags: Urlaub, B-Tina",
         "",
         "> Einkauf Woche 46",
         "",
@@ -56,11 +56,12 @@ def test_einnahme_umbuchung_und_fehlende_angaben():
         grund(betrag=-50000, art="umbuchung", kategorie="Umbuchung → Tagesgeld", zweck="   "),
         grund(empfaenger="", kategorie="", zweck=None)])
     assert ein.split("\n")[:2] == ["*Markt Beispiel (fiktiv)*", "*+1.234,56 €* · Einnahme"]
-    assert ">" not in ein and ein.endswith("🏷️ Lebensmittel:Supermarkt\n\n" + LINK)
+    assert ">" not in ein and ein.endswith("🏷️ Kategorie: Lebensmittel:Supermarkt\n\n" + LINK)
     assert um.split("\n")[1] == "*−500,00 €* · Umbuchung"
-    assert "🏷️ Umbuchung → Tagesgeld" in um and ">" not in um
+    assert "🏷️ Kategorie: Umbuchung → Tagesgeld" in um and ">" not in um
     zeilen = leer.split("\n")
     assert zeilen[0] == "*Buchung*" and not any(z.startswith("🏷️") for z in zeilen) and "🔖" not in leer
+    assert not any(z.startswith(("🏷️", "Kategorie")) for z in zeilen) and "Tags:" not in leer
     assert zeilen[-1] == LINK and zeilen[-2] == ""
 
 
