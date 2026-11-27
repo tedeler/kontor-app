@@ -4909,3 +4909,18 @@ Anlass: Klick auf einen Punkt unter `/sicherung` brauchte auf dem Server 10–20
   Sie scrollt dort waagrecht (dünne Bildlaufleiste), der gewählte Zeitraum wird sichtbar gehalten; die Seite selbst
   scrollt nicht waagrecht (`tests/test_browser_tabellenbreite.py`).
 - **Prüfung:** `tests/core/test_kategorien_uebersicht.py` (ergänzt), `tests/test_browser_kategorien_uebersicht.py`.
+
+
+## D-316 Nachweis als PDF: Kontoinhaber aus den Kontoeigenschaften, ohne Rückfrage (Feature `nachweis-inhaber`, 2026-11-27)
+
+- **Anlass (Auftraggeber):** Konten haben seit D-312 die Eigenschaft Kontoinhaber; der Nachweis (D-303, D-311) soll
+  nicht mehr nach dem Inhaber fragen, sondern ihn von dort nehmen.
+- **Server:** Parameter `inhaber` von `GET /api/export/nachweis.pdf` entfällt (jetzt unbekannter Parameter → 422).
+  Inhaber = Eigenschaft des Kontos als „Vorname Nachname“; fehlt sie, wie bisher der von der Bank gemeldete Inhaber,
+  sonst „–“. Im Buchungsnachweis einer Kategorie die Inhaber der beteiligten Bankkonten, verschiedene durch Komma
+  getrennt (vorher: erster von der Bank gemeldeter Inhaber).
+- **Oberfläche:** Der Dialog `nachweis-dialog` entfällt; `v p`, `km-nachweis` und die Befehlspalette laden die Datei
+  direkt herunter (Meldung bei Erfolg, Fehler als Meldung). Eintrag ohne „…“, weil kein Dialog mehr folgt.
+- `GET /api/export/nachweis/angaben` bleibt (gleiche Ableitung), wird von der Oberfläche nicht mehr benutzt.
+- **Tests:** angepasst `tests/core/test_nachweis_pdf.py`, `tests/core/test_kategorien_uebersicht.py`,
+  `tests/test_nachweis_pdf_eigen.py`, `tests/test_browser_nachweis_pdf.py` (`tests/core/AENDERUNGEN.md`).

@@ -2,7 +2,7 @@
  * Inline-Bearbeitung, Kontextmenü, Drag and Drop auf Kategorien, Panels (15) und Gesten (16.4). */
 import {
   BESTAND, STATUS_TEXT, abfrage, aktion, anhaengen, api, baumFolge, betragEingabe, betragEl, betragLesen, betragText, datumEl,
-  datumText, h, kategorien, klasse,
+  datumText, fehlerMelden, h, kategorien, klasse,
   kontoNach, ausdruckPfad, kontoPfad, melde, nameAnzeige, neueId, oberflaeche, personBestaetigt, personLesen, personTag, personVonTag, pfadVon,
   rueckgaengig, stamm, stapelStand, tagHolen, tid, vorzeichen,
 } from "./kern.js";
@@ -263,7 +263,7 @@ const KUERZEL = [
   ["v", "s", "Spaltenbreiten an den Inhalt anpassen", (s) => s.spalteAnpassen(s.spalten.map(([f]) => f))],
   ["v", "0", "Spaltenbreiten zurücksetzen", (s) => s.spaltenZuruecksetzen()],
   ["v", "e", "Konto-Einstellungen…", (s) => kontoEinstellungen(s.konto, tid("konto-einstellungen-oeffnen", s.seite))],
-  ["v", "p", "Nachweis als PDF (markierte Buchungen)…", (s) => s.mitZielen((ids, el) => s.nachweisDialog(ids, el)), "nachweis"],
+  ["v", "p", "Nachweis als PDF (markierte Buchungen)", (s) => s.mitZielen((ids) => s.nachweisErstellen(ids)), "nachweis"],
 ];
 const VORTASTEN = { f: "Filter", v: "Ansicht" };
 const SONDERPOSTEN = "Sonderposten";   // D-300
@@ -2913,8 +2913,8 @@ class Kontoansicht {
       this.sonderpostenEintrag(ids),
       this.filterEintrag(b),
       { tid: "km-mehrfach", kuerzel: "e", text: "Bearbeiten…", tun: () => this.mehrfachDialog(ids, ausloeser) },
-      this.nachweisMoeglich ? { tid: "km-nachweis", kuerzel: "v p", text: "Nachweis als PDF…",
-        tun: () => this.nachweisDialog(ids, ausloeser) } : null,
+      this.nachweisMoeglich ? { tid: "km-nachweis", kuerzel: "v p", text: "Nachweis als PDF",
+        tun: () => this.nachweisErstellen(ids) } : null,
       this.gegenbuchungEintrag(b, x, y, ausloeser),
       // Dokumente (D-123): an alle gewählten Buchungen
       { tid: "km-dokument-anhaengen", kuerzel: "m", text: "Dokument anhängen…", tun: () => dateiWaehlen(ids) },
@@ -3390,45 +3390,24 @@ class Kontoansicht {
   }
 
   // ---------------------------------------------------------------- Verschieben (D-110)
-  /** Nachweis der markierten Buchungen als PDF im Stil eines Kontoauszugs (D-303): Kontoinhaber vorbelegt aus den
-   *  Kontodaten der Bank, änderbar; die Datei wird heruntergeladen. */
-  async nachweisDialog(ids, ausloeser) {
+  /** Nachweis der markierten Buchungen als PDF im Stil eines Kontoauszugs (D-303); der Kontoinhaber kommt aus den
+   *  Eigenschaften des Kontos, ohne Rückfrage (D-316). Die Datei wird heruntergeladen. */
+  async nachweisErstellen(ids) {
     if (!this.nachweisMoeglich) { melde("hinweis", "Ein Nachweis ist nur im Kontoblatt eines Bankkontos oder einer Kategorie möglich."); return; }
     const sortiert = ids.slice().sort((a, b) => a - b);
     if (!sortiert.length) { melde("hinweis", "Bitte zuerst Buchungen markieren."); return; }
-    let vorgabe = { inhaber: "", bic: null };
-    try { vorgabe = await api("GET", "/api/export/nachweis/angaben" + abfrage({ konto_id: this.konto.id })); }
-    catch (e) { /* ohne Vorbelegung */ }
-    dialog("nachweis-dialog", "Nachweis als PDF", (inhalt, d) => {
-      const inhaber = h("input", { type: "text", tid: "nachweis-inhaber", maxlength: "200", autocomplete: "off",
-        value: vorgabe.inhaber || "" });
-      const ok = knopf("PDF erstellen", { tid: "nachweis-ok", class: "knopf knopf-haupt" });
-      ok.addEventListener("click", () => imDialog(d, ok, async () => {
-        const r = await api("GET", "/api/export/nachweis.pdf" + abfrage({ konto_id: this.konto.id, buchung_id: sortiert,
-          inhaber: inhaber.value.trim() || null }), undefined, { roh: true });
-        const name = /filename="([^"]+)"/.exec(r.headers.get("Content-Disposition") || "");
-        const url = URL.createObjectURL(await r.blob());
-        const a = h("a", { href: url, download: name ? name[1] : "kontor-nachweis.pdf", hidden: true });
-        document.body.append(a);
-        a.click();
-        a.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 60000);
-        d.schliessen(true);
-        melde("erfolg", "Nachweis erstellt.");
-      }));
-      const anzahl = sortiert.length === 1 ? "1 markierte Buchung" : `${sortiert.length} markierte Buchungen`;
-      inhalt.append(
-        h("p", { tid: "nachweis-umfang" }, `${anzahl} aus „${this.konto.name}“.`),
-        feld("Kontoinhaber", inhaber, "Vorbelegt aus den Kontodaten der Bank."),
-        h("p", { class: "hinweis" }, this.istKategorie
-          ? "Der Nachweis zeigt Datum, Empfänger, Verwendungszweck und den Anteil der Kategorie aus Sicht des Bankkontos, "
-            + "je Buchung das Bankkonto mit gekürzter IBAN und am Ende die Summe. Er weist sich als Auszug aus Kontor aus; "
-            + "Buchungen, die nicht von der Bank stammen oder danach geändert wurden, sind gekennzeichnet."
-          : "Der Nachweis zeigt Datum, Empfänger, Verwendungszweck und Betrag der Buchungen, "
-            + "die Summe und eine gekürzte IBAN, aber keine Kontostände. Er weist sich als Auszug aus Kontor aus; "
-            + "Buchungen, die nicht von der Bank stammen oder danach geändert wurden, sind gekennzeichnet."),
-        knopfLeiste(ok, knopf("Abbrechen", { onclick: () => d.schliessen(null) })));
-    }, { ausloeser });
+    try {
+      const r = await api("GET", "/api/export/nachweis.pdf" + abfrage({ konto_id: this.konto.id, buchung_id: sortiert }),
+        undefined, { roh: true });
+      const name = /filename="([^"]+)"/.exec(r.headers.get("Content-Disposition") || "");
+      const url = URL.createObjectURL(await r.blob());
+      const a = h("a", { href: url, download: name ? name[1] : "kontor-nachweis.pdf", hidden: true });
+      document.body.append(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      melde("erfolg", sortiert.length === 1 ? "Nachweis für 1 Buchung erstellt." : `Nachweis für ${sortiert.length} Buchungen erstellt.`);
+    } catch (e) { fehlerMelden(e); }
   }
 
   async verschiebenDialog(ids, ausloeser) {

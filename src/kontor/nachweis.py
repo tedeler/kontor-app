@@ -20,7 +20,6 @@ from . import __version__, bankumsatz, bankzugang, buch
 from .validierung import ApiFehler
 
 MAX_BUCHUNGEN = 500
-MAX_INHABER = 200
 
 HINWEIS = ("Auszug aus der Homebanking-Software Kontor – kein Dokument der Bank. Enthalten sind nur ausgewählte "
            "Buchungen; die IBAN ist gekürzt.")
@@ -277,17 +276,34 @@ def _konto(con, konto_id: int) -> dict:
     return k
 
 
+def inhaber_text(konto: dict) -> str:
+    """Kontoinhaber aus den Eigenschaften des Kontos (D-312) als „Vorname Nachname“, sonst leer."""
+    i = konto.get("inhaber") or {}
+    return " ".join(t for t in (str(i.get("vorname") or "").strip(), str(i.get("nachname") or "").strip()) if t)
+
+
 def angaben(con, konto_id: int) -> dict:
-    """Vorbelegung des Dialogs: Kontoinhaber und BIC aus den Kontodaten, die die Bank gemeldet hat. Für eine Kategorie
-    (D-311) der erste bekannte Kontoinhaber eines Bankkontos, ohne BIC."""
+    """Kontoinhaber und BIC für den Nachweis (D-316): der Inhaber aus den Eigenschaften des Kontos, ersatzweise aus den
+    Kontodaten, die die Bank gemeldet hat; die BIC aus diesen. Für eine Kategorie (D-311) die Inhaber der Bankkonten
+    (verschiedene durch Komma getrennt), ohne BIC."""
     k = _konto(con, konto_id)
     gemeldet = bankzugang.konten(con)
     if k["art"] in KATEGORIE:
-        ibans = {r["iban"] for r in con.execute("SELECT iban FROM konto WHERE iban IS NOT NULL AND iban != ''")}
-        inhaber = next((str(x["inhaber"]) for x in gemeldet if x.get("iban") in ibans and x.get("inhaber")), "")
-        return {"inhaber": inhaber, "bic": None}
+        konten = [buch.konto_lesen(con, r["id"]) for r in con.execute(
+            f"SELECT id FROM konto WHERE art IN ({buch._platzhalter(len(buch.BESTAND))}) ORDER BY id", buch.BESTAND)]
+        return {"inhaber": _inhaber_mehrerer(konten, gemeldet), "bic": None}
     bank = next((x for x in gemeldet if k["iban"] and x.get("iban") == k["iban"]), {})
-    return {"inhaber": str(bank.get("inhaber") or ""), "bic": bank.get("bic") or None}
+    return {"inhaber": inhaber_text(k) or str(bank.get("inhaber") or ""), "bic": bank.get("bic") or None}
+
+
+def _inhaber_mehrerer(konten: list[dict], gemeldet: list[dict]) -> str:
+    namen: list[str] = []
+    for k in konten:
+        bank = next((x for x in gemeldet if k["iban"] and x.get("iban") == k["iban"]), {})
+        n = inhaber_text(k) or str(bank.get("inhaber") or "")
+        if n and n not in namen:
+            namen.append(n)
+    return ", ".join(namen)
 
 
 _FELDER = (("datum", "Datum"), ("empfaenger", "Empfänger"), ("verwendungszweck", "Verwendungszweck"),
@@ -313,11 +329,11 @@ def hinweis(con, b: dict, konto: dict) -> str:
 _KONTOART = {"girokonto": "Girokonto", "sparkonto": "Sparkonto", "kreditkonto": "Kreditkonto"}
 
 
-def erstellen(con, konto_id: int, ids: list[int], inhaber: str | None, heute: str) -> bytes:
+def erstellen(con, konto_id: int, ids: list[int], heute: str) -> bytes:
     konto = _konto(con, konto_id)
     ids = list(dict.fromkeys(buch.sichere_id(i) for i in ids))
     if konto["art"] in KATEGORIE:
-        return _kategorie_erstellen(con, konto, ids, inhaber, heute)
+        return _kategorie_erstellen(con, konto, ids, heute)
     geladen = {b["id"]: b for b in buch.buchungen_laden(con, ids, konto_id=konto_id)}
     fehlend = [i for i in ids if i not in geladen]
     if fehlend:
@@ -330,7 +346,7 @@ def erstellen(con, konto_id: int, ids: list[int], inhaber: str | None, heute: st
     zeilen = [{"datum": b["datum"], "empfaenger": (b["empfaenger"] or {}).get("name", ""),
                "verwendungszweck": b["verwendungszweck"], "betrag": b["betrag"], "hinweis": hinweis(con, b, konto)}
               for b in sorted(geladen.values(), key=lambda x: (x["datum"], x["id"]))]
-    return pdf_bytes(inhaber=vorgabe["inhaber"] if inhaber is None else inhaber, iban=konto["iban"] or "",
+    return pdf_bytes(inhaber=vorgabe["inhaber"], iban=konto["iban"] or "",
                      bic=vorgabe["bic"], kontoart=_KONTOART[konto["art"]], datum=heute, buchungen=zeilen)
 
 
@@ -356,7 +372,7 @@ def _pfad(con, konto: dict) -> str:
     return " › ".join(reversed(teile))
 
 
-def _kategorie_erstellen(con, konto: dict, ids: list[int], inhaber: str | None, heute: str) -> bytes:
+def _kategorie_erstellen(con, konto: dict, ids: list[int], heute: str) -> bytes:
     """Buchungsnachweis einer Kategorie (D-311)."""
     menge = _teilbaum(con, konto)
     geladen = {b["id"]: b for b in buch.buchungen_laden(con, ids, konten=menge)}
@@ -386,10 +402,13 @@ def _kategorie_erstellen(con, konto: dict, ids: list[int], inhaber: str | None, 
         zeilen.append({"datum": b["datum"], "empfaenger": (b["empfaenger"] or {}).get("name", ""),
                        "verwendungszweck": b["verwendungszweck"], "betrag": anteil, "hinweis": text,
                        "zusatz": zusatz})
-    vorgabe = angaben(con, konto["id"])
+    # D-316: Inhaber der beteiligten Bankkonten; ist keines beteiligt, die aller Bankkonten
+    beteiligt = [buch.konto_lesen(con, i) for i in sorted(benutzt)]
+    inhaber = (_inhaber_mehrerer(beteiligt, bankzugang.konten(con)) if beteiligt
+               else angaben(con, konto["id"])["inhaber"])
     konten = ", ".join(k["name"] for k in sorted(benutzt.values(), key=lambda k: k["name"].casefold()))
-    return pdf_bytes(inhaber=vorgabe["inhaber"] if inhaber is None else inhaber, iban="", bic=None, kontoart="",
+    return pdf_bytes(inhaber=inhaber, iban="", bic=None, kontoart="",
                      datum=heute, buchungen=zeilen, kategorie={"pfad": _pfad(con, konto), "konten": konten})
 
 
-__all__ = ["pdf_bytes", "iban_maskiert", "betrag_text", "angaben", "hinweis", "erstellen", "HINWEIS"]
+__all__ = ["pdf_bytes", "iban_maskiert", "betrag_text", "angaben", "inhaber_text", "hinweis", "erstellen", "HINWEIS"]

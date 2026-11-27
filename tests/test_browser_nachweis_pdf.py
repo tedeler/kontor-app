@@ -38,20 +38,18 @@ def test_v_p_und_kontextmenue(tmp_path, browser):  # noqa: F811
     with server(tmp_path, daten=False, mock_heute=dt.date(2026, 6, 20)) as (url, _), \
             seite(browser, url, **DESKTOP) as page:
         giro, kat, ids = _welt(url)
+        with httpx.Client(trust_env=False) as c:
+            r = c.patch(f"{url}/api/konten/{giro}", json={"inhaber": {"vorname": "Erika", "nachname": "Mustermann (fiktiv)"}})
+            assert r.status_code == 200, r.text
         page.goto(f"{url}/konten/{giro}")
         bereit(page, "konto")
         # zwei Buchungen markieren, dann v p
         tid(page, f"buchung-{ids[0]}").locator('[data-feld="datum"]').click()
         tid(page, f"buchung-{ids[2]}").locator('[data-feld="datum"]').click(modifiers=["Control"])
-        page.keyboard.press("v")
-        page.keyboard.press("p")
-        dlg = tid(page, "nachweis-dialog")
-        expect(dlg).to_be_visible()
-        expect(tid(page, "nachweis-umfang")).to_contain_text("2 markierte Buchungen")
-        expect(tid(page, "nachweis-inhaber")).to_be_focused()
-        tid(page, "nachweis-inhaber").fill("Erika Mustermann (fiktiv)")
+        # D-316: ohne Rückfrage, Kontoinhaber aus den Eigenschaften des Kontos
         with page.expect_download() as info:
-            tid(page, "nachweis-ok").click()
+            page.keyboard.press("v")
+            page.keyboard.press("p")
         dl = info.value
         assert dl.suggested_filename == "kontor-nachweis-20260620.pdf"
         t = _pdf_text(dl)
@@ -59,23 +57,22 @@ def test_v_p_und_kontextmenue(tmp_path, browser):  # noqa: F811
         assert "Miete 04/2026" in t and "Miete 06/2026" in t and "Miete 05/2026" not in t
         assert "Summe der 2 ausgewählten Buchungen" in t and "-1.960,00" in t
         assert "DE57 XXXX XXXX XXXX XXXX 1009" in t
-        expect(dlg).to_have_count(0)
+        expect(page.get_by_text("Nachweis für 2 Buchungen erstellt.")).to_be_visible()
+        expect(tid(page, "nachweis-dialog")).to_have_count(0)
         # Kontextmenü auf einer Buchung
         tid(page, f"buchung-{ids[1]}").locator('[data-feld="datum"]').click()
         tid(page, f"buchung-{ids[1]}").click(button="right")
-        tid(page, "km-nachweis").click()
-        expect(tid(page, "nachweis-umfang")).to_contain_text("1 markierte Buchung")
-        page.keyboard.press("Escape")
-        expect(tid(page, "nachweis-dialog")).to_have_count(0)
+        with page.expect_download() as info:
+            tid(page, "km-nachweis").click()
+        assert "Miete 05/2026" in _pdf_text(info.value)
         # D-311: auch im Kontoblatt einer Kategorie, als „Buchungsnachweis“
         page.goto(f"{url}/konten/{kat}")
         bereit(page, "konto")
         tid(page, f"buchung-{ids[1]}").locator('[data-feld="datum"]').click()
         tid(page, f"buchung-{ids[1]}").click(button="right")
-        tid(page, "km-nachweis").click()
-        expect(tid(page, "nachweis-umfang")).to_contain_text("1 markierte Buchung")
         with page.expect_download() as info:
-            tid(page, "nachweis-ok").click()
+            tid(page, "km-nachweis").click()
         t = _pdf_text(info.value)
+        assert "Erika Mustermann (fiktiv)" in t
         assert "Buchungsnachweis" in t and "Miete NW" in t and "Miete 05/2026" in t and "-980,00" in t
         assert "Giro NW · DE57 XXXX XXXX XXXX XXXX 1009" in t
