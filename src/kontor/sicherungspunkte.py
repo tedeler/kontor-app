@@ -866,7 +866,7 @@ def faellig(config: KontorConfig, jetzt: dt.datetime) -> bool:
 
 
 class Stundenlauf:
-    """D-306: Der Dienst selbst legt stündlich den Sicherungspunkt an (unabhängig vom systemd-Timer, dessen Unit
+    """D-307: Der Dienst selbst legt stündlich den Sicherungspunkt an (unabhängig vom systemd-Timer, dessen Unit
     ein Update nicht erneuert). Doppelte Läufe mit dem Timer sind harmlos: Dateisperre und Regel 3.1."""
 
     TAKT = 60.0

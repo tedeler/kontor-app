@@ -427,7 +427,7 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
         # Der Planer-Thread startet nur im ASGI-Lifespan, nie in create_app (synchronisation.md 9).
         sync.planer_starten()
         updates.starten()
-        if config.planer_starten and config.sicherung_im_dienst:   # D-306: stündliche Sicherungspunkte
+        if config.planer_starten and config.sicherung_im_dienst:   # D-307: stündliche Sicherungspunkte
             stundenlauf.starten()
         try:
             yield

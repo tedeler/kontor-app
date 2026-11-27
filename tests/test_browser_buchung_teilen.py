@@ -44,12 +44,17 @@ def test_teilen_ueber_das_geraet_und_link_oeffnet_die_buchung(tmp_path, browser)
         tid(page, "km-teilen").click()
         page.wait_for_function("() => window.__geteilt.length === 1")
         text = page.evaluate("() => window.__geteilt[0].text")
-        assert text.splitlines() == [
-            "Buchung vom 10.11.2026",
-            "Markt Beispiel (fiktiv): -1.234,56 €",
-            "Kategorie: Lebensmittel",
-            "Verwendungszweck: Einkauf Woche 2",
-            "Konto: Giro Teilen",
+        # Gestaltung für WhatsApp (D-306)
+        assert text.split("\n") == [
+            "*Markt Beispiel (fiktiv)*",
+            "*\u22121.234,56\u00a0€* · Ausgabe",
+            "",
+            "📅 Di, 10.11.2026",
+            "🏦 Giro Teilen",
+            "🏷️ Lebensmittel",
+            "",
+            "> Einkauf Woche 2",
+            "",
             f"{url}/konten/{giro}?buchung={ids[1]}",
         ]
         assert page.evaluate("() => window.__kopiert.length") == 0
@@ -78,3 +83,21 @@ def test_ohne_teilen_funktion_in_die_zwischenablage(tmp_path, browser):  # noqa:
         assert page.evaluate("() => window.__kopiert[0]").endswith(f"/konten/{giro}?buchung={ids[0]}")
         assert page.evaluate("() => window.__geteilt.length") == 0
         expect(page.get_by_text("Kurztext und Link in die Zwischenablage kopiert.")).to_be_visible()
+
+
+def test_aus_der_kategorie_aus_sicht_des_bankkontos(tmp_path, browser):  # noqa: F811
+    """In der Kategorieansicht nennt der Text das Bestandskonto und den Betrag, wie das Konto ihn zeigt (D-306)."""
+    with server(tmp_path, daten=False) as (url, _), seite(browser, url, **DESKTOP) as page:
+        page.add_init_script(ATTRAPPE)
+        giro, ids = _welt(url)
+        with httpx.Client(trust_env=False) as c:
+            kat = next(k["id"] for k in c.get(url + "/api/konten").json() if k["name"] == "Lebensmittel")
+        page.goto(f"{url}/konten/{kat}")
+        bereit(page, "konto")
+        tid(page, f"buchung-{ids[0]}").click(button="right")
+        tid(page, "km-teilen").click()
+        page.wait_for_function("() => window.__geteilt.length === 1")
+        zeilen = page.evaluate("() => window.__geteilt[0].text").split("\n")
+        assert zeilen[1] == "*−1.234,56 €* · Ausgabe"
+        assert "🏦 Giro Teilen" in zeilen and "🏷️ Lebensmittel" in zeilen
+        assert zeilen[-1] == f"{url}/konten/{kat}?buchung={ids[0]}"

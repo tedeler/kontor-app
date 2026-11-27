@@ -4704,7 +4704,26 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   (`TESTUMBAU.md`).
 
 
-## D-306 Stündliche Sicherung im Dienst, Prüfungen sichtbar, Tags nicht mehr in den Einstellungen (Feature `sicherung-nachzug`, 2026-11-27)
+## D-306 Gestaltung des Teilen-Texts für WhatsApp (Feature `teilen-format`, 2026-11-27)
+
+- **Anlass (Auftraggeber):** Der Kurztext aus D-304 ist unübersichtlich: Der Verwendungszweck steht als langer Block,
+  der Betrag geht unter. Gewünscht ist eine Gestaltung mit der Textauszeichnung von WhatsApp, die gut aussieht.
+- **Kein Bild** (Auftraggeber): Mit Bild verwirft WhatsApp oft den Begleittext und damit den Link; der klickbare Link
+  ist wichtiger.
+- **Form** (`oberflaeche.md` 50, ersetzt die Zeilen aus D-304): Empfänger und Betrag fett, Art der Buchung, dann
+  Datum mit Wochentag, Konto, Kategorie und Tags je eine Zeile mit Symbol, der lesbare Teil des Verwendungszwecks
+  als Zitat (Zerlegung aus D-175, ohne SEPA-Kennungen), zuletzt allein der Link. Leere Angaben entfallen samt Zeile.
+- **Kategorieansicht:** Konto und Betrag aus Sicht der Bestandskonten, damit der Empfänger der Nachricht die Buchung
+  so sieht wie auf dem Kontoauszug.
+- **Auszeichnungszeichen** aus dem Buchbestand werden durch ähnlich aussehende Zeichen ersetzt; unsichtbare Trenner
+  verhindern die Auszeichnung nicht in allen Fassungen von WhatsApp.
+- **Umsetzung** als reine Funktion `teilenText` in `app/teilen.js` (ohne DOM, über Node prüfbar). Weitergabe,
+  Zwischenablage und Kopierfenster unverändert. Kein neuer Endpunkt, kein Zustand.
+- **Tests:** `tests/core/test_teilen_format.py`; angepasst `tests/test_browser_buchung_teilen.py` (neue Form, neuer
+  Fall Kategorieansicht; `TESTUMBAU.md`).
+
+
+## D-307 Stündliche Sicherung im Dienst, Prüfungen sichtbar, Tags nicht mehr in den Einstellungen (Feature `sicherung-nachzug`, 2026-11-27)
 
 - **Befund des Auftraggebers:** Auf dem Server entstanden nach dem Update auf 0.67 keine stündlichen Punkte, und es
   gab keinen Hinweis, wenn sich nichts geändert hatte.

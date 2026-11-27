@@ -188,7 +188,7 @@ class KontorConfig:
     sicherung_wochen: int = 26
     sicherung_monate: int = 24
     protokoll_stunden: int = 1
-    sicherung_im_dienst: bool = True   # D-306: der Dienst legt die Stundenpunkte selbst an
+    sicherung_im_dienst: bool = True   # D-307: der Dienst legt die Stundenpunkte selbst an
 
     def __post_init__(self) -> None:
         setze = object.__setattr__

@@ -162,7 +162,7 @@ Antwort 200:
 
 ## 8. Betrieb
 
-- **D-306: Der Dienst selbst** (`kontor.service`) prüft jede Minute, ob für die laufende Stunde schon eine Prüfung
+- **D-307: Der Dienst selbst** (`kontor.service`) prüft jede Minute, ob für die laufende Stunde schon eine Prüfung
   vorliegt, und führt sonst den stündlichen Lauf aus (nur mit `planer_starten`, abschaltbar mit
   `KONTOR_SICHERUNG_IM_DIENST=0`). Grund: Ein Update erneuert die installierten systemd-Units nicht; ein Server mit
   der Unit von vor D-302 ruft weiter täglich den alten Aufruf auf. Dieser alte Aufruf legt zusätzlich einen

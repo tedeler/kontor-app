@@ -3152,7 +3152,7 @@ genannt ist, ist Vertrag.
   Angaben zur Instanz), `bank` (Bankzugang, PIN), `mail` (Postfächer, Abruf,
   OAuth-Client-Secret), `benachrichtigungen` (Zustellung, Test, ntfy-Token),
   `sicherheit` (Anmeldung, Abmelden, Passwort, Schutz der Geheimnisse),
-  `daten` (Datensicherung und Sicherungspunkte; die Tags stehen seit D-306 nur noch auf `/tags`). Der Abschnitt „Geheimnisse“ entfällt; jedes
+  `daten` (Datensicherung und Sicherungspunkte; die Tags stehen seit D-307 nur noch auf `/tags`). Der Abschnitt „Geheimnisse“ entfällt; jedes
   Geheimnis steht bei seiner Aufgabe.
 - Adresse `/einstellungen?bereich=<name>`; unbekannter Wert wie ohne Angabe.
   Gezeigt wird genau ein Bereich (die übrigen sind im Dokument, aber
@@ -3622,7 +3622,7 @@ Befehlspalette (jetzt nur Kürzel, die es auf dem Blatt gibt).
   Name bzw. Zusammenfassung der Änderungen (`punkt-oeffnen-<kennung>`), Größe (`punkt-groesse-<kennung>`),
   „geprüft“, „angeheftet“, „entspricht dem aktuellen Stand“, „vorwärts“, „verlassener Verlauf“ und dem Link
   `punkt-laden-<kennung>`. Zwischen Punkten eines Tages mit mehr als einer Stunde Abstand „HH:MM–HH:MM unverändert“.
-  Pfeiltasten wechseln zwischen den Punkten. D-306: Prüfungen ohne Änderung erscheinen als Zeile `.sp-pruefung`
+  Pfeiltasten wechseln zwischen den Punkten. D-307: Prüfungen ohne Änderung erscheinen als Zeile `.sp-pruefung`
   („HH:MM geprüft – keine Änderung“, aufeinanderfolgende zusammengefasst mit Anzahl, `data-anzahl`); sie ersetzen die
   frühere Lückenangabe. Die Kachel `sicherung-stand` nennt „Zuletzt geprüft … – keine Änderung“. Der Stand des
   Einstellungsbereichs `daten` nennt die letzte Sicherung bzw. „Stündliche Sicherung läuft nicht“ (`fehler`, älter als
@@ -3635,12 +3635,25 @@ Befehlspalette (jetzt nur Kürzel, die es auf dem Blatt gibt).
 
 - Das Kontextmenü jeder Buchungszeile der Kontoansicht (Konto und Kategorie, Desktop und mobil) hat direkt vor
   „Löschen…“ (`km-loeschen`) den Eintrag `km-teilen` „Teilen…“, aktiv bei genau einer gewählten Buchung. Keine Taste.
-- Kurztext, Zeilen getrennt durch Zeilenumbruch: „Buchung vom TT.MM.JJJJ“, „<Empfänger>: <Betrag>“ (ohne Empfänger
-  „Ohne Empfänger“, Betrag wie in der Liste mit gewöhnlichem Leerzeichen vor „€“), „Kategorie: <Text der Spalte
-  Kategorie>“, „Verwendungszweck: <Text>“ (Leerraum zusammengefasst, über 140 Zeichen gekürzt mit „…“, fehlt bei
-  leerem Zweck), „Konto: <Name der angezeigten Ansicht>“, zuletzt der Link
-  `<Ursprung>/konten/<id der angezeigten Ansicht>?buchung=<id>` (Sprungziel D-118: öffnet die Ansicht mit markierter
-  Buchung).
+- Kurztext (D-306, ersetzt die frühere Form aus D-304), gesetzt mit der Auszeichnung von WhatsApp, Zeilen getrennt
+  durch Zeilenumbruch:
+  1. `*<Empfänger>*` (ohne Empfänger `*Buchung*`),
+  2. `*<Betrag>* · <Art>`: Betrag wie in der Liste mit Vorzeichen „−“ (U+2212) oder „+“ und geschütztem Leerzeichen
+     vor „€“; Art „Ausgabe“, „Einnahme“ oder „Umbuchung“ (Buchung ohne Kategorie und ohne Gegensplit auf eine
+     Kategorie),
+  3. Leerzeile, dann je eine Zeile „📅 <Wochentag>, TT.MM.JJJJ“ (Wochentag zweibuchstabig), „🏦 <Konto>“,
+     „🏷️ <Text der Spalte Kategorie>“ (mehrere Gegensplits: „Gesplittet (n)“; fehlt ohne Text) und „🔖 <Tags>“
+     (durch Komma getrennt; fehlt ohne Tags),
+  4. Leerzeile und „> <Verwendungszweck>“: nur der lesbare Teil wie in den Einzelheiten (D-175, ohne SEPA-Kennungen,
+     Referenzen, Karte), Teile durch „ · “ getrennt, Leerraum zusammengefasst, über 140 Zeichen gekürzt mit „…“; fehlt,
+     wenn er leer ist oder nur den Empfänger wiederholt (ohne Rücksicht auf Groß-/Kleinschreibung),
+  5. Leerzeile und allein in der letzten Zeile der Link `<Ursprung>/konten/<id der angezeigten Ansicht>?buchung=<id>`
+     (Sprungziel D-118: öffnet die Ansicht mit markierter Buchung).
+- Konto und Betrag: in der Ansicht eines Bestandskontos dessen Name und der Betrag der Liste; in einer
+  Kategorieansicht die Bestandskonten der Buchung (Pfade, durch Komma getrennt) und die Summe ihrer Splits. Ohne
+  Bestandskonto gilt die angezeigte Ansicht.
+- Texte aus dem Buchbestand lösen keine Auszeichnung aus: „*“, „_“, „~“ und „`“ darin werden durch „∗“ (U+2217),
+  „ˍ“ (U+02CD), „∼“ (U+223C) und „ˋ“ (U+02CB) ersetzt. Kein Bild; der Link bleibt klickbar.
 - Weitergabe: `navigator.share({text})` (Teilen-Auswahl des Geräts, z. B. WhatsApp); Abbrechen dort ohne Meldung.
   Ohne diese Funktion oder bei einem anderen Fehler `navigator.clipboard.writeText` mit der Meldung „Kurztext und
   Link in die Zwischenablage kopiert.“; geht auch das nicht, zeigt `teilen-dialog` den Text in `teilen-text`

@@ -181,7 +181,7 @@ function eineZeile(p, oeffnen) {
       tid: `punkt-laden-${p.kennung}`, "aria-label": `Sicherungspunkt ${punktText(p)} herunterladen` }, "Herunterladen")));
 }
 
-/** Prüfungen ohne Änderung (D-306): aufeinanderfolgende zu einer Zeile zusammengefasst. */
+/** Prüfungen ohne Änderung (D-307): aufeinanderfolgende zu einer Zeile zusammengefasst. */
 function pruefZeile(gruppe) {
   const neu = gruppe[0].zeitpunkt;
   const alt = gruppe[gruppe.length - 1].zeitpunkt;

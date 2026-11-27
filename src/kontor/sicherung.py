@@ -953,7 +953,7 @@ def main(argv: list[str] | None = None) -> int:
         print("Fehler: Die Sicherung ist fehlgeschlagen.", file=sys.stderr)
         return 1
     print(pfad)
-    # D-306: Ein Server mit der Unit vor D-302 (ein Update erneuert die Units nicht) ruft weiter diesen Aufruf auf;
+    # D-307: Ein Server mit der Unit vor D-302 (ein Update erneuert die Units nicht) ruft weiter diesen Aufruf auf;
     # er legt deshalb zusätzlich einen Sicherungspunkt in derselben Ablage an. Scheitert das, bleibt die ZIP-Datei.
     try:
         import dataclasses

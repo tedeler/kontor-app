@@ -139,7 +139,7 @@ def test_einstellungen_sind_teil_der_sicherung(umgebung):
 
 
 def test_dienst_prueft_stuendlich_und_vermerkt_pruefungen_ohne_aenderung(umgebung):
-    """D-306: Der Dienst selbst legt den Stundenpunkt an; jede Prüfung ohne Änderung erscheint in der Liste."""
+    """D-307: Der Dienst selbst legt den Stundenpunkt an; jede Prüfung ohne Änderung erscheint in der Liste."""
     config, c, buchen = umgebung
     buchen()
     uhr = [T0]

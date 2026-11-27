@@ -96,7 +96,7 @@ export async function einstellungen(seite, _p, suche, kontext) {
     const schutzText = !schutz ? "" : !schutz.aktiv ? " · Geheimnisschutz aus" : schutz.gesperrt ? " · Geheimnisse gesperrt" : " · Geheimnisschutz ein";
     stand("sicherheit", (anmeldung.aktiv ? "Anmeldung aktiv" : "Ohne Anmeldung") + schutzText,
       schutz && schutz.aktiv && schutz.gesperrt ? "offen" : schutz && schutz.aktiv ? "ok" : "neutral");
-    // D-306: Stand der stündlichen Sicherung (Uhr des Servers)
+    // D-307: Stand der stündlichen Sicherung (Uhr des Servers)
     if (!punkte) stand("daten", "Sicherung und Wiederherstellung");
     else if (!punkte.zuletzt_geprueft) stand("daten", "Stündliche Sicherung noch nicht gelaufen", "offen");
     else if (new Date(punkte.jetzt) - new Date(punkte.zuletzt_geprueft) > 2 * 3600000)

@@ -7769,7 +7769,7 @@ components:
         naechster_lauf: {type: string}
         jetzt: {type: string}
         pruefungen:
-          description: "D-306: Prüfungen ohne neuen Punkt der Stundenstufe, neueste zuerst"
+          description: "D-307: Prüfungen ohne neuen Punkt der Stundenstufe, neueste zuerst"
           type: array
           items: {type: object}
         prueflauf:
