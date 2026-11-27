@@ -64,6 +64,8 @@ def test_abruf_im_hintergrund_aktualisiert_das_sichtbare_kontoblatt(tmp_path, br
         bereit(page, "konto")
         expect(tid(page, f"beleg-marke-{bid}")).to_have_count(0)
         tid(page, f"buchung-{bid}").click()                       # die Auswahl bleibt beim Neuladen
+        # keine Abfrage des Stands darf mehr unterwegs sein, sonst merkt sie sich schon den geänderten Stand
+        page.wait_for_load_state("networkidle")
         abgleich.nach_ereignis(config, dt.datetime.now().astimezone())
         assert len(c.get(f"/api/buchungen/{bid}").json()["belege"]) == 1
         page.evaluate("() => document.dispatchEvent(new Event('visibilitychange'))")

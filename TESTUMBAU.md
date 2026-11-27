@@ -166,3 +166,6 @@ Stabilität: Nach den Änderungen lief der Browser-Teil der Gesamtsuite viermal 
 | eigene `test_browser_buchung_teilen.py` | D-310: Beschriftung nach den Symbolen im Teilen-Text | erwartete Zeilen mit „Datum:“, „Konto:“, „Kategorie:“ |
 | `spec/test_openapi.py::test_m8_schemas`, `::test_m32_schemas`, eigene `test_m6_eigen.py::test_sicherung_der_schemaversion_2_…` | D-312: `KontoAenderung` mit `art` und `inhaber`, OpenAPI 2.26.0, Sicherung Schemaversion 12 | Felder ergänzt; Version „mindestens 2.25.0“; Schemaversion 12 |
 | eigene `test_browser_mail_aktuell.py::test_abruf_im_hintergrund_aktualisiert_das_sichtbare_kontoblatt` | wacklig (D-287-Notiz, rot im CI-Lauf vom 2026-11-27): änderte den Bestand, bevor die Oberfläche den Stand beim Start gemerkt hatte | wartet nach dem Öffnen auf die erste Antwort von `/api/bestand/stand`; Erwartung unverändert |
+- 2026-11-27 (D-313, nach dem Merge): `tests/test_browser_mail_aktuell.py::test_abruf_im_hintergrund_aktualisiert_das_sichtbare_kontoblatt`
+  wartet vor der Änderung des Bestands auf Netzruhe. Sonst konnte eine noch laufende Abfrage `/api/bestand/stand`
+  den geänderten Stand schon als gezeigten merken (in der CI rot, lokal grün). Prüfung unverändert.
