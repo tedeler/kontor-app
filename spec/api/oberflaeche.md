@@ -3398,6 +3398,10 @@ Desktop-Layout (auch mit Touch) ändert sich nichts. Löst 36.3.1, 36.3.2 und 36
 4. **Im Auswahlmodus:** Tippen schaltet die Auswahl der Zeile um (36.3.3); lang tippen nimmt die Zeile in die
    Auswahl und öffnet das Kontextmenü der Auswahl (ohne `km-auswahl`); Wischen auf einer ausgewählten Zeile wirkt
    auf die ganze Auswahl.
+5. **Aussehen der markierten Zeile (D-309):** Die Markierung färbt die Zeile nicht um. Grundton und farbiger
+   Streifen des Status bleiben wie bei nicht markierten Zeilen (importiert rot, vorläufig gelb, bestätigt und
+   abgeglichen ohne Tönung); die Markierung legt einen farbneutralen Schleier und einen 3 px breiten Rahmen in der
+   Akzentfarbe darüber, wie die Auswahl am Desktop (D-269/D-270). Der Streifen liegt innerhalb des Rahmens.
 5. `wisch-hinweis` (36.4.3): Text rechts „✓ Bestätigen“ bzw. „Schon bestätigt“, links „Kategorie …“. Seit D-283
    liegt er als Overlay **über** der gewischten Zeile (gleiche Lage und Höhe, ±1 px), auch in langen Listen mit
    gezeichnetem Ausschnitt; ebenso `wisch-rueckgaengig`. Nach dem Bestätigen (und nach „Rückgängig“ in der Zeile)
