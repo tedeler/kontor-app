@@ -953,6 +953,15 @@ def main(argv: list[str] | None = None) -> int:
         print("Fehler: Die Sicherung ist fehlgeschlagen.", file=sys.stderr)
         return 1
     print(pfad)
+    # D-306: Ein Server mit der Unit vor D-302 (ein Update erneuert die Units nicht) ruft weiter diesen Aufruf auf;
+    # er legt deshalb zusätzlich einen Sicherungspunkt in derselben Ablage an. Scheitert das, bleibt die ZIP-Datei.
+    try:
+        import dataclasses
+
+        from . import sicherungspunkte
+        sicherungspunkte.stunde(dataclasses.replace(config, sicherung_verzeichnis=pathlib.Path(args.verzeichnis)))
+    except Exception:  # noqa: BLE001 - die volle Sicherung ist geschrieben; der Stand zeigt die fehlende Prüfung
+        print("Hinweis: Der Sicherungspunkt konnte nicht angelegt werden.", file=sys.stderr)
     return 0
 
 

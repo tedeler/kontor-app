@@ -6,7 +6,7 @@
  *
  * Alle Bereiche werden einmal aufgebaut; gezeigt wird genau einer (`hidden` an den übrigen). Der gewählte Bereich
  * steht im Abfrageteil (`/einstellungen?bereich=bank`), damit die Einstellungen ein einziger Tab bleiben. */
-import { abfrage, aktion, anmeldung, api, erfolgsmeldung, h, melde, nachName, oberflaeche, passt, stamm, tid, zeitText } from "./kern.js";
+import { abfrage, aktion, anmeldung, api, erfolgsmeldung, h, melde, oberflaeche, passt, tid, zeitText } from "./kern.js";
 import { bestaetigen, dialog, feld, imDialog, knopf, knopfLeiste } from "./ui.js";
 import { layoutZuruecksetzen } from "./konto.js";
 import { bankzugangAbschnitt } from "./bankzugang.js";
@@ -45,7 +45,6 @@ const VERZEICHNIS = [
   ["daten", "sicherungspunkte", "Sicherungspunkte (stündlich, zurück und vorwärts)", "backup wiederherstellen rollback restore stündlich zeitpunkt"],
   ["daten", "sicherung", "Sicherung herunterladen", "backup datensicherung export download"],
   ["daten", "einspielen", "Sicherung einspielen", "backup wiederherstellen restore zuruecksichern datensicherung"],
-  ["daten", "tags", "Tags", "schlagwort label umbenennen loeschen"],
 ];
 
 const abschnitt = (titel, ...inhalt) => h("section", { class: "karte" }, h("h3", null, titel), inhalt);
@@ -65,9 +64,10 @@ export function erweitert(schluessel, inhaltsangabe, inhalt, offen) {
 
 export async function einstellungen(seite, _p, suche, kontext) {
   const still = (versprechen) => versprechen.catch(() => null);
-  const [status, sync, geheim, zust, postfaecher, zugang, schutz] = await Promise.all([api("GET", "/api/status"),
+  const [status, sync, geheim, zust, postfaecher, zugang, schutz, punkte] = await Promise.all([api("GET", "/api/status"),
     api("GET", "/api/sync/status"), api("GET", "/api/geheimnisse"), api("GET", "/api/benachrichtigungen/zustellung"),
-    api("GET", "/api/mail/postfaecher"), api("GET", "/api/bank/zugang"), still(api("GET", "/api/geheimnisse/schutz"))]);
+    api("GET", "/api/mail/postfaecher"), api("GET", "/api/bank/zugang"), still(api("GET", "/api/geheimnisse/schutz")),
+    still(api("GET", "/api/sicherung/punkte"))]);
   seite.append(h("div", { class: "seiten-kopf" }, h("h1", null, "Einstellungen")));
 
   // ---------------------------------------------------------------- Stand je Bereich (Navigation)
@@ -96,7 +96,13 @@ export async function einstellungen(seite, _p, suche, kontext) {
     const schutzText = !schutz ? "" : !schutz.aktiv ? " · Geheimnisschutz aus" : schutz.gesperrt ? " · Geheimnisse gesperrt" : " · Geheimnisschutz ein";
     stand("sicherheit", (anmeldung.aktiv ? "Anmeldung aktiv" : "Ohne Anmeldung") + schutzText,
       schutz && schutz.aktiv && schutz.gesperrt ? "offen" : schutz && schutz.aktiv ? "ok" : "neutral");
-    stand("daten", `Sicherung · ${stamm.tags.length === 1 ? "1 Tag" : `${stamm.tags.length} Tags`}`);
+    // D-306: Stand der stündlichen Sicherung (Uhr des Servers)
+    if (!punkte) stand("daten", "Sicherung und Wiederherstellung");
+    else if (!punkte.zuletzt_geprueft) stand("daten", "Stündliche Sicherung noch nicht gelaufen", "offen");
+    else if (new Date(punkte.jetzt) - new Date(punkte.zuletzt_geprueft) > 2 * 3600000)
+      stand("daten", `Stündliche Sicherung läuft nicht · zuletzt ${zeitText(punkte.zuletzt_geprueft)}`, "fehler");
+    else stand("daten", `Zuletzt gesichert ${zeitText(punkte.zuletzt_geprueft)}`
+      + (punkte.unveraendert ? " · keine Änderung" : ""), "ok");
   };
 
   // ---------------------------------------------------------------- Bereiche
@@ -421,19 +427,6 @@ function daten() {
       einspielen.disabled = !r.geaendert;
     } catch (f) { ausgabe.replaceChildren(h("p", { class: "fehler", role: "alert" }, f.message)); einspielen.disabled = true; }
   } });
-  const tags = stamm.tags.length ? h("ul", null, stamm.tags.slice().sort(nachName).map((t) => h("li", null,
-    `${t.name} (${t.anzahl_buchungen} Buchungen) `,
-    knopf("Umbenennen…", { "aria-label": `Tag ${t.name} umbenennen`, onclick: (e) => dialog("tag-dialog", `Tag „${t.name}“ umbenennen`, (inhalt, d) => {
-      const n = h("input", { type: "text", value: t.name, maxlength: "200" });
-      const ok = knopf("Speichern", { class: "knopf knopf-haupt" });
-      ok.addEventListener("click", () => imDialog(d, ok, () => aktion(() => api("PATCH", `/api/tags/${t.id}`, { name: n.value.trim() }),
-        { stillBeiFehler: true, danach: () => d.schliessen(true), erfolg: "Tag umbenannt." })));
-      inhalt.append(feld("Name", n), knopfLeiste(ok, knopf("Abbrechen", { onclick: () => d.schliessen(null) })));
-    }, { ausloeser: e.currentTarget }) }),
-    knopf("Löschen", { "aria-label": `Tag ${t.name} löschen`, onclick: async (e) => {
-      if (!(await bestaetigen(`Tag „${t.name}“ löschen?`, { ja: "Löschen", ausloeser: e.currentTarget }))) return;
-      try { await aktion(() => api("DELETE", `/api/tags/${t.id}`), { erfolg: "Tag gelöscht." }); } catch (f) { /* gemeldet */ }
-    } })))) : leer("Noch keine Tags.");
   return [
     abschnitt("Datensicherung",
       h("div", { "data-einstellung": "sicherungspunkte" }, h("p", null, "Kontor sichert stündlich, wenn sich etwas geändert hat, "
@@ -444,6 +437,5 @@ function daten() {
       h("p", { class: "klein" }, "Enthält den gesamten Buchbestand, aber keine Geheimnisse (PIN, Passwörter, Tokens).")),
       h("div", { class: "einst-gruppe", "data-einstellung": "einspielen" }, h("h4", null, "Sicherung einspielen"),
         feld("Sicherungsdatei", datei), knopfLeiste(pruefen, einspielen), ausgabe)),
-    h("section", { class: "karte", "data-einstellung": "tags" }, h("h3", null, "Tags"), tags),
   ];
 }

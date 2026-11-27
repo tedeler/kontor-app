@@ -420,15 +420,19 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     zustellung = sync.zustellung
     maildienst = sync.mail
     updates = aktualisierung.UpdateDienst(config)  # D-107: Betriebszustand, nur im Arbeitsspeicher
+    stundenlauf = sicherungspunkte.Stundenlauf(config, sync.jetzt)
 
     @contextlib.asynccontextmanager
     async def lebensdauer(_app):
         # Der Planer-Thread startet nur im ASGI-Lifespan, nie in create_app (synchronisation.md 9).
         sync.planer_starten()
         updates.starten()
+        if config.planer_starten and config.sicherung_im_dienst:   # D-306: stündliche Sicherungspunkte
+            stundenlauf.starten()
         try:
             yield
         finally:
+            await run_in_threadpool(stundenlauf.beenden)
             await run_in_threadpool(updates.beenden)
             # betrieb.md 5.2: Planer anhalten, laufenden Lauf in der Frist beenden, WAL-Checkpoint
             await run_in_threadpool(sync.beenden)

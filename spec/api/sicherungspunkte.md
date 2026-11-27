@@ -162,6 +162,14 @@ Antwort 200:
 
 ## 8. Betrieb
 
+- **D-306: Der Dienst selbst** (`kontor.service`) prüft jede Minute, ob für die laufende Stunde schon eine Prüfung
+  vorliegt, und führt sonst den stündlichen Lauf aus (nur mit `planer_starten`, abschaltbar mit
+  `KONTOR_SICHERUNG_IM_DIENST=0`). Grund: Ein Update erneuert die installierten systemd-Units nicht; ein Server mit
+  der Unit von vor D-302 ruft weiter täglich den alten Aufruf auf. Dieser alte Aufruf legt zusätzlich einen
+  Sicherungspunkt an. Timer und Dienst schließen sich über die Dateisperre und Regel 3.1 aus.
+- Jede Prüfung wird im Stand vermerkt (Stundenstufe, höchstens 400); `GET /api/sicherung/punkte` liefert die
+  Prüfungen ohne neuen Punkt als `pruefungen` (`{zeitpunkt, kennung, neu, marke}`, neueste zuerst).
+
 - Ablage `sicherung_verzeichnis` (`KONTOR_SICHERUNG_VERZEICHNIS`, Vorgabe `sicherungen` neben der Datenbank),
   darin `punkte-echt/` bzw. `punkte-mock/`; Verzeichnisse 0700, Dateien 0600. Nur auf dem Server.
 - `python -m kontor.sicherung stunde [--verzeichnis <pfad>] [--marke vor_update]`: stündlicher Lauf (Punkt bei

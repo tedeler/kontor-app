@@ -188,6 +188,7 @@ class KontorConfig:
     sicherung_wochen: int = 26
     sicherung_monate: int = 24
     protokoll_stunden: int = 1
+    sicherung_im_dienst: bool = True   # D-306: der Dienst legt die Stundenpunkte selbst an
 
     def __post_init__(self) -> None:
         setze = object.__setattr__
@@ -371,6 +372,8 @@ class KontorConfig:
     def _sicherung_pruefen(self) -> None:
         if self.sicherung_verzeichnis is not None and not isinstance(self.sicherung_verzeichnis, pathlib.Path):
             object.__setattr__(self, "sicherung_verzeichnis", pathlib.Path(self.sicherung_verzeichnis))
+        if not isinstance(self.sicherung_im_dienst, bool):
+            raise KonfigurationsFehler("sicherung_im_dienst muss wahr oder falsch sein.", feld="sicherung_im_dienst")
         for feld in SICHERUNG_GANZ:
             w = getattr(self, feld)
             if type(w) is not int or not 0 <= w <= 720:
@@ -577,6 +580,8 @@ def _sicherung_aus_umgebung(wert: Callable[[str], str]) -> dict:
     aus: dict = {}
     if wert("KONTOR_SICHERUNG_VERZEICHNIS"):
         aus["sicherung_verzeichnis"] = pathlib.Path(wert("KONTOR_SICHERUNG_VERZEICHNIS"))
+    if wert("KONTOR_SICHERUNG_IM_DIENST"):
+        aus["sicherung_im_dienst"] = _wahrheitswert(wert("KONTOR_SICHERUNG_IM_DIENST"), "KONTOR_SICHERUNG_IM_DIENST", True)
     for feld in SICHERUNG_GANZ:
         variable = "KONTOR_" + feld.upper()
         text = wert(variable)

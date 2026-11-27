@@ -1816,7 +1816,9 @@ button.option { width: 100%; border: 0; background: none; color: inherit; font: 
 .sp-name { font-weight: 600; }
 .sp-aktuell { box-shadow: inset 3px 0 0 var(--akzent); background: var(--akzent-hell); }
 .sp-verlassen .pr-titel { color: var(--text-2); font-weight: 400; }
-.sp-luecke { list-style: none; padding: .15rem .9rem .15rem 4rem; font-size: .8rem; color: var(--text-2); border-top: 1px dashed var(--rand); }
+.sp-pruefung { list-style: none; display: flex; gap: .5rem; align-items: baseline; padding: .3rem .9rem; font-size: .85rem;
+  color: var(--text-2); border-top: 1px dashed var(--rand); }
+.sp-pruefung-zeichen { color: var(--erfolg); }
 .sp-alt > summary { cursor: pointer; list-style: none; }
 .sp-alt > summary::-webkit-details-marker { display: none; }
 .sp-alt > summary .pr-tag-titel::before { content: "▸ "; }

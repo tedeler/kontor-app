@@ -3152,7 +3152,7 @@ genannt ist, ist Vertrag.
   Angaben zur Instanz), `bank` (Bankzugang, PIN), `mail` (Postfächer, Abruf,
   OAuth-Client-Secret), `benachrichtigungen` (Zustellung, Test, ntfy-Token),
   `sicherheit` (Anmeldung, Abmelden, Passwort, Schutz der Geheimnisse),
-  `daten` (Datensicherung, Tags). Der Abschnitt „Geheimnisse“ entfällt; jedes
+  `daten` (Datensicherung und Sicherungspunkte; die Tags stehen seit D-306 nur noch auf `/tags`). Der Abschnitt „Geheimnisse“ entfällt; jedes
   Geheimnis steht bei seiner Aufgabe.
 - Adresse `/einstellungen?bereich=<name>`; unbekannter Wert wie ohne Angabe.
   Gezeigt wird genau ein Bereich (die übrigen sind im Dokument, aber
@@ -3622,7 +3622,11 @@ Befehlspalette (jetzt nur Kürzel, die es auf dem Blatt gibt).
   Name bzw. Zusammenfassung der Änderungen (`punkt-oeffnen-<kennung>`), Größe (`punkt-groesse-<kennung>`),
   „geprüft“, „angeheftet“, „entspricht dem aktuellen Stand“, „vorwärts“, „verlassener Verlauf“ und dem Link
   `punkt-laden-<kennung>`. Zwischen Punkten eines Tages mit mehr als einer Stunde Abstand „HH:MM–HH:MM unverändert“.
-  Pfeiltasten wechseln zwischen den Punkten.
+  Pfeiltasten wechseln zwischen den Punkten. D-306: Prüfungen ohne Änderung erscheinen als Zeile `.sp-pruefung`
+  („HH:MM geprüft – keine Änderung“, aufeinanderfolgende zusammengefasst mit Anzahl, `data-anzahl`); sie ersetzen die
+  frühere Lückenangabe. Die Kachel `sicherung-stand` nennt „Zuletzt geprüft … – keine Änderung“. Der Stand des
+  Einstellungsbereichs `daten` nennt die letzte Sicherung bzw. „Stündliche Sicherung läuft nicht“ (`fehler`, älter als
+  zwei Stunden) oder „noch nicht gelaufen“ (`offen`).
 - Fenster `punkt-dialog`: `punkt-wirkung` (Unterschied zum aktuellen Stand, `data-gleich`), `punkt-angaben`,
   `punkt-chronik`, `punkt-name` mit `punkt-benennen`, `punkt-wechseln` (inaktiv bei gleichem Stand; Rückfrage
   `bestaetigen-dialog`, dann über `aktion()`), `punkt-herunterladen`, `punkt-anheften`.

@@ -136,3 +136,19 @@ def test_einstellungen_sind_teil_der_sicherung(umgebung):
     import json
     with zipfile.ZipFile(io.BytesIO(datei)) as z:
         assert json.loads(z.read("manifest.json"))["schemaversion"] == 11
+
+
+def test_dienst_prueft_stuendlich_und_vermerkt_pruefungen_ohne_aenderung(umgebung):
+    """D-306: Der Dienst selbst legt den Stundenpunkt an; jede Prüfung ohne Änderung erscheint in der Liste."""
+    config, c, buchen = umgebung
+    buchen()
+    uhr = [T0]
+    lauf = sp.Stundenlauf(config, lambda: uhr[0])
+    assert lauf.einmal()["neu"] is True
+    assert lauf.einmal() is None                       # dieselbe Stunde: nicht fällig
+    uhr[0] = T0 + dt.timedelta(hours=1, minutes=2)
+    assert lauf.einmal()["neu"] is False               # neue Stunde, nichts geändert: nur Prüfung
+    p = punkte(c)
+    assert len(p["punkte"]) == 1
+    assert [x["zeitpunkt"] for x in p["pruefungen"]] == ["2026-11-02T11:02:00Z"]
+    assert p["pruefungen"][0]["neu"] is False and p["zuletzt_geprueft"] == "2026-11-02T11:02:00Z"

@@ -70,3 +70,19 @@ def test_punkt_von_hand_und_handy(tmp_path, browser):
         expect(page.locator('[data-testid="meldung"]').last).to_contain_text("bereits gesichert")
         breite = page.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth")
         assert breite <= 1, "kein seitliches Rollen am Handy"
+
+
+def test_pruefung_ohne_aenderung_sichtbar_und_keine_tags_in_den_einstellungen(tmp_path, browser):
+    with server(tmp_path) as (url, _), seite(browser, url, **DESKTOP) as page:
+        c = _client(url)
+        _zwei_punkte(c)
+        assert c.post("/api/sicherung/punkte", json={}).json()["neu"] is False   # Prüfung ohne Änderung
+        page.goto(url + "/sicherung")
+        bereit(page, "sicherung")
+        expect(page.locator(".sp-pruefung")).to_have_count(1)
+        expect(page.locator(".sp-pruefung")).to_contain_text("keine Änderung")
+        expect(tid(page, "sicherung-stand")).to_contain_text("keine Änderung")
+        page.goto(url + "/einstellungen?bereich=daten")
+        bereit(page, "einstellungen")
+        expect(page.locator('[data-einstellung="sicherungspunkte"]')).to_be_visible()
+        expect(page.locator('[data-einstellung="tags"]')).to_have_count(0)
