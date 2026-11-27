@@ -25,13 +25,14 @@ def pkv(client):
     return r.json()["id"]
 
 
-@pytest.mark.parametrize("pfad", ["Versicherungen:PKV", "Versicherungen › PKV", "Versicherungen›PKV",
-                                  "versicherungen  ›  pkv", "PKV"])
-@pytest.mark.parametrize("kontext", ["filter", "regel"])
-def test_kategoriepfad_mit_beiden_trennern(client, pkv, pfad, kontext):
-    r = client.post("/api/ausdruck/pruefen", json={"ausdruck": f'kategorie == "{pfad}"', "kontext": kontext}).json()
-    assert r["gueltig"], r["fehler"]
-    assert r["kanonisch"] == 'kategorie == "Versicherungen:PKV"'
+def test_kategoriepfad_mit_beiden_trennern(client, pkv):
+    # alle Fälle an einem Bestand (früher parametrisiert; Zeitbudget der Core-Tests, D-304)
+    for pfad in ("Versicherungen:PKV", "Versicherungen › PKV", "Versicherungen›PKV", "versicherungen  ›  pkv", "PKV"):
+        for kontext in ("filter", "regel"):
+            r = client.post("/api/ausdruck/pruefen",
+                            json={"ausdruck": f'kategorie == "{pfad}"', "kontext": kontext}).json()
+            assert r["gueltig"], (pfad, kontext, r["fehler"])
+            assert r["kanonisch"] == 'kategorie == "Versicherungen:PKV"', (pfad, kontext)
 
 
 def test_kontopfad_mit_anzeigetrenner(client, pkv):

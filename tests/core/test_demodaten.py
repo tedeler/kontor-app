@@ -111,14 +111,6 @@ def test_abruf_in_der_vorfuehrung_bringt_neues(demo):
     assert sum(p["nachrichten_neu"] for p in abruf["postfaecher"]) > 0
 
 
-def test_aufbau_ersetzt_einen_frueheren_bestand(tmp_path):
-    datenbank, mockdatei = tmp_path / "demo.sqlite3", tmp_path / "mock.json"
-    datenbank.write_bytes(b"kein SQLite")
-    D.aufbauen(datenbank, mockdatei, heute=HEUTE, monate=1)
-    c = TestClient(create_app(D.konfiguration(datenbank, mockdatei, mock_heute=HEUTE)))
-    assert c.get("/api/buchungen?pro_seite=1").json()["gesamt"] > 0
-
-
 # ------------------------------------------------------------------------------------------------ Testinstanz
 
 class _Befehle:

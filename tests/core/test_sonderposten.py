@@ -22,9 +22,8 @@ from kontor.config import KontorConfig
 GROSS = 2_499_000
 
 
-@pytest.fixture
-def welt(tmp_path):
-    c = TestClient(create_app(KontorConfig(datenbank=tmp_path / "k.sqlite3", mock_modus=True,
+def _aufbauen(pfad):
+    c = TestClient(create_app(KontorConfig(datenbank=pfad / "k.sqlite3", mock_modus=True,
                                            mock_heute=dt.date(2026, 6, 20), planer_starten=False)))
     giro = c.post("/api/konten", json={"name": "Giro", "art": "girokonto"}).json()["id"]
     lm = c.post("/api/konten", json={"name": "Lebensmittel", "art": "aufwand"}).json()["id"]
@@ -51,6 +50,18 @@ def welt(tmp_path):
                "buchung": auto_id}
 
 
+@pytest.fixture
+def welt(tmp_path):
+    """Eigener Bestand für Tests, die ihn ändern."""
+    return _aufbauen(tmp_path)
+
+
+@pytest.fixture(scope="module")
+def lesend(tmp_path_factory):
+    """Ein gemeinsamer Bestand für die nur lesenden Tests (Zeitbudget der Core-Tests)."""
+    return _aufbauen(tmp_path_factory.mktemp("sonderposten"))
+
+
 def _get(c, pfad, **params):
     r = c.get(pfad, params=params)
     assert r.status_code == 200, (pfad, r.text)
@@ -66,8 +77,8 @@ def _abschnitt_pruefen(d, w, modus):
 
 
 @pytest.mark.parametrize("modus", ["ohne", "mit"])
-def test_monatsbericht(welt, modus):
-    c, w = welt
+def test_monatsbericht(lesend, modus):
+    c, w = lesend
     d = _get(c, "/api/berichte/monat", monat="2026-06", sonderposten=modus)
     assert d["ausgaben"] == 30_000 + (GROSS if modus == "mit" else 0)
     ids = {b["id"] for b in d["buchungen"]} | {b["id"] for b in d["top_buchungen"]["eintraege"]}
@@ -76,8 +87,8 @@ def test_monatsbericht(welt, modus):
     _abschnitt_pruefen(d, w, modus)
 
 
-def test_vorgabe_ist_ohne(welt):
-    c, w = welt
+def test_vorgabe_ist_ohne(lesend):
+    c, w = lesend
     for pfad, params in (("/api/berichte/monat", {"monat": "2026-06"}), ("/api/berichte/jahr", {"jahr": 2026}),
                          ("/api/berichte/kategorien", {"monat": "2026-06"}), ("/api/berichte/empfaenger", {}),
                          ("/api/berichte/geldfluss", {"monat": "2026-06"}),
@@ -88,8 +99,8 @@ def test_vorgabe_ist_ohne(welt):
 
 
 @pytest.mark.parametrize("modus", ["ohne", "mit"])
-def test_jahr(welt, modus):
-    c, w = welt
+def test_jahr(lesend, modus):
+    c, w = lesend
     d = _get(c, "/api/berichte/jahr", jahr=2026, sonderposten=modus)
     extra = GROSS if modus == "mit" else 0
     assert d["summen"]["ausgaben"] == 6 * 30_000 + extra
@@ -99,8 +110,8 @@ def test_jahr(welt, modus):
 
 
 @pytest.mark.parametrize("modus", ["ohne", "mit"])
-def test_kategorien(welt, modus):
-    c, w = welt
+def test_kategorien(lesend, modus):
+    c, w = lesend
     d = _get(c, "/api/berichte/kategorien", monat="2026-06", sonderposten=modus)
     assert d["summen"]["ausgaben"] == 30_000 + (GROSS if modus == "mit" else 0)
     auto = [z for z in d["ausgaben"] if z["id"] == w["auto"]]
@@ -108,8 +119,8 @@ def test_kategorien(welt, modus):
 
 
 @pytest.mark.parametrize("modus", ["ohne", "mit"])
-def test_empfaenger(welt, modus):
-    c, w = welt
+def test_empfaenger(lesend, modus):
+    c, w = lesend
     d = _get(c, "/api/berichte/empfaenger", sonderposten=modus)
     namen = {e["empfaenger"]["id"]: e for e in d["rangliste"] if e["empfaenger"]}
     assert (w["haendler"] in namen) == (modus == "mit")
@@ -119,15 +130,15 @@ def test_empfaenger(welt, modus):
 
 
 @pytest.mark.parametrize("modus", ["ohne", "mit"])
-def test_geldfluss(welt, modus):
-    c, w = welt
+def test_geldfluss(lesend, modus):
+    c, w = lesend
     d = _get(c, "/api/berichte/geldfluss", monat="2026-06", sonderposten=modus)
     assert d["ausgaben"] == 30_000 + (GROSS if modus == "mit" else 0)
 
 
 @pytest.mark.parametrize("modus", ["ohne", "mit"])
-def test_einnahmen_ausgaben(welt, modus):
-    c, w = welt
+def test_einnahmen_ausgaben(lesend, modus):
+    c, w = lesend
     d = _get(c, "/api/berichte/einnahmen-ausgaben", von="2026-01-01", bis="2026-06-30", sonderposten=modus)
     assert d["gesamt"]["ausgaben"] == 6 * 30_000 + (GROSS if modus == "mit" else 0)
     kat = {k["kategorie_id"]: k["summe"] for k in d["kategorien"]}
@@ -135,8 +146,8 @@ def test_einnahmen_ausgaben(welt, modus):
     _abschnitt_pruefen(d, w, modus)
 
 
-def test_andere_berichte_zaehlen_alles(welt):
-    c, w = welt
+def test_andere_berichte_zaehlen_alles(lesend):
+    c, w = lesend
     for pfad in ("/api/berichte/vorschau", "/api/berichte/vermoegen", "/api/berichte/vertraege",
                  "/api/berichte/qualitaet", "/api/berichte/tags"):
         r = c.get(pfad, params={"sonderposten": "ohne"})
@@ -146,8 +157,8 @@ def test_andere_berichte_zaehlen_alles(welt):
     assert k["reihen"][0]["werte"][-1] == 6 * (300_000 - 30_000) - GROSS
 
 
-def test_ungueltiger_wert(welt):
-    c, _w = welt
+def test_ungueltiger_wert(lesend):
+    c, _w = lesend
     r = c.get("/api/berichte/monat", params={"monat": "2026-06", "sonderposten": "vielleicht"})
     assert r.status_code == 422
 

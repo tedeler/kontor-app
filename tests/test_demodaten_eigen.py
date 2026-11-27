@@ -148,3 +148,12 @@ def test_umgebung_der_demo_instanz(voll, tmp_path):
     c = TestClient(create_app(config), client=("192.168.1.20", 50000))     # aus dem erlaubten Heimnetz
     assert c.get("/api/buchungen?pro_seite=1").status_code == 200, "ohne Anmeldung erreichbar"
     assert c.get("/", follow_redirects=False).status_code == 200, "keine Umleitung zur Anmeldeseite"
+
+
+def test_aufbau_ersetzt_einen_frueheren_bestand(tmp_path):
+    """Aus tests/core verschoben (Zeitbudget der Core-Tests, D-304)."""
+    datenbank, mockdatei = tmp_path / "demo.sqlite3", tmp_path / "mock.json"
+    datenbank.write_bytes(b"kein SQLite")
+    D.aufbauen(datenbank, mockdatei, heute=dt.date(2026, 3, 10), monate=1)
+    c = TestClient(create_app(D.konfiguration(datenbank, mockdatei, mock_heute=dt.date(2026, 3, 10))))
+    assert c.get("/api/buchungen?pro_seite=1").json()["gesamt"] > 0
