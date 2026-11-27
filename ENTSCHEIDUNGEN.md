@@ -4787,7 +4787,6 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   (rote, gelbe und weiße Zeile bei 390 px: Grundton und Streifen vor und nach dem Tippen gleich, Rahmen vorhanden,
   die drei Status bleiben unterscheidbar).
 
-
 ## D-310 Beschriftung vor den Symbolen im Teilen-Text (Feature `teilen-beschriftung`, 2026-11-27)
 
 - **Anlass (Auftraggeber):** Die Symbole aus D-306 sind nicht immer eindeutig. Nach jedem Symbol steht daher eine
@@ -4796,3 +4795,33 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   in der letzten Zeile, Weitergabe.
 - **Tests:** `tests/core/test_teilen_format.py` (Eintrag in `tests/core/AENDERUNGEN.md`),
   `tests/test_browser_buchung_teilen.py` (`TESTUMBAU.md`).
+
+## D-311 Kategorienseite mit Beträgen, Nachweis aus dem Kontoblatt einer Kategorie (Feature `kategorien-uebersicht`, 2026-11-27)
+
+- **Anlass:** Arbeitsanweisung vom 2026-11-27: Die Kategorienübersicht sei langweilig und hässlich, sie solle schön
+  und gut bedienbar werden; im Kontoblatt einer Kategorie müsse auch der PDF-Export zur Verfügung stehen.
+- **Entscheidung Seite** (`oberflaeche.md` 51, `berichte.md` 9): Die Seite bleibt die Verwaltung der Kategorien
+  (Baum mit Ziehen, Mehrfachauswahl, Kontextmenü), zeigt aber je Kategorie, wofür sie steht: Summe im Zeitraum samt
+  Unterkategorien, Zahl der Buchungen, Verlauf über zwölf Monate und einen Balken. Dazu Kennzahlen (Ausgaben,
+  Einnahmen, Überschuss, Buchungen ohne Kategorie mit Link), Suche mit Hervorhebung und Anlegen bei fehlendem Treffer,
+  Zeitraum (Vorgabe zwölf Monate), Sortierung nach Name oder Betrag, Auf-/Zuklappen aller Einträge und sichtbare
+  Knöpfe je Zeile (Öffnen, Aktionen), damit nichts nur über Doppelklick oder Rechtsklick erreichbar ist.
+  - Klick markiert weiter (29.2), Öffnen über Knopf, Doppelklick oder Enter: so bleiben Mehrfachauswahl und
+    Zusammenführen unverändert.
+  - Vorgabe A–Z, weil die Reihenfolge nach Namen spezifiziert ist (13.1) und beim Verwalten das Wiederfinden zählt;
+    „Betrag“ ist eine Wahl im Browser-Speicher.
+  - Eigener Endpunkt statt des Kategorienberichts (`/api/berichte/kategorien`): der Bericht rechnet je Monat mit
+    Vergleichswerten und lässt Sonderposten weg; die Seite braucht frei wählbare Zeiträume, alle Kategorien (auch
+    leere) und die Zahl der Buchungen. Sonderposten zählen hier mit.
+  - Der Balken misst an der größten Wurzelkategorie der Gruppe (sonst blieben fast alle Balken winzig); der Anteil an
+    der Gruppe steht im Titel der Zeile.
+  - Neues Modul `app/kategorien.js` (in `sw.js`); `kategorienBaum` bekommt Optionen für Werte, Suche und Sortierung,
+    ohne sie bleibt er im Seitenbereich der Kontoansicht wie bisher.
+- **Entscheidung Nachweis** (`berichte.md` 8.1, `oberflaeche.md` 51.1): Der vorhandene Nachweis (D-303) gilt auch für
+  Kategorien, statt eines zweiten PDF-Formats. Weil die Buchungen einer Kategorie von mehreren Bankkonten stammen
+  können, steht das Bankkonto mit gekürzter IBAN an jeder Buchung, der Kopf nennt Kategorie und Bankkonten. Betrag ist
+  der Anteil der Kategorie aus Sicht des Bankkontos (Ausgabe negativ wie auf dem Kontoauszug); bei aufgeteilten
+  Buchungen steht der ganze Zahlbetrag als Zusatz dabei. Titel „Buchungsnachweis“, weil es kein Auszug eines Kontos
+  ist. „Unkategorisiert“ bleibt ausgenommen.
+- **Prüfung:** Core-Test `tests/core/test_kategorien_uebersicht.py`; Browsertest
+  `tests/test_browser_kategorien_uebersicht.py`; geänderte Tests in `TESTUMBAU.md` und `tests/core/AENDERUNGEN.md`.

@@ -32,7 +32,7 @@ from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.staticfiles import StaticFiles
 
-from . import (__version__, ausdruck, auswertungen, berichte, buch, db, export, kredite, lernerklaerung, lernmodell, lernregeln, mock_lerndaten, mail, monatsbericht, nachweis, pflege, protokoll, regeln,
+from . import (__version__, ausdruck, auswertungen, berichte, buch, db, export, kategorienuebersicht, kredite, lernerklaerung, lernmodell, lernregeln, mock_lerndaten, mail, monatsbericht, nachweis, pflege, protokoll, regeln,
                sicherung, verschieben, vorlagen, wiederkehrend)
 from . import aktualisierung
 from . import abgleich, anbieter, ausgleich, bankzugang, bestellmail, config_anzeige, dokumente, erwartung, kontonamen
@@ -631,6 +631,16 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     @endpunkt("GET", "/api/kategorien")
     async def kategorien(request: Request):
         return await lesen(buch.konten_liste, ["aufwand", "ertrag"], None)
+
+    @endpunkt("GET", "/api/kategorien/uebersicht")
+    async def kategorien_uebersicht(request: Request):
+        """Feature kategorien-uebersicht (D-311): Beträge je Kategorie für die Kategorienseite, nur lesend."""
+        q = Query(request.query_params)
+        zeitraum = q.auswahl("zeitraum", kategorienuebersicht.ZEITRAEUME) or kategorienuebersicht.VORGABE
+        for unbekannt in sorted(set(request.query_params.keys()) - {"zeitraum"}):
+            q.fehler_melden(unbekannt, "Unbekannter Parameter.")
+        q.pruefen()
+        return await lesen(kategorienuebersicht.uebersicht, zeitraum, sync.heute().isoformat())
 
     @endpunkt("GET", "/api/kontenuebersicht")
     async def kontenuebersicht(request: Request):

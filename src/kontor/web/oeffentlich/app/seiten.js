@@ -8,7 +8,7 @@ import {
   abstimmungDialog, bestaetigen, dialog, dubletteAufloesen, feld, imDialog, knopf, knopfLeiste, kontextmenue,
   kontoDialog, menuePosition, zuordnungDialog,
 } from "./ui.js";
-import { kategorienBaum, kontoMenue, langeBeruehrung } from "./baum.js";
+import { kontoMenue, langeBeruehrung } from "./baum.js";
 import { regelEditor, regelnSeite } from "./regeleditor.js";
 
 const kopf = (seite, titel, ...werkzeuge) => {
@@ -169,19 +169,8 @@ export async function konten(seite) {
   return { titel: "Konten" };
 }
 
-// ------------------------------------------------------------------ Kategorien (13.1)
-export async function kategorienSeite(seite) {
-  kopf(seite, "Kategorien", knopf("Kategorie anlegen", { tid: "kategorie-anlegen", onclick: (e) => kontoDialog({
-    titel: "Kategorie anlegen", arten: ["aufwand", "ertrag"] }, e.currentTarget) }));
-  const ort = h("div", { class: "baum-rahmen" });
-  const zeichnen = () => ort.replaceChildren(kategorienBaum({ neuZeichnen: zeichnen }));
-  zeichnen();
-  seite.append(h("p", { class: "klein" }, "Kategorien per Drag and Drop auf eine andere Kategorie ziehen (wird Unterkategorie) "
-    + "oder auf die Gruppenüberschrift (oberste Ebene); ohne Maus über das Kontextmenü „Verschieben nach…“. "
-    + "Mit Strg/Umschalt (oder Leertaste) mehrere markieren und über das Kontextmenü „Zusammenführen in…“ "
-    + "ihre Buchungen in eine andere Kategorie überführen."), ort);
-  return { titel: "Kategorien" };
-}
+// ------------------------------------------------------------------ Kategorien (13.1, D-311: eigenes Modul)
+export { kategorienSeite } from "./kategorien.js";
 
 // ------------------------------------------------------------------ Konfiguration (D-235)
 /** Zeigt die Konfiguration der Instanz (Umgebungsdatei und geltende Werte). Nur lesend; zieht später in einen
