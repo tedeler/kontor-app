@@ -1071,6 +1071,10 @@ html[data-thema="dunkel"] mark.treffer { background: #6a5a12; }
 .regel-abschnitt > h2, .regel-abschnitt > summary h2 { font-size: 1rem; margin: .4rem 0; }
 .regel-abschnitt > summary { cursor: pointer; }
 .regel-abschnitt > summary h2 { display: inline; }
+/* D-305: automatisch angelegte Regel, deren Anlagebedingungen nicht mehr gelten */
+.regel-zeile.regel-zeile-inkonsistent { border-left: 4px solid var(--mark-gelb); background: var(--mark-gelb-hg); }
+.regel-hinweis { margin: .25rem 0 0; font-size: .85rem; }
+.regel-hinweis-titel { font-weight: 600; }
 .regel-auto-leiste { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; margin: .3rem 0 .6rem; }
 .regel-zeile.regel-zeile-auto { grid-template-columns: auto 1fr auto; }
 [data-layout="mobil"] .regel-zeile.regel-zeile-auto { grid-template-columns: auto 1fr; }

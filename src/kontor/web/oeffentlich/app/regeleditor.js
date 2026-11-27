@@ -36,9 +36,27 @@ export const WIRKUNG_TEXT = { neu: "neu", abweichend: "abweichend", bereits_so: 
 
 // ------------------------------------------------------------------ Regelliste (5.1)
 const anzahlText = (n, eins, viele) => `${n} ${n === 1 ? eins : viele}`;
+/** D-305: Meldung nach dem Deaktivieren; bei automatisch angelegten Regeln mit dem Hinweis auf die Sperre. */
+export const DEAKTIVIERT_AUTO = "Regel deaktiviert. Solange diese Regel deaktiviert ist, legt Kontor für diesen Empfänger keine neue an.";
+const aktivMeldung = (r, an) => (an ? "Regel aktiviert." : r.automatisch ? DEAKTIVIERT_AUTO : "Regel deaktiviert.");
+
+/** Abschnitt als aufklappbarer Bereich, dessen Zustand der Browser sich merkt. */
+function klappBereich(schluessel, tid, titel, ...inhalt) {
+  let stand = {};
+  try { stand = JSON.parse(localStorage.getItem(schluessel) || "{}") || {}; } catch (e) { /* Speicher nicht verfügbar */ }
+  const det = h("details", { class: "regel-abschnitt", tid }, h("summary", { tid: `${tid}-kopf` }, h("h2", null, titel)), ...inhalt);
+  det.open = !!stand.offen;
+  det.addEventListener("toggle", () => {
+    try { localStorage.setItem(schluessel, JSON.stringify({ ...stand, offen: det.open })); } catch (e) { /* Speicher nicht verfügbar */ }
+  });
+  return det;
+}
 
 export async function regelnSeite(seite, kopf) {
-  const [liste, sp] = await Promise.all([api("GET", "/api/regeln"), sprache("regel")]);
+  // D-305: Prüfung der automatisch angelegten Regeln; scheitert sie, erscheint die Liste ohne Hinweise.
+  const [liste, sp, pruefung] = await Promise.all([api("GET", "/api/regeln"), sprache("regel"),
+    api("GET", "/api/regeln/pruefung").catch(() => ({ regeln: [] }))]);
+  const befund = new Map((pruefung.regeln || []).map((x) => [x.regel_id, x]));
   const felder = feldMenge(sp);
   kopf(seite, "Regeln",
     knopf("Regel anlegen", { tid: "regel-anlegen", class: "knopf knopf-haupt", onclick: (e) => regelEditor(null, e.currentTarget) }),
@@ -73,15 +91,19 @@ export async function regelnSeite(seite, kopf) {
     return { titel: "Regeln" };
   }
   // D-295: zwei Abschnitte; alle eigenen Regeln wirken vor allen automatisch angelegten.
-  const eigene = liste.filter((r) => !r.automatisch);
-  const auto = liste.filter((r) => r.automatisch);
+  // D-305: deaktivierte Regeln stehen in einem eigenen Bereich ganz unten.
+  const alleEigenen = liste.filter((r) => !r.automatisch);
+  const eigene = alleEigenen.filter((r) => r.aktiv);
+  const auto = liste.filter((r) => r.automatisch && r.aktiv);
+  const aus = liste.filter((r) => !r.aktiv);
   const reihenfolgeSenden = async (ids) => {
     try { await aktion(() => api("POST", "/api/regeln/reihenfolge", { regel_ids: ids }), { erfolg: "Reihenfolge geändert." }); }
     catch (e) { /* gemeldet */ }
   };
   const ids = eigene.map((r) => r.id);
-  const autoIds = auto.map((r) => r.id);
-  const eigeneSenden = (neu) => reihenfolgeSenden(neu.concat(autoIds));
+  // Deaktivierte eigene Regeln behalten ihren Platz hinter den aktiven; automatisch angelegte kommen ohnehin danach.
+  const restIds = alleEigenen.filter((r) => !r.aktiv).map((r) => r.id).concat(liste.filter((r) => r.automatisch).map((r) => r.id));
+  const eigeneSenden = (neu) => reihenfolgeSenden(neu.concat(restIds));
   const verschieben = (id, um) => {
     const i = ids.indexOf(id);
     const j = i + um;
@@ -95,11 +117,12 @@ export async function regelnSeite(seite, kopf) {
     const aktiv = h("input", { type: "checkbox", tid: `regel-aktiv-${r.id}`, checked: r.aktiv,
       "aria-label": `Regel ${r.name} aktiv` });
     aktiv.addEventListener("change", async () => {
-      try { await aktion(() => api("PATCH", `/api/regeln/${r.id}`, { aktiv: aktiv.checked }), { erfolg: aktiv.checked ? "Regel aktiviert." : "Regel deaktiviert." }); }
+      try { await aktion(() => api("PATCH", `/api/regeln/${r.id}`, { aktiv: aktiv.checked }), { erfolg: aktivMeldung(r, aktiv.checked) }); }
       catch (e) { aktiv.checked = !aktiv.checked; }
     });
+    const ziehbar = !r.automatisch && r.aktiv;
     let griff = null;
-    if (!r.automatisch) {
+    if (ziehbar) {
       griff = h("button", { type: "button", class: "regel-griff", tid: `regel-griff-${r.id}`,
         "aria-label": `Regel ${r.name} verschieben (Alt+Pfeil hoch/runter)`, title: "Ziehen oder Alt+↑/↓" }, "⠿");
       griff.addEventListener("keydown", (e) => {
@@ -109,7 +132,7 @@ export async function regelnSeite(seite, kopf) {
     const knoepfe = [];
     if (r.automatisch) {
       knoepfe.push(knopf("Als eigene übernehmen", { tid: `regel-als-eigene-${r.id}`, "aria-label": `Regel ${r.name} als eigene übernehmen`,
-        title: "Die Regel wird eine eigene Regel am Ende der eigenen Regeln. Für diesen Empfänger legt Kontor danach keine automatische Regel mehr an.",
+        title: "Die Regel wird eine eigene Regel am Ende der eigenen Regeln. Solange sie besteht, legt Kontor für diesen Empfänger keine automatische Regel an.",
         onclick: async () => {
           try { await aktion(() => api("POST", `/api/regeln/${r.id}/uebernehmen`), { erfolg: `Regel „${r.name}“ als eigene übernommen.` }); }
           catch (f) { /* gemeldet */ }
@@ -120,22 +143,29 @@ export async function regelnSeite(seite, kopf) {
       knopf("Duplizieren", { "aria-label": `Regel ${r.name} duplizieren`, onclick: (e) =>
         regelEditor({ ...r, id: null, automatisch: false, name: `${r.name} (Kopie)` }, e.currentTarget) }),
       knopf("Löschen", { "aria-label": `Regel ${r.name} löschen`, onclick: async (e) => {
-        if (!(await bestaetigen(`Regel „${r.name}“ löschen?`, { ja: "Löschen", ausloeser: e.currentTarget }))) return;
+        const frage = r.automatisch
+          ? `Regel „${r.name}“ löschen? Kontor kann sie später wieder anlegen, wenn deine Zuordnungen es nahelegen. Soll das nicht passieren, deaktiviere die Regel statt sie zu löschen.`
+          : `Regel „${r.name}“ löschen?`;
+        if (!(await bestaetigen(frage, { ja: "Löschen", ausloeser: e.currentTarget }))) return;
         try { await aktion(() => api("DELETE", `/api/regeln/${r.id}`), { erfolg: "Regel gelöscht." }); } catch (f) { /* gemeldet */ }
       } }));
-    const li = h("li", { tid: `regel-${r.id}`, class: "karte regel-zeile" + (r.automatisch ? " regel-zeile-auto" : "") + (r.aktiv ? "" : " inaktiv"),
-      draggable: r.automatisch ? null : "true", "data-id": String(r.id) },
-    griff, r.automatisch ? null : h("span", { class: "regel-nr" }, `${nr}.`), aktiv,
+    const b = r.aktiv && r.automatisch ? befund.get(r.id) : null;
+    const li = h("li", { tid: `regel-${r.id}`, class: "karte regel-zeile" + (ziehbar ? "" : " regel-zeile-auto") + (r.aktiv ? "" : " inaktiv")
+      + (b ? " regel-zeile-inkonsistent" : ""),
+      draggable: ziehbar ? "true" : null, "data-id": String(r.id), "data-inkonsistent": b ? b.grund : null },
+    griff, ziehbar ? h("span", { class: "regel-nr" }, `${nr}.`) : null, aktiv,
     h("div", { class: "regel-inhalt" },
       h("strong", null, r.name), h("span", { class: "regel-ziel", tid: `regel-ziel-${r.id}` },
         r.kategorie_id ? ` → ${pfadVon(r.kategorie_id)} ` : (r.tag_ids || []).length ? " → " : " → (keine Aktion) ",
         (r.tag_ids || []).map((id) => h("span", { class: "tag" }, `+ ${tagName(id)}`))),
       r.automatisch ? h("span", { class: "regel-auto", tid: `regel-automatisch-${r.id}`,
-        title: "Aus deinen Zuordnungen gelernt. Wird die Regel gelöscht, legt Kontor sie für diesen Empfänger nicht wieder an." },
+        title: "Aus deinen Zuordnungen gelernt. Gelöscht kann Kontor sie später wieder anlegen; deaktiviert verhindert sie eine neue Regel für diesen Empfänger." },
       "automatisch angelegt") : null,
+      b ? h("p", { class: "regel-hinweis", tid: `regel-hinweis-${r.id}`, role: "note" },
+        h("span", { class: "regel-hinweis-titel" }, "Passt nicht mehr: "), b.hinweis, " Bearbeiten oder löschen.") : null,
       h("div", { class: "regel-bedingung", tid: `regel-ausdruck-${r.id}`, title: r.ausdruck }, hervorgehoben(r.ausdruck || "", felder))),
     knopfLeiste(...knoepfe));
-    if (!r.automatisch) {
+    if (ziehbar) {
       li.addEventListener("dragstart", (e) => { gezogen = r.id; e.dataTransfer.effectAllowed = "move"; li.classList.add("zieht"); });
       li.addEventListener("dragend", () => { li.classList.remove("zieht"); gezogen = null; });
       li.addEventListener("dragover", (e) => { if (gezogen !== null && gezogen !== r.id) { e.preventDefault(); li.classList.add("ziel"); } });
@@ -164,6 +194,7 @@ export async function regelnSeite(seite, kopf) {
   // Abschnitt „Automatisch angelegt“: eingeklappt, sortier- und durchsuchbar
   if (auto.length) {
     const SCHLUESSEL = "kontor.regeln.automatisch";
+    const hinweise = auto.filter((r) => befund.has(r.id)).length;
     let stand = { offen: false, sortierung: "name" };
     try { stand = { ...stand, ...JSON.parse(localStorage.getItem(SCHLUESSEL) || "{}") }; } catch (e) { /* Speicher nicht verfügbar */ }
     const merken = () => { try { localStorage.setItem(SCHLUESSEL, JSON.stringify(stand)); } catch (e) { /* Speicher nicht verfügbar */ } };
@@ -182,13 +213,16 @@ export async function regelnSeite(seite, kopf) {
       const q = suche.value.trim().toLocaleLowerCase("de");
       const treffer = auto.filter((r) => !q || [r.name, r.ausdruck || "", r.kategorie_id ? pfadVon(r.kategorie_id) : ""]
         .some((t) => t.toLocaleLowerCase("de").includes(q))).sort(vergleich[sortierung.value]);
+      // D-305: Regeln mit Hinweis zuerst, sonst in der gewählten Sortierung
+      treffer.sort((a, b2) => (befund.has(a.id) ? 0 : 1) - (befund.has(b2.id) ? 0 : 1));
       ol.replaceChildren(...treffer.map((r) => zeile(r)));
       anzahl.textContent = q ? `${treffer.length} von ${auto.length}` : "";
     };
     sortierung.addEventListener("change", () => { stand.sortierung = sortierung.value; merken(); zeichnen(); });
     suche.addEventListener("input", zeichnen);
     const det = h("details", { class: "regel-abschnitt", tid: "regeln-automatisch" },
-      h("summary", { tid: "regeln-automatisch-kopf" }, h("h2", null, `Automatisch angelegt (${auto.length})`)),
+      h("summary", { tid: "regeln-automatisch-kopf" }, h("h2", null, `Automatisch angelegt (${auto.length}`
+        + (hinweise ? `, ${hinweise} mit Hinweis` : "") + ")")),
       h("p", { class: "hinweis klein" }, "Aus deinen Zuordnungen gelernt: je Empfänger höchstens eine Regel, deshalb spielt die Reihenfolge hier keine Rolle. "
         + "„Als eigene übernehmen“ verschiebt eine Regel zu den eigenen Regeln."),
       h("div", { class: "regel-auto-leiste" }, h("label", null, "Sortieren nach ", sortierung), suche, anzahl), ol);
@@ -196,6 +230,15 @@ export async function regelnSeite(seite, kopf) {
     det.addEventListener("toggle", () => { stand.offen = det.open; merken(); });
     zeichnen();
     seite.append(det);
+  }
+
+  // D-305: Bereich „Deaktiviert“ ganz unten, eigene und automatisch angelegte Regeln, Vorgabe eingeklappt
+  if (aus.length) {
+    seite.append(klappBereich("kontor.regeln.deaktiviert", "regeln-deaktiviert", `Deaktiviert (${aus.length})`,
+      h("p", { class: "hinweis klein" }, "Deaktivierte Regeln wirken nicht. Eine deaktivierte automatisch angelegte Regel "
+        + "verhindert, dass Kontor für diesen Empfänger eine neue anlegt. Mit dem Schalter wieder aktivieren."),
+      h("ul", { class: "regel-liste", tid: "regel-liste-deaktiviert", "aria-label": "Deaktivierte Regeln" },
+        ...aus.map((r) => zeile(r)))));
   }
   return { titel: "Regeln" };
 }
@@ -631,7 +674,8 @@ export async function regelEditor(r, ausloeser) {
         await tags.anlegen();
         const body = koerper();
         return gespeichert ? api("PATCH", `/api/regeln/${gespeichert.id}`, body) : api("POST", "/api/regeln", body);
-      }, { stillBeiFehler: true, danach: () => d.schliessen(true), erfolg: "Regel gespeichert." });
+      }, { stillBeiFehler: true, danach: () => d.schliessen(true),
+        erfolg: r && r.id && r.automatisch && r.aktiv && !aktiv.checked ? `Regel gespeichert. ${DEAKTIVIERT_AUTO.replace("Regel deaktiviert. ", "")}` : "Regel gespeichert." });
       if (danach && neu) await danach(neu);
     };
     const speichern = knopf("Speichern", { class: "knopf knopf-haupt", tid: "regel-speichern" });
