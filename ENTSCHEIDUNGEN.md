@@ -4974,3 +4974,11 @@ Anlass: Klick auf einen Punkt unter `/sicherung` brauchte auf dem Server 10–20
 - **API:** `monate` entfällt; neu `verlauf_art` und `verlauf_bis` (Enddatum je Abschnitt); `verlauf` je Kategorie
   kumuliert. Der Tooltip nennt den Stand dort, wo er sich ändert, und am Ende.
 - **Tests:** `tests/core/test_kategorien_uebersicht.py` (`tests/core/AENDERUNGEN.md`), `tests/test_browser_kategorien_uebersicht.py`.
+
+## D-321 Core-Tests von mail-schlank nach `tests/` (Zeitbudget, 2026-11-27)
+
+- **Anlass:** Der CI-Lauf nach dem Merge von D-320 überschritt das Zeitbudget der Core-Tests knapp (30,8 s statt
+  höchstens 30 s, vorher 28,3 s); alle Tests waren grün, das Release wurde übersprungen.
+- **Entscheidung:** Wie bei D-304 wird nicht das Budget angehoben, sondern ein unabhängiger, stabiler Teil verschoben:
+  `tests/core/test_mail_schlank.py` (D-255, in der Suite rund 1,3 s lokal) unverändert nach
+  `tests/test_mail_schlank_eigen.py`. Er läuft weiter in der CI (Job „eigene“), nur nicht mehr in der Entwicklungsschleife.
