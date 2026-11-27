@@ -49,9 +49,9 @@ def test_teilen_ueber_das_geraet_und_link_oeffnet_die_buchung(tmp_path, browser)
             "*Markt Beispiel (fiktiv)*",
             "*\u22121.234,56\u00a0€* · Ausgabe",
             "",
-            "📅 Di, 10.11.2026",
-            "🏦 Giro Teilen",
-            "🏷️ Lebensmittel",
+            "📅 Datum: Di, 10.11.2026",
+            "🏦 Konto: Giro Teilen",
+            "🏷️ Kategorie: Lebensmittel",
             "",
             "> Einkauf Woche 2",
             "",
@@ -99,5 +99,5 @@ def test_aus_der_kategorie_aus_sicht_des_bankkontos(tmp_path, browser):  # noqa:
         page.wait_for_function("() => window.__geteilt.length === 1")
         zeilen = page.evaluate("() => window.__geteilt[0].text").split("\n")
         assert zeilen[1] == "*−1.234,56 €* · Ausgabe"
-        assert "🏦 Giro Teilen" in zeilen and "🏷️ Lebensmittel" in zeilen
+        assert "🏦 Konto: Giro Teilen" in zeilen and "🏷️ Kategorie: Lebensmittel" in zeilen
         assert zeilen[-1] == f"{url}/konten/{kat}?buchung={ids[0]}"
