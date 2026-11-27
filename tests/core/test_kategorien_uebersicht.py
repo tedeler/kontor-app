@@ -25,8 +25,11 @@ GIRO_IBAN = "DE79000000000004711001"
 GEKUERZT = "DE79 XXXX XXXX XXXX XXXX 1001"
 
 
-@pytest.fixture
-def welt(tmp_path):
+@pytest.fixture(scope="module")
+def welt(tmp_path_factory):
+    """Ein Bestand für die ganze Datei (Zeitbudget der Core-Tests). Die Tests mit Splits ändern nur die
+    Amazon-Buchung vom 11.06. und stehen am Ende; die Tests davor lesen nur."""
+    tmp_path = tmp_path_factory.mktemp("kategorien")
     c = TestClient(create_app(KontorConfig(datenbank=tmp_path / "k.sqlite3", mock_modus=True,
                                            mock_heute=dt.date(2024, 6, 30), planer_starten=False)))
     assert c.post("/api/sync", json={}).json()["status"] == "erfolgreich"

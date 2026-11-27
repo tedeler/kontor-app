@@ -9,7 +9,16 @@ import datetime as dt
 
 import httpx
 
-from .test_browser import DESKTOP, HANDY, bereit, browser, expect, seite, server, tid  # noqa: F401
+from .test_browser import (  # noqa: F401
+    DESKTOP,
+    HANDY,
+    bereit,
+    browser,
+    expect,
+    seite,
+    server,
+    tid,
+)
 
 
 def _welt(url):
@@ -56,7 +65,7 @@ def test_kategorienseite(tmp_path, browser):  # noqa: F811
         expect(tid(page, "kategorien-zeitraum-monat")).to_have_attribute("aria-checked", "true")
         assert page.url.endswith("/kategorien?zeitraum=monat")
         # Sortierung nach Betrag: Lebensmittel (1.500) vor Wohnen (980) – nach Name umgekehrt
-        reihen = lambda: [x for x in page.locator('[data-testid="kategorienbaum"] [role="treeitem"][aria-level="1"]')  # noqa: E731
+        reihen = lambda: [x for x in page.locator('[data-testid="kategorienbaum"] [role="treeitem"][aria-level="1"]')
                           .evaluate_all("els => els.map(e => e.getAttribute('aria-label'))") if x != "Gehalt"]
         assert reihen() == ["Lebensmittel", "Wohnen"]
         tid(page, "kategorien-sortierung-betrag").click()

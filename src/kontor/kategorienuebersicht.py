@@ -108,4 +108,4 @@ def uebersicht(con, zeitraum: str, heute: str) -> dict:
             "unkategorisiert": {"konto_id": unk_id, "anzahl": unk_anzahl, "summe": unk_summe}}
 
 
-__all__ = ["uebersicht", "grenzen", "ZEITRAEUME", "VORGABE"]
+__all__ = ["VORGABE", "ZEITRAEUME", "grenzen", "uebersicht"]
