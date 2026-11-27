@@ -3742,8 +3742,9 @@ im Kontoblatt eines Bankkontos. Seit D-316 ohne Dialog: die Datei wird direkt he
 - **Kontenliste** (`/konten`, `kontenbaum`): neue Spalte „Inhaber“ (`data-feld="inhaber"`, „Vorname Nachname“) vor
   „Saldo“; der Saldo eines Kreditkontos erscheint umgedreht (Schulden positiv), `data-betrag` bleibt der gespeicherte
   Wert. Die Abstimmung (`abstimmung-dialog`) erwartet und zeigt den Saldo eines Kreditkontos ebenso umgedreht.
-- **Finanzübersicht** unverändert: der Saldo eines Kreditkontos und die Summe der Bestandskonten wie gespeichert
-  (Schulden negativ).
+- **Finanzübersicht** (seit D-317): der Saldo eines Kreditkontos erscheint wie in der Kontenliste umgedreht
+  (Schulden positiv), `data-betrag` bleibt der gespeicherte Wert; die Summe der Bestandskonten (`uebersicht-summe`)
+  rechnet wie gespeichert (Schulden mindern sie).
 - **Änderungsprotokoll:** Feld `inhaber` heißt „Kontoinhaber“ und erscheint als „Vorname Nachname“.
 
 ## 53. Unterkonten im Konto- und Kategorieblatt einblenden (Feature `unterkonten-einblenden`, D-313, ergänzt 22.2)

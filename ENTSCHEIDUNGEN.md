@@ -4924,3 +4924,14 @@ Anlass: Klick auf einen Punkt unter `/sicherung` brauchte auf dem Server 10–20
 - `GET /api/export/nachweis/angaben` bleibt (gleiche Ableitung), wird von der Oberfläche nicht mehr benutzt.
 - **Tests:** angepasst `tests/core/test_nachweis_pdf.py`, `tests/core/test_kategorien_uebersicht.py`,
   `tests/test_nachweis_pdf_eigen.py`, `tests/test_browser_nachweis_pdf.py` (`tests/core/AENDERUNGEN.md`).
+
+## D-317 Finanzübersicht zeigt den Saldo eines Kreditkontos wie das Konto selbst (Feature `kreditkonto-uebersicht`, 2026-11-27)
+
+- **Anlass (Auftraggeber):** Kreditkonten erschienen in Kontenliste/Kontoblatt mit dem einen, in der Finanzübersicht
+  mit dem anderen Vorzeichen; das ist ein Fehler. Ersetzt in D-312 den Punkt „Die Finanzübersicht bleibt, wie sie war“.
+- **Regel:** Die Zeile eines Kreditkontos in der Finanzübersicht zeigt den Saldo umgedreht (`vorzeichen(konto)`),
+  genau wie Kontenliste, Kontoblatt und Abstimmung. `data-betrag` bleibt der gespeicherte Wert. Die Summe der
+  Bestandskonten bleibt wie gespeichert: Schulden mindern das Vermögen, sie gehen also negativ ein.
+- **Server unverändert** (`GET /api/kontenuebersicht` liefert weiter gespeicherte Werte).
+- **Tests:** `tests/test_browser_konto_typ_inhaber.py`, `gesamt-tests/tests/app/m8/test_m8_kontoansicht.py`
+  (`TESTUMBAU.md`).

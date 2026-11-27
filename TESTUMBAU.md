@@ -169,3 +169,6 @@ Stabilität: Nach den Änderungen lief der Browser-Teil der Gesamtsuite viermal 
 - 2026-11-27 (D-313, nach dem Merge): `tests/test_browser_mail_aktuell.py::test_abruf_im_hintergrund_aktualisiert_das_sichtbare_kontoblatt`
   wartet vor der Änderung des Bestands auf Netzruhe. Sonst konnte eine noch laufende Abfrage `/api/bestand/stand`
   den geänderten Stand schon als gezeigten merken (in der CI rot, lokal grün). Prüfung unverändert.
+- 2026-11-27 (D-317): `gesamt-tests/tests/app/m8/test_m8_kontoansicht.py` (Saldotext je Bestandskonto der
+  Finanzübersicht) und eigene `tests/test_browser_konto_typ_inhaber.py`: Kreditkonten zeigen den Saldo dort jetzt
+  umgedreht (Schulden positiv); `data-betrag` und Summe unverändert.

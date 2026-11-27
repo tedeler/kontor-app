@@ -1151,7 +1151,7 @@ export async function kontoEinstellungen(konto, ausloeser) {
       nachname = h("input", { type: "text", tid: "einstellungen-inhaber-nachname", maxlength: "200", value: alt.nachname,
         autocomplete: "off" });
       inhalt.append(feld("Kontotyp", art, "Bei Kreditkonten zeigt das Kontoblatt Abbuchungen positiv und den Kontostand"
-        + " als Schulden; in der Finanzübersicht zählt er negativ."),
+        + " als Schulden, ebenso Kontenliste und Finanzübersicht; in der Summe der Finanzübersicht zählt er negativ."),
       h("fieldset", { class: "feldgruppe", tid: "einstellungen-inhaber" }, h("legend", null, "Kontoinhaber (optional)"),
         feld("Vorname", vorname), feld("Nachname", nachname)));
     }
