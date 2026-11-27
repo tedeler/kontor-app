@@ -93,6 +93,14 @@ export async function kategorienSeite(seite, _p, suche) {
       leisteZeichnen();
       laden().catch(() => { /* gemeldet */ });
     }));
+    // schmale Fenster: Zeitraumleiste scrollt waagrecht, der gewählte Zeitraum bleibt sichtbar
+    requestAnimationFrame(() => {
+      const an = zeitraumOrt.querySelector('[aria-checked="true"]');
+      if (!an) return;
+      const o = zeitraumOrt.getBoundingClientRect();
+      const r = an.getBoundingClientRect();
+      if (r.left < o.left || r.right > o.right) zeitraumOrt.scrollLeft += r.left - o.left - 8;
+    });
     sortierOrt.replaceChildren(umschalter("kategorien-sortierung", "Sortierung", [["name", "A–Z"], ["betrag", "Betrag"]],
       nachBetrag ? "betrag" : "name", (w) => {
         nachBetrag = w === "betrag";
