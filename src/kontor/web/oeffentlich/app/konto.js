@@ -2851,7 +2851,6 @@ class Kontoansicht {
       !this.istKategorie ? { tid: "km-nachweis", kuerzel: "v p", text: "Nachweis als PDF…",
         tun: () => this.nachweisDialog(ids, ausloeser) } : null,
       this.gegenbuchungEintrag(b, x, y, ausloeser),
-      { tid: "km-teilen", text: "Teilen…", aktiv: eine, tun: () => this.teilen(b, ausloeser) },
       // Dokumente (D-123): an alle gewählten Buchungen
       { tid: "km-dokument-anhaengen", kuerzel: "m", text: "Dokument anhängen…", tun: () => dateiWaehlen(ids) },
       oberflaeche.istMobil() ? { tid: "km-dokument-foto", text: "Foto aufnehmen…", tun: () => dateiWaehlen(ids, { kamera: true }) } : null,
@@ -2861,6 +2860,7 @@ class Kontoansicht {
       // Verschieben nur mit gehaltener Alt-Taste, auf dem Handy im Menü (D-160)
       ...(!this.istKategorie && (alt || oberflaeche.istMobil()) ? [{ tid: "km-verschieben",
         text: "Auf anderes Konto verschieben…", tun: () => this.verschiebenDialog(ids, ausloeser) }] : []),
+      { tid: "km-teilen", text: "Teilen…", aktiv: eine, tun: () => this.teilen(b, ausloeser) },
       { tid: "km-loeschen", kuerzel: "Entf", text: "Löschen…", tun: () => this.loeschen(ausloeser, ids) },
     ].filter(Boolean), ausloeser);
   }

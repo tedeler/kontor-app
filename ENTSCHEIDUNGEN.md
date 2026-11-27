@@ -4674,3 +4674,17 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   Vorbelegung, Nachtragen), `tests/test_browser_nachweis_pdf.py`;
   angepasst `tests/core/test_tastenbelegung.py`, `tests/test_oberflaeche.py` (Einträge in `tests/core/AENDERUNGEN.md`, `TESTUMBAU.md`).
 - **Offen:** kein Schritt in den Demodaten.
+
+
+## D-304 Buchung teilen (Feature `buchung-teilen`, 2026-11-27)
+
+- **Anlass:** Eine Buchung schnell weitergeben, etwa per WhatsApp. Kontextmenü „Teilen…“ (`oberflaeche.md` 50) mit
+  Kurztext und Link auf das Kontoblatt mit markierter Buchung; mit dem Auftraggeber abgestimmt.
+- **Nur Kontextmenü, keine Taste** (Wunsch des Auftraggebers): Rechtsklick am Computer, lange Berührung auf dem Handy.
+- **Genau eine Buchung**, Link auf die gerade angezeigte Ansicht (auch eine Kategorie), weil der vorhandene Parameter
+  `buchung` nur eine Buchung als Sprungziel kennt. Der Empfänger braucht einen Zugang zu Kontor; der Link enthält
+  keine Anmeldung.
+- **Weitergabe** über die Web-Share-Schnittstelle, sonst Zwischenablage, sonst Anzeige zum Kopieren. Nur in der
+  Oberfläche; kein neuer Endpunkt, kein Zustand.
+- **Tests:** `tests/core/test_buchung_teilen.py`, `tests/test_browser_buchung_teilen.py` (Teilen-Funktion und
+  Zwischenablage als Attrappe).
