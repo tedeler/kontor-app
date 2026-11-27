@@ -4876,3 +4876,23 @@ Stand: erster Entwurf in der iterativen Phase, Feinheiten noch mit dem Auftragge
 - **Warum eine Marke statt einer Spalte:** Die Spaltenraster (Breiten, ausgeblendete Spalten, mobile Anordnung)
   sind je Liste fest; eine Marke wirkt ohne Umbau auch mobil.
 - **Tests:** `tests/test_browser_unterkonten.py`.
+
+## D-314 Fenster eines Sicherungspunkts öffnet sofort, Vergleich ohne Sicherungsdatei (Feature `sicherung-dialog-schnell`, 2026-11-27)
+
+Anlass: Klick auf einen Punkt unter `/sicherung` brauchte auf dem Server 10–20 s, bis das Fenster erschien.
+
+- **Ursache:** Die Oberfläche wartete vor dem Öffnen auf `…/vergleich` und `…/chronik`. Der Vergleich stellte die
+  Kette her und prüfte dabei den Prüfwert jedes Glieds, baute daraus die vollständige Sicherungsdatei (SQLite im
+  Arbeitsspeicher, Prüfwert erneut, VACUUM, ZIP mit allen Belegen), prüfte diese Datei wie beim Einspielen und machte
+  erst dann den Probelauf. Messung mit 20 000 Buchungen und 20 Belegen: 2,8–3,5 s, davon 0,2 s Vergleich.
+- **Oberfläche:** Das Fenster öffnet sofort mit den Angaben aus der Liste; Unterschied und Chronik kommen nach
+  (`data-geladen`), „Auf diesen Stand wechseln“ bleibt bis zum Ergebnis gesperrt.
+- **Server:** `sicherungspunkte.vergleich` stellt die Kette her (Prüfsummen aller Glieder, Prüfwert nur des
+  Ergebnisses: `Ablage.herstellen(…, nur_ergebnis_pruefen=True)`), lädt den Zustand in eine Datenbank im
+  Arbeitsspeicher und vergleicht die Protokollformen (`sicherung.vergleich_formen`). Gleiche Messung: 1,0–1,5 s.
+  Wechsel und Herunterladen prüfen unverändert jedes Glied und die Sicherungsdatei.
+- **Antwort:** ohne `manifest` und `aenderung_id` (Schema `SicherungspunktVergleich`), weil ohne Sicherungsdatei
+  kein ehrliches Manifest (Datenbank-Prüfsumme) entsteht; die Oberfläche brauchte es nie. `geaendert` folgt jetzt dem
+  Prüfwert wie der Wechsel (vorher nur den Objekten; unterschieden sich nur Einstellungen, war Wechseln gesperrt,
+  obwohl der Wechsel sie zurückgesetzt hätte).
+- **Tests:** `tests/core/test_sicherung_dialog_schnell.py`, `tests/test_browser_sicherung_dialog_schnell.py`.

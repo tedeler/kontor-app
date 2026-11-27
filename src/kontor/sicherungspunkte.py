@@ -328,10 +328,15 @@ class Ablage:
             raise NichtHerstellbar("Prüfsumme")
         return _entpacken(daten)
 
-    def herstellen(self, kennung: str) -> Zustand:
-        """Zustand eines Punkts; prüft Prüfsummen aller Glieder und den Prüfwert jedes Glieds."""
+    def herstellen(self, kennung: str, nur_ergebnis_pruefen: bool = False) -> Zustand:
+        """Zustand eines Punkts; prüft Prüfsummen aller Glieder und den Prüfwert jedes Glieds.
+
+        D-314: Mit ``nur_ergebnis_pruefen`` (nur lesend, Vergleich im Fenster eines Punkts) wird nur der Prüfwert des
+        Ergebnisses geprüft; Zwischenstände kommen dann nicht in den Zwischenspeicher."""
         if kennung in self._cache:
             return self._cache[kennung]
+        if nur_ergebnis_pruefen:
+            return self._herstellen_schnell(kennung)
         kette = self.kette(kennung)
         zustand: Zustand | None = None
         start = len(kette)
@@ -345,6 +350,21 @@ class Ablage:
                 raise NichtHerstellbar("Prüfwert")
             self._cache[k] = zustand
         assert zustand is not None
+        return zustand
+
+    def _herstellen_schnell(self, kennung: str) -> Zustand:
+        kette = self.kette(kennung)
+        zustand: Zustand | None = None
+        start = len(kette)
+        for i, k in enumerate(kette):
+            if k in self._cache:
+                zustand, start = self._cache[k], i
+                break
+        for k in reversed(kette[:start]):
+            zustand = anwenden(zustand, self.lesen(k))
+        assert zustand is not None
+        if pruefwert(hashes(zustand)) != self.punkte[kennung]["pruefwert"]:
+            raise NichtHerstellbar("Prüfwert")
         return zustand
 
     def herstellbar(self, kennung: str) -> bool:
@@ -796,6 +816,38 @@ def wechsel_vorbereiten(config: KontorConfig, kennung: str,
     if aktuell == ziel_pw and not unveraendert_erlaubt:
         raise ApiFehler(409, "stand_unveraendert", "Der aktuelle Stand entspricht bereits diesem Sicherungspunkt.")
     return sicherung.pruefen(daten), kennung
+
+
+def vergleich(config: KontorConfig, kennung: str) -> dict:
+    """D-314 (sicherungspunkte.md 7): Unterschied zwischen einem Punkt und dem aktuellen Stand, gezählt wie der
+    Probelauf (sicherung.md 5.2), aber ohne Sicherungsdatei. ``geaendert`` folgt dem Prüfwert wie der Wechsel."""
+    with _ablage_gesperrt(config) as ab:
+        m = ab.punkte.get(kennung)
+        if m is None:
+            raise ApiFehler(404, "nicht_gefunden", "Den Sicherungspunkt gibt es nicht.")
+        try:
+            zustand = ab.herstellen(kennung, nur_ergebnis_pruefen=True)
+        except NichtHerstellbar:
+            raise ApiFehler(409, "punkt_nicht_herstellbar", "Der Sicherungspunkt lässt sich nicht herstellen"
+                            " (Datei fehlt oder ist beschädigt).") from None
+        ziel_pw = m["pruefwert"]
+    mem = _in_datenbank(zustand)
+    try:
+        ziel = sicherung.alle_formen(mem)
+    finally:
+        mem.close()
+    con = db.verbinde(config.aktive_datenbank)
+    try:
+        with db.transaktion(con, schreibend=False):
+            aktuell = sicherung.alle_formen(con)
+            gleich = all(aktuell.get(o, {}) == ziel.get(o, {}) for o in sicherung.OBJEKTE)
+            # gleiche Objekte, aber vielleicht andere Einstellungen oder Begleitdaten: entscheidet der Prüfwert
+            geaendert = not gleich or pruefwert(hashes(zustand_lesen(con))) != ziel_pw
+    finally:
+        con.close()
+    unterschied, betroffen = sicherung.vergleich_formen(aktuell, ziel, sicherung.vorhandene_arten(ziel))
+    return {"trocken": True, "geaendert": geaendert, "unterschied": unterschied,
+            "abgestimmte_buchungen_betroffen": betroffen}
 
 
 # ======================================================================== Einstieg

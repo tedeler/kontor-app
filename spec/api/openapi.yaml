@@ -2786,10 +2786,10 @@ paths:
         - {name: kennung, in: path, required: true, schema: {type: string}}
       responses:
         "200":
-          description: Probelauf
+          description: "D-314: Vergleich ohne Sicherungsdatei"
           content:
             application/json:
-              schema: {$ref: "#/components/schemas/SicherungErgebnis"}
+              schema: {$ref: "#/components/schemas/SicherungspunktVergleich"}
         "404":
           description: "`nicht_gefunden`"
           content:
@@ -7737,6 +7737,18 @@ components:
         inhalt_sha256: {$ref: "#/components/schemas/Sha256"}
         datenbank_sha256: {$ref: "#/components/schemas/Sha256"}
 
+    SicherungspunktVergleich:
+      type: object
+      additionalProperties: false
+      description: "D-314: Unterschied zwischen Sicherungspunkt und aktuellem Stand (wie Probelauf, ohne Manifest)"
+      required: [trocken, geaendert, unterschied, abgestimmte_buchungen_betroffen]
+      properties:
+        trocken: {type: boolean}
+        geaendert: {type: boolean}
+        unterschied:
+          type: object
+          additionalProperties: {$ref: "#/components/schemas/SicherungZaehlung"}
+        abgestimmte_buchungen_betroffen: {type: integer, minimum: 0}
     SicherungZaehlung:
       type: object
       additionalProperties: false

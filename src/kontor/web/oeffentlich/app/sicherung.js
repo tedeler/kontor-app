@@ -97,53 +97,64 @@ export function wirkungText(unterschied) {
 
 // ------------------------------------------------------------------ Fenster eines Punkts
 
-async function punktFenster(p, ausloeser, neuLaden) {
-  const [vergleich, chronik] = await Promise.all([
-    api("GET", `/api/sicherung/punkte/${p.kennung}/vergleich`).catch((e) => ({ fehler: e })),
-    api("GET", `/api/sicherung/punkte/${p.kennung}/chronik`).catch(() => ({ eintraege: [] }))]);
-  return dialog("punkt-dialog", `Sicherungspunkt ${punktText(p)}`, (inhalt, d) => {
-    const gleich = !vergleich.fehler && !vergleich.geaendert;
-    const wirkung = vergleich.fehler
-      ? h("p", { class: "fehler", role: "alert", tid: "punkt-wirkung" }, vergleich.fehler.message)
-      : h("p", { tid: "punkt-wirkung", "data-gleich": gleich ? "ja" : "nein" },
-        gleich ? "Entspricht dem aktuellen Stand." : `Wechsel auf diesen Stand: ${wirkungText(vergleich.unterschied)}.`);
-    const bank = !vergleich.fehler && vergleich.unterschied && vergleich.unterschied.buchung
-      && vergleich.unterschied.buchung.geloescht
-      ? h("p", { class: "klein" }, "Entfallende Bankumsätze kommen beim nächsten Abruf wieder, solange die Bank sie noch liefert.")
-      : null;
+/** D-314: Das Fenster öffnet sofort mit den Angaben aus der Liste; Unterschied und Chronik kommen nach. */
+function punktFenster(p, ausloeser, neuLaden) {
+  let vergleich = null;   // bis zur Antwort unbekannt: Wechseln bleibt gesperrt
+  const wirkung = h("p", { tid: "punkt-wirkung", "data-geladen": "nein", class: "klein", "aria-live": "polite" },
+    p.aktuell ? "Entspricht dem aktuellen Stand." : "Unterschied zum aktuellen Stand wird ermittelt …");
+  const bank = h("p", { class: "klein", hidden: true },
+    "Entfallende Bankumsätze kommen beim nächsten Abruf wieder, solange die Bank sie noch liefert.");
+  const chronikPlatz = h("div", null, h("p", { class: "leer", tid: "punkt-chronik", "data-geladen": "nein" }, "Wird geladen …"));
+  const wechseln = knopf("Auf diesen Stand wechseln", { tid: "punkt-wechseln", class: "knopf knopf-haupt", disabled: true });
+  const d = dialog("punkt-dialog", `Sicherungspunkt ${punktText(p)}`, (inhalt, dd) => {
     const angaben = h("dl", { class: "sp-angaben", tid: "punkt-angaben" },
       h("dt", null, "Eigene Größe"), h("dd", null, groesseText(p.groesse)),
       h("dt", null, "Zum Herstellen"), h("dd", null, groesseText(p.groesse_herstellen)),
       h("dt", null, "Art"), h("dd", null, p.anker ? "vollständige Sicherung (Anker)" : "Änderungen gegenüber dem vorigen Punkt"),
       h("dt", null, "Geprüft"), h("dd", null, p.geprueft_am ? zeitText(p.geprueft_am) : "noch nicht"),
       h("dt", null, "Änderungen"), h("dd", null, aenderungenText(p.aenderungen) || "–"));
-    const chronikEl = chronik.eintraege.length
-      ? h("ol", { class: "sp-chronik", tid: "punkt-chronik" }, chronik.eintraege.slice().reverse().map((e) =>
-        h("li", null, h("time", { class: "pr-zeit", datetime: e.zeitpunkt }, uhrzeit(e.zeitpunkt)), quelleEl(e.quelle),
-          h("span", null, titelText(e)))))
-      : h("p", { class: "leer", tid: "punkt-chronik" }, "Keine Einträge (zum Beispiel ein Anker nach dem Einspielen).");
-    const wechseln = knopf("Auf diesen Stand wechseln", { tid: "punkt-wechseln", class: "knopf knopf-haupt",
-      disabled: gleich || Boolean(vergleich.fehler), onclick: async (e) => {
-        const ok = await bestaetigen(`Der aktuelle Stand wird vorher gesichert, danach werden alle Daten durch den Stand `
-          + `vom ${punktText(p)} ersetzt. ${vergleich.unterschied ? wirkungText(vergleich.unterschied) + " " : ""}`
-          + "Zugangsdaten und Anmeldung bleiben. Sie können jederzeit zurück.", { ja: "Stand wechseln", ausloeser: e.currentTarget });
-        if (!ok) return;
-        melde("info", "Stand wird gewechselt …");
-        await imDialog(d, wechseln, () => aktion(() => api("POST", `/api/sicherung/punkte/${p.kennung}/wechseln?bestaetigt=true`),
-          { stillBeiFehler: true, danach: () => d.schliessen(true), erfolg: `Stand vom ${punktText(p)} hergestellt.` }));
-        await neuLaden();
-      } });
+    wechseln.addEventListener("click", async (e) => {
+      if (!vergleich || vergleich.fehler) return;
+      const ok = await bestaetigen(`Der aktuelle Stand wird vorher gesichert, danach werden alle Daten durch den Stand `
+        + `vom ${punktText(p)} ersetzt. ${vergleich.unterschied ? wirkungText(vergleich.unterschied) + " " : ""}`
+        + "Zugangsdaten und Anmeldung bleiben. Sie können jederzeit zurück.", { ja: "Stand wechseln", ausloeser: e.currentTarget });
+      if (!ok) return;
+      melde("info", "Stand wird gewechselt …");
+      await imDialog(dd, wechseln, () => aktion(() => api("POST", `/api/sicherung/punkte/${p.kennung}/wechseln?bestaetigt=true`),
+        { stillBeiFehler: true, danach: () => dd.schliessen(true), erfolg: `Stand vom ${punktText(p)} hergestellt.` }));
+      await neuLaden();
+    });
     const laden = h("a", { class: "knopf", tid: "punkt-herunterladen", href: `/api/sicherung/punkte/${p.kennung}/datei`,
       download: "" }, "Herunterladen");
-    const anheften = knopf(p.angeheftet ? "Lösen" : "Anheften", { tid: "punkt-anheften", onclick: () => imDialog(d, anheften,
-      async () => { await api("PATCH", `/api/sicherung/punkte/${p.kennung}`, { angeheftet: !p.angeheftet }); d.schliessen(true); await neuLaden(); }) });
+    const anheften = knopf(p.angeheftet ? "Lösen" : "Anheften", { tid: "punkt-anheften", onclick: () => imDialog(dd, anheften,
+      async () => { await api("PATCH", `/api/sicherung/punkte/${p.kennung}`, { angeheftet: !p.angeheftet }); dd.schliessen(true); await neuLaden(); }) });
     const name = h("input", { type: "text", value: p.name || "", maxlength: "100", tid: "punkt-name" });
-    const benennen = knopf("Speichern", { tid: "punkt-benennen", onclick: () => imDialog(d, benennen,
-      async () => { await api("PATCH", `/api/sicherung/punkte/${p.kennung}`, { name: name.value.trim() || null }); d.schliessen(true); await neuLaden(); }) });
-    inhalt.append(...[wirkung, bank, angaben, h("h3", null, "Chronik"), chronikEl,
+    const benennen = knopf("Speichern", { tid: "punkt-benennen", onclick: () => imDialog(dd, benennen,
+      async () => { await api("PATCH", `/api/sicherung/punkte/${p.kennung}`, { name: name.value.trim() || null }); dd.schliessen(true); await neuLaden(); }) });
+    inhalt.append(wirkung, bank, angaben, h("h3", null, "Chronik"), chronikPlatz,
       h("div", { class: "sp-name-zeile" }, feld("Name", name), benennen),
-      knopfLeiste(wechseln, laden, anheften, knopf("Schließen", { onclick: () => d.schliessen(null) }))].filter(Boolean));
+      knopfLeiste(wechseln, laden, anheften, knopf("Schließen", { onclick: () => dd.schliessen(null) })));
   }, { ausloeser, klasse: "dialog-breit" });
+  api("GET", `/api/sicherung/punkte/${p.kennung}/vergleich`).catch((e) => ({ fehler: e })).then((v) => {
+    vergleich = v;
+    const gleich = !v.fehler && !v.geaendert;
+    wirkung.className = v.fehler ? "fehler" : "";
+    if (v.fehler) wirkung.setAttribute("role", "alert");
+    wirkung.textContent = v.fehler ? v.fehler.message
+      : gleich ? "Entspricht dem aktuellen Stand." : `Wechsel auf diesen Stand: ${wirkungText(v.unterschied)}.`;
+    if (!v.fehler) wirkung.dataset.gleich = gleich ? "ja" : "nein";
+    wirkung.dataset.geladen = "ja";
+    bank.hidden = !(!v.fehler && v.unterschied && v.unterschied.buchung && v.unterschied.buchung.geloescht);
+    wechseln.disabled = gleich || Boolean(v.fehler);
+  });
+  api("GET", `/api/sicherung/punkte/${p.kennung}/chronik`).catch(() => ({ eintraege: [] })).then((chronik) => {
+    chronikPlatz.replaceChildren(chronik.eintraege.length
+      ? h("ol", { class: "sp-chronik", tid: "punkt-chronik", "data-geladen": "ja" }, chronik.eintraege.slice().reverse().map((e) =>
+        h("li", null, h("time", { class: "pr-zeit", datetime: e.zeitpunkt }, uhrzeit(e.zeitpunkt)), quelleEl(e.quelle),
+          h("span", null, titelText(e)))))
+      : h("p", { class: "leer", tid: "punkt-chronik", "data-geladen": "ja" }, "Keine Einträge (zum Beispiel ein Anker nach dem Einspielen)."));
+  });
+  return d;
 }
 
 // ------------------------------------------------------------------ Seite
@@ -304,7 +315,7 @@ export async function sicherungSeite(seite) {
   async function neuLaden() {
     const st = await api("GET", "/api/sicherung/punkte");
     kacheln.replaceChildren(standKachel(st), speicherKachel(st));
-    const oeffnen = (p, el) => punktFenster(p, el, neuLaden).catch((e) => melde("fehler", e.message));
+    const oeffnen = (p, el) => { try { punktFenster(p, el, neuLaden); } catch (e) { melde("fehler", e.message); } };
     liste.replaceChildren(...zeitleiste(st.punkte, st.pruefungen || [], oeffnen, datum(st.jetzt)));   // Uhr des Servers
     leerEl.hidden = st.punkte.length > 0 || (st.pruefungen || []).length > 0;
   }
