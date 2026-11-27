@@ -4958,3 +4958,19 @@ Anlass: Klick auf einen Punkt unter `/sicherung` brauchte auf dem Server 10–20
   Kennung im DOM `data-teil="tilgung"` (statt `zahlung`). Ein Tooltip am Kopf nennt Beispiele, weil auch Erstattungen
   des Händlers unter „Tilgung“ und Auszahlung oder Zinsen eines Darlehens unter „Belastung“ stehen.
 - Ersetzt in D-318 die Bezeichnung „Zahlung“; alles andere aus D-318 gilt weiter.
+
+## D-320 Verlauf auf der Kategorienseite kumuliert über den gewählten Zeitraum (Feature `kategorien-verlauf`, 2026-11-27)
+
+- **Anlass (Auftraggeber):** Die kleinen Verlaufslinien zeigten bei Kategorien mit nur einer Geldflussrichtung
+  steigende und fallende Abschnitte. Prüfung: Die Linie verband Monatsbeträge (Summe je Monat), war also kein Verlauf;
+  außerdem zeigte sie immer die zwölf Monate bis zum Ende des Zeitraums, auch bei „Dieser Monat“, „30 Tage“ oder
+  „Gesamt“, während der Betrag daneben für den gewählten Zeitraum galt. Ersetzt in D-311 „Verlauf über zwölf Monate“.
+- **Regel:** Der Verlauf ist die Summe der Zeile kumuliert über genau den gewählten Zeitraum: Er beginnt bei 0 und endet
+  mit der Summe. Bei nur einer Geldflussrichtung fällt er nie; abwärts geht es nur durch Erstattungen.
+- **Abschnitte:** je Tag bei Dieser Monat, Letzter Monat, 30 Tage; je Monat bei 12 Monate, Dieses Jahr, Vorjahr; bei
+  Gesamt von der ersten bis zur letzten Buchung (mindestens bis heute) je Monat (bis 24 Monate), Quartal (bis 96) oder
+  Jahr, damit die kleine Linie lesbar bleibt. Zeiträume, die in die Zukunft reichen (Dieser Monat, Dieses Jahr), laufen
+  bis zum Ende des Zeitraums; die Linie bleibt dort flach.
+- **API:** `monate` entfällt; neu `verlauf_art` und `verlauf_bis` (Enddatum je Abschnitt); `verlauf` je Kategorie
+  kumuliert. Der Tooltip nennt den Stand dort, wo er sich ändert, und am Ende.
+- **Tests:** `tests/core/test_kategorien_uebersicht.py` (`tests/core/AENDERUNGEN.md`), `tests/test_browser_kategorien_uebersicht.py`.

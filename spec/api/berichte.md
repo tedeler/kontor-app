@@ -298,14 +298,18 @@ Nur lesend, kein Zustand. Noch nicht im OpenAPI-Vertrag (wie D-217).
   - Grenzen nach der App-Uhr: `monat` = laufender Kalendermonat; `vormonat` = voriger
     Kalendermonat; `30tage` = heute und die 29 Tage davor (D-315); `12monate` = Monatserster vor elf Monaten bis
     Monatsende des laufenden Monats; `jahr`/`vorjahr` = Kalenderjahr; `gesamt` = `von`/`bis` `null`.
-- **Antwort** `{zeitraum, von, bis, heute, monate, kategorien, summen, unkategorisiert}`:
-  - `monate`: zwölf Schlüssel `JJJJ-MM`, der letzte ist der Monat, mit dem der Zeitraum endet (`gesamt`: laufender
-    Monat).
+- **Antwort** `{zeitraum, von, bis, heute, verlauf_art, verlauf_bis, kategorien, summen, unkategorisiert}`:
+  - `verlauf_art`, `verlauf_bis` (D-320, ersetzt `monate`): Abschnitte des Verlaufs, die genau den Zeitraum abdecken;
+    `verlauf_bis` = Enddatum je Abschnitt (aufsteigend, das letzte = `bis`). `tag` bei `monat`, `vormonat`, `30tage`;
+    `monat` bei `12monate`, `jahr`, `vorjahr`; bei `gesamt` vom Abschnitt der ersten bis zu dem der letzten Buchung
+    (mindestens bis heute) als `monat` (bis 24 Monate), `quartal` (bis 96 Monate) oder `jahr`; ohne Buchungen der
+    laufende Monat.
   - `kategorien`: je Konto der Art `aufwand`/`ertrag` (auch ohne Buchungen), nach `id`: `{id, summe, eigen, anzahl,
     letzte, verlauf}`. `eigen` = Summe der eigenen Splits im Zeitraum, für Ausgaben `Σ`, für Einnahmen `−Σ` (beide
     üblicherweise positiv); `summe` = dasselbe einschließlich aller Unterkategorien gleicher Art; `anzahl` =
     verschiedene Buchungen im Teilbaum im Zeitraum; `letzte` = Datum der jüngsten Buchung im Teilbaum überhaupt
-    (`null`, wenn keine); `verlauf` = `summe` je Monat aus `monate`.
+    (`null`, wenn keine); `verlauf` = Stand der `summe` am Ende jedes Abschnitts aus
+    `verlauf_bis`, kumuliert ab Beginn des Zeitraums (D-320); der letzte Wert ist `summe`.
   - `summen`: `{ausgaben, einnahmen}` = Summe aller `eigen` je Art.
   - `unkategorisiert`: `{konto_id, anzahl, summe}` für „Unkategorisiert“ im Zeitraum (`summe` = Summe der Splits,
     Ausgaben positiv; `konto_id` `null`, wenn es das Konto nicht gibt).

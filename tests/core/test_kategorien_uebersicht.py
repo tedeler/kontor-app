@@ -3,8 +3,9 @@ dem Kontoblatt einer Kategorie.
 
 - ``GET /api/kategorien/uebersicht[?zeitraum=monat|vormonat|30tage|12monate|jahr|vorjahr|gesamt]`` (Vorgabe ``12monate``) liefert je
   Kategorie die Summe im Zeitraum einschließlich Unterkategorien (Ausgaben und Einnahmen positiv), den eigenen Anteil,
-  die Zahl der Buchungen, den Tag der letzten Buchung und den Verlauf der letzten zwölf Monate; dazu die Summen je
-  Gruppe und die unkategorisierten Buchungen im Zeitraum. Nur lesend.
+  die Zahl der Buchungen, den Tag der letzten Buchung und den Verlauf (D-320: kumuliert über genau den gewählten
+  Zeitraum, je Tag, Monat, Quartal oder Jahr); dazu die Summen je Gruppe und die unkategorisierten Buchungen im
+  Zeitraum. Nur lesend.
 - ``GET /api/export/nachweis.pdf`` nimmt auch eine Kategorie als ``konto_id``: Buchungen der Kategorie oder ihrer
   Unterkategorien, Betrag aus Sicht des Bankkontos (Anteil der Kategorie), je Buchung das Bankkonto mit gekürzter IBAN.
 """
@@ -76,7 +77,10 @@ def test_summen_mit_unterkategorien_und_vorzeichen(welt):
     c, giro, unk, k, ids, b = welt
     u = _uebersicht(c)
     assert (u["zeitraum"], u["von"], u["bis"]) == ("12monate", "2023-07-01", "2024-06-30")
-    assert u["monate"] == [f"2023-{m:02d}" for m in range(7, 13)] + [f"2024-{m:02d}" for m in range(1, 7)]
+    assert u["verlauf_art"] == "monat"
+    assert u["verlauf_bis"] == ["2023-07-31", "2023-08-31", "2023-09-30", "2023-10-31", "2023-11-30", "2023-12-31",
+                                "2024-01-31", "2024-02-29", "2024-03-31", "2024-04-30", "2024-05-31", "2024-06-30"]
+    assert "monate" not in u
     je = _je(u)
     miete = -sum(b[i]["betrag"] for i in ids["miete"])
     strom = -sum(b[i]["betrag"] for i in ids["strom"])
@@ -91,8 +95,9 @@ def test_summen_mit_unterkategorien_und_vorzeichen(welt):
     # leere Kategorien stehen mit 0 in der Liste
     assert je[k["leer"]] == {**je[k["leer"]], "summe": 0, "eigen": 0, "anzahl": 0, "letzte": None}
     assert je[k["leer"]]["verlauf"] == [0] * 12
-    # Verlauf je Monat, der letzte Eintrag ist der laufende Monat
-    assert je[k["miete"]]["verlauf"] == [0] * 9 + [98000, 98000, 98000]
+    # D-320: Verlauf kumuliert (Stand am Ende jedes Monats), der letzte Eintrag ist die Summe
+    assert je[k["miete"]]["verlauf"] == [0] * 9 + [98000, 196000, 294000]
+    assert je[k["wohnen"]]["verlauf"][-1] == miete + strom
     assert je[k["miete"]]["letzte"] == "2024-06-03"
     lebensmittel = -sum(b[i]["betrag"] for i in ids["lebensmittel"])
     assert u["summen"] == {"ausgaben": miete + strom + lebensmittel, "einnahmen": gehalt}
@@ -116,16 +121,19 @@ def test_zeitraeume(welt):
     v = _uebersicht(c, zeitraum="vorjahr")
     assert (v["von"], v["bis"]) == ("2023-01-01", "2023-12-31")
     assert _je(v)[k["miete"]]["summe"] == 0
-    assert v["monate"][-1] == "2023-12"                    # Verlauf endet mit dem Zeitraum
+    assert (v["verlauf_art"], v["verlauf_bis"][0], v["verlauf_bis"][-1]) == ("monat", "2023-01-31", "2023-12-31")
+    assert _je(v)[k["miete"]]["verlauf"] == [0] * 12
     assert _je(v)[k["miete"]]["letzte"] == "2024-06-03"    # letzte Buchung überhaupt
     # D-315: letzter Monat und letzte 30 Tage
     lm = _uebersicht(c, zeitraum="vormonat")
     assert (lm["von"], lm["bis"]) == ("2024-05-01", "2024-05-31")
-    assert lm["monate"][-1] == "2024-05"
+    assert lm["verlauf_art"] == "tag"                       # D-320: kurze Zeiträume je Tag
+    assert lm["verlauf_bis"] == [f"2024-05-{d:02d}" for d in range(1, 32)]
     assert _je(lm)[k["miete"]]["summe"] == 98000 and _je(lm)[k["miete"]]["anzahl"] == 1
     t = _uebersicht(c, zeitraum="30tage")
     assert (t["von"], t["bis"]) == ("2024-06-01", "2024-06-30")   # heute und die 29 Tage davor
-    assert t["monate"][-1] == "2024-06"
+    assert (t["verlauf_art"], t["verlauf_bis"][0], t["verlauf_bis"][-1], len(t["verlauf_bis"])) == (
+        "tag", "2024-06-01", "2024-06-30", 30)
     in_30 = [i for i in ids["miete"] if "2024-06-01" <= b[i]["datum"] <= "2024-06-30"]
     assert _je(t)[k["miete"]]["anzahl"] == len(in_30) == 1
     g = _uebersicht(c, zeitraum="gesamt")
@@ -212,3 +220,36 @@ def test_30_tage_ueber_den_monatswechsel():
     assert grenzen("30tage", dt.date(2024, 3, 10))[:2] == ("2024-02-10", "2024-03-10")
     assert grenzen("vormonat", dt.date(2024, 1, 15)) == ("2023-12-01", "2023-12-31", (2023, 12))
     assert grenzen("vormonat", dt.date(2024, 3, 31))[:2] == ("2024-02-01", "2024-02-29")
+
+
+def test_verlauf_kumuliert_ueber_den_zeitraum(welt):
+    """D-320: Der Verlauf bildet genau den gewählten Zeitraum ab und ist kumuliert: je Abschnitt der Stand der Summe
+    seit Beginn des Zeitraums. Er endet mit der Summe der Zeile; eine Kategorie mit nur einer Geldflussrichtung fällt
+    nie."""
+    c, giro, unk, k, ids, b = welt
+    miete_tage = sorted(b[i]["datum"] for i in ids["miete"])
+    for z in ("monat", "vormonat", "30tage", "12monate", "jahr", "vorjahr", "gesamt"):
+        u = _uebersicht(c, zeitraum=z)
+        bis = u["verlauf_bis"]
+        assert bis == sorted(bis) and len(set(bis)) == len(bis), z
+        if u["bis"] is not None:
+            assert bis[-1] == u["bis"], z
+        for zeile in u["kategorien"]:
+            assert len(zeile["verlauf"]) == len(bis), (z, zeile)
+            assert zeile["verlauf"][-1] == zeile["summe"], (z, zeile)
+        for name in ("miete", "wohnen", "gehalt", "lebensmittel"):
+            v = _je(u)[k[name]]["verlauf"]
+            assert all(a <= n for a, n in zip(v, v[1:])), (z, name, v)   # nur eine Richtung → steigt oder bleibt
+        # Stand am Ende eines Abschnitts = Summe der Mieten bis zu diesem Tag (im Zeitraum)
+        von = u["von"] or "0000-00-00"
+        for ende, stand in zip(bis, _je(u)[k["miete"]]["verlauf"]):
+            assert stand == 98000 * sum(1 for d in miete_tage if von <= d <= ende), (z, ende)
+    m = _uebersicht(c, zeitraum="monat")
+    assert (m["verlauf_art"], len(m["verlauf_bis"])) == ("tag", 30)
+    assert _je(m)[k["miete"]]["verlauf"][:3] == [0, 0, 98000]          # Miete am 03.06.
+    j = _uebersicht(c, zeitraum="jahr")
+    assert (j["verlauf_art"], j["verlauf_bis"][0], len(j["verlauf_bis"])) == ("monat", "2024-01-31", 12)
+    g = _uebersicht(c, zeitraum="gesamt")
+    erste = min(x["datum"] for x in b.values())
+    assert g["verlauf_art"] in ("monat", "quartal", "jahr")
+    assert g["verlauf_bis"][0] >= erste and g["verlauf_bis"][-1] >= max(miete_tage)

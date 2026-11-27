@@ -3707,8 +3707,9 @@ Kontoblatt). Im Seitenbereich der Kontoansicht (`panel-kategorien`) bleibt der B
   „Unkategorisiert“ mit der Zahl der Buchungen ohne Kategorie im Zeitraum (hervorgehoben, wenn es welche gibt).
 - **Baum** (Klasse `baum-uebersicht`): Ausgaben und Einnahmen als zwei Karten nebeneinander (schmal untereinander).
   Gruppenkopf `kategorien-gruppe-<art>` mit Zahl der Kategorien und Summe `kategorien-summe-<art>` (`data-betrag`).
-  Je Eintrag: Farbpunkt (ein Ton je Wurzelkategorie, Unterkategorien erben ihn), Name, Zahl der Buchungen, Verlauf der
-  zwölf Monate (kleine Linie), Balken (größte Wurzelkategorie der Gruppe = voll), Summe `kategorie-summe-<id>`
+  Je Eintrag: Farbpunkt (ein Ton je Wurzelkategorie, Unterkategorien erben ihn), Name, Zahl der Buchungen, Verlauf (kleine
+  Linie, D-320: Summe kumuliert über den gewählten Zeitraum, beginnt bei 0, endet mit der Summe; Tooltip mit dem Stand
+  je Abschnitt, wo er sich ändert), Balken (größte Wurzelkategorie der Gruppe = voll), Summe `kategorie-summe-<id>`
   (`data-betrag`, einschließlich Unterkategorien, Ausgaben und Einnahmen positiv; ohne Buchungen blass) und die Knöpfe
   `kategorie-oeffnen-<id>` (Kontoblatt) und `kategorie-menue-<id>` (Kontextmenü wie 8.2/29.3). Die Knöpfe sind am
   Desktop beim Überfahren, im Fokus und bei markierten Einträgen sichtbar, am Handy immer; sie haben `tabindex="-1"`

@@ -59,6 +59,13 @@ def test_kategorienseite(tmp_path, browser):  # noqa: F811
         expect(tid(page, f"kategorie-summe-{k['gehalt']}")).to_have_attribute("data-betrag", "855000")
         expect(tid(page, "kategorien-summe-aufwand")).to_have_attribute("data-betrag", "444000")
         expect(tid(page, "kategorien-kachel-saldo").locator("[data-betrag]")).to_have_attribute("data-betrag", "411000")
+        # D-320: Verlauf kumuliert über den Zeitraum – bei nur einer Geldflussrichtung steigt die Linie nur
+        for kat, ende in (("miete", "06/26: 2.940,00\u00a0€"), ("gehalt", "06/26: 8.550,00\u00a0€")):
+            svg = tid(page, f"kategorie-summe-{k[kat]}").locator("xpath=ancestor::span[contains(@class,'baum-zeile')]"
+                                                                  ).locator("svg.kat-verlauf")
+            ys = [float(p.split(",")[1]) for p in svg.locator("polyline").get_attribute("points").split()]
+            assert ys[0] == 17 and ys == sorted(ys, reverse=True) and ys[-1] < ys[0], (kat, ys)   # oben = mehr
+            assert svg.locator("title").text_content().splitlines()[-1] == ende
         # Zeitraum: dieser Monat, in der Adresse vermerkt
         tid(page, "kategorien-zeitraum-monat").click()
         expect(tid(page, f"kategorie-summe-{k['miete']}")).to_have_attribute("data-betrag", "98000")
