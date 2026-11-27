@@ -241,15 +241,15 @@ nicht Tags des Empfängers). Es gibt keinen weiteren Zustand.
 
 Nur lesend: kein Zustand, kein Protokoll, nichts in der Sicherung. Noch nicht im OpenAPI-Vertrag (wie D-217).
 
-- **`GET /api/export/nachweis.pdf?konto_id=<id>&buchung_id=<id>[&buchung_id=…][&inhaber=<text>]`** liefert
+- **`GET /api/export/nachweis.pdf?konto_id=<id>&buchung_id=<id>[&buchung_id=…]`** liefert
   `application/pdf` mit `Content-Disposition: attachment; filename="kontor-nachweis-<JJJJMMTT>.pdf"` und
   `Cache-Control: no-store`.
   - `konto_id` Pflicht; Konto fehlt → 404 `nicht_gefunden`; kein Bestandskonto (Kategorie, Eigenkapital) → 422
     `kein_bestandskonto`.
   - `buchung_id` 1 bis 500 verschiedene Werte (doppelte zählen einmal), sonst 422 `validierung`; eine fehlt → 404
     `nicht_gefunden`; eine ohne Split auf dem Konto → 422 `buchung_nicht_im_konto` (`details.buchung_ids`).
-  - `inhaber` höchstens 200 Zeichen (sonst 422); fehlt der Parameter, gilt der Kontoinhaber aus den Kontodaten der
-    Bank (leer → „–“). Unbekannte Parameter → 422.
+  - Unbekannte Parameter → 422 (auch `inhaber`, seit D-316). Kontoinhaber = Eigenschaft `inhaber` des Kontos
+    („Vorname Nachname“, D-312); ohne sie der Inhaber aus den von der Bank gemeldeten Kontodaten; sonst „–“.
 - **Inhalt** (Text mit `pypdf` extrahierbar): Kopf „KONTOR Homebanking-Software“, Auszugsdatum = heute (App-Uhr),
   Titel „Kontoauszug“ mit „Nachweis ausgewählter Buchungen · kein Dokument der Bank“; Kontoinhaber, IBAN gekürzt
   (`DE79 XXXX XXXX XXXX XXXX 1001`: Ländercode, Prüfziffer, letzte vier Stellen, immer vier Gruppen `XXXX`;
@@ -266,12 +266,12 @@ Nur lesend: kein Zustand, kein Protokoll, nichts in der Sicherung. Noch nicht im
   - „Weicht vom Umsatz der Bank ab: <Felder>“ – Felder in der Reihenfolge Datum, Empfänger, Verwendungszweck, Betrag
     (Betrag auf diesem Konto). Das gilt auch für von Hand erfasste Buchungen, an die die Synchronisation einen
     Bankumsatz angehängt hat.
-- **`GET /api/export/nachweis/angaben?konto_id=<id>`** → `{"inhaber": str, "bic": str|null}` aus den von der Bank
-  gemeldeten Kontodaten (Bankzugang); Fehler wie oben.
-- **Oberfläche:** Im Kontoblatt eines Bestandskontos öffnen `v p`, das Kontextmenü `km-nachweis` „Nachweis als PDF…“
-  und die Befehlspalette den Dialog `nachweis-dialog` für die markierten Buchungen: `nachweis-umfang` (Anzahl),
-  Feld `nachweis-inhaber` (vorbelegt), `nachweis-ok` lädt die Datei herunter und schließt den Dialog; Fehler stehen
-  im Dialog. In Kategorien gibt es weder Kürzel noch Menüeintrag.
+- **`GET /api/export/nachweis/angaben?konto_id=<id>`** → `{"inhaber": str, "bic": str|null}`: Inhaber wie im
+  Nachweis (Kontoeigenschaft, sonst Bankdaten, sonst leer), BIC aus den von der Bank gemeldeten Kontodaten; Fehler wie
+  oben.
+- **Oberfläche:** Im Kontoblatt eines Bestandskontos laden `v p`, das Kontextmenü `km-nachweis` „Nachweis als PDF“
+  und die Befehlspalette die Datei für die markierten Buchungen ohne Rückfrage herunter (D-316; bis dahin Dialog
+  `nachweis-dialog` mit Feld für den Inhaber); Meldung „Nachweis für <n> Buchung(en) erstellt.“, Fehler als Meldung.
 
 ### 8.1 Nachweis aus dem Kontoblatt einer Kategorie (D-311)
 
@@ -285,8 +285,9 @@ Nur lesend: kein Zustand, kein Protokoll, nichts in der Sicherung. Noch nicht im
   Anteil vom Betrag auf dem Bankkonto abweicht, „Anteil an einer Zahlung über <Betrag>“. Hinweise wie in 8 gegen das
   Bankkonto der Buchung; ohne Bankkonto „Keinem Bankkonto zugeordnet“, mit mehreren „Mehrere Bankkonten beteiligt“.
   Summe = Summe der Anteile.
-- `GET /api/export/nachweis/angaben?konto_id=<Kategorie>` → Kontoinhaber des ersten Bankkontos, für das die Bank einen
-  meldet; `bic` immer `null`.
+- Kontoinhaber (D-316): die Inhaber der beteiligten Bankkonten (je Konto wie in 8), verschiedene durch Komma
+  getrennt, in der Reihenfolge der Konto-IDs; ist kein Bankkonto beteiligt, die aller Bankkonten.
+- `GET /api/export/nachweis/angaben?konto_id=<Kategorie>` → Inhaber aller Bankkonten wie oben; `bic` immer `null`.
 
 ## 9. Beträge je Kategorie (Feature `kategorien-uebersicht`, D-311)
 

@@ -1722,19 +1722,16 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
         q = Query(request.query_params)
         konto_id = q.ganzzahl("konto_id")
         ids = q.ganzzahlen("buchung_id")
-        inhaber = q.text("inhaber")
         if konto_id is None:
             q.fehler_melden("konto_id", "Pflichtangabe.")
         if not ids:
             q.fehler_melden("buchung_id", "Mindestens eine Buchung angeben.")
         elif len(set(ids)) > nachweis.MAX_BUCHUNGEN:
             q.fehler_melden("buchung_id", f"Höchstens {nachweis.MAX_BUCHUNGEN} Buchungen.")
-        if inhaber is not None and len(inhaber) > nachweis.MAX_INHABER:
-            q.fehler_melden("inhaber", f"Höchstens {nachweis.MAX_INHABER} Zeichen.")
-        for unbekannt in sorted(set(request.query_params.keys()) - {"konto_id", "buchung_id", "inhaber"}):
+        for unbekannt in sorted(set(request.query_params.keys()) - {"konto_id", "buchung_id"}):
             q.fehler_melden(unbekannt, "Unbekannter Parameter.")
         q.pruefen()
-        daten = await lesen(nachweis.erstellen, konto_id, ids, inhaber, sync.heute().isoformat())
+        daten = await lesen(nachweis.erstellen, konto_id, ids, sync.heute().isoformat())
         return Response(daten, media_type="application/pdf",
                         headers={"Content-Disposition":
                                  f'attachment; filename="kontor-nachweis-{sync.heute().strftime("%Y%m%d")}.pdf"',

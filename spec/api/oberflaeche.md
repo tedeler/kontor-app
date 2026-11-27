@@ -3724,9 +3724,8 @@ Kontoblatt). Im Seitenbereich der Kontoansicht (`panel-kategorien`) bleibt der B
 
 ### 51.1 Nachweis im Kontoblatt einer Kategorie (ergänzt `berichte.md` 8, 46)
 
-Im Kontoblatt einer Kategorie (Art `aufwand`/`ertrag`, nicht „Unkategorisiert“) gibt es `v p`, `km-nachweis` und den
-Dialog `nachweis-dialog` wie im Kontoblatt eines Bankkontos. Der Hinweistext des Dialogs nennt den Anteil der Kategorie
-aus Sicht des Bankkontos.
+Im Kontoblatt einer Kategorie (Art `aufwand`/`ertrag`, nicht „Unkategorisiert“) gibt es `v p` und `km-nachweis` wie
+im Kontoblatt eines Bankkontos. Seit D-316 ohne Dialog: die Datei wird direkt heruntergeladen.
 ## 52. Kontotyp, Kontoinhaber und Vorzeichen bei Kreditkonten (Feature `konto-typ-inhaber`, D-312)
 
 - **Kontoeinstellungen** (`konto-einstellungen`, Kontextmenü „Einstellungen…“ und `konto-einstellungen-oeffnen` im
