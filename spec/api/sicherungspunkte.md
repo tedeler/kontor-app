@@ -153,7 +153,12 @@ Antwort 200:
 
 - `POST /api/sicherung/punkte` mit `{name?}`: 201 neuer Punkt bzw. 200 bestehender Punkt mit `neu = false`.
 - `PATCH /api/sicherung/punkte/{kennung}` mit `name` (string oder null) und/oder `angeheftet` (bool).
-- `GET /api/sicherung/punkte/{kennung}/vergleich`: Unterschied zum aktuellen Stand wie `sicherung.md` 5.2.
+- `GET /api/sicherung/punkte/{kennung}/vergleich`: Unterschied zum aktuellen Stand wie `sicherung.md` 5.2. D-314:
+  Antwort `{trocken: true, geaendert, unterschied, abgestimmte_buchungen_betroffen}` ohne `manifest` und
+  `aenderung_id` (es entsteht keine Sicherungsdatei). `unterschied` zählt wie der Probelauf mit der Sicherungsdatei
+  des Punkts. `geaendert` ist genau dann `false`, wenn der Prüfwert des aktuellen Bestands dem des Punkts gleicht
+  (dann lehnt der Wechsel mit `stand_unveraendert` ab). Geprüft werden die Prüfsummen aller Glieder der Kette und
+  der Prüfwert des hergestellten Punkts; Fehler wie bisher 404 `nicht_gefunden`, 409 `punkt_nicht_herstellbar`.
 - `GET /api/sicherung/punkte/{kennung}/chronik`: Liste `{zeitpunkt, quelle, aktion, beschreibung}`.
 - `GET /api/sicherung/punkte/{kennung}/datei`: eigenständige Sicherungsdatei nach `sicherung.md` 3
   (`kontor-sicherung-<modus>-<zeit>.zip`, Zeit = Zeitpunkt des Punkts).

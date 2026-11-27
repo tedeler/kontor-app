@@ -2132,14 +2132,7 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
     async def sicherungspunkt_vergleich(request: Request):
         k = kennung(request)
 
-        def f():
-            s, _ = sicherungspunkte.wechsel_vorbereiten(config, k, unveraendert_erlaubt=True)
-            con = db.verbinde(pfad)
-            try:
-                return sicherung.probelauf(con, s)
-            finally:
-                con.close()
-        return await run_in_threadpool(f)
+        return await run_in_threadpool(sicherungspunkte.vergleich, config, k)   # D-314
 
     @endpunkt("GET", "/api/sicherung/punkte/{kennung}/datei")
     async def sicherungspunkt_datei(request: Request):

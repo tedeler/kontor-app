@@ -738,19 +738,24 @@ def pruefen(roh: bytes) -> Sicherung:
 
 def vergleich(aktuell: dict[str, dict[int, dict]], s: Sicherung) -> tuple[dict, int]:
     """sicherung.md 5.2 und 5.5: (Unterschied je Objektart, betroffene abgestimmte/abgeglichene Buchungen)."""
+    return vergleich_formen(aktuell, s.formen, s.arten)
+
+
+def vergleich_formen(aktuell: dict[str, dict[int, dict]], ziel: dict[str, dict[int, dict]], arten) -> tuple[dict, int]:
+    """Wie ``vergleich`` mit den Formen und Objektarten des Ziels (D-314: auch ohne Sicherungsdatei)."""
     unterschied = {}
     for o in OBJEKTE:
         # ab M5: Objektart nur, wenn Sicherung oder aktueller Bestand Objekte dieser Art enthalten (2.5)
-        if o not in s.arten and not (o in OBJEKTE_OPTIONAL and aktuell.get(o)):
+        if o not in arten and not (o in OBJEKTE_OPTIONAL and aktuell.get(o)):
             continue
-        a, b = aktuell.get(o, {}), s.formen.get(o, {})
+        a, b = aktuell.get(o, {}), ziel.get(o, {})
         unterschied[o] = {"angelegt": sum(1 for i in b if i not in a),
                           "geaendert": sum(1 for i in b if i in a and a[i] != b[i]),
                           "geloescht": sum(1 for i in a if i not in b)}
     betroffen = 0
     for i, f in aktuell.get("buchung", {}).items():
         gesperrt = f["status"] == "abgeglichen" or any(sp["abstimmung_id"] is not None for sp in f["splits"])
-        if gesperrt and s.formen["buchung"].get(i) != f:
+        if gesperrt and ziel.get("buchung", {}).get(i) != f:
             betroffen += 1
     return unterschied, betroffen
 

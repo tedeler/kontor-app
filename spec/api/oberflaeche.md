@@ -3655,6 +3655,10 @@ Befehlspalette (jetzt nur Kürzel, die es auf dem Blatt gibt).
 - Fenster `punkt-dialog`: `punkt-wirkung` (Unterschied zum aktuellen Stand, `data-gleich`), `punkt-angaben`,
   `punkt-chronik`, `punkt-name` mit `punkt-benennen`, `punkt-wechseln` (inaktiv bei gleichem Stand; Rückfrage
   `bestaetigen-dialog`, dann über `aktion()`), `punkt-herunterladen`, `punkt-anheften`.
+- D-314: Das Fenster öffnet sofort mit den Angaben aus der Liste. `punkt-wirkung` trägt `data-geladen="nein"` und
+  „Unterschied zum aktuellen Stand wird ermittelt …“ (beim aktuellen Punkt gleich „Entspricht dem aktuellen Stand.“),
+  bis der Vergleich vorliegt; dann `data-geladen="ja"` und `data-gleich`. `punkt-wechseln` bleibt bis dahin inaktiv.
+  `punkt-chronik` trägt ebenso `data-geladen`.
 
 ## 50. Buchung teilen (Feature `buchung-teilen`, D-304)
 
