@@ -357,7 +357,7 @@ def regel_aendern(con, rid: int, d: dict) -> dict:
 
 def regel_loeschen(con, rid: int) -> None:
     regel_lesen(con, rid)
-    # D-307: Das Löschen sperrt den Empfänger nicht mehr; die automatische Regel darf wieder entstehen.
+    # D-308: Das Löschen sperrt den Empfänger nicht mehr; die automatische Regel darf wieder entstehen.
     con.execute("UPDATE vorschlag SET regel_id = NULL WHERE regel_id = ?", (rid,))
     con.execute("DELETE FROM regel WHERE id = ?", (rid,))
 
@@ -380,7 +380,7 @@ def reihenfolge_setzen(con, ids: list[int]) -> list[dict]:
 
 def uebernehmen(con, rid: int) -> dict:
     """POST /api/regeln/{id}/uebernehmen (D-295): Eine automatisch angelegte Regel wird eine eigene am Ende der eigenen
-    Regeln. Bedingung, Kategorie, Tags und Aktiv bleiben. Seit D-307 ohne Sperre: Solange die übernommene Regel
+    Regeln. Bedingung, Kategorie, Tags und Aktiv bleiben. Seit D-308 ohne Sperre: Solange die übernommene Regel
     besteht (aktiv oder deaktiviert) und die Buchungen des Empfängers trifft, entsteht keine automatische."""
     alt = regel_lesen(con, rid)
     if not alt.get("automatisch"):

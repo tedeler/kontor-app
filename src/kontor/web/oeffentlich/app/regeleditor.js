@@ -36,7 +36,7 @@ export const WIRKUNG_TEXT = { neu: "neu", abweichend: "abweichend", bereits_so: 
 
 // ------------------------------------------------------------------ Regelliste (5.1)
 const anzahlText = (n, eins, viele) => `${n} ${n === 1 ? eins : viele}`;
-/** D-307: Meldung nach dem Deaktivieren; bei automatisch angelegten Regeln mit dem Hinweis auf die Sperre. */
+/** D-308: Meldung nach dem Deaktivieren; bei automatisch angelegten Regeln mit dem Hinweis auf die Sperre. */
 export const DEAKTIVIERT_AUTO = "Regel deaktiviert. Solange diese Regel deaktiviert ist, legt Kontor für diesen Empfänger keine neue an.";
 const aktivMeldung = (r, an) => (an ? "Regel aktiviert." : r.automatisch ? DEAKTIVIERT_AUTO : "Regel deaktiviert.");
 
@@ -53,7 +53,7 @@ function klappBereich(schluessel, tid, titel, ...inhalt) {
 }
 
 export async function regelnSeite(seite, kopf) {
-  // D-307: Prüfung der automatisch angelegten Regeln; scheitert sie, erscheint die Liste ohne Hinweise.
+  // D-308: Prüfung der automatisch angelegten Regeln; scheitert sie, erscheint die Liste ohne Hinweise.
   const [liste, sp, pruefung] = await Promise.all([api("GET", "/api/regeln"), sprache("regel"),
     api("GET", "/api/regeln/pruefung").catch(() => ({ regeln: [] }))]);
   const befund = new Map((pruefung.regeln || []).map((x) => [x.regel_id, x]));
@@ -91,7 +91,7 @@ export async function regelnSeite(seite, kopf) {
     return { titel: "Regeln" };
   }
   // D-295: zwei Abschnitte; alle eigenen Regeln wirken vor allen automatisch angelegten.
-  // D-307: deaktivierte Regeln stehen in einem eigenen Bereich ganz unten.
+  // D-308: deaktivierte Regeln stehen in einem eigenen Bereich ganz unten.
   const alleEigenen = liste.filter((r) => !r.automatisch);
   const eigene = alleEigenen.filter((r) => r.aktiv);
   const auto = liste.filter((r) => r.automatisch && r.aktiv);
@@ -213,7 +213,7 @@ export async function regelnSeite(seite, kopf) {
       const q = suche.value.trim().toLocaleLowerCase("de");
       const treffer = auto.filter((r) => !q || [r.name, r.ausdruck || "", r.kategorie_id ? pfadVon(r.kategorie_id) : ""]
         .some((t) => t.toLocaleLowerCase("de").includes(q))).sort(vergleich[sortierung.value]);
-      // D-307: Regeln mit Hinweis zuerst, sonst in der gewählten Sortierung
+      // D-308: Regeln mit Hinweis zuerst, sonst in der gewählten Sortierung
       treffer.sort((a, b2) => (befund.has(a.id) ? 0 : 1) - (befund.has(b2.id) ? 0 : 1));
       ol.replaceChildren(...treffer.map((r) => zeile(r)));
       anzahl.textContent = q ? `${treffer.length} von ${auto.length}` : "";
@@ -232,7 +232,7 @@ export async function regelnSeite(seite, kopf) {
     seite.append(det);
   }
 
-  // D-307: Bereich „Deaktiviert“ ganz unten, eigene und automatisch angelegte Regeln, Vorgabe eingeklappt
+  // D-308: Bereich „Deaktiviert“ ganz unten, eigene und automatisch angelegte Regeln, Vorgabe eingeklappt
   if (aus.length) {
     seite.append(klappBereich("kontor.regeln.deaktiviert", "regeln-deaktiviert", `Deaktiviert (${aus.length})`,
       h("p", { class: "hinweis klein" }, "Deaktivierte Regeln wirken nicht. Eine deaktivierte automatisch angelegte Regel "

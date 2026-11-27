@@ -4689,7 +4689,7 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - **Tests:** `tests/core/test_buchung_teilen.py`, `tests/test_browser_buchung_teilen.py` (Teilen-Funktion und
   Zwischenablage als Attrappe).
 
-## D-307 Prüfung automatisch angelegter Regeln, Löschen ohne Sperre, Bereich „Deaktiviert“ (Feature `regelpruefung`, 2026-11-27)
+## D-308 Prüfung automatisch angelegter Regeln, Löschen ohne Sperre, Bereich „Deaktiviert“ (Feature `regelpruefung`, 2026-11-27)
 
 - **Anlass:** Mit dem Auftraggeber abgestimmt (2026-11-27): Werden die Zuordnungen, aus denen eine automatische Regel
   entstand, später von Hand geändert, bleibt die Regel stehen und schlägt weiter die alte Kategorie vor. Solche Regeln
@@ -4717,7 +4717,7 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   deaktivierte eigene Regeln hinter den aktiven. Beim Deaktivieren einer automatischen Regel (Schalter oder Editor)
   lautet die Meldung „… Solange diese Regel deaktiviert ist, legt Kontor für diesen Empfänger keine neue an.“; die
   Rückfrage vor dem Löschen einer automatischen Regel nennt, dass sie wiederkommen kann, und rät zum Deaktivieren.
-- **Tests:** `tests/core/test_regelpruefung.py`, `tests/test_browser_regelpruefung.py`. Angepasst (D-307 statt Sperre):
+- **Tests:** `tests/core/test_regelpruefung.py`, `tests/test_browser_regelpruefung.py`. Angepasst (D-308 statt Sperre):
   `tests/core/test_regelgruppen.py` (`AENDERUNGEN.md`), `tests/test_lernregeln_eigen.py`,
   `gesamt-tests` M31 `test_m31_regeln_automatisch.py`, M30 `test_regelliste`, `spec/test_openapi.py`
   (`TESTUMBAU.md`).

@@ -273,7 +273,7 @@ Bedingungen gelten:
 4. für `E` besteht noch keine automatische Regel (gleich welcher Zustand,
    also auch keine deaktivierte; 9.4);
 5. keine Regel mit Kategorie trifft die jüngste Buchung von `E` bereits,
-   gleich ob aktiv oder deaktiviert (D-307; vorher nur aktive);
+   gleich ob aktiv oder deaktiviert (D-308; vorher nur aktive);
 6. `E` hat keine Standardkategorie (entfällt mit dem Sammelbranch).
 
 ### 9.2 Zeitpunkt
@@ -296,7 +296,7 @@ In REST und Protokollform zusätzlich `automatisch: true` und `empfaenger_id`
 Regel: bearbeitbar, abschaltbar, löschbar. Wird `E` umbenannt, bleibt die
 Regel unverändert (sie greift dann nicht mehr); eine zweite entsteht nicht.
 
-### 9.4 Löschen und Deaktivieren (D-307, ersetzt die Sperre nach D-179)
+### 9.4 Löschen und Deaktivieren (D-308, ersetzt die Sperre nach D-179)
 
 Das Löschen einer automatischen Regel (`regel_loeschen`) sperrt `E` nicht:
 Sind die Bedingungen aus 9.1 später erfüllt, entsteht wieder eine
@@ -309,7 +309,7 @@ der Protokollform des Empfängers) bleiben als Daten erhalten, wirken aber
 nicht mehr. Regeln mit `automatisch` und ihre Bezüge gehören zum Buchbestand
 und zur Sicherung (`sicherung.md` 13).
 
-### 9.5 Prüfung automatischer Regeln (D-307)
+### 9.5 Prüfung automatischer Regeln (D-308)
 
 `GET /api/regeln/pruefung` misst jede **aktive** automatische Regel mit
 Kategorie, deren Empfänger besteht, an den Bedingungen 1–3 aus 9.1, mit der

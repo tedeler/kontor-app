@@ -5,7 +5,7 @@
 - ``POST /api/regeln/reihenfolge`` behält die Gruppen bei: Die Reihenfolge innerhalb jeder Gruppe kommt aus der Liste.
 - ``POST /api/regeln/{id}/uebernehmen`` macht aus einer automatisch angelegten Regel eine eigene am Ende der eigenen
   Regeln. Solange sie besteht (aktiv oder deaktiviert), entsteht für den Empfänger keine neue automatische Regel;
-  nach dem Löschen darf wieder eine entstehen (D-307). Eine Änderung im Protokoll, rückgängig zu machen.
+  nach dem Löschen darf wieder eine entstehen (D-308). Eine Änderung im Protokoll, rückgängig zu machen.
 """
 
 from __future__ import annotations
@@ -134,7 +134,7 @@ def test_uebernommene_regel_verhindert_neue_bis_zum_loeschen(auto):
     assert c.delete(f"/api/regeln/{a}").status_code in (200, 204)
     buchen("Frischekorb", "Lebensmittel", 3)
     (neu,) = regeln(c)
-    assert neu.get("automatisch") and neu["empfaenger_id"] == emp["Frischekorb"], "nach dem Löschen wieder (D-307)"
+    assert neu.get("automatisch") and neu["empfaenger_id"] == emp["Frischekorb"], "nach dem Löschen wieder (D-308)"
 
 
 def test_uebernehmen_nur_fuer_automatische_regeln(auto):

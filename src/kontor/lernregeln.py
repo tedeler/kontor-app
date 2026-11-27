@@ -6,13 +6,13 @@ Buchung (einzelne Fehlgriffe verhindern die Regel also nicht, ein Wechsel der Ka
 dieselbe Trainingsmenge wie beim Lernmodell (lernmodell.md 3: Kategorie gesetzt, kein offener Vorschlag).
 
 Die Regel steht am Ende der Regelliste, ist in ``regel_automatisch`` als automatisch angelegt vermerkt und sonst
-eine gewöhnliche Regel. Löscht der Nutzer sie, darf sie später wieder entstehen (D-307); eine deaktivierte
+eine gewöhnliche Regel. Löscht der Nutzer sie, darf sie später wieder entstehen (D-308); eine deaktivierte
 automatische Regel verhindert eine neue, solange sie besteht. Keine Regel entsteht, wenn eine Regel mit Kategorie
 seine jüngste Buchung schon trifft, aktiv oder deaktiviert (eine übernommene Regel wirkt so weiter). Die Tabelle
 ``empfaenger_lernregel_sperre`` wird nicht mehr geschrieben und nicht mehr beachtet; frühere Sperren bleiben als
 Daten stehen, damit Protokoll und Sicherung unverändert bleiben.
 
-``pruefen`` (D-307) vergleicht jede aktive automatische Regel mit denselben Bedingungen und meldet, welche nicht
+``pruefen`` (D-308) vergleicht jede aktive automatische Regel mit denselben Bedingungen und meldet, welche nicht
 mehr gilt.
 """
 
@@ -94,7 +94,7 @@ def _kategorie(beispiele: list[tuple[str, int, int]], heute: dt.date) -> int | N
 
 def _schon_erfasst(con, regelliste: list[dict], name: str, buchung_id: int) -> bool:
     """Trifft eine Regel die Buchung bereits (aktiv: es entstünde nur eine verdeckte Regel; deaktiviert: der Nutzer
-    hat sich gegen diese Zuordnung entschieden, D-307)?"""
+    hat sich gegen diese Zuordnung entschieden, D-308)?"""
     art_von = buch.kontoarten(con)
     b = buch.buchungen_laden(con, [buchung_id], art_von=art_von)[0]
     bestand = [s for s in b["splits"] if art_von[s["konto_id"]] in BESTAND]
@@ -160,7 +160,7 @@ _GRUND_TEXT = {
 
 
 def pruefen(con, heute: dt.date) -> dict:
-    """GET /api/regeln/pruefung (D-307): aktive automatische Regeln, deren Anlagebedingungen nicht mehr gelten.
+    """GET /api/regeln/pruefung (D-308): aktive automatische Regeln, deren Anlagebedingungen nicht mehr gelten.
 
     Gleiche Bedingungen wie beim Anlegen (Modulbeschreibung), gemessen an der Kategorie der Regel. Regeln ohne
     Kategorie und Regeln, deren Empfänger nicht mehr besteht, bleiben außen vor. Nur lesend."""
