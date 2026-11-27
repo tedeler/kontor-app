@@ -3697,8 +3697,9 @@ Kontoblatt). Im Seitenbereich der Kontoansicht (`panel-kategorien`) bleibt der B
 
 - **Kopf:** `kategorie-anlegen` (Hauptknopf).
 - **Leiste** `kategorien-leiste`: Suchfeld `kategorien-suche`; Zeitraum `kategorien-zeitraum` (`role="radiogroup"`,
-  Knöpfe `kategorien-zeitraum-<wert>` mit `role="radio"`/`aria-checked`; Werte `monat`, `12monate` (Vorgabe), `jahr`,
-  `vorjahr`, `gesamt`; Pfeiltasten wechseln). Der Zeitraum steht in der Adresse als `?zeitraum=<wert>` (ohne bei
+  Knöpfe `kategorien-zeitraum-<wert>` mit `role="radio"`/`aria-checked`; Werte `monat`, `vormonat`, `30tage` (D-315),
+  `12monate` (Vorgabe), `jahr`, `vorjahr`, `gesamt`, in dieser Reihenfolge, beschriftet „Dieser Monat“, „Letzter
+  Monat“, „30 Tage“, „12 Monate“, „Dieses Jahr“, „Letztes Jahr“, „Gesamt“; Pfeiltasten wechseln). Der Zeitraum steht in der Adresse als `?zeitraum=<wert>` (ohne bei
   der Vorgabe). Sortierung `kategorien-sortierung` (`-name` „A–Z“, Vorgabe; `-betrag` absteigend nach Summe, je
   Geschwisterebene; im Browser-Speicher). `kategorien-aufklappen`/`kategorien-zuklappen` klappen alle Einträge.
 - **Kennzahlen** `kategorien-kennzahlen`: Kacheln `kategorien-kachel-ausgaben`, `-einnahmen` (Summe im Zeitraum),

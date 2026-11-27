@@ -5,7 +5,8 @@ import { abfrage, api, betragEl, h, oberflaeche, stamm } from "./kern.js";
 import { knopf, kontoDialog } from "./ui.js";
 import { alleKlappen, kategorienBaum } from "./baum.js";
 
-const ZEITRAEUME = [["monat", "Dieser Monat"], ["12monate", "12 Monate"], ["jahr", "Dieses Jahr"],
+const ZEITRAEUME = [["monat", "Dieser Monat"], ["vormonat", "Letzter Monat"], ["30tage", "30 Tage"],
+  ["12monate", "12 Monate"], ["jahr", "Dieses Jahr"],
   ["vorjahr", "Letztes Jahr"], ["gesamt", "Gesamt"]];
 const VORGABE = "12monate";
 const SORTIERUNG = "kontor.kategorien.sortierung";
@@ -43,6 +44,10 @@ function kachel(tidName, titel, inhalt, unter, klasse) {
 
 function zeitraumText(d) {
   if (!d.von) return "alle Buchungen";
+  if (d.zeitraum === "30tage") {
+    const tag = (x) => `${x.slice(8, 10)}.${x.slice(5, 7)}.`;
+    return `${tag(d.von)} – ${tag(d.bis)}${d.bis.slice(0, 4)}`;
+  }
   const [vj, vm] = d.von.split("-");
   const [bj, bm] = d.bis.split("-");
   return vj === bj && vm === bm ? `${vm}/${vj}` : `${vm}/${vj} – ${bm}/${bj}`;

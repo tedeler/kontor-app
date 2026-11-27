@@ -64,6 +64,16 @@ def test_kategorienseite(tmp_path, browser):  # noqa: F811
         expect(tid(page, f"kategorie-summe-{k['miete']}")).to_have_attribute("data-betrag", "98000")
         expect(tid(page, "kategorien-zeitraum-monat")).to_have_attribute("aria-checked", "true")
         assert page.url.endswith("/kategorien?zeitraum=monat")
+        # D-315: letzter Monat und 30 Tage (heute 20.06.: 22.05. bis 20.06.)
+        tid(page, "kategorien-zeitraum-vormonat").click()
+        expect(tid(page, f"kategorie-summe-{k['lebensmittel']}")).to_have_attribute("data-betrag", "0")
+        expect(tid(page, f"kategorie-summe-{k['miete']}")).to_have_attribute("data-betrag", "98000")
+        tid(page, "kategorien-zeitraum-30tage").click()
+        expect(tid(page, f"kategorie-summe-{k['gehalt']}")).to_have_attribute("data-betrag", "285000")
+        expect(tid(page, "kategorien-kachel-ausgaben")).to_contain_text("22.05. – 20.06.2026")
+        assert page.url.endswith("/kategorien?zeitraum=30tage")
+        tid(page, "kategorien-zeitraum-monat").click()
+        expect(tid(page, f"kategorie-summe-{k['miete']}")).to_have_attribute("data-betrag", "98000")
         # Sortierung nach Betrag: Lebensmittel (1.500) vor Wohnen (980) – nach Name umgekehrt
         reihen = lambda: [x for x in page.locator('[data-testid="kategorienbaum"] [role="treeitem"][aria-level="1"]')
                           .evaluate_all("els => els.map(e => e.getAttribute('aria-label'))") if x != "Gehalt"]

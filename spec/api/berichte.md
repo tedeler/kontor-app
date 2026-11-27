@@ -292,9 +292,10 @@ Nur lesend: kein Zustand, kein Protokoll, nichts in der Sicherung. Noch nicht im
 
 Nur lesend, kein Zustand. Noch nicht im OpenAPI-Vertrag (wie D-217).
 
-- **`GET /api/kategorien/uebersicht[?zeitraum=<wert>]`**, `zeitraum` ∈ `monat`, `12monate` (Vorgabe), `jahr`,
-  `vorjahr`, `gesamt`; anderer Wert oder unbekannter Parameter → 422 `validierung`.
-  - Grenzen nach der App-Uhr: `monat` = laufender Kalendermonat; `12monate` = Monatserster vor elf Monaten bis
+- **`GET /api/kategorien/uebersicht[?zeitraum=<wert>]`**, `zeitraum` ∈ `monat`, `vormonat`, `30tage`, `12monate`
+  (Vorgabe), `jahr`, `vorjahr`, `gesamt`; anderer Wert oder unbekannter Parameter → 422 `validierung`.
+  - Grenzen nach der App-Uhr: `monat` = laufender Kalendermonat; `vormonat` = voriger
+    Kalendermonat; `30tage` = heute und die 29 Tage davor (D-315); `12monate` = Monatserster vor elf Monaten bis
     Monatsende des laufenden Monats; `jahr`/`vorjahr` = Kalenderjahr; `gesamt` = `von`/`bis` `null`.
 - **Antwort** `{zeitraum, von, bis, heute, monate, kategorien, summen, unkategorisiert}`:
   - `monate`: zwölf Schlüssel `JJJJ-MM`, der letzte ist der Monat, mit dem der Zeitraum endet (`gesamt`: laufender

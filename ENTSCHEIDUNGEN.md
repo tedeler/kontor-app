@@ -4896,3 +4896,13 @@ Anlass: Klick auf einen Punkt unter `/sicherung` brauchte auf dem Server 10–20
   Prüfwert wie der Wechsel (vorher nur den Objekten; unterschieden sich nur Einstellungen, war Wechseln gesperrt,
   obwohl der Wechsel sie zurückgesetzt hätte).
 - **Tests:** `tests/core/test_sicherung_dialog_schnell.py`, `tests/test_browser_sicherung_dialog_schnell.py`.
+
+## D-315 Zeiträume „Letzter Monat“ und „30 Tage“ auf der Kategorienseite (Feature `kategorien-zeitraeume`, 2026-11-27)
+
+- **Anlass:** Rückmeldung des Auftraggebers zu D-311: zusätzlich „letzter Monat“ und „letzte 30 Tage“.
+- **Entscheidung** (`berichte.md` 9, `oberflaeche.md` 51): `zeitraum` kennt `vormonat` (voriger Kalendermonat, der
+  Verlauf endet mit ihm) und `30tage` (heute und die 29 Tage davor, also 30 Kalendertage einschließlich heute; der
+  Verlauf endet mit dem laufenden Monat). Reihenfolge der Knöpfe: Dieser Monat, Letzter Monat, 30 Tage, 12 Monate,
+  Dieses Jahr, Letztes Jahr, Gesamt. Die Vorgabe bleibt „12 Monate“. Die Kacheln zeigen bei „30 Tage“ die Tage
+  („28.10. – 27.11.2026“) statt Monate.
+- **Prüfung:** `tests/core/test_kategorien_uebersicht.py` (ergänzt), `tests/test_browser_kategorien_uebersicht.py`.
