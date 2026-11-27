@@ -10,7 +10,7 @@ from __future__ import annotations
 import re
 
 
-def test_buchungsliste_ohne_scrollanker(client):
-    css = client.get("/oeffentlich/app.css").text
+def test_buchungsliste_ohne_scrollanker(auslieferung):
+    css = auslieferung.get("/oeffentlich/app.css").text
     regeln = re.findall(r"(?m)^\.buchungsliste\s*\{([^}]*)\}", css)
     assert any(re.search(r"overflow-anchor:\s*none", r) for r in regeln), "overflow-anchor: none fehlt an .buchungsliste"

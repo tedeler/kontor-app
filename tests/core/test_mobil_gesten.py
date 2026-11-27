@@ -10,33 +10,33 @@ from __future__ import annotations
 import re
 
 
-def test_kontoblatt_liefert_die_bausteine_der_gesten(client):
-    js = client.get("/oeffentlich/app/konto.js").text
+def test_kontoblatt_liefert_die_bausteine_der_gesten(auslieferung):
+    js = auslieferung.get("/oeffentlich/app/konto.js").text
     for kennung in ("km-details", "km-auswahl", "wisch-rueckgaengig"):
         assert f'"{kennung}"' in js, f"{kennung} fehlt im Kontoblatt"
     assert "wischBestaetigen" in js, "Wisch nach rechts bestätigt nicht"
     assert re.search(r"DOPPELTIPP_MS\s*=\s*\d+", js), "Doppeltipp fehlt"
-    assert "stapelStand" in client.get("/oeffentlich/app/kern.js").text
+    assert "stapelStand" in auslieferung.get("/oeffentlich/app/kern.js").text
 
 
-def test_markierung_und_rueckgaengig_haben_stile(client):
-    css = client.get("/oeffentlich/app.css").text
+def test_markierung_und_rueckgaengig_haben_stile(auslieferung):
+    css = auslieferung.get("/oeffentlich/app.css").text
     assert ".zeile[data-markiert]" in css, "die getippte Zeile ist mobil nicht hervorgehoben"
     assert re.search(r"(?m)^\.wisch-rueck\s*\{", css)
     # Doppeltipp zoomt nicht: die Zeile lässt dem Browser nur das senkrechte Rollen
     assert re.search(r"(?m)^\.zeile\s*\{[^}]*touch-action:\s*pan-y", css)
 
 
-def test_kopfzeile_mobil_bricht_nicht_um(client):
-    css = client.get("/oeffentlich/app.css").text
+def test_kopfzeile_mobil_bricht_nicht_um(auslieferung):
+    css = auslieferung.get("/oeffentlich/app.css").text
     assert re.search(r'\[data-layout="mobil"\]:not\(\.suche-offen\) \.kopf\s*\{[^}]*flex-wrap:\s*nowrap', css)
     assert re.search(r"max-width:\s*402\.98px\)\s*\{[^}]*#wiederholen-knopf\s*\{\s*display:\s*none", css)
 
 
-def test_doppeltipp_nur_bei_ruhender_liste_und_auswahl_nur_ausdruecklich(client):
+def test_doppeltipp_nur_bei_ruhender_liste_und_auswahl_nur_ausdruecklich(auslieferung):
     """D-281: Ein Tipp zählt für den Doppeltipp nur, wenn die Liste nicht gerade rollt und beide Tipps an derselben
     Stelle liegen; Sprünge (Gegenbuchung, Berichte) wählen mobil nichts aus."""
-    js = client.get("/oeffentlich/app/konto.js").text
+    js = auslieferung.get("/oeffentlich/app/konto.js").text
     assert re.search(r"TIPP_RUHE_MS\s*=\s*\d+", js) and re.search(r"TIPP_ABSTAND\s*=\s*\d+", js)
     assert re.search(r'addEventListener\("scroll"', js), "das Rollen wird nicht beobachtet"
     sprung = js[js.index("  sprungMarkieren(id) {"):]
@@ -44,30 +44,30 @@ def test_doppeltipp_nur_bei_ruhender_liste_und_auswahl_nur_ausdruecklich(client)
     assert "istMobil()" in sprung, "der Sprung zu einer Buchung wählt mobil weiter aus"
 
 
-def test_lange_beruehrung_nur_bei_ruhender_liste(client):
+def test_lange_beruehrung_nur_bei_ruhender_liste(auslieferung):
     """D-282: Wer die rollende Liste mit dem Finger anhält und liegen lässt, öffnet kein Kontextmenü."""
-    js = client.get("/oeffentlich/app/konto.js").text
+    js = auslieferung.get("/oeffentlich/app/konto.js").text
     lang = js[js.index("langeBeruehrung(this.liste"):]
     lang = lang[:lang.index("this.menue(")]
     assert "letztesRollen" in lang, "die lange Berührung beachtet das Rollen nicht"
 
 
-def test_wischhinweis_liegt_ueber_der_zeile_und_erfassen_fehlt_mobil(client):
+def test_wischhinweis_liegt_ueber_der_zeile_und_erfassen_fehlt_mobil(auslieferung):
     """D-283: Hinweis und „Rückgängig“ richten sich nach der sichtbaren Lage der Zeile (auch in langen Listen), der
     Hinweis liegt als Overlay über ihr; die Ansicht bleibt nach dem Bestätigen stehen; „Buchung erfassen“ entfällt
     mobil."""
-    js = client.get("/oeffentlich/app/konto.js").text
+    js = auslieferung.get("/oeffentlich/app/konto.js").text
     assert "zeilenLage" in js and "ansichtHalten" in js
     wisch = js[js.index("  wischZeigen(z, dx, dy) {"):js.index("  wischEnde(z) {")]
     assert "offsetTop" not in wisch, "der Hinweis rechnet weiter mit offsetTop (falsch in langen Listen)"
-    css = client.get("/oeffentlich/app.css").text
+    css = auslieferung.get("/oeffentlich/app.css").text
     assert re.search(r'\[data-layout="mobil"\] \[data-testid="buchung-erfassen"\]\s*\{\s*display:\s*none', css)
 
 
-def test_rollen_in_fenstern_und_menues_zaehlt_nicht_als_rollen_der_liste(client):
+def test_rollen_in_fenstern_und_menues_zaehlt_nicht_als_rollen_der_liste(auslieferung):
     """D-291: Die Sperre für Doppeltipp und lange Berührung gilt dem Rollen der Ansicht. Rollt die Trefferliste der
     Befehlspalette oder ein Menü, sperrt das die Liste danach nicht."""
-    js = client.get("/oeffentlich/app/konto.js").text
+    js = auslieferung.get("/oeffentlich/app/konto.js").text
     lauscher = js[js.index('document.addEventListener("scroll"'):]
     lauscher = lauscher[:lauscher.index("passive: true")]
     assert ".dialog-huelle" in lauscher and ".kontextmenue" in lauscher, "Rollen in einem Fenster sperrt die Liste"

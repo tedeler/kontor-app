@@ -93,9 +93,9 @@ def test_abruf_stand_nennt_die_automatik(tmp_path):
     assert (st["automatisch"], st["intervall_minuten"]) == (True, 90)
 
 
-def test_oberflaeche_haelt_offene_ansichten_aktuell(client):
-    haupt = client.get("/oeffentlich/app/haupt.js").text
+def test_oberflaeche_haelt_offene_ansichten_aktuell(auslieferung):
+    haupt = auslieferung.get("/oeffentlich/app/haupt.js").text
     assert "/api/bestand/stand" in haupt, "haupt.js fragt den Stand des Buchbestands nicht ab"
     for datei in ("mail.js", "einstellungen.js"):
-        js = client.get(f"/oeffentlich/app/{datei}").text
+        js = auslieferung.get(f"/oeffentlich/app/{datei}").text
         assert "bestandGeaendert" in js, f"{datei}: nach dem Mail-Abruf bleiben die übrigen Tabs auf altem Stand"

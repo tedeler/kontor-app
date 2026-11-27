@@ -79,6 +79,13 @@ def client(config) -> TestClient:
     return TestClient(create_app(config))
 
 
+@pytest.fixture(scope="session")
+def auslieferung(tmp_path_factory) -> TestClient:
+    """Eine App für den ganzen Lauf, nur zum Lesen ausgelieferter Dateien (Hülle, Stile, Module). Spart den Aufbau
+    einer App je Test (rund 0,2 s); Tests mit Anfragen an den Buchbestand nehmen ``client``."""
+    return TestClient(create_app(KontorConfig(datenbank=tmp_path_factory.mktemp("auslieferung") / "kontor.sqlite3")))
+
+
 @pytest.fixture
 def mock_client(tmp_path: Path) -> TestClient:
     return TestClient(create_app(KontorConfig(datenbank=tmp_path / "kontor.sqlite3", mock_modus=True)))

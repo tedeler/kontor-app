@@ -5,15 +5,15 @@ Mehrfachleiste, Einzelheiten, Wischen auf dem Handy."""
 from __future__ import annotations
 
 
-def test_keine_knoepfe_in_der_zeile(client):
-    js = client.get("/oeffentlich/app/konto.js").text
+def test_keine_knoepfe_in_der_zeile(auslieferung):
+    js = auslieferung.get("/oeffentlich/app/konto.js").text
     assert "vorschlag-annehmen-${" not in js and "vorschlag-ablehnen-${" not in js
     assert "vorschlag-knoepfe" not in js
-    assert "vorschlag-knoepfe" not in client.get("/oeffentlich/app.css").text
+    assert "vorschlag-knoepfe" not in auslieferung.get("/oeffentlich/app.css").text
 
 
-def test_die_anderen_wege_bleiben(client):
-    js = client.get("/oeffentlich/app/konto.js").text
+def test_die_anderen_wege_bleiben(auslieferung):
+    js = auslieferung.get("/oeffentlich/app/konto.js").text
     for t in ('tid: "km-vorschlag-annehmen"', 'tid: "km-vorschlag-ablehnen"', '"mehrfach-vorschlag-annehmen"',
               '"mehrfach-vorschlag-ablehnen"', 'tid: "details-vorschlag-annehmen"', 'tid: "details-vorschlag-ablehnen"'):
         assert t in js, t

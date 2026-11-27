@@ -32,23 +32,23 @@ def _kuerzel(js):
     return re.findall(r'^\s*\[\s*["`](\w*)["`],\s*"([^"]+)"', tabelle, re.M)
 
 
-def test_kuerzeltabelle_des_kontoblatts_ist_die_neue_belegung(client):
-    eintraege = _kuerzel(_js(client, "konto"))
+def test_kuerzeltabelle_des_kontoblatts_ist_die_neue_belegung(auslieferung):
+    eintraege = _kuerzel(_js(auslieferung, "konto"))
     assert len(eintraege) == len(set(eintraege)), "eine Tastenfolge ist doppelt belegt"
     assert set(eintraege) == SOLL
     for _vor, taste in eintraege:
         assert re.fullmatch(r"[A-Za-z0-9]", taste), f"Satzzeichen im Kürzel: {taste!r}"
 
 
-def test_u_und_d_sind_im_kontoblatt_frei(client):
+def test_u_und_d_sind_im_kontoblatt_frei(auslieferung):
     """`u`/`d` bewegen die Markierung (global); das Kontoblatt darf sie ohne Vortaste nicht belegen."""
-    eintraege = set(_kuerzel(_js(client, "konto")))
+    eintraege = set(_kuerzel(_js(auslieferung, "konto")))
     for taste in ("u", "d", "U", "D", "h", "w"):
         assert ("", taste) not in eintraege
 
 
-def test_globale_tasten(client):
-    js = _js(client, "haupt")
+def test_globale_tasten(auslieferung):
+    js = _js(auslieferung, "haupt")
     assert not re.search(r'e\.key === "\?"', js), "? öffnet die Hilfe nicht mehr (h)"
     assert not re.search(r'e\.key === "/"', js), "/ ist entfallen (w s)"
     assert re.search(r'HILFE_TASTE\s*=\s*"h"', js), "h öffnet die Tastaturhilfe"
@@ -58,19 +58,19 @@ def test_globale_tasten(client):
         assert re.search(rf'\b{taste}:\s*\[\s*"{ziel}"', bewegung), f"{taste} bewegt nicht wie {ziel}"
 
 
-def test_tastaturhilfe_ist_adaptiv(client):
-    js = _js(client, "haupt")
+def test_tastaturhilfe_ist_adaptiv(auslieferung):
+    js = _js(auslieferung, "haupt")
     hilfe = js[js.index("function tastaturHilfe("):]
     hilfe = hilfe[:hilfe.index("\n}\n")]
     for kennung in ("tastatur-hilfe-ueberall", "tastatur-hilfe-bereiche", "tastatur-hilfe-liste", "tastatur-hilfe-alle"):
         assert kennung in hilfe, f"{kennung} fehlt in der Tastaturhilfe"
     assert "data-blatt" in hilfe or "blatt:" in hilfe, "die Hilfe nennt das Blatt nicht"
-    konto = _js(client, "konto")
+    konto = _js(auslieferung, "konto")
     assert "export function kontoKuerzel(seite)" in konto, "die Kürzel kennen den Zustand des Blatts nicht"
 
 
-def test_kontextmenue_filter_hat_den_betrag(client):
-    js = _js(client, "konto")
+def test_kontextmenue_filter_hat_den_betrag(auslieferung):
+    js = _js(auslieferung, "konto")
     teil = js[js.index("  filterEintrag(b) {"):]
     teil = teil[:teil.index("\n  }\n")]
     for kennung in ("km-filter-empfaenger", "km-filter-empfaenger-aehnlich", "km-filter-zweck", "km-filter-zweck-aehnlich",

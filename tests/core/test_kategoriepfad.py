@@ -54,14 +54,14 @@ def test_regel_mit_anzeigepfad_speichern(client, pkv):
     assert 'kategorie == "Versicherungen:PKV"' in r.json()["ausdruck"]
 
 
-def test_oberflaeche_schreibt_ausdruckspfade(client):
-    kern = client.get("/oeffentlich/app/kern.js").text
+def test_oberflaeche_schreibt_ausdruckspfade(auslieferung):
+    kern = auslieferung.get("/oeffentlich/app/kern.js").text
     m = re.search(r"export function ausdruckPfad\(k\) \{.*?\n\}", kern, re.S)
     assert m and 'join(":")' in m.group(0), "ausdruckPfad fehlt oder trennt nicht mit „:“"
-    editor = client.get("/oeffentlich/app/regeleditor.js").text
+    editor = auslieferung.get("/oeffentlich/app/regeleditor.js").text
     # Werte der Auswahl für konto/kategorie und Rückweg aus dem Baum: Ausdruckspfad
     assert "[ausdruckPfad(konto), kontoPfad(konto)]" in editor
     assert ": ausdruckPfad(kontoNach(x.id))" in editor
     assert "[kontoPfad(konto), kontoPfad(konto)]" not in editor
-    konto = client.get("/oeffentlich/app/konto.js").text
+    konto = auslieferung.get("/oeffentlich/app/konto.js").text
     assert "qText(kontoPfad(k))" not in konto and "qText(ausdruckPfad(k))" in konto

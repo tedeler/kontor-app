@@ -12,8 +12,8 @@ def _methode(js, kopf):
     return teil[:teil.index("\n  }\n")]
 
 
-def test_aktionen_nehmen_den_gemeinsamen_weg(client):
-    js = client.get("/oeffentlich/app/konto.js").text
+def test_aktionen_nehmen_den_gemeinsamen_weg(auslieferung):
+    js = auslieferung.get("/oeffentlich/app/konto.js").text
     sofort = _methode(js, "  sofort(ids, patch, ausfuehren, optionen) {")
     assert sofort.index("listeZeichnen()") < sofort.index("aktion("), "gezeichnet wird erst nach der Anfrage"
     assert "ohneNeuLaden" in sofort and "this.kette" in sofort
@@ -21,7 +21,7 @@ def test_aktionen_nehmen_den_gemeinsamen_weg(client):
                  "  async statusSetzen(ids, status, ausloeser) {", "  async personMarkieren(ids, hinzu) {",
                  "  tagsDialog(ids, ausloeser) {"):
         assert "this.sofort(" in _methode(js, kopf), f"{kopf.strip()} wartet auf den Server"
-    ui = client.get("/oeffentlich/app/ui.js").text
+    ui = auslieferung.get("/oeffentlich/app/ui.js").text
     assert "export function tagAuswahl(ids, ausloeser, tagsVon, sofort)" in ui
 
 

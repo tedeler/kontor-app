@@ -15,18 +15,18 @@ def _auswahl(client):
     return teil[:teil.index("\n}\n")]
 
 
-def test_tasten_der_suche(client):
-    teil = _auswahl(client)
+def test_tasten_der_suche(auslieferung):
+    teil = _auswahl(auslieferung)
     for taste in ("ArrowDown", "ArrowUp", "PageDown", "PageUp", "Home", "End", "Enter"):
         assert re.search(rf"\b{taste}\b", teil), f"{taste} fehlt in der Kategorie-Auswahl"
     assert "ctrlKey" in teil, "Strg+Enter (neue Kategorie) fehlt"
 
 
-def test_formular_neue_kategorie_mit_tastatur(client):
-    teil = _auswahl(client)
+def test_formular_neue_kategorie_mit_tastatur(auslieferung):
+    teil = _auswahl(auslieferung)
     assert '"Escape"' in teil, "Esc im Formular führt nicht zurück zur Auswahl"
     assert "stopPropagation" in teil
 
 
-def test_tasten_werden_im_fenster_genannt(client):
-    assert '"kategorie-auswahl-tasten"' in _auswahl(client)
+def test_tasten_werden_im_fenster_genannt(auslieferung):
+    assert '"kategorie-auswahl-tasten"' in _auswahl(auslieferung)

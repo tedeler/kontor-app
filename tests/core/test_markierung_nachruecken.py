@@ -14,8 +14,8 @@ def _laden(client):
     return js, teil[:teil.index("\n  }\n")]
 
 
-def test_laden_bestimmt_den_nachfolger(client):
-    js, teil = _laden(client)
+def test_laden_bestimmt_den_nachfolger(auslieferung):
+    js, teil = _laden(auslieferung)
     assert "nachruecken(" in teil, "laden() lässt keinen Nachfolger nachrücken"
     n = js[js.index("  nachruecken("):]
     n = n[:n.index("\n  }\n")]

@@ -18,8 +18,8 @@ def _regeln(css: str, auswahl: str) -> list[str]:
     return re.findall(auswahl + r"[^{,]*\{([^}]*)\}", css)
 
 
-def test_markierung_faerbt_die_zeile_nicht_um(client):
-    css = client.get("/oeffentlich/app.css").text
+def test_markierung_faerbt_die_zeile_nicht_um(auslieferung):
+    css = auslieferung.get("/oeffentlich/app.css").text
     regeln = _regeln(css, MARKIERT)
     assert regeln, "keine Regel für die mobil markierte Zeile"
     for r in regeln:
@@ -28,8 +28,8 @@ def test_markierung_faerbt_die_zeile_nicht_um(client):
         assert m is None or "var(--toenung)" in m.group(1), "der Grundton der Zeile ist nicht mehr der des Status"
 
 
-def test_markierung_hat_rahmen_und_schleier(client):
-    css = client.get("/oeffentlich/app.css").text
+def test_markierung_hat_rahmen_und_schleier(auslieferung):
+    css = auslieferung.get("/oeffentlich/app.css").text
     alles = " ".join(_regeln(css, MARKIERT))
     assert "--schleier" in alles, "die Markierung legt keinen Schleier über die Zeile"
     rahmen = " ".join(_regeln(css, MARKIERT + r"::after"))

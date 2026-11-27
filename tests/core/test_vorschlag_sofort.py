@@ -13,8 +13,8 @@ def _vorschlag(js):
     return teil[:teil.index("\n  }\n")]
 
 
-def test_blatt_nimmt_die_wirkung_vorweg_und_reiht_die_anfragen(client):
-    js = client.get("/oeffentlich/app/konto.js").text
+def test_blatt_nimmt_die_wirkung_vorweg_und_reiht_die_anfragen(auslieferung):
+    js = auslieferung.get("/oeffentlich/app/konto.js").text
     teil = _vorschlag(js)
     assert "this.sofort(" in teil and "vorschlagVorweg" in teil, "die Zeile wird nicht vor der Anfrage geändert"
     sofort = js[js.index("  sofort(ids, patch, ausfuehren, optionen) {"):]

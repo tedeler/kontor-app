@@ -178,8 +178,8 @@ def test_ohne_tag_und_tag_am_empfaenger(welt):
                                  "eintraege": []}
 
 
-def test_oberflaeche(client):
-    js = "".join(client.get(f"/oeffentlich/app/{m}.js").text for m in ("berichte", "berichte2", "berichtsteile",
+def test_oberflaeche(auslieferung):
+    js = "".join(auslieferung.get(f"/oeffentlich/app/{m}.js").text for m in ("berichte", "berichte2", "berichtsteile",
                                                                           "monatsbericht", "konto"))
     for teil in ("sonderposten", "bericht-sonderposten", "bericht-sonderposten-schalter", "km-sonderposten"):
         assert teil in js, teil

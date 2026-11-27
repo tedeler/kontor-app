@@ -58,7 +58,7 @@ def test_feld_steht_in_der_sprache_aber_nicht_in_regeln(welt):
     assert r["gueltig"] and r["kanonisch"] == "unbestätigt"
 
 
-def test_kontoblatt_hat_schalter_und_kuerzel(client):
-    js = client.get("/oeffentlich/app/konto.js").text
+def test_kontoblatt_hat_schalter_und_kuerzel(auslieferung):
+    js = auslieferung.get("/oeffentlich/app/konto.js").text
     assert "filter-unbestaetigt" in js, "der Schalter in der Filterzeile fehlt"
     assert re.search(r'\["f", "o", "[^"]*Bestätigung fehlt', js), "das Kürzel f o fehlt"

@@ -28,12 +28,12 @@ def _themenfarbe(seite: str) -> str:
     return re.search(r'<meta name="theme-color" content="(#[0-9a-fA-F]{6})">', seite)[1]
 
 
-def test_echtbetrieb_bleibt_wie_bisher(client):
-    m = _manifest(client)
+def test_echtbetrieb_bleibt_wie_bisher(auslieferung):
+    m = _manifest(auslieferung)
     assert (m["name"], m["short_name"]) == ("Kontor", "Kontor")
     for name in SYMBOLE:
-        assert client.get(f"/oeffentlich/{name}").content == (WEB / "oeffentlich" / name).read_bytes(), name
-    seite = client.get("/").text
+        assert auslieferung.get(f"/oeffentlich/{name}").content == (WEB / "oeffentlich" / name).read_bytes(), name
+    seite = auslieferung.get("/").text
     assert "<title>Kontor</title>" in seite and _themenfarbe(seite) == m["theme_color"]
 
 

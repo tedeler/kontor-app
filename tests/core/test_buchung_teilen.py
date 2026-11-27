@@ -5,8 +5,8 @@ Zwischenablage); hier geprüft werden der Eintrag und das Sprungziel des Links."
 from __future__ import annotations
 
 
-def test_kontextmenue_hat_teilen(client):
-    js = client.get("/oeffentlich/app/konto.js").text
+def test_kontextmenue_hat_teilen(auslieferung):
+    js = auslieferung.get("/oeffentlich/app/konto.js").text
     assert 'tid: "km-teilen"' in js
     assert "navigator.share" in js and "navigator.clipboard" in js
 

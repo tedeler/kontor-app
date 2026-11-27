@@ -13,8 +13,8 @@ def _js(client, name):
     return client.get(f"/oeffentlich/app/{name}.js").text
 
 
-def test_vortaste_w_ist_global_und_kennt_die_ziele_jeder_seite(client):
-    js = _js(client, "haupt")
+def test_vortaste_w_ist_global_und_kennt_die_ziele_jeder_seite(auslieferung):
+    js = _js(auslieferung, "haupt")
     assert re.search(r'BEREICH_VORTASTE\s*=\s*"w"', js), "die Vortaste w fehlt"
     ziele = js[js.index("const BEREICH_ZIELE"):]
     ziele = ziele[:ziele.index("];")]
@@ -24,8 +24,8 @@ def test_vortaste_w_ist_global_und_kennt_die_ziele_jeder_seite(client):
     assert '"F6"' in js, "F6 wechselt die Bereiche nicht"
 
 
-def test_kontoblatt_meldet_buchungsblatt_einzelheiten_und_filter(client):
-    js = _js(client, "konto")
+def test_kontoblatt_meldet_buchungsblatt_einzelheiten_und_filter(auslieferung):
+    js = _js(auslieferung, "konto")
     teil = js[js.index("  bereiche() {"):]
     teil = teil[:teil.index("\n  }\n")]
     for taste, text in (("b", "Buchungsblatt"), ("e", "Einzelheiten"), ("f", "Filter")):
@@ -36,26 +36,26 @@ def test_kontoblatt_meldet_buchungsblatt_einzelheiten_und_filter(client):
     assert not re.search(r"const VORTASTEN = \{[^}]*\bw:", js)
 
 
-def test_tabs_kennen_nachbar_nummer_und_den_zuletzt_aktiven(client):
-    js = _js(client, "tabs")
+def test_tabs_kennen_nachbar_nummer_und_den_zuletzt_aktiven(auslieferung):
+    js = _js(auslieferung, "tabs")
     for name in ("nachbar(", "nummer(", "vorher"):
         assert name in js, f"{name} fehlt in den Tabs"
 
 
-def test_hilfe_und_hinweis_zeigen_die_bereiche(client):
-    js = _js(client, "haupt")
+def test_hilfe_und_hinweis_zeigen_die_bereiche(auslieferung):
+    js = _js(auslieferung, "haupt")
     assert "tastatur-hilfe-bereiche" in js, "die Tastaturhilfe nennt die Bereiche nicht"
     assert re.search(r'vortaste\s*=\s*BEREICH_VORTASTE', js), "der Hinweis nach w fehlt"
 
 
-def test_aktiver_bereich_ist_sichtbar(client):
-    css = client.get("/oeffentlich/app.css").text
+def test_aktiver_bereich_ist_sichtbar(auslieferung):
+    css = auslieferung.get("/oeffentlich/app.css").text
     assert re.search(r"\.bereich-aktiv\b", css), "der aktive Bereich ist nicht hervorgehoben"
 
 
-def test_fokuszeile_haelt_unter_dem_klebenden_spaltenkopf(client):
+def test_fokuszeile_haelt_unter_dem_klebenden_spaltenkopf(auslieferung):
     """D-288: Beim Nachführen der Liste zählt die Höhe des Spaltenkopfs mit (kurze Liste und Fenstertechnik)."""
-    js = _js(client, "konto")
+    js = _js(auslieferung, "konto")
     assert "kopfUeberstand()" in js
     slot = js[js.index("  slotZeigen(slotId"):]
     assert "kopfUeberstand" in slot[:slot.index("\n  }\n")], "die Fenstertechnik beachtet den Spaltenkopf nicht"

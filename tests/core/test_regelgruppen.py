@@ -145,8 +145,8 @@ def test_uebernehmen_nur_fuer_automatische_regeln(auto):
     assert c.post("/api/regeln/999999/uebernehmen").status_code == 404
 
 
-def test_oberflaeche_zeigt_zwei_abschnitte(client):
-    js = client.get("/oeffentlich/app/regeleditor.js").text
+def test_oberflaeche_zeigt_zwei_abschnitte(auslieferung):
+    js = auslieferung.get("/oeffentlich/app/regeleditor.js").text
     for tid in ("regeln-eigene", "regeln-automatisch", "regeln-automatisch-sortierung", "regeln-automatisch-suche",
                 "regel-als-eigene-", "/uebernehmen"):
         assert tid in js, tid

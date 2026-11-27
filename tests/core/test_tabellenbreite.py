@@ -16,16 +16,16 @@ def _regel(css, selektor):
     return m.group(1)
 
 
-def test_zellen_und_karten_zerbrechen_keine_woerter(client):
-    css = client.get("/oeffentlich/app.css").text
+def test_zellen_und_karten_zerbrechen_keine_woerter(auslieferung):
+    css = auslieferung.get("/oeffentlich/app.css").text
     assert "overflow-wrap: break-word" in _regel(css, ".tabelle th, .tabelle td")
     assert "overflow-wrap: break-word" in _regel(css, ".karte")
     assert "display: block" in _regel(css, '[data-layout="mobil"] .tabelle.mobil-karten > caption')
     assert "overflow-x: auto" in _regel(css, ".tabelle-rahmen")
 
 
-def test_tabellen_bekommen_einen_rahmen(client):
-    js = client.get("/oeffentlich/app/haupt.js").text
+def test_tabellen_bekommen_einen_rahmen(auslieferung):
+    js = auslieferung.get("/oeffentlich/app/haupt.js").text
     teil = js[js.index("function tabelleRahmen("):]
     assert "tabelle-rahmen" in teil[:600]
     assert "new MutationObserver" in js[js.index("function tabelleRahmen("):][:1500]

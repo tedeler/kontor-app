@@ -133,8 +133,8 @@ def test_von_hand_erfasste_buchung_hat_hinweis(welt):
     assert "-12,34" in t
 
 
-def test_kuerzel_v_p_und_kontextmenue(client):
-    js = client.get("/oeffentlich/app/konto.js").text
+def test_kuerzel_v_p_und_kontextmenue(auslieferung):
+    js = auslieferung.get("/oeffentlich/app/konto.js").text
     tabelle = js[js.index("const KUERZEL = ["):js.index("const VORTASTEN")]
     assert re.search(r'\["v", "p", "Nachweis als PDF[^"]*", .*"bestand"\]', tabelle)
     assert 'tid: "km-nachweis"' in js
