@@ -4786,3 +4786,13 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - **Prüfung:** Core-Test `tests/core/test_markierung_status.py`; Browsertest `tests/test_browser_markierung_status.py`
   (rote, gelbe und weiße Zeile bei 390 px: Grundton und Streifen vor und nach dem Tippen gleich, Rahmen vorhanden,
   die drei Status bleiben unterscheidbar).
+
+
+## D-310 Beschriftung vor den Symbolen im Teilen-Text (Feature `teilen-beschriftung`, 2026-11-27)
+
+- **Anlass (Auftraggeber):** Die Symbole aus D-306 sind nicht immer eindeutig. Nach jedem Symbol steht daher eine
+  kurze Beschriftung: „📅 Datum:“, „🏦 Konto:“, „🏷️ Kategorie:“, „🔖 Tags:“ (`oberflaeche.md` 50, ergänzt D-306).
+- **Unverändert:** Kopf mit Empfänger und Betrag, Zitat des Verwendungszwecks (als Zitat ohnehin erkennbar), Link
+  in der letzten Zeile, Weitergabe.
+- **Tests:** `tests/core/test_teilen_format.py` (Eintrag in `tests/core/AENDERUNGEN.md`),
+  `tests/test_browser_buchung_teilen.py` (`TESTUMBAU.md`).
