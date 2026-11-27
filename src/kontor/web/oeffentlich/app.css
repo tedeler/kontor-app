@@ -1873,7 +1873,7 @@ html[data-thema="dunkel"] .baum-uebersicht .baum-eintrag[data-ton="7"] { --kat-t
 .kat-suche:focus { background: var(--hg); border-color: var(--akzent); }
 .kat-suche-huelle::before { content: "⌕"; position: absolute; left: .7rem; top: 50%; transform: translateY(-52%);
   color: var(--text-2); pointer-events: none; font-size: 1.05rem; }
-.kat-wahl { display: inline-flex; }
+.kat-wahl { display: inline-flex; max-width: 100%; overflow-x: auto; }   /* nach D-315: die Zeiträume rollen in sich, nicht die Seite */
 .kat-klappen { display: inline-flex; gap: .3rem; margin-left: auto; }
 .kat-klappen .knopf-klein { margin-left: 0; }
 .segment { display: inline-flex; border: 1px solid var(--rand); border-radius: 999px; background: var(--hg-2); padding: 2px; }
