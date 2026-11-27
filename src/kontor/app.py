@@ -843,7 +843,7 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
 
     @endpunkt("GET", "/api/regeln/pruefung")
     async def regeln_pruefung(request: Request):
-        """D-305: aktive automatische Regeln, deren Anlagebedingungen nicht mehr gelten (nur lesend)."""
+        """D-307: aktive automatische Regeln, deren Anlagebedingungen nicht mehr gelten (nur lesend)."""
         return await lesen(lernregeln.pruefen, sync.heute())
 
     @endpunkt("GET", "/api/regeln/{regel_id:int}")

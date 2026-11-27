@@ -1386,7 +1386,7 @@ paths:
     get:
       tags: [regeln]
       operationId: regelnPruefung
-      summary: Aktive automatisch angelegte Regeln, deren Anlagebedingungen nicht mehr gelten (lernmodell.md 9.5, D-305)
+      summary: Aktive automatisch angelegte Regeln, deren Anlagebedingungen nicht mehr gelten (lernmodell.md 9.5, D-307)
       responses:
         "200":
           description: Nur lesend; Regeln ohne Befund fehlen
@@ -5522,7 +5522,7 @@ components:
           minItems: 1
           items: {$ref: "#/components/schemas/TagKurz"}
         lernregel_gesperrt:
-          description: "M31 (lernmodell.md 9.4): nur bei gesperrten Empfängern, dann `true`; seit D-305 nur noch aus früheren Beständen, ohne Wirkung"
+          description: "M31 (lernmodell.md 9.4): nur bei gesperrten Empfängern, dann `true`; seit D-307 nur noch aus früheren Beständen, ohne Wirkung"
           const: true
 
     EmpfaengerNeu:
@@ -8397,7 +8397,7 @@ components:
           minItems: 1
           items: {$ref: "#/components/schemas/TagKurz"}
         lernregel_gesperrt:
-          description: "M31 (lernmodell.md 9.4): nur bei gesperrten Empfängern, dann `true`; seit D-305 nur noch aus früheren Beständen, ohne Wirkung"
+          description: "M31 (lernmodell.md 9.4): nur bei gesperrten Empfängern, dann `true`; seit D-307 nur noch aus früheren Beständen, ohne Wirkung"
           const: true
 
     BegruendungVerweis:

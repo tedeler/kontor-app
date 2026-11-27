@@ -200,7 +200,7 @@ def test_sync_regeln_lernmodell_und_rueckgaengig_loesen_nichts_aus(tmp_path):
 
 
 def test_loeschen_sperrt_nicht_rueckgaengig_bringt_zurueck(tmp_path):
-    """D-305: Das Löschen sperrt den Empfänger nicht mehr; die Regel darf wieder entstehen."""
+    """D-307: Das Löschen sperrt den Empfänger nicht mehr; die Regel darf wieder entstehen."""
     api = _app(tmp_path)
     b = Bestand(api)
     bs = b.reihe(5)
@@ -270,7 +270,7 @@ def test_sicherung_rundreise(tmp_path):
     b.reihe(5, name="Drogerie Fiktiv", kat="Drogerie")
     auto = automatische(quelle)
     aus = b.e["Drogerie Fiktiv"]
-    quelle.patch(f"/api/regeln/{auto[aus]['id']}", json={"aktiv": False}, erwartet=200)  # D-305 statt Sperre
+    quelle.patch(f"/api/regeln/{auto[aus]['id']}", json={"aktiv": False}, erwartet=200)  # D-307 statt Sperre
     bs = bestand(quelle)
     m, _ = oeffne(sicherung(quelle))
     assert m["schemaversion"] >= 9

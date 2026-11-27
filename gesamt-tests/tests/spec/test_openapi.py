@@ -144,7 +144,7 @@ OPERATIONEN_M30 = {("get", "/api/ausdruck/sprache"), ("post", "/api/ausdruck/pru
                    ("post", "/api/regeln/{regel_id}/anwenden"),
                    # D-295: automatisch angelegte Regel als eigene übernehmen (kategorisierung.md 8.10)
                    ("post", "/api/regeln/{regel_id}/uebernehmen"),
-                   ("get", "/api/regeln/pruefung")}  # D-305
+                   ("get", "/api/regeln/pruefung")}  # D-307
 OPERATIONEN_M31 = {("get", "/api/buchungen/{buchung_id}/lernmodell"), ("get", "/api/lernmodell/uebersicht"),
                    ("get", "/api/lernmodell/einstellungen"), ("put", "/api/lernmodell/einstellungen"),
                    ("post", "/api/mock/lerndaten"), ("get", "/api/berichte/monat")} | {

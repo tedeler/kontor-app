@@ -2978,7 +2978,7 @@ Je Regel `regel-<id>` mit Griff `regel-griff-<id>`, Schalter
     und Kategorie; bei aktiver Suche nennt `regeln-automatisch-anzahl`
     „<Treffer> von <Anzahl>“. Aufgeklappt-Zustand und Sortierung merkt sich
     der Browser.
-- **Prüfung und deaktivierte Regeln (D-305, `lernmodell.md` 9.4–9.5):**
+- **Prüfung und deaktivierte Regeln (D-307, `lernmodell.md` 9.4–9.5):**
   - Beim Öffnen holt die Seite `GET /api/regeln/pruefung`. Automatisch
     angelegte Regeln mit Befund stehen in `regel-liste-automatisch` vor allen
     anderen (die Sortierung gilt danach; die Suche filtert wie bisher),

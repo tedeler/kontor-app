@@ -68,7 +68,7 @@ def test_alte_abweichung_stoert_nicht(auto):
 
 
 def test_loeschen_ohne_sperre_rueckgaengig_bringt_regel_zurueck(auto):
-    """D-305: Das Löschen sperrt den Empfänger nicht mehr (vorher D-179: Sperre)."""
+    """D-307: Das Löschen sperrt den Empfänger nicht mehr (vorher D-179: Sperre)."""
     c, buchen, _kat, emp = auto
     for i in range(5):
         buchen("Frischekorb", "Lebensmittel", 10 + i)
@@ -127,7 +127,7 @@ def test_sicherung_enthaelt_vermerk_und_deaktivierte_regel(auto, tmp_path):
     assert r.status_code == 200, r.text
     assert sorted((x["empfaenger_id"], x["aktiv"]) for x in automatische(z)) == sorted(
         [(emp["Frischekorb"], True), (emp["Glanz"], False)])
-    # Die deaktivierte Regel ist mitgekommen: weitere Drogerie-Buchungen legen keine neue Regel an (D-305)
+    # Die deaktivierte Regel ist mitgekommen: weitere Drogerie-Buchungen legen keine neue Regel an (D-307)
     gid = [k["id"] for k in z.get("/api/konten").json() if k["name"] == "Giro"][0]
     did = [k["id"] for k in z.get("/api/konten").json() if k["name"] == "Drogerie"][0]
     z.post("/api/buchungen", json={"datum": dt.date.today().isoformat(), "empfaenger_id": emp["Glanz"],

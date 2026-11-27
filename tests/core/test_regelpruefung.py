@@ -1,4 +1,4 @@
-"""Core-Tests zum Feature „regelpruefung“: automatisch angelegte Regeln auf Inkonsistenzen prüfen (D-305).
+"""Core-Tests zum Feature „regelpruefung“: automatisch angelegte Regeln auf Inkonsistenzen prüfen (D-307).
 
 - ``GET /api/regeln/pruefung`` prüft jede aktive automatisch angelegte Regel gegen die Bedingungen ihrer Anlage
   (lernmodell.md 9.1: mindestens 5 Zuordnungen zur Kategorie der Regel, mindestens 95 % aller Buchungen des

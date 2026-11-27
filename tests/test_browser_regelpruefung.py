@@ -1,4 +1,4 @@
-"""Entwicklungstest für das Feature „regelpruefung“ (D-305): Hinweise an automatisch angelegten Regeln, Bereich
+"""Entwicklungstest für das Feature „regelpruefung“ (D-307): Hinweise an automatisch angelegten Regeln, Bereich
 „Deaktiviert“ ganz unten und die Meldung beim Deaktivieren.
 Playwright mit Chrome headless gegen einen echten Server im Mock-Modus (synthetische Daten).
 """
