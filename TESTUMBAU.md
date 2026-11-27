@@ -118,6 +118,8 @@ Im Ausgangsstand schlugen 19 Tests der Abnahmesuite und 3 eigene fehl. Kein Anwe
 | `test_plugins.py::test_nur_lesende_oeffentliche_methoden` (2), `m6/test_m6_paket.py::test_oeffentliche_methoden` | D-243: Mail-Plugin hat `koepfe` und `inhalte` | erwartete Methodenmenge ergänzt |
 | `m8/test_m8_seiten.py::test_seiten_im_mindestumfang` | Ohne Treffer zeigt „Regeln anwenden“ nur die Erfolgsmeldung, die ausgeliefert aus ist | Seite mit eingeschalteter Erfolgsmeldung |
 | `m8/test_m8_split_dnd.py::test_umbuchung_auf_kategorie_ziehen_aendert_nichts` | D-242: Eine Umbuchung lässt sich jetzt zuordnen; die Aussage des Tests gilt nicht mehr | Test entfernt |
+| `test_browser_nachweis_pdf.py::test_v_p_und_kontextmenue` | D-311: Im Kontoblatt einer Kategorie gibt es den Nachweis jetzt | prüft statt des fehlenden Eintrags den Buchungsnachweis der Kategorie |
+| `test_nachweis_pdf_eigen.py::test_fehler` | D-311: Der Nachweis geht auch aus dem Kontoblatt einer Kategorie | Kategorie mit fremder Buchung erwartet `buchung_nicht_im_konto`, `kein_bestandskonto` nur noch für „Unkategorisiert“; Angaben einer Kategorie 200 |
 | `m8/test_m8_tastatur.py::test_alt_ziffern_und_schraegstrich`, `::test_suche_und_tastaturhilfe`, `m28/test_m28_kontoblatt.py::test_kuerzel_aktionen_und_vortasten` | D-292: `/` entfällt, die Hilfe liegt auf `h` | Suche über `w s`, Hilfe über `h` |
 | `m28/test_m28_kontoblatt.py::test_filter_untermenue` (4 Varianten) | D-292: Untermenü „Filter“ hat zwei Einträge für den Betrag | erwartete Liste der Einträge ergänzt |
 | eigene `test_browser_tastatur.py` (2 Tests) | D-292: `v d` entfällt, `f w` ist „diese Woche“, Hilfe auf `h`, F6 mit „Aktionen“ | Panel über den Knopf eingeklappt, Erwartungen nachgezogen |
@@ -161,4 +163,5 @@ Stabilität: Nach den Änderungen lief der Browser-Teil der Gesamtsuite viermal 
 | `m30/test_m30_oberflaeche.py::test_regelliste` | D-308: deaktivierte Regeln stehen im Bereich „Deaktiviert“ ohne Griff; aktive eigene Regeln vor deaktivierten | nach dem Schalter Regel im Bereich „Deaktiviert“; erwartete Reihenfolge nach Alt+↑ `[leer, beide, nur]` |
 | `spec/test_openapi.py::test_alle_operationen_vorhanden` | D-308: neue Operation `GET /api/regeln/pruefung` | in `OPERATIONEN_M30` ergänzt |
 | eigene `test_lernregeln_eigen.py`: `test_geloeschte_regel_entsteht_nicht_wieder`, `test_sicherung_enthaelt_vermerk_und_sperre` | D-308 | Löschen ohne Sperre; Sicherung mit deaktivierter Regel |
-| `spec/test_openapi.py::test_m8_schemas`, `::test_m32_schemas`, eigene `test_m6_eigen.py::test_sicherung_der_schemaversion_2_…` | D-310: `KontoAenderung` mit `art` und `inhaber`, OpenAPI 2.26.0, Sicherung Schemaversion 12 | Felder ergänzt; Version „mindestens 2.25.0“; Schemaversion 12 |
+| eigene `test_browser_buchung_teilen.py` | D-310: Beschriftung nach den Symbolen im Teilen-Text | erwartete Zeilen mit „Datum:“, „Konto:“, „Kategorie:“ |
+| `spec/test_openapi.py::test_m8_schemas`, `::test_m32_schemas`, eigene `test_m6_eigen.py::test_sicherung_der_schemaversion_2_…` | D-312: `KontoAenderung` mit `art` und `inhaber`, OpenAPI 2.26.0, Sicherung Schemaversion 12 | Felder ergänzt; Version „mindestens 2.25.0“; Schemaversion 12 |

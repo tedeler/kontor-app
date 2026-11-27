@@ -230,7 +230,7 @@ paths:
             application/json:
               schema: {$ref: "#/components/schemas/Fehler"}
         "422":
-          description: "`validierung`, `iban_ungueltig`, `hierarchie_ungueltig` (Elternkonto andere Klasse), `referenz_unbekannt` (Elternkonto fehlt), `inhaber_ungueltig` (Inhaber bei einem Konto, das kein Bestandskonto ist, D-310)"
+          description: "`validierung`, `iban_ungueltig`, `hierarchie_ungueltig` (Elternkonto andere Klasse), `referenz_unbekannt` (Elternkonto fehlt), `inhaber_ungueltig` (Inhaber bei einem Konto, das kein Bestandskonto ist, D-312)"
           content:
             application/json:
               schema: {$ref: "#/components/schemas/Fehler"}
@@ -264,12 +264,12 @@ paths:
               schema: {$ref: "#/components/schemas/Konto"}
         "404": {$ref: "#/components/responses/NichtGefunden"}
         "409":
-          description: "`iban_existiert`; `konto_in_verwendung` (D-310: Darlehenskonto eines Kredits bleibt `kreditkonto`)"
+          description: "`iban_existiert`; `konto_in_verwendung` (D-312: Darlehenskonto eines Kredits bleibt `kreditkonto`)"
           content:
             application/json:
               schema: {$ref: "#/components/schemas/Fehler"}
         "422":
-          description: "`validierung`, `iban_ungueltig`, `hierarchie_ungueltig` (andere Klasse oder Zyklus), `referenz_unbekannt`, `art_ungueltig` (Typwechsel einer Kategorie oder eines technischen Kontos, D-310), `inhaber_ungueltig` (D-310)"
+          description: "`validierung`, `iban_ungueltig`, `hierarchie_ungueltig` (andere Klasse oder Zyklus), `referenz_unbekannt`, `art_ungueltig` (Typwechsel einer Kategorie oder eines technischen Kontos, D-312), `inhaber_ungueltig` (D-312)"
           content:
             application/json:
               schema: {$ref: "#/components/schemas/Fehler"}
@@ -4997,7 +4997,7 @@ components:
                 Ab M32 zusätzlich: konto_existiert (409, `details.konto_ids`,
                 `sammel3.md` 1.2), wiederholung_nur_geplant,
                 wiederholung_fehlt (422, `sammel3.md` 14.1).
-                Ab D-310 zusätzlich: art_ungueltig, inhaber_ungueltig (422,
+                Ab D-312 zusätzlich: art_ungueltig, inhaber_ungueltig (422,
                 `datenmodell.md` 21).
                 Ab M29 zusätzlich: bankzugang_nicht_aenderbar,
                 bankzugang_unvollstaendig, tan_offen (`bankzugang.md` 4);
@@ -5081,12 +5081,12 @@ components:
         ist_kategorie: {type: boolean}
         inhaber:
           $ref: "#/components/schemas/KontoInhaber"
-          description: "D-310, im Schema optional: nur vorhanden, wenn Vor- oder Nachname gesetzt ist"
+          description: "D-312, im Schema optional: nur vorhanden, wenn Vor- oder Nachname gesetzt ist"
 
     KontoInhaber:
       type: object
       additionalProperties: false
-      description: "D-310: Kontoinhaber eines Bestandskontos; einer der Teile darf leer sein, nicht beide"
+      description: "D-312: Kontoinhaber eines Bestandskontos; einer der Teile darf leer sein, nicht beide"
       required: [vorname, nachname]
       properties:
         vorname: {type: string, maxLength: 200}
@@ -5095,7 +5095,7 @@ components:
     KontoInhaberEingabe:
       type: object
       additionalProperties: false
-      description: "D-310: fehlende Teile gelten als leer; Ränder werden entfernt; beide leer = kein Inhaber"
+      description: "D-312: fehlende Teile gelten als leer; Ränder werden entfernt; beide leer = kein Inhaber"
       properties:
         vorname: {type: string, maxLength: 200}
         nachname: {type: string, maxLength: 200}
@@ -5116,7 +5116,7 @@ components:
             - {type: "null"}
         notiz: {type: string, maxLength: 10000, default: ""}
         inhaber:
-          description: "D-310: nur bei Bestandskonten (sonst 422 `inhaber_ungueltig`, außer leer)"
+          description: "D-312: nur bei Bestandskonten (sonst 422 `inhaber_ungueltig`, außer leer)"
           oneOf:
             - {$ref: "#/components/schemas/KontoInhaberEingabe"}
             - {type: "null"}
@@ -5124,15 +5124,15 @@ components:
     KontoAenderung:
       type: object
       additionalProperties: false
-      description: "Nur angegebene Felder werden geändert. `art` ist ab D-310 innerhalb der Bestandskonten änderbar
+      description: "Nur angegebene Felder werden geändert. `art` ist ab D-312 innerhalb der Bestandskonten änderbar
         (andere Werte 422 `validierung`; eine Kategorie oder ein technisches Konto 422 `art_ungueltig`)."
       properties:
         art:
           type: string
           enum: [girokonto, sparkonto, kreditkonto]
-          description: "D-310: Kontotyp; das Darlehenskonto eines Kredits bleibt `kreditkonto` (409 `konto_in_verwendung`)"
+          description: "D-312: Kontotyp; das Darlehenskonto eines Kredits bleibt `kreditkonto` (409 `konto_in_verwendung`)"
         inhaber:
-          description: "D-310: `null` oder beide Teile leer entfernen den Inhaber"
+          description: "D-312: `null` oder beide Teile leer entfernen den Inhaber"
           oneOf:
             - {$ref: "#/components/schemas/KontoInhaberEingabe"}
             - {type: "null"}

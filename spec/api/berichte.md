@@ -272,3 +272,39 @@ Nur lesend: kein Zustand, kein Protokoll, nichts in der Sicherung. Noch nicht im
   und die Befehlspalette den Dialog `nachweis-dialog` für die markierten Buchungen: `nachweis-umfang` (Anzahl),
   Feld `nachweis-inhaber` (vorbelegt), `nachweis-ok` lädt die Datei herunter und schließt den Dialog; Fehler stehen
   im Dialog. In Kategorien gibt es weder Kürzel noch Menüeintrag.
+
+### 8.1 Nachweis aus dem Kontoblatt einer Kategorie (D-311)
+
+- `konto_id` darf auch eine Kategorie (Art `aufwand`/`ertrag`) sein; „Unkategorisiert“ und andere Konten ergeben
+  weiter 422 `kein_bestandskonto`. Jede Buchung braucht einen Split auf der Kategorie oder einer ihrer
+  Unterkategorien (gleicher Art), sonst 422 `buchung_nicht_im_konto`.
+- Titel „Buchungsnachweis“ mit „Ausgewählte Buchungen einer Kategorie · kein Dokument der Bank“; Kopf: Kontoinhaber,
+  Kategorie (Pfad mit „›“), Bankkonten (Namen der beteiligten Bankkonten). Keine IBAN und keine BIC im Kopf.
+- Je Buchung: Betrag = Anteil der Kategorie (samt Unterkategorien) aus Sicht des Bankkontos, also die negative
+  Summe dieser Splits (Ausgabe −, Erstattung/Einnahme +); darunter klein „<Bankkonto> · <gekürzte IBAN>“ und, wenn der
+  Anteil vom Betrag auf dem Bankkonto abweicht, „Anteil an einer Zahlung über <Betrag>“. Hinweise wie in 8 gegen das
+  Bankkonto der Buchung; ohne Bankkonto „Keinem Bankkonto zugeordnet“, mit mehreren „Mehrere Bankkonten beteiligt“.
+  Summe = Summe der Anteile.
+- `GET /api/export/nachweis/angaben?konto_id=<Kategorie>` → Kontoinhaber des ersten Bankkontos, für das die Bank einen
+  meldet; `bic` immer `null`.
+
+## 9. Beträge je Kategorie (Feature `kategorien-uebersicht`, D-311)
+
+Nur lesend, kein Zustand. Noch nicht im OpenAPI-Vertrag (wie D-217).
+
+- **`GET /api/kategorien/uebersicht[?zeitraum=<wert>]`**, `zeitraum` ∈ `monat`, `12monate` (Vorgabe), `jahr`,
+  `vorjahr`, `gesamt`; anderer Wert oder unbekannter Parameter → 422 `validierung`.
+  - Grenzen nach der App-Uhr: `monat` = laufender Kalendermonat; `12monate` = Monatserster vor elf Monaten bis
+    Monatsende des laufenden Monats; `jahr`/`vorjahr` = Kalenderjahr; `gesamt` = `von`/`bis` `null`.
+- **Antwort** `{zeitraum, von, bis, heute, monate, kategorien, summen, unkategorisiert}`:
+  - `monate`: zwölf Schlüssel `JJJJ-MM`, der letzte ist der Monat, mit dem der Zeitraum endet (`gesamt`: laufender
+    Monat).
+  - `kategorien`: je Konto der Art `aufwand`/`ertrag` (auch ohne Buchungen), nach `id`: `{id, summe, eigen, anzahl,
+    letzte, verlauf}`. `eigen` = Summe der eigenen Splits im Zeitraum, für Ausgaben `Σ`, für Einnahmen `−Σ` (beide
+    üblicherweise positiv); `summe` = dasselbe einschließlich aller Unterkategorien gleicher Art; `anzahl` =
+    verschiedene Buchungen im Teilbaum im Zeitraum; `letzte` = Datum der jüngsten Buchung im Teilbaum überhaupt
+    (`null`, wenn keine); `verlauf` = `summe` je Monat aus `monate`.
+  - `summen`: `{ausgaben, einnahmen}` = Summe aller `eigen` je Art.
+  - `unkategorisiert`: `{konto_id, anzahl, summe}` für „Unkategorisiert“ im Zeitraum (`summe` = Summe der Splits,
+    Ausgaben positiv; `konto_id` `null`, wenn es das Konto nicht gibt).
+  - Sonderposten (D-300) zählen mit: Die Seite zeigt, was auf den Kategorien gebucht ist.

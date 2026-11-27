@@ -77,6 +77,7 @@ nicht mehr. Ein Thread schreibt Tests und Code.
 | `src/kontor/berichte.py`, `export.py` | M5: Kontostandsverlauf, Einnahmen/Ausgaben; CSV- und PDF-Export (reportlab) der Buchungsliste |
 | `src/kontor/sicherungspunkte.py` | D-302: Sicherungspunkte (Zeilendifferenzen, Anker, Prüfwert, Ausdünnen, Prüflauf, Herstellen als Sicherungsdatei, Einspielen nach `sicherungspunkte.md` 5.1); Seite `app/sicherung.js`; Kommandozeile `python -m kontor.sicherung stunde` |
 | `src/kontor/nachweis.py` | Feature nachweis-pdf (D-303): Nachweis markierter Buchungen eines Bankkontos als PDF im Stil eines Kontoauszugs (`erstellen`, `angaben`, `hinweis` = Vergleich mit dem Bankumsatz), nur lesend; Dialog `nachweisDialog` in `app/konto.js`. `bankumsatz.py`: Umsätze, wie die Bank sie lieferte, je Kennung (Tabelle `bank_umsatz`, Betriebszustand, von `sync` gefüllt) |
+| `src/kontor/kategorienuebersicht.py` | Feature kategorien-uebersicht (D-311): Beträge je Kategorie für die Kategorienseite (`GET /api/kategorien/uebersicht`), nur lesend; Seite `app/kategorien.js` (Kennzahlen, Suche, Zeitraum, Sortierung), Baum mit Werten in `kategorienBaum` (`baum.js`). Der Nachweis (`nachweis.py`) nimmt seit D-311 auch Kategorien |
 | `src/kontor/sicherung.py` | M9: Datensicherung (eigenes Schema der Sicherungsdatei `SPALTEN`, Version `SCHEMAVERSION`), Prüfung nach sicherung.md 5.1, Inhaltsprüfung in einer App-Datenbank im Arbeitsspeicher, Probelauf, Einspielen |
 | `src/kontor/anbieter/` | D-230: Anbieter-Beschreibungen für den Mail-Abgleich (`amazon.toml`, `paypal.toml`, Zusatzdateien aus `anbieter_verzeichnis`); `__init__.py` liest, prüft und wertet sie aus; Format in `ANBIETER.md`. Änderungen an den mitgelieferten Dateien gegen `tests/test_anbieter_eigen.py` prüfen (Vergleich mit `tests/referenz_mailerkennung.py`) |
 | `src/kontor/kontonamen.py` | Sammelbranch sammel3 (D-218): Kontonamen je Ebene eindeutig – `pruefen` (409 `konto_existiert`, aufgerufen am Ende von `protokoll.protokolliert`), `bereinigen` (Altbestand, Importe, Sicherung), `freier_name` |
@@ -337,7 +338,7 @@ nicht mehr. Ein Thread schreibt Tests und Code.
   verhindert nur eine bestehende Regel: die automatische des Empfängers (gleich welcher Zustand) oder eine Regel, die
   seine jüngste Buchung trifft (aktiv oder deaktiviert).
 
-## Hinweise zu Kontotyp und Kontoinhaber (Feature `konto-typ-inhaber`, D-310)
+## Hinweise zu Kontotyp und Kontoinhaber (Feature `konto-typ-inhaber`, D-312)
 
 - `art` eines Bestandskontos ist änderbar (nur innerhalb `bestand`). Wer Konten nach Art behandelt, darf sich nicht
   darauf verlassen, dass die Art seit dem Anlegen gleich ist.

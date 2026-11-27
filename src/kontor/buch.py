@@ -42,7 +42,7 @@ def konto_dict(r: sqlite3.Row, inhaber: dict | None = None) -> dict:
         "eroeffnet_am": r["eroeffnet_am"], "notiz": r["notiz"], "extern_id": r["extern_id"],
         "ist_kategorie": r["art"] in KATEGORIEARTEN,
     }
-    if inhaber:   # D-310: nur wenn gesetzt (Protokollform und Inhaltsprüfsumme bleiben für Konten ohne gleich)
+    if inhaber:   # D-312: nur wenn gesetzt (Protokollform und Inhaltsprüfsumme bleiben für Konten ohne gleich)
         d["inhaber"] = inhaber
     return d
 
@@ -52,7 +52,7 @@ def konto_zeile(con, konto_id: int) -> sqlite3.Row | None:
 
 
 def inhaber_laden(con, ids: list[int] | None = None) -> dict[int, dict]:
-    """D-310: Inhaber je Konto-ID (nur Konten mit Inhaber)."""
+    """D-312: Inhaber je Konto-ID (nur Konten mit Inhaber)."""
     sql = "SELECT konto_id, vorname, nachname FROM konto_inhaber"
     par: list = []
     if ids is not None:
@@ -120,7 +120,7 @@ def _eltern_pruefen(con, art: str, eltern_id: int | None, eigene_id: int | None)
 
 
 def _inhaber_pruefen(art: str, inhaber: dict | None) -> dict | None:
-    """D-310: Inhaber nur bei Bestandskonten; beide Teile leer = kein Inhaber."""
+    """D-312: Inhaber nur bei Bestandskonten; beide Teile leer = kein Inhaber."""
     if not inhaber:
         return None
     neu = {"vorname": inhaber.get("vorname") or "", "nachname": inhaber.get("nachname") or ""}
@@ -139,7 +139,7 @@ def inhaber_setzen(con, konto_id: int, inhaber: dict | None) -> None:
 
 
 def _art_pruefen(con, konto_id: int, alt: str, neu: str) -> None:
-    """D-310: Kontotyp nur innerhalb der Bestandskonten; das Darlehenskonto eines Kredits bleibt Kreditkonto."""
+    """D-312: Kontotyp nur innerhalb der Bestandskonten; das Darlehenskonto eines Kredits bleibt Kreditkonto."""
     if neu == alt:
         return
     if KLASSE[alt] != "bestand" or KLASSE.get(neu) != "bestand":

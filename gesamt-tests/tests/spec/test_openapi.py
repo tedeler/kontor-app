@@ -706,7 +706,7 @@ def test_m15_schemas(dok):
     # bestehende Schemas unverändert (E-029)
     assert s["MehrfachErgebnis"]["required"] == ["geaendert", "anzahl"]
     assert s["KontoAenderung"].get("required") is None
-    # D-310: Kontotyp und Inhaber kamen hinzu
+    # D-312: Kontotyp und Inhaber kamen hinzu
     assert set(s["KontoAenderung"]["properties"]) == {"name", "eltern_id", "iban", "geschlossen", "eroeffnet_am",
                                                      "notiz", "art", "inhaber"}
     assert s["Aenderung"]["required"] == ["id", "zeitpunkt", "quelle", "aktion", "beschreibung", "gruppe",
@@ -1111,7 +1111,7 @@ def test_m31_schemas(dok):
 def test_m32_schemas(dok):
     """sammel3.md, E-294: Sammelbranch sammel3 (nicht rückwärtskompatibel)."""
     s = dok["components"]["schemas"]
-    assert tuple(map(int, dok["info"]["version"].split("."))) >= (2, 25, 0)   # D-310: 2.26.0
+    assert tuple(map(int, dok["info"]["version"].split("."))) >= (2, 25, 0)   # D-312: 2.26.0
     assert ("get", "/api/statistik") not in {(m, p) for p, x in dok["paths"].items() for m in x}
     m = s["MailNachrichtEintrag"]
     assert "gruppe" in m["properties"] and "gruppe" not in m["required"]

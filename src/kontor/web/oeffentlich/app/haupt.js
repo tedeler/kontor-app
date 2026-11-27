@@ -930,7 +930,7 @@ const BLATT_ZIELE = {
   uebersicht: [["b", "Kontentabelle", T("uebersicht-tabelle")], ["k", "Kategorientabellen", T("uebersicht-kategorien")],
     ["o", "offene Zahlungen", T("kachel-erwartet")]],
   konten: [["b", "Kontentabelle", T("kontenbaum")]],
-  kategorien: [["b", "Kategorienbaum", T("kategorienbaum")]],
+  kategorien: [["b", "Kategorienbaum", T("kategorienbaum")], ["f", "Suche", T("kategorien-suche")]],
   tags: [["b", "Tag-Liste", T("tag-liste")], ["e", "Buchungen des Tags", T("tag-buchungen")]],
   empfaenger: [["b", "Empfängerliste", T("empfaenger-liste")], ["f", "Suche", T("empfaenger-suche")]],
   mail: [["b", "Mail-Liste", T("mail-liste")], ["f", "Suche und Filter", T("mail-suche")], ["e", "Lesebereich", T("mail-lesen")],

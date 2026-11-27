@@ -702,7 +702,7 @@ Rückgängig kann mit 409 `konto_existiert` abgelehnt werden (`sammel3.md`
 - Beleginhalte ohne Dokument, ohne Verweis aus dem Mail-Spiegel und ohne verbliebenen Protokolleintrag entfallen beim
   Kürzen.
 
-## 27. Kontotyp und Kontoinhaber (D-310, `datenmodell.md` 21)
+## 27. Kontotyp und Kontoinhaber (D-312, `datenmodell.md` 21)
 
 - Die Protokollform eines Kontos (= REST-Darstellung) enthält `inhaber` nur, wenn das Konto einen Inhaber hat. Eine
   Typänderung erscheint als geänderter Wert `art`. Aktion wie bisher `konto_aendern` (Quelle `manuell`).

@@ -1,4 +1,4 @@
-"""Browser-Rauchtest (D-310): Kontotyp und Kontoinhaber in den Kontoeinstellungen; ein Kreditkonto zeigt Beträge
+"""Browser-Rauchtest (D-312): Kontotyp und Kontoinhaber in den Kontoeinstellungen; ein Kreditkonto zeigt Beträge
 im Kontoblatt und den Kontostand in der Kontenliste umgedreht, die Finanzübersicht zählt ihn negativ. Nur
 Mock-Modus, synthetische Daten."""
 

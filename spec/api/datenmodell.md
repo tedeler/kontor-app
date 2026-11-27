@@ -776,7 +776,7 @@ Geschwister (Warnungen `konto_zusammengefasst`, `konto_umbenannt`). Ersetzt
 die Aussage in 2 und Regel 2 für Konten anderer Klassen in 10.3. Einzelheiten:
 `sammel3.md` 1 (E-295).
 
-## 21. Kontotyp änderbar, Kontoinhaber, Vorzeichen bei Kreditkonten (Feature `konto-typ-inhaber`, D-310)
+## 21. Kontotyp änderbar, Kontoinhaber, Vorzeichen bei Kreditkonten (Feature `konto-typ-inhaber`, D-312)
 
 - **Kontotyp:** `art` ist bei Bestandskonten über `PATCH /api/konten/{id}` änderbar, und zwar nur innerhalb der
   Klasse `bestand` (`girokonto`, `sparkonto`, `kreditkonto`). Ersetzt „nach dem Anlegen unveränderlich“ in 2 für
@@ -790,7 +790,7 @@ die Aussage in 2 und Regel 2 für Konten anderer Klassen in 10.3. Einzelheiten:
   Inhaber stehen; Löschen des Kontos löscht ihn mit.
 - **Vorzeichen bei Kreditkonten:** Gespeichert wird weiter nach der Vorzeichenkonvention (Soll positiv); REST,
   Berichte, Filter und Ausdrücke rechnen unverändert. Nur die Anzeige des Kreditkontos selbst dreht das Vorzeichen um
-  (`oberflaeche.md` 51): eine Abbuchung erscheint positiv, der Kontostand als Schuld positiv. In der Finanzübersicht
+  (`oberflaeche.md` 52): eine Abbuchung erscheint positiv, der Kontostand als Schuld positiv. In der Finanzübersicht
   und der Summe der Bestandskonten geht der Kontostand eines Kreditkontos wie gespeichert negativ ein.
 - **Protokoll und Sicherung:** `inhaber` gehört zur Protokollform des Kontos (`protokoll.md` 27); Sicherung ab
   Schemaversion 12 mit Tabelle `konto_inhaber` (`sicherung.md` 16).

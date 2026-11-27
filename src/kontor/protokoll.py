@@ -570,7 +570,7 @@ def _einfuegen(con, objekt: str, f: dict) -> None:
                     " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     (f["id"], f["name"], f["art"], f["eltern_id"], f["iban"], 1 if f["geschlossen"] else 0,
                      f["eroeffnet_am"], f["notiz"], f["extern_id"]))
-        buch.inhaber_setzen(con, f["id"], f.get("inhaber"))   # D-310
+        buch.inhaber_setzen(con, f["id"], f.get("inhaber"))   # D-312
     elif objekt == "empfaenger":
         # D-219: die Standardkategorie ist entfallen; ältere Einträge stellen sie nicht wieder her
         con.execute("INSERT INTO empfaenger (id, name, extern_id) VALUES (?, ?, ?)",

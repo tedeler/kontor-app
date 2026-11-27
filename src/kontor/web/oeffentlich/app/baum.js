@@ -1,5 +1,5 @@
 /* Kontor – Kategorienbaum (oberflaeche.md 13.1), Kontextmenü für Konten (8.2), Ziehen (10) und Gesten (16.4). */
-import { aktion, api, baumFolge, h, kontoNach, melde, oberflaeche, stamm } from "./kern.js";
+import { aktion, api, baumFolge, betragEl, betragText, datumText, h, kontoNach, melde, oberflaeche, stamm } from "./kern.js";
 import { kategorienZusammenfuehren, kontextmenue, kontoDialog, kontoEinstellungen, kontoLoeschen, menuePosition,
   zielAuswahl } from "./ui.js";
 
@@ -158,22 +158,80 @@ export function langeBeruehrung(wurzel, finden, wirkung) {
 const zugeklappt = new Set();
 const markiert = new Set(); // Mehrfachauswahl im Kategorienbaum (D-126), bleibt beim Neuzeichnen erhalten
 
+/** Alle Kategorien mit Unterkategorien auf- (`zu` = false) oder zuklappen (D-311). */
+export function alleKlappen(zu) {
+  zugeklappt.clear();
+  if (!zu) return;
+  const eltern = new Set(stamm.konten.map((k) => k.eltern_id).filter(Boolean));
+  for (const k of stamm.konten) if ((k.art === "aufwand" || k.art === "ertrag") && eltern.has(k.id)) zugeklappt.add(k.id);
+}
+
+// D-311: Farbton je Wurzelkategorie (Unterkategorien erben ihn); fest nach der ID, damit er beim Sortieren bleibt
+const TOENE = 8;
+
+/** Name mit hervorgehobenem Suchtreffer (nur Textknoten, nie HTML). */
+function nameMitTreffer(name, suche) {
+  const i = suche ? name.toLocaleLowerCase("de").indexOf(suche) : -1;
+  if (i < 0) return name;
+  return [name.slice(0, i), h("mark", null, name.slice(i, i + suche.length)), name.slice(i + suche.length)];
+}
+
+/** Kleiner Verlauf (zwölf Monate) als SVG-Linie; Werte in Cent, nur zum Zeichnen. */
+function verlaufEl(werte, monate) {
+  const ns = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("class", "kat-verlauf");
+  svg.setAttribute("viewBox", "0 0 66 20");
+  svg.setAttribute("aria-hidden", "true");
+  if (!werte || !werte.some((w) => w !== 0)) { svg.classList.add("leer"); return svg; }
+  const max = Math.max(...werte, 0);
+  const min = Math.min(...werte, 0);
+  const spanne = max - min || 1;
+  const punkte = werte.map((w, i) => [3 + i * 5.45, 17 - ((w - min) * 14) / spanne]);
+  const flaeche = document.createElementNS(ns, "path");
+  flaeche.setAttribute("d", `M${punkte[0][0]},17 ` + punkte.map(([x, y]) => `L${x.toFixed(1)},${y.toFixed(1)}`).join(" ")
+    + ` L${punkte[punkte.length - 1][0].toFixed(1)},17 Z`);
+  flaeche.setAttribute("class", "kat-verlauf-flaeche");
+  const linie = document.createElementNS(ns, "polyline");
+  linie.setAttribute("points", punkte.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" "));
+  linie.setAttribute("class", "kat-verlauf-linie");
+  const [lx, ly] = punkte[punkte.length - 1];
+  const punkt = document.createElementNS(ns, "circle");
+  punkt.setAttribute("cx", lx.toFixed(1));
+  punkt.setAttribute("cy", ly.toFixed(1));
+  punkt.setAttribute("r", "1.8");
+  punkt.setAttribute("class", "kat-verlauf-punkt");
+  const titel = document.createElementNS(ns, "title");
+  titel.textContent = monate ? monate.map((m, i) => `${m.slice(5)}/${m.slice(2, 4)}: ${betragText(werte[i])}`).join("\n") : "";
+  svg.append(titel, flaeche, linie, punkt);
+  return svg;
+}
+
 /**
  * Baut den Kategorienbaum (`kategorienbaum`, Rolle `tree`) aus stamm.konten. Jeder Eintrag ist genau eine Zeile
  * hoch; die Unterkategorien stehen im DOM innerhalb des Eintrags (role=group), werden aber darunter angeordnet
  * (der Eintrag reserviert ihren Platz mit einem Außenabstand). So liegt die Mitte eines Eintrags auf seiner eigenen
  * Zeile, nicht auf einer Unterkategorie.
  * optionen.buchungsZiel: true → Einträge nehmen gezogene Buchungen an (Kontoansicht).
+ * Kategorienseite (D-311): optionen.werte (Map id → {summe, anzahl, letzte, verlauf}), optionen.monate,
+ * optionen.summen ({aufwand, ertrag}), optionen.suche, optionen.nachBetrag; jede Zeile bekommt dann Knöpfe zum Öffnen
+ * und für das Kontextmenü. Ohne diese Optionen bleibt der Baum wie im Seitenbereich der Kontoansicht.
  */
 export function kategorienBaum(optionen) {
   const o = optionen || {};
-  const baum = h("div", { role: "tree", tid: "kategorienbaum", class: "baum", "aria-label": "Kategorien",
-    "aria-multiselectable": "true" });
+  const werte = o.werte || null;
+  const suche = (o.suche || "").trim().toLocaleLowerCase("de");
+  const baum = h("div", { role: "tree", tid: "kategorienbaum", class: "baum" + (werte ? " baum-uebersicht" : ""),
+    "aria-label": "Kategorien", "aria-multiselectable": "true" });
   const eintraege = new Map();
   for (const [art, titel] of [["aufwand", "Ausgaben"], ["ertrag", "Einnahmen"]]) {
     const konten = stamm.konten.filter((k) => k.art === art);
-    const gruppe = h("div", { role: "group", class: "baum-gruppe", "aria-label": titel });
-    const kopf = h("div", { class: "baum-gruppenkopf", tid: `kategorien-gruppe-${art}`, "data-gruppe": art }, titel);
+    const gruppe = h("div", { role: "group", class: `baum-gruppe baum-gruppe-${art}`, "aria-label": titel });
+    const gesamt = werte && o.summen ? o.summen[art] || 0 : 0;
+    const kopf = h("div", { class: "baum-gruppenkopf", tid: `kategorien-gruppe-${art}`, "data-gruppe": art },
+      werte ? [h("span", { class: "baum-gruppenname" }, titel),
+        h("span", { class: "baum-gruppenzahl klein" }, konten.length === 1 ? "1 Kategorie" : `${konten.length} Kategorien`),
+        betragEl("span", gesamt, { class: "baum-gruppensumme", tid: `kategorien-summe-${art}` })] : titel);
     gruppe.append(kopf);
     const folge = baumFolge(konten);
     const kinderVon = new Map();
@@ -182,22 +240,70 @@ export function kategorienBaum(optionen) {
       if (!kinderVon.has(e)) kinderVon.set(e, []);
       kinderVon.get(e).push(f);
     }
-    const bauen = (f) => {
+    const summe = (k) => (werte && werte.get(k.id) ? werte.get(k.id).summe : 0);
+    // Balken: die größte Wurzelkategorie füllt ihn ganz; der Anteil an der Gruppe steht im Titel
+    const groesste = werte ? Math.max(0, ...konten.map((k) => summe(k))) : 0;
+    if (o.nachBetrag && werte) {
+      for (const liste of kinderVon.values()) liste.sort((a, b) => summe(b.konto) - summe(a.konto));
+    }
+    // Suche (D-311): Treffer, ihre Vorfahren und ihre Unterkategorien bleiben sichtbar, alles aufgeklappt
+    let zeigen = null;
+    if (suche) {
+      zeigen = new Set();
+      const treffer = (k) => k.name.toLocaleLowerCase("de").includes(suche);
+      const ab = (f, vorfahrTrifft) => {
+        const selbst = vorfahrTrifft || treffer(f.konto);
+        let irgendwas = selbst;
+        for (const c of kinderVon.get(f.konto.id) || []) irgendwas = ab(c, selbst) || irgendwas;
+        if (irgendwas) zeigen.add(f.konto.id);
+        return irgendwas;
+      };
+      for (const f of kinderVon.get(0) || []) ab(f, false);
+    }
+    const bauen = (f, ton) => {
       const k = f.konto;
-      const kinder = kinderVon.get(k.id) || [];
-      const offen = kinder.length > 0 && !zugeklappt.has(k.id);
+      const kinder = (kinderVon.get(k.id) || []).filter((c) => !zeigen || zeigen.has(c.konto.id));
+      const offen = kinder.length > 0 && (!!zeigen || !zugeklappt.has(k.id));
       const zeile = h("span", { class: "baum-zeile", stil: { "--stufe": String(f.ebene - 1) } },
         kinder.length ? h("span", { class: "baum-schalter", "aria-hidden": "true", "data-nicht-ziehen": "" }, offen ? "▾" : "▸")
           : h("span", { class: "baum-schalter leer", "aria-hidden": "true" }),
-        h("span", { class: "baum-name" }, k.name));
+        werte ? h("span", { class: "kat-punkt", "aria-hidden": "true" }) : null,
+        h("span", { class: "baum-name" }, werte ? nameMitTreffer(k.name, suche) : k.name));
+      if (werte) {
+        const w = werte.get(k.id) || { summe: 0, anzahl: 0, letzte: null, verlauf: null };
+        const anteil = gesamt > 0 && w.summe > 0 ? Math.min(1000, Math.round((w.summe * 1000) / gesamt)) : 0;
+        const balken = groesste > 0 && w.summe > 0 ? Math.min(1000, Math.round((w.summe * 1000) / groesste)) : 0;
+        zeile.title = [`${w.anzahl === 1 ? "1 Buchung" : `${w.anzahl} Buchungen`} im Zeitraum`,
+          anteil ? `${(anteil / 10).toLocaleString("de-DE")} % der ${titel}` : null,
+          w.letzte ? `zuletzt am ${datumText(w.letzte)}` : "noch keine Buchung"].filter(Boolean).join(" · ");
+        const oeffnen = h("button", { type: "button", class: "kat-knopf", tabindex: "-1", tid: `kategorie-oeffnen-${k.id}`,
+          "aria-label": `Kontoblatt ${k.name} öffnen`, title: "Kontoblatt öffnen", "data-nicht-ziehen": "" }, "→");
+        const menue = h("button", { type: "button", class: "kat-knopf", tabindex: "-1", tid: `kategorie-menue-${k.id}`,
+          "aria-label": `Aktionen für ${k.name}`, "aria-haspopup": "menu", title: "Aktionen", "data-nicht-ziehen": "" }, "⋯");
+        const menueOeffnen = () => {
+          const [x, y] = menuePosition(null, menue);
+          kontoMenue(k, x, y, menue, { namensZelle: () => eintraege.get(k.id).querySelector(".baum-name"), markierte });
+        };
+        for (const [b, tun] of [[oeffnen, () => oberflaeche.gehe(`/konten/${k.id}`)], [menue, menueOeffnen]]) {
+          b.addEventListener("click", (e) => { e.stopPropagation(); tun(); });
+          b.addEventListener("dblclick", (e) => e.stopPropagation());
+        }
+        zeile.append(
+          h("span", { class: "kat-anzahl klein", "aria-hidden": "true" }, w.anzahl ? `${w.anzahl}×` : ""),
+          verlaufEl(w.verlauf, o.monate),
+          h("span", { class: "kat-anteil", "aria-hidden": "true" }, h("span", { stil: { width: `${balken / 10}%` } })),
+          betragEl("span", w.summe, { class: "kat-betrag" + (w.anzahl || w.summe ? "" : " kat-null"), tid: `kategorie-summe-${k.id}` }),
+          h("span", { class: "kat-aktionen" }, oeffnen, menue));
+      }
       const el = h("div", { role: "treeitem", tid: `kategorie-${k.id}`, class: "baum-eintrag", "aria-level": String(f.ebene),
         "aria-label": k.name, "aria-expanded": kinder.length ? String(offen) : null, tabindex: "-1",
-        "data-konto-id": String(k.id), "data-klasse": art, "aria-selected": markiert.has(k.id) ? "true" : "false" }, zeile);
+        "data-konto-id": String(k.id), "data-klasse": art, "aria-selected": markiert.has(k.id) ? "true" : "false",
+        "data-ton": werte ? String(ton) : null }, zeile);
       let unter = 0;
       if (kinder.length) {
         const grp = h("div", { role: "group", class: "baum-kinder", hidden: !offen });
         for (const c of kinder) {
-          const [kel, n] = bauen(c);
+          const [kel, n] = bauen(c, ton);
           grp.append(kel);
           unter += n;
         }
@@ -213,7 +319,11 @@ export function kategorienBaum(optionen) {
       eintraege.set(k.id, el);
       return [el, sichtbar + 1];
     };
-    for (const f of kinderVon.get(0) || []) gruppe.append(bauen(f)[0]);
+    const wurzeln = (kinderVon.get(0) || []).filter((f) => !zeigen || zeigen.has(f.konto.id));
+    for (const f of wurzeln) gruppe.append(bauen(f, f.konto.id % TOENE)[0]);
+    if (werte && !wurzeln.length) {
+      gruppe.append(h("p", { class: "baum-leer leer" }, suche ? "Keine Treffer." : `Noch keine ${titel}-Kategorie.`));
+    }
     baum.append(gruppe);
   }
   const erster = baum.querySelector('[role="treeitem"]');

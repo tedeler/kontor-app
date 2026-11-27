@@ -515,7 +515,7 @@ CREATE TABLE IF NOT EXISTS erwartung_wiederholung (
     vorgaenger_id INTEGER
 );
 
--- ------------------------------------------------------------ Kontoinhaber (D-310)
+-- ------------------------------------------------------------ Kontoinhaber (D-312)
 -- Inhaber eines Bestandskontos (Buchbestand, gehört zur Objektart ``konto``); ohne Zeile hat das Konto keinen.
 CREATE TABLE IF NOT EXISTS konto_inhaber (
     konto_id INTEGER PRIMARY KEY REFERENCES konto(id) ON DELETE CASCADE,

@@ -136,7 +136,7 @@ SPALTEN: dict[str, list[tuple[str, str, bool]]] = {
                                ("bis", "str", True), ("vorgaenger_id", "int", True)],
     # Schemaversion 11 (D-302): Einstellungen (Werte aus ``meta``, nur die Schlüssel aus ``EINSTELLUNGEN``)
     "einstellung": [("schluessel", "str", False), ("wert", "str", False)],
-    # Schemaversion 12 (D-310): Inhaber eines Bestandskontos (Teil der Objektart ``konto``)
+    # Schemaversion 12 (D-312): Inhaber eines Bestandskontos (Teil der Objektart ``konto``)
     "konto_inhaber": [("konto_id", "int", False), ("vorname", "str", False), ("nachname", "str", False)],
 }
 _ORDNUNG = {

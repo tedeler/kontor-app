@@ -804,11 +804,11 @@ export function zielAuswahl(konto, ausloeser) {
 export function kontoDialog(vorgabe, ausloeser) {
   const v = vorgabe || {};
   dialog("konto-dialog", v.titel || "Konto anlegen", (inhalt, d) => {
-    const name = h("input", { type: "text", tid: "konto-name", maxlength: "200", required: true });
+    const name = h("input", { type: "text", tid: "konto-name", maxlength: "200", required: true, value: v.name || "" });
     inhalt.append(feld("Name", name));
     let art = null;
     if (v.arten) {
-      art = h("select", { tid: "konto-art" }, v.arten.map((a) => h("option", { value: a }, ART_NAMEN[a] || a)));
+      art = h("select", { tid: "konto-art" }, v.arten.map((a) => h("option", { value: a, selected: a === v.artVorgabe }, ART_NAMEN[a] || a)));
       inhalt.append(feld("Art", art));
     }
     let iban = null;
@@ -1085,7 +1085,7 @@ export function erfassenDialog(kontoId, ausloeser) {
 
 // ------------------------------------------------------------------ Kontenabstimmung (13.3)
 export function abstimmungDialog(konto, ausloeser) {
-  const vz = vorzeichen(konto);   // D-310: Kreditkonten mit umgedrehtem Vorzeichen
+  const vz = vorzeichen(konto);   // D-312: Kreditkonten mit umgedrehtem Vorzeichen
   dialog("abstimmung-dialog", `Abstimmung „${konto.name}“`, (inhalt, d) => {
     const stichtag = h("input", { type: "date", tid: "abstimmung-stichtag", required: true });
     const saldo = h("input", { type: "text", inputmode: "decimal", tid: "abstimmung-saldo", required: true });
@@ -1131,13 +1131,13 @@ export async function bankkontenBekannt() {
 }
 
 export async function kontoEinstellungen(konto, ausloeser) {
-  konto = kontoNach(konto.id) || konto;   // aktueller Stand (Typ und Inhaber, D-310)
+  konto = kontoNach(konto.id) || konto;   // aktueller Stand (Typ und Inhaber, D-312)
   const bestand = BESTAND.has(konto.art);
   const bekannt = bestand ? await bankkontenBekannt() : [];
   dialog("konto-einstellungen", `Einstellungen „${konto.name}“`, (inhalt, d) => {
     const name = h("input", { type: "text", tid: "einstellungen-name", maxlength: "200", value: konto.name });
     inhalt.append(feld("Name", name));
-    // D-310: Kontotyp und Kontoinhaber (nur Bestandskonten)
+    // D-312: Kontotyp und Kontoinhaber (nur Bestandskonten)
     let art = null;
     let vorname = null;
     let nachname = null;

@@ -135,7 +135,7 @@ def test_einstellungen_sind_teil_der_sicherung(umgebung):
     assert c.get("/api/lernmodell/einstellungen").json()["schwelle_promille"] == 700
     import json
     with zipfile.ZipFile(io.BytesIO(datei)) as z:
-        assert json.loads(z.read("manifest.json"))["schemaversion"] >= 11   # D-310: 12
+        assert json.loads(z.read("manifest.json"))["schemaversion"] >= 11   # D-312: 12
 
 
 def test_dienst_prueft_stuendlich_und_vermerkt_pruefungen_ohne_aenderung(umgebung):

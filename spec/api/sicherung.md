@@ -477,7 +477,7 @@ Objektart.
   geändert), nach dem Einfügen der Prüfwert gegen den Sollwert geprüft. Zusätzlich 409 `mail_abruf_laeuft`, solange
   ein Mail-Abruf läuft. Die Antwort enthält zusätzlich `vorher` und `ziel`.
 
-## 16. Feature `konto-typ-inhaber` (D-310, `datenmodell.md` 21)
+## 16. Feature `konto-typ-inhaber` (D-312, `datenmodell.md` 21)
 
 - **Schemaversion 12:** neue Tabelle `konto_inhaber (konto_id, vorname, nachname)`, je Konto mit Inhaber eine Zeile
   (Teil der Objektart `konto`). Der Kontotyp steht wie bisher in `konto.art`.

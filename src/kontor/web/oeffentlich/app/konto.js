@@ -264,7 +264,7 @@ const KUERZEL = [
   ["v", "s", "Spaltenbreiten an den Inhalt anpassen", (s) => s.spalteAnpassen(s.spalten.map(([f]) => f))],
   ["v", "0", "Spaltenbreiten zurücksetzen", (s) => s.spaltenZuruecksetzen()],
   ["v", "e", "Konto-Einstellungen…", (s) => kontoEinstellungen(s.konto, tid("konto-einstellungen-oeffnen", s.seite))],
-  ["v", "p", "Nachweis als PDF (markierte Buchungen)…", (s) => s.mitZielen((ids, el) => s.nachweisDialog(ids, el)), "bestand"],
+  ["v", "p", "Nachweis als PDF (markierte Buchungen)…", (s) => s.mitZielen((ids, el) => s.nachweisDialog(ids, el)), "nachweis"],
 ];
 const VORTASTEN = { f: "Filter", v: "Ansicht" };
 const SONDERPOSTEN = "Sonderposten";   // D-300
@@ -290,6 +290,7 @@ export function kontoKuerzel(seite) {
   const liste = [];
   KUERZEL.forEach(([vor, taste, text, , bed], i) => {
     if (seite && bed === "bestand" && seite.istKategorie) return;
+    if (seite && bed === "nachweis" && !seite.nachweisMoeglich) return;
     let hinweis = "";
     if (seite && bed === "eine" && markiert !== 1) hinweis = BEDINGUNG_TEXT.eine;
     if (seite && bed === "person" && !personLesen()) hinweis = BEDINGUNG_TEXT.person;
@@ -576,7 +577,9 @@ class Kontoansicht {
     this.seite = seite;
     this.konto = konto;
     this.istKategorie = klasse(konto) !== "bestand";   // 22.2: Kategorie oder technisches Konto
-    this.vz = vorzeichen(konto);   // D-310: Vorzeichen der geladenen Beträge (Kreditkonto −1)
+    this.vz = vorzeichen(konto);   // D-312: Vorzeichen der geladenen Beträge (Kreditkonto −1)
+    // D-311: Nachweis als PDF im Kontoblatt eines Bankkontos und einer Kategorie (nicht „Unkategorisiert“)
+    this.nachweisMoeglich = !this.istKategorie || konto.art === "aufwand" || konto.art === "ertrag";
     this.spalten = this.istKategorie ? SPALTEN_KATEGORIE : SPALTEN;
     this.spaltenVariante = this.istKategorie ? "kategorie" : "konto";
     this.breiten = spaltenLaden(this.spaltenVariante);
@@ -736,7 +739,7 @@ class Kontoansicht {
     const nr = (this.ladeNr = (this.ladeNr || 0) + 1);   // nur die jüngste Antwort zählt
     this.seite.dataset.geladen = "nein";
     const proSeite = this.gruppierung ? GRUPPE_SEITE : PRO_SEITE;
-    // D-310: Kreditkonten zeigen Beträge umgedreht; das aktuelle Konto aus dem Stamm (Typ kann sich ändern)
+    // D-312: Kreditkonten zeigen Beträge umgedreht; das aktuelle Konto aus dem Stamm (Typ kann sich ändern)
     const vz = vorzeichen(kontoNach(this.konto.id) || this.konto);
     const sortierung = vz < 0 && /^-?betrag$/.test(this.sortierung)
       ? (this.sortierung.startsWith("-") ? "betrag" : "-betrag") : this.sortierung;
@@ -1526,7 +1529,7 @@ class Kontoansicht {
   /** Kopf der Einzelheiten: Empfänger und Betrag groß, darunter Datum und Status. */
   detailsKopf(b, gesperrt) {
     const eigen = b.splits.filter((s) => s.konto_id === this.konto.id);
-    const betrag = eigen.length ? eigen.reduce((n, s) => n + s.betrag, 0) * this.vz : null;   // D-310: wie die Zeile
+    const betrag = eigen.length ? eigen.reduce((n, s) => n + s.betrag, 0) * this.vz : null;   // D-312: wie die Zeile
     const status = h("span", { class: `dk-status dk-status-${b.status}` },
       (STATUS_TEXT[b.status] || b.status) + (b.abgestimmt ? " · abgestimmt" : ""));
     return h("header", { class: `dk-kopf${betrag === null ? "" : betrag < 0 ? " dk-aus" : " dk-ein"}` },
@@ -2776,7 +2779,7 @@ class Kontoansicht {
     // (im Kontoblatt aus Sicht des angezeigten Kontos, ausdruecke.md 2.2).
     const cent = b ? Math.abs(b.betrag || 0) : 0;
     const euro = `${Math.floor(cent / 100)}.${String(cent % 100).padStart(2, "0")}`;
-    // D-310: Richtung nach dem gespeicherten Betrag (Kreditkonto: Anzeige umgedreht)
+    // D-312: Richtung nach dem gespeicherten Betrag (Kreditkonto: Anzeige umgedreht)
     const richtung = !b ? "" : this.istUmbuchung(b) ? "umbuchung" : (b.betrag || 0) * this.vz < 0 ? "ausgabe" : "einnahme";
     const BETRAG_TEIL = /^(?:bet|betrag)\s*(?:==|!=|>=|<=|>|<)|^(?:dir|richtung)\s*(?:==|!=)/;
     return { tid: "km-filter", text: "Filter", aktiv: !!b, kinder: [
@@ -2855,7 +2858,7 @@ class Kontoansicht {
       this.sonderpostenEintrag(ids),
       this.filterEintrag(b),
       { tid: "km-mehrfach", kuerzel: "e", text: "Bearbeiten…", tun: () => this.mehrfachDialog(ids, ausloeser) },
-      !this.istKategorie ? { tid: "km-nachweis", kuerzel: "v p", text: "Nachweis als PDF…",
+      this.nachweisMoeglich ? { tid: "km-nachweis", kuerzel: "v p", text: "Nachweis als PDF…",
         tun: () => this.nachweisDialog(ids, ausloeser) } : null,
       this.gegenbuchungEintrag(b, x, y, ausloeser),
       // Dokumente (D-123): an alle gewählten Buchungen
@@ -2883,7 +2886,7 @@ class Kontoansicht {
     const bestand = b.splits.filter((s) => { const k = kontoNach(s.konto_id); return k && BESTAND.has(k.art); });
     const ausBestand = this.istKategorie && bestand.length > 0;
     const betrag = ausBestand ? bestand.reduce((n, s) => n + s.betrag, 0) : b.betrag;
-    const roh = ausBestand ? betrag : b.betrag * this.vz;   // D-310: Art nach dem gespeicherten Vorzeichen
+    const roh = ausBestand ? betrag : b.betrag * this.vz;   // D-312: Art nach dem gespeicherten Vorzeichen
     const konto = ausBestand ? [...new Set(bestand.map((s) => pfadVon(s.konto_id)))].join(", ") : this.konto.name;
     return teilenText({
       empfaenger: b.empfaenger && b.empfaenger.name, betrag, datum: b.datum, konto, kategorie: kat,
@@ -3335,7 +3338,7 @@ class Kontoansicht {
   /** Nachweis der markierten Buchungen als PDF im Stil eines Kontoauszugs (D-303): Kontoinhaber vorbelegt aus den
    *  Kontodaten der Bank, änderbar; die Datei wird heruntergeladen. */
   async nachweisDialog(ids, ausloeser) {
-    if (this.istKategorie) { melde("hinweis", "Ein Nachweis ist nur im Kontoblatt eines Bankkontos möglich."); return; }
+    if (!this.nachweisMoeglich) { melde("hinweis", "Ein Nachweis ist nur im Kontoblatt eines Bankkontos oder einer Kategorie möglich."); return; }
     const sortiert = ids.slice().sort((a, b) => a - b);
     if (!sortiert.length) { melde("hinweis", "Bitte zuerst Buchungen markieren."); return; }
     let vorgabe = { inhaber: "", bic: null };
@@ -3362,9 +3365,13 @@ class Kontoansicht {
       inhalt.append(
         h("p", { tid: "nachweis-umfang" }, `${anzahl} aus „${this.konto.name}“.`),
         feld("Kontoinhaber", inhaber, "Vorbelegt aus den Kontodaten der Bank."),
-        h("p", { class: "hinweis" }, "Der Nachweis zeigt Datum, Empfänger, Verwendungszweck und Betrag der Buchungen, "
-          + "die Summe und eine gekürzte IBAN, aber keine Kontostände. Er weist sich als Auszug aus Kontor aus; "
-          + "Buchungen, die nicht von der Bank stammen oder danach geändert wurden, sind gekennzeichnet."),
+        h("p", { class: "hinweis" }, this.istKategorie
+          ? "Der Nachweis zeigt Datum, Empfänger, Verwendungszweck und den Anteil der Kategorie aus Sicht des Bankkontos, "
+            + "je Buchung das Bankkonto mit gekürzter IBAN und am Ende die Summe. Er weist sich als Auszug aus Kontor aus; "
+            + "Buchungen, die nicht von der Bank stammen oder danach geändert wurden, sind gekennzeichnet."
+          : "Der Nachweis zeigt Datum, Empfänger, Verwendungszweck und Betrag der Buchungen, "
+            + "die Summe und eine gekürzte IBAN, aber keine Kontostände. Er weist sich als Auszug aus Kontor aus; "
+            + "Buchungen, die nicht von der Bank stammen oder danach geändert wurden, sind gekennzeichnet."),
         knopfLeiste(ok, knopf("Abbrechen", { onclick: () => d.schliessen(null) })));
     }, { ausloeser });
   }
@@ -3558,7 +3565,7 @@ class Kontoansicht {
       && b.splits.filter((s) => s.konto_id === this.konto.id).length === 1;
   }
 
-  /** Split auf dem Konto der Ansicht v (angezeigter Betrag, D-310: beim Kreditkonto umgedreht gespeichert), der andere
+  /** Split auf dem Konto der Ansicht v (angezeigter Betrag, D-312: beim Kreditkonto umgedreht gespeichert), der andere
    *  −v; Reihenfolge, Konten und Memos bleiben. */
   betragSplits(b, v) {
     const w = v * this.vz;

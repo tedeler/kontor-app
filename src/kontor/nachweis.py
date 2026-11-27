@@ -6,6 +6,9 @@ IBAN bleiben nur Ländercode, Prüfziffer und die letzten vier Stellen; der Rest
 
 Der Auszug weist sich als Auszug aus der Homebanking-Software aus, trägt kein Banklogo und kennzeichnet Buchungen, die
 nicht von der Bank stammen oder nach dem Abruf geändert wurden.
+
+Seit D-311 auch aus dem Kontoblatt einer Kategorie („Buchungsnachweis“): Buchungen der Kategorie oder ihrer
+Unterkategorien, Betrag = Anteil der Kategorie aus Sicht des Bankkontos, je Buchung das Bankkonto mit gekürzter IBAN.
 """
 
 from __future__ import annotations
@@ -89,15 +92,16 @@ def _kuerzen(text: str, schrift: str, groesse: float, platz: float) -> str:
 
 
 def pdf_bytes(*, inhaber: str, iban: str, bic: str | None, kontoart: str, datum: str,
-              buchungen: list[dict]) -> bytes:
-    """``buchungen``: Liste von {datum, empfaenger, verwendungszweck, betrag (Cent), hinweis (Text oder "")},
-    bereits sortiert. Zwei Durchläufe, damit jede Seite „Seite n von m“ tragen kann."""
-    _, seiten = _zeichnen(inhaber, iban, bic, kontoart, datum, buchungen, 0)
-    daten, _ = _zeichnen(inhaber, iban, bic, kontoart, datum, buchungen, seiten)
+              buchungen: list[dict], kategorie: dict | None = None) -> bytes:
+    """``buchungen``: Liste von {datum, empfaenger, verwendungszweck, betrag (Cent), hinweis (Text oder ""),
+    optional zusatz (Liste kleiner Zeilen)}, bereits sortiert. ``kategorie`` = {pfad, konten} für den
+    Buchungsnachweis einer Kategorie (D-311). Zwei Durchläufe, damit jede Seite „Seite n von m“ tragen kann."""
+    _, seiten = _zeichnen(inhaber, iban, bic, kontoart, datum, buchungen, 0, kategorie)
+    daten, _ = _zeichnen(inhaber, iban, bic, kontoart, datum, buchungen, seiten, kategorie)
     return daten
 
 
-def _zeichnen(inhaber, iban, bic, kontoart, datum, buchungen, gesamt) -> tuple[bytes, int]:  # noqa: C901
+def _zeichnen(inhaber, iban, bic, kontoart, datum, buchungen, gesamt, kategorie=None) -> tuple[bytes, int]:  # noqa: C901
     # C901: eine Zeichenfolge von oben nach unten; die Teile teilen sich Lage und Canvas
     from reportlab.lib.colors import HexColor
     from reportlab.lib.pagesizes import A4
@@ -108,7 +112,8 @@ def _zeichnen(inhaber, iban, bic, kontoart, datum, buchungen, gesamt) -> tuple[b
     rand = 56
     rechts = breite - rand
     c = canvas.Canvas(puffer, pagesize=A4, invariant=1, pageCompression=1)
-    c.setTitle("Kontoauszug – Auszug aus Kontor")
+    dokument = "Buchungsnachweis" if kategorie else "Kontoauszug"
+    c.setTitle(f"{dokument} – Auszug aus Kontor")
     c.setCreator(f"Kontor {__version__}")
     c.setAuthor("")
     c.setSubject("")
@@ -165,18 +170,23 @@ def _zeichnen(inhaber, iban, bic, kontoart, datum, buchungen, gesamt) -> tuple[b
         if seite[0] == 1:
             c.setFont("Helvetica", 24)
             c.setFillColor(tinte)
-            c.drawString(rand, y, "Kontoauszug")
+            c.drawString(rand, y, dokument)
             c.setFont("Helvetica", 9)
             c.setFillColor(grau)
-            c.drawString(rand, y - 18, "Nachweis ausgewählter Buchungen · kein Dokument der Bank")
+            c.drawString(rand, y - 18, "Ausgewählte Buchungen einer Kategorie · kein Dokument der Bank" if kategorie
+                         else "Nachweis ausgewählter Buchungen · kein Dokument der Bank")
             y -= 44
             c.setStrokeColor(haar)
             c.setLineWidth(0.5)
             c.line(rand, y, rechts, y)
-            spalten = ((rand, "Kontoinhaber", _sauber(inhaber) or "–", 150),
-                       (rand + 160, "IBAN", iban_maskiert(iban), 168),
-                       (rand + 336, "BIC", _sauber(bic) or "–", 78),
-                       (rand + 422, "Konto", kontoart, rechts - rand - 422))
+            spalten = (((rand, "Kontoinhaber", _sauber(inhaber) or "–", 150),
+                        (rand + 160, "Kategorie", _sauber(kategorie["pfad"]), 168),
+                        (rand + 336, "Bankkonten", _sauber(kategorie["konten"]) or "–", rechts - rand - 336))
+                       if kategorie else
+                       ((rand, "Kontoinhaber", _sauber(inhaber) or "–", 150),
+                        (rand + 160, "IBAN", iban_maskiert(iban), 168),
+                        (rand + 336, "BIC", _sauber(bic) or "–", 78),
+                        (rand + 422, "Konto", kontoart, rechts - rand - 422)))
             for x, titel, wert, platz in spalten:
                 etikett(x, y - 16, titel)
                 c.setFont("Helvetica", 9.5)
@@ -188,7 +198,7 @@ def _zeichnen(inhaber, iban, bic, kontoart, datum, buchungen, gesamt) -> tuple[b
         else:
             c.setFont("Helvetica", 11)
             c.setFillColor(tinte)
-            c.drawString(rand, y, "Kontoauszug (Fortsetzung)")
+            c.drawString(rand, y, f"{dokument} (Fortsetzung)")
             y -= 30
         return tabellenkopf(y)
 
@@ -196,7 +206,8 @@ def _zeichnen(inhaber, iban, bic, kontoart, datum, buchungen, gesamt) -> tuple[b
     for b in buchungen:
         zweck = _umbrechen(_sauber(b["verwendungszweck"]) or "–", "Helvetica", 8.5, text_platz)
         hinweis = _sauber(b.get("hinweis"))
-        hoehe_eintrag = 12 + 11 * len(zweck) + (12 if hinweis else 0) + 8
+        zusatz = [_kuerzen(_sauber(z), "Helvetica", 7.5, text_platz) for z in b.get("zusatz", ()) if _sauber(z)]
+        hoehe_eintrag = 12 + 11 * len(zweck) + 10 * len(zusatz) + (12 if hinweis else 0) + 8
         if y - hoehe_eintrag < 86:
             fuss()
             c.showPage()
@@ -215,6 +226,11 @@ def _zeichnen(inhaber, iban, bic, kontoart, datum, buchungen, gesamt) -> tuple[b
         for z in zweck:
             c.drawString(x_text, yy, z)
             yy -= 11
+        c.setFont("Helvetica", 7.5)
+        c.setFillColor(hell)
+        for z in zusatz:
+            c.drawString(x_text, yy, z)
+            yy -= 10
         if hinweis:
             yy -= 1
             c.setFont("Helvetica-Oblique", 7.5)
@@ -251,17 +267,26 @@ def _zeichnen(inhaber, iban, bic, kontoart, datum, buchungen, gesamt) -> tuple[b
 
 # ===================================================================== Daten
 
-def _bankkonto(con, konto_id: int) -> dict:
+KATEGORIE = ("aufwand", "ertrag")
+
+
+def _konto(con, konto_id: int) -> dict:
     k = buch.konto_lesen(con, konto_id)
-    if k["art"] not in buch.BESTAND:
-        raise ApiFehler(422, "kein_bestandskonto", "Ein Nachweis ist nur für Bankkonten möglich, nicht für Kategorien.")
+    if k["art"] not in buch.BESTAND and k["art"] not in KATEGORIE:
+        raise ApiFehler(422, "kein_bestandskonto", "Ein Nachweis ist nur für Bankkonten und Kategorien möglich.")
     return k
 
 
 def angaben(con, konto_id: int) -> dict:
-    """Vorbelegung des Dialogs: Kontoinhaber und BIC aus den Kontodaten, die die Bank gemeldet hat."""
-    k = _bankkonto(con, konto_id)
-    bank = next((x for x in bankzugang.konten(con) if k["iban"] and x.get("iban") == k["iban"]), {})
+    """Vorbelegung des Dialogs: Kontoinhaber und BIC aus den Kontodaten, die die Bank gemeldet hat. Für eine Kategorie
+    (D-311) der erste bekannte Kontoinhaber eines Bankkontos, ohne BIC."""
+    k = _konto(con, konto_id)
+    gemeldet = bankzugang.konten(con)
+    if k["art"] in KATEGORIE:
+        ibans = {r["iban"] for r in con.execute("SELECT iban FROM konto WHERE iban IS NOT NULL AND iban != ''")}
+        inhaber = next((str(x["inhaber"]) for x in gemeldet if x.get("iban") in ibans and x.get("inhaber")), "")
+        return {"inhaber": inhaber, "bic": None}
+    bank = next((x for x in gemeldet if k["iban"] and x.get("iban") == k["iban"]), {})
     return {"inhaber": str(bank.get("inhaber") or ""), "bic": bank.get("bic") or None}
 
 
@@ -289,8 +314,10 @@ _KONTOART = {"girokonto": "Girokonto", "sparkonto": "Sparkonto", "kreditkonto": 
 
 
 def erstellen(con, konto_id: int, ids: list[int], inhaber: str | None, heute: str) -> bytes:
-    konto = _bankkonto(con, konto_id)
+    konto = _konto(con, konto_id)
     ids = list(dict.fromkeys(buch.sichere_id(i) for i in ids))
+    if konto["art"] in KATEGORIE:
+        return _kategorie_erstellen(con, konto, ids, inhaber, heute)
     geladen = {b["id"]: b for b in buch.buchungen_laden(con, ids, konto_id=konto_id)}
     fehlend = [i for i in ids if i not in geladen]
     if fehlend:
@@ -305,6 +332,64 @@ def erstellen(con, konto_id: int, ids: list[int], inhaber: str | None, heute: st
               for b in sorted(geladen.values(), key=lambda x: (x["datum"], x["id"]))]
     return pdf_bytes(inhaber=vorgabe["inhaber"] if inhaber is None else inhaber, iban=konto["iban"] or "",
                      bic=vorgabe["bic"], kontoart=_KONTOART[konto["art"]], datum=heute, buchungen=zeilen)
+
+
+def _teilbaum(con, konto: dict) -> set[int]:
+    alle = {r["id"]: r["eltern_id"] for r in con.execute("SELECT id, eltern_id FROM konto WHERE art = ?", (konto["art"],))}
+    menge, neu = {konto["id"]}, True
+    while neu:
+        neu = False
+        for i, e in alle.items():
+            if e in menge and i not in menge:
+                menge.add(i)
+                neu = True
+    return menge
+
+
+def _pfad(con, konto: dict) -> str:
+    teile, k = [], konto
+    while k is not None and len(teile) < 50:
+        teile.append(k["name"])
+        k = buch.konto_dict(r) if (r := buch.konto_zeile(con, k["eltern_id"]) if k["eltern_id"] else None) else None
+        if k is not None and k["art"] != konto["art"]:
+            break
+    return " › ".join(reversed(teile))
+
+
+def _kategorie_erstellen(con, konto: dict, ids: list[int], inhaber: str | None, heute: str) -> bytes:
+    """Buchungsnachweis einer Kategorie (D-311)."""
+    menge = _teilbaum(con, konto)
+    geladen = {b["id"]: b for b in buch.buchungen_laden(con, ids, konten=menge)}
+    if any(i not in geladen for i in ids):
+        raise buch.nicht_gefunden("Die Buchung")
+    fremd = [i for i in ids if not any(s["konto_id"] in menge for s in geladen[i]["splits"])]
+    if fremd:
+        raise ApiFehler(422, "buchung_nicht_im_konto", "Nicht alle Buchungen gehören zu dieser Kategorie.",
+                        {"buchung_ids": fremd})
+    bank = {r["id"]: buch.konto_dict(r) for r in con.execute(
+        f"SELECT * FROM konto WHERE art IN ({buch._platzhalter(len(buch.BESTAND))})", buch.BESTAND)}
+    zeilen, benutzt = [], {}
+    for b in sorted(geladen.values(), key=lambda x: (x["datum"], x["id"])):
+        anteil = -b["betrag"]                    # Sicht des Bankkontos: Ausgaben negativ
+        auf_bank = sorted({s["konto_id"] for s in b["splits"] if s["konto_id"] in bank})
+        zusatz, text = [], "Keinem Bankkonto zugeordnet"
+        if len(auf_bank) == 1:
+            bk = bank[auf_bank[0]]
+            benutzt[bk["id"]] = bk
+            gezahlt = sum(s["betrag"] for s in b["splits"] if s["konto_id"] == bk["id"])
+            zusatz.append(f"{bk['name']} · {iban_maskiert(bk['iban'] or '')}" if bk["iban"] else bk["name"])
+            if gezahlt != anteil:
+                zusatz.append(f"Anteil an einer Zahlung über {betrag_text(gezahlt)}")
+            text = hinweis(con, {**b, "betrag": gezahlt}, bk)
+        elif auf_bank:
+            text = "Mehrere Bankkonten beteiligt"
+        zeilen.append({"datum": b["datum"], "empfaenger": (b["empfaenger"] or {}).get("name", ""),
+                       "verwendungszweck": b["verwendungszweck"], "betrag": anteil, "hinweis": text,
+                       "zusatz": zusatz})
+    vorgabe = angaben(con, konto["id"])
+    konten = ", ".join(k["name"] for k in sorted(benutzt.values(), key=lambda k: k["name"].casefold()))
+    return pdf_bytes(inhaber=vorgabe["inhaber"] if inhaber is None else inhaber, iban="", bic=None, kontoart="",
+                     datum=heute, buchungen=zeilen, kategorie={"pfad": _pfad(con, konto), "konten": konten})
 
 
 __all__ = ["pdf_bytes", "iban_maskiert", "betrag_text", "angaben", "hinweis", "erstellen", "HINWEIS"]

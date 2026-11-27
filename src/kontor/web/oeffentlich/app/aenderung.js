@@ -84,7 +84,7 @@ function wertText(schluessel, w, n) {
   if (typeof w === "string" && /^\d{4}-\d{2}-\d{2}$/.test(w)) return datumText(w);
   if (typeof w === "string" && /^\d{4}-\d{2}-\d{2}T/.test(w)) return zeitText(w);
   if (typeof w === "string" && Object.hasOwn(WERTE, w)) return WERTE[w];
-  if (schluessel === "inhaber") return [w.vorname, w.nachname].filter(Boolean).join(" ") || "–";   // D-310
+  if (schluessel === "inhaber") return [w.vorname, w.nachname].filter(Boolean).join(" ") || "–";   // D-312
   if (schluessel === "splits") return w.map((s) => splitText(s, n)).join("\n");
   if (Array.isArray(w)) return w.map((x) => (typeof x === "object" && x !== null ? objektText(x, n) : wertText(schluessel.replace(/s$/, ""), x, n))).join("\n");
   if (typeof w === "object") return objektText(w, n);

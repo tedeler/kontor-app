@@ -81,7 +81,7 @@ def test_sicherung_der_schemaversion_2_einspielbar_und_postfach_bleibt_erhalten(
     assert r.json()["unterschied"]["postfach"] == {"angelegt": 0, "geaendert": 0, "geloescht": 1}
     assert z.get("/api/mail/postfaecher").json() == []
     # … Empfänger-Bestätigung (D-156), automatische Regeln (D-179), Regel-Tags (D-215), Wiederholung geplanter Zahlungen
-    # (D-238), Einstellungen (D-302), Kontoinhaber (D-310)
+    # (D-238), Einstellungen (D-302), Kontoinhaber (D-312)
     assert sicherung.SCHEMAVERSION == 12
 
 

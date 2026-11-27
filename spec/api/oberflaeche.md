@@ -3666,8 +3666,9 @@ Befehlspalette (jetzt nur Kürzel, die es auf dem Blatt gibt).
   2. `*<Betrag>* · <Art>`: Betrag wie in der Liste mit Vorzeichen „−“ (U+2212) oder „+“ und geschütztem Leerzeichen
      vor „€“; Art „Ausgabe“, „Einnahme“ oder „Umbuchung“ (Buchung ohne Kategorie und ohne Gegensplit auf eine
      Kategorie),
-  3. Leerzeile, dann je eine Zeile „📅 <Wochentag>, TT.MM.JJJJ“ (Wochentag zweibuchstabig), „🏦 <Konto>“,
-     „🏷️ <Text der Spalte Kategorie>“ (mehrere Gegensplits: „Gesplittet (n)“; fehlt ohne Text) und „🔖 <Tags>“
+  3. Leerzeile, dann je eine Zeile mit Symbol und Beschriftung (D-310) „📅 Datum: <Wochentag>, TT.MM.JJJJ“
+     (Wochentag zweibuchstabig), „🏦 Konto: <Konto>“, „🏷️ Kategorie: <Text der Spalte Kategorie>“ (mehrere
+     Gegensplits: „Gesplittet (n)“; fehlt ohne Text) und „🔖 Tags: <Tags>“
      (durch Komma getrennt; fehlt ohne Tags),
   4. Leerzeile und „> <Verwendungszweck>“: nur der lesbare Teil wie in den Einzelheiten (D-175, ohne SEPA-Kennungen,
      Referenzen, Karte), Teile durch „ · “ getrennt, Leerraum zusammengefasst, über 140 Zeichen gekürzt mit „…“; fehlt,
@@ -3684,7 +3685,44 @@ Befehlspalette (jetzt nur Kürzel, die es auf dem Blatt gibt).
   Link in die Zwischenablage kopiert.“; geht auch das nicht, zeigt `teilen-dialog` den Text in `teilen-text`
   (markiert) mit `teilen-schliessen`.
 
-## 51. Kontotyp, Kontoinhaber und Vorzeichen bei Kreditkonten (Feature `konto-typ-inhaber`, D-310)
+## 51. Kategorienseite neu gestaltet (Feature `kategorien-uebersicht`, D-311, ergänzt 13.1)
+
+Der Kategorienbaum der Seite `/kategorien` zeigt je Kategorie Beträge; Verwaltung und Bedienung aus 13.1, 10, 8.2, 29.2
+und 29.3 bleiben (Rollen, `kategorie-<id>`, Mehrfachauswahl, Ziehen, Kontextmenü, F2, Enter/Doppelklick öffnet das
+Kontoblatt). Im Seitenbereich der Kontoansicht (`panel-kategorien`) bleibt der Baum unverändert.
+
+- **Kopf:** `kategorie-anlegen` (Hauptknopf).
+- **Leiste** `kategorien-leiste`: Suchfeld `kategorien-suche`; Zeitraum `kategorien-zeitraum` (`role="radiogroup"`,
+  Knöpfe `kategorien-zeitraum-<wert>` mit `role="radio"`/`aria-checked`; Werte `monat`, `12monate` (Vorgabe), `jahr`,
+  `vorjahr`, `gesamt`; Pfeiltasten wechseln). Der Zeitraum steht in der Adresse als `?zeitraum=<wert>` (ohne bei
+  der Vorgabe). Sortierung `kategorien-sortierung` (`-name` „A–Z“, Vorgabe; `-betrag` absteigend nach Summe, je
+  Geschwisterebene; im Browser-Speicher). `kategorien-aufklappen`/`kategorien-zuklappen` klappen alle Einträge.
+- **Kennzahlen** `kategorien-kennzahlen`: Kacheln `kategorien-kachel-ausgaben`, `-einnahmen` (Summe im Zeitraum),
+  `-saldo` („Überschuss“ = Einnahmen − Ausgaben) und den Link `kategorien-unkategorisiert` auf das Kontoblatt
+  „Unkategorisiert“ mit der Zahl der Buchungen ohne Kategorie im Zeitraum (hervorgehoben, wenn es welche gibt).
+- **Baum** (Klasse `baum-uebersicht`): Ausgaben und Einnahmen als zwei Karten nebeneinander (schmal untereinander).
+  Gruppenkopf `kategorien-gruppe-<art>` mit Zahl der Kategorien und Summe `kategorien-summe-<art>` (`data-betrag`).
+  Je Eintrag: Farbpunkt (ein Ton je Wurzelkategorie, Unterkategorien erben ihn), Name, Zahl der Buchungen, Verlauf der
+  zwölf Monate (kleine Linie), Balken (größte Wurzelkategorie der Gruppe = voll), Summe `kategorie-summe-<id>`
+  (`data-betrag`, einschließlich Unterkategorien, Ausgaben und Einnahmen positiv; ohne Buchungen blass) und die Knöpfe
+  `kategorie-oeffnen-<id>` (Kontoblatt) und `kategorie-menue-<id>` (Kontextmenü wie 8.2/29.3). Die Knöpfe sind am
+  Desktop beim Überfahren, im Fokus und bei markierten Einträgen sichtbar, am Handy immer; sie haben `tabindex="-1"`
+  (der Baum behält seinen einen Tab-Halt). Der Titel einer Zeile nennt Zahl der Buchungen, Anteil an der Gruppe und
+  den Tag der letzten Buchung.
+- **Suche:** zeigt Einträge, deren Name den Text enthält (ohne Groß-/Kleinschreibung), mit ihren Vorfahren und
+  Unterkategorien, alles aufgeklappt; der Treffer ist mit `<mark>` hervorgehoben. ↓ springt in den Baum, Enter öffnet
+  den ersten Treffer, Esc leert das Feld. Ohne Treffer: `kategorien-keine-treffer` mit `kategorien-treffer-anlegen`
+  (Dialog `konto-dialog`, Name vorbelegt).
+- **Leer:** Ohne Kategorien `kategorien-leer` mit Erklärung und `kategorien-leer-anlegen`.
+- **Handy:** eine Spalte, ohne Verlauf, Balken und Zahl der Buchungen; Zeilen 44 px; kein waagrechtes Scrollen.
+- Bereich `w f` springt in die Suche (D-292); `w b` in den Baum.
+
+### 51.1 Nachweis im Kontoblatt einer Kategorie (ergänzt `berichte.md` 8, 46)
+
+Im Kontoblatt einer Kategorie (Art `aufwand`/`ertrag`, nicht „Unkategorisiert“) gibt es `v p`, `km-nachweis` und den
+Dialog `nachweis-dialog` wie im Kontoblatt eines Bankkontos. Der Hinweistext des Dialogs nennt den Anteil der Kategorie
+aus Sicht des Bankkontos.
+## 52. Kontotyp, Kontoinhaber und Vorzeichen bei Kreditkonten (Feature `konto-typ-inhaber`, D-312)
 
 - **Kontoeinstellungen** (`konto-einstellungen`, Kontextmenü „Einstellungen…“ und `konto-einstellungen-oeffnen` im
   Kontoblatt): bei Bestandskonten zusätzlich die Auswahl `einstellungen-art` „Kontotyp“ (Girokonto, Sparkonto,

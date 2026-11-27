@@ -1,4 +1,4 @@
-"""Core-Tests zum Feature „konto-typ-inhaber“ (D-310): Kontotyp änderbar, Kontoinhaber, Kreditkonten mit
+"""Core-Tests zum Feature „konto-typ-inhaber“ (D-312): Kontotyp änderbar, Kontoinhaber, Kreditkonten mit
 umgedrehtem Vorzeichen in der Anzeige.
 
 - ``art`` ist bei Bestandskonten über ``PATCH /api/konten/{id}`` änderbar (``girokonto``, ``sparkonto``,
