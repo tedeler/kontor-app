@@ -4771,3 +4771,18 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   `tests/core/test_regelgruppen.py` (`AENDERUNGEN.md`), `tests/test_lernregeln_eigen.py`,
   `gesamt-tests` M31 `test_m31_regeln_automatisch.py`, M30 `test_regelliste`, `spec/test_openapi.py`
   (`TESTUMBAU.md`).
+
+## D-309 Mobil: markierte Buchung behält die Farbe ihres Status (Feature `markierung-status`, 2026-11-27)
+
+- **Anlass:** Arbeitsanweisung vom 2026-11-27: In der mobilen App wurde die getippte (markierte) Buchung ganz blau
+  hinterlegt; ob sie importiert (rot), vorläufig (gelb) oder bestätigt ist, war nicht mehr zu sehen.
+- **Ursache:** Die Regel für `data-markiert` aus D-278 setzte die Hintergrundfarbe auf die Auswahlfarbe `--auswahl`
+  und legte einen 4 px breiten Akzentstreifen genau über den Statusstreifen.
+- **Entscheidung** (`oberflaeche.md` 43.5): mobil gilt für die Markierung dasselbe Prinzip wie für die Auswahl am
+  Desktop (D-269/D-270): Grundton (`--toenung`) und Statusstreifen bleiben, darüber der neutrale Schleier
+  `--wahl-schleier` und ein 3 px breiter Rahmen in `--wahl-linie`. Der Statusstreifen rückt in den Rahmen und ist
+  in der markierten Zeile 6 px breit, damit er neben dem Rahmen auffällt. Hell und dunkel geprüft.
+- **Nicht geändert:** Auswahlmodus (Häkchen, `aria-selected`), Desktop, Wischgesten.
+- **Prüfung:** Core-Test `tests/core/test_markierung_status.py`; Browsertest `tests/test_browser_markierung_status.py`
+  (rote, gelbe und weiße Zeile bei 390 px: Grundton und Streifen vor und nach dem Tippen gleich, Rahmen vorhanden,
+  die drei Status bleiben unterscheidbar).

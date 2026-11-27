@@ -856,9 +856,14 @@ html[data-thema="dunkel"] { --wahl-schleier: color-mix(in srgb, var(--text) 16%,
 .wisch-hinweis[data-bereit="ja"][data-richtung="rechts"] { background: var(--erfolg); color: #fff; }
 .wisch-hinweis[data-bereit="ja"][data-richtung="links"] { background: var(--akzent); color: var(--akzent-text); }
 html[data-thema="dunkel"] .wisch-hinweis[data-bereit="ja"][data-richtung="rechts"] { color: #15181c; }
-/* D-278: getippte Zeile (Markierung ohne Auswahl) und „Bestätigt – Rückgängig“ über der Zeile nach dem Wisch */
-[data-layout="mobil"] .buchungsliste:not([data-auswahlmodus="ja"]) .zeile[data-markiert] { box-shadow: inset 4px 0 0 var(--akzent);
-  background-color: var(--auswahl); }
+/* D-278: getippte Zeile (Markierung ohne Auswahl) und „Bestätigt – Rückgängig“ über der Zeile nach dem Wisch.
+   D-309: Die Markierung färbt die Zeile nicht mehr um. Grundton und Streifen des Status (rot, gelb, weiß) bleiben;
+   darüber liegen wie bei der Auswahl am Desktop (D-269/D-270) der neutrale Schleier und ein Rahmen in der
+   Akzentfarbe. Der Streifen liegt innerhalb des Rahmens und ist etwas breiter, damit er neben dem Rahmen auffällt. */
+[data-layout="mobil"] .buchungsliste:not([data-auswahlmodus="ja"]) .zeile[data-markiert] { background-color: var(--toenung);
+  --schleier: var(--wahl-schleier); position: relative; background-position: 3px 0, 0 0; background-size: 6px 100%, 100% 100%; }
+[data-layout="mobil"] .buchungsliste:not([data-auswahlmodus="ja"]) .zeile[data-markiert]::after { content: ""; position: absolute;
+  inset: 0; z-index: 2; pointer-events: none; box-sizing: border-box; border: 3px solid var(--wahl-linie); }
 .wisch-rueck { position: absolute; left: 0; right: 0; z-index: 3; display: flex; align-items: center; justify-content: space-between;
   gap: 1rem; padding: 0 1rem; border: 0; font: inherit; font-weight: 600; text-align: left; cursor: pointer;
   background: var(--erfolg); color: #fff; }
