@@ -169,7 +169,7 @@ export async function konten(seite) {
   return { titel: "Konten" };
 }
 
-// ------------------------------------------------------------------ Kategorien (13.1, D-310: eigenes Modul)
+// ------------------------------------------------------------------ Kategorien (13.1, D-311: eigenes Modul)
 export { kategorienSeite } from "./kategorien.js";
 
 // ------------------------------------------------------------------ Konfiguration (D-235)

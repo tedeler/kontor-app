@@ -634,7 +634,7 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
 
     @endpunkt("GET", "/api/kategorien/uebersicht")
     async def kategorien_uebersicht(request: Request):
-        """Feature kategorien-uebersicht (D-310): Beträge je Kategorie für die Kategorienseite, nur lesend."""
+        """Feature kategorien-uebersicht (D-311): Beträge je Kategorie für die Kategorienseite, nur lesend."""
         q = Query(request.query_params)
         zeitraum = q.auswahl("zeitraum", kategorienuebersicht.ZEITRAEUME) or kategorienuebersicht.VORGABE
         for unbekannt in sorted(set(request.query_params.keys()) - {"zeitraum"}):

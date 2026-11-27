@@ -35,7 +35,7 @@ REST = ["/api/status", "/api/ausdruck",  # D-185
         "/api/bestand/stand",  # Stand des Buchbestands: D-284
         "/api/erwartungen",  # Mail-Abgleich: D-128
         "/api/saldoausgleich/paare",  # Ausgleichsbuchungen aufräumen: D-280
-        "/api/kategorien/uebersicht",  # Kategorienseite: D-310
+        "/api/kategorien/uebersicht",  # Kategorienseite: D-311
         "/api/konfiguration",  # Konfiguration zum Nachsehen: D-235, noch nicht im OpenAPI-Vertrag
         "/api/empfaenger/anzahlen",  # Buchungszahl je Empfänger: D-236, noch nicht im OpenAPI-Vertrag
         "/api/berichte/monat",  # Monatsbericht: D-206, noch nicht im OpenAPI-Vertrag

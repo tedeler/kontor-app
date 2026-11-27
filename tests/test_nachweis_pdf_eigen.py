@@ -51,7 +51,7 @@ def test_fehler(welt):
     code(_nachweis(c, giro, [buchungen[0]["id"]], inhaber="x" * 201), 422)
     assert code(_nachweis(c, 999999, [buchungen[0]["id"]]), 404) == "nicht_gefunden"
     assert code(_nachweis(c, giro, [999999]), 404) == "nicht_gefunden"
-    # D-310: Kategorien sind erlaubt, die Buchung muss aber zur Kategorie gehören; „Unkategorisiert“ nicht
+    # D-311: Kategorien sind erlaubt, die Buchung muss aber zur Kategorie gehören; „Unkategorisiert“ nicht
     assert code(_nachweis(c, kat, [buchungen[0]["id"]]), 422) == "buchung_nicht_im_konto"
     unk = next(k["id"] for k in c.get("/api/konten").json() if k["extern_id"] == "kontor:unkategorisiert")
     assert code(_nachweis(c, unk, [buchungen[0]["id"]]), 422) == "kein_bestandskonto"

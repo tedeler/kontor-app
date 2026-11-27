@@ -158,7 +158,7 @@ export function langeBeruehrung(wurzel, finden, wirkung) {
 const zugeklappt = new Set();
 const markiert = new Set(); // Mehrfachauswahl im Kategorienbaum (D-126), bleibt beim Neuzeichnen erhalten
 
-/** Alle Kategorien mit Unterkategorien auf- (`zu` = false) oder zuklappen (D-310). */
+/** Alle Kategorien mit Unterkategorien auf- (`zu` = false) oder zuklappen (D-311). */
 export function alleKlappen(zu) {
   zugeklappt.clear();
   if (!zu) return;
@@ -166,7 +166,7 @@ export function alleKlappen(zu) {
   for (const k of stamm.konten) if ((k.art === "aufwand" || k.art === "ertrag") && eltern.has(k.id)) zugeklappt.add(k.id);
 }
 
-// D-310: Farbton je Wurzelkategorie (Unterkategorien erben ihn); fest nach der ID, damit er beim Sortieren bleibt
+// D-311: Farbton je Wurzelkategorie (Unterkategorien erben ihn); fest nach der ID, damit er beim Sortieren bleibt
 const TOENE = 8;
 
 /** Name mit hervorgehobenem Suchtreffer (nur Textknoten, nie HTML). */
@@ -213,7 +213,7 @@ function verlaufEl(werte, monate) {
  * (der Eintrag reserviert ihren Platz mit einem Außenabstand). So liegt die Mitte eines Eintrags auf seiner eigenen
  * Zeile, nicht auf einer Unterkategorie.
  * optionen.buchungsZiel: true → Einträge nehmen gezogene Buchungen an (Kontoansicht).
- * Kategorienseite (D-310): optionen.werte (Map id → {summe, anzahl, letzte, verlauf}), optionen.monate,
+ * Kategorienseite (D-311): optionen.werte (Map id → {summe, anzahl, letzte, verlauf}), optionen.monate,
  * optionen.summen ({aufwand, ertrag}), optionen.suche, optionen.nachBetrag; jede Zeile bekommt dann Knöpfe zum Öffnen
  * und für das Kontextmenü. Ohne diese Optionen bleibt der Baum wie im Seitenbereich der Kontoansicht.
  */
@@ -246,7 +246,7 @@ export function kategorienBaum(optionen) {
     if (o.nachBetrag && werte) {
       for (const liste of kinderVon.values()) liste.sort((a, b) => summe(b.konto) - summe(a.konto));
     }
-    // Suche (D-310): Treffer, ihre Vorfahren und ihre Unterkategorien bleiben sichtbar, alles aufgeklappt
+    // Suche (D-311): Treffer, ihre Vorfahren und ihre Unterkategorien bleiben sichtbar, alles aufgeklappt
     let zeigen = null;
     if (suche) {
       zeigen = new Set();

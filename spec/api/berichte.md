@@ -273,7 +273,7 @@ Nur lesend: kein Zustand, kein Protokoll, nichts in der Sicherung. Noch nicht im
   Feld `nachweis-inhaber` (vorbelegt), `nachweis-ok` lädt die Datei herunter und schließt den Dialog; Fehler stehen
   im Dialog. In Kategorien gibt es weder Kürzel noch Menüeintrag.
 
-### 8.1 Nachweis aus dem Kontoblatt einer Kategorie (D-310)
+### 8.1 Nachweis aus dem Kontoblatt einer Kategorie (D-311)
 
 - `konto_id` darf auch eine Kategorie (Art `aufwand`/`ertrag`) sein; „Unkategorisiert“ und andere Konten ergeben
   weiter 422 `kein_bestandskonto`. Jede Buchung braucht einen Split auf der Kategorie oder einer ihrer
@@ -288,7 +288,7 @@ Nur lesend: kein Zustand, kein Protokoll, nichts in der Sicherung. Noch nicht im
 - `GET /api/export/nachweis/angaben?konto_id=<Kategorie>` → Kontoinhaber des ersten Bankkontos, für das die Bank einen
   meldet; `bic` immer `null`.
 
-## 9. Beträge je Kategorie (Feature `kategorien-uebersicht`, D-310)
+## 9. Beträge je Kategorie (Feature `kategorien-uebersicht`, D-311)
 
 Nur lesend, kein Zustand. Noch nicht im OpenAPI-Vertrag (wie D-217).
 

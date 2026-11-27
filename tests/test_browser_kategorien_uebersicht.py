@@ -1,4 +1,4 @@
-"""Entwicklungstests für das Feature „kategorien-uebersicht“ (D-310): neue Kategorienseite mit Kennzahlen, Beträgen,
+"""Entwicklungstests für das Feature „kategorien-uebersicht“ (D-311): neue Kategorienseite mit Kennzahlen, Beträgen,
 Suche, Zeitraum, Sortierung und Knöpfen je Zeile. Playwright mit Chrome headless gegen einen echten Server im
 Mock-Modus (synthetische Daten).
 """

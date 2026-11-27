@@ -1,4 +1,4 @@
-"""Beträge für die Kategorienseite (Feature ``kategorien-uebersicht``, D-310). Nur lesend.
+"""Beträge für die Kategorienseite (Feature ``kategorien-uebersicht``, D-311). Nur lesend.
 
 ``GET /api/kategorien/uebersicht?zeitraum=…`` liefert je Kategorie (Art ``aufwand``/``ertrag``) die Summe im Zeitraum
 einschließlich Unterkategorien, den eigenen Anteil, die Zahl der Buchungen, den Tag der letzten Buchung (überhaupt) und

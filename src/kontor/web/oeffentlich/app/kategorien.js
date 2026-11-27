@@ -1,4 +1,4 @@
-/* Kontor – Kategorienseite (oberflaeche.md 13.1, neu gestaltet mit D-310): Kennzahlen, Suche, Zeitraum, Sortierung
+/* Kontor – Kategorienseite (oberflaeche.md 13.1, neu gestaltet mit D-311): Kennzahlen, Suche, Zeitraum, Sortierung
  * und der Kategorienbaum mit Betrag, Anteil und Verlauf je Kategorie. Verwaltung (Ziehen, Kontextmenü,
  * Mehrfachauswahl, Umbenennen) bleibt die des Kategorienbaums (baum.js). */
 import { abfrage, api, betragEl, h, oberflaeche, stamm } from "./kern.js";

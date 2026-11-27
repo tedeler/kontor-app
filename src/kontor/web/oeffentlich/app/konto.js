@@ -577,7 +577,7 @@ class Kontoansicht {
     this.seite = seite;
     this.konto = konto;
     this.istKategorie = klasse(konto) !== "bestand";   // 22.2: Kategorie oder technisches Konto
-    // D-310: Nachweis als PDF im Kontoblatt eines Bankkontos und einer Kategorie (nicht „Unkategorisiert“)
+    // D-311: Nachweis als PDF im Kontoblatt eines Bankkontos und einer Kategorie (nicht „Unkategorisiert“)
     this.nachweisMoeglich = !this.istKategorie || konto.art === "aufwand" || konto.art === "ertrag";
     this.spalten = this.istKategorie ? SPALTEN_KATEGORIE : SPALTEN;
     this.spaltenVariante = this.istKategorie ? "kategorie" : "konto";

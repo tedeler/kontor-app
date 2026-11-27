@@ -67,7 +67,7 @@ def test_v_p_und_kontextmenue(tmp_path, browser):  # noqa: F811
         expect(tid(page, "nachweis-umfang")).to_contain_text("1 markierte Buchung")
         page.keyboard.press("Escape")
         expect(tid(page, "nachweis-dialog")).to_have_count(0)
-        # D-310: auch im Kontoblatt einer Kategorie, als „Buchungsnachweis“
+        # D-311: auch im Kontoblatt einer Kategorie, als „Buchungsnachweis“
         page.goto(f"{url}/konten/{kat}")
         bereit(page, "konto")
         tid(page, f"buchung-{ids[1]}").locator('[data-feld="datum"]').click()

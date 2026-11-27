@@ -1,4 +1,4 @@
-"""Core-Tests zum Feature „kategorien-uebersicht“ (D-310): neue Kategorienseite mit Beträgen und Nachweis als PDF aus
+"""Core-Tests zum Feature „kategorien-uebersicht“ (D-311): neue Kategorienseite mit Beträgen und Nachweis als PDF aus
 dem Kontoblatt einer Kategorie.
 
 - ``GET /api/kategorien/uebersicht[?zeitraum=monat|12monate|jahr|vorjahr|gesamt]`` (Vorgabe ``12monate``) liefert je

@@ -4787,7 +4787,7 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
   (rote, gelbe und weiße Zeile bei 390 px: Grundton und Streifen vor und nach dem Tippen gleich, Rahmen vorhanden,
   die drei Status bleiben unterscheidbar).
 
-## D-310 Kategorienseite mit Beträgen, Nachweis aus dem Kontoblatt einer Kategorie (Feature `kategorien-uebersicht`, 2026-11-27)
+## D-311 Kategorienseite mit Beträgen, Nachweis aus dem Kontoblatt einer Kategorie (Feature `kategorien-uebersicht`, 2026-11-27)
 
 - **Anlass:** Arbeitsanweisung vom 2026-11-27: Die Kategorienübersicht sei langweilig und hässlich, sie solle schön
   und gut bedienbar werden; im Kontoblatt einer Kategorie müsse auch der PDF-Export zur Verfügung stehen.

@@ -1847,7 +1847,7 @@ button.option { width: 100%; border: 0; background: none; color: inherit; font: 
 .sp-name-zeile { display: flex; gap: .5rem; align-items: flex-end; margin: .4rem 0 .8rem; }
 .sp-name-zeile > :first-child { flex: 1; margin: 0; }
 
-/* ------------------------------------------------------------------ Kategorienseite (D-310, oberflaeche.md 51) */
+/* ------------------------------------------------------------------ Kategorienseite (D-311, oberflaeche.md 51) */
 .baum-uebersicht .baum-eintrag[data-ton="0"] { --kat-ton: #2f6fb0; }
 .baum-uebersicht .baum-eintrag[data-ton="1"] { --kat-ton: #c56a1c; }
 .baum-uebersicht .baum-eintrag[data-ton="2"] { --kat-ton: #2a8a5e; }

@@ -7,7 +7,7 @@ IBAN bleiben nur Ländercode, Prüfziffer und die letzten vier Stellen; der Rest
 Der Auszug weist sich als Auszug aus der Homebanking-Software aus, trägt kein Banklogo und kennzeichnet Buchungen, die
 nicht von der Bank stammen oder nach dem Abruf geändert wurden.
 
-Seit D-310 auch aus dem Kontoblatt einer Kategorie („Buchungsnachweis“): Buchungen der Kategorie oder ihrer
+Seit D-311 auch aus dem Kontoblatt einer Kategorie („Buchungsnachweis“): Buchungen der Kategorie oder ihrer
 Unterkategorien, Betrag = Anteil der Kategorie aus Sicht des Bankkontos, je Buchung das Bankkonto mit gekürzter IBAN.
 """
 
@@ -95,7 +95,7 @@ def pdf_bytes(*, inhaber: str, iban: str, bic: str | None, kontoart: str, datum:
               buchungen: list[dict], kategorie: dict | None = None) -> bytes:
     """``buchungen``: Liste von {datum, empfaenger, verwendungszweck, betrag (Cent), hinweis (Text oder ""),
     optional zusatz (Liste kleiner Zeilen)}, bereits sortiert. ``kategorie`` = {pfad, konten} für den
-    Buchungsnachweis einer Kategorie (D-310). Zwei Durchläufe, damit jede Seite „Seite n von m“ tragen kann."""
+    Buchungsnachweis einer Kategorie (D-311). Zwei Durchläufe, damit jede Seite „Seite n von m“ tragen kann."""
     _, seiten = _zeichnen(inhaber, iban, bic, kontoart, datum, buchungen, 0, kategorie)
     daten, _ = _zeichnen(inhaber, iban, bic, kontoart, datum, buchungen, seiten, kategorie)
     return daten
@@ -279,7 +279,7 @@ def _konto(con, konto_id: int) -> dict:
 
 def angaben(con, konto_id: int) -> dict:
     """Vorbelegung des Dialogs: Kontoinhaber und BIC aus den Kontodaten, die die Bank gemeldet hat. Für eine Kategorie
-    (D-310) der erste bekannte Kontoinhaber eines Bankkontos, ohne BIC."""
+    (D-311) der erste bekannte Kontoinhaber eines Bankkontos, ohne BIC."""
     k = _konto(con, konto_id)
     gemeldet = bankzugang.konten(con)
     if k["art"] in KATEGORIE:
@@ -357,7 +357,7 @@ def _pfad(con, konto: dict) -> str:
 
 
 def _kategorie_erstellen(con, konto: dict, ids: list[int], inhaber: str | None, heute: str) -> bytes:
-    """Buchungsnachweis einer Kategorie (D-310)."""
+    """Buchungsnachweis einer Kategorie (D-311)."""
     menge = _teilbaum(con, konto)
     geladen = {b["id"]: b for b in buch.buchungen_laden(con, ids, konten=menge)}
     if any(i not in geladen for i in ids):

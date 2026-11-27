@@ -3684,7 +3684,7 @@ Befehlspalette (jetzt nur Kürzel, die es auf dem Blatt gibt).
   Link in die Zwischenablage kopiert.“; geht auch das nicht, zeigt `teilen-dialog` den Text in `teilen-text`
   (markiert) mit `teilen-schliessen`.
 
-## 51. Kategorienseite neu gestaltet (Feature `kategorien-uebersicht`, D-310, ergänzt 13.1)
+## 51. Kategorienseite neu gestaltet (Feature `kategorien-uebersicht`, D-311, ergänzt 13.1)
 
 Der Kategorienbaum der Seite `/kategorien` zeigt je Kategorie Beträge; Verwaltung und Bedienung aus 13.1, 10, 8.2, 29.2
 und 29.3 bleiben (Rollen, `kategorie-<id>`, Mehrfachauswahl, Ziehen, Kontextmenü, F2, Enter/Doppelklick öffnet das
