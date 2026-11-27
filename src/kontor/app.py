@@ -845,6 +845,11 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
         return await aendern("regeln_anwenden", regeln.regel_anwenden, pid(request, "regel_id"), d, _bezugstag(d),
                              quelle="regeln")
 
+    @endpunkt("GET", "/api/regeln/pruefung")
+    async def regeln_pruefung(request: Request):
+        """D-308: aktive automatische Regeln, deren Anlagebedingungen nicht mehr gelten (nur lesend)."""
+        return await lesen(lernregeln.pruefen, sync.heute())
+
     @endpunkt("GET", "/api/regeln/{regel_id:int}")
     async def regel_lesen(request: Request):
         return await lesen(regeln.regel_lesen, pid(request, "regel_id"))

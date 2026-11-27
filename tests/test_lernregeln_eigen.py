@@ -67,15 +67,16 @@ def test_alte_abweichung_stoert_nicht(auto):
     assert r["kategorie_id"] == kat["Drogerie"]
 
 
-def test_geloeschte_regel_entsteht_nicht_wieder(auto):
+def test_loeschen_ohne_sperre_rueckgaengig_bringt_regel_zurueck(auto):
+    """D-308: Das Löschen sperrt den Empfänger nicht mehr (vorher D-179: Sperre)."""
     c, buchen, _kat, emp = auto
     for i in range(5):
         buchen("Frischekorb", "Lebensmittel", 10 + i)
     (r,) = automatische(c)
     assert c.delete(f"/api/regeln/{r['id']}").status_code in (200, 204)
-    buchen("Frischekorb", "Lebensmittel", 3)
     assert automatische(c) == []
-    # Rückgängig des Löschens bringt Regel und Vermerk zurück und hebt die Sperre auf
+    assert "lernregel_gesperrt" not in c.get(f"/api/empfaenger/{emp['Frischekorb']}").json()
+    # Rückgängig des Löschens bringt Regel und Vermerk zurück
     loeschung = [a for a in c.get("/api/aenderungen").json()["eintraege"] if a["aktion"] == "regel_loeschen"][0]
     assert c.post(f"/api/aenderungen/{loeschung['id']}/rueckgaengig").status_code == 200
     (r2,) = automatische(c)
@@ -111,26 +112,27 @@ def test_ohne_einstellung_keine_automatischen_regeln(client):
     assert client.get("/api/regeln").json() == []
 
 
-def test_sicherung_enthaelt_vermerk_und_sperre(auto, tmp_path):
+def test_sicherung_enthaelt_vermerk_und_deaktivierte_regel(auto, tmp_path):
     c, buchen, _kat, emp = auto
     for i in range(5):
         buchen("Frischekorb", "Lebensmittel", 10 + i)
         buchen("Glanz", "Drogerie", 10 + i)
     regeln_vorher = automatische(c)
     glanz = [r for r in regeln_vorher if r["empfaenger_id"] == emp["Glanz"]][0]
-    c.delete(f"/api/regeln/{glanz['id']}")
+    c.patch(f"/api/regeln/{glanz['id']}", json={"aktiv": False})
     datei = c.get("/api/sicherung")
     assert datei.status_code == 200, datei.text
     z = TestClient(create_app(KontorConfig(datenbank=tmp_path / "ziel.sqlite3", regeln_automatisch=True)))
     r = z.post("/api/sicherung/einspielen?bestaetigt=true", files={"datei": ("s.zip", datei.content, "application/zip")})
     assert r.status_code == 200, r.text
-    assert [x["empfaenger_id"] for x in automatische(z)] == [emp["Frischekorb"]]
-    # Sperre ist mitgekommen: weitere Drogerie-Buchungen legen keine Regel an
+    assert sorted((x["empfaenger_id"], x["aktiv"]) for x in automatische(z)) == sorted(
+        [(emp["Frischekorb"], True), (emp["Glanz"], False)])
+    # Die deaktivierte Regel ist mitgekommen: weitere Drogerie-Buchungen legen keine neue Regel an (D-308)
     gid = [k["id"] for k in z.get("/api/konten").json() if k["name"] == "Giro"][0]
     did = [k["id"] for k in z.get("/api/konten").json() if k["name"] == "Drogerie"][0]
     z.post("/api/buchungen", json={"datum": dt.date.today().isoformat(), "empfaenger_id": emp["Glanz"],
                                    "splits": [{"konto_id": gid, "betrag": -5}, {"konto_id": did, "betrag": 5}]})
-    assert len(automatische(z)) == 1
+    assert len(automatische(z)) == 2
 
 
 def test_empfaenger_mit_zwei_kategorien_bekommt_keine_regel(auto):

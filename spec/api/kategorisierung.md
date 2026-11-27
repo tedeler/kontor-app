@@ -389,11 +389,12 @@ Ohne Körper. Macht aus einer automatisch angelegten Regel eine eigene.
   „automatisch angelegt“ entfällt (`automatisch`, `empfaenger_id` fehlen
   danach). `prioritaet` wird die größte `prioritaet` der eigenen Regeln
   + 10 (ohne eigene Regeln 100): Die Regel steht am Ende der eigenen.
-- Der Empfänger der Regel wird gesperrt (`lernregel_gesperrt`): Für ihn
-  entsteht keine neue automatische Regel, auch wenn die übernommene Regel
-  später geändert oder gelöscht wird.
+- Seit D-308 keine Sperre mehr: Solange die übernommene Regel besteht (aktiv
+  oder deaktiviert) und die jüngste Buchung des Empfängers trifft, entsteht
+  für ihn keine neue automatische Regel (`lernmodell.md` 9.1, 9.4); nach dem
+  Löschen darf wieder eine entstehen.
 - Antwort 200: die Regel (wie `GET /api/regeln/{id}`).
 - Fehler: 404 bei unbekannter Regel; 422 `regel_nicht_automatisch`, wenn die
   Regel keine automatisch angelegte ist. Nichts wird geändert.
 - Genau eine Änderung `regel_uebernehmen` (`protokoll.md` 25). Rückgängig
-  stellt Vermerk, Priorität und Sperre wieder her.
+  stellt Vermerk und Priorität wieder her.

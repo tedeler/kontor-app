@@ -157,3 +157,7 @@ Stabilität: Nach den Änderungen lief der Browser-Teil der Gesamtsuite viermal 
 | `app/m15/test_m15_oberflaeche.py` (Vorschlagsmarken) | D-305 | statt „Knöpfe mobil sichtbar“ nun „keine Knöpfe“ (Desktop und Handy) |
 | eigene `test_browser_vorschlag_sofort.py` | D-305 | Entscheidung über Zeile markieren und `a`/`A` statt Knopf |
 | eigene `test_browser_buchung_teilen.py` | D-306: neue Gestaltung des Teilen-Texts | erwarteter Text in neuer Form; Fall Kategorieansicht ergänzt |
+| `m31/test_m31_regeln_automatisch.py::test_loeschen_sperrt_den_empfaenger_rueckgaengig_hebt_auf` → `test_loeschen_sperrt_nicht_rueckgaengig_bringt_zurueck`, neu `test_deaktivierte_regel_verhindert_neue`; `test_sicherung_rundreise` | D-308: Das Löschen einer automatischen Regel sperrt den Empfänger nicht mehr; eine deaktivierte Regel verhindert eine neue | Löschen ohne Eintrag `empfaenger`, Regel entsteht wieder; Rundreise mit deaktivierter Regel statt Sperre |
+| `m30/test_m30_oberflaeche.py::test_regelliste` | D-308: deaktivierte Regeln stehen im Bereich „Deaktiviert“ ohne Griff; aktive eigene Regeln vor deaktivierten | nach dem Schalter Regel im Bereich „Deaktiviert“; erwartete Reihenfolge nach Alt+↑ `[leer, beide, nur]` |
+| `spec/test_openapi.py::test_alle_operationen_vorhanden` | D-308: neue Operation `GET /api/regeln/pruefung` | in `OPERATIONEN_M30` ergänzt |
+| eigene `test_lernregeln_eigen.py`: `test_geloeschte_regel_entsteht_nicht_wieder`, `test_sicherung_enthaelt_vermerk_und_sperre` | D-308 | Löschen ohne Sperre; Sicherung mit deaktivierter Regel |

@@ -4738,3 +4738,36 @@ Grundlage: Konzept `claude/feature-regeln.md` im Projekt (iterative Phase, abges
 - **Prüfungen ohne Änderung** werden im Stand vermerkt und in der Zeitleiste als „geprüft – keine Änderung“ gezeigt
   (statt der Lückenangabe), auch in der Kachel und im Stand des Einstellungsbereichs.
 - **Tags** stehen nicht mehr unter Einstellungen › Daten und Sicherung (thematisch fremd); sie bleiben auf `/tags`.
+
+## D-308 Prüfung automatisch angelegter Regeln, Löschen ohne Sperre, Bereich „Deaktiviert“ (Feature `regelpruefung`, 2026-11-27)
+
+- **Anlass:** Mit dem Auftraggeber abgestimmt (2026-11-27): Werden die Zuordnungen, aus denen eine automatische Regel
+  entstand, später von Hand geändert, bleibt die Regel stehen und schlägt weiter die alte Kategorie vor. Solche Regeln
+  sollen auffallen, damit der Nutzer sie bearbeitet oder löscht. Außerdem war die Sperre nach dem Löschen (D-179) in
+  der Oberfläche nicht erkennbar.
+- **Prüfung (`lernmodell.md` 9.5):** `GET /api/regeln/pruefung` misst jede aktive automatische Regel an allen
+  Anlagebedingungen (mindestens 5 Zuordnungen, mindestens 95 % insgesamt, mindestens 95 % im Fenster von 365 Tagen),
+  mit der Kategorie der Regel. Befund je Regel `grund` (`keine_buchungen`, `anzahl`, `anteil`, `fenster`), `hinweis`,
+  `anzahl`, `gesamt`. Nur lesend, ohne gespeicherten Zustand.
+- **„Periodisch“:** Statt eines Laufs im Planer prüft Kontor bei jedem Öffnen der Regelansicht. Damit ist der Befund
+  immer aktuell (auch direkt nach einer Änderung), und es entsteht kein Betriebszustand, der veralten oder in die
+  Sicherung müsste. Der Aufwand entspricht dem Training für die betroffenen Empfänger.
+- **Ersetzt in D-179 die Sperre nach dem Löschen:** Eine gelöschte automatische Regel darf wieder entstehen. Eine
+  deaktivierte verhindert eine neue, solange sie besteht (das galt schon über „keine automatische Regel gleich
+  welcher Zustand“). Ersetzt in D-295 die Sperre beim Übernehmen: Eine Regel, die die jüngste Buchung des Empfängers
+  trifft, verhindert eine automatische jetzt auch deaktiviert (vorher nur aktiv); so wirkt eine übernommene Regel
+  weiter, bis sie gelöscht ist. `empfaenger_lernregel_sperre` wird weder geschrieben noch beachtet. Frühere Sperren
+  bleiben als Daten stehen (Protokollform `lernregel_gesperrt`, Sicherung), damit Prüfsummen, Rückgängig älterer
+  Änderungen und Sicherungen unverändert bleiben; kein Schemawechsel.
+- **Oberfläche (`oberflaeche.md` 39):** Regeln mit Befund stehen im Abschnitt „Automatisch angelegt“ vor allen
+  anderen, gelb markiert, mit `regel-hinweis-<id>` („Passt nicht mehr: … Bearbeiten oder löschen.“); die Überschrift
+  nennt „<n> mit Hinweis“. Deaktivierte Regeln (eigene und automatische) stehen im eigenen Bereich
+  `regeln-deaktiviert` ganz unten, „Deaktiviert (<Anzahl>)“, Vorgabe eingeklappt, Zustand im Browser
+  (`kontor.regeln.deaktiviert`). Die Nummern der eigenen Regeln zählen nur die aktiven; beim Umsortieren bleiben
+  deaktivierte eigene Regeln hinter den aktiven. Beim Deaktivieren einer automatischen Regel (Schalter oder Editor)
+  lautet die Meldung „… Solange diese Regel deaktiviert ist, legt Kontor für diesen Empfänger keine neue an.“; die
+  Rückfrage vor dem Löschen einer automatischen Regel nennt, dass sie wiederkommen kann, und rät zum Deaktivieren.
+- **Tests:** `tests/core/test_regelpruefung.py`, `tests/test_browser_regelpruefung.py`. Angepasst (D-308 statt Sperre):
+  `tests/core/test_regelgruppen.py` (`AENDERUNGEN.md`), `tests/test_lernregeln_eigen.py`,
+  `gesamt-tests` M31 `test_m31_regeln_automatisch.py`, M30 `test_regelliste`, `spec/test_openapi.py`
+  (`TESTUMBAU.md`).
