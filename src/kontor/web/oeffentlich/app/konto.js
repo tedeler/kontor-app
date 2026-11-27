@@ -16,6 +16,7 @@ import { ablageEinrichten, betrachter, dateiWaehlen, detailsAbschnitt, mailDialo
 import { AusdruckEingabe, markiert, sprache } from "./ausdruck.js";
 import { Baukasten, ausdruckFeld, baukastenAusBaum, regelEditor } from "./regeleditor.js";
 import { zweckZerlegen } from "./zweck.js";
+import { teilenText } from "./teilen.js";
 
 const PRO_SEITE = 200;
 const GRUPPE_SEITE = 500;          // Höchstwert der Buchungsliste; beim Gruppieren eine Seite statt vieler kleiner
@@ -2862,23 +2863,24 @@ class Kontoansicht {
     ].filter(Boolean), ausloeser);
   }
 
-  // ---------------------------------------------------------------- Teilen (D-304)
-  /** Kurztext einer Buchung zum Teilen, zuletzt der Link auf dieses Kontoblatt mit der Buchung als Sprungziel. */
+  // ---------------------------------------------------------------- Teilen (D-304, Gestaltung D-306)
+  /** Kurztext einer Buchung zum Teilen (teilen.js), zuletzt der Link auf dieses Kontoblatt mit der Buchung als Sprungziel. */
   teilenText(b) {
     const gegen = gegensplits(b);
+    const umbuchung = !b.kategorie_id && gegen.length === 0;
     const kat = b.kategorie_id ? pfadVon(b.kategorie_id)
-      : (gegen.length > 1 ? "Gesplittet" : gegen.length === 0 ? this.umbuchungText(b) : pfadVon(gegen[0].konto_id));
-    const name = (b.empfaenger && b.empfaenger.name) || "Ohne Empfänger";
-    const zeilen = [
-      `Buchung vom ${datumText(b.datum)}`,
-      `${name}: ${betragText(b.betrag).replace(/\u00a0/g, " ")}`,
-    ];
-    if (kat) zeilen.push(`Kategorie: ${kat}`);
-    const zweck = String(b.verwendungszweck || "").replace(/\s+/g, " ").trim();
-    if (zweck) zeilen.push(`Verwendungszweck: ${zweck.length > 140 ? zweck.slice(0, 139) + "…" : zweck}`);
-    zeilen.push(`Konto: ${this.konto.name}`);
-    zeilen.push(`${location.origin}/konten/${this.konto.id}?buchung=${b.id}`);
-    return zeilen.join("\n");
+      : (gegen.length > 1 ? `Gesplittet (${gegen.length})` : umbuchung ? this.umbuchungText(b) : pfadVon(gegen[0].konto_id));
+    // Kategorieansicht: Betrag und Name aus Sicht des Bestandskontos (wie die Bank ihn zeigt)
+    const bestand = b.splits.filter((s) => { const k = kontoNach(s.konto_id); return k && BESTAND.has(k.art); });
+    const ausBestand = this.istKategorie && bestand.length > 0;
+    const betrag = ausBestand ? bestand.reduce((n, s) => n + s.betrag, 0) : b.betrag;
+    const konto = ausBestand ? [...new Set(bestand.map((s) => pfadVon(s.konto_id)))].join(", ") : this.konto.name;
+    return teilenText({
+      empfaenger: b.empfaenger && b.empfaenger.name, betrag, datum: b.datum, konto, kategorie: kat,
+      art: umbuchung ? "umbuchung" : betrag < 0 ? "ausgabe" : "einnahme",
+      tags: (b.tags || []).map((t) => t.name), zweck: b.verwendungszweck,
+      link: `${location.origin}/konten/${this.konto.id}?buchung=${b.id}`,
+    });
   }
 
   /** Über die Teilen-Funktion des Geräts (z. B. WhatsApp); ohne sie in die Zwischenablage, sonst zum Kopieren. */
@@ -2895,7 +2897,7 @@ class Kontoansicht {
       return;
     } catch (e) { /* ohne Zwischenablage: zum Kopieren zeigen */ }
     dialog("teilen-dialog", "Buchung teilen", (inhalt, d) => {
-      const feldEl = h("textarea", { tid: "teilen-text", rows: "7", readonly: true }, text);
+      const feldEl = h("textarea", { tid: "teilen-text", rows: "11", readonly: true }, text);
       inhalt.append(feldEl, knopfLeiste(knopf("Schließen", { tid: "teilen-schliessen", onclick: () => d.schliessen(null) })));
       setTimeout(() => feldEl.select(), 0);
     }, { ausloeser });

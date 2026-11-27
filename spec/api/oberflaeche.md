@@ -3631,12 +3631,25 @@ Befehlspalette (jetzt nur Kürzel, die es auf dem Blatt gibt).
 
 - Das Kontextmenü jeder Buchungszeile der Kontoansicht (Konto und Kategorie, Desktop und mobil) hat direkt vor
   „Löschen…“ (`km-loeschen`) den Eintrag `km-teilen` „Teilen…“, aktiv bei genau einer gewählten Buchung. Keine Taste.
-- Kurztext, Zeilen getrennt durch Zeilenumbruch: „Buchung vom TT.MM.JJJJ“, „<Empfänger>: <Betrag>“ (ohne Empfänger
-  „Ohne Empfänger“, Betrag wie in der Liste mit gewöhnlichem Leerzeichen vor „€“), „Kategorie: <Text der Spalte
-  Kategorie>“, „Verwendungszweck: <Text>“ (Leerraum zusammengefasst, über 140 Zeichen gekürzt mit „…“, fehlt bei
-  leerem Zweck), „Konto: <Name der angezeigten Ansicht>“, zuletzt der Link
-  `<Ursprung>/konten/<id der angezeigten Ansicht>?buchung=<id>` (Sprungziel D-118: öffnet die Ansicht mit markierter
-  Buchung).
+- Kurztext (D-306, ersetzt die frühere Form aus D-304), gesetzt mit der Auszeichnung von WhatsApp, Zeilen getrennt
+  durch Zeilenumbruch:
+  1. `*<Empfänger>*` (ohne Empfänger `*Buchung*`),
+  2. `*<Betrag>* · <Art>`: Betrag wie in der Liste mit Vorzeichen „−“ (U+2212) oder „+“ und geschütztem Leerzeichen
+     vor „€“; Art „Ausgabe“, „Einnahme“ oder „Umbuchung“ (Buchung ohne Kategorie und ohne Gegensplit auf eine
+     Kategorie),
+  3. Leerzeile, dann je eine Zeile „📅 <Wochentag>, TT.MM.JJJJ“ (Wochentag zweibuchstabig), „🏦 <Konto>“,
+     „🏷️ <Text der Spalte Kategorie>“ (mehrere Gegensplits: „Gesplittet (n)“; fehlt ohne Text) und „🔖 <Tags>“
+     (durch Komma getrennt; fehlt ohne Tags),
+  4. Leerzeile und „> <Verwendungszweck>“: nur der lesbare Teil wie in den Einzelheiten (D-175, ohne SEPA-Kennungen,
+     Referenzen, Karte), Teile durch „ · “ getrennt, Leerraum zusammengefasst, über 140 Zeichen gekürzt mit „…“; fehlt,
+     wenn er leer ist oder nur den Empfänger wiederholt (ohne Rücksicht auf Groß-/Kleinschreibung),
+  5. Leerzeile und allein in der letzten Zeile der Link `<Ursprung>/konten/<id der angezeigten Ansicht>?buchung=<id>`
+     (Sprungziel D-118: öffnet die Ansicht mit markierter Buchung).
+- Konto und Betrag: in der Ansicht eines Bestandskontos dessen Name und der Betrag der Liste; in einer
+  Kategorieansicht die Bestandskonten der Buchung (Pfade, durch Komma getrennt) und die Summe ihrer Splits. Ohne
+  Bestandskonto gilt die angezeigte Ansicht.
+- Texte aus dem Buchbestand lösen keine Auszeichnung aus: „*“, „_“, „~“ und „`“ darin werden durch „∗“ (U+2217),
+  „ˍ“ (U+02CD), „∼“ (U+223C) und „ˋ“ (U+02CB) ersetzt. Kein Bild; der Link bleibt klickbar.
 - Weitergabe: `navigator.share({text})` (Teilen-Auswahl des Geräts, z. B. WhatsApp); Abbrechen dort ohne Meldung.
   Ohne diese Funktion oder bei einem anderen Fehler `navigator.clipboard.writeText` mit der Meldung „Kurztext und
   Link in die Zwischenablage kopiert.“; geht auch das nicht, zeigt `teilen-dialog` den Text in `teilen-text`
