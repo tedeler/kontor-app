@@ -234,8 +234,7 @@ const KUERZEL = [
   ["f", "a", "Filterausdruck", (s) => { if (s.ausdruckEingabe) s.ausdruckEingabe.eingabe.focus(); }],
   ["f", "f", "Filter-Baukasten ein/aus", (s) => s.filterLeisteTaste()],
   ["f", "0", "alle Filter zurücksetzen", (s) => { const k = tid("filter-zuruecksetzen", s.filterLeiste); if (k) k.click(); }],
-  ["f", "u", "mit Unterkonten ein/aus", (s) => s.filterSetzen("unterkonten", s.filter.unterkonten === "true" ? "" : "true")
-    .then(() => s.filterLeisteNeu()), "bestand"],
+  ["f", "u", "mit Unterkonten/-kategorien ein/aus", (s) => s.unterkontenUmschalten()],
   ["f", "U", "mit Unterkategorien ein/aus", (s) => (s.istKategorie ? melde("hinweis", "In einer Kategorie gibt es diesen Filter nicht.")
     : s.filterSetzen("unterkategorien", s.filter.unterkategorien === "true" ? "" : "true").then(() => s.filterLeisteNeu())), "bestand"],
   ["f", "t", "Zeitraum: heute", (s) => s.zeitraumSetzen("heute")],
@@ -845,8 +844,12 @@ class Kontoansicht {
     this.auswahlSummenEl = h("span", { tid: "auswahl-summen", class: "auswahl-summen", hidden: true });
     const erfassen = knopf("Buchung erfassen", { tid: "buchung-erfassen",
       onclick: (e) => erfassenDialog(this.konto.id, e.currentTarget) });
+    // D-313: Schalter „mit Unterkonten“ (Kategorie: „mit Unterkategorien“) im Kopf, nur wenn es Unterkonten gibt
+    this.unterKnopf = knopf(this.unterkontenText(), { tid: "unterkonten-schalter", class: "knopf knopf-umschalter",
+      "aria-pressed": String(this.mitUnterkonten), hidden: !this.hatUnterkonten() && !this.mitUnterkonten,
+      title: "Buchungen aller Unterkonten mit einblenden (f u)", onclick: () => this.unterkontenUmschalten() });
     s.append(h("div", { class: "seiten-kopf", tid: "konto-kopf" }, h("h1", null, this.konto.name),
-      h("div", { class: "werkzeuge" }, erfassen,
+      h("div", { class: "werkzeuge" }, this.unterKnopf, erfassen,
         knopf("Einstellungen…", { tid: "konto-einstellungen-oeffnen", onclick: (e) => kontoEinstellungen(this.konto, e.currentTarget) }))),
     h("div", { class: "listen-info" }, this.anzahlEl, " · Summe ", this.summeEl, h("span", { class: "auswahl-trenner" }, " · "),
       this.auswahlEl, this.auswahlSummenEl));
@@ -1096,7 +1099,7 @@ class Kontoansicht {
       h("div", { class: "filter-optionen" },
         this.istKategorie ? null : option("unterkategorien", "mit Unterkategorien", "filter-unterkategorien"),
         this.istKategorie ? this.kontoWahl(f) : null,
-        option("unterkonten", "mit Unterkonten", "filter-unterkonten"),
+        option("unterkonten", this.unterkontenText(), "filter-unterkonten"),
         zurueck));
     // D-246: Filter ohne Entsprechung im Ausdruck stehen sichtbar unter dem Ausdruck, auch bei eingeklapptem Baukasten
     if (!this.alteEl) this.alteEl = h("div", { class: "filter-alte" });
@@ -1901,6 +1904,7 @@ class Kontoansicht {
       this.liste.replaceChildren(kopf, ...zeilen);
     }
     this.gruppierungKnopfZustand();
+    this.unterkontenZustand();
     this.breitenAnwenden();
     if (editor && this.editorOffen === editor) editor.umziehen(editorFokus);
     this.anzahlEl.dataset.anzahl = String(this.gesamt);
@@ -1915,6 +1919,56 @@ class Kontoansicht {
     if (fokusImGrid && this.fokusId) this.zeilen.get(this.fokusId)?.focus({ preventScroll: true });
     this.detailsZeichnen();
     this.bild = this.bildVon();
+  }
+
+  // ------------------------------------------------- Unterkonten einblenden (D-313)
+  get mitUnterkonten() { return this.filter.unterkonten === "true"; }
+
+  hatUnterkonten() { return stamm.konten.some((k) => k.eltern_id === this.konto.id); }
+
+  unterkontenText() { return this.istKategorie ? "mit Unterkategorien" : "mit Unterkonten"; }
+
+  async unterkontenUmschalten() {
+    if (!this.hatUnterkonten() && !this.mitUnterkonten) {
+      melde("hinweis", this.istKategorie ? "Diese Kategorie hat keine Unterkategorien." : "Dieses Konto hat keine Unterkonten.");
+      return;
+    }
+    await this.filterSetzen("unterkonten", this.mitUnterkonten ? "" : "true");
+    this.filterLeisteNeu();
+  }
+
+  unterkontenZustand() {
+    if (!this.unterKnopf) return;
+    this.unterKnopf.setAttribute("aria-pressed", String(this.mitUnterkonten));
+    this.unterKnopf.hidden = !this.hatUnterkonten() && !this.mitUnterkonten;
+    this.seite.dataset.unterkonten = this.mitUnterkonten ? "ja" : "nein";
+  }
+
+  /** Pfad eines Unterkontos ab dem Konto der Ansicht („Bäcker“ statt „Lebensmittel › Bäcker“); null, wenn es kein
+   *  (auch indirektes) Unterkonto ist. */
+  unterPfad(id) {
+    const teile = [];
+    const gesehen = new Set();
+    let x = kontoNach(id);
+    while (x && !gesehen.has(x.id)) {
+      if (x.id === this.konto.id) return teile.length ? teile.join(" › ") : null;
+      gesehen.add(x.id);
+      teile.unshift(x.name);
+      x = x.eltern_id ? kontoNach(x.eltern_id) : null;
+    }
+    return null;
+  }
+
+  /** D-313: Mit eingeblendeten Unterkonten trägt jede Buchung eines Unterkontos eine Marke mit dessen Pfad ab dem
+   *  Konto der Ansicht; Buchungen nur auf dem Konto selbst tragen keine. Mehrere Unterkonten: alle, durch „, “. */
+  herkunftMarke(b) {
+    if (!this.mitUnterkonten) return null;
+    const ids = [...new Set(b.splits.map((s) => s.konto_id))].filter((id) => id !== this.konto.id);
+    const pfade = ids.map((id) => [id, this.unterPfad(id)]).filter(([, p]) => p);
+    if (!pfade.length) return null;
+    const text = pfade.map(([, p]) => p).join(", ");
+    return h("span", { class: "herkunft", tid: "herkunft", "data-konto-ids": pfade.map(([id]) => String(id)).join(" "),
+      title: `aus ${pfade.map(([id]) => pfadVon(id)).join(", ")}` }, text);
   }
 
   /** D-242: „Umbuchung → Tagesgeld“ (Geld geht dorthin) bzw. „Umbuchung ← Giro“ im Blatt eines Bestandskontos. */
@@ -1945,6 +1999,7 @@ class Kontoansicht {
     const empfName = b.empfaenger ? nameAnzeige(b.empfaenger.name) : "";
     const empf = h("div", { role: "gridcell", class: "zelle zelle-empfaenger", "data-feld": "empfaenger",
       "data-empfaenger-id": b.empfaenger ? String(b.empfaenger.id) : "" },
+    this.herkunftMarke(b),
     empfName ? markiert(empfName, b.markierungen, "empfänger")
       : (kompakt ? h("span", { class: "ersatz" }, markiert(b.verwendungszweck, b.markierungen, "verwendungszweck")) : ""));
     const zweckZelle = h("div", { role: "gridcell", class: "zelle zelle-verwendungszweck", "data-feld": "verwendungszweck" },
