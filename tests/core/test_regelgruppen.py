@@ -4,7 +4,8 @@
   jeder Gruppe gilt weiter ``prioritaet``, dann ``id``.
 - ``POST /api/regeln/reihenfolge`` behält die Gruppen bei: Die Reihenfolge innerhalb jeder Gruppe kommt aus der Liste.
 - ``POST /api/regeln/{id}/uebernehmen`` macht aus einer automatisch angelegten Regel eine eigene am Ende der eigenen
-  Regeln; der Empfänger bekommt keine neue automatische Regel mehr. Eine Änderung im Protokoll, rückgängig zu machen.
+  Regeln. Solange sie besteht (aktiv oder deaktiviert), entsteht für den Empfänger keine neue automatische Regel;
+  nach dem Löschen darf wieder eine entstehen (D-305). Eine Änderung im Protokoll, rückgängig zu machen.
 """
 
 from __future__ import annotations
@@ -122,14 +123,18 @@ def test_uebernehmen_macht_eigene_regel_am_ende_der_eigenen(auto):
     assert r2["prioritaet"] == vorher["prioritaet"]
 
 
-def test_geloeschte_uebernommene_regel_entsteht_nicht_wieder_automatisch(auto):
-    c, buchen, lernen, _kat, _emp = auto
+def test_uebernommene_regel_verhindert_neue_bis_zum_loeschen(auto):
+    c, buchen, lernen, _kat, emp = auto
     lernen("Frischekorb", "Lebensmittel")
     (a,) = [r["id"] for r in regeln(c) if r.get("automatisch")]
     assert c.post(f"/api/regeln/{a}/uebernehmen").status_code == 200
+    assert c.patch(f"/api/regeln/{a}", json={"aktiv": False}).status_code == 200
+    buchen("Frischekorb", "Lebensmittel", 4)
+    assert [r["id"] for r in regeln(c)] == [a], "deaktivierte übernommene Regel verhindert eine neue"
     assert c.delete(f"/api/regeln/{a}").status_code in (200, 204)
     buchen("Frischekorb", "Lebensmittel", 3)
-    assert regeln(c) == []
+    (neu,) = regeln(c)
+    assert neu.get("automatisch") and neu["empfaenger_id"] == emp["Frischekorb"], "nach dem Löschen wieder (D-305)"
 
 
 def test_uebernehmen_nur_fuer_automatische_regeln(auto):

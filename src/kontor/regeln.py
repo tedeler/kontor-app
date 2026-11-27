@@ -357,10 +357,7 @@ def regel_aendern(con, rid: int, d: dict) -> dict:
 
 def regel_loeschen(con, rid: int) -> None:
     regel_lesen(con, rid)
-    # Gelöschte automatische Regel: Empfänger sperren, damit sie nicht wieder entsteht (D-179)
-    con.execute("INSERT OR IGNORE INTO empfaenger_lernregel_sperre (empfaenger_id)"
-                " SELECT empfaenger_id FROM regel_automatisch WHERE regel_id = ?"
-                " AND empfaenger_id IN (SELECT id FROM empfaenger)", (rid,))
+    # D-305: Das Löschen sperrt den Empfänger nicht mehr; die automatische Regel darf wieder entstehen.
     con.execute("UPDATE vorschlag SET regel_id = NULL WHERE regel_id = ?", (rid,))
     con.execute("DELETE FROM regel WHERE id = ?", (rid,))
 
@@ -383,17 +380,14 @@ def reihenfolge_setzen(con, ids: list[int]) -> list[dict]:
 
 def uebernehmen(con, rid: int) -> dict:
     """POST /api/regeln/{id}/uebernehmen (D-295): Eine automatisch angelegte Regel wird eine eigene am Ende der eigenen
-    Regeln. Bedingung, Kategorie, Tags und Aktiv bleiben. Der Empfänger wird gesperrt, damit für ihn keine neue
-    automatische Regel entsteht, auch wenn die übernommene Regel später gelöscht oder geändert wird."""
+    Regeln. Bedingung, Kategorie, Tags und Aktiv bleiben. Seit D-305 ohne Sperre: Solange die übernommene Regel
+    besteht (aktiv oder deaktiviert) und die Buchungen des Empfängers trifft, entsteht keine automatische."""
     alt = regel_lesen(con, rid)
     if not alt.get("automatisch"):
         raise ApiFehler(422, "regel_nicht_automatisch", "Nur automatisch angelegte Regeln lassen sich übernehmen.")
     r = con.execute("SELECT MAX(prioritaet) AS m FROM regel WHERE id NOT IN (SELECT regel_id FROM regel_automatisch)"
                     ).fetchone()
     prio = 100 if r["m"] is None else min(r["m"] + 10, PRIO_MAX)
-    con.execute("INSERT OR IGNORE INTO empfaenger_lernregel_sperre (empfaenger_id)"
-                " SELECT empfaenger_id FROM regel_automatisch WHERE regel_id = ?"
-                " AND empfaenger_id IN (SELECT id FROM empfaenger)", (rid,))
     con.execute("DELETE FROM regel_automatisch WHERE regel_id = ?", (rid,))
     con.execute("UPDATE regel SET prioritaet = ? WHERE id = ?", (prio, rid))
     return regel_lesen(con, rid)
