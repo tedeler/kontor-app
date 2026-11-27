@@ -1,7 +1,7 @@
 """Core-Tests zum Feature „kategorien-uebersicht“ (D-311): neue Kategorienseite mit Beträgen und Nachweis als PDF aus
 dem Kontoblatt einer Kategorie.
 
-- ``GET /api/kategorien/uebersicht[?zeitraum=monat|12monate|jahr|vorjahr|gesamt]`` (Vorgabe ``12monate``) liefert je
+- ``GET /api/kategorien/uebersicht[?zeitraum=monat|vormonat|30tage|12monate|jahr|vorjahr|gesamt]`` (Vorgabe ``12monate``) liefert je
   Kategorie die Summe im Zeitraum einschließlich Unterkategorien (Ausgaben und Einnahmen positiv), den eigenen Anteil,
   die Zahl der Buchungen, den Tag der letzten Buchung und den Verlauf der letzten zwölf Monate; dazu die Summen je
   Gruppe und die unkategorisierten Buchungen im Zeitraum. Nur lesend.
@@ -118,6 +118,16 @@ def test_zeitraeume(welt):
     assert _je(v)[k["miete"]]["summe"] == 0
     assert v["monate"][-1] == "2023-12"                    # Verlauf endet mit dem Zeitraum
     assert _je(v)[k["miete"]]["letzte"] == "2024-06-03"    # letzte Buchung überhaupt
+    # D-315: letzter Monat und letzte 30 Tage
+    lm = _uebersicht(c, zeitraum="vormonat")
+    assert (lm["von"], lm["bis"]) == ("2024-05-01", "2024-05-31")
+    assert lm["monate"][-1] == "2024-05"
+    assert _je(lm)[k["miete"]]["summe"] == 98000 and _je(lm)[k["miete"]]["anzahl"] == 1
+    t = _uebersicht(c, zeitraum="30tage")
+    assert (t["von"], t["bis"]) == ("2024-06-01", "2024-06-30")   # heute und die 29 Tage davor
+    assert t["monate"][-1] == "2024-06"
+    in_30 = [i for i in ids["miete"] if "2024-06-01" <= b[i]["datum"] <= "2024-06-30"]
+    assert _je(t)[k["miete"]]["anzahl"] == len(in_30) == 1
     g = _uebersicht(c, zeitraum="gesamt")
     assert (g["von"], g["bis"]) == (None, None)
     assert _je(g)[k["miete"]]["summe"] == 3 * 98000
@@ -192,3 +202,11 @@ def test_nachweis_kategorie_mit_split_und_fehlern(welt):
     assert r.status_code == 422 and r.json()["fehler"]["code"] == "kein_bestandskonto"
     a = c.get("/api/export/nachweis/angaben", params={"konto_id": k["miete"]})
     assert a.status_code == 200 and set(a.json()) == {"inhaber", "bic"}
+
+
+def test_30_tage_ueber_den_monatswechsel():
+    """Die 30 Tage reichen in den Vormonat; Januar → Dezember des Vorjahres beim letzten Monat."""
+    from kontor.kategorienuebersicht import grenzen
+    assert grenzen("30tage", dt.date(2024, 3, 10))[:2] == ("2024-02-10", "2024-03-10")
+    assert grenzen("vormonat", dt.date(2024, 1, 15)) == ("2023-12-01", "2023-12-31", (2023, 12))
+    assert grenzen("vormonat", dt.date(2024, 3, 31))[:2] == ("2024-02-01", "2024-02-29")
