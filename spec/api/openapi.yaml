@@ -1382,6 +1382,32 @@ paths:
             application/json:
               schema: {$ref: "#/components/schemas/Fehler"}
 
+  /api/regeln/pruefung:
+    get:
+      tags: [regeln]
+      operationId: regelnPruefung
+      summary: Aktive automatisch angelegte Regeln, deren Anlagebedingungen nicht mehr gelten (lernmodell.md 9.5, D-305)
+      responses:
+        "200":
+          description: Nur lesend; Regeln ohne Befund fehlen
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [regeln]
+                properties:
+                  regeln:
+                    type: array
+                    items:
+                      type: object
+                      required: [regel_id, grund, hinweis, anzahl, gesamt]
+                      properties:
+                        regel_id: {type: integer}
+                        grund: {type: string, enum: [keine_buchungen, anzahl, anteil, fenster]}
+                        hinweis: {type: string, description: Kurzer Grund für die Oberfläche}
+                        anzahl: {type: integer, description: Buchungen mit der Kategorie der Regel (im Fenster bei grund fenster)}
+                        gesamt: {type: integer, description: Buchungen des Empfängers in der Trainingsmenge (im Fenster bei grund fenster)}
+
   /api/regeln/{regel_id}/uebernehmen:
     parameters:
       - name: regel_id
@@ -5496,7 +5522,7 @@ components:
           minItems: 1
           items: {$ref: "#/components/schemas/TagKurz"}
         lernregel_gesperrt:
-          description: "M31 (lernmodell.md 9.4): nur bei gesperrten Empfängern, dann `true`"
+          description: "M31 (lernmodell.md 9.4): nur bei gesperrten Empfängern, dann `true`; seit D-305 nur noch aus früheren Beständen, ohne Wirkung"
           const: true
 
     EmpfaengerNeu:
@@ -8371,7 +8397,7 @@ components:
           minItems: 1
           items: {$ref: "#/components/schemas/TagKurz"}
         lernregel_gesperrt:
-          description: "M31 (lernmodell.md 9.4): nur bei gesperrten Empfängern, dann `true`"
+          description: "M31 (lernmodell.md 9.4): nur bei gesperrten Empfängern, dann `true`; seit D-305 nur noch aus früheren Beständen, ohne Wirkung"
           const: true
 
     BegruendungVerweis:

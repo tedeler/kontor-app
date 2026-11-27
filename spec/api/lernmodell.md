@@ -270,9 +270,10 @@ Bedingungen gelten:
    `E` in `T` (bzw. bis heute nach der App-Uhr, falls heute früher ist) –
    haben ebenfalls mindestens 95 % der Buchungen von `E` in `T` die
    Kategorie `K`;
-4. für `E` besteht noch keine automatische Regel (gleich welcher Zustand),
-   und `E` ist nicht gesperrt (9.4);
-5. keine aktive Regel trifft die jüngste Buchung von `E` bereits;
+4. für `E` besteht noch keine automatische Regel (gleich welcher Zustand,
+   also auch keine deaktivierte; 9.4);
+5. keine Regel mit Kategorie trifft die jüngste Buchung von `E` bereits,
+   gleich ob aktiv oder deaktiviert (D-305; vorher nur aktive);
 6. `E` hat keine Standardkategorie (entfällt mit dem Sammelbranch).
 
 ### 9.2 Zeitpunkt
@@ -295,15 +296,37 @@ In REST und Protokollform zusätzlich `automatisch: true` und `empfaenger_id`
 Regel: bearbeitbar, abschaltbar, löschbar. Wird `E` umbenannt, bleibt die
 Regel unverändert (sie greift dann nicht mehr); eine zweite entsteht nicht.
 
-### 9.4 Löschen sperrt den Empfänger
+### 9.4 Löschen und Deaktivieren (D-305, ersetzt die Sperre nach D-179)
 
-Das Löschen einer automatischen Regel (`regel_loeschen`) sperrt `E` in
-derselben Änderung: Der Empfänger trägt in der Protokollform (und in der
-REST-Darstellung, falls geliefert, E-279) `lernregel_gesperrt: true`; ohne
-Sperre fehlt das Feld. Ein gesperrter Empfänger bekommt keine automatische
-Regel mehr. Rückgängig des Löschens stellt Regel und Zustand ohne Sperre
-wieder her. Regeln mit `automatisch`, Sperren und ihre Bezüge gehören zum
-Buchbestand und zur Sicherung (`sicherung.md` 13).
+Das Löschen einer automatischen Regel (`regel_loeschen`) sperrt `E` nicht:
+Sind die Bedingungen aus 9.1 später erfüllt, entsteht wieder eine
+automatische Regel. Wer das verhindern will, deaktiviert die Regel; solange
+sie besteht, entsteht für `E` keine neue (9.1 Punkt 4). Auch „Als eigene
+übernehmen“ (`kategorisierung.md` 8.10) sperrt nicht mehr; die übernommene
+Regel verhindert eine neue, solange sie die jüngste Buchung von `E` trifft
+(9.1 Punkt 5). Sperren aus früheren Beständen (`lernregel_gesperrt: true` in
+der Protokollform des Empfängers) bleiben als Daten erhalten, wirken aber
+nicht mehr. Regeln mit `automatisch` und ihre Bezüge gehören zum Buchbestand
+und zur Sicherung (`sicherung.md` 13).
+
+### 9.5 Prüfung automatischer Regeln (D-305)
+
+`GET /api/regeln/pruefung` misst jede **aktive** automatische Regel mit
+Kategorie, deren Empfänger besteht, an den Bedingungen 1–3 aus 9.1, mit der
+Kategorie der Regel statt `K` und nach der App-Uhr. Die erste nicht erfüllte
+Bedingung ergibt einen Befund `{regel_id, grund, hinweis, anzahl, gesamt}`:
+
+| `grund` | Bedingung | `anzahl` / `gesamt` |
+| --- | --- | --- |
+| `keine_buchungen` | `E` hat keine Buchung in `T` | 0 / 0 |
+| `anzahl` | weniger als 5 Buchungen mit der Kategorie | Buchungen mit der Kategorie / alle in `T` |
+| `anteil` | unter 95 % aller Buchungen | wie `anzahl` |
+| `fenster` | unter 95 % im Fenster | dieselben Zahlen im Fenster |
+
+`hinweis` nennt den Grund in einem Satz (Prozent abgerundet). Regeln ohne
+Befund fehlen; eigene und deaktivierte Regeln werden nicht geprüft. Nur
+lesend, ohne gespeicherten Zustand: Die Prüfung läuft bei jedem Aufruf neu,
+die Oberfläche ruft sie beim Öffnen der Regelansicht auf.
 
 ## 10. Meilenstein 31: Mitgelieferte Lerndaten (D-181, D-184; E-281)
 

@@ -329,6 +329,14 @@ nicht mehr. Ein Thread schreibt Tests und Code.
   (`regeln._REIHENFOLGE`). Wer Regeln in Reihenfolge braucht, nimmt `regeln.regeln_liste`/`aktive_regeln`, nie ein
   eigenes `ORDER BY prioritaet`.
 
+## Hinweise zur Prüfung automatischer Regeln (Feature `regelpruefung`, D-305)
+
+- Die Anlagebedingungen automatischer Regeln stehen nur einmal in `lernregeln.verletzt`; Anlegen (`anlegen`) und
+  Prüfen (`pruefen`, `GET /api/regeln/pruefung`) benutzen beide diese Funktion.
+- `empfaenger_lernregel_sperre` ist seit D-305 ohne Wirkung (nur noch Altdaten). Eine neue automatische Regel
+  verhindert nur eine bestehende Regel: die automatische des Empfängers (gleich welcher Zustand) oder eine Regel, die
+  seine jüngste Buchung trifft (aktiv oder deaktiviert).
+
 ## Codequalität vor jedem Meilenstein
 
 - **Vor Beginn jedes neuen Meilensteins** die Codequalitätsanalyse nach

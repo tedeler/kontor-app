@@ -2978,6 +2978,27 @@ Je Regel `regel-<id>` mit Griff `regel-griff-<id>`, Schalter
     und Kategorie; bei aktiver Suche nennt `regeln-automatisch-anzahl`
     „<Treffer> von <Anzahl>“. Aufgeklappt-Zustand und Sortierung merkt sich
     der Browser.
+- **Prüfung und deaktivierte Regeln (D-305, `lernmodell.md` 9.4–9.5):**
+  - Beim Öffnen holt die Seite `GET /api/regeln/pruefung`. Automatisch
+    angelegte Regeln mit Befund stehen in `regel-liste-automatisch` vor allen
+    anderen (die Sortierung gilt danach; die Suche filtert wie bisher),
+    mit `data-inkonsistent` und dem Hinweis `regel-hinweis-<id>` (Text aus
+    `hinweis`) samt Rat „Bearbeiten oder löschen“. Die Überschrift lautet
+    dann „Automatisch angelegt (<Anzahl>, <n> mit Hinweis)“. Scheitert die
+    Prüfung, erscheint die Liste ohne Hinweise.
+  - Deaktivierte Regeln (eigene wie automatisch angelegte) stehen nicht in
+    den beiden Abschnitten, sondern im aufklappbaren Bereich
+    `regeln-deaktiviert` (Kopf `regeln-deaktiviert-kopf`) ganz unten mit der
+    Überschrift „Deaktiviert (<Anzahl>)“ und der Liste
+    `regel-liste-deaktiviert`; Vorgabe eingeklappt, der Browser merkt sich
+    den Zustand; fehlt ohne deaktivierte Regeln. Zeilen ohne Griff und
+    Nummer; automatisch angelegte tragen weiter `regel-automatisch-<id>`.
+    Die Nummern der eigenen Regeln zählen nur die aktiven.
+  - Wird eine automatisch angelegte Regel deaktiviert (Schalter oder
+    Editor), lautet die Meldung „Regel deaktiviert. Solange diese Regel
+    deaktiviert ist, legt Kontor für diesen Empfänger keine neue an.“ Die
+    Rückfrage vor dem Löschen einer automatisch angelegten Regel sagt, dass
+    Kontor sie später wieder anlegen kann, und rät zum Deaktivieren.
 
 ### 39.4 Regeleditor (`regel-dialog`)
 
