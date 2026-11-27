@@ -58,7 +58,9 @@ def test_abruf_im_hintergrund_aktualisiert_das_sichtbare_kontoblatt(tmp_path, br
     with server(tmp_path, mail_bestellnummer=True, mail_intervall_minuten=120) as (url, config), \
             seite(browser, url, **DESKTOP) as page:
         c, giro, bid = _vorbereiten(url, config)
-        page.goto(f"{url}/konten/{giro}")
+        # erst ändern, wenn die Oberfläche den Stand beim Start gemerkt hat (sonst merkt sie schon den neuen)
+        with page.expect_response(lambda r: r.url.endswith("/api/bestand/stand")):
+            page.goto(f"{url}/konten/{giro}")
         bereit(page, "konto")
         expect(tid(page, f"beleg-marke-{bid}")).to_have_count(0)
         tid(page, f"buchung-{bid}").click()                       # die Auswahl bleibt beim Neuladen
