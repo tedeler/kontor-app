@@ -1,4 +1,5 @@
-"""Core-Tests zum Feature „mail-schlank“ (D-255): Mails brauchen weniger Platz in der Datenbank.
+"""Eigene Tests zum Feature „mail-schlank“ (D-255), aus tests/core verschoben (Zeitbudget der Core-Tests, D-321):
+Mails brauchen weniger Platz in der Datenbank.
 
 - Mail-Dokumente (``message/rfc822``) liegen komprimiert in ``dokument_inhalt``; geliefert werden unverändert die
   Originalbytes, die Prüfsumme bleibt die des Originals. PDF und Bilder bleiben unkomprimiert.
