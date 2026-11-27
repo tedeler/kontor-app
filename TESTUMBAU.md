@@ -156,3 +156,4 @@ Stabilität: Nach den Änderungen lief der Browser-Teil der Gesamtsuite viermal 
 | `app/m8/test_m8_kontoansicht.py::test_vorschlaege_annehmen_und_ablehnen` | D-305: Knöpfe ✓/✗ in der Zeile entfallen | Desktop über das Kontextmenü (`km-vorschlag-annehmen`/`-ablehnen`); Handy: Annehmen durch Wischen nach rechts, Ablehnen über die Schnittstelle (der Weg über Kontextmenü/Einzelheiten ist anderswo geprüft); Prüfung „Klick ändert die Auswahl nicht“ entfällt mit den Knöpfen |
 | `app/m15/test_m15_oberflaeche.py` (Vorschlagsmarken) | D-305 | statt „Knöpfe mobil sichtbar“ nun „keine Knöpfe“ (Desktop und Handy) |
 | eigene `test_browser_vorschlag_sofort.py` | D-305 | Entscheidung über Zeile markieren und `a`/`A` statt Knopf |
+| eigene `test_browser_buchung_teilen.py` | D-306: neue Gestaltung des Teilen-Texts | erwarteter Text in neuer Form; Fall Kategorieansicht ergänzt |
