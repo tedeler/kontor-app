@@ -3739,11 +3739,19 @@ im Kontoblatt eines Bankkontos. Seit D-316 ohne Dialog: die Datei wird direkt he
   Anzeige. Wer den Betrag an Ort und Stelle bearbeitet, gibt ihn wie angezeigt ein; gespeichert wird umgedreht.
   Filter „gleicher Betrag“ und Teilen bestimmen die Richtung (Ausgabe/Einnahme) nach dem gespeicherten Vorzeichen.
   Der Dialog der Buchungssätze (`split-dialog`) zeigt die Splits wie gespeichert.
+- **Zwei Betragsspalten** (seit D-318): In der breiten Liste eines Kreditkontos ist die Spalte Betrag wie bei GnuCash
+  in „Zahlung“ (angezeigter Betrag negativ, mindert die Schulden) und „Belastung“ (positiv) geteilt, beide ohne
+  Vorzeichen (`[data-teil="zahlung"]`, `[data-teil="belastung"]` in der Zelle `data-feld="betrag"`, die andere
+  leer). `data-betrag` bleibt der angezeigte Betrag; die Liste trägt `data-zwei-betraege="ja|nein"`. Der Spaltenkopf
+  `spalte-betrag` zeigt beide Wörter und sortiert nach Betrag. Breite, Ausblenden und Bearbeiten an Ort und Stelle
+  gelten für die Spalte als Ganzes (Spaltenbreiten der Kreditkonten getrennt gemerkt, Liste `kredit`). Die mobile
+  Liste bleibt bei einem Betrag mit Vorzeichen.
 - **Kontenliste** (`/konten`, `kontenbaum`): neue Spalte „Inhaber“ (`data-feld="inhaber"`, „Vorname Nachname“) vor
   „Saldo“; der Saldo eines Kreditkontos erscheint umgedreht (Schulden positiv), `data-betrag` bleibt der gespeicherte
   Wert. Die Abstimmung (`abstimmung-dialog`) erwartet und zeigt den Saldo eines Kreditkontos ebenso umgedreht.
-- **Finanzübersicht** unverändert: der Saldo eines Kreditkontos und die Summe der Bestandskonten wie gespeichert
-  (Schulden negativ).
+- **Finanzübersicht** (seit D-317): der Saldo eines Kreditkontos erscheint wie in der Kontenliste umgedreht
+  (Schulden positiv), `data-betrag` bleibt der gespeicherte Wert; die Summe der Bestandskonten (`uebersicht-summe`)
+  rechnet wie gespeichert (Schulden mindern sie).
 - **Änderungsprotokoll:** Feld `inhaber` heißt „Kontoinhaber“ und erscheint als „Vorname Nachname“.
 
 ## 53. Unterkonten im Konto- und Kategorieblatt einblenden (Feature `unterkonten-einblenden`, D-313, ergänzt 22.2)

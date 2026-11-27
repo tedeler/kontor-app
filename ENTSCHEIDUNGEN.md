@@ -4924,3 +4924,27 @@ Anlass: Klick auf einen Punkt unter `/sicherung` brauchte auf dem Server 10–20
 - `GET /api/export/nachweis/angaben` bleibt (gleiche Ableitung), wird von der Oberfläche nicht mehr benutzt.
 - **Tests:** angepasst `tests/core/test_nachweis_pdf.py`, `tests/core/test_kategorien_uebersicht.py`,
   `tests/test_nachweis_pdf_eigen.py`, `tests/test_browser_nachweis_pdf.py` (`tests/core/AENDERUNGEN.md`).
+
+## D-317 Finanzübersicht zeigt den Saldo eines Kreditkontos wie das Konto selbst (Feature `kreditkonto-uebersicht`, 2026-11-27)
+
+- **Anlass (Auftraggeber):** Kreditkonten erschienen in Kontenliste/Kontoblatt mit dem einen, in der Finanzübersicht
+  mit dem anderen Vorzeichen; das ist ein Fehler. Ersetzt in D-312 den Punkt „Die Finanzübersicht bleibt, wie sie war“.
+- **Regel:** Die Zeile eines Kreditkontos in der Finanzübersicht zeigt den Saldo umgedreht (`vorzeichen(konto)`),
+  genau wie Kontenliste, Kontoblatt und Abstimmung. `data-betrag` bleibt der gespeicherte Wert. Die Summe der
+  Bestandskonten bleibt wie gespeichert: Schulden mindern das Vermögen, sie gehen also negativ ein.
+- **Server unverändert** (`GET /api/kontenuebersicht` liefert weiter gespeicherte Werte).
+- **Tests:** `tests/test_browser_konto_typ_inhaber.py`, `gesamt-tests/tests/app/m8/test_m8_kontoansicht.py`
+  (`TESTUMBAU.md`).
+
+## D-318 Kreditkonto im Kontoblatt mit den Spalten „Zahlung“ und „Belastung“ (Feature `kredit-spalten`, 2026-11-27)
+
+- **Anlass (Auftraggeber):** Für Kreditkonten zwei Betragsspalten wie bei GnuCash.
+- **Regel:** In der breiten Liste eines Kreditkontos steht der angezeigte Betrag (D-312) ohne Vorzeichen entweder unter
+  „Zahlung“ (negativ angezeigt: Gutschrift, mindert die Schulden) oder unter „Belastung“ (positiv: Abbuchung). Reihenfolge
+  wie bei GnuCash: Zahlung links, Belastung rechts.
+- **Umsetzung als geteilte Spalte:** Beide Teile liegen in der bisherigen Spalte `betrag` (eine Rasterspalte, doppelt so
+  breit). So bleiben `data-feld="betrag"`, `data-betrag`, Sortierung, Ausblenden, Spaltenbreite, die am rechten Rand
+  klebende Spalte und das Bearbeiten an Ort und Stelle (ein Betrag wie angezeigt) unverändert. Spaltenbreiten der
+  Kreditkonten werden getrennt gemerkt (Liste `kredit`), damit eine gemerkte schmale Betragsspalte nicht drückt.
+- **Mobil** bleibt ein Betrag mit Vorzeichen (zu wenig Platz). Summen, Perioden und Einzelheiten unverändert.
+- **Tests:** `tests/test_browser_kredit_spalten.py`.

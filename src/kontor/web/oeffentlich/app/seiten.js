@@ -78,7 +78,8 @@ export async function uebersicht(seite) {
   const zeichnen = () => {
     const mit = geschlossene.checked;
     tbody.replaceChildren(...kontoZeilen(bestand, mit, "uebersicht-konto", (k) => [
-      h("td", null, ARTEN[k.art] || k.art), betragEl("td", k.saldo_gesamt, { "data-feld": "saldo", class: "zahl" }),
+      // D-317: Kreditkonten wie in Kontenliste und Kontoblatt (Schulden positiv); data-betrag und Summe gespeichert
+      h("td", null, ARTEN[k.art] || k.art), anzeigeBetrag("td", k.saldo_gesamt, vorzeichen(k), { "data-feld": "saldo", class: "zahl" }),
       h("td", { class: "zahl" }, String(k.anzahl_buchungen))]));
     kategorienInhalt.replaceChildren(...KATEGORIE_GRUPPEN.flatMap(([art, titel, vz]) => {
       const liste = u.konten.filter((k) => k.art === art);
@@ -122,7 +123,8 @@ export async function uebersicht(seite) {
       tbody,
       h("tfoot", null, h("tr", null, h("th", { scope: "row", colspan: "2" }, "Summe der Bestandskonten"),
         betragEl("td", u.summe_bestand, { tid: "uebersicht-summe", class: "zahl" }), h("td")))), UEB_ROLLEN),
-    h("p", { class: "klein" }, "Saldo = Summe aller Splits je Konto einschließlich Unterkonten. Schulden sind negativ."),
+    h("p", { class: "klein" }, "Saldo = Summe aller Splits je Konto einschließlich Unterkonten. Kreditkonten zeigen Schulden positiv;"
+      + " in der Summe zählen sie negativ."),
     h("section", { class: "karte uebersicht-kategorien", tid: "uebersicht-kategorien" },
       h("div", { class: "seiten-kopf" }, h("h2", null, "Kategorien"), umschalten),
       kategorienInhalt,

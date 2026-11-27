@@ -39,7 +39,8 @@ def test_uebersicht_salden_aus_der_wahrheit(daten, neue_seite, geraet):
         expect(z.locator('[data-feld="name"]')).to_have_text(k["name"])
         saldo = z.locator('[data-feld="saldo"]')
         expect(saldo).to_have_attribute("data-betrag", str(k["saldo_gesamt"]))
-        expect(saldo).to_have_text(betrag_text(k["saldo_gesamt"]))
+        # D-317: Kreditkonten zeigen den Saldo umgedreht (Schulden positiv), data-betrag bleibt gespeichert
+        expect(saldo).to_have_text(betrag_text(-k["saldo_gesamt"] if k["art"] == "kreditkonto" else k["saldo_gesamt"]))
     summe = sum(k["saldo"] for k in bestand)
     expect(tid(seite, "uebersicht-summe")).to_have_attribute("data-betrag", str(summe))
     # geschlossene Konten auf Wunsch

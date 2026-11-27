@@ -204,7 +204,8 @@ export const ART_TEXT = { girokonto: "Girokonto", sparkonto: "Sparkonto", kredit
 export const BESTAND = new Set(["girokonto", "sparkonto", "kreditkonto"]);
 
 /** D-312: Vorzeichen der Anzeige eines Kontos. Kreditkonten zeigen Beträge umgedreht (Abbuchung positiv, Schulden
- *  als positiver Kontostand); gespeichert wird unverändert. Die Finanzübersicht zeigt den Saldo wie gespeichert. */
+ *  als positiver Kontostand); gespeichert wird unverändert. Seit D-317 auch in der Finanzübersicht; nur deren Summe
+ *  der Bestandskonten rechnet mit dem gespeicherten Saldo (Schulden mindern das Vermögen). */
 export function vorzeichen(konto) {
   return konto && konto.art === "kreditkonto" ? -1 : 1;
 }
