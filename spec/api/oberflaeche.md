@@ -3519,7 +3519,7 @@ Vortaste `f`:
 | Folge | Wirkung |
 | --- | --- |
 | `f a`, `f f`, `f 0` | Filterausdruck, Baukasten, alle Filter zurücksetzen |
-| `f u` / `f U` | mit Unterkonten / Unterkategorien (nur Bestandskonten) |
+| `f u` / `f U` | mit Unterkonten (in Kategorien: mit Unterkategorien, 53) / mit Unterkategorien (nur Bestandskonten) |
 | `f t` / `f T` | `datum == heute` / `datum == gestern` |
 | `f w` / `f W` | `datum in diese_woche` / `letzte_woche` |
 | `f m` / `f M` | `datum in dieser_monat` / `letzter_monat` |
@@ -3567,7 +3567,7 @@ Befehlspalette (jetzt nur Kürzel, die es auf dem Blatt gibt).
 | `tastatur-hilfe-aktionen`, `-filter`, `-ansicht` | nur im Kontoblatt: die Kürzel aus 46.4 |
 | `tastatur-hilfe-alle` | Ankreuzfeld „alle Blätter zeigen“; blendet `tastatur-hilfe-weitere` mit den übrigen Blättern ein |
 
-- In einer Kategorie fehlen `f u` und `f U`.
+- In einer Kategorie fehlt `f U` (`f u` gilt seit D-313 auch dort, 53).
 - Kürzel, die gerade nicht wirken, sind als Zeile mit Klasse `inaktiv` und `aria-disabled="true"` grau und nennen
   den Grund: „braucht genau eine markierte Buchung“ (`x`, `g`, `f e`/`E`/`z`/`Z`/`b`/`B`), „erst oben rechts
   wählen, wer du bist“ (`b`).
@@ -3741,3 +3741,18 @@ aus Sicht des Bankkontos.
 - **Finanzübersicht** unverändert: der Saldo eines Kreditkontos und die Summe der Bestandskonten wie gespeichert
   (Schulden negativ).
 - **Änderungsprotokoll:** Feld `inhaber` heißt „Kontoinhaber“ und erscheint als „Vorname Nachname“.
+
+## 53. Unterkonten im Konto- und Kategorieblatt einblenden (Feature `unterkonten-einblenden`, D-313, ergänzt 22.2)
+
+1. Im Kopf des Kontoblatts steht vor „Buchung erfassen“ der Umschaltknopf `unterkonten-schalter` mit
+   `aria-pressed`. Beschriftung „mit Unterkonten“ im Blatt eines Bestandskontos, „mit Unterkategorien“ im Blatt
+   einer Kategorie (ebenso das Kontrollkästchen `filter-unterkonten`). Sichtbar, wenn das Konto Unterkonten hat
+   oder der Filter `unterkonten=true` gesetzt ist.
+2. Der Knopf, das Kontrollkästchen `filter-unterkonten` und das Kürzel `f u` setzen denselben Filter
+   `unterkonten=true` (`datenmodell.md` 16.1) und zeigen denselben Zustand; er steht in der Adresse. Die Seite trägt
+   `data-unterkonten="ja|nein"`. Ohne Unterkonten meldet `f u` einen Hinweis und ändert nichts.
+3. Mit gesetztem Filter trägt jede Zeile, deren Buchung einen Split auf einem (auch indirekten) Unterkonto des
+   Kontos der Ansicht hat, im Empfänger vor dem Namen die Marke `herkunft`: Text = Pfad des Unterkontos ab dem Konto
+   der Ansicht (ohne dieses, Trenner „ › “), bei mehreren Unterkonten alle durch „, “ getrennt; `data-konto-ids` =
+   deren IDs durch Leerzeichen; Tooltip „aus <voller Pfad>“. Buchungen nur auf dem Konto selbst tragen keine Marke.
+   Ohne Filter gibt es keine Marke. Gilt auch im mobilen Layout.
