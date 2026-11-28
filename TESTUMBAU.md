@@ -50,7 +50,9 @@ vier CI-Jobs stehen im Abschnitt „CI“.
 
 ## CI
 
-`.github/workflows/release.yml`: bei jedem Push auf main vier parallele Jobs, danach (nur bei Grün) das Release.
+`.github/workflows/release.yml`: bei jedem Push auf main fünf parallele Jobs, danach (nur bei Grün) das Release. Seit 2026-11-28
+(D-325) ist der frühere Job `browser` in `browser-eigene` (eigene Browsertests) und `browser-gesamt` (Gesamtsuite mit
+Browser) geteilt: zusammen brauchten sie zuletzt 5:34 bis 6:42 min.
 
 Erster grüner Lauf (2026-11-23, Version 0.47), Dauer je Job einschließlich Einrichtung:
 

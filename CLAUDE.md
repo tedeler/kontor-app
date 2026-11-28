@@ -24,8 +24,8 @@ nicht mehr. Ein Thread schreibt Tests und Code.
   6. Ändert das Feature bestehendes Verhalten, die betroffenen Tests in `tests/` und `gesamt-tests/` anpassen und
      in `TESTUMBAU.md` („Geänderte Tests“) vermerken.
   7. Merge auf main (kein Force-Push). Die CI lässt dort die Gesamttests laufen und veröffentlicht nur bei Grün.
-- **Gesamttests** laufen nur in der CI auf main, in vier parallelen Jobs mit je unter 5 Minuten: eigene Tests
-  (`tests/core`, `tests`), `gesamt-tests` ohne Browser in zwei Teilen, Browser. Lokal nur gezielt ausführen, nicht als Ganzes in der
+- **Gesamttests** laufen nur in der CI auf main, in fünf parallelen Jobs mit je unter 5 Minuten: eigene Tests
+  (`tests/core`, `tests`), `gesamt-tests` ohne Browser in zwei Teilen, eigene Browsertests, `gesamt-tests` mit Browser. Lokal nur gezielt ausführen, nicht als Ganzes in der
   Entwicklungsschleife. Aufrufe in `TESTUMBAU.md`. Wird ein Job langsamer als 5 Minuten, Tests kürzen oder
   abwählen (`gesamt-tests/abgewaehlt.txt`), nicht das Budget anheben.
 - **`legacy-tests/`** ist der eingefrorene Stand von kontor-tests: nur lesen, nie ändern, nie in die CI.
@@ -100,7 +100,7 @@ nicht mehr. Ein Thread schreibt Tests und Code.
 | `src/kontor/__main__.py` | M7: Startmodul `python -m kontor` (ohne Argumente, Logging nach stderr, uvicorn) |
 | `src/kontor/web/` | M8: Hülle `index.html`, Service Worker `sw.js`, Anmeldeseite `anmelden.html`; unter `oeffentlich/` Stile `app.css`, Symbole, Manifest und die ES-Module `app/` (`kern`, `ui`, `baum`, `konto`, `seiten`, `einstellungen`, `haupt`), ohne externe Ressourcen |
 | `src/kontor/VERSION`, `version.py`, `release.py` | Versionsnummer `MAJOR.MINOR`, Build-Angaben aus `build.json`, Kommandozeile der Release-CI (D-105) |
-| `.github/workflows/release.yml` | CI: bei jedem Push auf main Gesamttests in vier Jobs, danach Release mit Minor + 1; Major nur von Hand (D-105) |
+| `.github/workflows/release.yml` | CI: bei jedem Push auf main Gesamttests in fünf Jobs, danach Release mit Minor + 1; Major nur von Hand (D-105) |
 | `tests/core/` | Core-Tests der Entwicklungsschleife (Marker `core`, zusammen unter 30 Sekunden) |
 | `tests/` | eigene Tests je Feature; `test_browser*.py` mit Marker `browser` |
 | `gesamt-tests/` | Gesamtsuite: gekürzte frühere Abnahmetests mit eigener `pytest.ini`, Fixtures und Generator |

@@ -1,7 +1,8 @@
 # CI von Kontor: Gesamttests und Release (D-105, TESTUMBAU.md).
 #
-# Jeder Push auf main (also jeder Merge eines Feature-Branches) lässt zuerst die Gesamttests laufen, in vier
-# parallelen Jobs (eigene Tests, Gesamtsuite in zwei Teilen, Browser), jeder mit dem Ziel unter 5 Minuten. Nur wenn
+# Jeder Push auf main (also jeder Merge eines Feature-Branches) lässt zuerst die Gesamttests laufen, in fünf
+# parallelen Jobs (eigene Tests, Gesamtsuite in zwei Teilen, eigene Browsertests, Gesamtsuite mit Browser), jeder mit
+# dem Ziel unter 5 Minuten. Nur wenn
 # alle grün sind, folgt das Release: Minor wird um 1 erhöht (0.07 → 0.08). Major wird nur auf Anweisung erhöht: Workflow „Release“ von
 # Hand starten und „major“ ankreuzen (0.08 → 1.00). Die CI committet die neue VERSION auf main, setzt den Tag
 # vMAJOR.MINOR und legt ein GitHub-Release mit automatisch erzeugten Notizen sowie Wheel und Quellpaket an.
@@ -35,9 +36,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Vier parallele Jobs, jeder unter 5 Minuten (TESTUMBAU.md). Die Gesamtsuite ohne Browser ist in zwei
-        # gleich große Teile geteilt, weil sie auf den Runnern sonst rund 6 Minuten braucht.
-        teil: [eigene, gesamt-1, gesamt-2, browser]
+        # Fünf parallele Jobs, jeder unter 5 Minuten (TESTUMBAU.md). Die Gesamtsuite ohne Browser ist in zwei
+        # gleich große Teile geteilt, weil sie auf den Runnern sonst rund 6 Minuten braucht; die Browsertests sind
+        # in eigene und Gesamtsuite geteilt (D-325, zusammen rund 6 Minuten).
+        teil: [eigene, gesamt-1, gesamt-2, browser-eigene, browser-gesamt]
     steps:
       - name: Quellstand holen
         uses: actions/checkout@v4
@@ -71,13 +73,13 @@ jobs:
         run: python -m pytest -q -p no:cacheprovider -n auto -m "not browser" --teil 2/2
 
       - name: Eigene Browsertests
-        if: matrix.teil == 'browser'
+        if: matrix.teil == 'browser-eigene'
         env:
           KONTOR_TESTS_BROWSER_PFLICHT: "1"
         run: python -m pytest -q -p no:cacheprovider -n auto -m browser tests
 
       - name: Gesamtsuite mit Browser
-        if: matrix.teil == 'browser'
+        if: matrix.teil == 'browser-gesamt'
         working-directory: gesamt-tests
         env:
           KONTOR_TESTS_BROWSER_PFLICHT: "1"
