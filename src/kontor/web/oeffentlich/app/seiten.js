@@ -1,7 +1,7 @@
 /* Kontor – Seiten außer der Kontoansicht (oberflaeche.md 6, 13, 14). */
 import {
   BESTAND, STATUS_TEXT, abfrage, aktion, anmeldung, api, baumFolge, betragEl, betragLesen, betragText, datumEl,
-  datumText, h, kategorien, kontoNach, kontoPfad, melde, mobilKarten, nachName, nameAnzeige, neueId, oberflaeche, personLesen, personTag, personVonTag, pfadVon, sichtbar, stamm, tid, zeitEl,
+  datumText, h, kategorien, kontoNach, kontoPfad, melde, mobilKarten, nachName, nameAnzeige, neueId, oberflaeche, ohnePersonText, PERSONEN, personFarbe, personLesen, personTag, personVonTag, pfadVon, sichtbar, stamm, tid, zeitEl,
   zeitText, inhaberText, vorzeichen,
 } from "./kern.js";
 import {
@@ -262,7 +262,7 @@ export async function tagsSeite(seite, _p, suche) {
   const tab = tabelle({ class: "tabelle tag-liste", tid: "tag-liste" }, ["Tag", "Buchungen", ""], liste.map((t) => {
     const person = personVonTag(t.name);
     const tr = h("tr", { tid: `tag-zeile-${t.id}`, "data-id": String(t.id), class: "klickbar", tabindex: "0", "aria-selected": "false" },
-      h("td", null, h("span", { class: person ? "tag tag-person" : "tag", "data-person": person }, t.name)),
+      h("td", null, h("span", { class: person ? "tag tag-person" : "tag", "data-person": person, "data-farbe": personFarbe(person) }, t.name)),
       h("td", { class: "zahl" }, String(t.anzahl_buchungen)),
       h("td", { class: "zeilen-aktionen" }, knopf("Umbenennen…", { class: "knopf knopf-klein", tid: `tag-umbenennen-${t.id}`,
         "aria-label": `Tag ${t.name} umbenennen`, onclick: (e) => tagDialog(t, e.currentTarget) }),
@@ -839,7 +839,7 @@ export async function empfaenger(seite) {
   const gewaehlt = () => liste.filter((x) => auswahl.has(x.id));
   const zusammen = knopf("Zusammenführen…", { tid: "empfaenger-zusammenfuehren", disabled: true,
     onclick: (e) => zusammenfuehren(gewaehlt(), e.currentTarget) });
-  const markieren = knopf("Bestätigen", { tid: "empfaenger-bestaetigen", disabled: true });
+  const markieren = knopf("Bestätigen", { tid: "empfaenger-bestaetigen", disabled: true, hidden: !PERSONEN.length });
   const anzahl = h("span", { tid: "empfaenger-auswahl-anzahl", "data-anzahl": "0", class: "auswahl-anzahl", "aria-live": "polite" });
   const pruefen = () => {
     for (const [id, z] of zeilen) {
@@ -945,7 +945,8 @@ export async function empfaenger(seite) {
       if (zelle) { zelle.textContent = String(zahlen.get(id) || 0); zelle.dataset.anzahl = String(zahlen.get(id) || 0); }
     }
   }).catch(() => { /* Spalte bleibt leer */ });
-  const tab = tabelle({ class: "tabelle empfaenger-liste", tid: "empfaenger-liste", "aria-multiselectable": "true" },
+  const tab = tabelle({ class: "tabelle empfaenger-liste", tid: "empfaenger-liste", "aria-multiselectable": "true",
+    "data-personen": PERSONEN.length ? null : "keine" },   // D-324: ohne Personen ohne Spalte „Bestätigt“
     ["", "Name", "Bestätigt", "Aliase", "Buchungen", ""],
     liste.map((e) => zeileEmpfaenger(e)),
     ["auswahl", "titel", "info:Bestätigt", "info:Aliase", "info:Buchungen", "aktion"]);
@@ -1018,11 +1019,11 @@ export async function empfaenger(seite) {
     const tr = h("tr", { tid: `empfaenger-${e.id}`, "data-id": String(e.id), class: "empfaenger-zeile", "aria-selected": "false", tabindex: "-1" },
       h("td", null, wahl), h("td", null, e.name),
       h("td", { "data-feld": "bestaetigt" }, namen.map((n) => h("span", { class: "tag tag-person", tid: "tag",
-        "data-person": n, title: `Bestätigt von ${n}` }, personTag(n)))),
+        "data-person": n, "data-farbe": personFarbe(n), title: `Bestätigt von ${n}` }, personTag(n)))),
       h("td", null, (e.aliase || []).join(", ")),
       h("td", { class: "zahl", "data-feld": "anzahl" }),
       h("td", { class: "zeilen-aktionen" }, knopf(hat ? `Bestätigung von ${name} zurücknehmen` : `Als ${name || "…"} bestätigen`, {
-        class: "knopf knopf-klein knopf-bestaetigen", tid: `empfaenger-bestaetigen-${e.id}`, disabled: !name,
+        class: "knopf knopf-klein knopf-bestaetigen", tid: `empfaenger-bestaetigen-${e.id}`, disabled: !name, hidden: !PERSONEN.length,
         "aria-label": hat ? `Bestätigung von ${name} für ${e.name} zurücknehmen` : `${e.name} als ${name || "Person"} bestätigen`,
         onclick: () => empfaengerMarkieren([e], !hat) }),
       // „⋯“ öffnet dasselbe Menü wie der Rechtsklick (Bearbeiten, Regel erstellen, Anzeigen im Konto)
@@ -1037,7 +1038,7 @@ export async function empfaenger(seite) {
 
 async function empfaengerMarkieren(liste, hinzu) {
   const name = personLesen();
-  if (!name) { melde("hinweis", "Bitte oben rechts wählen, wer du bist."); return; }
+  if (!name) { melde("hinweis", ohnePersonText()); return; }
   if (!liste.length) return;
   try {
     await aktion(async () => {

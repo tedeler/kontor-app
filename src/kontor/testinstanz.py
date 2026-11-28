@@ -51,6 +51,8 @@ DEMO_ENV = """# Kontor – Testinstanz mit Demodaten (erfundener Haushalt zum Vo
 KONTOR_ANMELDUNG=0
 # Bank und Postfächer der Mock-Plugins: die erfundene Welt, aus der die Demodaten gebaut sind
 KONTOR_MOCK_DATEN={mockdaten}
+# Erfundene Personen des Demo-Haushalts (demodaten.DEMO_BENUTZER)
+KONTOR_BENUTZER=Anna,Ben
 """
 _BRANCH = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$")
 # Tabellen, deren Inhalt die Testinstanz nie bekommt (nur falls in dieser Schemaversion vorhanden)

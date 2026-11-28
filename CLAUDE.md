@@ -225,7 +225,9 @@ nicht mehr. Ein Thread schreibt Tests und Code.
   bedenken: gleichnamige Geschwister lehnt `protokolliert` mit 409 ab.
 - Die Standardkategorie je Empfänger ist entfallen (D-219); die Stufenfolge oben gilt ohne sie. Das Feld
   `standardkategorie_id` bleibt in der Empfängerform und ist immer `null`.
-- Bestätigungs-Tags heißen „B-<Name>“ (`personTag`/`personVonTag` in `app/kern.js`, D-223).
+- Bestätigungs-Tags heißen „<Name>-Bestätigt“ (`personTag`/`personVonTag` in `app/kern.js`, D-262). Die Namen stehen
+  in `KONTOR_BENUTZER` (`config.benutzer`, `GET /api/benutzer`, `PERSONEN` in `kern.js`, D-324); nie feste Namen im
+  Code. Ohne Personen entfällt jedes Bestätigen mit Namen, bei genau einer gilt sie ohne Rückfrage.
 - `/statistik` und `GET /api/statistik` gibt es nicht mehr (D-221); `/tags` ist neu (D-225).
 - Geplante Zahlungen (D-238): Wiederholung in `erwartung_wiederholung` (Teil der Objektart `erwartung`,
   Sicherungsdatei Schemaversion 10); Fortsetzung und Rücknahme in `erwartung.folge_anlegen`/`folge_entfernen`, Vorschau über

@@ -5042,3 +5042,30 @@ Anlass: Klick auf einen Punkt unter `/sicherung` brauchte auf dem Server 10–20
 - **README:** neuer Abschnitt „So schützt Kontor deine Zugänge“ (nur lesender Zugriff auf Bank und Postfächer,
   PIN über systemd-creds oder nur im Arbeitsspeicher, Zugangsdaten nur verschlüsselt, keine Geheimnisse in Logs und
   Sicherungen).
+
+## D-324 Personen aus der Konfiguration statt fest „Torsten“ und „Tina“ (Feature `benutzer`, 2026-11-28)
+
+- **Anlass (Auftraggeber):** „Wir müssen von den beiden Nutzern Torsten und Tina weg. Es soll N Benutzer geben, die in
+  der Konfiguration abgelegt werden. Alle Tags, Dialoge verhalten sich dann entsprechend.“ Ersetzt die festen Namen aus
+  D-155/D-168 (`oberflaeche.md` 37.1).
+- **Abgestimmt:** Ablage in der Umgebungsdatei als `KONTOR_BENUTZER=<Name>,<Name>,…` (Änderung braucht einen Neustart,
+  wie alle Einstellungen dort). Ohne Angabe gibt es keine Personen: kein „Wer bist du?“, kein Personenknopf, kein
+  Bestätigen mit Namen. Bei genau einem Namen gilt er ohne Rückfrage.
+- **Namen:** 1–40 Zeichen, Buchstabe vorn, dazwischen Ziffern, Leerzeichen, Punkt, Apostroph, Bindestrich; höchstens 20,
+  ohne Groß-/Kleinschreibung eindeutig; sonst Konfigurationsfehler beim Start (Rückgabecode 2, Meldung ohne Werte).
+  Begründung: Der Name wird Teil eines Tags („<Name>-Bestätigt“) und eines `data-testid`; Komma trennt die Liste.
+- **REST:** `GET /api/benutzer` (nur lesend). Die Oberfläche lädt die Liste beim Start vor der ersten Seite.
+- **Tags:** Bestätigungs-Tags bleiben „<Name>-Bestätigt“ (D-262). Wer aus der Liste verschwindet, behält seine Tags als
+  gewöhnliche Tags; nichts wird umbenannt oder gelöscht. Das Umbenennen der früheren Formen („<Name>“, „B-<Name>“) beim
+  Start und beim Einspielen älterer Sicherungen bleibt auf „Torsten“/„Tina“ beschränkt (`pflege.FRUEHERE_PERSONEN`):
+  Diese Formen gab es nur mit den damals festen Namen.
+- **Farben:** acht Farben nach dem Platz in der Liste (statt einer Farbe je festem Namen), hell und dunkel.
+- **Ausgeliefert:** `kontor.env` enthält nur die auskommentierte Vorlage `#KONTOR_BENUTZER=Anna,Ben`, keine Namen.
+  **Bestehende Installationen** müssen die Zeile in `/etc/kontor/kontor.env` selbst setzen (z. B.
+  `KONTOR_BENUTZER=Torsten,Tina`), sonst gibt es nach dem Update keine Personen mehr; die Tags bleiben erhalten und
+  gelten nach dem Eintragen wieder als Bestätigung.
+- **Demodaten/Testinstanz:** erfundene Personen „Anna“ und „Ben“ (`demodaten.DEMO_BENUTZER`, `testinstanz.DEMO_ENV`,
+  Screenshot-Skript). Die vorhandenen Screenshots zeigen noch „Torsten“; sie werden beim nächsten Erzeugen ersetzt.
+- **Tests:** Test-Server der eigenen Browsertests und `neue_config` der Gesamttests setzen „Torsten“, „Tina“
+  (die früheren Abnahmetests kennen genau diese); eigene Fälle für 0, 1 und 3 Personen in
+  `tests/test_browser_benutzer.py`.

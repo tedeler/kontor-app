@@ -174,3 +174,8 @@ Stabilität: Nach den Änderungen lief der Browser-Teil der Gesamtsuite viermal 
   umgedreht (Schulden positiv); `data-betrag` und Summe unverändert.
 - 2026-11-27 (D-322): `gesamt-tests/tests/app/m22/test_m22_oberflaeche.py`: `FELDER_KONTO` und `FELDER_KATEGORIE` um die
   neue Spalte `saldo` („Summe“) ergänzt.
+- 2026-11-28 (D-324): Personen kommen aus `KONTOR_BENUTZER`. `gesamt-tests/tests/hilfen/api.py` (`neue_config`) setzt
+  ohne Angabe `benutzer=("Torsten", "Tina")`, damit die früheren Browsertests mit genau diesen Personen arbeiten;
+  `gesamt-tests/tests/spec/test_openapi.py` erwartet zusätzlich `GET /api/benutzer`. Eigene Tests:
+  `tests/test_browser.py` (`server`), `test_browser_kredit_spalten.py`, `test_browser_tabs.py`,
+  `test_browser_tastatur.py` setzen dieselben zwei Personen; `tests/test_oberflaeche.py` kennt `/api/benutzer`.

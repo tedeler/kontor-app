@@ -67,7 +67,10 @@ def standardkategorien_umwandeln(con) -> list[dict]:
     return neu
 
 
-PERSONEN = ("Torsten", "Tina")
+# D-324: Die Personen stehen seit D-324 in der Konfiguration (``KontorConfig.benutzer``). Die früheren Formen der
+# Bestätigungs-Tags („<Name>“ vor D-223, „B-<Name>“ vor D-262) gab es nur mit den damals festen zwei Namen; nur
+# für deren Umbenennen in Altbeständen und älteren Sicherungen bleiben sie hier.
+FRUEHERE_PERSONEN = ("Torsten", "Tina")
 
 
 def personentag(name: str) -> str:
@@ -79,7 +82,7 @@ def personentags_umbenennen(con, nur_namen: bool = True) -> None:
     """D-262: Die Bestätigung trägt das Tag „<Name>-Bestätigt“. Frühere Formen werden umbenannt: „B-<Name>“ (D-223)
     immer, das bloße „<Name>“ (vor D-223) nur mit ``nur_namen``. Gibt es das neue Tag schon, wandern die
     Zuordnungen dorthin und das alte entfällt."""
-    for name in PERSONEN:
+    for name in FRUEHERE_PERSONEN:
         ziel = personentag(name)
         for frueher in ((name, f"B-{name}") if nur_namen else (f"B-{name}",)):
             alt = con.execute("SELECT id FROM tag WHERE name = ?", (frueher,)).fetchone()
@@ -103,7 +106,7 @@ def altbestand_umwandeln(pfad) -> None:
     from . import db, protokoll
     con = db.verbinde(pfad)
     try:
-        frueher = (*PERSONEN, *(f"B-{n}" for n in PERSONEN))
+        frueher = (*FRUEHERE_PERSONEN, *(f"B-{n}" for n in FRUEHERE_PERSONEN))
         ph = buch._platzhalter(len(frueher))
         if con.execute(f"SELECT 1 FROM tag WHERE name IN ({ph}) LIMIT 1", frueher).fetchone():
             with protokoll.protokolliert(con, "manuell", "tag_umbenennen", db.jetzt_utc(),

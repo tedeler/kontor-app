@@ -169,7 +169,8 @@ def _viele(basis, anzahl):
     start = dt.date(2023, 1, 1)
     t = "".join(transaktion(f"T{i}", (start + dt.timedelta(days=i)).isoformat(), ("A1", f"-{i + 1}00/100"),
                             ("A2", f"{i + 1}00/100"), memo=f"Einkauf {i}") for i in range(anzahl))
-    config = KontorConfig(datenbank=basis / "kontor.sqlite3", mock_modus=True, mock_heute=dt.date(2024, 6, 30))
+    config = KontorConfig(datenbank=basis / "kontor.sqlite3", mock_modus=True, mock_heute=dt.date(2024, 6, 30),
+                          benutzer=("Torsten", "Tina"))
     assert importiere_kmy(config, kmy(GIRO, transaktionen=t)).erfolgreich
 
 

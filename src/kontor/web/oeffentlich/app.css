@@ -347,10 +347,24 @@ fieldset { border: 1px solid var(--rand); border-radius: var(--radius); padding:
 .zeile[data-gesperrt="ja"] .zelle-datum::after { content: " 🔒"; font-size: .75rem; }
 .tag { display: inline-block; font-size: .78rem; background: var(--hg-3); border-radius: 9px; padding: 0 .45em; margin-right: .2em; }
 .tag-person { font-weight: 700; }
-.tag-person[data-person="Torsten"] { background: #d7e8f6; }
-.tag-person[data-person="Tina"] { background: #f6d6e8; }
-html[data-thema="dunkel"] .tag-person[data-person="Torsten"] { background: #2c4258; }
-html[data-thema="dunkel"] .tag-person[data-person="Tina"] { background: #4a2c3c; }
+/* D-324: Farbe je Person nach ihrem Platz in KONTOR_BENUTZER (personFarbe, acht Farben, dann von vorn) */
+.tag-person[data-farbe="0"] { background: #d7e8f6; }
+.tag-person[data-farbe="1"] { background: #f6d6e8; }
+.tag-person[data-farbe="2"] { background: #d9efd6; }
+.tag-person[data-farbe="3"] { background: #f6e6cf; }
+.tag-person[data-farbe="4"] { background: #e4dcf6; }
+.tag-person[data-farbe="5"] { background: #d3eeee; }
+.tag-person[data-farbe="6"] { background: #f2f0c8; }
+.tag-person[data-farbe="7"] { background: #ead8d0; }
+html[data-thema="dunkel"] .tag-person[data-farbe="0"] { background: #2c4258; }
+html[data-thema="dunkel"] .tag-person[data-farbe="1"] { background: #4a2c3c; }
+html[data-thema="dunkel"] .tag-person[data-farbe="2"] { background: #2e4a2c; }
+html[data-thema="dunkel"] .tag-person[data-farbe="3"] { background: #4f3c22; }
+html[data-thema="dunkel"] .tag-person[data-farbe="4"] { background: #3b3157; }
+html[data-thema="dunkel"] .tag-person[data-farbe="5"] { background: #24484a; }
+html[data-thema="dunkel"] .tag-person[data-farbe="6"] { background: #46441e; }
+html[data-thema="dunkel"] .tag-person[data-farbe="7"] { background: #4a3530; }
+.empfaenger-liste[data-personen="keine"] :is(th, td):nth-child(3) { display: none; }
 .tag-verdacht { background: #f6e2b3; font-weight: 700; }
 html[data-thema="dunkel"] .tag-verdacht { background: #5a4314; }
 .verdacht-erklaerung { margin: 0 0 .7rem; padding: .5rem .65rem .5rem 2.1rem; position: relative; border-radius: 8px;

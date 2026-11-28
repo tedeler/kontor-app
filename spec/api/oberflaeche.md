@@ -3781,3 +3781,25 @@ im Kontoblatt eines Bankkontos. Seit D-316 ohne Dialog: die Datei wird direkt he
 3. Kreditkonto: umgedreht wie der Betrag (D-312). Spaltenbreite, Ausblenden und „an den Inhalt anpassen“ wie bei den
    übrigen Spalten. Am rechten Rand kleben „Betrag“ und „Summe“ (in dieser Reihenfolge).
 4. Mobil (kompakte Liste) ist die Spalte ausgeblendet.
+
+## 55. Personen aus der Konfiguration (Feature `benutzer`, D-324, ersetzt 37.1 und ergänzt 37.10, 41.4)
+
+1. Die Personen des Haushalts sind nicht mehr fest „Torsten“ und „Tina“, sondern stehen in `KONTOR_BENUTZER`
+   (`python-api.md` 24). Die Oberfläche liest sie beim Start über `GET /api/benutzer`, vor der ersten Seite.
+2. **Gemerkte Person:** `localStorage["kontor.person"]` gilt nur, wenn der Wert genau einer der Namen ist (Groß- und
+   Kleinschreibung zählen); jeder andere Wert gilt als „keine Person“.
+3. **Mehrere Personen:** wie 37.1. `person-dialog` zeigt je Person einen Knopf in der Reihenfolge der Konfiguration,
+   `data-testid` `person-<name in Kleinbuchstaben>`; Pflichtdialog ohne Abbrechen, Wechseln über `person-knopf` mit
+   `person-abbrechen`.
+4. **Genau eine Person:** Sie gilt ohne Rückfrage (kein Pflichtdialog, unabhängig vom Browser-Speicher).
+   `person-knopf` zeigt ihren Namen, ist deaktiviert (kein Wechseln), `aria-label` „Angemeldet als <Name>.“.
+5. **Keine Personen** (Variable leer oder fehlend): kein `person-knopf`, kein `person-dialog`. Bestätigen mit Namen
+   entfällt: kein `km-bestaetigen`, `em-bestaetigen`; das Kürzel `b` fehlt in Hilfe und Palette und meldet beim
+   Drücken „Bestätigen mit Namen ist nicht eingerichtet …“; die Detailansicht zeigt keine Zeile
+   `buchung-bestaetigung`; auf `/empfaenger` sind `empfaenger-bestaetigen`, `empfaenger-bestaetigen-<id>` und die
+   Spalte „Bestätigt“ ausgeblendet (`empfaenger-liste` mit `data-personen="keine"`).
+6. **Bestätigungs-Tags** heißen weiter „<Name>-Bestätigt“ (41.4). Als Bestätigung (Sortierung hinter den übrigen Tags,
+   `data-person`, `data-bestaetigt`) gelten nur Tags der konfigurierten Namen; Tags früherer Personen bleiben als
+   gewöhnliche Tags stehen.
+7. **Farben:** Personen-Tags und `person-knopf` tragen `data-farbe` = Platz der Person in der Liste modulo 8
+   (`0` … `7`); jede der acht Farben hat eine Fassung für hell und dunkel.

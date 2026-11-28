@@ -581,6 +581,11 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
         return {**versionsinfo.info(), "modus": modus, "datenbank": str(pathlib.Path(pfad).resolve()),
                 "datenbank_schema": db.SCHEMA_VERSION, "sicherung_schema": sicherung.SCHEMAVERSION}
 
+    @endpunkt("GET", "/api/benutzer")
+    async def benutzer(request: Request):
+        """D-324: Personen des Haushalts aus ``KONTOR_BENUTZER`` in der angegebenen Reihenfolge (leer = keine)."""
+        return {"benutzer": list(config.benutzer)}
+
     @endpunkt("GET", "/api/konfiguration")
     async def konfiguration(request: Request):
         """D-235: Konfiguration dieser Instanz zum Nachsehen (später nur im Entwicklermodus). ``umgebung``: die

@@ -3,7 +3,7 @@
 import {
   BESTAND, STATUS_TEXT, abfrage, aktion, anhaengen, api, baumFolge, betragEingabe, betragEl, betragLesen, betragText, datumEl,
   datumText, fehlerMelden, h, kategorien, klasse,
-  kontoNach, ausdruckPfad, kontoPfad, melde, nameAnzeige, neueId, oberflaeche, personBestaetigt, personLesen, personTag, personVonTag, pfadVon,
+  kontoNach, ausdruckPfad, kontoPfad, melde, nameAnzeige, neueId, oberflaeche, ohnePersonText, PERSONEN, personBestaetigt, personFarbe, personLesen, personTag, personVonTag, pfadVon,
   rueckgaengig, stamm, stapelStand, tagHolen, tid, vorzeichen,
 } from "./kern.js";
 import {
@@ -212,7 +212,7 @@ const KUERZEL = [
   ["", "s", "Status setzen…", (s) => s.mitZielen((ids, el) => s.statusWaehlen(ids, el))],
   ["", "b", "Als ich bestätigen / zurücknehmen", (s) => s.mitZielen((ids) => {
     const e = s.bestaetigenEintrag(ids);
-    if (e) e.tun(); else melde("hinweis", "Bitte oben rechts wählen, wer du bist.");
+    if (e) e.tun(); else melde("hinweis", ohnePersonText());
   }), "person"],
   ["", "p", "Als Sonderposten markieren / zurücknehmen", (s) => s.mitZielen((ids) => s.sonderpostenEintrag(ids).tun())],
   ["", "a", "Vorschlag annehmen", (s) => s.mitZielen((ids) => s.vorschlagTaste(ids, "annehmen"))],
@@ -290,6 +290,7 @@ export function kontoKuerzel(seite) {
   KUERZEL.forEach(([vor, taste, text, , bed], i) => {
     if (seite && bed === "bestand" && seite.istKategorie) return;
     if (seite && bed === "nachweis" && !seite.nachweisMoeglich) return;
+    if (bed === "person" && !PERSONEN.length) return;   // D-324: ohne Personen gibt es kein Bestätigen mit Namen
     let hinweis = "";
     if (seite && bed === "eine" && markiert !== 1) hinweis = BEDINGUNG_TEXT.eine;
     if (seite && bed === "person" && !personLesen()) hinweis = BEDINGUNG_TEXT.person;
@@ -2050,7 +2051,7 @@ class Kontoansicht {
       [...b.tags.filter((t) => !personVonTag(t.name)), ...b.tags.filter((t) => personVonTag(t.name))].map((t) => {
         const person = personVonTag(t.name);
         return h("span", { class: person ? "tag tag-person" : "tag", tid: "tag", "data-tag-id": String(t.id),
-          "data-person": person, title: person ? `Bestätigt von ${person}` : t.name }, t.name);
+          "data-person": person, "data-farbe": personFarbe(person), title: person ? `Bestätigt von ${person}` : t.name }, t.name);
       }),
       b.verdacht ? h("span", { class: "tag tag-verdacht", tid: "verdacht", "data-grund": b.verdacht.grund,
         title: b.verdacht.text, "aria-label": b.verdacht.text }, "Verdächtig") : null),
@@ -2560,7 +2561,7 @@ class Kontoansicht {
 
   async wischBestaetigen(id) {
     this.wischRueckEnde();
-    if (!personLesen()) { melde("hinweis", "Bitte oben rechts wählen, wer du bist."); return; }
+    if (!personLesen()) { melde("hinweis", ohnePersonText()); return; }
     const ids = this.wischZiele(id);
     if (!ids.length) return;                       // schon bestätigt: die Zeile federt nur zurück
     const vorher = stapelStand();
@@ -2595,7 +2596,7 @@ class Kontoansicht {
     this.wischRueck = null;
   }
 
-  // ---------------------------------------------------------------- Bestätigung durch Torsten oder Tina (D-155)
+  // ---------------------------------------------------------------- Bestätigung durch eine Person (D-155, D-324)
   bestaetigt(b, name) { return !!(b && b.tags.some((t) => t.name === personTag(name))); }
 
   bestaetigenEintrag(ids) {
@@ -2607,6 +2608,7 @@ class Kontoansicht {
   }
 
   bestaetigungZeile(b) {
+    if (!PERSONEN.length) return null;   // D-324: ohne Personen keine Bestätigung mit Namen
     const name = personLesen();
     const namen = b.tags.map((t) => personVonTag(t.name)).filter(Boolean);
     const hat = name && this.bestaetigt(b, name);
@@ -2671,7 +2673,7 @@ class Kontoansicht {
 
   async personMarkieren(ids, hinzu) {
     const name = personLesen();
-    if (!name) { melde("hinweis", "Bitte oben rechts wählen, wer du bist."); return false; }
+    if (!name) { melde("hinweis", ohnePersonText()); return false; }
     if (hinzu && !(await this.zuordnungFordern(ids))) return false;
     // vor dem Vorwegnehmen bestimmt: Importiert und Vorläufig werden durch die Bestätigung zu Bestätigt (D-159, D-257)
     const offen = !hinzu ? [] : this.unbestaetigte(ids).sort((a, c) => a - c);

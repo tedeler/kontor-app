@@ -39,6 +39,7 @@ def server(basis, *, daten: bool = True, **kw):
 
     kw.setdefault("mock_modus", True)
     kw.setdefault("mock_heute", dt.date(2024, 6, 30))
+    kw.setdefault("benutzer", BENUTZER)   # D-324: die Rauchtests arbeiten mit zwei Personen
     config = KontorConfig(datenbank=basis / "kontor.sqlite3", **kw)
     if daten:
         transaktionen = "".join(transaktion(f"T{i}", f"2024-01-{i:02d}", ("A1", f"-{i * 100}/100"), ("A2", f"{i * 100}/100"),
@@ -78,6 +79,7 @@ HANDY = {"viewport": {"width": 390, "height": 844}, "device_scale_factor": 3, "i
 DESKTOP = {"viewport": {"width": 1280, "height": 800}}
 
 
+BENUTZER = ("Torsten", "Tina")   # D-324: Personen der Test-Server (KONTOR_BENUTZER)
 PERSON_VORAB = "try { if (!localStorage.getItem('kontor.person')) localStorage.setItem('kontor.person', 'Torsten'); } catch (e) {}"
 
 

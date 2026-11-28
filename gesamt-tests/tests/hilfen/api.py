@@ -206,6 +206,9 @@ def neue_config(basis: Path | None = None, **felder):
             anmelden = False
     if anmelden:
         felder["anmeldung"] = True
+    # D-324: Die Personen stehen in der Konfiguration; die früheren Abnahmetests kennen genau „Torsten“ und „Tina“
+    if "benutzer" not in felder and "benutzer" in getattr(cls, "__dataclass_fields__", {}):
+        felder["benutzer"] = ("Torsten", "Tina")
     config = cls(datenbank=basis / "kontor.sqlite3", **felder)
     if anmelden:
         _ANMELDELAUF[id(config)] = config

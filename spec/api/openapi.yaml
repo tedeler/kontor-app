@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Kontor REST-API
-  version: 2.27.0
+  version: 2.28.0
   description: |
     REST-Schnittstelle von Kontor, Meilensteine 1 bis 10. Verbindlicher Vertrag
     zwischen Implementierung und Tests. Fachliche Regeln stehen in
@@ -4100,6 +4100,18 @@ paths:
           content:
             application/json:
               schema: {$ref: "#/components/schemas/Konfiguration"}
+
+  /api/benutzer:
+    get:
+      tags: [betrieb]
+      operationId: benutzerLesen
+      summary: "D-324: Personen des Haushalts aus KONTOR_BENUTZER in ihrer Reihenfolge (leer = keine); nur lesend"
+      responses:
+        "200":
+          description: Personen
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Benutzerliste"}
 
   /api/anmeldung:
     get:
@@ -9116,6 +9128,15 @@ components:
       properties:
         anzahl: {type: integer, minimum: 0}
 
+    Benutzerliste:
+      type: object
+      additionalProperties: false
+      required: [benutzer]
+      properties:
+        benutzer:
+          type: array
+          maxItems: 20
+          items: {type: string, minLength: 1, maxLength: 40}
     Konfiguration:
       type: object
       additionalProperties: false
