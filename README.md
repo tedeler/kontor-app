@@ -167,11 +167,13 @@ Im Mock-Modus meldet `GET /api/status` `"modus": "mock"`, und jede API-Antwort t
 ## Synchronisation im Mock-Modus ausprobieren
 
 Die Mock-Bank liefert synthetische Umsätze bis zum simulierten „heute“; es wird nie eine echte Bank angesprochen.
-Für die folgenden Schritte startest du am besten mit leerer Mock-Datenbank (ohne Demo-Haushalt):
+Für die folgenden Schritte nimmst du am besten eine eigene, leere Mock-Datenbank; der Demo-Haushalt bleibt
+daneben erhalten:
 
 ```bash
 export KONTOR_DATENBANK="$PWD/daten/kontor.sqlite3"
 export KONTOR_MOCK_MODUS=ja
+export KONTOR_MOCK_DATENBANK="$PWD/daten/sync-mock.sqlite3"   # neu und leer
 export KONTOR_MOCK_HEUTE=2024-06-30                # Startzeitpunkt der simulierten Uhr (12:00 UTC)
 # optional: Datendatei der Gesamtsuite (3 Konten, Vormerkungen, Storno …)
 export KONTOR_MOCK_DATEN=gesamt-tests/fixtures/mock/sync_daten.json
