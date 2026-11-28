@@ -6,7 +6,7 @@ passenden Buchung. Alles läuft auf dem eigenen Server, die Daten bleiben bei di
 
 <picture>
   <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/kontoansicht-hell.png">
-  <img src="docs/screenshots/kontoansicht-dunkel.png" alt="Kontoansicht des Girokontos: Buchungsliste mit Datum, Empfänger, Kategorie, Status und Betrag; rechts die Einzelheiten einer Amazon-Buchung mit Kategorievorschlag und Bestellnummer aus der Mail.">
+  <img src="docs/screenshots/kontoansicht-dunkel.png" alt="Kontoansicht des Girokontos: Buchungsliste mit Datum, Empfänger, Kategorie, Status und Betrag; rechts die Einzelheiten einer Amazon-Buchung mit Kategorievorschlag und Amazon-Bestellnummer.">
 </picture>
 
 <p align="center"><sub>Alle Bilder zeigen einen erfundenen Demo-Haushalt (<code>python -m kontor.demodaten</code>).</sub></p>

@@ -5000,3 +5000,28 @@ Anlass: Klick auf einen Punkt unter `/sicherung` brauchte auf dem Server 10–20
   (D-289) gilt bis zum Neuladen der alte Stand.
 - **Tests:** `tests/core/test_laufende_summe.py`, `tests/test_browser_laufende_summe.py`; geändert
   `gesamt-tests/tests/app/m22/test_m22_oberflaeche.py` (Spaltenliste, `TESTUMBAU.md`).
+
+## D-323 Screenshots für README und Dokumentation (Feature `screenshots`, 2026-11-28)
+
+- **Anlass (Auftraggeber):** Kontor auf GitHub besser zeigen: Screenshots in der README, Schwerpunkt Dunkelmodus, das
+  Titelbild zusätzlich hell, Handy-Ansichten in einem gezeichneten, neutralen Handy-Rahmen.
+- **Erzeugung:** `docs/screenshots/erzeugen.py` baut die Demodaten (D-285) in einem temporären Verzeichnis, startet
+  Kontor im Mock-Modus auf einem freien lokalen Port (ohne Anmeldung, `KONTOR_MOCK_HEUTE` = Bezugstag) und fotografiert
+  mit Playwright (Chromium, `device_scale_factor` 2, deutsche Browser-Sprache). Bilder auf 256 Farben reduziert
+  (Pillow), zusammen rund 1,2 MB. Nur erfundene Angaben; keine andere Datenbank wird gelesen. Kein Test, nicht in der
+  CI; nach sichtbaren Änderungen an der Oberfläche von Hand neu erzeugen.
+- **Nur in den Bildern ausgeblendet:** Hinweisleiste des Mock-Modus und Branch-Anzeige im Fuß (eingefügtes Stylesheet).
+  Die README sagt unter dem Titelbild, dass alle Bilder einen erfundenen Demo-Haushalt zeigen. Die Frage „Wer bist
+  du?“ entfällt über `kontor.person` im Browser-Speicher. Am Anwendungscode ändert sich nichts.
+- **Auswahl:** Titelbild Kontoansicht (Girokonto mit gewählter Amazon-Buchung, hell und dunkel; GitHub wählt über
+  `<picture>` mit `prefers-color-scheme`). Galerie nur dunkel: Monatsbericht, Regeleditor mit Testbereich, „Warum
+  dieser Vorschlag?“, Einstellungen „Daten und Sicherung“; zwei Handy-Ansichten (Kontoblatt, Monatsbericht).
+- **Galerie lesbar:** Galeriebilder zeigen nur den Inhalt (ohne Navigation und Kopfzeile) bzw. den Dialog, etwa im
+  Seitenverhältnis 16:10. Für die Lernmodell-Erklärung sind die Einzelheiten breiter (560 px über `kontor.layout`).
+- **Vorschlag des Lernmodells:** Die Demodaten enthalten keinen offenen Vorschlag des Lernmodells (Regeln fangen die
+  bekannten Empfänger). Das Skript erfasst deshalb in der temporären Datenbank über REST eine Café-Rechnung ohne
+  Kategorie und ruft `POST /api/lernmodell/anwenden` dafür auf. Sie erscheint auch in den späteren Handy-Bildern.
+- **Handy-Rahmen:** eigene kleine HTML-Seite (runde Ecken, schmaler Rand, Kamera-Aussparung, gezeichnete Statusleiste),
+  kein Nachbau eines Herstellermodells, keine fremden Bilder; transparenter Hintergrund.
+- **Prüfung der Darstellung:** README über die GitHub-API gerendert (`repos/…/readme`, HTML) und mit
+  `github-markdown-css` hell/dunkel bei 1280 px und 390 px Breite angesehen.
