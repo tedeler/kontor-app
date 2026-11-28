@@ -5025,3 +5025,12 @@ Anlass: Klick auf einen Punkt unter `/sicherung` brauchte auf dem Server 10–20
   kein Nachbau eines Herstellermodells, keine fremden Bilder; transparenter Hintergrund.
 - **Prüfung der Darstellung:** README über die GitHub-API gerendert (`repos/…/readme`, HTML) und mit
   `github-markdown-css` hell/dunkel bei 1280 px und 390 px Breite angesehen.
+- **Nachtrag (CI nach dem Merge):** `test_abruf_im_hintergrund_aktualisiert_das_sichtbare_kontoblatt` schlug in der CI
+  mehrfach fehl, weil der Planer-Thread (Mail-Intervall 120) die Mail schon zuordnete, bevor der Test den
+  Ausgangsstand prüfte. Der Test startet den Server jetzt ohne Planer (`planer_starten=False`); den Planer vertritt
+  wie bisher der Aufruf von `abgleich.nach_ereignis`. Verhalten der Anwendung unverändert.
+- **README überarbeitet:** Nutzen zuerst („Was Kontor für dich erledigt“), Schnellstart mit dem Demo-Haushalt
+  (`python -m kontor.demodaten`), Wegweiser zu allen Anleitungen. Entfernt: Meilensteinliste M1–M9, Umstieg von
+  AqBanking, Übergangshinweise für alte Installationen, Verweise auf Entscheidungsnummern. Richtiggestellt:
+  Standardkategorie (D-219) und Statistische Analyse (D-221) entfallen, Panel Kategorien im Kontoblatt (D-265),
+  Tastenbelegung (D-292), stündliche Sicherungspunkte statt täglicher Sicherung (D-302), Wege in den Einstellungen.

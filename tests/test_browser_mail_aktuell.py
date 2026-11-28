@@ -55,7 +55,9 @@ def test_abruf_im_mail_blatt_aktualisiert_das_offene_kontoblatt(tmp_path, browse
 
 def test_abruf_im_hintergrund_aktualisiert_das_sichtbare_kontoblatt(tmp_path, browser):
     """Planer oder anderes Gerät: Die sichtbare Ansicht lädt beim nächsten Anlass von selbst neu."""
-    with server(tmp_path, mail_bestellnummer=True, mail_intervall_minuten=120) as (url, config), \
+    # ohne Planer-Thread: sonst holt der erste Takt die Mails und ordnet sie zu, bevor der Test den Ausgangsstand
+    # prüft (Wettlauf in der CI); den Planer vertritt der Aufruf von abgleich.nach_ereignis unten
+    with server(tmp_path, mail_bestellnummer=True, mail_intervall_minuten=120, planer_starten=False) as (url, config), \
             seite(browser, url, **DESKTOP) as page:
         c, giro, bid = _vorbereiten(url, config)
         # erst ändern, wenn die Oberfläche den Stand beim Start gemerkt hat (sonst merkt sie schon den neuen)
