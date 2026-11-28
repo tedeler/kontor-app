@@ -5098,3 +5098,29 @@ Anlass: Klick auf einen Punkt unter `/sicherung` brauchte auf dem Server 10–20
 - **Freigabe ohne gesonderte Abnahme:** auf ausdrückliche Anweisung des Auftraggebers direkt auf main.
 - **Tests:** `tests/core/test_kategorien_ordnen.py`, `tests/test_browser_kategorien_ordnen.py`; geändert
   `gesamt-tests/tests/spec/test_openapi.py` (erwartete Operationen), `tests/test_oberflaeche.py` (bekannte Pfade).
+
+## D-327 Aufräumen: Wurzelverzeichnis und Testabdeckung (2026-11-28)
+
+- **Anlass:** Auftrag „Aufräumen und Abnahme nachziehen“ des Auftraggebers: Zwischenstände im Hauptordner
+  entfernen, Testabdeckung der neuen Features prüfen und nachziehen, alles in der CI.
+- **Lesart:** Der Auftrag beschreibt noch das frühere Vorgehen mit kontor-tests, Meilenstein-Definitionen und
+  getrennten Test-Threads. Seit D-253 gilt das Vorgehen aus `CLAUDE.md` (Core-Tests zuerst, Tests im selben
+  Repository, Gesamttests in der CI auf main vor jedem Release). Umgesetzt ist der Zweck des Auftrags in dieser Form;
+  nachträgliche Meilenstein-Definitionen entfallen.
+- **Wurzelverzeichnis:** gelöscht `TESTUMBAU.md` (Übergang zum neuen Testaufbau), `ERGEBNIS.md` und
+  `WIDERSPRUECHE.md` (Protokolle der früheren Abnahme, seit 2026-11-22 nicht mehr fortgeführt); die Geschichte bleibt
+  in git. Noch Gültiges steht jetzt in `tests/README.md` (Regeln, Aufbau, Aufrufe, CI, Auswahl der Gesamtsuite) und
+  `gesamt-tests/AENDERUNGEN.md` (geänderte Tests, fortgeschrieben statt „Geänderte Tests“ in `TESTUMBAU.md`).
+  Verweise in `CLAUDE.md`, `README.md`, `spec/`, CI und Tests sind angepasst; ältere Einträge hier und
+  `legacy-tests/` (eingefroren) nennen weiter die alten Dateien. Im Wurzelverzeichnis bleiben nur Anleitungen für
+  Betrieb und Mitarbeit.
+- **Abdeckung, gemessen:** Python-Zeilenabdeckung der CI-Tests ohne Browser (`tests/` und `gesamt-tests/`) 94 %
+  (20 423 Anweisungen). Kein Modul unter 78 %; die Lücken sind Netz- und Systemaufrufe, die die Tests bewusst
+  ersetzen (`aktualisierung._laden`, `systemctl`), der Startbefehl `__main__` und Fehlerzweige. Je Entscheidung seit
+  D-242 geprüft, ob ein Test das Verhalten abdeckt: offen waren nur D-260, D-264 und D-267 (in ihren Einträgen „kein
+  Browsertest geschrieben“), jetzt `tests/test_browser_status_farben.py`. D-258 deckt `test_browser_aktionen_sofort.py`
+  ab (D-290), D-274 `test_browser_tabs.py`; D-259, D-268 sind reine Darstellung, D-323 ein Werkzeug für Bilder.
+- **CI:** unverändert; alle Tests aus `tests/` und die Auswahl der Gesamtsuite laufen in den fünf Jobs bei jedem
+  Push auf main, ein Release entsteht nur bei Grün. Neue Tests unter `tests/` sind damit automatisch in der CI.
+- **Künftig:** keine Arbeits- oder Zwischenstände im Wurzelverzeichnis (`CLAUDE.md`).
+

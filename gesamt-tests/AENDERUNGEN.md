@@ -77,3 +77,4 @@ Stabilität: Nach den Änderungen lief der Browser-Teil der Gesamtsuite viermal 
   `test_browser_tastatur.py` setzen dieselben zwei Personen; `tests/test_oberflaeche.py` kennt `/api/benutzer`.
 - 2026-11-28 (D-326): `gesamt-tests/tests/spec/test_openapi.py` erwartet zusätzlich `POST /api/kategorien/verschieben`;
   `tests/test_oberflaeche.py` kennt den Pfad.
+- 2026-11-28 (D-327): Liste aus `TESTUMBAU.md` hierher verlegt; neu `tests/test_browser_status_farben.py` (D-260, D-264, D-267).
