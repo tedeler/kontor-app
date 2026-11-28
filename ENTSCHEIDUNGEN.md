@@ -5042,6 +5042,10 @@ Anlass: Klick auf einen Punkt unter `/sicherung` brauchte auf dem Server 10–20
 - **README:** neuer Abschnitt „So schützt Kontor deine Zugänge“ (nur lesender Zugriff auf Bank und Postfächer,
   PIN über systemd-creds oder nur im Arbeitsspeicher, Zugangsdaten nur verschlüsselt, keine Geheimnisse in Logs und
   Sicherungen).
+- **Nachtrag (Teilen per Messenger):** neues Bild `handy-teilen-dunkel.png`. Den Kurztext erzeugt Kontor selbst
+  („Teilen…“ im Kontextmenü; `navigator.share` wird im Skript nur abgefangen), die lokale Adresse im Link wird durch
+  `https://kontor.example.net` ersetzt. Dargestellt in einem eigenen, markenneutralen Chat (kein Nachbau eines
+  bestimmten Messengers), mit den Demo-Personen aus D-324. In der README stehen die drei Handy-Bilder nebeneinander.
 
 ## D-324 Personen aus der Konfiguration statt fest „Torsten“ und „Tina“ (Feature `benutzer`, 2026-11-28)
 

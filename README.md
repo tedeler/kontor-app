@@ -20,12 +20,10 @@ passenden Buchung. Alles läuft auf dem eigenen Server, die Daten bleiben bei di
 | <img src="docs/screenshots/lernmodell-dunkel.png" width="420" alt="Einzelheiten einer Café-Buchung mit Vorschlag des Lernmodells und aufgeklapptem Abschnitt „Warum dieser Vorschlag?“, der die Gründe einzeln aufführt."> | <img src="docs/screenshots/einstellungen-dunkel.png" width="420" alt="Einstellungen, Bereich Daten und Sicherung: stündliche Sicherungspunkte öffnen, Sicherung herunterladen oder einspielen."> |
 | **Warum dieser Vorschlag?** – das Lernmodell erklärt sich | **Einstellungen** – übersichtlich, mit Suche und stündlicher Sicherung |
 
-<p align="center">
-  <img src="docs/screenshots/handy-konto-dunkel.png" width="230" alt="Kontoansicht auf dem Handy: Buchungen als Karten mit Empfänger, Datum, Kategorie und Betrag.">
-  &nbsp;&nbsp;
-  <img src="docs/screenshots/handy-bericht-dunkel.png" width="230" alt="Monatsbericht auf dem Handy mit Kacheln für Ausgaben, Hochrechnung, Einnahmen und Buchungen.">
-</p>
-<p align="center"><b>Auch unterwegs</b> – als App auf dem Handy installierbar (PWA)</p>
+| | | |
+| :---: | :---: | :---: |
+| <img src="docs/screenshots/handy-konto-dunkel.png" width="220" alt="Kontoansicht auf dem Handy: Buchungen als Karten mit Empfänger, Datum, Kategorie und Betrag."> | <img src="docs/screenshots/handy-bericht-dunkel.png" width="220" alt="Monatsbericht auf dem Handy mit Kacheln für Ausgaben, Hochrechnung, Einnahmen und Buchungen."> | <img src="docs/screenshots/handy-teilen-dunkel.png" width="220" alt="Chat auf dem Handy: Eine geteilte Buchung erscheint als Nachricht mit Empfänger, Betrag, Datum, Konto, Kategorie, Verwendungszweck und Link; darunter die Frage „Weißt du, was das war?“ und die Antwort."> |
+| **Auch unterwegs** – als App auf dem Handy installierbar | **Der Monat im Blick** – auch auf dem kleinen Bildschirm | **Per Messenger teilen** – eine Buchung, ein Fingertipp, mit Link zurück |
 
 **Neugierig?** In fünf Minuten läuft Kontor bei dir mit genau diesem Demo-Haushalt, ganz ohne Bank und ohne echte
 Daten: [Schnellstart im Mock-Modus](#schnellstart-im-mock-modus).
@@ -46,6 +44,9 @@ Daten: [Schnellstart im Mock-Modus](#schnellstart-im-mock-modus).
   Sicherungspunkte an, zu denen du zurückkehren kannst.
 - **Für den ganzen Haushalt.** Ein gemeinsamer Login, und wer eine Buchung bestätigt, wird mit Namen vermerkt.
   Am Rechner mit Tastaturkürzeln und Befehlspalette, unterwegs als App auf dem Handy, hell oder dunkel.
+- **Kurz nachfragen per Messenger.** „Teilen…“ im Kontextmenü schickt eine Buchung über die Teilen-Funktion des
+  Handys, etwa per WhatsApp oder Signal (am Rechner landet sie in der Zwischenablage): als übersichtlicher Kurztext
+  mit Betrag, Datum, Konto und Kategorie und einem Link, der in Kontor genau diese Buchung öffnet.
 - **Deine Daten bleiben bei dir.** Kontor läuft auf deinem eigenen Server im Heimnetz oder hinter Tailscale,
   greift nur lesend auf Bank und Postfächer zu und speichert Zugangsdaten nie im Klartext
   ([mehr dazu](#so-schützt-kontor-deine-zugänge)).
@@ -608,7 +609,7 @@ Single-Page-App ohne Build-Schritt, Framework und externe Ressourcen (ES-Module 
 - **Mehrfachauswahl:** Klick, Strg/⌘+Klick (umschalten), Umschalt+Klick (Bereich), Strg+Umschalt+Klick (Bereich
   hinzu); die Leiste unten setzt Kategorie, Tags, Status, nimmt Vorschläge an oder lehnt sie ab oder löscht.
   Rechtsklick öffnet das Kontextmenü (Kategorie, Tags, Splitten, Als Dublette markieren, Vorschlag
-  annehmen/ablehnen, Verwendungszweck bearbeiten, Löschen); auf Konten und Kategorien: Öffnen, Umbenennen,
+  annehmen/ablehnen, Verwendungszweck bearbeiten, Teilen, Löschen); auf Konten und Kategorien: Öffnen, Umbenennen,
   Unterkonto, Verschieben nach…, Löschen.
 - **Inline-Bearbeitung:** Doppelklick auf Datum, Verwendungszweck oder Kategorie (F2 = Verwendungszweck); Enter, Tab
   oder Verlassen übernimmt, Esc bricht ab.
