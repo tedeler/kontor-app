@@ -19,7 +19,7 @@ def gemeinsames_portal():
     """Ein Ereignisschleifen-Thread je Testprozess für alle ``TestClient``-Anfragen.
 
     Ohne ihn startet Starlette für jede einzelne Anfrage einen eigenen Thread mit eigener Ereignisschleife;
-    das war rund die Hälfte der Laufzeit einer Anfrage (TESTUMBAU.md). Der Lifespan der App läuft dadurch
+    das war rund die Hälfte der Laufzeit einer Anfrage (tests/README.md). Der Lifespan der App läuft dadurch
     nicht (wie bisher nur mit ``with TestClient(app)``).
     """
     global _PORTAL

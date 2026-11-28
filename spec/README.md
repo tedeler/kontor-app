@@ -6,6 +6,6 @@ Spezifikation für Kontor
 - `meilensteine.md` – Meilensteinplan
 - `definitionen/` – freigegebene Meilenstein-Definitionen bis M32 (Bestand)
 
-Seit dem Testumbau (2026-11-23, `../TESTUMBAU.md`) liegt die Spezifikation in kontor-app und wird mit jedem
+Seit dem Testumbau (2026-11-23, D-253; Aufbau der Tests in `../tests/README.md`) liegt die Spezifikation in kontor-app und wird mit jedem
 Feature fortgeschrieben. Neue Entscheidungen stehen in `../ENTSCHEIDUNGEN.md`; `api/entscheidungen.md` (`E-…`)
 ist Bestand. Wo ältere Texte „kontor-tests“ nennen, sind heute `../gesamt-tests/` bzw. `../legacy-tests/` gemeint.

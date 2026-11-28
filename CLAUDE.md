@@ -3,7 +3,7 @@
 Dieses Repository enthält **Kontor** (Python, FastAPI, SQLite, Single-Page-Weboberfläche) samt Spezifikation
 und allen Tests. Alle Dokumente, Kommentare und Commit-Nachrichten sind auf Deutsch.
 
-## Entwicklung und Tests (seit dem Testumbau, `TESTUMBAU.md`)
+## Entwicklung und Tests (Aufbau in `tests/README.md`)
 
 Das frühere Repository kontor-tests ist aufgegeben; die Trennung in Test- und Implementierungs-Threads gibt es
 nicht mehr. Ein Thread schreibt Tests und Code.
@@ -22,15 +22,17 @@ nicht mehr. Ein Thread schreibt Tests und Code.
   5. Was nicht in die Core-Tests passt (Browser, Zufallstests, große Daten), kommt nach `tests/`
      (`test_browser_<feature>.py` bekommt automatisch den Marker `browser`).
   6. Ändert das Feature bestehendes Verhalten, die betroffenen Tests in `tests/` und `gesamt-tests/` anpassen und
-     in `TESTUMBAU.md` („Geänderte Tests“) vermerken.
+     in `gesamt-tests/AENDERUNGEN.md` vermerken.
   7. Merge auf main (kein Force-Push). Die CI lässt dort die Gesamttests laufen und veröffentlicht nur bei Grün.
 - **Gesamttests** laufen nur in der CI auf main, in fünf parallelen Jobs mit je unter 5 Minuten: eigene Tests
   (`tests/core`, `tests`), `gesamt-tests` ohne Browser in zwei Teilen, eigene Browsertests, `gesamt-tests` mit Browser. Lokal nur gezielt ausführen, nicht als Ganzes in der
-  Entwicklungsschleife. Aufrufe in `TESTUMBAU.md`. Wird ein Job langsamer als 5 Minuten, Tests kürzen oder
+  Entwicklungsschleife. Aufrufe in `tests/README.md`. Wird ein Job langsamer als 5 Minuten, Tests kürzen oder
   abwählen (`gesamt-tests/abgewaehlt.txt`), nicht das Budget anheben.
 - **`legacy-tests/`** ist der eingefrorene Stand von kontor-tests: nur lesen, nie ändern, nie in die CI.
 - Keine Sonderfälle nur für Tests im Anwendungscode (kein Erkennen von Testumgebungen, keine auf Fixtures
-  zugeschnittenen Ausnahmen). `WIDERSPRUECHE.md` ist abgeschlossen und wird nicht fortgeführt.
+  zugeschnittenen Ausnahmen).
+- Im Wurzelverzeichnis keine Arbeits- oder Zwischenstände ablegen (D-327); Ergebnisse gehören in
+  `ENTSCHEIDUNGEN.md`, die Spezifikation oder `tests/README.md`.
 
 ## Daten und Sicherheit
 
