@@ -282,6 +282,81 @@ def handy_bericht(p, basis, heute):
     _oeffnen(p, basis, "/berichte?art=monat")
 
 
+LINK_BASIS = "https://kontor.example.net"   # statt der zufälligen lokalen Adresse im geteilten Link
+
+
+def geteilter_text(p, basis: str) -> str:
+    """Kurztext, den Kontor beim „Teilen…“ einer Buchung erzeugt – über das Kontextmenü wie im Browser. Die
+    Teilen-Funktion des Geräts wird nur abgefangen, damit der Text hier ankommt."""
+    bid = _id_mit(basis, 1, lambda b: b["kategorie_id"] is None and b["empfaenger"] and b["status"] == "importiert")
+    ctx = p.context.browser.new_context(viewport=GALERIE, locale="de-DE", timezone_id="Europe/Berlin")
+    try:
+        ctx.add_init_script("try { localStorage.setItem('kontor.person', '%s'); } catch (e) {}"
+                            " navigator.share = async (d) => { window.__geteilt = d.text; };" % PERSON)
+        q = ctx.new_page()
+        _oeffnen(q, basis, "/konten/1")
+        q.locator(f'[data-testid="buchung-{bid}"]').click(button="right")
+        q.locator('[data-testid="km-teilen"]').click()
+        q.wait_for_function("() => window.__geteilt")
+        return q.evaluate("() => window.__geteilt").replace(basis, LINK_BASIS)
+    finally:
+        ctx.close()
+
+
+CHAT = """<!DOCTYPE html><html lang="de"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1"><style>
+html, body {{ margin: 0; height: 100%; background: #12151a; color: #e6e8eb; font: 15px/1.4 system-ui, sans-serif; }}
+.kopf {{ display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: #1b1f25;
+  border-bottom: 1px solid #262b33; }}
+.bild {{ width: 36px; height: 36px; border-radius: 50%; background: #3c5a73; display: grid; place-items: center;
+  font-weight: 600; }}
+.name {{ font-weight: 600; }} .status {{ font-size: 12px; color: #8b94a0; }}
+.verlauf {{ padding: 14px 12px; display: flex; flex-direction: column; gap: 8px; }}
+.tag {{ align-self: center; font-size: 12px; color: #8b94a0; background: #1b1f25; padding: 3px 10px;
+  border-radius: 10px; }}
+.blase {{ max-width: 82%; padding: 8px 11px 6px; border-radius: 14px; white-space: pre-wrap; word-break: break-word; }}
+.blase .zeit {{ display: block; text-align: right; font-size: 11px; color: #9aa6b2; margin-top: 2px; }}
+.ich {{ align-self: flex-end; background: #2c4a63; border-bottom-right-radius: 4px; }}
+.du {{ align-self: flex-start; background: #262b33; border-bottom-left-radius: 4px; }}
+.zitat {{ border-left: 3px solid #7fb0d8; padding-left: 8px; color: #c9d1da; }}
+.link {{ color: #8cc4f0; text-decoration: underline; }}
+.eingabe {{ position: fixed; left: 0; right: 0; bottom: 0; display: flex; gap: 8px; padding: 10px 22px 26px;
+  background: #1b1f25; }}
+.eingabe div {{ flex: 1; background: #262b33; border-radius: 18px; padding: 9px 14px; color: #8b94a0; }}
+</style></head><body>
+<div class="kopf"><div class="bild">{initiale}</div><div><div class="name">{name}</div>
+<div class="status">online</div></div></div>
+<div class="verlauf"><div class="tag">Heute</div>
+<div class="blase ich">{text}<span class="zeit">18:42</span></div>
+<div class="blase ich">Weißt du, was das war?<span class="zeit">18:42</span></div>
+<div class="blase du">Impfung für Minka 🐱 – ordne ich gleich zu.<span class="zeit">18:47</span></div>
+</div><div class="eingabe"><div>Nachricht</div></div></body></html>"""
+
+
+def _wie_im_chat(text: str) -> str:
+    """Kurztext so darstellen, wie Messenger ihn zeigen: *fett*, „> “ als Zitat, Link unterstrichen."""
+    import html
+    import re
+    zeilen = []
+    for z in html.escape(text).split("\n"):
+        z = re.sub(r"\*([^*\n]+)\*", r"<b>\1</b>", z)
+        if z.startswith("&gt; "):
+            z = f'<div class="zitat">{z[5:]}</div>'
+        elif z.startswith("http"):
+            z = f'<span class="link">{z}</span>'
+        zeilen.append(z)
+    return "\n".join(zeilen).replace("</div>\n", "</div>")
+
+
+def handy_teilen(p, basis, heute):
+    """„Teilen…“ einer Buchung: der erzeugte Kurztext in einem schlichten, neutral gestalteten Chat."""
+    text = geteilter_text(p, basis)
+    from kontor.demodaten import DEMO_BENUTZER
+    andere = DEMO_BENUTZER[1]
+    p.set_content(CHAT.format(text=_wie_im_chat(text), name=andere, initiale=andere[:1]))
+    p.wait_for_timeout(300)
+
+
 # Name, Funktion, Art (titel, galerie, handy), Designs
 ANSICHTEN = [
     ("kontoansicht", kontoansicht, "titel", ("dunkel", "hell")),
@@ -291,6 +366,7 @@ ANSICHTEN = [
     ("einstellungen", einstellungen, "galerie", ("dunkel",)),
     ("handy-konto", handy_konto, "handy", ("dunkel",)),
     ("handy-bericht", handy_bericht, "handy", ("dunkel",)),
+    ("handy-teilen", handy_teilen, "handy", ("dunkel",)),
 ]
 
 
