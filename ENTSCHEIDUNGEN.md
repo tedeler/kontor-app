@@ -5069,3 +5069,10 @@ Anlass: Klick auf einen Punkt unter `/sicherung` brauchte auf dem Server 10–20
 - **Tests:** Test-Server der eigenen Browsertests und `neue_config` der Gesamttests setzen „Torsten“, „Tina“
   (die früheren Abnahmetests kennen genau diese); eigene Fälle für 0, 1 und 3 Personen in
   `tests/test_browser_benutzer.py`.
+
+## D-325 Browser-Job der CI geteilt (2026-11-28)
+
+- **Anlass:** Der Job `browser` lag in den letzten Läufen über dem Budget von 5 Minuten (5:34, 6:42, 6:08; davon rund
+  3 min eigene Browsertests, knapp 3 min Gesamtsuite mit Browser).
+- **Entscheidung (Auftraggeber):** Statt Tests abzuwählen wird der Job geteilt: `browser-eigene` und `browser-gesamt`,
+  zusammen fünf parallele Jobs. Das Budget je Job bleibt 5 Minuten; keine Tests entfallen.
