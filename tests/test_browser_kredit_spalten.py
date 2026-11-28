@@ -31,7 +31,8 @@ def _daten(basis):
     t = "".join(transaktion(f"T{i}", f"2024-01-{i:02d}", ("A1", f"-{i * 100}/100"), ("A2", f"{i * 100}/100"),
                             memo=f"Einkauf {i}") for i in range(1, 6))
     t += transaktion("TZ", "2024-02-01", ("A1", "4500/100"), ("A3", "-4500/100"), memo="Ausgleich")
-    config = KontorConfig(datenbank=basis / "kontor.sqlite3", mock_modus=True, mock_heute=dt.date(2024, 6, 30))
+    config = KontorConfig(datenbank=basis / "kontor.sqlite3", mock_modus=True, mock_heute=dt.date(2024, 6, 30),
+                          benutzer=("Torsten", "Tina"))
     assert importiere_kmy(config, kmy(KONTEN, transaktionen=t)).erfolgreich
 
 

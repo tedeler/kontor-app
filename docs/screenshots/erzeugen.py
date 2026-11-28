@@ -43,7 +43,7 @@ FARBEN = 256           # Bilder werden auf eine Palette reduziert (deutlich klei
 # Nur für die Bilder: Hinweisleiste des Mock-Modus und Branch-Anzeige im Fuß ausblenden. Die Bildunterschriften in
 # der README sagen, dass es erfundene Demodaten sind.
 STIL = ".mock-hinweis, .zweig-link { display: none !important; }"
-PERSON = "Torsten"     # erste Person der Demodaten (pflege.PERSONEN); verhindert die Frage „Wer bist du?“
+PERSON = "Anna"        # erste Person der Demodaten (demodaten.DEMO_BENUTZER); verhindert die Frage „Wer bist du?“
 
 
 # ------------------------------------------------------------------------------------------------ Server
@@ -68,7 +68,7 @@ def server(verzeichnis: pathlib.Path, heute: dt.date):
     env = {k: v for k, v in os.environ.items() if not k.startswith("KONTOR_")}
     env.update(KONTOR_DATENBANK=str(verzeichnis / "unbenutzt.sqlite3"), KONTOR_MOCK_MODUS="1",
                KONTOR_MOCK_DATENBANK=str(datenbank), KONTOR_MOCK_DATEN=str(mockdaten),
-               KONTOR_MOCK_HEUTE=heute.isoformat(), KONTOR_ANMELDUNG="0", KONTOR_PLANER_STARTEN="0",
+               KONTOR_MOCK_HEUTE=heute.isoformat(), KONTOR_ANMELDUNG="0", KONTOR_BENUTZER="Anna,Ben", KONTOR_PLANER_STARTEN="0",
                KONTOR_HOST="127.0.0.1", KONTOR_PORT=str(port), KONTOR_LOG_STUFE="WARNING",
                PYTHONPATH=str(WURZEL / "src"))
     proc = subprocess.Popen([sys.executable, "-m", "kontor"], env=env, cwd=verzeichnis,

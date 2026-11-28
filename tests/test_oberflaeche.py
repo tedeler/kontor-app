@@ -22,7 +22,7 @@ NAVIGATION = [("uebersicht", "/", "Finanzübersicht"), ("konten", "/konten", "Ko
 NAV_GRUPPEN = [("buchhaltung", "Buchhaltung"), ("zahlungen", "Zahlungen"), ("auswertung", "Auswertung"),
                ("regeln", "Regeln"), ("betrieb", "Betrieb")]
 #: Pfade der REST-Schnittstelle laut openapy.yaml 2.8.0, als Präfixe der Literale im JavaScript
-REST = ["/api/status", "/api/ausdruck",  # D-185
+REST = ["/api/status", "/api/ausdruck", "/api/benutzer",  # D-185, D-324
         "/api/konten", "/api/kontenuebersicht", "/api/buchungen", "/api/tags", "/api/empfaenger",
         "/api/version", "/api/import/kmymoney", "/api/import/gnucash", "/api/dubletten", "/api/regeln", "/api/sync", "/api/tan-anforderungen",
         "/api/benachrichtigungen", "/api/aenderungen", "/api/abstimmungen", "/api/suche", "/api/umbuchungen/erkennen",

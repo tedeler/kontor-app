@@ -3,7 +3,7 @@
  * 15.4, 16–19). */
 import {
   ApiFehler, BESTAND, aktion, anmeldung, anmeldungLaden, api, beiOffline, betragEl, datumText, dialogOffen, ebeneOeffnen, ebeneSchliessen, ebenen,
-  fehlerMelden, h, istTexteingabe, kontoNach, melde, nachName, neueId, oberflaeche, obersteEbene, passt, PERSONEN,
+  fehlerMelden, h, istTexteingabe, kontoNach, melde, nachName, neueId, oberflaeche, obersteEbene, passt, PERSONEN, personFarbe, personenLaden,
   personLesen, personLoeschen, personSchreiben, rueckgaengig, stamm,
   stammLaden, stapelAnzeigen, tid, wiederholen,
 } from "./kern.js";
@@ -845,11 +845,14 @@ function personZeigen() {
   const name = personLesen();
   const b = tid("person-knopf");
   if (!b) return;
+  const wechseln = PERSONEN.length > 1;
   b.textContent = name || "Wer?";
   b.dataset.person = name;
   b.dataset.kurz = name ? name.slice(0, 1) : "?";
-  b.title = name ? `${name} – Benutzer wechseln` : "Wer bist du?";
-  b.setAttribute("aria-label", name ? `Angemeldet als ${name}. Benutzer wechseln.` : "Wer bist du?");
+  b.title = name ? (wechseln ? `${name} – Benutzer wechseln` : `Angemeldet als ${name}`) : "Wer bist du?";
+  b.setAttribute("aria-label", name ? `Angemeldet als ${name}.${wechseln ? " Benutzer wechseln." : ""}` : "Wer bist du?");
+  b.dataset.farbe = personFarbe(name) || "";
+  b.disabled = !wechseln;
 }
 
 function personDialog(pflicht) {
@@ -865,7 +868,9 @@ function personDialog(pflicht) {
   if (pflicht) d.escape = () => {};
 }
 
+/** D-324: ohne Personen kein Knopf und keine Frage; mit genau einer gilt sie ohne Rückfrage (Knopf ohne Wechseln). */
 function personEinrichten() {
+  if (!PERSONEN.length) return;
   const leiste = document.querySelector(".kopf-knoepfe");
   if (leiste && !tid("person-knopf")) {
     leiste.append(h("button", { type: "button", class: "kopf-knopf person-knopf", tid: "person-knopf",
@@ -1463,6 +1468,7 @@ async function start() {
   stapelAnzeigen();
   if (!navigator.onLine) offlineSetzen(true);
   try { await anmeldungLaden(); } catch (e) { behandeln(e); }
+  try { await personenLaden(); } catch (e) { behandeln(e); }   // D-324: vor der ersten Seite (Bestätigen, Tags)
   await zeigen();
   personEinrichten();
   sperrStatusPruefen();

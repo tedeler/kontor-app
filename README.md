@@ -316,6 +316,7 @@ bzw. `EnvironmentFile`) ausführen.
 | `KONTOR_ERLAUBTE_NETZE` | CIDR-Liste, z. B. `127.0.0.0/8,192.168.0.0/16`; andere Adressen → 403 (leer = alle) |
 | `KONTOR_UPLOAD_MAX_MIB`, `KONTOR_ANFRAGE_MAX_KIB` | Größengrenzen für Importe/Sicherungen (200 MiB) und andere Körper (4 096 KiB) |
 | `KONTOR_HOST`, `KONTOR_PORT` | Adresse und Port von `python -m kontor` (Vorgabe `127.0.0.1`, `8000`) |
+| `KONTOR_BENUTZER` | Personen des Haushalts, durch Kommas getrennt (z. B. `Anna,Ben`); Reihenfolge der Auswahl „Wer bist du?“. Ohne Angabe keine Personen und kein Bestätigen mit Namen, bei genau einem Namen gilt er ohne Rückfrage (D-324) |
 | `KONTOR_LOG_STUFE` | `DEBUG`, `INFO` (Vorgabe), `WARNING`, `ERROR`; Ausgabe nach stderr `<STUFE> <logger>: <Meldung>` |
 | `KONTOR_BEENDEN_FRIST_SEKUNDEN` | Frist für einen laufenden Abruf beim Beenden (Vorgabe 20) |
 | `KONTOR_MOCK_VERZOEGERUNG_MS` | nur Mock-Modus: jeder Umsatzabruf der Mock-Bank wartet so lange (Testhilfe) |

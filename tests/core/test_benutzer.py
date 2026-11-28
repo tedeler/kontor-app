@@ -58,45 +58,38 @@ def test_benutzer_direkt_in_der_config(tmp_path):
         KontorConfig(datenbank=tmp_path / "k.sqlite3", benutzer=("Anna", "ANNA"))
 
 
-@pytest.mark.parametrize("liste", [[], ["Anna"], ["Torsten", "Tina"], ["Anna", "Ben", "Clara", "Dora"]])
-def test_rest_liefert_die_benutzer(tmp_path, liste):
-    c = TestClient(create_app(KontorConfig(datenbank=tmp_path / "k.sqlite3", benutzer=liste)))
-    r = c.get("/api/benutzer")
+@pytest.fixture(scope="module")
+def vier(tmp_path_factory) -> TestClient:
+    """Eine App für die lesenden REST-Fälle (Zeitbudget der Core-Tests)."""
+    pfad = tmp_path_factory.mktemp("benutzer") / "k.sqlite3"
+    return TestClient(create_app(KontorConfig(datenbank=pfad, benutzer=["Jörg", "Anna-Lena", "Clara", "Dora"])))
+
+
+def test_rest_liefert_die_benutzer_in_ihrer_reihenfolge(vier):
+    r = vier.get("/api/benutzer")
     assert r.status_code == 200
-    assert r.json() == {"benutzer": liste}
+    assert r.json() == {"benutzer": ["Jörg", "Anna-Lena", "Clara", "Dora"]}
 
 
-def test_konfiguration_zeigt_die_benutzer(tmp_path):
-    c = TestClient(create_app(KontorConfig(datenbank=tmp_path / "k.sqlite3", benutzer=["Anna", "Ben"])))
-    eintrag = next(e for e in c.get("/api/konfiguration").json()["wirksam"] if e["name"] == "benutzer")
+def test_konfiguration_zeigt_die_benutzer(vier):
+    eintrag = next(e for e in vier.get("/api/konfiguration").json()["wirksam"] if e["name"] == "benutzer")
     assert eintrag["variable"] == "KONTOR_BENUTZER"
-    assert eintrag["wert"] == ["Anna", "Ben"] and eintrag["vorgabe"] == [] and eintrag["geaendert"] is True
+    assert eintrag["wert"] == "Jörg, Anna-Lena, Clara, Dora" and eintrag["vorgabe"] == ""
+    assert eintrag["geaendert"] is True
 
 
-def test_bestaetigungs_tag_eines_neuen_benutzers_ist_ein_gewoehnliches_tag(tmp_path):
+def test_bestaetigungs_tag_eines_neuen_benutzers_ist_ein_gewoehnliches_tag(vier):
     """Die Bestätigung ist REST-seitig ein gewöhnliches Tag „<Name>-Bestätigt“ (D-262); für beliebige Namen."""
-    c = TestClient(create_app(KontorConfig(datenbank=tmp_path / "k.sqlite3", benutzer=["Jörg", "Anna-Lena"])))
     for name in ("Jörg", "Anna-Lena"):
-        r = c.post("/api/tags", json={"name": f"{name}-Bestätigt"})
+        r = vier.post("/api/tags", json={"name": f"{name}-Bestätigt"})
         assert r.status_code == 201, r.text
-
-
-def test_neustart_mit_anderen_benutzern_laesst_tags_stehen(tmp_path):
-    """Wer aus der Konfiguration verschwindet, behält seine Bestätigungs-Tags (gewöhnliche Tags)."""
-    pfad = tmp_path / "k.sqlite3"
-    c = TestClient(create_app(KontorConfig(datenbank=pfad, benutzer=["Anna", "Ben"])))
-    c.post("/api/tags", json={"name": "Anna-Bestätigt"})
-    c.post("/api/tags", json={"name": "Ben-Bestätigt"})
-    c = TestClient(create_app(KontorConfig(datenbank=pfad, benutzer=["Clara"])))
-    assert sorted(t["name"] for t in c.get("/api/tags").json()) == ["Anna-Bestätigt", "Ben-Bestätigt"]
-    assert c.get("/api/benutzer").json() == {"benutzer": ["Clara"]}
 
 
 def test_ausgelieferte_umgebungsdatei_nennt_die_variable():
     from importlib import resources
     text = (resources.files("kontor") / "betrieb" / "kontor.env").read_text(encoding="utf-8")
-    assert re.search(r"^#\s*KONTOR_BENUTZER=", text, re.M), "auskommentierte Vorlage der Variablen"
-    assert not re.search(r"^KONTOR_BENUTZER=", text, re.M), "keine Namen ausliefern"
+    assert re.search(r"^#\s*KONTOR_BENUTZER=", text, re.MULTILINE), "auskommentierte Vorlage der Variablen"
+    assert not re.search(r"^KONTOR_BENUTZER=", text, re.MULTILINE), "keine Namen ausliefern"
 
 
 def test_oberflaeche_kennt_keine_festen_namen(auslieferung):

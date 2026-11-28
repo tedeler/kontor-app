@@ -189,6 +189,7 @@ class KontorConfig:
     sicherung_monate: int = 24
     protokoll_stunden: int = 1
     sicherung_im_dienst: bool = True   # D-307: der Dienst legt die Stundenpunkte selbst an
+    benutzer: tuple[str, ...] = ()     # D-324: Personen des Haushalts (KONTOR_BENUTZER), leer = keine
 
     def __post_init__(self) -> None:
         setze = object.__setattr__
@@ -197,6 +198,7 @@ class KontorConfig:
         self._m10_pruefen()
         self._aktualisierung_pruefen()
         self._sicherung_pruefen()
+        setze(self, "benutzer", _benutzer_pruefen(self.benutzer))
         if not isinstance(self.wiederkehrend_automatisch, bool):
             raise KonfigurationsFehler("wiederkehrend_automatisch muss wahr oder falsch sein.",
                                        feld="wiederkehrend_automatisch")
@@ -501,6 +503,7 @@ class KontorConfig:
             mail_abgleich=mail_abgleich,
             mail_bestellnummer=mail_bestellnummer,
             mail_nur_koepfe=mail_nur_koepfe,
+            benutzer=_benutzer_aus_umgebung(wert("KONTOR_BENUTZER")),
             **ganz,
             **m6,
             **m7,
@@ -615,6 +618,40 @@ def _m7_aus_umgebung(wert) -> dict:
     if text:
         aus["log_stufe"] = text.upper()
     return aus
+
+
+BENUTZER_HOECHSTENS = 20
+_BENUTZER_NAME = re.compile(r"^[^\W\d_](?:[^\W_]|[ .'-](?=[^\W_]))*$")   # Buchstabe vorn; Ziffern, Leerzeichen, . ' - dazwischen
+
+
+def _benutzer_aus_umgebung(text: str) -> tuple[str, ...]:
+    """D-324: ``KONTOR_BENUTZER`` ist eine Liste durch Kommas getrennter Namen; leer oder fehlend = keine Personen."""
+    if not text.strip():
+        return ()
+    return tuple(n.strip() for n in text.split(","))
+
+
+def _benutzer_pruefen(werte: object) -> tuple[str, ...]:
+    """D-324: 1 bis 40 Zeichen, mit einem Buchstaben vorn; höchstens 20 Namen, ohne Groß-/Kleinschreibung eindeutig.
+    Die Meldung nennt keine Werte (Validierungsfehler geben übergebene Werte nie wieder)."""
+    def fehler(text: str) -> KonfigurationsFehler:
+        return KonfigurationsFehler(f"KONTOR_BENUTZER: {text}", variable="KONTOR_BENUTZER")
+    if isinstance(werte, str) or not isinstance(werte, (list, tuple)):
+        raise fehler("erwartet eine Liste von Namen.")
+    namen = tuple(werte)
+    if len(namen) > BENUTZER_HOECHSTENS:
+        raise fehler(f"höchstens {BENUTZER_HOECHSTENS} Namen.")
+    gesehen: set[str] = set()
+    for i, n in enumerate(namen, 1):
+        if not isinstance(n, str) or not n.strip():
+            raise fehler(f"Name {i} ist leer.")
+        if n != n.strip() or len(n) > 40 or not _BENUTZER_NAME.match(n):
+            raise fehler(f"Name {i} ist ungültig (1–40 Zeichen, Buchstabe vorn; Ziffern, Leerzeichen, Punkt, "
+                         "Apostroph und Bindestrich nur zwischen Buchstaben oder Ziffern).")
+        if n.casefold() in gesehen:
+            raise fehler(f"Name {i} kommt doppelt vor.")
+        gesehen.add(n.casefold())
+    return namen
 
 
 def _wahrheitswert(text: str, variable: str, leer: bool) -> bool:

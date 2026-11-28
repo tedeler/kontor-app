@@ -394,9 +394,13 @@ class _Aufbau:
                 "belege": self.belege}
 
 
+# D-324: erfundene Personen des Demo-Haushalts; die Testinstanz setzt sie als KONTOR_BENUTZER (testinstanz.DEMO_ENV)
+DEMO_BENUTZER = ("Anna", "Ben")
+
+
 def _personen() -> tuple[str, str]:
-    from .pflege import PERSONEN, personentag
-    return personentag(PERSONEN[0]), personentag(PERSONEN[1])
+    from .pflege import personentag
+    return personentag(DEMO_BENUTZER[0]), personentag(DEMO_BENUTZER[1])
 
 
 PERSONENTAGS = _personen()

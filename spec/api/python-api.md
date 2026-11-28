@@ -832,3 +832,16 @@ E-305).
 ### 23.3 REST
 
 `openapi.yaml` 2.25.0 (E-294).
+
+## 24. Feature benutzer (D-324)
+
+### 24.1 Konfiguration – `KontorConfig`
+
+| Feld | Typ, Vorgabe | Umgebungsvariable | Regeln |
+| --- | --- | --- | --- |
+| `benutzer` | Tupel aus `str`, `()` | `KONTOR_BENUTZER` | Personen des Haushalts in der Reihenfolge der Auswahl. Umgebung: durch Kommas getrennte Namen, Leerraum um jeden Namen wird entfernt; leer/fehlend → `()`. Je Name 1 bis 40 Zeichen, ein Buchstabe vorn; danach Buchstaben und Ziffern, Leerzeichen, Punkt, Apostroph und Bindestrich nur zwischen Buchstaben oder Ziffern. Höchstens 20 Namen, ohne Beachtung der Groß-/Kleinschreibung eindeutig. Konstruktion nimmt auch eine Liste und speichert ein Tupel. Verstoß → `KonfigurationsFehler` mit `details.variable = "KONTOR_BENUTZER"`, die Meldung nennt keine Werte. |
+
+### 24.2 REST
+
+`GET /api/benutzer` → `{"benutzer": [<Name>, …]}` (Schema `Benutzerliste`), nur lesend, ohne Protokoll;
+`/api/konfiguration` führt das Feld wie alle übrigen. `openapi.yaml` 2.28.0.

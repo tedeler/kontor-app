@@ -154,8 +154,18 @@ export function nameAnzeige(name) {
 
 export const STATUS_TEXT = { importiert: "Importiert", vorlaeufig: "Vorläufig", bestaetigt: "Bestätigt",
   abgeglichen: "Abgeglichen" };
-/** Haushalt: ein Passwort, zwei Personen. Die Bestätigung einer Buchung trägt diesen Namen. */
-export const PERSONEN = ["Torsten", "Tina"];
+/** Haushalt: ein Passwort, die Personen aus der Konfiguration (`KONTOR_BENUTZER`, D-324) in ihrer Reihenfolge.
+ *  Die Bestätigung einer Buchung trägt den Namen. Gefüllt beim Start mit `personenLaden()`; leer = keine Personen. */
+export const PERSONEN = [];
+export async function personenLaden() {
+  const r = await api("GET", "/api/benutzer");
+  PERSONEN.splice(0, PERSONEN.length, ...((r && r.benutzer) || []));
+}
+/** Farbe einer Person für ihre Tags (D-324): Platz in der Liste, nach acht Farben von vorn; null für Unbekannte. */
+export const personFarbe = (name) => { const i = PERSONEN.indexOf(name); return i < 0 ? null : String(i % 8); };
+/** Hinweis, wenn eine Aktion eine Person braucht und keine gewählt ist. */
+export const ohnePersonText = () => (PERSONEN.length ? "Bitte oben rechts wählen, wer du bist."
+  : "Bestätigen mit Namen ist nicht eingerichtet (KONTOR_BENUTZER in der Umgebungsdatei).");
 /** Tag der Bestätigung durch eine Person: „<Name>-Bestätigt“ (D-262, vorher „B-<Name>“). */
 export const personTag = (name) => `${name}-Bestätigt`;
 /** Person zu einem Bestätigungs-Tag oder null. */
@@ -163,6 +173,7 @@ export const personVonTag = (tagName) => PERSONEN.find((p) => personTag(p) === t
 const PERSON_SCHLUESSEL = "kontor.person";
 let personImSpeicher = "";   // ohne Browser-Speicher gilt die Wahl bis zum Neuladen (M17 1.6, D-170)
 export function personLesen() {
+  if (PERSONEN.length === 1) return PERSONEN[0];   // D-324: genau eine Person gilt ohne Rückfrage
   try {
     const w = localStorage.getItem(PERSON_SCHLUESSEL);
     if (PERSONEN.includes(w)) return w;

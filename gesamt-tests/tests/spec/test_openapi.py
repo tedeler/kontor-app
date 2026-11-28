@@ -154,7 +154,9 @@ OPERATIONEN_M31 = {("get", "/api/buchungen/{buchung_id}/lernmodell"), ("get", "/
 OPERATIONEN_M32 = {("get", "/api/empfaenger/anzahlen"), ("get", "/api/empfaenger/{empfaenger_id}/konten"),
                    ("post", "/api/mail/nachrichten/{nachricht_id}/buchung"),
                    ("get", "/api/dokumente/{dokument_id}/mail/bilder"), ("get", "/api/konfiguration")}
-ERWARTETE_OPERATIONEN = (OPERATIONEN_M1 | OPERATIONEN_M2 | OPERATIONEN_M3 | OPERATIONEN_M4 | OPERATIONEN_M9
+# Feature benutzer (D-324): Personen aus KONTOR_BENUTZER
+OPERATIONEN_D324 = {("get", "/api/benutzer")}
+ERWARTETE_OPERATIONEN = (OPERATIONEN_D324 | OPERATIONEN_M1 | OPERATIONEN_M2 | OPERATIONEN_M3 | OPERATIONEN_M4 | OPERATIONEN_M9
                          | OPERATIONEN_M5 | OPERATIONEN_M6 | OPERATIONEN_M7 | OPERATIONEN_M8 | OPERATIONEN_M12
                          | OPERATIONEN_M13 | OPERATIONEN_M15 | OPERATIONEN_M16 | OPERATIONEN_M18
                          | OPERATIONEN_M19 | OPERATIONEN_M20 | OPERATIONEN_M23 | OPERATIONEN_M25 | OPERATIONEN_M27

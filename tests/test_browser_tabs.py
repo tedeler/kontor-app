@@ -28,7 +28,8 @@ def _daten(basis):
                             memo=f"Einkauf {i}") for i in range(1, 21))
     t += transaktion("TU", "2024-02-01", ("A1", "-5000/100"), ("A3", "5000/100"), memo="Sparen")
     t += transaktion("TS", "2024-02-02", ("A1", "-3000/100"), ("A2", "2000/100"), ("A4", "1000/100"), memo="Markt gemischt")
-    config = KontorConfig(datenbank=basis / "kontor.sqlite3", mock_modus=True, mock_heute=dt.date(2024, 6, 30))
+    config = KontorConfig(datenbank=basis / "kontor.sqlite3", mock_modus=True, mock_heute=dt.date(2024, 6, 30),
+                          benutzer=("Torsten", "Tina"))
     assert importiere_kmy(config, kmy(KONTEN, transaktionen=t)).erfolgreich
 
 
