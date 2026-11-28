@@ -106,6 +106,7 @@ nicht mehr. Ein Thread schreibt Tests und Code.
 | `gesamt-tests/` | Gesamtsuite: gekürzte frühere Abnahmetests mit eigener `pytest.ini`, Fixtures und Generator |
 | `legacy-tests/` | eingefrorener Stand von kontor-tests (nur Referenz) |
 | `spec/` | Spezifikation |
+| `docs/screenshots/` | D-323: Bilder der README und `erzeugen.py` (Playwright, Demodaten, Mock-Modus); nach sichtbaren Änderungen an der Oberfläche neu erzeugen |
 
 ## Hinweise ab Meilenstein 4
 

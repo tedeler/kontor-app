@@ -1,8 +1,39 @@
-# kontor-app
+# Kontor
 
-Implementierung von **Kontor**, einer selbst gehosteten Finanz-Web-App
-(Python, FastAPI, SQLite, Single-Page-Weboberfläche). Die Spezifikation liegt unter `spec/`, die Tests
-unter `tests/` und `gesamt-tests/` ([TESTUMBAU.md](TESTUMBAU.md)).
+**Kontor** ist eine selbst gehostete Finanz-App für den Haushalt: Umsätze kommen per FinTS direkt von der Bank,
+Regeln und ein Lernmodell schlagen die Kategorie vor, und Rechnungen aus dem Postfach landen als Beleg an der
+passenden Buchung. Alles läuft auf dem eigenen Server, die Daten bleiben bei dir.
+
+<picture>
+  <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/kontoansicht-hell.png">
+  <img src="docs/screenshots/kontoansicht-dunkel.png" alt="Kontoansicht des Girokontos: Buchungsliste mit Datum, Empfänger, Kategorie, Status und Betrag; rechts die Einzelheiten einer Amazon-Buchung mit Kategorievorschlag und Amazon-Bestellnummer.">
+</picture>
+
+<p align="center"><sub>Alle Bilder zeigen einen erfundenen Demo-Haushalt (<code>python -m kontor.demodaten</code>).</sub></p>
+
+### Ein Blick hinein
+
+| | |
+| :---: | :---: |
+| <img src="docs/screenshots/monatsbericht-dunkel.png" width="420" alt="Monatsbericht November: Kacheln für Ausgaben, Hochrechnung, Einnahmen und Übrig, darunter der Verlauf der Ausgaben im Vergleich zu den Vormonaten."> | <img src="docs/screenshots/regeleditor-dunkel.png" width="420" alt="Regeleditor für die Regel „Restaurant am Wochenende“ mit Ausdruck links und Testbereich rechts, der die getroffenen Buchungen der letzten zwölf Monate zeigt."> |
+| **Monatsbericht** – wohin das Geld geht und wie der Monat ausgeht | **Regeleditor** – jede Regel sofort an echten Buchungen testen |
+| <img src="docs/screenshots/lernmodell-dunkel.png" width="420" alt="Einzelheiten einer Café-Buchung mit Vorschlag des Lernmodells und aufgeklapptem Abschnitt „Warum dieser Vorschlag?“, der die Gründe einzeln aufführt."> | <img src="docs/screenshots/einstellungen-dunkel.png" width="420" alt="Einstellungen, Bereich Daten und Sicherung: stündliche Sicherungspunkte öffnen, Sicherung herunterladen oder einspielen."> |
+| **Warum dieser Vorschlag?** – das Lernmodell erklärt sich | **Einstellungen** – übersichtlich, mit Suche und stündlicher Sicherung |
+
+<p align="center">
+  <img src="docs/screenshots/handy-konto-dunkel.png" width="230" alt="Kontoansicht auf dem Handy: Buchungen als Karten mit Empfänger, Datum, Kategorie und Betrag.">
+  &nbsp;&nbsp;
+  <img src="docs/screenshots/handy-bericht-dunkel.png" width="230" alt="Monatsbericht auf dem Handy mit Kacheln für Ausgaben, Hochrechnung, Einnahmen und Buchungen.">
+</p>
+<p align="center"><b>Auch unterwegs</b> – als App auf dem Handy installierbar (PWA)</p>
+
+Zum Ausprobieren ohne echte Daten: [Schnellstart im Mock-Modus](#schnellstart-im-mock-modus). Die Bilder erzeugt
+[`docs/screenshots/erzeugen.py`](docs/screenshots/erzeugen.py) neu.
+
+## Über dieses Repository
+
+Dieses Repository (kontor-app) enthält die Implementierung (Python, FastAPI, SQLite, Single-Page-Weboberfläche).
+Die Spezifikation liegt unter `spec/`, die Tests unter `tests/` und `gesamt-tests/` ([TESTUMBAU.md](TESTUMBAU.md)).
 
 ## Schnellzugriff
 
