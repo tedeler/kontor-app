@@ -528,6 +528,7 @@ Keine neue Objektart und keine neue Quelle (E-211). Regeln: `alfbanco.md` 6.
 | --- | --- | --- | --- |
 | ALF-BanCo-Import (REST und `importiere_alfbanco`), erfolgreich und mit Wirkung | `import` | `import_alfbanco` | `"import:<import_id>"` |
 | `POST /api/kategorien/zusammenfuehren` (ohne `trocken`, mit Wirkung) | `manuell` | `kategorien_zusammenfuehren` | null |
+| `POST /api/kategorien/verschieben` (mit Wirkung, D-326) | `manuell` | `kategorien_verschieben` | null |
 
 - Ein Import ohne Wirkung (alles vorhanden) erzeugt einen Importvorgang, aber
   keine Änderung (4).

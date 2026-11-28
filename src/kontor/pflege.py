@@ -770,3 +770,47 @@ def gegen_iban(roh) -> str | None:
         return None
     n = iban_normalisieren(roh)
     return n if iban_gueltig(n) else None
+
+
+def kategorien_verschieben(con, d: dict) -> dict:
+    """``POST /api/kategorien/verschieben`` (D-326): eine oder mehrere Kategorien unter dieselbe Oberkategorie hängen
+    (``eltern_id`` null = oberste Ebene), als eine Änderung.
+
+    Markierte Nachfahren einer markierten Kategorie wandern mit ihr und werden nicht einzeln verschoben; Kategorien,
+    die schon dort stehen, bleiben unberührt. Prüfreihenfolge: unbekannte IDs (422 ``referenz_unbekannt``), keine
+    Kategorie (422 ``hierarchie_ungueltig``), Ziel nach ``buch._eltern_pruefen`` (unbekannt, andere Klasse, Zyklus);
+    gleichnamige Geschwister lehnt das Protokoll ab (409 ``konto_existiert``)."""
+    ids = list(d["konto_ids"])
+    eltern_id = d["eltern_id"]
+    zeilen = {}
+    for kid in ids:
+        z = buch.konto_zeile(con, kid)
+        if z is None:
+            raise ApiFehler(422, "referenz_unbekannt", "Eine der Kategorien existiert nicht.")
+        zeilen[kid] = z
+    for z in zeilen.values():
+        if z["art"] not in KATEGORIEARTEN:
+            raise ApiFehler(422, "hierarchie_ungueltig", "Verschieben lassen sich hier nur Kategorien.")
+    gewaehlt = set(ids)
+
+    def hat_vorfahr_in_auswahl(kid: int) -> bool:
+        gesehen: set[int] = set()
+        k = zeilen[kid]["eltern_id"]
+        while k is not None and k not in gesehen:
+            if k in gewaehlt:
+                return True
+            gesehen.add(k)
+            r = con.execute("SELECT eltern_id FROM konto WHERE id = ?", (k,)).fetchone()
+            k = r["eltern_id"] if r else None
+        return False
+
+    wurzeln = [kid for kid in ids if not hat_vorfahr_in_auswahl(kid)]
+    for kid in wurzeln:
+        buch._eltern_pruefen(con, zeilen[kid]["art"], eltern_id, kid)
+    verschoben = []
+    for kid in wurzeln:
+        if zeilen[kid]["eltern_id"] == eltern_id:
+            continue
+        con.execute("UPDATE konto SET eltern_id = ? WHERE id = ?", (eltern_id, kid))
+        verschoben.append(buch.konto_lesen(con, kid))
+    return {"verschoben": verschoben}

@@ -196,6 +196,10 @@ KATEGORIEN_ZUSAMMEN = {
     "gesperrte_einbeziehen": S("bool"),
     "trocken": S("bool"),
 }
+KATEGORIEN_VERSCHIEBEN = {   # D-326
+    "konto_ids": S("int_liste", pflicht=True, min_items=1, max_items=1000, eindeutig=True),
+    "eltern_id": S("int", pflicht=True, nullbar=True),
+}
 MEHRFACH_LOESCHEN = {"buchung_ids": S("int_liste", pflicht=True, min_items=1, eindeutig=True)}
 MEHRFACH_VERSCHIEBEN = {
     "von_konto_id": S("int", pflicht=True),
@@ -1367,6 +1371,15 @@ def create_app(config: KontorConfig | None = None) -> fastapi.FastAPI:
         def f(con, d):
             return protokoll.mit_aenderung_id(pflege.kategorien_zusammenfuehren(con, d))
         return await aendern("kategorien_zusammenfuehren", f, d)
+
+    @endpunkt("POST", "/api/kategorien/verschieben")
+    async def kategorien_verschieben(request: Request):
+        """D-326: eine oder mehrere Kategorien unter dieselbe Oberkategorie hängen, eine Änderung."""
+        d = await koerper(request, KATEGORIEN_VERSCHIEBEN)
+
+        def f(con, d):
+            return protokoll.mit_aenderung_id(pflege.kategorien_verschieben(con, d))
+        return await aendern("kategorien_verschieben", f, d)
 
     @endpunkt("POST", "/api/buchungen/erfassen", 201)
     async def buchung_erfassen(request: Request):

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Kontor REST-API
-  version: 2.28.0
+  version: 2.29.0
   description: |
     REST-Schnittstelle von Kontor, Meilensteine 1 bis 10. Verbindlicher Vertrag
     zwischen Implementierung und Tests. Fachliche Regeln stehen in
@@ -4594,6 +4594,38 @@ paths:
             application/json:
               schema: {$ref: "#/components/schemas/Fehler"}
 
+  /api/kategorien/verschieben:
+    post:
+      tags: [konten]
+      operationId: kategorienVerschieben
+      summary: Eine oder mehrere Kategorien unter dieselbe Oberkategorie hängen, eine Änderung (D-326, oberflaeche.md 10)
+      description: |
+        `eltern_id` null = oberste Ebene. Markierte Nachfahren einer markierten Kategorie wandern mit ihr und werden
+        nicht einzeln verschoben; Kategorien, die schon dort stehen, bleiben unberührt. Nichts zu tun → keine
+        Änderung (`aenderung_id` null). Protokoll: Quelle `manuell`, Aktion `kategorien_verschieben`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/KategorienVerschieben"}
+      responses:
+        "200":
+          description: verschobene Kategorien (nur die mit geänderter Oberkategorie, in Reihenfolge der Anfrage)
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/KategorienVerschiebenErgebnis"}
+        "409":
+          description: "`konto_existiert` (gleichnamige Geschwister unter dem Ziel)"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Fehler"}
+        "422":
+          description: "`validierung`, `referenz_unbekannt` (Kategorie oder Ziel unbekannt), `hierarchie_ungueltig`
+            (keine Kategorie, andere Kontoklasse, Ziel ist eine der Kategorien oder ein Nachfahre)"
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Fehler"}
+
   # ---------------------------------------------------------------- M20 Erwartete Zahlungen (erwartungen.md)
   /api/erwartungen:
     get:
@@ -8745,6 +8777,26 @@ components:
         anhaenge: {type: array, items: {$ref: "#/components/schemas/MailAnhang"}}
 
     # ---------------------------------------------------------------- M19 Kategorien zusammenführen
+    KategorienVerschieben:
+      type: object
+      additionalProperties: false
+      required: [konto_ids, eltern_id]
+      properties:
+        konto_ids:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          uniqueItems: true
+          items: {type: integer}
+        eltern_id: {type: [integer, "null"]}
+    KategorienVerschiebenErgebnis:
+      type: object
+      required: [verschoben, aenderung_id]
+      properties:
+        verschoben:
+          type: array
+          items: {$ref: "#/components/schemas/Konto"}
+        aenderung_id: {type: [integer, "null"]}
     KategorienZusammenfuehren:
       type: object
       additionalProperties: false

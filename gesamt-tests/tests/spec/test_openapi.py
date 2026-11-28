@@ -113,7 +113,8 @@ OPERATIONEN_M18 = {("post", "/api/dokumente"), ("post", "/api/dokumente/aus-mail
                    ("get", "/api/dokumente/{dokument_id}/mail"), ("get", "/api/dokumente/{dokument_id}/mail/html"),
                    ("get", "/api/dokumente/{dokument_id}/mail/anhaenge/{nr}")}
 # M19 (alfbanco.md 2.1, E-215)
-OPERATIONEN_M19 = {("post", "/api/import/alfbanco"), ("post", "/api/kategorien/zusammenfuehren")}
+OPERATIONEN_M19 = {("post", "/api/import/alfbanco"), ("post", "/api/kategorien/zusammenfuehren"),
+                   ("post", "/api/kategorien/verschieben")}  # D-326
 # M20 (erwartungen.md 6, E-220)
 OPERATIONEN_M20 = {("get", "/api/erwartungen"), ("post", "/api/erwartungen"), ("post", "/api/erwartungen/abgleich"),
                    ("get", "/api/erwartungen/{erwartung_id}"), ("patch", "/api/erwartungen/{erwartung_id}"),

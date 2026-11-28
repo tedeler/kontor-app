@@ -80,10 +80,13 @@ export async function kategorienSeite(seite, _p, suche) {
   const ort = h("div", { class: "baum-rahmen kat-rahmen", "data-geladen": "nein" });
   const hilfe = h("p", { class: "kat-hilfe klein", tid: "kategorien-hilfe" },
     h("kbd", null, "Doppelklick"), " oder ", h("kbd", null, "Enter"), " öffnet das Kontoblatt · ",
-    "Ziehen auf eine Kategorie ordnet unter, auf die Überschrift an die oberste Ebene · ",
-    h("kbd", null, "Strg"), "/", h("kbd", null, "Umschalt"), " markiert mehrere (zum Zusammenführen) · ",
+    "Ziehen auf eine Kategorie ordnet unter, zwischen zwei Zeilen auf deren Ebene, auf die Überschrift an die oberste Ebene · ",
+    h("kbd", null, "Strg"), "/", h("kbd", null, "Umschalt"), " markiert mehrere (zum Verschieben oder Zusammenführen) · ",
+    h("kbd", null, "v"), " verschiebt · ",
     h("kbd", null, "F2"), " benennt um · Rechtsklick oder ", h("span", { class: "kat-knopf-bild" }, "⋯"), " für alle Aktionen");
-  seite.append(leiste, kacheln, ort, hilfe);
+  // D-326: Ergebnis einer Verschiebung für Bildschirmleser
+  const statusEl = h("p", { class: "nur-vorleser", tid: "kategorien-status", role: "status", "aria-live": "polite" });
+  seite.append(leiste, kacheln, ort, hilfe, statusEl);
 
   const leisteZeichnen = () => {
     zeitraumOrt.replaceChildren(umschalter("kategorien-zeitraum", "Zeitraum", ZEITRAEUME, zeitraum, (w) => {
@@ -142,7 +145,7 @@ export async function kategorienSeite(seite, _p, suche) {
     const werte = new Map((daten ? daten.kategorien : []).map((z) => [z.id, z]));
     const summen = daten ? { aufwand: daten.summen.ausgaben, ertrag: daten.summen.einnahmen } : { aufwand: 0, ertrag: 0 };
     const baum = kategorienBaum({ neuZeichnen: zeichnen, werte, summen, abschnitte: daten ? { art: daten.verlauf_art, bis: daten.verlauf_bis } : null,
-      suche: suchtext, nachBetrag });
+      suche: suchtext, nachBetrag, status: (t) => { statusEl.textContent = t; } });
     const inhalt = [baum];
     const t = suchtext.trim();
     if (t && !baum.querySelector('[role="treeitem"]')) {
