@@ -38,11 +38,16 @@ def _eltern(url, kid):
 
 
 def _warte_eltern(page, url, kid, soll):
+    """Wartet auf den Server und auf den neu gezeichneten Baum, bevor der Test weiter zieht."""
     for _ in range(60):
         if _eltern(url, kid) == soll:
-            return
+            break
         page.wait_for_timeout(100)
     assert _eltern(url, kid) == soll
+    im_baum = (f'[data-testid="kategorie-{kid}"][aria-level="1"]' if soll is None
+               else f'[data-testid="kategorie-{soll}"] > [role="group"] > [data-testid="kategorie-{kid}"]')
+    expect(page.locator(f'[data-testid="kategorienbaum"] {im_baum}')).to_have_count(1)
+    expect(tid(page, "seite-kategorien")).to_have_attribute("data-geladen", "ja")
 
 
 def _start(page, url):
