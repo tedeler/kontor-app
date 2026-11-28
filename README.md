@@ -62,7 +62,8 @@ steht ausführlich in [spec/meilensteine.md](spec/meilensteine.md).
   - *verschlüsselt über systemd-creds:* Die PIN wird mit `systemd-creds encrypt` an den Rechner (oder sein TPM)
     gebunden abgelegt; systemd stellt sie nur dem laufenden Dienst bereit.
   - *oder Eingabe in der Oberfläche:* Die PIN lebt dann nur im Arbeitsspeicher und ist nach einem Neustart weg.
-    Wer sie sich merken lässt, bekommt sie nur verschlüsselt und mit dem Login-Passwort geschützt gespeichert.
+    Auf Wunsch merkt Kontor sie sich: Dann liegt sie verschlüsselt in der Datenbank und lässt sich nur mit dem
+    Login-Passwort wieder entschlüsseln.
 - **Mail-Zugänge sind verschlüsselt.** App-Passwörter und OAuth-Tokens der Postfächer, das OAuth-Client-Secret und
   das ntfy-Token liegen nur verschlüsselt (AES-256-GCM) in der Datenbank. Der Schlüssel kommt aus systemd-creds bzw.
   einer eigenen Schlüsseldatei; auf Wunsch schützt zusätzlich das Login-Passwort, dann ist der Schlüssel nur nach
@@ -99,6 +100,8 @@ export KONTOR_DATENBANK="$PWD/daten/kontor.sqlite3"
 export KONTOR_MOCK_MODUS=ja
 #    Bank und Postfächer des Demo-Haushalts:
 export KONTOR_MOCK_DATEN="$PWD/daten/demo-mock.json"
+#    die beiden erfundenen Personen des Demo-Haushalts (wer bestätigt hat):
+export KONTOR_BENUTZER=Anna,Ben
 #    Die Anmeldung bleibt aus (Vorgabe), siehe „Anmeldung ausprobieren“.
 
 # 4. Server starten (127.0.0.1:8000; ändern über KONTOR_HOST/KONTOR_PORT)
