@@ -305,17 +305,17 @@ def geteilter_text(p, basis: str) -> str:
 
 CHAT = """<!DOCTYPE html><html lang="de"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"><style>
-html, body {{ margin: 0; height: 100%; background: #12151a; color: #e6e8eb; font: 15px/1.4 system-ui, sans-serif; }}
+html, body {{ margin: 0; height: 100%; background: #12151a; color: #e6e8eb; font: 19px/1.35 system-ui, sans-serif; }}
 .kopf {{ display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: #1b1f25;
   border-bottom: 1px solid #262b33; }}
 .bild {{ width: 36px; height: 36px; border-radius: 50%; background: #3c5a73; display: grid; place-items: center;
   font-weight: 600; }}
-.name {{ font-weight: 600; }} .status {{ font-size: 12px; color: #8b94a0; }}
+.name {{ font-weight: 600; }} .status {{ font-size: 14px; color: #8b94a0; }}
 .verlauf {{ padding: 14px 12px; display: flex; flex-direction: column; gap: 8px; }}
-.tag {{ align-self: center; font-size: 12px; color: #8b94a0; background: #1b1f25; padding: 3px 10px;
+.tag {{ align-self: center; font-size: 14px; color: #8b94a0; background: #1b1f25; padding: 3px 10px;
   border-radius: 10px; }}
-.blase {{ max-width: 82%; padding: 8px 11px 6px; border-radius: 14px; white-space: pre-wrap; word-break: break-word; }}
-.blase .zeit {{ display: block; text-align: right; font-size: 11px; color: #9aa6b2; margin-top: 2px; }}
+.blase {{ max-width: 90%; padding: 8px 11px 6px; border-radius: 14px; white-space: pre-wrap; word-break: break-word; }}
+.blase .zeit {{ display: block; text-align: right; font-size: 13px; color: #9aa6b2; margin-top: 2px; }}
 .ich {{ align-self: flex-end; background: #2c4a63; border-bottom-right-radius: 4px; }}
 .du {{ align-self: flex-start; background: #262b33; border-bottom-left-radius: 4px; }}
 .zitat {{ border-left: 3px solid #7fb0d8; padding-left: 8px; color: #c9d1da; }}
