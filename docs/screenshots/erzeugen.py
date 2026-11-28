@@ -164,16 +164,8 @@ def _oeffnen(p, basis: str, pfad: str) -> None:
 
 def _id_mit(basis: str, konto: int, bedingung) -> int:
     """Jüngste Buchung des Kontos, auf die ``bedingung`` zutrifft (über die REST-Schnittstelle)."""
-    seite, treffer = 1, None
-    while True:
-        with urllib.request.urlopen(f"{basis}/api/buchungen?konto_id={konto}&pro_seite=500&seite={seite}") as a:
-            d = json.load(a)
-        for b in d["eintraege"]:
-            if bedingung(b) and (treffer is None or (b["datum"], b["id"]) > (treffer["datum"], treffer["id"])):
-                treffer = b
-        if len(d["eintraege"]) < 500:
-            break
-        seite += 1
+    treffer = max((b for b in _alle_buchungen(basis, konto) if bedingung(b)),
+                  key=lambda b: (b["datum"], b["id"]), default=None)
     if treffer is None:
         raise RuntimeError("Keine passende Buchung in den Demodaten gefunden.")
     return treffer["id"]
@@ -209,6 +201,56 @@ def _rest(basis: str, methode: str, pfad: str, daten: object) -> dict:
                                      headers={"Content-Type": "application/json"})
     with urllib.request.urlopen(anfrage) as a:
         return json.load(a)
+
+
+def _alle_buchungen(basis: str, konto: int) -> list[dict]:
+    alle, seite = [], 1
+    while True:
+        with urllib.request.urlopen(f"{basis}/api/buchungen?konto_id={konto}&pro_seite=500&seite={seite}") as a:
+            d = json.load(a)
+        alle += d["eintraege"]
+        if len(d["eintraege"]) < 500:
+            return alle
+        seite += 1
+
+
+# Zuordnung der noch unkategorisierten Demo-Buchungen beim Aufräumen (Teil des Empfängernamens → Kategorie)
+NACHTRAG = {"Gartencenter": "Einkäufe", "Schuhhaus": "Einkäufe", "Eisdiele": "Restaurant", "Stadtwerke": "Energie",
+            "Tierarzt": "Versicherungen & Gesundheit"}
+OFFEN_LASSEN = 2      # so viele der neuesten Vorschläge bleiben offen (gelb), dazu eine unkategorisierte (rot)
+
+
+def aufraeumen(basis: str) -> None:
+    """Girokonto so herrichten, wie es nach der regelmäßigen Durchsicht aussieht.
+
+    Die Demodaten lassen die letzten Wochen absichtlich unbearbeitet (zum Vorführen von Abruf und Vorschlägen). Auf
+    den Bildern sollen offene Buchungen die Ausnahme sein: Bis auf die neuesten Vorschläge und eine unkategorisierte
+    Buchung werden Vorschläge angenommen, Unkategorisiertes zugeordnet und alles bestätigt – über REST, nur in der
+    temporären Demo-Datenbank."""
+    kategorien = {k["name"]: k["id"] for k in json.load(urllib.request.urlopen(basis + "/api/konten"))}
+    offen = sorted((b for b in _alle_buchungen(basis, 1) if b["status"] in ("vorlaeufig", "importiert")),
+                   key=lambda b: (b["datum"], b["id"]), reverse=True)
+    vorschlaege = [b for b in offen if b["vorschlag"]]
+    unkategorisiert = [b for b in offen if b["kategorie_id"] is None and b["empfaenger"]]
+    bleiben = {b["id"] for b in vorschlaege[:OFFEN_LASSEN]} | {b["id"] for b in unkategorisiert[:1]}
+    annehmen = [b["id"] for b in vorschlaege if b["id"] not in bleiben]
+    if annehmen:
+        _rest(basis, "POST", "/api/buchungen/mehrfach/vorschlag", {"buchung_ids": annehmen, "aktion": "annehmen"})
+    for b in unkategorisiert:
+        ziel = next((k for teil, k in NACHTRAG.items() if teil in b["empfaenger"]["name"]), None)
+        if b["id"] not in bleiben and ziel in kategorien:
+            _rest(basis, "PUT", f"/api/buchungen/{b['id']}/kategorie", {"kategorie_id": kategorien[ziel]})
+    rest = [b["id"] for b in _alle_buchungen(basis, 1)
+            if b["status"] in ("vorlaeufig", "importiert") and b["id"] not in bleiben]
+    if rest:
+        _rest(basis, "POST", "/api/buchungen/mehrfach/aendern", {"buchung_ids": rest, "status": "bestaetigt"})
+    # wer bestätigt hat, wie in den Demodaten: abwechselnd die beiden erfundenen Personen
+    from kontor.demodaten import PERSONENTAGS
+    tags = {t["name"]: t["id"] for t in json.load(urllib.request.urlopen(basis + "/api/tags"))}
+    for person in PERSONENTAGS:
+        ids = [i for i in set(annehmen) | set(rest) if PERSONENTAGS[i % 3 == 0] == person]
+        if ids and person in tags:
+            _rest(basis, "POST", "/api/buchungen/mehrfach/tags", {"buchung_ids": ids, "hinzufuegen": [tags[person]]})
 
 
 def lernmodell(p, basis, heute: dt.date):
@@ -327,6 +369,7 @@ def main(argv: list[str] | None = None) -> int:
     a.add_argument("--nur", nargs="*", default=[], help="nur diese Ansichten (Namen aus ANSICHTEN)")
     o = a.parse_args(argv)
     with tempfile.TemporaryDirectory(prefix="kontor-screenshots-") as tmp, server(pathlib.Path(tmp), o.heute) as basis:
+        aufraeumen(basis)
         fotografieren(basis, o.heute, set(o.nur))
     return 0
 

@@ -5034,3 +5034,11 @@ Anlass: Klick auf einen Punkt unter `/sicherung` brauchte auf dem Server 10–20
   AqBanking, Übergangshinweise für alte Installationen, Verweise auf Entscheidungsnummern. Richtiggestellt:
   Standardkategorie (D-219) und Statistische Analyse (D-221) entfallen, Panel Kategorien im Kontoblatt (D-265),
   Tastenbelegung (D-292), stündliche Sicherungspunkte statt täglicher Sicherung (D-302), Wege in den Einstellungen.
+- **Nachtrag (ruhigeres Titelbild):** Die Demodaten lassen die letzten Wochen unbearbeitet, dadurch waren fast alle
+  sichtbaren Zeilen gelb (vorläufig) oder rot (unkategorisiert). `erzeugen.py` räumt das Girokonto vor den Bildern
+  über REST auf, wie nach einer Durchsicht: Vorschläge annehmen, Unkategorisiertes zuordnen (`NACHTRAG`), bestätigen
+  und die Bestätigung wie in den Demodaten einer der beiden Personen zuschreiben. Offen bleiben die zwei neuesten
+  Vorschläge und eine unkategorisierte Buchung. Nur in der temporären Datenbank.
+- **README:** neuer Abschnitt „So schützt Kontor deine Zugänge“ (nur lesender Zugriff auf Bank und Postfächer,
+  PIN über systemd-creds oder nur im Arbeitsspeicher, Zugangsdaten nur verschlüsselt, keine Geheimnisse in Logs und
+  Sicherungen).

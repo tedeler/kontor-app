@@ -46,11 +46,34 @@ Daten: [Schnellstart im Mock-Modus](#schnellstart-im-mock-modus).
   Sicherungspunkte an, zu denen du zurückkehren kannst.
 - **Für den ganzen Haushalt.** Ein gemeinsamer Login, und wer eine Buchung bestätigt, wird mit Namen vermerkt.
   Am Rechner mit Tastaturkürzeln und Befehlspalette, unterwegs als App auf dem Handy, hell oder dunkel.
-- **Deine Daten bleiben bei dir.** Kontor läuft auf deinem eigenen Server im Heimnetz oder hinter Tailscale.
-  Die Bank-PIN liegt nur im Arbeitsspeicher, Zugangsdaten sind verschlüsselt gespeichert.
+- **Deine Daten bleiben bei dir.** Kontor läuft auf deinem eigenen Server im Heimnetz oder hinter Tailscale,
+  greift nur lesend auf Bank und Postfächer zu und speichert Zugangsdaten nie im Klartext
+  ([mehr dazu](#so-schützt-kontor-deine-zugänge)).
 
 Umsteigen ist leicht: Kontor übernimmt deine Daten aus **KMyMoney** und **GnuCash**. Alles, was Kontor kann,
 steht ausführlich in [spec/meilensteine.md](spec/meilensteine.md).
+
+## So schützt Kontor deine Zugänge
+
+- **Bank und Postfächer nur lesend.** Kontor sendet an die Bank ausschließlich lesende FinTS-Aufträge (Konten,
+  Umsätze, Kontostand) – Überweisungen oder andere Aufträge kann es gar nicht auslösen. Postfächer öffnet es nur
+  lesend (`EXAMINE`, `BODY.PEEK`): Es verschiebt, löscht und markiert keine Mail, nicht einmal als gelesen.
+- **Die Bank-PIN liegt nie im Klartext auf der Platte.** Du hast die Wahl:
+  - *verschlüsselt über systemd-creds:* Die PIN wird mit `systemd-creds encrypt` an den Rechner (oder sein TPM)
+    gebunden abgelegt; systemd stellt sie nur dem laufenden Dienst bereit.
+  - *oder Eingabe in der Oberfläche:* Die PIN lebt dann nur im Arbeitsspeicher und ist nach einem Neustart weg.
+    Wer sie sich merken lässt, bekommt sie nur verschlüsselt und mit dem Login-Passwort geschützt gespeichert.
+- **Mail-Zugänge sind verschlüsselt.** App-Passwörter und OAuth-Tokens der Postfächer, das OAuth-Client-Secret und
+  das ntfy-Token liegen nur verschlüsselt (AES-256-GCM) in der Datenbank. Der Schlüssel kommt aus systemd-creds bzw.
+  einer eigenen Schlüsseldatei; auf Wunsch schützt zusätzlich das Login-Passwort, dann ist der Schlüssel nur nach
+  dem Anmelden im Arbeitsspeicher.
+- **Geheimnisse bleiben, wo sie hingehören.** PIN, TAN, Passwörter und Tokens erscheinen nie in Logs,
+  Fehlermeldungen, Antworten der Schnittstelle oder Sicherungsdateien.
+- **Zugang nur für deinen Haushalt.** Gemeinsamer Login (Passwort mit scrypt gespeichert, Sperre nach
+  Fehlversuchen), Zugriff nur aus dem Heimnetz bzw. dem eigenen Tailnet, auf Wunsch nur über HTTPS.
+
+Die Einrichtung steht unter [Installation, Schritt 4](#installation-als-systemd-dienst-im-proxmox-lxc-container)
+und [Bankzugang einrichten](#bankzugang-fints-einrichten).
 
 ## Schnellstart im Mock-Modus
 
