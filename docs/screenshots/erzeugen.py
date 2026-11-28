@@ -20,6 +20,7 @@ import base64
 import contextlib
 import datetime as dt
 import io
+import json
 import os
 import pathlib
 import socket
@@ -32,7 +33,8 @@ import urllib.request
 ZIEL = pathlib.Path(__file__).resolve().parent
 WURZEL = ZIEL.parents[1]
 
-DESKTOP = {"width": 1440, "height": 900}
+DESKTOP = {"width": 1440, "height": 900}      # Titelbild
+GALERIE = {"width": 1200, "height": 668}      # Galerie: nur der Inhalt rechts der Navigation, etwa 16:10
 HANDY = {"width": 390, "height": 812}   # Anzeige unter der gezeichneten Statusleiste (390 × 844 mit Leiste)
 LEISTE = 32
 SCHAERFE = 2           # device_scale_factor: scharf auf hochauflösenden Bildschirmen
@@ -162,7 +164,6 @@ def _oeffnen(p, basis: str, pfad: str) -> None:
 
 def _id_mit(basis: str, konto: int, bedingung) -> int:
     """Jüngste Buchung des Kontos, auf die ``bedingung`` zutrifft (über die REST-Schnittstelle)."""
-    import json
     seite, treffer = 1, None
     while True:
         with urllib.request.urlopen(f"{basis}/api/buchungen?konto_id={konto}&pro_seite=500&seite={seite}") as a:
@@ -195,14 +196,15 @@ def monatsbericht(p, basis, heute):
 def regeleditor(p, basis, heute):
     """Regel „Restaurant am Wochenende“ im Editor, mit Testbereich."""
     _oeffnen(p, basis, "/regeln")
-    karte = p.get_by_text("Restaurant am Wochenende").first.locator("xpath=ancestor::*[.//button[normalize-space()='Bearbeiten...' or normalize-space()='Bearbeiten…']][1]")
+    # kleinster Vorfahr des Regelnamens, der einen Knopf „Bearbeiten…“ enthält: die Karte dieser Regel
+    karte = p.get_by_text("Restaurant am Wochenende").first.locator(
+        "xpath=ancestor::*[.//button[starts-with(normalize-space(), 'Bearbeiten')]][1]")
     karte.get_by_role("button", name="Bearbeiten").first.click()
     p.wait_for_selector('[data-testid="test-liste"] li')
     p.wait_for_timeout(800)
 
 
 def _rest(basis: str, methode: str, pfad: str, daten: object) -> dict:
-    import json
     anfrage = urllib.request.Request(basis + pfad, method=methode, data=json.dumps(daten).encode(),
                                      headers={"Content-Type": "application/json"})
     with urllib.request.urlopen(anfrage) as a:
@@ -221,6 +223,8 @@ def lernmodell(p, basis, heute: dt.date):
     p.locator(f'[data-testid="buchung-{b["id"]}"]').click()
     p.locator('[data-testid="lern-warum"] summary').first.click()
     p.wait_for_selector('[data-testid="lern-zweck"]')
+    # Einzelheiten so weit scrollen, dass Vorschlag und Begründung zu sehen sind
+    p.locator('[data-testid="details-vorschlag"]').evaluate("e => e.scrollIntoView({ block: 'start' })")
     p.wait_for_timeout(500)
 
 
@@ -236,16 +240,42 @@ def handy_bericht(p, basis, heute):
     _oeffnen(p, basis, "/berichte?art=monat")
 
 
-# Name, Funktion, Handy?, Designs
+# Name, Funktion, Art (titel, galerie, handy), Designs
 ANSICHTEN = [
-    ("kontoansicht", kontoansicht, False, ("dunkel", "hell")),
-    ("monatsbericht", monatsbericht, False, ("dunkel",)),
-    ("regeleditor", regeleditor, False, ("dunkel",)),
-    ("lernmodell", lernmodell, False, ("dunkel",)),
-    ("einstellungen", einstellungen, False, ("dunkel",)),
-    ("handy-konto", handy_konto, True, ("dunkel",)),
-    ("handy-bericht", handy_bericht, True, ("dunkel",)),
+    ("kontoansicht", kontoansicht, "titel", ("dunkel", "hell")),
+    ("monatsbericht", monatsbericht, "galerie", ("dunkel",)),
+    ("regeleditor", regeleditor, "galerie", ("dunkel",)),
+    ("lernmodell", lernmodell, "galerie", ("dunkel",)),
+    ("einstellungen", einstellungen, "galerie", ("dunkel",)),
+    ("handy-konto", handy_konto, "handy", ("dunkel",)),
+    ("handy-bericht", handy_bericht, "handy", ("dunkel",)),
 ]
+
+
+def ausschnitt(p) -> dict:
+    """Galeriebilder zeigen nur den Inhalt: ohne Navigation links und ohne Kopfzeile (in kleinen Bildern lesbarer).
+    Ist ein Dialog offen, zeigt das Bild den Dialog (oberer Teil im Seitenverhältnis 16:10)."""
+    d = p.evaluate("""() => { const d = document.querySelector('[role="dialog"]');
+                              return d ? d.getBoundingClientRect().toJSON() : null; }""")
+    if d:
+        return {"x": d["x"], "y": d["y"], "width": d["width"], "height": round(d["width"] / 1.6)}
+    r = p.evaluate("""() => ({ x: document.querySelector("nav.navigation").getBoundingClientRect().right,
+                               y: document.querySelector("header.kopf").getBoundingClientRect().bottom })""")
+    v = p.viewport_size
+    return {"x": r["x"], "y": r["y"], "width": v["width"] - r["x"], "height": v["height"] - r["y"]}
+
+
+# Abweichende Fenstergröße und Browser-Speicher je Ansicht
+FENSTER = {
+    "regeleditor": DESKTOP,
+    # breite Einzelheiten, damit die Begründung lesbar ist; Höhe so, dass der Ausschnitt etwa 16:10 bleibt
+    "lernmodell": {"width": 1440, "height": 818},
+}
+SPEICHER = {
+    "lernmodell": {"kontor.layout": {"version": 1, "panels": {
+        "kategorien": {"bereich": "links", "position": 0, "breite": 240, "eingeklappt": False},
+        "details": {"bereich": "rechts", "position": 1, "breite": 560, "eingeklappt": False, "hoehe": 260}}}},
+}
 
 
 def fotografieren(basis: str, heute: dt.date, nur: set[str]) -> list[pathlib.Path]:
@@ -256,23 +286,28 @@ def fotografieren(basis: str, heute: dt.date, nur: set[str]) -> list[pathlib.Pat
         browser = pw.chromium.launch(   # deutsche Texte auch in Browser-Elementen (Dateiauswahl)
             channel="chromium", args=["--lang=de-DE"], env={**os.environ, "LANG": "de_DE.UTF-8", "LANGUAGE": "de"})
         try:
-            for name, funktion, handy, designs in ANSICHTEN:
+            for name, funktion, art, designs in ANSICHTEN:
+                handy = art == "handy"
                 if nur and name not in nur:
                     continue
                 for design in designs:
-                    optionen = dict(viewport=HANDY if handy else DESKTOP, device_scale_factor=SCHAERFE,
-                                    color_scheme="dark" if design == "dunkel" else "light", locale="de-DE",
-                                    timezone_id="Europe/Berlin")
+                    fenster = FENSTER.get(name) or {"titel": DESKTOP, "galerie": GALERIE, "handy": HANDY}[art]
+                    optionen = {"viewport": fenster, "device_scale_factor": SCHAERFE, "locale": "de-DE",
+                                "color_scheme": "dark" if design == "dunkel" else "light",
+                                "timezone_id": "Europe/Berlin"}
                     if handy:
                         optionen.update(is_mobile=True, has_touch=True)
                     ctx = browser.new_context(**optionen)
-                    ctx.add_init_script(f"try {{ localStorage.setItem('kontor.person', '{PERSON}'); }} catch (e) {{}}")
+                    speicher = {"kontor.person": PERSON} | {k: json.dumps(v) for k, v in SPEICHER.get(name, {}).items()}
+                    ctx.add_init_script("try { for (const [k, v] of Object.entries(" + json.dumps(speicher) + "))"
+                                        " localStorage.setItem(k, v); } catch (e) {}")
                     try:
                         p = ctx.new_page()
                         funktion(p, basis, heute)
                         p.evaluate("() => document.activeElement && document.activeElement.blur()")   # kein Fokusrahmen
                         p.wait_for_timeout(200)
-                        png = p.screenshot(animations="disabled", caret="hide")
+                        png = p.screenshot(animations="disabled", caret="hide",
+                                           clip=ausschnitt(p) if art == "galerie" else None)
                     finally:
                         ctx.close()
                     if handy:
