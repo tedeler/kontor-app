@@ -66,14 +66,17 @@ pip install -e .
 #    … oder systemweit, z. B. in einem Container:
 #    pip install --break-system-packages -e .
 
-# 2. Demo-Haushalt bauen: drei Jahre erfundene Buchungen, Mails, Regeln und Kredite (dauert einige Sekunden)
+# 2. Demo-Haushalt bauen: drei Jahre erfundene Buchungen, Mails und Regeln
 python -m kontor.demodaten daten/kontor-mock.sqlite3 daten/demo-mock.json
 
 # 3. Konfiguration über Umgebungsvariablen (Kommandozeilenargumente gibt es nicht)
-export KONTOR_DATENBANK="$PWD/daten/kontor.sqlite3"   # Echt-Datenbank (wird im Mock-Modus NICHT angelegt)
-export KONTOR_MOCK_MODUS=ja                           # Mock-Modus: eigene Datenbank daten/kontor-mock.sqlite3
-export KONTOR_MOCK_DATEN="$PWD/daten/demo-mock.json"  # Bank und Postfächer des Demo-Haushalts
-# Die Anmeldung bleibt hier aus (Vorgabe); zum Ausprobieren des Logins siehe „Anmeldung ausprobieren“.
+#    Echt-Datenbank (wird im Mock-Modus NICHT angelegt):
+export KONTOR_DATENBANK="$PWD/daten/kontor.sqlite3"
+#    Mock-Modus mit eigener Datenbank daten/kontor-mock.sqlite3:
+export KONTOR_MOCK_MODUS=ja
+#    Bank und Postfächer des Demo-Haushalts:
+export KONTOR_MOCK_DATEN="$PWD/daten/demo-mock.json"
+#    Die Anmeldung bleibt aus (Vorgabe), siehe „Anmeldung ausprobieren“.
 
 # 4. Server starten (127.0.0.1:8000; ändern über KONTOR_HOST/KONTOR_PORT)
 python -m kontor

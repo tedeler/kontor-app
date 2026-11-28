@@ -176,7 +176,7 @@ set -a; . /etc/kontor/kontor.env; set +a; sudo -u kontor -E /opt/kontor/venv/bin
 ## 9. Daten übernehmen und Bank einrichten
 
 - **Import:** KMyMoney-, GnuCash- oder ALF-BanCo-Datei in der Oberfläche unter **Import** hochladen.
-- **Bankzugang:** Einstellungen → Bankzugang (FinTS), siehe README, „Bankzugang (FinTS) einrichten“.
+- **Bankzugang:** Einstellungen → Bank, siehe README, „Bankzugang (FinTS) einrichten“.
 - **Gmail über OAuth:** `KONTOR_OAUTH_REDIRECT_URI=https://kontor.<tailnet>.ts.net/oauth2/rueckruf` setzen und
   in der Google-Konsole eintragen (HTTPS.md, „Was sich im Betrieb ändert“).
 - **Handy:** Tailscale-App installieren, im selben Tailnet anmelden, die https-Adresse öffnen und als App
@@ -189,7 +189,7 @@ set -a; . /etc/kontor/kontor.env; set +a; sudo -u kontor -E /opt/kontor/venv/bin
 | Kontor-Update | About-Dialog → „Aktualisieren“ (README, „Updates“) |
 | Debian-Updates | automatisch über `unattended-upgrades`; gelegentlich `apt full-upgrade` und Neustart |
 | Tailscale-Update | kommt mit den Debian-Updates (Paketquelle von Tailscale) |
-| Tägliche Sicherung | `kontor-sicherung.timer` nach `/var/lib/kontor/sicherungen`; Verzeichnis zusätzlich außerhalb der VM ablegen (README, „Datensicherung im Betrieb“) |
+| Stündliche Sicherungspunkte | `kontor-sicherung.timer` nach `/var/lib/kontor/sicherungen`; Verzeichnis zusätzlich außerhalb der VM ablegen (README, „Datensicherung im Betrieb“) |
 | Sicherung der ganzen VM | Proxmox-Backup bzw. -Snapshot; mit dem Gast-Agenten wird das Dateisystem dabei kurz eingefroren |
 | Testinstanz | `kontor-test start <branch>`, Adresse `https://kontor.<tailnet>.ts.net:8443` ([TESTINSTANZ.md](TESTINSTANZ.md)) |
 | Protokoll | `journalctl -u kontor -f` |
