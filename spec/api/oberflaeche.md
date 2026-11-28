@@ -548,6 +548,36 @@ In der Kontoansicht öffnet `buchung-erfassen` den Dialog für
   Während des Ziehens zeigt ein Ziel, ob es die Ablage annimmt.
 - **Ohne Maus:** Kontextmenü „Kategorie setzen…“ bzw. „Verschieben
   nach…“; mobil Wischen (16.4).
+- **Kategorien ordnen (D-326):** Ziehen und „Verschieben nach…“ wirken über
+  `POST /api/kategorien/verschieben` (eine Änderung, auch für mehrere).
+  - Ablageort je Eintrag nach der Höhe in seiner Zeile: oberes bzw. unteres
+    Viertel = Ebene dieses Eintrags (`eltern_id` = dessen Oberkategorie,
+    `data-ablage-ort="davor"` bzw. `"danach"`, Linie über bzw. unter der
+    Zeile), Mitte = Unterkategorie (`"hinein"`). Die Gruppenüberschrift bleibt
+    Ziel für die oberste Ebene.
+  - Ein zugeklappter Eintrag klappt auf, wenn man 700 ms über seiner Mitte
+    verweilt. Esc während des Ziehens bricht ab, ohne Anfrage.
+  - Liegt der gezogene Eintrag in der Mehrfachauswahl, werden alle markierten
+    derselben Gruppe gezogen (Anzeige „n Kategorien“). Ziele unter einer
+    gezogenen Kategorie und Ziele, an denen alle schon stehen, nehmen nicht an.
+  - Danach bleiben die verschobenen Kategorien markiert, die erste hat den
+    Fokus, alle sind kurz hervorgehoben (`data-frisch="ja"`); die neue
+    Oberkategorie und ihre Vorfahren sind aufgeklappt. `kategorien-status`
+    (`role="status"`) nennt das Ergebnis.
+- **Auswahl der Oberkategorie (`ziel-auswahl`, D-326):** Suchfeld
+  `ziel-suche` mit dem Fokus; es filtert über den ganzen Pfad (Wörter in
+  beliebiger Reihenfolge, Umlaute gefaltet wie in der Befehlspalette),
+  Treffer hervorgehoben. Ohne Suchtext stehen oben unter `ziel-zuletzt` die
+  bis zu fünf zuletzt gewählten Ziele der Sitzung (`ziel-zuletzt-<id>` bzw.
+  `ziel-zuletzt-wurzel`). ↑/↓ wählen (umlaufend), Bild↑/↓ zehn, Enter
+  übernimmt die markierte (anfangs die erste), Esc leert die Suche bzw.
+  schließt. „– oberste Ebene –“ ist `ziel-option-wurzel`. Nicht angeboten:
+  die Kategorien selbst, ihre Nachfahren, andere Klassen. Mit mehreren
+  markierten Kategorien heißt der Menüpunkt „n Kategorien verschieben nach…“.
+- **Tastenkürzel:** `v` im Kategorienbaum der Seite `/kategorien` öffnet
+  „Verschieben nach…“ für die markierten (wenn der fokussierte Eintrag dazu
+  gehört) bzw. den fokussierten Eintrag. In `panel-kategorien` ist `v` die
+  Vortaste des Kontoblatts.
 
 ## 11. Rückgängig und Wiederholen (K 5, K 14)
 

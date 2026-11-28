@@ -5080,3 +5080,21 @@ Anlass: Klick auf einen Punkt unter `/sicherung` brauchte auf dem Server 10–20
   3 min eigene Browsertests, knapp 3 min Gesamtsuite mit Browser).
 - **Entscheidung (Auftraggeber):** Statt Tests abzuwählen wird der Job geteilt: `browser-eigene` und `browser-gesamt`,
   zusammen fünf parallele Jobs. Das Budget je Job bleibt 5 Minuten; keine Tests entfallen.
+
+## D-326 Kategorien neu ordnen (2026-11-28)
+
+- **Anlass:** Konzept „feature-kategorien-ordnen“ des Auftraggebers: Beim Umordnen vieler Kategorien war die Auswahl
+  der neuen Oberkategorie eine lange Liste ohne Suche; Ziehen konnte nicht zwischen Zeilen ablegen.
+- **Schnittstelle:** neu `POST /api/kategorien/verschieben` `{konto_ids, eltern_id}` (OpenAPI 2.29.0), Aktion
+  `kategorien_verschieben`, eine Änderung auch für mehrere Kategorien. Markierte Nachfahren einer markierten Kategorie
+  wandern mit ihr. Keine neue Objektart, nichts an der Sicherung. Einzelne Kategorien gehen in der Oberfläche jetzt
+  ebenfalls über diesen Endpunkt; `PATCH /api/konten/{id}` mit `eltern_id` bleibt unverändert gültig (Bestandskonten).
+- **Oberfläche:** `oberflaeche.md` 10 (Ablageort nach Viertel der Zeile, Verweilen 700 ms, Esc, Mehrfachziehen,
+  Hervorhebung, Status), Auswahl mit Suche und „Zuletzt gewählt“ (fünf, nur in der Sitzung, nicht gespeichert).
+- **Kürzel `v`:** nur auf der Kategorienseite, weil `v` im Kontoblatt (und damit in `panel-kategorien`) Vortaste ist.
+- **Reihenfolge:** bleibt alphabetisch je Ebene (E-144); Auf-/Zuklappen je Ebene und „Alle aufklappen/zuklappen“
+  gab es schon (D-311).
+- **Mobil:** kein Ziehen; „Verschieben nach…“ mit der Suche über das Kontextmenü bzw. lange Berührung.
+- **Freigabe ohne gesonderte Abnahme:** auf ausdrückliche Anweisung des Auftraggebers direkt auf main.
+- **Tests:** `tests/core/test_kategorien_ordnen.py`, `tests/test_browser_kategorien_ordnen.py`; geändert
+  `gesamt-tests/tests/spec/test_openapi.py` (erwartete Operationen), `tests/test_oberflaeche.py` (bekannte Pfade).

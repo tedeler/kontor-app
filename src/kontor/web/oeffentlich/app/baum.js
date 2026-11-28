@@ -1,5 +1,5 @@
 /* Kontor – Kategorienbaum (oberflaeche.md 13.1), Kontextmenü für Konten (8.2), Ziehen (10) und Gesten (16.4). */
-import { aktion, api, baumFolge, betragEl, betragText, datumText, h, kontoNach, melde, oberflaeche, stamm } from "./kern.js";
+import { aktion, api, baumFolge, betragEl, betragText, datumText, h, kontoNach, kontoPfad, melde, oberflaeche, stamm } from "./kern.js";
 import { kategorienZusammenfuehren, kontextmenue, kontoDialog, kontoEinstellungen, kontoLoeschen, menuePosition,
   zielAuswahl } from "./ui.js";
 
@@ -19,18 +19,50 @@ export function kontoMenue(konto, x, y, ausloeser, optionen) {
     { tid: "km-konto-einstellungen", text: "Einstellungen…", tun: () => kontoEinstellungen(konto, ausloeser) },
     { tid: "km-konto-unterkonto", text: "Unterkonto anlegen…",
       tun: () => kontoDialog({ titel: `Unterkonto von „${konto.name}“`, art: konto.art, eltern_id: konto.id }, ausloeser) },
-    { tid: "km-konto-verschieben", text: "Verschieben nach…", tun: () => verschieben(konto, ausloeser) },
+    { tid: "km-konto-verschieben", text: istKategorie && quellen.length > 1 ? `${quellen.length} Kategorien verschieben nach…`
+      : "Verschieben nach…", tun: () => verschieben(istKategorie ? quellen : [konto], ausloeser) },
     { tid: "km-konto-loeschen", text: "Löschen…", tun: () => kontoLoeschen(konto, ausloeser) },
   ].filter(Boolean), ausloeser);
 }
 
-async function verschieben(konto, ausloeser) {
-  const w = await zielAuswahl(konto, ausloeser);
-  if (!w || (w.eltern_id ?? null) === (konto.eltern_id ?? null)) return;
+/** „Verschieben nach…“ (8.2): Auswahl der Oberkategorie mit Suche (D-326); Kategorien über den Sammelendpunkt. */
+export async function verschieben(konten, ausloeser) {
+  const w = await zielAuswahl(konten, ausloeser);
+  if (!w) return;
+  const konto = konten[0];
+  if (konto.art === "aufwand" || konto.art === "ertrag") { await kategorienVerschieben(konten, w.eltern_id); return; }
+  if ((w.eltern_id ?? null) === (konto.eltern_id ?? null)) return;
   try {
     await aktion(() => api("PATCH", `/api/konten/${konto.id}`, { eltern_id: w.eltern_id }),
       { erfolg: `„${konto.name}“ verschoben.` });
   } catch (e) { /* gemeldet */ }
+}
+
+// D-326: zuletzt verschobene Kategorien werden nach dem Neuzeichnen kurz hervorgehoben, gewählt und fokussiert
+let frisch = { ids: new Set(), bis: 0, fokus: null };
+let statusMelden = null;
+
+/** Verschiebt Kategorien als eine Änderung (`POST /api/kategorien/verschieben`); die neue Oberkategorie und ihre
+ *  Vorfahren werden aufgeklappt. Liegen alle schon dort, geschieht nichts. */
+export async function kategorienVerschieben(konten, elternId) {
+  const ziel = elternId ?? null;
+  if (!konten.length || konten.every((k) => (k.eltern_id ?? null) === ziel)) return;
+  const zielName = ziel === null ? "oberste Ebene" : kontoPfad(kontoNach(ziel));
+  const text = konten.length > 1 ? `${konten.length} Kategorien nach „${zielName}“ verschoben.`
+    : `„${konten[0].name}“ nach „${zielName}“ verschoben.`;
+  for (let e = ziel, n = 0; e !== null && n < 100; n++) {
+    zugeklappt.delete(e);
+    const k = kontoNach(e);
+    e = k ? k.eltern_id ?? null : null;
+  }
+  markiert.clear();
+  for (const k of konten) markiert.add(k.id);
+  frisch = { ids: new Set(konten.map((k) => k.id)), bis: Date.now() + 2500, fokus: konten[0].id };
+  try {
+    await aktion(() => api("POST", "/api/kategorien/verschieben", { konto_ids: konten.map((k) => k.id), eltern_id: ziel }),
+      { erfolg: text });
+    if (statusMelden) statusMelden(text);
+  } catch (e) { frisch = { ids: new Set(), bis: 0, fokus: null }; /* gemeldet */ }
 }
 
 /** Eingabe `umbenennen-eingabe` an Ort und Stelle (Enter → PATCH, Esc bricht ab). */
@@ -84,9 +116,12 @@ export function ziehbar(el, optionen) {
     let geist = null;
     let aktuell = null;
     const markieren = (z) => {
-      if (aktuell && aktuell.el !== (z && z.el)) delete aktuell.el.dataset.ablage;
+      if (aktuell) { delete aktuell.el.dataset.ablage; delete aktuell.el.dataset.ablageOrt; }
       aktuell = z;
-      if (z) z.el.dataset.ablage = z.annehmen ? "ja" : "nein";
+      if (z) {
+        z.el.dataset.ablage = z.annehmen ? "ja" : "nein";
+        if (z.ort) z.el.dataset.ablageOrt = z.ort;   // D-326: hinein, davor, danach
+      }
     };
     const bewegen = (e) => {
       if (!laeuft) {
@@ -103,11 +138,20 @@ export function ziehbar(el, optionen) {
       geist.style.top = e.clientY + 8 + "px";
       markieren(optionen.ziel(e.clientX, e.clientY, quelle));
     };
+    // D-326: Esc bricht das Ziehen ab, ohne etwas zu ändern
+    const taste = (e) => {
+      if (e.key !== "Escape" || !laeuft) return;
+      e.preventDefault();
+      e.stopPropagation();
+      ende({ type: "abbruch" });
+    };
     const ende = (e) => {
       document.removeEventListener("pointermove", bewegen, true);
       document.removeEventListener("pointerup", ende, true);
       document.removeEventListener("pointercancel", ende, true);
+      document.removeEventListener("keydown", taste, true);
       if (!laeuft) return;
+      laeuft = false;
       const z = e.type === "pointerup" ? optionen.ziel(e.clientX, e.clientY, quelle) : null;
       markieren(null);
       geist.remove();
@@ -119,6 +163,7 @@ export function ziehbar(el, optionen) {
     document.addEventListener("pointermove", bewegen, true);
     document.addEventListener("pointerup", ende, true);
     document.addEventListener("pointercancel", ende, true);
+    document.addEventListener("keydown", taste, true);
   });
 }
 
@@ -232,6 +277,8 @@ function verlaufEl(verlauf, abschnitte) {
  */
 export function kategorienBaum(optionen) {
   const o = optionen || {};
+  if (o.status) statusMelden = o.status;
+  const istFrisch = (id) => frisch.bis > Date.now() && frisch.ids.has(id);
   const werte = o.werte || null;
   const suche = (o.suche || "").trim().toLocaleLowerCase("de");
   const baum = h("div", { role: "tree", tid: "kategorienbaum", class: "baum" + (werte ? " baum-uebersicht" : ""),
@@ -311,7 +358,7 @@ export function kategorienBaum(optionen) {
       const el = h("div", { role: "treeitem", tid: `kategorie-${k.id}`, class: "baum-eintrag", "aria-level": String(f.ebene),
         "aria-label": k.name, "aria-expanded": kinder.length ? String(offen) : null, tabindex: "-1",
         "data-konto-id": String(k.id), "data-klasse": art, "aria-selected": markiert.has(k.id) ? "true" : "false",
-        "data-ton": werte ? String(ton) : null }, zeile);
+        "data-ton": werte ? String(ton) : null, "data-frisch": istFrisch(k.id) ? "ja" : null }, zeile);
       let unter = 0;
       if (kinder.length) {
         const grp = h("div", { role: "group", class: "baum-kinder", hidden: !offen });
@@ -341,6 +388,18 @@ export function kategorienBaum(optionen) {
   }
   const erster = baum.querySelector('[role="treeitem"]');
   if (erster) erster.tabIndex = 0;
+  // D-326: die zuletzt verschobene Kategorie bekommt den Fokus, sobald der Baum im Dokument steht
+  if (frisch.fokus !== null && frisch.bis > Date.now() && eintraege.has(frisch.fokus)) {
+    const ziel = eintraege.get(frisch.fokus);
+    if (erster) erster.tabIndex = -1;
+    ziel.tabIndex = 0;
+    requestAnimationFrame(() => {
+      if (!ziel.isConnected || frisch.fokus === null) return;
+      frisch.fokus = null;
+      ziel.focus({ preventScroll: true });
+      ziel.scrollIntoView({ block: "nearest" });
+    });
+  }
 
   const eintragVon = (ziel) => ziel && ziel.closest && ziel.closest('[role="treeitem"]');
   const kontoVon = (el) => kontoNach(Number(el.dataset.kontoId));
@@ -407,6 +466,14 @@ export function kategorienBaum(optionen) {
     else if (e.key === " ") { e.preventDefault(); markieren(el, e); }
     else if (e.key === "Escape" && markiert.size) { e.preventDefault(); markiert.clear(); auswahlZeigen(); }
     else if (e.key === "F2") { e.preventDefault(); umbenennen(kontoVon(el), el.querySelector(".baum-name")); }
+    else if (e.key === "v" && werte && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      // D-326: „Verschieben…“ für die markierten Kategorien bzw. die fokussierte (nur auf der Kategorienseite;
+      // im Kontoblatt ist v eine Vortaste)
+      e.preventDefault();
+      const k = kontoVon(el);
+      const m = markierte();
+      verschieben(m.length > 1 && m.some((x) => x.id === k.id) ? m.filter((x) => x.art === k.art) : [k], el);
+    }
     else if ((e.key === "F10" && e.shiftKey) || e.key === "ContextMenu") {
       e.preventDefault();
       const [x, y] = menuePosition(null, el.querySelector(".baum-zeile"));
@@ -425,34 +492,58 @@ export function kategorienBaum(optionen) {
     kontoMenue(kontoVon(el), x, y, el, { namensZelle: () => el.querySelector(".baum-name"), markierte });
   });
 
-  // Umsortieren per Drag and Drop (10, E-144)
+  // Umsortieren per Drag and Drop (10, E-144, D-326). Ziele: auf eine Kategorie (Unterkategorie), zwischen zwei Zeilen
+  // (oberes bzw. unteres Viertel: Ebene der Nachbarn), auf die Gruppenüberschrift (oberste Ebene). Ein zugeklappter
+  // Eintrag klappt nach 700 ms Verweilen auf. Der Baum kann beim Ziehen neu gezeichnet werden; deshalb wird das Ziel
+  // im aktuellen Dokument gesucht, nicht nur in diesem Element.
+  let verweilen = { id: null, timer: null };
+  const verweilenEnde = () => { clearTimeout(verweilen.timer); verweilen = { id: null, timer: null }; };
   const zielAn = (x, y, quelle) => {
     const t = document.elementFromPoint(x, y);
-    if (!t || !baum.contains(t)) return null;
+    const b = t && t.closest('[role="tree"]');
+    if (!b || b.dataset.testid !== "kategorienbaum") { verweilenEnde(); return null; }
     const kopf = t.closest("[data-gruppe]");
-    if (kopf) return { el: kopf, eltern_id: null, annehmen: kopf.dataset.gruppe === quelle.art };
+    if (kopf) { verweilenEnde(); return { el: kopf, eltern_id: null, ort: "hinein", annehmen: kopf.dataset.gruppe === quelle.art }; }
     const el = eintragVon(t);
-    if (!el) return null;
-    const zielId = Number(el.dataset.kontoId);
-    const ok = el.dataset.klasse === quelle.art && !quelle.el.contains(el);
-    return { el, eltern_id: zielId, annehmen: ok };
+    if (!el) { verweilenEnde(); return null; }
+    const k = kontoVon(el);
+    if (!k) return null;
+    const r = (el.firstElementChild || el).getBoundingClientRect();
+    const rel = r.height ? (y - r.top) / r.height : 0.5;
+    const ort = rel < 0.25 ? "davor" : rel > 0.75 ? "danach" : "hinein";
+    const elternId = ort === "hinein" ? k.id : (k.eltern_id ?? null);
+    const annehmen = el.dataset.klasse === quelle.art && !(elternId !== null && quelle.gesperrt.has(elternId))
+      && !quelle.konten.every((q) => (q.eltern_id ?? null) === elternId);
+    if (ort === "hinein" && el.getAttribute("aria-expanded") === "false" && o.neuZeichnen) {
+      if (verweilen.id !== k.id) {
+        verweilenEnde();
+        verweilen = { id: k.id, timer: setTimeout(() => { zugeklappt.delete(k.id); o.neuZeichnen(); }, 700) };
+      }
+    } else verweilenEnde();
+    return { el, eltern_id: elternId, ort, annehmen };
   };
   ziehbar(baum, {
     quelle: (ev) => {
       const el = eintragVon(ev.target);
       if (!el || ev.target.closest(".baum-schalter")) return null;
       const k = kontoVon(el);
-      return k ? { el, konto: k, art: el.dataset.klasse } : null;
+      if (!k) return null;
+      // D-326: eine markierte Kategorie zieht alle markierten derselben Gruppe mit
+      const m = markierte();
+      const konten = m.length > 1 && m.some((x) => x.id === k.id) ? m.filter((x) => x.art === k.art) : [k];
+      const gesperrt = new Set(konten.map((x) => x.id));
+      for (let neu = true; neu;) {
+        neu = false;
+        for (const x of stamm.konten) {
+          if (x.eltern_id && gesperrt.has(x.eltern_id) && !gesperrt.has(x.id)) { gesperrt.add(x.id); neu = true; }
+        }
+      }
+      return { el, konto: k, konten, gesperrt, art: el.dataset.klasse };
     },
-    text: (q) => q.konto.name,
+    text: (q) => (q.konten.length > 1 ? `${q.konten.length} Kategorien` : q.konto.name),
     ziel: (x, y, q) => (o.buchungsZielAktiv && o.buchungsZielAktiv() ? null : zielAn(x, y, q)),
-    ablegen: async (q, z) => {
-      if ((q.konto.eltern_id ?? null) === (z.eltern_id ?? null)) return;
-      try {
-        await aktion(() => api("PATCH", `/api/konten/${q.konto.id}`, { eltern_id: z.eltern_id }),
-          { erfolg: `„${q.konto.name}“ verschoben.` });
-      } catch (e) { /* gemeldet */ }
-    },
+    ende: () => verweilenEnde(),
+    ablegen: (q, z) => kategorienVerschieben(q.konten, z.eltern_id),
   });
 
   /** Ziel für gezogene Buchungen (Kontoansicht): nur Kategorieeinträge. */

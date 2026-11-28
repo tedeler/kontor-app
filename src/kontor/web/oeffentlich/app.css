@@ -1990,3 +1990,15 @@ html[data-thema="dunkel"] .segment-knopf[aria-checked="true"] { background: var(
   vertical-align: bottom; font-size: .75rem; font-weight: 400; color: var(--text-2); border: 1px solid var(--rand);
   border-radius: 9px; padding: 0 .45em; margin-right: .35em; }
 .herkunft::before { content: "↳ "; }
+
+/* D-326: Kategorien ordnen – Ablegen zwischen Zeilen, Hervorhebung nach dem Verschieben, Suche der Oberkategorie */
+.baum-eintrag[data-ablage-ort="davor"], .baum-eintrag[data-ablage-ort="danach"] { outline: none !important; background: none; }
+.baum-eintrag[data-ablage-ort="davor"] > .baum-zeile { box-shadow: inset 0 3px 0 var(--erfolg); }
+.baum-eintrag[data-ablage-ort="danach"] > .baum-zeile { box-shadow: inset 0 -3px 0 var(--erfolg); }
+.baum-eintrag[data-ablage="nein"][data-ablage-ort="davor"] > .baum-zeile { box-shadow: inset 0 3px 0 var(--gefahr); }
+.baum-eintrag[data-ablage="nein"][data-ablage-ort="danach"] > .baum-zeile { box-shadow: inset 0 -3px 0 var(--gefahr); }
+.baum-eintrag[data-frisch="ja"] > .baum-zeile { animation: kat-frisch 2.4s ease-out; }
+@keyframes kat-frisch { 0%, 40% { background: color-mix(in srgb, var(--erfolg) 28%, transparent); } 100% { background: transparent; } }
+@media (prefers-reduced-motion: reduce) { .baum-eintrag[data-frisch="ja"] > .baum-zeile { animation: none; outline: 2px solid var(--erfolg); } }
+.ziel-suche { width: 100%; margin-bottom: .5rem; }
+[data-testid="ziel-liste"] mark { background: var(--akzent-hell); color: inherit; border-radius: 2px; }

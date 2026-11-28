@@ -50,7 +50,8 @@ REST = ["/api/status", "/api/ausdruck", "/api/benutzer",  # D-185, D-324
         "/api/berichte/qualitaet",
         "/api/berichte/tags",
         "/api/bank/zugang",  # Bankzugang: D-199, noch nicht im OpenAPI-Vertrag
-        "/api/import/alfbanco", "/api/kategorien/zusammenfuehren"]  # ALF-BanCo: D-123, D-126
+        "/api/import/alfbanco", "/api/kategorien/zusammenfuehren",  # ALF-BanCo: D-123, D-126
+        "/api/kategorien/verschieben"]  # D-326
 
 
 def test_startseite_echt(client):

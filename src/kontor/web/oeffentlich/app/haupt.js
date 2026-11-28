@@ -1180,7 +1180,8 @@ const BUCHUNGSLISTE = [["↑ ↓, u d", "Buchung wählen"], ["Umschalt+↑ ↓, 
   ["F2", "Verwendungszweck bearbeiten"], ["Entf", "Auswahl löschen (mit Rückfrage)"],
   ["Umschalt+F10, Kontextmenü-Taste", "Kontextmenü (mit Alt: erweitert)"], ["← → auf einem Gruppenbalken", "Gruppe zu- / aufklappen"]];
 const BAUM = [["↑ ↓, u d", "Eintrag wählen"], ["Pos1, Ende", "erster / letzter Eintrag"], ["← →", "zu- / aufklappen"],
-  ["Enter", "öffnen"], ["Leertaste", "markieren"], ["Umschalt+F10, Kontextmenü-Taste", "Kontextmenü"]];
+  ["Enter", "öffnen"], ["Leertaste", "markieren"], ["v", "verschieben nach … (markierte zusammen; nur Kategorienseite)"],
+  ["F2", "umbenennen"], ["Umschalt+F10, Kontextmenü-Taste", "Kontextmenü"]];
 // Tasten der Liste je Blatt: [Überschrift, Zeilen]
 const HILFE_LISTE = {
   konto: ["Buchungsliste", BUCHUNGSLISTE],

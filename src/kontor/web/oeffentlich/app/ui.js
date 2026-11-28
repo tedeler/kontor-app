@@ -1,7 +1,8 @@
 /* Kontor – Dialoge (oberflaeche.md 9) und Kontextmenüs (8). */
 import {
   ApiFehler, BESTAND, aktion, anhaengen, api, betragEingabe, betragEl, betragLesen, betragText, datumText, ebeneOeffnen,
-  ebeneSchliessen, fehlerText, h, kategorien, klasse, kontoNach, kontoPfad, baumFolge, melde, neueId, oberflaeche, passt,
+  ebeneSchliessen, fehlerText, h, kategorien, klasse, kontoNach, kontoPfad, baumFolge, melde, neueId, normalisieren,
+  oberflaeche, passt,
   personBestaetigt, stamm, tagHolen, tid, vorzeichen,
 } from "./kern.js";
 
@@ -761,8 +762,49 @@ export function splitDialog(buchung, ausloeser) {
 }
 
 // ------------------------------------------------------------------ Ziel-Auswahl (9.4)
-export function zielAuswahl(konto, ausloeser) {
-  const nachfahren = new Set([konto.id]);
+// D-326: zuletzt gewählte Oberkategorien (nur in der Sitzung), neueste zuerst; null = oberste Ebene
+const zuletztGewaehlt = [];
+const ZULETZT_MAX = 5;
+
+/** Name mit hervorgehobenen Suchwörtern (nur Textknoten); Vergleich wie `passt` (Umlaute gefaltet). */
+function mitTreffern(text, eingabe) {
+  const woerter = normalisieren(eingabe).split(/\s+/).filter(Boolean);
+  if (!woerter.length) return text;
+  // Zuordnung Zeichen → Position im gefalteten Text, damit „ae“ auf „ä“ zeigt
+  let gefaltet = "";
+  const herkunft = [];
+  for (let i = 0; i < text.length; i++) {
+    const t = normalisieren(text[i]);
+    gefaltet += t;
+    for (let j = 0; j < t.length; j++) herkunft.push(i);
+  }
+  const an = new Array(text.length).fill(false);
+  for (const w of woerter) {
+    const p = gefaltet.indexOf(w);
+    if (p < 0) continue;
+    for (let j = p; j < p + w.length; j++) an[herkunft[j]] = true;
+  }
+  const teile = [];
+  let i = 0;
+  while (i < text.length) {
+    let j = i;
+    while (j < text.length && an[j] === an[i]) j++;
+    teile.push(an[i] ? h("mark", null, text.slice(i, j)) : text.slice(i, j));
+    i = j;
+  }
+  return teile;
+}
+
+/**
+ * Auswahl der neuen Oberkategorie (8.2, D-326): Suchfeld `ziel-suche` (Fokus beim Öffnen) filtert über den vollen
+ * Pfad, ohne Suchtext stehen die zuletzt gewählten oben (`ziel-zuletzt`). ↑/↓ wählen, Enter übernimmt den markierten
+ * bzw. ersten Treffer, Esc leert die Suche bzw. schließt. Nicht wählbar: die Kategorien selbst und ihre Nachfahren,
+ * andere Klassen. `konten` ist ein Konto oder eine Liste (Mehrfachauswahl). Ergebnis {eltern_id} oder null.
+ */
+export function zielAuswahl(konten, ausloeser) {
+  const quellen = Array.isArray(konten) ? konten : [konten];
+  const erstes = quellen[0];
+  const nachfahren = new Set(quellen.map((k) => k.id));
   let geaendert = true;
   while (geaendert) {
     geaendert = false;
@@ -770,32 +812,84 @@ export function zielAuswahl(konto, ausloeser) {
       if (k.eltern_id && nachfahren.has(k.eltern_id) && !nachfahren.has(k.id)) { nachfahren.add(k.id); geaendert = true; }
     }
   }
-  const ziele = baumFolge(stamm.konten.filter((k) => klasse(k) === klasse(konto) && !nachfahren.has(k.id)));
-  const d = dialog("ziel-auswahl", `„${konto.name}“ verschieben nach …`, (inhalt, dd) => {
-    const liste = h("div", { role: "listbox", class: "auswahl-liste", "aria-label": "Ziel", tabindex: "0" });
-    const optionen = [{ id: null, text: "Oberste Ebene", testid: "ziel-option-wurzel", ebene: 1 }]
-      .concat(ziele.map(({ konto: k }) => ({ id: k.id, text: kontoPfad(k), testid: `ziel-option-${k.id}` })));
+  const ziele = baumFolge(stamm.konten.filter((k) => klasse(k) === klasse(erstes) && !nachfahren.has(k.id)));
+  const titel = quellen.length > 1 ? `${quellen.length} Kategorien verschieben nach …` : `„${erstes.name}“ verschieben nach …`;
+  const d = dialog("ziel-auswahl", titel, (inhalt, dd) => {
+    const listeId = neueId("ziel-liste");
+    const suche = h("input", { type: "text", tid: "ziel-suche", role: "combobox", class: "ziel-suche",
+      placeholder: "Oberkategorie suchen…", "aria-label": "Oberkategorie suchen", "aria-controls": listeId,
+      "aria-expanded": "true", "aria-autocomplete": "list", autocomplete: "off", spellcheck: "false" });
+    const liste = h("div", { role: "listbox", id: listeId, class: "auswahl-liste", "aria-label": "Ziel", tid: "ziel-liste" });
+    const wurzel = { id: null, pfad: "– oberste Ebene –", testid: "ziel-option-wurzel" };
+    const alle = [wurzel].concat(ziele.map(({ konto: k }) => ({ id: k.id, pfad: kontoPfad(k), testid: `ziel-option-${k.id}` })));
+    const gueltig = new Set(alle.map((o) => o.id));
+    const zuletzt = zuletztGewaehlt.filter((id) => gueltig.has(id)
+      && !quellen.every((q) => (q.eltern_id ?? null) === id));
+    let sichtbar = [];
     let markiert = 0;
-    const els = optionen.map((o, i) => {
-      const el = h("div", { role: "option", tid: o.testid, id: neueId("ziel"), class: "option",
-        "aria-selected": i === 0 ? "true" : "false" }, o.text);
-      el.addEventListener("click", () => dd.schliessen({ eltern_id: o.id }));
+    const option = (o, tidName) => {
+      const el = h("div", { role: "option", tid: tidName, id: neueId("ziel"), class: "option", "aria-selected": "false" },
+        mitTreffern(o.pfad, suche.value));
+      el.addEventListener("click", () => waehlen(o));
       return el;
-    });
-    function markieren(i) {
-      markiert = Math.max(0, Math.min(i, els.length - 1));
-      els.forEach((e, j) => e.setAttribute("aria-selected", j === markiert ? "true" : "false"));
-      liste.setAttribute("aria-activedescendant", els[markiert].id);
-      els[markiert].scrollIntoView({ block: "nearest" });
+    };
+    function waehlen(o) {
+      const i = zuletztGewaehlt.indexOf(o.id);
+      if (i >= 0) zuletztGewaehlt.splice(i, 1);
+      zuletztGewaehlt.unshift(o.id);
+      zuletztGewaehlt.length = Math.min(zuletztGewaehlt.length, ZULETZT_MAX);
+      dd.schliessen({ eltern_id: o.id });
     }
-    liste.addEventListener("keydown", (e) => {
+    function markieren(i) {
+      if (!sichtbar.length) { suche.removeAttribute("aria-activedescendant"); return; }
+      markiert = (i + sichtbar.length) % sichtbar.length;
+      sichtbar.forEach(([, el], j) => el.setAttribute("aria-selected", j === markiert ? "true" : "false"));
+      suche.setAttribute("aria-activedescendant", sichtbar[markiert][1].id);
+      sichtbar[markiert][1].scrollIntoView({ block: "nearest" });
+    }
+    function zeichnen() {
+      const t = suche.value.trim();
+      const kinder = [];
+      sichtbar = [];
+      if (!t && zuletzt.length) {
+        kinder.push(h("div", { class: "auswahl-gruppe", role: "presentation", tid: "ziel-zuletzt" }, "Zuletzt gewählt"));
+        for (const id of zuletzt) {
+          const o = alle.find((x) => x.id === id);
+          const el = option(o, `ziel-zuletzt-${id === null ? "wurzel" : id}`);
+          kinder.push(el);
+          sichtbar.push([o, el]);
+        }
+        kinder.push(h("div", { class: "auswahl-gruppe", role: "presentation" }, "Alle Kategorien"));
+      }
+      for (const o of alle) {
+        if (t && !passt(t, o.pfad)) continue;
+        const el = option(o, o.testid);
+        kinder.push(el);
+        sichtbar.push([o, el]);
+      }
+      if (!sichtbar.length) kinder.push(h("p", { class: "leer klein", tid: "ziel-keine" }, `Keine Kategorie passt zu „${t}“.`));
+      liste.replaceChildren(...kinder);
+      markieren(0);
+    }
+    suche.addEventListener("input", zeichnen);
+    suche.addEventListener("keydown", (e) => {
       if (e.key === "ArrowDown") { e.preventDefault(); markieren(markiert + 1); }
       else if (e.key === "ArrowUp") { e.preventDefault(); markieren(markiert - 1); }
-      else if (e.key === "Enter") { e.preventDefault(); dd.schliessen({ eltern_id: optionen[markiert].id }); }
+      else if (e.key === "PageDown") { e.preventDefault(); markieren(Math.min(sichtbar.length - 1, markiert + 10)); }
+      else if (e.key === "PageUp") { e.preventDefault(); markieren(Math.max(0, markiert - 10)); }
+      else if (e.key === "Enter") { e.preventDefault(); if (sichtbar.length) waehlen(sichtbar[markiert][0]); }
+      else if (e.key === "Escape" && suche.value) {
+        e.preventDefault();
+        e.stopPropagation();
+        suche.value = "";
+        zeichnen();
+      }
     });
-    anhaengen(liste, els);
-    inhalt.append(liste, knopfLeiste(knopf("Abbrechen", { onclick: () => dd.schliessen(null) })));
-  }, { ausloeser, fokus: (b) => b.querySelector('[role="listbox"]') });
+    zeichnen();
+    inhalt.append(suche, liste,
+      h("p", { class: "klein kat-tasten" }, "Tippen sucht im ganzen Pfad · ↑ ↓ wählen · Enter übernimmt · Esc leert bzw. schließt"),
+      knopfLeiste(knopf("Abbrechen", { onclick: () => dd.schliessen(null) })));
+  }, { ausloeser, fokus: (b) => b.querySelector('[data-testid="ziel-suche"]') });
   return d.ergebnis;
 }
 

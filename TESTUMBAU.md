@@ -181,3 +181,5 @@ Stabilität: Nach den Änderungen lief der Browser-Teil der Gesamtsuite viermal 
   `gesamt-tests/tests/spec/test_openapi.py` erwartet zusätzlich `GET /api/benutzer`. Eigene Tests:
   `tests/test_browser.py` (`server`), `test_browser_kredit_spalten.py`, `test_browser_tabs.py`,
   `test_browser_tastatur.py` setzen dieselben zwei Personen; `tests/test_oberflaeche.py` kennt `/api/benutzer`.
+- 2026-11-28 (D-326): `gesamt-tests/tests/spec/test_openapi.py` erwartet zusätzlich `POST /api/kategorien/verschieben`;
+  `tests/test_oberflaeche.py` kennt den Pfad.
