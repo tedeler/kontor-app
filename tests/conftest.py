@@ -1,4 +1,4 @@
-"""Eigene Tests von kontor-app; gemeinsame Fixtures, Marker und Zeitbudget (TESTUMBAU.md)."""
+"""Eigene Tests von kontor-app; gemeinsame Fixtures, Marker und Zeitbudget (tests/README.md)."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from kontor import version as _version
 
 # ---------------------------------------------------------------------------------------------------------------
 # Tempo: Starlettes TestClient startet sonst für jede einzelne Anfrage einen Thread mit eigener Ereignisschleife
-# (rund die Hälfte der Laufzeit einer Anfrage, TESTUMBAU.md). Alle Clients eines Testprozesses teilen sich
+# (rund die Hälfte der Laufzeit einer Anfrage, tests/README.md). Alle Clients eines Testprozesses teilen sich
 # deshalb eine Schleife; ``with TestClient(app)`` (Lifespan) benutzt weiter seine eigene.
 _PORTAL = None
 _client_init = TestClient.__init__
@@ -92,7 +92,7 @@ def mock_client(tmp_path: Path) -> TestClient:
 
 
 # ---------------------------------------------------------------------------------------------------------------
-# Marker und Zeitbudget (TESTUMBAU.md): tests/core = ``core`` (Entwicklungsschleife, zusammen höchstens
+# Marker und Zeitbudget (tests/README.md): tests/core = ``core`` (Entwicklungsschleife, zusammen höchstens
 # CORE_BUDGET_SEKUNDEN), tests/test_browser*.py = ``browser`` (eigener CI-Job).
 CORE_BUDGET_SEKUNDEN = 30.0
 _core_dauer: dict[str, float] = {}

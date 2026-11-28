@@ -1,4 +1,4 @@
-"""Gemeinsame Test-Konfiguration der Gesamtsuite (hervorgegangen aus kontor-tests, siehe TESTUMBAU.md)."""
+"""Gemeinsame Test-Konfiguration der Gesamtsuite (hervorgegangen aus kontor-tests, siehe ../tests/README.md)."""
 
 from __future__ import annotations
 

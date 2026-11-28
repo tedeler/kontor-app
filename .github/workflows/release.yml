@@ -1,4 +1,4 @@
-# CI von Kontor: Gesamttests und Release (D-105, TESTUMBAU.md).
+# CI von Kontor: Gesamttests und Release (D-105, tests/README.md).
 #
 # Jeder Push auf main (also jeder Merge eines Feature-Branches) lässt zuerst die Gesamttests laufen, in fünf
 # parallelen Jobs (eigene Tests, Gesamtsuite in zwei Teilen, eigene Browsertests, Gesamtsuite mit Browser), jeder mit
@@ -36,7 +36,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Fünf parallele Jobs, jeder unter 5 Minuten (TESTUMBAU.md). Die Gesamtsuite ohne Browser ist in zwei
+        # Fünf parallele Jobs, jeder unter 5 Minuten (tests/README.md). Die Gesamtsuite ohne Browser ist in zwei
         # gleich große Teile geteilt, weil sie auf den Runnern sonst rund 6 Minuten braucht; die Browsertests sind
         # in eigene und Gesamtsuite geteilt (D-325, zusammen rund 6 Minuten).
         teil: [eigene, gesamt-1, gesamt-2, browser-eigene, browser-gesamt]

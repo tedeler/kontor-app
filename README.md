@@ -688,7 +688,7 @@ python -m pytest tests/core     # Core-Tests der Entwicklungsschleife (unter 30 
 
 Die Gesamttests (eigene Tests in `tests/`, Gesamtsuite in `gesamt-tests/`) laufen in der CI bei jedem Push auf main;
 ist alles grün, veröffentlicht die CI ein neues Release. Aufbau, Aufrufe und Zeitbudgets:
-[TESTUMBAU.md](TESTUMBAU.md). Die Bilder dieser Seite erzeugt
+[tests/README.md](tests/README.md). Die Bilder dieser Seite erzeugt
 [`docs/screenshots/erzeugen.py`](docs/screenshots/erzeugen.py) neu.
 
 ### Python-Schnittstelle (Auszug)
@@ -726,7 +726,6 @@ plan = tilgungsplan({"restschuld": 1_000_000, "stand_datum": "2024-01-15", "soll
 | [ANBIETER.md](ANBIETER.md) | Anbieter-Beschreibungen (TOML) für den Abgleich von Mails und Buchungen |
 | [spec/](spec/konzept.md) | Spezifikation: Fachkonzept, Testkonzept, Schnittstellen (`spec/api/`), [Meilensteine](spec/meilensteine.md) |
 | [ENTSCHEIDUNGEN.md](ENTSCHEIDUNGEN.md) | Entscheidungen der Implementierung (fortlaufend `D-…`) |
-| [TESTUMBAU.md](TESTUMBAU.md) | Aufbau der Tests, Zeitbudgets, Auswahl der Gesamtsuite |
+| [tests/README.md](tests/README.md) | Aufbau der Tests, Zeitbudgets, Auswahl der Gesamtsuite; geänderte Tests in [gesamt-tests/AENDERUNGEN.md](gesamt-tests/AENDERUNGEN.md) |
 | [CLAUDE.md](CLAUDE.md) | Regeln für die Arbeit im Repository (Ablauf, Tests, Git) |
 | [refactor.md](refactor.md) | Codequalität: Kennzahlen und Maßnahmen |
-| [ERGEBNIS.md](ERGEBNIS.md), [WIDERSPRUECHE.md](WIDERSPRUECHE.md) | Archiv aus der früheren Abnahme (abgeschlossen) |
