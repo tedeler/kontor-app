@@ -27,147 +27,37 @@ passenden Buchung. Alles läuft auf dem eigenen Server, die Daten bleiben bei di
 </p>
 <p align="center"><b>Auch unterwegs</b> – als App auf dem Handy installierbar (PWA)</p>
 
-Zum Ausprobieren ohne echte Daten: [Schnellstart im Mock-Modus](#schnellstart-im-mock-modus). Die Bilder erzeugt
-[`docs/screenshots/erzeugen.py`](docs/screenshots/erzeugen.py) neu.
+**Neugierig?** In fünf Minuten läuft Kontor bei dir mit genau diesem Demo-Haushalt, ganz ohne Bank und ohne echte
+Daten: [Schnellstart im Mock-Modus](#schnellstart-im-mock-modus).
 
-## Über dieses Repository
+## Was Kontor für dich erledigt
 
-Dieses Repository (kontor-app) enthält die Implementierung (Python, FastAPI, SQLite, Single-Page-Weboberfläche).
-Die Spezifikation liegt unter `spec/`, die Tests unter `tests/` und `gesamt-tests/` ([TESTUMBAU.md](TESTUMBAU.md)).
+- **Umsätze holen sich von selbst.** Kontor ruft deine Konten per FinTS ab (camt, mit TAN-Verfahren wie photoTAN),
+  auf Wunsch alle paar Stunden. Doppelte Umsätze erkennt es, Umbuchungen zwischen eigenen Konten führt es zusammen,
+  und der Kontostand wird mit dem der Bank abgeglichen.
+- **Kategorien fast ohne Zutun.** Regeln schreibst du als Ausdruck oder im Baukasten und siehst sofort, welche
+  Buchungen sie treffen. Ein Lernmodell schlägt für den Rest eine Kategorie vor und sagt dir, warum. Aus dem
+  Gelernten legt Kontor auf Wunsch selbst Regeln an. Nichts wird endgültig, bevor du es bestätigst.
+- **Belege finden ihren Platz.** Kontor liest deine Postfächer (Gmail über OAuth2 oder IMAP mit App-Passwort) und
+  hängt Rechnungen von Amazon, PayPal und weiteren Anbietern an die passende Buchung.
+- **Du siehst, wohin das Geld geht.** Monatsbericht mit Hochrechnung, Jahresvergleich, Verträge und Abos, Geldfluss,
+  Vorschau auf den Kontostand, Vermögen und Kredite mit centgenauem Tilgungsplan.
+- **Fehler sind nicht schlimm.** Jede Änderung lässt sich rückgängig machen, und Kontor legt stündlich
+  Sicherungspunkte an, zu denen du zurückkehren kannst.
+- **Für den ganzen Haushalt.** Ein gemeinsamer Login, und wer eine Buchung bestätigt, wird mit Namen vermerkt.
+  Am Rechner mit Tastaturkürzeln und Befehlspalette, unterwegs als App auf dem Handy, hell oder dunkel.
+- **Deine Daten bleiben bei dir.** Kontor läuft auf deinem eigenen Server im Heimnetz oder hinter Tailscale.
+  Die Bank-PIN liegt nur im Arbeitsspeicher, Zugangsdaten sind verschlüsselt gespeichert.
 
-## Schnellzugriff
-
-**Einrichtung und Installation**
-
-| Thema | Wo |
-| --- | --- |
-| Ausprobieren ohne echte Daten (lokal, Mock-Modus) | [Schnellstart im Mock-Modus](#schnellstart-im-mock-modus) |
-| Installation in einer VM (Debian 13, mit Tailscale/HTTPS) | [INSTALLATION-VM.md](INSTALLATION-VM.md) |
-| Installation im Proxmox-LXC-Container | [Installation als systemd-Dienst](#installation-als-systemd-dienst-im-proxmox-lxc-container) |
-| Empfohlene Einstellungen für den Betrieb | [Empfohlene Konfiguration](#empfohlene-konfiguration-für-den-betrieb) |
-| Login einrichten, Passwort vergessen | [Installation, Schritt 6](#installation-als-systemd-dienst-im-proxmox-lxc-container) · [Anmeldung ausprobieren](#anmeldung-ausprobieren) |
-| Nur über HTTPS (Tailscale) | [HTTPS.md](HTTPS.md) · [Kurzfassung](#https) |
-| Testinstanz für einen Feature-Branch | [TESTINSTANZ.md](TESTINSTANZ.md) · [Kurzfassung](#testinstanz-für-entwicklungsbranches) |
-| Updates einspielen | [Updates](#updates) |
-| Datensicherung und Wiederherstellung | [Datensicherung im Betrieb](#datensicherung-im-betrieb) |
-
-**Anbindungen**
-
-| Thema | Wo |
-| --- | --- |
-| Bankzugang (FinTS/camt), TAN, Diagnose | [Bankzugang einrichten](#bankzugang-fints-einrichten) |
-| Gmail-Postfächer (OAuth2) | [Gmail über ein eigenes Google-Cloud-Projekt](#gmail-über-ein-eigenes-google-cloud-projekt) |
-| Push-Benachrichtigungen | [ntfy](#ntfy) |
-| Anbieter für den Mail-Abgleich (Amazon, PayPal, eigene) | [ANBIETER.md](ANBIETER.md) |
-| Kontostand-Abgleich mit der Bank | [Kontostand bei der Synchronisation](#kontostand-bei-der-synchronisation-m11) |
-
-**Konfiguration (alle Umgebungsvariablen)**
-
-[Allgemein](#konfiguration) · [Sicherheit und Betrieb](#sicherheit-und-betrieb-m7) · [Echte Anbindungen](#konfiguration-der-echten-anbindungen-m6)
-
-**Bedienung**
-
-[Synchronisation im Mock-Modus](#synchronisation-im-mock-modus-ausprobieren) · [Weboberfläche](#weboberfläche) · [Tastaturkürzel](#tastaturkürzel) · [Handy](#handy) · [Installation als App (PWA)](#design-und-installation-als-app-pwa)
-
-**Meilensteine, Spezifikation und Tests**
-
-| Thema | Wo |
-| --- | --- |
-| Meilensteine (Übersicht und Stand) | [spec/meilensteine.md](spec/meilensteine.md) · [Funktionsumfang kurz](#funktionsumfang) |
-| Fachkonzept / Testkonzept | [spec/konzept.md](spec/konzept.md) · [spec/testkonzept.md](spec/testkonzept.md) |
-| Schnittstellen (REST, Oberfläche, Datenmodell …) | [spec/api/](spec/api) |
-| Tests (Core-Tests, Gesamttests, CI) | [TESTUMBAU.md](TESTUMBAU.md) · [Tests](#tests) |
-| Ergebnis des letzten Testlaufs | CI-Lauf auf main (GitHub Actions); früherer Stand: [ERGEBNIS.md](ERGEBNIS.md) |
-| Entscheidungen, Widersprüche | [ENTSCHEIDUNGEN.md](ENTSCHEIDUNGEN.md) · [WIDERSPRUECHE.md](WIDERSPRUECHE.md) |
-| Python-Schnittstelle | [Python-Schnittstelle (Auszug)](#python-schnittstelle-auszug) |
-| Regeln für die Arbeit im Repository | [CLAUDE.md](CLAUDE.md) |
-
-## Funktionsumfang
-
-Kurzüberblick über die ersten Meilensteine; der vollständige, aktuelle Stand steht in
-[spec/meilensteine.md](spec/meilensteine.md).
-
-<details>
-<summary>M1–M9 und FinTS/camt aufklappen</summary>
-
-- M1: KMyMoney-Import, Finanzübersicht, Konten- und Buchungsliste mit Filtern
-  und Mehrfachbearbeitung, doppelte Buchführung mit Splits und Tags,
-  Dublettenerkennung, Bank-/Mail-Plugins als Schnittstelle mit Mock-Varianten.
-- M2: Bank-Synchronisation (manuell und per Planer) mit Kontozuordnung über
-  die IBAN, Übernahme der Umsätze, Dublettenerkennung beim Abruf,
-  Synchronisationsläufe mit Status je Konto, interne Benachrichtigungen,
-  TAN-Ablauf mit QR-Bild, PIN nur im Arbeitsspeicher, simulierte Uhr im
-  Mock-Modus, Regel-Kategorisierung mit Vorschlägen und Bestätigung.
-- M3: Änderungsprotokoll für jede manuelle und automatische Änderung mit
-  Rückgängig (einzeln, mehrere, ganze Gruppe wie ein Synchronisationslauf)
-  und Wiederholen, Empfängerverwaltung (Aliase, Standardkategorie,
-  Zusammenführen), Erfassungshilfe für manuelle Buchungen, Korrekturen und
-  Umbuchungen, Umbuchungserkennung, Kontenabstimmung mit Sperre,
-  Volltextsuche, Konten und Kategorien mit Buchungen löschen; gelöschte
-  Bankkonten werden bei der Synchronisation erfragt und auf Wunsch (mit allen
-  oder nur neuen Umsätzen) wiederhergestellt oder ignoriert.
-- M4: GnuCash-Import (XML gzip-komprimiert/unkomprimiert und SQLite, nur
-  lesend) mit Zuordnung zu KMyMoney-Daten ohne doppelte Salden, Lernmodell
-  (Naive Bayes mit exakten Brüchen, Sicherheit in Promille, Schwelle 70 %,
-  abschaltbar) als vierte Stufe der Kategorisierung, Split-Vorlagen für
-  Sammelabbuchungen (Erkennung über Empfänger und Muster, feste Teilbeträge,
-  keine Toleranz, Benachrichtigung bei Abweichung, nachträgliches Aufteilen).
-- M9: Datensicherung und Wiederherstellung: vollständiger fachlicher Bestand
-  als ZIP (SQLite-Datenbank und Manifest mit Prüfsummen), Einspielen mit
-  Probelauf und ausdrücklicher Bestätigung als eine rückgängig machbare
-  Änderung im Protokoll; Geheimnisse und Protokoll sind nie enthalten.
-- M5: Wiederkehrende Buchungen (Erkennung aus dem Buchbestand, Übersicht mit
-  Rhythmus, Betrag, Jahreskosten und Status, Benachrichtigungen bei neuem
-  Empfänger, geändertem Betrag und ausbleibender Zahlung), Kredite
-  (Annuitätendarlehen ohne Kontozugriff, Zinsmethoden 30/360, act/360,
-  act/365, Sondertilgungen, centgenauer Tilgungsplan, automatische Aufteilung
-  der Raten als „vorläufig“ bei der Synchronisation oder nachträglich,
-  Jahresabgleich mit genau einer Korrekturbuchung und Status „abgeglichen“),
-  Berichte (Kontostandsverlauf als Liniendiagramm, Einnahmen/Ausgaben ohne
-  Umbuchungen), Export der gefilterten Buchungsliste als CSV (verlustfrei) und
-  PDF (reportlab, ohne Netzwerk). Kredite sind protokolliert, rückgängig
-  machbar und Teil der Sicherung.
-- M6: Echte Anbindungen: FinTS-Bank über python-fints (nur lesend, camt.052
-  bevorzugt, MT940 als Rückfall, QR-TAN mit Bild, PIN aus der Eingabe oder
-  über systemd-creds), zwei Gmail-Postfächer über IMAP mit OAuth2/XOAUTH2
-  (nur lesend, ohne Passwörter, parallel abgerufen, Token-Erneuerung,
-  Vorwarnung, Ablauf im Testmodus nach sieben Tagen und Widerruf mit
-  Benachrichtigung), Zustellung jeder Benachrichtigung per ntfy (genau eine
-  Push-Nachricht, Wiederholung nur nach Fehlschlag, TAN-Push mit Link und
-  Erinnerungen), verschlüsselter Geheimnisspeicher (AES-256-GCM) für Tokens
-  und Client-Secret. Postfächer sind protokolliert und Teil der Sicherung;
-  Geheimnisse nie.
-- M7: Sicherheit und Betrieb: gemeinsamer Haushalts-Login (scrypt, Sitzungen
-  mit Leerlauf- und Höchstdauer, Bremse mit Verdopplung nach falschen
-  Passwörtern, CSRF-Token und Herkunftsprüfung, Ersteinrichtung mit
-  Einrichtungscode), Beschränkung auf das Heimnetz, Sicherheitsköpfe (CSP ohne
-  Inline-Skripte), Eingabehärtung und Größengrenzen, ausgelieferte
-  systemd-Units mit Härtung und `LoadCredentialEncrypted`, tägliche Sicherung
-  per Timer, sauberes Beenden mit WAL-Checkpoint, Gesundheitsprüfung und
-  Leistung mit 50 000 Buchungen (Liste, Filter und Suche deutlich unter 1 s).
-- M8: Vollständige Oberfläche als Single-Page-App mit Pfad-Routen: linke
-  Navigation, Panels (verschiebbar, größenveränderbar, einklappbar, Layout im
-  Browser gespeichert), Kontextmenüs, Drag and Drop, Mehrfachauswahl wie im
-  Dateimanager, Tastaturkürzel und Befehlspalette, Inline-Bearbeitung mit
-  Rückgängig per Strg+Z über das Änderungsprotokoll, helles/dunkles Design,
-  installierbare PWA mit Offline-Hinweis, mobile Bedienung mit Gesten,
-  TAN-Seite mit „QR-Code speichern“/„Teilen“, Barrierefreiheit.
-- FinTS/camt (Feature `fints-camt`): Der Bankabruf läuft ausschließlich über FinTS mit camt
-  (`HKCAZ`, camt.052.001.02 bis .08, Kontoverbindung nur mit IBAN und BIC). Der Bankzugang wird in der
-  Oberfläche eingestellt (Einstellungen → Bankzugang), TANs schon bei der Anmeldung an der Bank werden
-  unterstützt. Das frühere AqBanking-Plugin (M10) ist entfallen.
-
-</details>
-
-**Alles lässt sich im Mock-Modus ohne echte Daten ausprobieren:** Mock-Bank,
-Mock-Postfächer und Mock-Benachrichtigungen (Liste unter
-`GET /api/mock/zustellungen`) arbeiten mit synthetischen Daten und bauen nie
-eine Verbindung auf; auf Wunsch stellt der Mock-Modus auch per ntfy zu (Titel
-beginnt mit `[Mock]`).
+Umsteigen ist leicht: Kontor übernimmt deine Daten aus **KMyMoney** und **GnuCash**. Alles, was Kontor kann,
+steht ausführlich in [spec/meilensteine.md](spec/meilensteine.md).
 
 ## Schnellstart im Mock-Modus
 
-Voraussetzung: Python ≥ 3.11, ein Checkout dieses Repositories.
+Im Mock-Modus arbeitet Kontor mit einer eigenen Datenbank und erfundenen Daten. Es baut keine Verbindung zu Bank,
+Mailserver oder Push-Dienst auf. Du kannst also alles anklicken, ohne etwas kaputtzumachen.
+
+Du brauchst Python ab 3.11 und einen Checkout dieses Repositories.
 
 ```bash
 # 1. Installieren (in einer virtuellen Umgebung …)
@@ -176,50 +66,114 @@ pip install -e .
 #    … oder systemweit, z. B. in einem Container:
 #    pip install --break-system-packages -e .
 
-# 2. Konfiguration über Umgebungsvariablen (Kommandozeilenargumente gibt es nicht)
-export KONTOR_DATENBANK="$PWD/daten/kontor.sqlite3"   # Echt-Datenbank (wird im Mock-Modus NICHT angelegt)
-export KONTOR_MOCK_MODUS=ja                           # Mock-Modus: eigene Datenbank daten/kontor-mock.sqlite3
-# Anmeldung bleibt hier aus (Vorgabe); zum Ausprobieren des Logins siehe „Anmeldung“ unten.
+# 2. Demo-Haushalt bauen: drei Jahre erfundene Buchungen, Mails und Regeln
+python -m kontor.demodaten daten/kontor-mock.sqlite3 daten/demo-mock.json
 
-# 3. Server starten (127.0.0.1:8000; ändern über KONTOR_HOST/KONTOR_PORT)
+# 3. Konfiguration über Umgebungsvariablen (Kommandozeilenargumente gibt es nicht)
+#    Echt-Datenbank (wird im Mock-Modus NICHT angelegt):
+export KONTOR_DATENBANK="$PWD/daten/kontor.sqlite3"
+#    Mock-Modus mit eigener Datenbank daten/kontor-mock.sqlite3:
+export KONTOR_MOCK_MODUS=ja
+#    Bank und Postfächer des Demo-Haushalts:
+export KONTOR_MOCK_DATEN="$PWD/daten/demo-mock.json"
+#    Die Anmeldung bleibt aus (Vorgabe), siehe „Anmeldung ausprobieren“.
+
+# 4. Server starten (127.0.0.1:8000; ändern über KONTOR_HOST/KONTOR_PORT)
 python -m kontor
+```
 
-# 4. In einer zweiten Shell synthetische Testdaten importieren (Fixture der Gesamtsuite)
+Jetzt im Browser **http://127.0.0.1:8000/** öffnen. Der gelbe Hinweis „Mock-Modus“ oben zeigt, dass du in der
+Spielwiese bist. Ein guter erster Rundgang:
+
+1. **Konten → Girokonto:** die Buchungsliste. Klick auf eine Buchung zeigt rechts die Einzelheiten.
+2. **Konten abrufen** (↻ oben) und **Mail-Blatt → Mails abrufen:** Die letzten Tage sind noch unbearbeitet, es
+   kommen neue Umsätze und Belege herein.
+3. **Berichte → Monat:** wie der laufende Monat dasteht.
+4. **Regeln:** eine Regel öffnen und im Testbereich sehen, welche Buchungen sie trifft.
+
+Beenden mit Strg+C (bzw. `SIGTERM`): Kontor beendet einen laufenden Abruf geordnet und schreibt das WAL in die
+Datenbankdatei zurück. Von vorn beginnen: Server beenden, `daten/kontor-mock.sqlite3` (samt `-wal`/`-shm`)
+löschen und Schritt 2 wiederholen.
+
+<details>
+<summary>Statt des Demo-Haushalts: kleine Testdateien importieren, uvicorn, Prüfung des Modus</summary>
+
+Ohne Schritt 2 und ohne `KONTOR_MOCK_DATEN` startet Kontor mit leerer Mock-Datenbank und eingebautem
+Mock-Datensatz. Synthetische KMyMoney-Dateien lassen sich dann in einer zweiten Shell importieren:
+
+```bash
 curl -F datei=@gesamt-tests/fixtures/kmy/standard.kmy http://127.0.0.1:8000/api/import/kmymoney
 ```
 
-Beenden mit Strg+C (bzw. `SIGTERM`): Kontor beendet einen laufenden Abruf
-geordnet und schreibt das WAL in die Datenbankdatei zurück.
+Weitere Dateien: `gesamt-tests/fixtures/kmy/minimal.kmy`, `sonderfaelle.kmy`, `dubletten.kmy` usw. Eine
+`.kmy`-Datei lässt sich auch in der Oberfläche unter **Import** hochladen (bei eingeschalteter Anmeldung nur so
+oder mit Sitzungscookie und CSRF-Kopf). Ein zweiter Import derselben Datei ändert nichts; eine erweiterte Fassung
+(z. B. erst `standard_bis_2023.kmy`, dann `standard.kmy`) fügt nur das Neue hinzu.
 
-Danach im Browser **http://127.0.0.1:8000/** öffnen. Oben erscheint deutlich
-der gelbe Hinweis „Mock-Modus“; `GET /api/status` meldet `"modus": "mock"`
-und jede API-Antwort trägt den Header `X-Kontor-Modus: mock`.
-
-Alternativ zum eigenen Startbefehl geht auch uvicorn direkt (gleiche
-Umgebungsvariablen):
+Statt `python -m kontor` geht auch uvicorn direkt (gleiche Umgebungsvariablen):
 
 ```bash
 uvicorn --factory kontor.app:create_app --host 127.0.0.1 --port 8000
 ```
 
-Weitere synthetische Dateien: `gesamt-tests/fixtures/kmy/minimal.kmy`,
-`sonderfaelle.kmy`, `dubletten.kmy` usw. Eine `.kmy`-Datei lässt sich auch in
-der Oberfläche unter **Import** hochladen (bei eingeschalteter Anmeldung nur
-so oder mit Sitzungscookie und CSRF-Kopf). Ein zweiter Import derselben Datei
-ändert nichts; eine erweiterte Fassung (z. B. erst `standard_bis_2023.kmy`,
-dann `standard.kmy`) fügt nur das Neue hinzu.
+Im Mock-Modus meldet `GET /api/status` `"modus": "mock"`, und jede API-Antwort trägt den Header
+`X-Kontor-Modus: mock`. Mock-Bank, Mock-Postfächer und Mock-Benachrichtigungen (Liste unter
+`GET /api/mock/zustellungen`) bauen nie eine Verbindung auf; auf Wunsch stellt der Mock-Modus auch per ntfy zu
+(Titel beginnt mit `[Mock]`).
 
-Mock-Daten neu beginnen: Server beenden und `daten/kontor-mock.sqlite3`
-(samt `-wal`/`-shm`) löschen.
+</details>
+
+## Wegweiser
+
+**Ausprobieren**
+
+[Schnellstart im Mock-Modus](#schnellstart-im-mock-modus) · [Synchronisation im Mock-Modus](#synchronisation-im-mock-modus-ausprobieren) · [Anmeldung ausprobieren](#anmeldung-ausprobieren)
+
+**Installieren und betreiben**
+
+| Thema | Wo |
+| --- | --- |
+| Installation in einer VM (Debian 13, mit Tailscale/HTTPS) | [INSTALLATION-VM.md](INSTALLATION-VM.md) |
+| Installation im Proxmox-LXC-Container | [Installation als systemd-Dienst](#installation-als-systemd-dienst-im-proxmox-lxc-container) |
+| Empfohlene Einstellungen für den Betrieb | [Empfohlene Konfiguration](#empfohlene-konfiguration-für-den-betrieb) |
+| Login einrichten, Passwort vergessen | [Installation, Schritt 6](#installation-als-systemd-dienst-im-proxmox-lxc-container) · [Anmeldung ausprobieren](#anmeldung-ausprobieren) |
+| Nur über HTTPS (Tailscale) | [HTTPS.md](HTTPS.md) · [Kurzfassung](#https) |
+| Updates einspielen | [Updates](#updates) |
+| Datensicherung und Wiederherstellung | [Datensicherung im Betrieb](#datensicherung-im-betrieb) |
+| Testinstanz für einen Entwicklungsbranch | [TESTINSTANZ.md](TESTINSTANZ.md) · [Kurzfassung](#testinstanz-für-entwicklungsbranches) |
+
+**Anbindungen**
+
+| Thema | Wo |
+| --- | --- |
+| Bankzugang (FinTS/camt), TAN, Diagnose | [Bankzugang einrichten](#bankzugang-fints-einrichten) |
+| Kontostand-Abgleich mit der Bank | [Kontostand bei der Synchronisation](#kontostand-bei-der-synchronisation) |
+| Gmail-Postfächer (OAuth2) | [Gmail über ein eigenes Google-Cloud-Projekt](#gmail-über-ein-eigenes-google-cloud-projekt) |
+| Anbieter für den Mail-Abgleich (Amazon, PayPal, eigene) | [ANBIETER.md](ANBIETER.md) |
+| Push-Benachrichtigungen | [ntfy](#ntfy) |
+
+**Konfiguration (alle Umgebungsvariablen)**
+
+[Allgemein](#konfiguration) · [Sicherheit und Betrieb](#sicherheit-und-betrieb) · [Echte Anbindungen](#konfiguration-der-echten-anbindungen)
+
+**Bedienung**
+
+[Weboberfläche](#weboberfläche) · [Tastaturkürzel](#tastaturkürzel) · [Handy](#handy) · [Installation als App (PWA)](#design-und-installation-als-app-pwa)
+
+**Mitentwickeln**
+
+[Tests](#tests) · [Python-Schnittstelle](#python-schnittstelle-auszug) · [Dokumente im Repository](#dokumente-in-diesem-repository) · [Spezifikation](spec/konzept.md)
 
 ## Synchronisation im Mock-Modus ausprobieren
 
-Die Mock-Bank liefert synthetische Umsätze bis zum simulierten „heute“; es
-wird nie eine echte Bank angesprochen.
+Die Mock-Bank liefert synthetische Umsätze bis zum simulierten „heute“; es wird nie eine echte Bank angesprochen.
+Für die folgenden Schritte nimmst du am besten eine eigene, leere Mock-Datenbank; der Demo-Haushalt bleibt
+daneben erhalten:
 
 ```bash
 export KONTOR_DATENBANK="$PWD/daten/kontor.sqlite3"
 export KONTOR_MOCK_MODUS=ja
+export KONTOR_MOCK_DATENBANK="$PWD/daten/sync-mock.sqlite3"   # neu und leer
 export KONTOR_MOCK_HEUTE=2024-06-30                # Startzeitpunkt der simulierten Uhr (12:00 UTC)
 # optional: Datendatei der Gesamtsuite (3 Konten, Vormerkungen, Storno …)
 export KONTOR_MOCK_DATEN=gesamt-tests/fixtures/mock/sync_daten.json
@@ -228,34 +182,26 @@ export KONTOR_SYNC_INTERVALL_MINUTEN=60
 python -m kontor
 ```
 
-1. **Regeln** → „Regel anlegen“, z. B. *empfaenger enthaelt Frischekorb →
-   Lebensmittel* (vorher unter **Kategorien** eine Aufwandskategorie anlegen).
-   Sie greift im eingebauten Datensatz wie in `sync_daten.json`.
-2. **Synchronisation** → „Jetzt synchronisieren“ (oder ↻ im Kopf). Fehlende Konten werden über
-   die IBAN angelegt, neue Umsätze gebucht, Gegenkonto ist die Kategorie der
-   ersten passenden Regel oder das technische Konto „Unkategorisiert“. Die
-   Liste der Läufe zeigt je Konto, was neu, vorhanden, zusammengeführt oder zur
-   Prüfung vorgelegt wurde. Ein zweiter Lauf erzeugt keine Dubletten.
-3. **Kontoansicht** des Girokontos: Regel-Kategorien tragen die Marke
-   „Vorschlag“ und lassen sich per ✓/✗ in der Zeile, über die Mehrfachauswahl
-   („Vorschläge annehmen“/„ablehnen“) oder das Kontextmenü bestätigen bzw.
-   ablehnen.
-4. **Mock-Uhr** (auf der Seite Synchronisation): Zeit vorstellen und erneut
-   synchronisieren – neue Umsätze erscheinen, der
-   Zeitraum überlappt den letzten Abruf um 14 Tage.
-5. **TAN-Ablauf**: mit `KONTOR_MOCK_SZENARIO=tan_erforderlich` starten. Der
-   Lauf pausiert, die Glocke oben zeigt eine Benachrichtigung, die TAN-Seite
-   (`/tan/<id>`) zeigt Anweisung und QR-Bild mit „QR-Code speichern“ und
-   „Teilen“. Richtige TAN: `123456` (bzw. `bank.tan` der Datendatei); nach
-   23:59:59 UTC des simulierten Tages läuft die Anforderung ab.
-6. **PIN**: mit `KONTOR_MOCK_DATEN=gesamt-tests/fixtures/mock/sync_daten_pin.json`
-   verlangt die Mock-Bank eine PIN (steht synthetisch in der Datei unter
-   `bank.pin`). Ohne PIN scheitert der Lauf mit `bank_pin_fehlt`; die Oberfläche
-   fragt dann im PIN-Dialog danach (↻ im Kopf), die PIN liegt nur im Arbeitsspeicher und
-   ist nach einem Neustart oder einer Ablehnung durch die Bank weg.
-7. Fehlerfälle: `KONTOR_MOCK_SZENARIO=bankfehler` bzw. `zeitueberschreitung` –
-   der Lauf scheitert ohne Datenverlust, es entsteht genau eine
-   Benachrichtigung je Fehlercode, solange sie ungelesen ist.
+1. **Regeln** → „Regel anlegen“, z. B. *"Frischekorb" in empfänger → Lebensmittel* (vorher unter **Kategorien**
+   eine Aufwandskategorie anlegen). Sie greift im eingebauten Datensatz wie in `sync_daten.json`.
+2. **Synchronisation** → „Jetzt synchronisieren“ (oder ↻ im Kopf). Fehlende Konten werden über die IBAN angelegt,
+   neue Umsätze gebucht; Gegenkonto ist die Kategorie der ersten passenden Regel oder das technische Konto
+   „Unkategorisiert“. Die Liste der Läufe zeigt je Konto, was neu, vorhanden, zusammengeführt oder zur Prüfung
+   vorgelegt wurde. Ein zweiter Lauf erzeugt keine Dubletten.
+3. **Kontoansicht** des Girokontos: Kategorien aus Regeln sind Vorschläge (Marke „Regel“). Annehmen oder ablehnen
+   geht über die Leiste unten („Vorschläge annehmen“/„ablehnen“), das Kontextmenü oder die Tasten `a`/`A`.
+4. **Mock-Uhr** (auf der Seite Synchronisation): Zeit vorstellen und erneut synchronisieren – neue Umsätze
+   erscheinen, der Zeitraum überlappt den letzten Abruf um 14 Tage.
+5. **TAN-Ablauf**: mit `KONTOR_MOCK_SZENARIO=tan_erforderlich` starten. Der Lauf pausiert, die Glocke oben zeigt
+   eine Benachrichtigung, die TAN-Seite (`/tan/<id>`) zeigt Anweisung und QR-Bild mit „QR-Code speichern“ und
+   „Teilen“. Richtige TAN: `123456` (bzw. `bank.tan` der Datendatei); nach 23:59:59 UTC des simulierten Tages läuft
+   die Anforderung ab.
+6. **PIN**: mit `KONTOR_MOCK_DATEN=gesamt-tests/fixtures/mock/sync_daten_pin.json` verlangt die Mock-Bank eine PIN
+   (steht synthetisch in der Datei unter `bank.pin`). Ohne PIN scheitert der Lauf mit `bank_pin_fehlt`; die
+   Oberfläche fragt dann im PIN-Dialog danach (↻ im Kopf). Die PIN liegt nur im Arbeitsspeicher und ist nach einem
+   Neustart oder einer Ablehnung durch die Bank weg.
+7. **Fehlerfälle**: `KONTOR_MOCK_SZENARIO=bankfehler` bzw. `zeitueberschreitung` – der Lauf scheitert ohne
+   Datenverlust, es entsteht genau eine Benachrichtigung je Fehlercode, solange sie ungelesen ist.
 
 ## Anmeldung ausprobieren
 
@@ -270,159 +216,31 @@ echo 'Mein-Testhaushalt-2026' | python -m kontor.anmeldung passwort-setzen
 python -m kontor
 ```
 
-Variante B (wie im Betrieb): ohne Passwort starten; Kontor legt neben der
-aktiven Datenbank die Datei `daten/kontor-mock.sqlite3.einrichtung` mit einem
-Einrichtungscode an (Rechte 0600, im Log steht nur der Pfad). Auf
-**http://127.0.0.1:8000/anmelden** den Code (`cat daten/kontor-mock.sqlite3.einrichtung`)
-und das neue Passwort (12–1024 Zeichen) eingeben. Danach: **Einstellungen →
-Anmeldung** zum Ändern des Passworts (beendet alle anderen Sitzungen) und zum
-Abmelden (auch über die Befehlspalette). Nach fünf falschen Passwörtern ist die Anmeldung
-60 s gesperrt, jede weitere Fehleingabe verdoppelt die Sperre (höchstens ein
-Tag); die Anmeldeseite zeigt die Restzeit. Passwort vergessen: auf dem Server
-`python -m kontor.anmeldung passwort-setzen` (mit denselben `KONTOR_*`-Variablen
-bzw. `EnvironmentFile`) ausführen.
+Variante B (wie im Betrieb): ohne Passwort starten. Kontor legt neben der aktiven Datenbank die Datei
+`daten/kontor-mock.sqlite3.einrichtung` mit einem Einrichtungscode an (Rechte 0600, im Log steht nur der Pfad). Auf
+**http://127.0.0.1:8000/anmelden** den Code (`cat daten/kontor-mock.sqlite3.einrichtung`) und das neue Passwort
+(12–1024 Zeichen) eingeben. Unter **Einstellungen → Sicherheit** lässt sich das Passwort ändern (beendet alle
+anderen Sitzungen) und abmelden (auch über die Befehlspalette).
 
-## Konfiguration
+Nach fünf falschen Passwörtern ist die Anmeldung 60 s gesperrt, jede weitere Fehleingabe verdoppelt die Sperre
+(höchstens ein Tag); die Anmeldeseite zeigt die Restzeit. Passwort vergessen: auf dem Server
+`python -m kontor.anmeldung passwort-setzen` (mit denselben `KONTOR_*`-Variablen bzw. `EnvironmentFile`)
+ausführen.
 
-| Variable | Bedeutung |
-| --- | --- |
-| `KONTOR_DATENBANK` | **Pflicht.** Pfad der SQLite-Datei für Echtdaten |
-| `KONTOR_MOCK_MODUS` | `ja`/`1`/`true`/`on` = Mock-Modus; leer/`nein` = Echtbetrieb |
-| `KONTOR_MOCK_DATENBANK` | Pfad der Mock-Datenbank; Vorgabe `<name>-mock<endung>` neben der Echt-Datenbank |
-| `KONTOR_BANK_PLUGIN` | `mock` oder `fints` (Vorgabe: `mock` im Mock-Modus, sonst `fints`; der frühere Wert `aqbanking` wird beim Start als `fints` gelesen) |
-| `KONTOR_MAIL_PLUGIN` | `mock` oder `imap` (Vorgabe entsprechend) |
-| `KONTOR_MOCK_SZENARIO` | `normal`, `bankfehler`, `zeitueberschreitung`, `tan_erforderlich`, `token_ablauf`, `beitragsaenderung` (M4: Umsätze mit `betrag_beitragsaenderung` in der Datendatei kommen mit diesem Betrag) |
-| `KONTOR_MOCK_DATEN` | JSON-Datei im Format `kontor-mock-daten` (z. B. `gesamt-tests/fixtures/mock/mock_daten.json`); leer = eingebauter Datensatz |
-| `KONTOR_MOCK_HEUTE` | simuliertes „heute“ (`YYYY-MM-DD`); im Mock-Modus startet die App-Uhr dann bei diesem Tag 12:00 UTC (stellbar über `PUT /api/mock/zeit` bzw. die Oberfläche) |
-| `KONTOR_SYNC_INTERVALL_MINUTEN` | Abstand automatischer Läufe; `0` (Vorgabe) = kein automatischer Abruf |
-| `KONTOR_SYNC_WIEDERHOLUNG_MINUTEN` | erneuter Versuch nach fehlgeschlagenem Lauf (Vorgabe 30) |
-| `KONTOR_SYNC_ERSTABRUF_TAGE` | Zeitraum des ersten Abrufs eines Kontos (Vorgabe 90) |
-| `KONTOR_SYNC_UEBERLAPPUNG_TAGE` | Überlappung folgender Abrufe (Vorgabe 14) |
-| `KONTOR_PLANER_STARTEN` | Planer-Thread im Server starten (Vorgabe ja; nur wirksam mit Intervall > 0) |
-| `KONTOR_UMBUCHUNG_AUTOMATISCH` | Umbuchungen bei jeder Synchronisation automatisch erkennen und zusammenführen (Vorgabe nein; für den Betrieb empfohlen: `1`) |
-| `KONTOR_UMBUCHUNG_FENSTER_TAGE` | größter Datumsabstand der beiden Seiten einer Umbuchung (0–366, Vorgabe 3) |
-| `KONTOR_LERNMODELL_AUTOMATISCH` | Lernmodell bei neuen Buchungen (Synchronisation, Erfassen) als Vorschlag befragen (Vorgabe nein; für den Betrieb empfohlen: `1`) |
-| `KONTOR_REGELN_AUTOMATISCH` | aus dem Gelernten automatisch Regeln „Empfänger ist …“ anlegen: mindestens 5 gleiche Zuordnungen, in den letzten 12 Monaten keine abweichende (Vorgabe nein; für den Betrieb empfohlen: `1`, D-179) |
-| `KONTOR_WIEDERKEHREND_AUTOMATISCH` | nach jedem Synchronisationslauf auf unerwartete Buchungen prüfen (neuer Empfänger, geänderter Betrag, ausbleibende Zahlung; Vorgabe nein; für den Betrieb empfohlen: `1`) |
-
-### Sicherheit und Betrieb (M7)
-
-| Variable | Bedeutung |
-| --- | --- |
-| `KONTOR_ANMELDUNG` | Haushalts-Login einschalten (Vorgabe aus; **im Betrieb `1`**, ausgelieferte `kontor.env`) |
-| `KONTOR_SITZUNG_LEERLAUF_SEKUNDEN`, `KONTOR_SITZUNG_HOECHSTDAUER_SEKUNDEN` | Ablauf der Sitzung (1 Tag ohne Aktivität, höchstens 30 Tage) |
-| `KONTOR_SITZUNG_COOKIE_SECURE` | `Secure`-Cookie erzwingen (`1`, hinter HTTPS-Proxy; dann auch `KONTOR_OEFFENTLICHE_URL` setzen, siehe [HTTPS.md](HTTPS.md)) oder verbieten; leer = nur bei HTTPS-Anfragen |
-| `KONTOR_ANMELDUNG_FEHLVERSUCHE`, `KONTOR_ANMELDUNG_SPERRE_SEKUNDEN` | Bremse: nach 5 Fehlversuchen 60 s Sperre, danach verdoppelt |
-| `KONTOR_ERLAUBTE_NETZE` | CIDR-Liste, z. B. `127.0.0.0/8,192.168.0.0/16`; andere Adressen → 403 (leer = alle) |
-| `KONTOR_UPLOAD_MAX_MIB`, `KONTOR_ANFRAGE_MAX_KIB` | Größengrenzen für Importe/Sicherungen (200 MiB) und andere Körper (4 096 KiB) |
-| `KONTOR_HOST`, `KONTOR_PORT` | Adresse und Port von `python -m kontor` (Vorgabe `127.0.0.1`, `8000`) |
-| `KONTOR_LOG_STUFE` | `DEBUG`, `INFO` (Vorgabe), `WARNING`, `ERROR`; Ausgabe nach stderr `<STUFE> <logger>: <Meldung>` |
-| `KONTOR_BEENDEN_FRIST_SEKUNDEN` | Frist für einen laufenden Abruf beim Beenden (Vorgabe 20) |
-| `KONTOR_MOCK_VERZOEGERUNG_MS` | nur Mock-Modus: jeder Umsatzabruf der Mock-Bank wartet so lange (Testhilfe) |
-
-`GET /api/gesundheit` antwortet ohne Anmeldung mit `{"status": "ok", "version": …}`
-(für Überwachung), `GET /api/anmeldung` mit dem Anmeldestatus.
-
-### Empfohlene Konfiguration für den Betrieb
-
-Die Vorgaben halten das Verhalten früherer Meilensteine (E-054, E-072). Im
-täglichen Betrieb empfiehlt sich:
-
-```bash
-export KONTOR_DATENBANK=/var/lib/kontor/kontor.sqlite3
-export KONTOR_SYNC_INTERVALL_MINUTEN=240     # automatischer Abruf alle 4 Stunden
-export KONTOR_UMBUCHUNG_AUTOMATISCH=1        # Umbuchungen zwischen eigenen Konten zusammenführen
-export KONTOR_LERNMODELL_AUTOMATISCH=1       # Kategorien aus dem Lernmodell vorschlagen
-export KONTOR_REGELN_AUTOMATISCH=1          # aus dem Gelernten automatisch Regeln anlegen
-export KONTOR_WIEDERKEHREND_AUTOMATISCH=1    # Abos/Daueraufträge überwachen, Auffälligkeiten melden
-```
-
-Reihenfolge der Kategorisierung neuer Bankumsätze: Kreditrate (Aufteilung in
-Zins und Tilgung, Status „vorläufig“) → Split-Vorlage → Regel →
-Standardkategorie des Empfängers → Lernmodell → „Unkategorisiert“. Alles
-außer Vorlagen-Treffern bleibt als Vorschlag markiert, bis es bestätigt ist.
-
-Im Mock-Modus sind nur Mock-Plugins erlaubt, im Echtbetrieb keine; die
-Mock-Datenbank darf nicht die Echt-Datenbank sein. Unkonfigurierte echte
-Plugins (FinTS, IMAP) bauen keine Verbindung auf und melden bei Abrufen
-`PluginNichtVerfuegbar`; eine Synchronisation endet dann sauber als
-fehlgeschlagener Lauf. Die PIN steht nie in einer Umgebungsvariable oder der
-Datenbank: Sie wird in der Weboberfläche eingegeben (nur Arbeitsspeicher) oder
-von systemd verschlüsselt bereitgestellt (siehe unten).
-
-### Konfiguration der echten Anbindungen (M6)
-
-| Variable | Bedeutung |
-| --- | --- |
-| `KONTOR_FINTS_URL`, `KONTOR_FINTS_BLZ`, `KONTOR_FINTS_BENUTZER` | FinTS-Endpunkt (https), Bankleitzahl (8 Ziffern), Anmeldename |
-| `KONTOR_FINTS_KUNDEN_ID` | Kunden-ID, falls abweichend vom Anmeldenamen |
-| `KONTOR_FINTS_PRODUKT_ID` | eigene Produktregistrierung bei der Deutschen Kreditwirtschaft (Pflicht für echte Banken) |
-| `KONTOR_FINTS_TAN_VERFAHREN` | Sicherheitsfunktion (3 Ziffern); leer = erstes angebotenes Zwei-Schritt-Verfahren |
-| `KONTOR_FINTS_TIMEOUT_SEKUNDEN` | Zeitgrenze je Anfrage (Vorgabe 30) |
-| `KONTOR_BANK_PIN_QUELLE` | `eingabe` (Vorgabe, Oberfläche) oder `systemd-creds` |
-| `CREDENTIALS_DIRECTORY` | setzt systemd; Datei `kontor-bank-pin` (PIN) und optional `kontor-geheimnisschluessel` |
-| `KONTOR_IMAP_HOST`, `KONTOR_IMAP_PORT`, `KONTOR_IMAP_TLS` | Vorgabe `imap.gmail.com`, 993, TLS |
-| `KONTOR_OAUTH_CLIENT_ID` | Client-ID des eigenen Google-Cloud-Projekts (das Secret kommt in den Geheimnisspeicher) |
-| `KONTOR_OAUTH_REDIRECT_URI` | Umleitungsadresse (Vorgabe `http://127.0.0.1/oauth2/rueckruf`) |
-| `KONTOR_OAUTH_REFRESH_GUELTIG_STUNDEN` | Gültigkeit des Refresh-Tokens ohne Angabe des Anbieters (Vorgabe 168 = Testmodus; `0` nach Veröffentlichung des Projekts) |
-| `KONTOR_OAUTH_VORWARNUNG_STUNDEN` | Vorwarnung vor dem Ablauf (Vorgabe 24) |
-| `KONTOR_MAIL_INTERVALL_MINUTEN` | Abstand des automatischen Mail-Abrufs; nicht gesetzt = wie `KONTOR_SYNC_INTERVALL_MINUTEN` (D-284), `0` = aus |
-| `KONTOR_MAIL_ERSTABRUF_TAGE`, `KONTOR_MAIL_UEBERLAPPUNG_STUNDEN` | Zeitraum des ersten Abrufs (30 Tage) und Überlappung (24 h) |
-| `KONTOR_MAIL_NUR_KOEPFE` | D-243: zuerst nur Absender und Betreff spiegeln, den Inhalt nur für Mails bekannter Anbieter (Vorauswahl in `ANBIETER.md`) und sonst beim Lesen oder Anhängen nachladen (Vorgabe aus, ausgeliefert an) |
-| `KONTOR_BENACHRICHTIGUNG_PLUGIN` | `keins` (Vorgabe im Echtbetrieb), `mock` (Vorgabe im Mock-Modus), `ntfy` |
-| `KONTOR_NTFY_URL`, `KONTOR_NTFY_TOPIC` | ntfy-Server (Vorgabe `https://ntfy.sh`) und Thema (Pflicht bei `ntfy`) |
-| `KONTOR_ZUSTELLUNG_MAX_VERSUCHE`, `KONTOR_ZUSTELLUNG_WIEDERHOLUNG_MINUTEN` | Wiederholung nach Fehlschlag (10 Versuche, alle 5 Minuten) |
-| `KONTOR_TAN_ERINNERUNG_MINUTEN`, `KONTOR_TAN_ERINNERUNG_ANZAHL` | Erinnerungen an offene TANs (alle 5 Minuten, höchstens 3; `0` = keine) |
-| `KONTOR_OEFFENTLICHE_URL` | Adresse, unter der Kontor im Browser aufgerufen wird (z. B. `http://kontor.lan:8000` oder `https://kontor.<tailnet>.ts.net`): für Links in Push-Nachrichten und, hinter einem HTTPS-Proxy, für die Herkunftsprüfung |
-| `KONTOR_GEHEIMNIS_SCHLUESSEL_DATEI` | Schlüsseldatei des Geheimnisspeichers (Vorgabe neben der Datenbank, `*.schluessel`) |
-| `KONTOR_TLS_CA_DATEI` | eigene Vertrauensanker (PEM) für alle ausgehenden TLS-Verbindungen |
-
-Unverschlüsseltes `http://` (und `KONTOR_IMAP_TLS=nein`) ist nur für
-`127.0.0.1`, `::1` und `localhost` erlaubt. Kontor folgt keinen Umleitungen
-und verwendet keine Proxy-Variablen der Umgebung.
-
-### Bankzugang (FinTS) einrichten
-
-Der Bankzugang wird in der Oberfläche unter **Einstellungen → Bankzugang (FinTS)** eingetragen und in der
-Datenbank gespeichert (Betriebszustand: nicht im Änderungsprotokoll, nicht in der Datensicherung):
-
-1. Server-Adresse, Bankleitzahl, Zugangsnummer und FinTS-Produkt-ID eintragen, „Bankzugang speichern“.
-2. PIN eingeben und „PIN übergeben“. Die PIN liegt nur im Arbeitsspeicher des Servers; gespeichert wird sie
-   allenfalls verschlüsselt über „PIN merken“ (Schutz der Geheimnisse mit dem Login-Passwort).
-3. „TAN-Verfahren abrufen“, das gewünschte Verfahren wählen (z. B. photoTAN) und speichern.
-4. „Konten abrufen“. Verlangt die Bank dabei eine TAN, erscheinen Grafik und Eingabefeld direkt darunter.
-   Danach die Konten ankreuzen, die synchronisiert werden sollen.
-
-Die Variablen `KONTOR_FINTS_*` sind nur noch eine Vorbelegung, solange in der Oberfläche nichts gespeichert
-ist. Umsätze kommen als camt (`HKCAZ`); bietet die Bank camt an, weicht Kontor nie auf MT940 aus. Verlangt die
-Bank bei der Synchronisation eine TAN (bei der Anmeldung oder für lange Zeiträume), wartet der Lauf auf der
-TAN-Seite. Entkoppelte Freigaben in einer App (ohne TAN-Eingabe) werden nicht unterstützt.
-
-**Diagnose:** Unter „Bankzugang“ lässt sich ein Diagnoseprotokoll einschalten. Es zeigt, welche Segmente und
-Rückmeldecodes mit der Bank ausgetauscht werden und wie Kontor entscheidet (Konten, camt-Format, TAN) – ohne PIN,
-TAN, Zugangskennung, IBAN, Kontonummer, Namen, Beträge oder Umsätze. Es liegt im Arbeitsspeicher (Anzeige in der
-Oberfläche) und im Log des Dienstes (`journalctl -u kontor | grep kontor.fints.diagnose`).
-
-**Umstieg von AqBanking:** Beim ersten Start vermerkt Kontor alle vorhandenen Bank-Kennungen als „alt“. Liefert
-die Bank denselben Umsatz über camt mit anderer Kennung, wird er der vorhandenen Buchung zugeordnet (gleiches
-Konto, gleicher Betrag, gleicher Buchungstag) und nicht doppelt gebucht. Die Zeilen `KONTOR_BANK_PLUGIN=aqbanking`
-und `KONTOR_AQBANKING_*` in `/etc/kontor/kontor.env` können entfernt werden.
+## Installation und Betrieb
 
 ### Installation als systemd-Dienst im Proxmox-LXC-Container
 
-> **Eigene VM statt Container?** Schritt-für-Schritt-Anleitung für eine VM mit Debian 13, virtuellem TPM und
-> Tailscale (HTTPS von Anfang an): [INSTALLATION-VM.md](INSTALLATION-VM.md).
+> **Lieber eine eigene VM?** Die Schritt-für-Schritt-Anleitung für Debian 13 mit virtuellem TPM und Tailscale
+> (HTTPS von Anfang an) steht in [INSTALLATION-VM.md](INSTALLATION-VM.md).
 
-Kontor liefert alle Betriebsdateien im Paket `kontor.betrieb` aus
-(`kontor.service`, `kontor-sicherung.service`, `kontor-sicherung.timer`,
-`kontor-update.path`, `kontor-update.service`, `kontor-test.service`, `kontor-test.env`, `kontor-test.sh`,
-`kontor.sysusers`, `kontor.env`,
-`pin-eingabe.conf`). Schritt für Schritt
+Kontor liefert alle Betriebsdateien im Paket `kontor.betrieb` aus (`kontor.service`, `kontor-sicherung.service`,
+`kontor-sicherung.timer`, `kontor-update.path`, `kontor-update.service`, `kontor-test.service`, `kontor-test.env`,
+`kontor-test.sh`, `kontor-https.sh`, `kontor.sysusers`, `kontor.env`, `pin-eingabe.conf`). Schritt für Schritt
 (als root im Container, z. B. Debian 13 mit systemd):
 
-1. **Container:** unprivilegierter LXC mit `nesting=1` (Vorgabe neuer
-   Container; nötig für die Härtungsoptionen der Unit). Feste IP im Heimnetz,
-   keine Portweiterleitung am Router.
+1. **Container:** unprivilegierter LXC mit `nesting=1` (Vorgabe neuer Container; nötig für die Härtungsoptionen
+   der Unit). Feste IP im Heimnetz, keine Portweiterleitung am Router.
 2. **Pakete und Programm:**
    ```bash
    apt install python3 python3-venv git
@@ -439,21 +257,19 @@ Kontor liefert alle Betriebsdateien im Paket `kontor.betrieb` aus
    install -m 0644 "$B/kontor.service" "$B/kontor-sicherung.service" "$B/kontor-sicherung.timer" \
      "$B/kontor-update.path" "$B/kontor-update.service" /etc/systemd/system/
    ```
-   In `/etc/kontor/kontor.env` die FinTS-, ntfy- und Mail-Einstellungen
-   eintragen (die Datei enthält **keine Geheimnisse**; Anmeldung, Heimnetz und
-   `systemd-creds` sind voreingestellt).
-4. **Geheimnisse verschlüsselt ablegen** (die PIN wird nie in eine Datei,
-   Umgebungsvariable oder Kommandozeile geschrieben):
+   In `/etc/kontor/kontor.env` die ntfy- und Mail-Einstellungen eintragen (die Datei enthält **keine
+   Geheimnisse**; Anmeldung, Heimnetz, `systemd-creds` und die Update-Suche sind voreingestellt). Den Bankzugang
+   trägst du später in der Oberfläche ein.
+4. **Geheimnisse verschlüsselt ablegen** (die PIN wird nie in eine Datei, Umgebungsvariable oder Kommandozeile
+   geschrieben):
    ```bash
    systemd-ask-password -n "Banking-PIN:" | systemd-creds encrypt --with-key=host --name=kontor-bank-pin - /etc/kontor/kontor-bank-pin.cred
    openssl rand -base64 32 | systemd-creds encrypt --with-key=host --name=kontor-geheimnisschluessel - /etc/kontor/kontor-geheimnisschluessel.cred
    ```
-   Mit TPM im Container `--with-key=tpm2` (oder ohne Angabe) statt `host`.
-   Wer die PIN nur in der Oberfläche eingeben will:
-   `install -D -m 0644 "$B/pin-eingabe.conf" /etc/systemd/system/kontor.service.d/pin-eingabe.conf`
-   und nur den Geheimnisschlüssel anlegen.
-   Zusätzlich in `/etc/kontor/kontor.env` `KONTOR_BANK_PIN_QUELLE=eingabe` setzen: Der Wert aus der
-   Umgebungsdatei hat Vorrang vor dem im Drop-in (W-015).
+   Mit TPM im Container `--with-key=tpm2` (oder ohne Angabe) statt `host`. Wer die PIN nur in der Oberfläche
+   eingeben will: `install -D -m 0644 "$B/pin-eingabe.conf" /etc/systemd/system/kontor.service.d/pin-eingabe.conf`,
+   nur den Geheimnisschlüssel anlegen und zusätzlich in `/etc/kontor/kontor.env` `KONTOR_BANK_PIN_QUELLE=eingabe`
+   setzen (der Wert aus der Umgebungsdatei hat Vorrang vor dem im Drop-in).
 5. **Starten:**
    ```bash
    systemctl daemon-reload
@@ -461,178 +277,393 @@ Kontor liefert alle Betriebsdateien im Paket `kontor.betrieb` aus
    journalctl -u kontor -f          # Start-, Anmelde- und Fehlermeldungen
    curl -s http://127.0.0.1:8000/api/gesundheit
    ```
-6. **Login einrichten:** Beim ersten Start legt Kontor
-   `/var/lib/kontor/kontor.sqlite3.einrichtung` an (das Journal nennt den Pfad).
-   `cat` dieser Datei liefert den Einrichtungscode; im Browser
-   `http://<container-ip>:8000/anmelden` öffnen, Code und Haushaltspasswort
-   eingeben. Alternativ direkt auf dem Server:
+6. **Login einrichten:** Beim ersten Start legt Kontor `/var/lib/kontor/kontor.sqlite3.einrichtung` an (das
+   Journal nennt den Pfad). `cat` dieser Datei liefert den Einrichtungscode; im Browser
+   `http://<container-ip>:8000/anmelden` öffnen, Code und Haushaltspasswort eingeben. Alternativ direkt auf dem
+   Server:
    `set -a; . /etc/kontor/kontor.env; set +a; sudo -u kontor -E /opt/kontor/venv/bin/python -m kontor.anmeldung passwort-setzen`.
-7. **Daten übernehmen:** in der Oberfläche unter **Import** die KMyMoney- oder
-   GnuCash-Datei hochladen.
+7. **Daten übernehmen:** in der Oberfläche unter **Import** die KMyMoney- oder GnuCash-Datei hochladen.
+8. **Bank verbinden:** [Bankzugang einrichten](#bankzugang-fints-einrichten).
 
-Die Unit läuft als Benutzer `kontor` mit `ProtectSystem=strict`, leeren
-Capabilities, `SystemCallFilter=@system-service`, nur IPv4/IPv6/Unix-Sockets
-und `UMask=0077`; Daten liegen in `/var/lib/kontor` (`StateDirectory`, 0700).
-Ein Konfigurationsfehler beendet den Dienst mit Rückgabecode 2 ohne
-Neustartschleife (`RestartPreventExitStatus=2`). Beim Stoppen hat ein laufender
-Abruf bis zu 20 s, danach schreibt Kontor das WAL zurück – ein Snapshot oder
-eine Kopie von `kontor.sqlite3` ist dann vollständig.
+Die Unit läuft als Benutzer `kontor` mit `ProtectSystem=strict`, leeren Capabilities,
+`SystemCallFilter=@system-service`, nur IPv4/IPv6/Unix-Sockets und `UMask=0077`; Daten liegen in `/var/lib/kontor`
+(`StateDirectory`, 0700). Ein Konfigurationsfehler beendet den Dienst mit Rückgabecode 2 ohne Neustartschleife
+(`RestartPreventExitStatus=2`). Beim Stoppen hat ein laufender Abruf bis zu 20 s, danach schreibt Kontor das WAL
+zurück – ein Snapshot oder eine Kopie von `kontor.sqlite3` ist dann vollständig.
 
-#### Updates
+### Bankzugang (FinTS) einrichten
 
-(D-107) Kontor fragt beim Start und alle 24 Stunden bei GitHub nach
-dem neuesten Release (`KONTOR_UPDATE_PRUEFEN=1` in der Umgebungsdatei; `0`
-schaltet das ab). Gibt es eine neuere Version, trägt der Versionsknopf unten in
-der Navigation einen Punkt. Im About-Dialog (Klick auf den Versionsknopf)
-startet „Aktualisieren“ den Update-Dienst: `kontor-update.path` bemerkt den
-Auftrag, `kontor-update.service` (root) lädt das Wheel des Releases, prüft dessen
-SHA-256 gegen GitHub, legt eine Sicherung an (`kontor-sicherung.service`),
-installiert ins venv und startet Kontor neu; die Datenbank wird beim Start ohne
-Datenverlust migriert. Ergebnis: About-Dialog bzw.
-`journalctl -u kontor-update`. Bestehende Installationen richten den Dienst
-einmal nach Schritt 3 und 5 ein (Units kopieren, `KONTOR_UPDATE_PRUEFEN=1` und
-`KONTOR_UPDATE_VERZEICHNIS=/var/lib/kontor/update` in `/etc/kontor/kontor.env`,
-`systemctl enable --now kontor-update.path`, Kontor neu starten). Von Hand geht
-es weiterhin mit `/opt/kontor/venv/bin/pip install --upgrade /opt/kontor/src`
-(nach `git pull`) und `systemctl restart kontor`.
+Den Bankzugang trägst du in der Oberfläche unter **Einstellungen → Bank** ein. Er wird in der Datenbank gespeichert
+(Betriebszustand: nicht im Änderungsprotokoll, nicht in der Datensicherung):
 
-#### Testinstanz für Entwicklungsbranches
+1. Server-Adresse, Bankleitzahl, Zugangsnummer und FinTS-Produkt-ID eintragen, „Bankzugang speichern“.
+2. PIN eingeben und „PIN übergeben“. Die PIN liegt nur im Arbeitsspeicher des Servers; gespeichert wird sie
+   allenfalls verschlüsselt über „PIN merken“ (Schutz der Geheimnisse mit dem Login-Passwort).
+3. „TAN-Verfahren abrufen“, das gewünschte Verfahren wählen (z. B. photoTAN) und speichern.
+4. „Konten abrufen“. Verlangt die Bank dabei eine TAN, erscheinen Grafik und Eingabefeld direkt darunter. Danach
+   die Konten ankreuzen, die synchronisiert werden sollen.
 
-(D-205) Einen Branch probiert man nicht
-über den Update-Dienst aus, sondern in einer zweiten, getrennten Instanz. Die
-Hauptinstanz läuft dabei unverändert weiter.
-Schritt-für-Schritt-Anleitung und das Bedienskript `kontor-test` für die
-wiederkehrenden Schritte: [TESTINSTANZ.md](TESTINSTANZ.md) (D-213).
+Die Variablen `KONTOR_FINTS_*` sind nur eine Vorbelegung, solange in der Oberfläche nichts gespeichert ist. Umsätze
+kommen als camt (`HKCAZ`); bietet die Bank camt an, weicht Kontor nie auf MT940 aus. Verlangt die Bank bei der
+Synchronisation eine TAN (bei der Anmeldung oder für lange Zeiträume), wartet der Lauf auf der TAN-Seite.
+Entkoppelte Freigaben in einer App (ohne TAN-Eingabe) werden nicht unterstützt.
+
+**Diagnose:** Unter **Einstellungen → Bank** lässt sich ein Diagnoseprotokoll einschalten. Es zeigt, welche Segmente
+und Rückmeldecodes mit der Bank ausgetauscht werden und wie Kontor entscheidet (Konten, camt-Format, TAN) – ohne
+PIN, TAN, Zugangskennung, IBAN, Kontonummer, Namen, Beträge oder Umsätze. Es liegt im Arbeitsspeicher (Anzeige in
+der Oberfläche) und im Log des Dienstes (`journalctl -u kontor | grep kontor.fints.diagnose`).
+
+### Kontostand bei der Synchronisation
+
+Jeder erfolgreiche Abruf eines Bankkontos bringt, wenn die Bank ihn meldet, den gebuchten Kontostand mit (FinTS:
+`HKSAL` im selben Dialog; Mock nur mit `bank.anfangssalden` in der Datendatei). Weicht der Kontor-Saldo zum
+Stichtag der Bank ab, entsteht eine Ausgleichsbuchung „Saldoausgleich Bank“ gegen „Korrekturen“ (Status
+`importiert`, einzeln prüf- und löschbar) und eine Benachrichtigung. Die Seite `/sync` zeigt den letzten Abgleich
+je Bankkonto. `KONTOR_SYNC_SALDO_ANGLEICHEN=0` schaltet den Abgleich ab.
+
+Grenzen: Der erste Lauf holt nur 90 Tage – die erste Ausgleichsbuchung ist dann der fehlende Anfangsbestand. Wer
+danach ältere Historie importiert, zählt sie doppelt und löscht die Ausgleichsbuchung. Eigene Buchungen, die die
+Bank noch nicht gebucht hat, erzeugen einen Ausgleich, der beim späteren Zusammenführen mit dem Bankumsatz wieder
+zurückgeglichen wird.
+
+### Gmail über ein eigenes Google-Cloud-Projekt
+
+1. In der Google Cloud Console ein eigenes Projekt anlegen, die **Gmail API** aktivieren und den
+   OAuth-Zustimmungsbildschirm („Extern“, eigene Adressen als Testnutzer) einrichten. Scope:
+   `https://mail.google.com/` (nur damit erlaubt Gmail IMAP; Kontor liest trotzdem nur – Ordner per `EXAMINE`,
+   Inhalte per `BODY.PEEK[]`, nie `LOGIN`).
+2. OAuth-Client vom Typ **Desktop-App** anlegen; Client-ID nach `KONTOR_OAUTH_CLIENT_ID`, das Client-Secret in der
+   Oberfläche unter **Einstellungen → Mail → Erweitert** eintragen (wird verschlüsselt gespeichert, nie angezeigt).
+3. Unter **Einstellungen → Mail** die Postfächer anlegen (Ordner und Absenderfilter über
+   `PATCH /api/mail/postfaecher/{id}`) und auf der Seite des Postfachs je „Anmeldung starten“: Link öffnen,
+   zustimmen; lädt die Umleitungsseite nicht (Browser nicht auf dem Server), die Adresse aus der Adresszeile
+   kopieren und einfügen.
+4. **Testmodus:** Refresh-Tokens laufen nach sieben Tagen ab. Kontor zeigt den Ablauf, warnt 24 Stunden vorher per
+   ntfy und meldet Ablauf oder Widerruf einmal; das andere Postfach läuft weiter. Dauerhaft: das Projekt
+   veröffentlichen („In production“, für den Eigengebrauch ohne Verifizierung möglich) und
+   `KONTOR_OAUTH_REFRESH_GUELTIG_STUNDEN=0` setzen.
+
+Welche Mails zu welchen Buchungen gehören, beschreiben die Anbieter-Dateien in [ANBIETER.md](ANBIETER.md).
+
+### ntfy
+
+Eigener oder öffentlicher ntfy-Server; das Thema wirkt wie ein Passwort (schwer erratbar wählen) oder der Server
+verlangt ein Zugriffstoken, das unter **Einstellungen → Benachrichtigungen** als „ntfy-Token“ eingetragen wird.
+Jede Benachrichtigung erzeugt genau eine Push-Nachricht (TAN-Anforderungen und abgelaufene Mail-Anmeldungen mit
+hoher Priorität, Links über `KONTOR_OEFFENTLICHE_URL`). „Test-Benachrichtigung senden“ prüft die Verbindung. Im
+Mock-Modus kann ebenfalls per ntfy zugestellt werden (`KONTOR_BENACHRICHTIGUNG_PLUGIN=ntfy`), die Titel beginnen
+dann mit `[Mock]`.
+
+### Datensicherung im Betrieb
+
+**Sicherungspunkte:** `kontor-sicherung.timer` ruft stündlich `python -m kontor.sicherung stunde` auf; zusätzlich
+prüft der Dienst selbst jede Stunde (abschaltbar mit `KONTOR_SICHERUNG_IM_DIENST=0`). Ein neuer Punkt entsteht nur,
+wenn sich etwas geändert hat. Kontor behält jeden Punkt der letzten 48 Stunden und danach je einen pro Tag (30 Tage),
+Woche (26 Wochen) und Monat (24 Monate). Unter **Einstellungen → Daten und Sicherung → Sicherungspunkte öffnen**
+wechselst du zu jedem Punkt zurück – und wieder vor. Vor jedem Wechsel und jedem Einspielen sichert Kontor den
+aktuellen Stand als eigenen Punkt.
+
+**Sicherungsdatei:** Den fachlichen Bestand gibt es auch als Datei (Einstellungen → Daten und Sicherung →
+„Sicherung herunterladen“, `GET /api/sicherung`, Python `kontor.sicherung.erstelle_sicherung`): Konten, Buchungen
+mit Splits, Empfänger, Tags, Regeln, Dublettenverdachte, Abstimmungen, Split-Vorlagen, Kredite, Postfächer
+(Adresse, Bezeichnung, Ordner, Filter), gemerkte Umsatzkennungen, Stand je Bankkonto, ID-Zähler und Einstellungen –
+als ZIP mit `kontor.sqlite` und `manifest.json`. Nicht enthalten: Änderungsprotokoll, PIN und andere Geheimnisse
+(Tokens, Client-Secret, ntfy-Token, Schlüssel), Bankzugang, abgerufene Mails, Importvorgänge, Läufe,
+Benachrichtigungen und die Umgebungsvariablen. Von Hand bzw. in ein anderes Verzeichnis (gleiche
+`KONTOR_*`-Variablen):
+
+```bash
+systemctl start kontor-sicherung.service      # sofort ein Sicherungspunkt (wenn sich etwas geändert hat)
+python -m kontor.sicherung --verzeichnis /mnt/nas/kontor --behalten 30   # volle Sicherungsdatei als ZIP
+```
+
+Die Sicherungen liegen in `/var/lib/kontor/sicherungen` (Verzeichnisse 0700, Dateien 0600). Kopiere dieses
+Verzeichnis zusätzlich außerhalb des Containers (z. B. auf ein NAS) und ergänze Proxmox-Snapshots bzw. -Backups:
+Ein Snapshot setzt die ganze Instanz samt Konfiguration schnell zurück, die Kontor-Sicherung ist klein, geprüft
+(Prüfsummen) und lässt sich auf neuer Hardware einspielen. Eine Sicherung im laufenden Betrieb ist ein konsistenter
+Schnappschuss; der Server muss dafür nicht angehalten werden.
+
+Die Dateien enthalten sensible Finanzdaten: nur auf verschlüsselten bzw. zugriffsgeschützten Speichern ablegen.
+Wiederherstellen unter **Einstellungen → Daten und Sicherung**: Datei wählen, „Prüfen“ zeigt den Unterschied je
+Objektart (und betroffene abgestimmte Buchungen), danach „Einspielen …“ mit Bestätigung. Eine Mock-Sicherung lässt
+sich nie in den Echtbetrieb einspielen und umgekehrt. Nach dem Einspielen holt die nächste Synchronisation Umsätze
+nach, die seit der Sicherung gebucht wurden – jeden genau einmal. Die PIN wird bei Bedarf neu eingegeben.
+
+### Updates
+
+Kontor fragt beim Start und alle 24 Stunden bei GitHub nach dem neuesten Release (`KONTOR_UPDATE_PRUEFEN=1` in der
+Umgebungsdatei, voreingestellt; `0` schaltet das ab). Gibt es eine neuere Version, trägt der Versionsknopf unten in
+der Navigation einen Punkt. Im About-Dialog (Klick auf den Versionsknopf) startet „Aktualisieren“ den Update-Dienst:
+`kontor-update.path` bemerkt den Auftrag, `kontor-update.service` (root) lädt das Wheel des Releases, prüft dessen
+SHA-256 gegen GitHub, legt eine Sicherung an, installiert ins venv und startet Kontor neu; die Datenbank wird beim
+Start ohne Datenverlust migriert. Ergebnis: About-Dialog bzw. `journalctl -u kontor-update`. Von Hand geht es mit
+`git -C /opt/kontor/src pull`, `/opt/kontor/venv/bin/pip install --upgrade /opt/kontor/src` und
+`systemctl restart kontor`.
+
+### HTTPS
+
+Kontor selbst spricht kein TLS. Für den Betrieb nur über HTTPS stellt `kontor-https einrichten` Tailscale Serve
+davor (gültiges Zertifikat, Zugriff nur aus dem eigenen Tailnet) und stellt Haupt- und Testinstanz um; mit
+`kontor-https zurueck` wieder zurück. Schritt-für-Schritt-Anleitung: [HTTPS.md](HTTPS.md). Mit einem anderen
+Reverse-Proxy auf demselben Host: Kontor auf `127.0.0.1` binden, `KONTOR_SITZUNG_COOKIE_SECURE=1` und
+`KONTOR_OEFFENTLICHE_URL=https://…` setzen (ohne die Adresse lehnt Kontor schreibende Anfragen mit 403 ab; es warnt
+beim Start davor).
+
+### PIN und Geheimnisschlüssel ohne systemd
+
+Lehnt die Bank die PIN ab (oder sperrt den Zugang), verwendet Kontor die PIN bis zum nächsten Neustart des Dienstes
+nicht mehr (Schutz vor Kontosperre). Ohne TPM: `--with-key=host` statt `tpm2`. Ohne systemd bleibt
+`KONTOR_BANK_PIN_QUELLE=eingabe`; der Geheimnisschlüssel liegt dann als Datei mit Rechten 0600 neben der Datenbank
+(wird beim ersten Speichern angelegt) – er gehört nicht in dieselbe Datensicherung wie die Datenbank.
+
+### Testinstanz für Entwicklungsbranches
+
+Einen Branch probierst du nicht über den Update-Dienst aus, sondern in einer zweiten, getrennten Instanz. Die
+Hauptinstanz läuft dabei unverändert weiter. Schritt-für-Schritt-Anleitung und das Bedienskript `kontor-test` für
+die wiederkehrenden Schritte: [TESTINSTANZ.md](TESTINSTANZ.md).
 
 ```bash
 # als root; holt den Branch, installiert ihn nach /opt/kontor-test, kopiert die Daten und startet die Testinstanz
 /opt/kontor/venv/bin/python -m kontor.testinstanz einrichten feature/<kurzname>
 # danach im Browser: http://<container-ip>:8081  (Anmeldung mit dem Haushaltspasswort)
-/opt/kontor/venv/bin/python -m kontor.testinstanz demo                # erfundener Haushalt zum Vorführen, ohne Anmeldung (D-285)
+/opt/kontor/venv/bin/python -m kontor.testinstanz demo                # Demo-Haushalt zum Vorführen, ohne Anmeldung
 /opt/kontor/venv/bin/python -m kontor.testinstanz stoppen             # Testinstanz anhalten
 /opt/kontor/venv/bin/python -m kontor.testinstanz stoppen --loeschen  # … und die Datenkopie löschen
 journalctl -u kontor-test -f
 ```
 
-- Die Testinstanz (`kontor-test.service`, `/etc/kontor/kontor-test.env`) läuft im
-  **Mock-Modus** auf Port 8081 mit einer Kopie der Datenbank in
-  `/var/lib/kontor-test`. Sie verbindet sich weder mit Bank, Mailserver, ntfy noch
-  GitHub; der Hinweisbalken „Mock-Modus“ und der Branchname unten in der
-  Navigation zeigen, wo man ist.
-- Die Kopie entsteht aus der laufenden Hauptinstanz (Online-Sicherung von SQLite,
-  die Hauptdatenbank wird nur gelesen). Geheimnisse (gemerkte PIN, Tokens,
-  verpackter Datenschlüssel), offene TAN-Anforderungen und der gespeicherte
-  Bankzugang werden aus der Kopie entfernt. Die Unit bekommt keine Credentials
-  und sieht `/var/lib/kontor` nicht.
-- Jedes `einrichten` ersetzt Branch **und** Datenkopie; was in der Testinstanz
-  geändert wurde, geht dabei verloren und kommt nie in die Hauptinstanz zurück.
-  Migriert der Branch das Schema, betrifft das nur die Kopie.
-- Die Testinstanz startet nicht von selbst beim Hochfahren, hat keine tägliche
-  Sicherung und wird vom Update-Dienst nicht angefasst. Der Port lässt sich in
-  `/etc/kontor/kontor-test.env` ändern (die Datei bleibt bei erneutem Einrichten
-  erhalten).
-- Haupt- und Testinstanz teilen sich im Browser das Sitzungs-Cookie (gleicher
-  Rechner, anderer Port): Wer angemeldet ist, ist es in beiden; eine neue
-  Anmeldung in der einen meldet in diesem Browser die andere ab.
-- Voraussetzung: `git` und Netzzugang zu GitHub und PyPI auf dem Server; das
-  erste Einrichten legt eine eigene virtuelle Umgebung an und dauert länger.
+- Die Testinstanz (`kontor-test.service`, `/etc/kontor/kontor-test.env`) läuft im **Mock-Modus** auf Port 8081 mit
+  einer Kopie der Datenbank in `/var/lib/kontor-test`. Sie verbindet sich weder mit Bank, Mailserver, ntfy noch
+  GitHub; der Hinweisbalken „Mock-Modus“ und der Branchname unten in der Navigation zeigen, wo man ist.
+- Die Kopie entsteht aus der laufenden Hauptinstanz (Online-Sicherung von SQLite, die Hauptdatenbank wird nur
+  gelesen). Geheimnisse (gemerkte PIN, Tokens, verpackter Datenschlüssel), offene TAN-Anforderungen und der
+  gespeicherte Bankzugang werden aus der Kopie entfernt. Die Unit bekommt keine Credentials und sieht
+  `/var/lib/kontor` nicht.
+- Jedes `einrichten` ersetzt Branch **und** Datenkopie; was in der Testinstanz geändert wurde, geht dabei verloren
+  und kommt nie in die Hauptinstanz zurück. Migriert der Branch das Schema, betrifft das nur die Kopie.
+- Die Testinstanz startet nicht von selbst beim Hochfahren, hat keine eigene Sicherung und wird vom Update-Dienst
+  nicht angefasst. Der Port lässt sich in `/etc/kontor/kontor-test.env` ändern (die Datei bleibt bei erneutem
+  Einrichten erhalten).
+- Haupt- und Testinstanz teilen sich im Browser das Sitzungs-Cookie (gleicher Rechner, anderer Port): Wer
+  angemeldet ist, ist es in beiden; eine neue Anmeldung in der einen meldet in diesem Browser die andere ab.
+- Voraussetzung: `git` und Netzzugang zu GitHub und PyPI auf dem Server; das erste Einrichten legt eine eigene
+  virtuelle Umgebung an und dauert länger.
 
-#### HTTPS
+## Konfiguration
 
-Kontor selbst spricht kein TLS. Für den Betrieb nur über HTTPS stellt
-`kontor-https einrichten` Tailscale Serve davor (gültiges Zertifikat, Zugriff
-nur aus dem eigenen Tailnet) und stellt Haupt- und Testinstanz um; mit
-`kontor-https zurueck` wieder zurück. Schritt-für-Schritt-Anleitung:
-[HTTPS.md](HTTPS.md) (D-239). Mit einem anderen Reverse-Proxy auf demselben
-Host: Kontor auf `127.0.0.1` binden, `KONTOR_SITZUNG_COOKIE_SECURE=1` und
-`KONTOR_OEFFENTLICHE_URL=https://…` setzen (ohne die Adresse lehnt Kontor
-schreibende Anfragen mit 403 ab; es warnt beim Start davor).
+Kontor liest seine Einstellungen ausschließlich aus Umgebungsvariablen (im Betrieb aus `/etc/kontor/kontor.env`).
 
-#### PIN und Geheimnisschlüssel ohne systemd
+| Variable | Bedeutung |
+| --- | --- |
+| `KONTOR_DATENBANK` | **Pflicht.** Pfad der SQLite-Datei für Echtdaten |
+| `KONTOR_MOCK_MODUS` | `ja`/`1`/`true`/`on` = Mock-Modus; leer/`nein` = Echtbetrieb |
+| `KONTOR_MOCK_DATENBANK` | Pfad der Mock-Datenbank; Vorgabe `<name>-mock<endung>` neben der Echt-Datenbank |
+| `KONTOR_BANK_PLUGIN` | `mock` oder `fints` (Vorgabe: `mock` im Mock-Modus, sonst `fints`) |
+| `KONTOR_MAIL_PLUGIN` | `mock` oder `imap` (Vorgabe entsprechend) |
+| `KONTOR_MOCK_SZENARIO` | `normal`, `bankfehler`, `zeitueberschreitung`, `tan_erforderlich`, `token_ablauf`, `beitragsaenderung` (Umsätze mit `betrag_beitragsaenderung` in der Datendatei kommen mit diesem Betrag) |
+| `KONTOR_MOCK_DATEN` | JSON-Datei im Format `kontor-mock-daten` (z. B. die von `python -m kontor.demodaten` geschriebene oder `gesamt-tests/fixtures/mock/mock_daten.json`); leer = eingebauter Datensatz |
+| `KONTOR_MOCK_HEUTE` | simuliertes „heute“ (`YYYY-MM-DD`); im Mock-Modus startet die App-Uhr dann bei diesem Tag 12:00 UTC (stellbar über `PUT /api/mock/zeit` bzw. die Oberfläche) |
+| `KONTOR_SYNC_INTERVALL_MINUTEN` | Abstand automatischer Läufe; `0` (Vorgabe) = kein automatischer Abruf |
+| `KONTOR_SYNC_WIEDERHOLUNG_MINUTEN` | erneuter Versuch nach fehlgeschlagenem Lauf (Vorgabe 30) |
+| `KONTOR_SYNC_ERSTABRUF_TAGE` | Zeitraum des ersten Abrufs eines Kontos (Vorgabe 90) |
+| `KONTOR_SYNC_UEBERLAPPUNG_TAGE` | Überlappung folgender Abrufe (Vorgabe 14) |
+| `KONTOR_SYNC_SALDO_ANGLEICHEN` | Kontostand mit der Bank abgleichen (Vorgabe an, `0` = aus) |
+| `KONTOR_PLANER_STARTEN` | Planer-Thread im Server starten (Vorgabe ja; nur wirksam mit Intervall > 0) |
+| `KONTOR_UMBUCHUNG_AUTOMATISCH` | Umbuchungen bei jeder Synchronisation automatisch erkennen und zusammenführen (Vorgabe nein; für den Betrieb empfohlen: `1`) |
+| `KONTOR_UMBUCHUNG_FENSTER_TAGE` | größter Datumsabstand der beiden Seiten einer Umbuchung (0–366, Vorgabe 3) |
+| `KONTOR_LERNMODELL_AUTOMATISCH` | Lernmodell bei neuen Buchungen (Synchronisation, Erfassen) als Vorschlag befragen (Vorgabe nein; für den Betrieb empfohlen: `1`) |
+| `KONTOR_REGELN_AUTOMATISCH` | aus dem Gelernten automatisch Regeln „Empfänger ist …“ anlegen: mindestens 5 gleiche Zuordnungen, in den letzten 12 Monaten keine abweichende (Vorgabe nein; für den Betrieb empfohlen: `1`) |
+| `KONTOR_WIEDERKEHREND_AUTOMATISCH` | nach jedem Synchronisationslauf auf unerwartete Buchungen prüfen (neuer Empfänger, geänderter Betrag, ausbleibende Zahlung; Vorgabe nein; für den Betrieb empfohlen: `1`) |
+| `KONTOR_SICHERUNG_VERZEICHNIS` | Ablage der Sicherungspunkte (Vorgabe `sicherungen` neben der Datenbank) |
+| `KONTOR_SICHERUNG_STUNDEN`, `_TAGE`, `_WOCHEN`, `_MONATE` | Aufbewahrung der Sicherungspunkte (48, 30, 26, 24) |
+| `KONTOR_SICHERUNG_IM_DIENST` | stündliche Sicherungspunkte auch aus dem Dienst selbst (Vorgabe an, `0` = nur über den Timer) |
+| `KONTOR_UPDATE_PRUEFEN` | nach neuen Releases suchen (ausgeliefert `1`) |
 
-Lehnt die Bank die PIN ab (oder sperrt den Zugang), verwendet Kontor die PIN
-bis zum nächsten Neustart des Dienstes nicht mehr (Schutz vor Kontosperre).
-Ohne TPM: `--with-key=host` statt `tpm2`. Ohne systemd bleibt
-`KONTOR_BANK_PIN_QUELLE=eingabe`; der Geheimnisschlüssel liegt dann als Datei
-mit Rechten 0600 neben der Datenbank (wird beim ersten Speichern angelegt) –
-er gehört nicht in dieselbe Datensicherung wie die Datenbank.
+### Sicherheit und Betrieb
 
-### Gmail über ein eigenes Google-Cloud-Projekt
+| Variable | Bedeutung |
+| --- | --- |
+| `KONTOR_ANMELDUNG` | Haushalts-Login einschalten (Vorgabe aus; **im Betrieb `1`**, ausgelieferte `kontor.env`) |
+| `KONTOR_SITZUNG_LEERLAUF_SEKUNDEN`, `KONTOR_SITZUNG_HOECHSTDAUER_SEKUNDEN` | Ablauf der Sitzung (1 Tag ohne Aktivität, höchstens 30 Tage) |
+| `KONTOR_SITZUNG_COOKIE_SECURE` | `Secure`-Cookie erzwingen (`1`, hinter HTTPS-Proxy; dann auch `KONTOR_OEFFENTLICHE_URL` setzen, siehe [HTTPS.md](HTTPS.md)) oder verbieten; leer = nur bei HTTPS-Anfragen |
+| `KONTOR_ANMELDUNG_FEHLVERSUCHE`, `KONTOR_ANMELDUNG_SPERRE_SEKUNDEN` | Bremse: nach 5 Fehlversuchen 60 s Sperre, danach verdoppelt |
+| `KONTOR_ERLAUBTE_NETZE` | CIDR-Liste, z. B. `127.0.0.0/8,192.168.0.0/16`; andere Adressen → 403 (leer = alle) |
+| `KONTOR_UPLOAD_MAX_MIB`, `KONTOR_ANFRAGE_MAX_KIB` | Größengrenzen für Importe/Sicherungen (200 MiB) und andere Körper (4 096 KiB) |
+| `KONTOR_HOST`, `KONTOR_PORT` | Adresse und Port von `python -m kontor` (Vorgabe `127.0.0.1`, `8000`) |
+| `KONTOR_LOG_STUFE` | `DEBUG`, `INFO` (Vorgabe), `WARNING`, `ERROR`; Ausgabe nach stderr `<STUFE> <logger>: <Meldung>` |
+| `KONTOR_BEENDEN_FRIST_SEKUNDEN` | Frist für einen laufenden Abruf beim Beenden (Vorgabe 20) |
+| `KONTOR_MOCK_VERZOEGERUNG_MS` | nur Mock-Modus: jeder Umsatzabruf der Mock-Bank wartet so lange (Testhilfe) |
 
-1. In der Google Cloud Console ein eigenes Projekt anlegen, die **Gmail API**
-   aktivieren und den OAuth-Zustimmungsbildschirm („Extern“, eigene Adressen
-   als Testnutzer) einrichten. Scope: `https://mail.google.com/` (nur damit
-   erlaubt Gmail IMAP; Kontor liest trotzdem nur – Ordner per `EXAMINE`,
-   Inhalte per `BODY.PEEK[]`, nie `LOGIN`).
-2. OAuth-Client vom Typ **Desktop-App** anlegen; Client-ID nach
-   `KONTOR_OAUTH_CLIENT_ID`, das Client-Secret in der Oberfläche unter
-   **Einstellungen → Geheimnisse** eintragen (wird verschlüsselt
-   gespeichert, nie angezeigt).
-3. Unter **Einstellungen → Mail-Postfächer** beide Postfächer anlegen (Ordner
-   und Absenderfilter über `PATCH /api/mail/postfaecher/{id}`) und auf der Seite
-   des Postfachs je „Anmeldung starten“:
-   Link öffnen, zustimmen; lädt die Umleitungsseite nicht (Browser nicht auf
-   dem Server), die Adresse aus der Adresszeile kopieren und einfügen.
-4. **Testmodus:** Refresh-Tokens laufen nach sieben Tagen ab. Kontor zeigt den
-   Ablauf, warnt 24 Stunden vorher per ntfy und meldet Ablauf oder Widerruf
-   einmal; das andere Postfach läuft weiter. Dauerhaft: das Projekt
-   veröffentlichen („In production“, für den Eigengebrauch ohne
-   Verifizierung möglich) und `KONTOR_OAUTH_REFRESH_GUELTIG_STUNDEN=0` setzen.
+`GET /api/gesundheit` antwortet ohne Anmeldung mit `{"status": "ok", "version": …}` (für Überwachung),
+`GET /api/anmeldung` mit dem Anmeldestatus.
 
-### ntfy
+### Empfohlene Konfiguration für den Betrieb
 
-Eigener oder öffentlicher ntfy-Server; das Thema wirkt wie ein Passwort
-(schwer erratbar wählen) oder der Server verlangt ein Zugriffstoken, das unter
-**Einstellungen → Geheimnisse** als „ntfy-Token“ eingetragen wird.
-Jede Benachrichtigung erzeugt genau eine Push-Nachricht (TAN-Anforderungen und
-abgelaufene Mail-Anmeldungen mit hoher Priorität, Links über
-`KONTOR_OEFFENTLICHE_URL`). „Test-Benachrichtigung senden“ prüft die
-Verbindung. Im Mock-Modus kann ebenfalls per ntfy zugestellt werden
-(`KONTOR_BENACHRICHTIGUNG_PLUGIN=ntfy`), die Titel beginnen dann mit `[Mock]`.
-
-### Datensicherung im Betrieb
-
-Kontor sichert den **fachlichen Bestand** in der App (`GET /api/sicherung`,
-Einstellungen → Datensicherung, Python `kontor.sicherung.erstelle_sicherung`):
-Konten, Buchungen mit Splits, Empfänger, Tags, Regeln, Dublettenverdachte,
-Abstimmungen, Split-Vorlagen, gemerkte Umsatzkennungen, Stand je Bankkonto
-und ID-Zähler – als ZIP mit `kontor.sqlite` und `manifest.json`. Nicht
-enthalten: Änderungsprotokoll, PIN/Geheimnisse, Importvorgänge, Läufe,
-Benachrichtigungen und die Konfiguration (Umgebungsvariablen). Ab M6 sind die
-Postfächer (Adresse, Bezeichnung, Ordner, Filter) enthalten, nie aber Tokens,
-Client-Secret, ntfy-Token, Schlüssel oder abgerufene Mails.
-
-Empfehlung: **zusätzlich** zu Proxmox-Snapshots bzw. -Backups des Containers.
-Ein Snapshot sichert die ganze Instanz einschließlich Protokoll und
-Konfiguration (schnelles Zurücksetzen nach einem missglückten Update); die
-Kontor-Sicherung ist klein, geprüft (Prüfsummen), unabhängig vom Container und
-lässt sich auf neuer Hardware oder in eine frische Instanz einspielen. Eine
-Sicherung im laufenden Betrieb ist ein konsistenter Schnappschuss; der Server
-muss dafür nicht angehalten werden. Die ausgelieferte Unit
-`kontor-sicherung.timer` legt täglich eine Sicherung in
-`/var/lib/kontor/sicherungen` ab (Rechte 0600, die 14 neuesten je Modus
-bleiben):
+Die Vorgaben sind bewusst zurückhaltend: Ohne weitere Einstellung ruft Kontor nichts von selbst ab und macht keine
+Vorschläge aus dem Lernmodell. Im täglichen Betrieb empfiehlt sich:
 
 ```bash
-systemctl list-timers kontor-sicherung.timer
-systemctl start kontor-sicherung.service      # sofort eine Sicherung
-# von Hand bzw. in ein anderes Verzeichnis (gleiche KONTOR_*-Variablen):
-python -m kontor.sicherung --verzeichnis /mnt/nas/kontor --behalten 30
+export KONTOR_DATENBANK=/var/lib/kontor/kontor.sqlite3
+export KONTOR_SYNC_INTERVALL_MINUTEN=240     # automatischer Abruf alle 4 Stunden
+export KONTOR_UMBUCHUNG_AUTOMATISCH=1        # Umbuchungen zwischen eigenen Konten zusammenführen
+export KONTOR_LERNMODELL_AUTOMATISCH=1       # Kategorien aus dem Lernmodell vorschlagen
+export KONTOR_REGELN_AUTOMATISCH=1           # aus dem Gelernten automatisch Regeln anlegen
+export KONTOR_WIEDERKEHREND_AUTOMATISCH=1    # Abos/Daueraufträge überwachen, Auffälligkeiten melden
 ```
 
-Dieses Verzeichnis zusätzlich außerhalb des Containers kopieren (z. B. NAS).
+Reihenfolge der Kategorisierung neuer Bankumsätze: Kreditrate (Aufteilung in Zins und Tilgung, Status „vorläufig“)
+→ Split-Vorlage → Regel → Lernmodell → „Unkategorisiert“. Alles außer Vorlagen-Treffern bleibt als Vorschlag
+markiert, bis es bestätigt ist.
 
-Die Dateien enthalten sensible Finanzdaten: nur auf verschlüsselten
-bzw. zugriffsgeschützten Speichern ablegen. Wiederherstellen über die Seite
-„Datensicherung“: Datei wählen, „Prüfen“ zeigt den Unterschied je Objektart
-(und betroffene abgestimmte Buchungen), danach Bestätigung; das Einspielen
-ist eine Änderung im Änderungsprotokoll und lässt sich rückgängig machen.
-Eine Mock-Sicherung lässt sich nie in den Echtbetrieb einspielen und
-umgekehrt. Nach dem Einspielen holt die nächste Synchronisation Umsätze nach,
-die seit der Sicherung gebucht wurden – jeden genau einmal. Die PIN wird bei
-Bedarf neu eingegeben.
+Im Mock-Modus sind nur Mock-Plugins erlaubt, im Echtbetrieb keine; die Mock-Datenbank darf nicht die
+Echt-Datenbank sein. Unkonfigurierte echte Plugins (FinTS, IMAP) bauen keine Verbindung auf und melden bei Abrufen
+`PluginNichtVerfuegbar`; eine Synchronisation endet dann sauber als fehlgeschlagener Lauf. Die PIN steht nie in
+einer Umgebungsvariable oder der Datenbank: Sie wird in der Weboberfläche eingegeben (nur Arbeitsspeicher) oder von
+systemd verschlüsselt bereitgestellt (siehe [Installation, Schritt 4](#installation-als-systemd-dienst-im-proxmox-lxc-container)).
 
-## Python-Schnittstelle (Auszug)
+### Konfiguration der echten Anbindungen
+
+| Variable | Bedeutung |
+| --- | --- |
+| `KONTOR_FINTS_URL`, `KONTOR_FINTS_BLZ`, `KONTOR_FINTS_BENUTZER` | Vorbelegung des Bankzugangs: FinTS-Endpunkt (https), Bankleitzahl (8 Ziffern), Anmeldename |
+| `KONTOR_FINTS_KUNDEN_ID` | Kunden-ID, falls abweichend vom Anmeldenamen |
+| `KONTOR_FINTS_PRODUKT_ID` | eigene Produktregistrierung bei der Deutschen Kreditwirtschaft (Pflicht für echte Banken) |
+| `KONTOR_FINTS_TAN_VERFAHREN` | Sicherheitsfunktion (3 Ziffern); leer = erstes angebotenes Zwei-Schritt-Verfahren |
+| `KONTOR_FINTS_TIMEOUT_SEKUNDEN` | Zeitgrenze je Anfrage (Vorgabe 30) |
+| `KONTOR_BANK_PIN_QUELLE` | `eingabe` (Vorgabe, Oberfläche) oder `systemd-creds` |
+| `CREDENTIALS_DIRECTORY` | setzt systemd; Datei `kontor-bank-pin` (PIN) und optional `kontor-geheimnisschluessel` |
+| `KONTOR_IMAP_HOST`, `KONTOR_IMAP_PORT`, `KONTOR_IMAP_TLS` | Vorgabe `imap.gmail.com`, 993, TLS |
+| `KONTOR_OAUTH_CLIENT_ID` | Client-ID des eigenen Google-Cloud-Projekts (das Secret kommt in den Geheimnisspeicher) |
+| `KONTOR_OAUTH_REDIRECT_URI` | Umleitungsadresse (Vorgabe `http://127.0.0.1/oauth2/rueckruf`) |
+| `KONTOR_OAUTH_REFRESH_GUELTIG_STUNDEN` | Gültigkeit des Refresh-Tokens ohne Angabe des Anbieters (Vorgabe 168 = Testmodus; `0` nach Veröffentlichung des Projekts) |
+| `KONTOR_OAUTH_VORWARNUNG_STUNDEN` | Vorwarnung vor dem Ablauf (Vorgabe 24) |
+| `KONTOR_MAIL_INTERVALL_MINUTEN` | Abstand des automatischen Mail-Abrufs; nicht gesetzt = wie `KONTOR_SYNC_INTERVALL_MINUTEN`, `0` = aus |
+| `KONTOR_MAIL_ERSTABRUF_TAGE`, `KONTOR_MAIL_UEBERLAPPUNG_STUNDEN` | Zeitraum des ersten Abrufs (30 Tage) und Überlappung (24 h) |
+| `KONTOR_MAIL_NUR_KOEPFE` | zuerst nur Absender und Betreff spiegeln, den Inhalt nur für Mails bekannter Anbieter (Vorauswahl in [ANBIETER.md](ANBIETER.md)) und sonst beim Lesen oder Anhängen nachladen (Vorgabe aus, ausgeliefert an) |
+| `KONTOR_BENACHRICHTIGUNG_PLUGIN` | `keins` (Vorgabe im Echtbetrieb), `mock` (Vorgabe im Mock-Modus), `ntfy` |
+| `KONTOR_NTFY_URL`, `KONTOR_NTFY_TOPIC` | ntfy-Server (Vorgabe `https://ntfy.sh`) und Thema (Pflicht bei `ntfy`) |
+| `KONTOR_ZUSTELLUNG_MAX_VERSUCHE`, `KONTOR_ZUSTELLUNG_WIEDERHOLUNG_MINUTEN` | Wiederholung nach Fehlschlag (10 Versuche, alle 5 Minuten) |
+| `KONTOR_TAN_ERINNERUNG_MINUTEN`, `KONTOR_TAN_ERINNERUNG_ANZAHL` | Erinnerungen an offene TANs (alle 5 Minuten, höchstens 3; `0` = keine) |
+| `KONTOR_OEFFENTLICHE_URL` | Adresse, unter der Kontor im Browser aufgerufen wird (z. B. `http://kontor.lan:8000` oder `https://kontor.<tailnet>.ts.net`): für Links in Push-Nachrichten und, hinter einem HTTPS-Proxy, für die Herkunftsprüfung |
+| `KONTOR_GEHEIMNIS_SCHLUESSEL_DATEI` | Schlüsseldatei des Geheimnisspeichers (Vorgabe neben der Datenbank, `*.schluessel`) |
+| `KONTOR_TLS_CA_DATEI` | eigene Vertrauensanker (PEM) für alle ausgehenden TLS-Verbindungen |
+| `KONTOR_ANBIETER_VERZEICHNIS` | Verzeichnis mit eigenen Anbieter-Beschreibungen für den Mail-Abgleich ([ANBIETER.md](ANBIETER.md)) |
+
+Unverschlüsseltes `http://` (und `KONTOR_IMAP_TLS=nein`) ist nur für `127.0.0.1`, `::1` und `localhost` erlaubt.
+Kontor folgt keinen Umleitungen und verwendet keine Proxy-Variablen der Umgebung.
+
+## Weboberfläche
+
+Single-Page-App ohne Build-Schritt, Framework und externe Ressourcen (ES-Module unter
+`src/kontor/web/oeffentlich/app/`, Stile `app.css`, Service Worker `src/kontor/web/sw.js`). Verbindlich ist
+`spec/api/oberflaeche.md`; die Oberfläche nutzt ausschließlich die REST-Schnittstelle.
+
+### Aufbau
+
+- **Kopf:** ☰ (nur Handy), Suche (Enter → `/suche?q=…`), ↻ Synchronisieren (bei TAN mit Link zur TAN-Seite, bei
+  fehlender/falscher PIN mit PIN-Dialog), ↶ Rückgängig, ↷ Wiederholen, ⌘ Befehlspalette, 🔔 Benachrichtigungen mit
+  Zahl der ungelesenen, rechts die Person, mit der du bestätigst. Im Mock-Modus steht darüber immer der gelbe
+  Mock-Hinweis.
+- **Navigation links,** in Gruppen: Buchhaltung (Finanzübersicht, Konten, Kategorien, Tags, Empfänger, Kredite),
+  Zahlungen (Was kommt noch?, Mail-Blatt), Auswertung (Berichte), Regeln (Regeln, Split-Vorlagen, Dubletten), Betrieb
+  (Import, Synchronisation, Änderungsprotokoll, Einstellungen, Konfiguration). Jede Ansicht öffnet sich als Tab und
+  hat eine eigene Adresse (Lesezeichen, Zurück/Vor, Neuladen), z. B. `/konten/5?von=2024-03-01&status=bestaetigt`.
+- **Kontoansicht** (`/konten/<id>`): Filterleiste (Zeitraum, Betrag, Empfänger, Verwendungszweck, Freitext bzw.
+  Ausdruck oder Baukasten, Kategorie mit Unterkategorien, Tag, Status; in der Adresse gespeichert), sortierbare
+  Spalten, Spalte „Summe“ mit dem laufenden Stand. Die Gruppierung nach Datum ist hierarchisch: Jahr, Monat,
+  Monatsabschnitt (1.–7., 8.–14., 15.–21., 22.–Monatsende) und Tag; die Leiste „Keine | Jahr | Monat | Abschnitt |
+  Tag“ wählt, bis zu welcher Ebene gruppiert wird (`?gruppierung=datum&tiefe=…`). Jede Ebene ist ein einklappbarer
+  Balken mit Eingang, Ausgang, Summe und Anzahl; „Alle zu“ und „Alle auf“ gelten für alle Ebenen. Dafür lädt das
+  Blatt die ganze Filtermenge und zeichnet bei vielen Zeilen nur den sichtbaren Ausschnitt. Das Panel
+  **Einzelheiten** zeigt die fokussierte Buchung (Vorschlag mit Begründung, Verwendungszweck, alle Splits, Tags,
+  Belege); es dockt rechts oder unten an, Rand ziehen oder Pfeiltasten ändert die Größe, ▾ klappt ein. Das Layout
+  liegt im `localStorage` (`kontor.layout`), „Layout zurücksetzen“ unter Einstellungen → Allgemein.
+- **Mehrfachauswahl:** Klick, Strg/⌘+Klick (umschalten), Umschalt+Klick (Bereich), Strg+Umschalt+Klick (Bereich
+  hinzu); die Leiste unten setzt Kategorie, Tags, Status, nimmt Vorschläge an oder lehnt sie ab oder löscht.
+  Rechtsklick öffnet das Kontextmenü (Kategorie, Tags, Splitten, Als Dublette markieren, Vorschlag
+  annehmen/ablehnen, Verwendungszweck bearbeiten, Löschen); auf Konten und Kategorien: Öffnen, Umbenennen,
+  Unterkonto, Verschieben nach…, Löschen.
+- **Inline-Bearbeitung:** Doppelklick auf Datum, Verwendungszweck oder Kategorie (F2 = Verwendungszweck); Enter, Tab
+  oder Verlassen übernimmt, Esc bricht ab.
+- **Rückgängig:** Jede eigene Änderung (auch Import, Löschen, Drag and Drop, Jahresabgleich) ist ein Schritt auf dem
+  Rückgängig-Stapel des Tabs; Strg+Z nimmt ihn über das Änderungsprotokoll zurück, Strg+Umschalt+Z/Strg+Y stellt ihn
+  wieder her. Die Seite Änderungsprotokoll bietet Rückgängig je Änderung. Ältere Stände erreichst du über die
+  [Sicherungspunkte](#datensicherung-im-betrieb).
+- **Kategorien:** Baum mit Ausgaben/Einnahmen und den Beträgen je Kategorie; Kategorie auf eine andere ziehen =
+  Unterkategorie, auf die Gruppenüberschrift = oberste Ebene.
+- **Berichte** (`/berichte`, ein Tab): oben wählt man die Berichtsart, die Adresse merkt sie sich (`?art=…`).
+  - *Einnahmen und Ausgaben:* Kontostandsverlauf und Summen je Kategorie für einen freien Zeitraum.
+  - *Monat:* Ausgaben eines Monats ohne Kategorien – Verlauf gegen Vormonat und Schnitt mit Hochrechnung, fest und
+    variabel, größte Buchungen, Empfänger, Größenklassen, Auffälligkeiten, Kalender, Kontostand.
+  - *Jahr:* zwölf Monate mit Vorjahr, Jahresraster, aufgelaufene Ausgaben, größte Buchungen und Empfänger.
+  - *Kategorien:* je Kategorie der Monat gegen den eigenen Schnitt, mit Verlauf über 13 Monate.
+  - *Empfänger:* Rangliste; je Empfänger Monate, einzelne Beträge, Jahre, Kategorien, Buchungen.
+  - *Tags:* Übersicht, Einzelauswertung und Vergleich von zwei bis vier Tags; Tags am Empfänger zählen mit.
+  - *Verträge und Abos:* erkannte wiederkehrende Zahlungen mit Jahreskosten und Preisänderungen.
+  - *Geldfluss:* Flussbild von den Einnahmequellen zu den Ausgabenblöcken, je Monat oder Jahr.
+  - *Vorschau:* erwarteter Kontostand der nächsten 30, 60 oder 90 Tage.
+  - *Vermögen:* Guthaben, Schulden, Nettovermögen und Sparquote über die Zeit.
+  - *Datenqualität:* Anteil kategorisierter Buchungen, fehlende Empfänger, offene Verdachte, Abstimmungen.
+
+  Zeilen, Balken, Tage und Monate öffnen die Einzelbuchungen oder den passenden Bericht.
+- **Weitere Seiten:** Kredite mit Tilgungsplan und Jahresabgleich (Prüfen, dann Buchen), Export der Buchungsliste
+  als CSV/PDF, Import (KMyMoney/GnuCash), Einstellungen (Allgemein, Bank, Mail, Benachrichtigungen, Sicherheit, Daten
+  und Sicherung; mit Suche), Empfänger, Regeln, Lernmodell, Split-Vorlagen, Dubletten, Synchronisation (Läufe,
+  Bankkonten, Mock-Uhr), Benachrichtigungen, Suche, TAN-Seite (`/tan/<id>`: QR-Code, „QR-Code speichern“, „Teilen“
+  wo der Browser Dateien teilen kann, TAN-Eingabe), Postfach (`/mail/postfaecher/<id>`: Zugang und Ordner).
+
+### Tastaturkürzel
+
+`h` zeigt auf jeder Seite die Tasten, die dort gelten. Die wichtigsten:
+
+| Kürzel | Wirkung |
+| --- | --- |
+| Strg+K, ⌘+K, Strg+Umschalt+P | Befehlspalette (Navigation, Rückgängig, Synchronisieren, Design, Konto öffnen …) |
+| `h` | Tastaturhilfe des angezeigten Blatts |
+| Strg+Z / Strg+Umschalt+Z, Strg+Y | Rückgängig / Wiederholen (in Textfeldern das Text-Rückgängig des Browsers) |
+| Alt+1 … Alt+7 | Finanzübersicht … Einstellungen |
+| `w` und ein Buchstabe, F6 / Umschalt+F6 | zu einem Bereich der Seite springen, z. B. `w s` in die Suche, `w e` zu den Einzelheiten |
+| Esc | Menü/Dialog/Palette schließen, sonst Auswahl leeren |
+| ↑ ↓ bzw. `u` `d`, mit Umschalt bzw. `U` `D` | Buchung wählen, Bereich markieren |
+| Leertaste, Strg+A, Enter | Buchung zur Auswahl hinzu/weg, alle wählen, Einzelheiten |
+| `k` `t` `s` `b` | Kategorie, Tags, Status, bestätigen (markierte Buchungen) |
+| `a` / `A` | Vorschlag annehmen / ablehnen |
+| F2, Entf | Verwendungszweck bearbeiten, Auswahl löschen (Rückfrage) |
+| Umschalt+F10, Kontextmenü-Taste | Kontextmenü |
+
+Die vollständige Belegung steht in `spec/api/oberflaeche.md` (Abschnitt 46).
+
+### Handy
+
+Unter 768 px Breite: Navigation über ☰, kompakte Buchungsliste (Tippen zeigt die Einzelheiten), **lange Berührung**
+= Kontextmenü, **nach rechts wischen** = Buchung zur Auswahl hinzufügen/entfernen (danach schaltet Tippen um),
+**nach links wischen** = Kategorie wählen; Kategorien verschieben über „Verschieben nach…“ im Menü der langen
+Berührung. Rückgängig über ↶ im Kopf oder in der Erfolgsmeldung.
+
+### Design und Installation als App (PWA)
+
+Hell/dunkel folgt der Systemeinstellung; fest einstellbar unter Einstellungen → Allgemein → Design oder in der
+Befehlspalette (`localStorage` `kontor.thema`). Kontor ist installierbar: in Chrome/Edge über „App installieren“ in
+der Adresszeile, auf Android über „Zum Startbildschirm hinzufügen“, auf iOS in Safari über „Teilen → Zum
+Home-Bildschirm“. Voraussetzung ist ein sicherer Ursprung (HTTPS oder `http://127.0.0.1`/`localhost`; im Heimnetz
+z. B. hinter Tailscale, siehe [HTTPS](#https)). Ohne Netz zeigt die installierte App die Hülle mit dem Hinweis
+„offline“, aber keine Daten; Finanzdaten werden nie im Browser zwischengespeichert.
+
+## Mitentwickeln
+
+### Tests
+
+```bash
+pip install -e ".[test]"
+python -m pytest tests/core     # Core-Tests der Entwicklungsschleife (unter 30 Sekunden)
+```
+
+Die Gesamttests (eigene Tests in `tests/`, Gesamtsuite in `gesamt-tests/`) laufen in der CI bei jedem Push auf main;
+ist alles grün, veröffentlicht die CI ein neues Release. Aufbau, Aufrufe und Zeitbudgets:
+[TESTUMBAU.md](TESTUMBAU.md). Die Bilder dieser Seite erzeugt
+[`docs/screenshots/erzeugen.py`](docs/screenshots/erzeugen.py) neu.
+
+### Python-Schnittstelle (Auszug)
 
 ```python
 from kontor.config import KontorConfig
@@ -652,138 +683,22 @@ lauf = planer_takt(app)    # ein Planer-Takt, synchron (None, wenn nichts fälli
 from kontor.sicherung import erstelle_sicherung
 zip_bytes = erstelle_sicherung(config)   # nur lesend; Einspielen nur über REST
 
-from kontor.kredite import tilgungsplan   # reine Funktion (M5), Beträge in Cent, Sollzins in Millionstel
+from kontor.kredite import tilgungsplan   # reine Funktion, Beträge in Cent, Sollzins in Millionstel
 plan = tilgungsplan({"restschuld": 1_000_000, "stand_datum": "2024-01-15", "sollzins": 36_000,
                      "rate": 50_000, "erste_faelligkeit": "2024-02-01", "zinsmethode": "30/360"})
 ```
 
-## Weboberfläche
-
-Single-Page-App ohne Build-Schritt, Framework und externe Ressourcen (ES-Module unter
-`src/kontor/web/oeffentlich/app/`, Stile `app.css`, Service Worker `src/kontor/web/sw.js`). Verbindlich ist
-`spec/api/oberflaeche.md`; die Oberfläche nutzt ausschließlich die REST-Schnittstelle.
-
-### Aufbau
-
-- **Kopf:** ☰ (nur Handy), Suche (Enter → `/suche?q=…`), ↻ Synchronisieren (bei TAN mit Link zur TAN-Seite,
-  bei fehlender/falscher PIN mit PIN-Dialog), ↶ Rückgängig, ↷ Wiederholen, ⌘ Befehlspalette, 🔔
-  Benachrichtigungen mit Zahl der ungelesenen. Im Mock-Modus steht darüber immer der gelbe Mock-Hinweis.
-- **Navigation links,** in Gruppen: Buchhaltung (Finanzübersicht, Konten, Kategorien, Empfänger, Kredite),
-  Zahlungen (Was kommt noch?, Mail-Blatt), Auswertung (Berichte, Statistische Analyse), Regeln (Regeln,
-  Split-Vorlagen, Dubletten), Betrieb (Import, Synchronisation, Änderungsprotokoll, Einstellungen). Jede Seite hat
-  eine eigene Adresse (Lesezeichen, Zurück/Vor, Neuladen), z. B. `/konten/5?von=2024-03-01&status=bestaetigt`.
-- **Kontoansicht** (`/konten/<id>`): Filterleiste (Zeitraum, Betrag, Empfänger, Verwendungszweck, Freitext,
-  Kategorie mit Unterkategorien, Tag, Status; in der Adresse gespeichert), sortierbare Spalten, 200 Buchungen je
-  Seite mit „Weitere laden“. Die Gruppierung nach Datum ist hierarchisch: Jahr, Monat, Monatsabschnitt
-  (1.–7., 8.–14., 15.–21., 22.–Monatsende) und Tag; die Leiste „Keine | Jahr | Monat | Abschnitt | Tag“ wählt, bis zu
-  welcher Ebene gruppiert wird (`?gruppierung=datum&tiefe=…`, Vorgabe Tag). Jede Ebene ist
-  ein einklappbarer Balken mit Eingang, Ausgang, Summe und Anzahl; „Alles zusammenklappen“ und
-  „Alles aufklappen“ gelten für alle Ebenen. Dafür lädt das Blatt die ganze Filtermenge und zeichnet bei
-  vielen Zeilen nur den sichtbaren Ausschnitt. Vorschläge mit ✓/✗,
-  „Buchung erfassen“. Links das Panel **Kategorien** (Buchungen
-  darauf ziehen), rechts **Einzelheiten** der fokussierten Buchung (alle Splits). Panels: Kopf ziehen bzw. ⇄
-  verschiebt in den anderen Bereich, Rand ziehen oder Pfeiltasten ändert die Breite (160–600 px), ▾ klappt ein;
-  das Layout liegt im `localStorage` (`kontor.layout`), „Layout zurücksetzen“ in den Einstellungen.
-- **Mehrfachauswahl:** Klick, Strg/⌘+Klick (umschalten), Umschalt+Klick (Bereich), Strg+Umschalt+Klick
-  (Bereich hinzu); die Leiste unten setzt Kategorie, Tags, Vorschläge oder löscht. Rechtsklick öffnet das
-  Kontextmenü (Kategorie, Tags, Splitten, Als Dublette markieren, Vorschlag annehmen/ablehnen, Verwendungszweck
-  bearbeiten, Löschen); auf Konten und Kategorien: Öffnen, Umbenennen, Unterkonto, Verschieben nach…, Löschen.
-- **Inline-Bearbeitung:** Doppelklick auf Datum, Verwendungszweck oder Kategorie (F2 = Verwendungszweck); Enter,
-  Tab oder Verlassen übernimmt, Esc bricht ab.
-- **Rückgängig:** Jede eigene Änderung (auch Import, Löschen, Drag and Drop, Jahresabgleich) ist ein Schritt auf dem
-  Rückgängig-Stapel des Tabs; Strg+Z nimmt ihn über das Änderungsprotokoll zurück, Strg+Umschalt+Z/Strg+Y stellt
-  ihn wieder her. Die Seite Änderungsprotokoll bietet Rückgängig je Änderung.
-- **Kategorien:** Baum mit Ausgaben/Einnahmen; Kategorie auf eine andere ziehen = Unterkategorie, auf die
-  Gruppenüberschrift = oberste Ebene.
-- **Berichte** (`/berichte`, ein Tab): oben wählt man die Berichtsart, die Adresse merkt sie sich (`?art=…`).
-  - *Einnahmen und Ausgaben:* Kontostandsverlauf und Summen je Kategorie für einen freien Zeitraum (wie bisher).
-  - *Monat:* Ausgaben eines Monats ohne Kategorien – Verlauf gegen Vormonat und Schnitt mit Hochrechnung, fest und
-    variabel, größte Buchungen, Empfänger, Größenklassen, Auffälligkeiten, Kalender, Kontostand.
-  - *Jahr:* zwölf Monate mit Vorjahr, Jahresraster, aufgelaufene Ausgaben, größte Buchungen und Empfänger.
-  - *Kategorien:* je Kategorie der Monat gegen den eigenen Schnitt, mit Verlauf über 13 Monate.
-  - *Empfänger:* Rangliste; je Empfänger Monate, einzelne Beträge, Jahre, Kategorien, Buchungen.
-  - *Tags:* Übersicht, Einzelauswertung und Vergleich von zwei bis vier Tags; Tags am Empfänger zählen mit.
-  - *Verträge und Abos:* erkannte wiederkehrende Zahlungen mit Jahreskosten und Preisänderungen.
-  - *Geldfluss:* Flussbild von den Einnahmequellen zu den Ausgabenblöcken, je Monat oder Jahr.
-  - *Vorschau:* erwarteter Kontostand der nächsten 30, 60 oder 90 Tage.
-  - *Vermögen:* Guthaben, Schulden, Nettovermögen und Sparquote über die Zeit.
-  - *Datenqualität:* Anteil kategorisierter Buchungen, fehlende Empfänger, offene Verdachte, Abstimmungen.
-  Zeilen, Balken, Tage und Monate öffnen die Einzelbuchungen oder den passenden Bericht.
-- **Weitere Seiten:** Kredite mit Tilgungsplan und Jahresabgleich (Prüfen, dann Buchen), Berichte
-  (Kontostandsverlauf als SVG und Tabelle, Einnahmen/Ausgaben, Export CSV/PDF), Import (KMyMoney/GnuCash),
-  Einstellungen (Design, Test-Benachrichtigung, PIN verwerfen, Geheimnisse, Datensicherung, Postfächer, Tags,
-  Passwort, Abmelden), Empfänger, Regeln, Split-Vorlagen, Dubletten, Synchronisation (Läufe, Bankkonten, Mock-Uhr),
-  Benachrichtigungen, Suche, TAN-Seite (`/tan/<id>`: QR-Code, „QR-Code speichern“, „Teilen“ wo der Browser Dateien
-  teilen kann, TAN-Eingabe), Postfach (`/mail/postfaecher/<id>`: OAuth2-Anmeldung).
-
-### Tastaturkürzel
-
-| Kürzel | Wirkung |
-| --- | --- |
-| Strg+K, ⌘+K, Strg+Umschalt+P | Befehlspalette (Navigation, Rückgängig, Synchronisieren, Design, Konto öffnen …) |
-| `/` | in die Suche springen |
-| `?` | Übersicht der Kürzel |
-| Strg+Z / Strg+Umschalt+Z, Strg+Y | Rückgängig / Wiederholen (in Textfeldern das Text-Rückgängig des Browsers) |
-| Alt+1 … Alt+8 | Finanzübersicht, Konten, Kategorien, Wiederkehrend, Kredite, Berichte, Import, Einstellungen |
-| Esc | Menü/Dialog/Palette schließen, sonst Auswahl leeren |
-| Pfeil auf/ab, Pos1, Ende | Buchung wählen (mit Umschalt: Bereich, mit Strg: nur Fokus) |
-| Leertaste, Strg+A | Buchung umschalten, alle wählen |
-| F2, Entf, Enter | Verwendungszweck bearbeiten, Auswahl löschen (Rückfrage), Einzelheiten |
-| Umschalt+F10, Kontextmenü-Taste | Kontextmenü |
-
-### Handy
-
-Unter 768 px Breite: Navigation über ☰, kompakte Buchungsliste (Tippen zeigt die Einzelheiten), **lange
-Berührung** = Kontextmenü, **nach rechts wischen** = Buchung zur Auswahl hinzufügen/entfernen (danach schaltet
-Tippen um), **nach links wischen** = Kategorie wählen; Kategorien verschieben über „Verschieben nach…“ im Menü der
-langen Berührung. Rückgängig über ↶ im Kopf oder in der Erfolgsmeldung.
-
-### Design und Installation als App (PWA)
-
-Hell/dunkel folgt der Systemeinstellung; fest einstellbar unter Einstellungen → Design oder in der
-Befehlspalette (`localStorage` `kontor.thema`). Kontor ist installierbar: in Chrome/Edge über „App installieren“
-in der Adresszeile, auf Android über „Zum Startbildschirm hinzufügen“, auf iOS in Safari über „Teilen → Zum
-Home-Bildschirm“. Voraussetzung ist ein sicherer Ursprung (HTTPS oder `http://127.0.0.1`/`localhost`; im Heimnetz
-z. B. hinter einem Reverse-Proxy mit Zertifikat). Ohne Netz zeigt die installierte App die Hülle mit dem Hinweis
-„offline“, aber keine Daten; Finanzdaten werden nie im Browser zwischengespeichert.
-
-## Tests
-
-```bash
-pip install -e ".[test]"
-python -m pytest tests/core     # Core-Tests der Entwicklungsschleife (unter 30 Sekunden)
-```
-
-Die Gesamttests (eigene Tests in `tests/`, frühere Abnahmetests in `gesamt-tests/`) laufen in der CI auf main.
-Aufbau, Aufrufe und Zeitbudgets: [TESTUMBAU.md](TESTUMBAU.md).
-
-## Dokumente in diesem Repository
+### Dokumente in diesem Repository
 
 | Datei | Inhalt |
 | --- | --- |
-| `CLAUDE.md` | Regeln für die Arbeit im Repository (Ablauf, Tests, Git) |
-| `TESTUMBAU.md` | Aufbau der Tests, Zeitbudgets, Auswahl der Gesamtsuite |
-| `ENTSCHEIDUNGEN.md` | Entscheidungen der Implementierung |
-| `WIDERSPRUECHE.md` | frühere Widersprüche zwischen Tests und Spezifikation (abgeschlossen) |
-| `ERGEBNIS.md` | Ergebnis des letzten Testlaufs vor dem Testumbau (wird nicht fortgeführt) |
-| `HTTPS.md` | Betrieb nur über HTTPS mit Tailscale: Skript `kontor-https`, Testinstanz, Rücknahme, Fehlersuche (D-239) |
-| `INSTALLATION-VM.md` | Installation in einer VM mit Debian 13 und Tailscale (HTTPS) |
-| `TESTINSTANZ.md` | Testinstanz für Entwicklungsbranches: Skript `kontor-test`, Starten, Fehlersuche (D-213) |
-| `ANBIETER.md` | Anbieter-Beschreibungen (TOML) für den Abgleich von Mails und Buchungen |
-
-## Kontostand bei der Synchronisation (M11)
-
-Jeder erfolgreiche Abruf eines Bankkontos bringt, wenn die Bank ihn meldet, den gebuchten Kontostand mit
-(FinTS: `HKSAL` im selben Dialog; Mock nur mit
-`bank.anfangssalden` in der Datendatei). Weicht der Kontor-Saldo zum Stichtag der Bank ab, entsteht eine
-Ausgleichsbuchung „Saldoausgleich Bank“ gegen „Korrekturen“ (Status `importiert`, einzeln prüf- und löschbar)
-und eine Benachrichtigung. Die Seite `/sync` zeigt den letzten Abgleich je Bankkonto.
-
-| Variable | Bedeutung |
-| --- | --- |
-| `KONTOR_SYNC_SALDO_ANGLEICHEN` | Abgleich an (Vorgabe) oder aus (`0`) |
-
-Grenzen (kontostand.md 3): Der erste Lauf holt nur 90 Tage – die erste Ausgleichsbuchung ist dann der fehlende
-Anfangsbestand. Wer danach ältere Historie importiert, zählt sie doppelt und löscht die Ausgleichsbuchung. Eigene
-Buchungen, die die Bank noch nicht gebucht hat, erzeugen einen Ausgleich, der beim späteren Zusammenführen mit
-dem Bankumsatz wieder zurückgeglichen wird.
+| [INSTALLATION-VM.md](INSTALLATION-VM.md) | Installation in einer VM mit Debian 13 und Tailscale (HTTPS) |
+| [HTTPS.md](HTTPS.md) | Betrieb nur über HTTPS mit Tailscale: Skript `kontor-https`, Testinstanz, Rücknahme, Fehlersuche |
+| [TESTINSTANZ.md](TESTINSTANZ.md) | Testinstanz für Entwicklungsbranches: Skript `kontor-test`, Starten, Fehlersuche |
+| [ANBIETER.md](ANBIETER.md) | Anbieter-Beschreibungen (TOML) für den Abgleich von Mails und Buchungen |
+| [spec/](spec/konzept.md) | Spezifikation: Fachkonzept, Testkonzept, Schnittstellen (`spec/api/`), [Meilensteine](spec/meilensteine.md) |
+| [ENTSCHEIDUNGEN.md](ENTSCHEIDUNGEN.md) | Entscheidungen der Implementierung (fortlaufend `D-…`) |
+| [TESTUMBAU.md](TESTUMBAU.md) | Aufbau der Tests, Zeitbudgets, Auswahl der Gesamtsuite |
+| [CLAUDE.md](CLAUDE.md) | Regeln für die Arbeit im Repository (Ablauf, Tests, Git) |
+| [refactor.md](refactor.md) | Codequalität: Kennzahlen und Maßnahmen |
+| [ERGEBNIS.md](ERGEBNIS.md), [WIDERSPRUECHE.md](WIDERSPRUECHE.md) | Archiv aus der früheren Abnahme (abgeschlossen) |
